@@ -105,21 +105,24 @@ public final class NativeContextProbe {
     }
     /**
      * Native locator results per dimension: the start chunk of each listed
-     * structure and the nearest chunk of every biome the dimension's biome
-     * source can produce. Run in a context that captures nothing, because
-     * locator queries advance native biome tie history.
+     * structure nearest to each search origin, with that start's complete piece
+     * list (requested at STRUCTURE_STARTS), and the nearest chunk of every biome
+     * the dimension's biome source can produce. Run in a context that captures
+     * nothing, because locator queries advance native biome tie history.
      */
     static Map<String,Object> discoverAnchors(Map<Object,Object> levels,ary server)throws Exception {
         Map<String,String[]> structureKeys=new LinkedHashMap<>();
         structureKeys.put("OVERWORLD",new String[]{"stronghold","ancient_city","trial_chambers","mansion","monument",
             "village_plains","village_desert","village_savanna","village_snowy","village_taiga","desert_pyramid",
-            "jungle_pyramid","pillager_outpost","igloo","swamp_hut","shipwreck","ocean_ruin_cold","ocean_ruin_warm",
-            "ruined_portal","buried_treasure","mineshaft","mineshaft_mesa","trail_ruins"});
+            "jungle_pyramid","pillager_outpost","igloo","swamp_hut","shipwreck","shipwreck_beached","ocean_ruin_cold",
+            "ocean_ruin_warm","ruined_portal","ruined_portal_desert","ruined_portal_jungle","ruined_portal_mountain",
+            "ruined_portal_ocean","ruined_portal_swamp","buried_treasure","mineshaft","mineshaft_mesa","trail_ruins"});
         structureKeys.put("NETHER",new String[]{"fortress","bastion_remnant","ruined_portal_nether","nether_fossil"});
         structureKeys.put("END",new String[]{"end_city"});
         Object structureRegistry=call(MC+"core.RegistryAccess","lookupOrThrow",server.bc(),new String[]{MC+"resources.ResourceKey"},field(MC+"core.registries.Registries","STRUCTURE"));
         Class<?> holderType=(Class<?>)invoke("type",new Class[]{String.class},MC+"core.Holder");
         Object origin=make(MC+"core.BlockPos",new String[]{"int","int","int"},0,0,0);
+        int[][] searchOrigins={{0,0},{4096,4096},{-4096,4096},{4096,-4096},{-4096,-4096}};
         Map<String,Object> result=new LinkedHashMap<>();
         for(String dimension:new String[]{"OVERWORLD","NETHER","END"}){
             Object level=levels.get(field(MC+"world.level.Level",dimension));
@@ -132,14 +135,25 @@ public final class NativeContextProbe {
                 Object holder=call(MC+"core.HolderGetter","getOrThrow",structureRegistry,new String[]{MC+"resources.ResourceKey"},resourceKey);
                 Object holders=java.lang.reflect.Array.newInstance(holderType,1);java.lang.reflect.Array.set(holders,0,holder);
                 Object set=call(MC+"core.HolderSet","direct",null,new String[]{MC+"core.Holder[]"},holders);
-                Object found=call(MC+"world.level.chunk.ChunkGenerator","findNearestMapStructure",generator,
-                    new String[]{MC+"server.level.ServerLevel",MC+"core.HolderSet",MC+"core.BlockPos","int","boolean"},level,set,origin,100,false);
-                Map<String,Object> row=new LinkedHashMap<>();row.put("structure","minecraft:"+key);
-                if(found!=null){
-                    List<Integer> location=position(((com.mojang.datafixers.util.Pair<?,?>)found).getFirst());
-                    row.put("block_position",location);row.put("chunk",Math.floorDiv(location.get(0),16)+":"+Math.floorDiv(location.get(2),16));
+                Set<String> seenStarts=new HashSet<>();
+                for(int[] searchOrigin:searchOrigins){
+                    Object from=make(MC+"core.BlockPos",new String[]{"int","int","int"},searchOrigin[0],0,searchOrigin[1]);
+                    Object found=call(MC+"world.level.chunk.ChunkGenerator","findNearestMapStructure",generator,
+                        new String[]{MC+"server.level.ServerLevel",MC+"core.HolderSet",MC+"core.BlockPos","int","boolean"},level,set,from,100,false);
+                    Map<String,Object> row=new LinkedHashMap<>();row.put("structure","minecraft:"+key);row.put("search_origin",List.of(searchOrigin[0],searchOrigin[1]));
+                    if(found!=null){
+                        List<Integer> location=position(((com.mojang.datafixers.util.Pair<?,?>)found).getFirst());
+                        int cx=Math.floorDiv(location.get(0),16),cz=Math.floorDiv(location.get(2),16);
+                        if(!seenStarts.add(cx+":"+cz))continue;
+                        row.put("block_position",location);row.put("chunk",cx+":"+cz);
+                        Object chunk=requestChunk(level,dimension,cx,cz,"STRUCTURE_STARTS");
+                        List<Object> starts=new ArrayList<>();
+                        for(Object start:(List<?>)((Map<?,?>)structureProof(chunk,level,server)).get("starts"))
+                            if(((Map<?,?>)start).get("structure").equals("minecraft:"+key))starts.add(start);
+                        row.put("starts",starts);
+                    }
+                    structuresFound.add(row);
                 }
-                structuresFound.add(row);
             }
             Object biomeSource=call(MC+"world.level.chunk.ChunkGenerator","getBiomeSource",generator,new String[]{});
             List<Object> possible=new ArrayList<>((Set<?>)call(MC+"world.level.biome.BiomeSource","possibleBiomes",biomeSource,new String[]{}));
@@ -157,7 +171,7 @@ public final class NativeContextProbe {
                 biomesFound.add(row);
             }
             result.put(dimension,Map.of("structures",structuresFound,"biomes",biomesFound,
-                "locators","ChunkGenerator.findNearestMapStructure(level, HolderSet.direct(structure), BlockPos.ZERO, 100, false); ServerLevel.findClosestBiome3d(biome, BlockPos.ZERO, 6400, 32, 64)"));
+                "locators","ChunkGenerator.findNearestMapStructure(level, HolderSet.direct(structure), origin, 100, false) from each search origin, then the start chunk requested at STRUCTURE_STARTS for its complete pieces; ServerLevel.findClosestBiome3d(biome, BlockPos.ZERO, 6400, 32, 64)"));
         }
         return result;
     }

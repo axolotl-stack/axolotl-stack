@@ -37,7 +37,10 @@ pub enum IntProvider {
 
 impl IntProvider {
     /// `sample(random)`.
-    pub fn sample<S: BitSource, const RETAIN_GAUSSIAN: bool>(&self, rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> i32 {
+    pub fn sample<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+        &self,
+        rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
+    ) -> i32 {
         match *self {
             IntProvider::Constant(v) => v,
             IntProvider::Uniform { min, max } => rng.next_int_between_inclusive(min, max),
@@ -138,7 +141,10 @@ pub enum FloatProvider {
 
 impl FloatProvider {
     /// `sample(random)`.
-    pub fn sample<S: BitSource, const RETAIN_GAUSSIAN: bool>(&self, rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> f32 {
+    pub fn sample<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+        &self,
+        rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
+    ) -> f32 {
         match *self {
             FloatProvider::Constant(v) => v,
             FloatProvider::Uniform { min, max_exclusive } => {
@@ -188,7 +194,11 @@ pub mod height {
 
     /// `UniformHeight.sample`.
     #[inline]
-    pub fn uniform<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>, min: i32, max: i32) -> i32 {
+    pub fn uniform<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+        rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
+        min: i32,
+        max: i32,
+    ) -> i32 {
         if min > max {
             return min;
         }

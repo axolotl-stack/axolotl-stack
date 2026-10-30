@@ -121,6 +121,30 @@ Current golden artifacts:
   protocol 2193), including JSON-less built-in actors. `actor_identifiers::vanilla`
   retains `rid`, `id`, `bid`, `hasspawnegg`, `summonable` and capture row order.
   The artefact records TOOLING's source path/commit and raw-packet SHA-256.
+- `available_commands.json`: the `AvailableCommands` packet BDS 1.26.51 sends at
+  join (82 commands, 253 enums, 14 soft enums), lossless: lists keep packet
+  order and every packet index is replaced by the name it points at.
+  `commands::vanilla` validates and decodes it; `unastar` rebuilds the packet
+  and tests it byte-identical to the member and operator captures (SHA-256 in
+  the committed bds-extractor manifests; BDS sends both the same packet).
+- `game_rules.json`: the 39 game rules of the committed join
+  `GameRulesChanged` fixture, in BDS order with defaults and modifiability
+  (`game_rules::vanilla`).
+- `help_usage.json`: the 269 usage lines BDS's `/help` lists for an operator,
+  from a bds-extractor `--commands` capture of `/help 1` … `/help 39`
+  (`help::vanilla`); `/help` is not in `AvailableCommands`.
+- `lang::en_us()`: the vanilla `en_US.lang`, read from the samples submodule at
+  build time (nothing committed), for console command feedback and the English
+  item/entity names BDS writes into command messages.
+
+  Regenerate the three command artefacts (the capture cache is the untracked
+  shared one; the game rules come from the committed fixture):
+
+  ```powershell
+  cargo run -p unastar-data-gen -- --commands-only `
+    --commands-capture C:/Users/jvigu/orca/bds-runtime/captures/1.26.51/20261025T172246Z `
+    --help-capture C:/Users/jvigu/orca/bds-runtime/captures/1.26.51/20261029T162355Z/operator-commands/command-outputs.json
+  ```
 - `shapes.json`: every state's collision, outline and liquid-clip geometry,
   deduplicated by shape, from protocolgen `7b2e47c`. The geometry is
   [CloudburstMC/Data](https://github.com/CloudburstMC/Data), Apache-2.0; its

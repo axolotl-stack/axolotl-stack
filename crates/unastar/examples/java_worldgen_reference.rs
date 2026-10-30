@@ -58,9 +58,9 @@
 //! Biomes are the 4x96x4 cells in (y, z, x) order as indices into
 //! `biome_palette`; heightmaps are encoded as in the main fixture.
 
-mod java_canonical_inputs;
 #[path = "java_canonical_inputs/capture.rs"]
 mod java_canonical_capture;
+mod java_canonical_inputs;
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
@@ -142,7 +142,15 @@ fn main() {
             for cz in z0..=z1 {
                 match chunks.get(&(cx, cz)) {
                     Some(nbt) if status_of(nbt) == FULL => {
-                        let col = Column::decode(nbt, cx, cz, air, &mut states, &mut biomes, Layout::OVERWORLD);
+                        let col = Column::decode(
+                            nbt,
+                            cx,
+                            cz,
+                            air,
+                            &mut states,
+                            &mut biomes,
+                            Layout::OVERWORLD,
+                        );
                         chunks_json.push(col.to_json(cx, cz, &states, &biomes, &mut palette));
                     }
                     other => skipped.push((cx, cz, other.map_or("missing", status_of))),
@@ -236,7 +244,10 @@ struct Layout {
 }
 
 impl Layout {
-    const OVERWORLD: Self = Self { min_y: MIN_Y, sections: SECTIONS };
+    const OVERWORLD: Self = Self {
+        min_y: MIN_Y,
+        sections: SECTIONS,
+    };
 
     fn height(self) -> usize {
         self.sections as usize * 16
@@ -245,14 +256,25 @@ impl Layout {
 
 /// Export every requested voxel at the saved status; never sample or silently skip.
 fn export_canonical(args: &[String]) {
-    assert!(args.len() >= 6,
-        "usage: --canonical <world> <out.json> <dimension> <status> <capture-description> <x0:z0:x1:z1>...");
+    assert!(
+        args.len() >= 6,
+        "usage: --canonical <world> <out.json> <dimension> <status> <capture-description> <x0:z0:x1:z1>..."
+    );
     let world = Path::new(&args[0]);
     let info = WorldInfo::load(world);
-    assert_eq!(info.version, "1.21.11", "reference version must remain pinned");
+    assert_eq!(
+        info.version, "1.21.11",
+        "reference version must remain pinned"
+    );
     let (folder, layout) = dimension_layout(&args[2]);
-    assert!(STATUS_ORDER.contains(&args[3].as_str()), "unknown saved generation status");
-    assert!(!args[4].trim().is_empty(), "capture description must declare tick/datapack controls");
+    assert!(
+        STATUS_ORDER.contains(&args[3].as_str()),
+        "unknown saved generation status"
+    );
+    assert!(
+        !args[4].trim().is_empty(),
+        "capture description must declare tick/datapack controls"
+    );
     let chunks = load_region_chunks(&world.join(folder));
     let mut states = Interner::new();
     let air = states.id("minecraft:air");
@@ -261,22 +283,38 @@ fn export_canonical(args: &[String]) {
     let mut biome_palette = Interner::new();
     let mut selected = BTreeMap::new();
     for rect in &args[5..] {
-        let bounds: Vec<i32> = rect.split(':').map(|v| v.parse().expect("integer bounds")).collect();
+        let bounds: Vec<i32> = rect
+            .split(':')
+            .map(|v| v.parse().expect("integer bounds"))
+            .collect();
         assert_eq!(bounds.len(), 4, "expected x0:z0:x1:z1");
-        let [x0, z0, x1, z1] = bounds[..] else { unreachable!() };
+        let [x0, z0, x1, z1] = bounds[..] else {
+            unreachable!()
+        };
         assert!(x0 <= x1 && z0 <= z1, "reversed chunk bounds");
         for x in x0..=x1 {
             for z in z0..=z1 {
-                let nbt = chunks.get(&(x, z)).unwrap_or_else(|| panic!("missing requested chunk {x},{z}"));
+                let nbt = chunks
+                    .get(&(x, z))
+                    .unwrap_or_else(|| panic!("missing requested chunk {x},{z}"));
                 assert_eq!(status_of(nbt), args[3], "chunk {x},{z} status mismatch");
                 selected.insert((x, z), nbt);
             }
         }
     }
-    let columns: Vec<_> = selected.into_iter().map(|((x, z), nbt)| {
-        Column::decode(nbt, x, z, air, &mut states, &mut biomes, layout)
-            .to_proto_json(x, z, &states, &biomes, &mut palette, &mut biome_palette)
-    }).collect();
+    let columns: Vec<_> = selected
+        .into_iter()
+        .map(|((x, z), nbt)| {
+            Column::decode(nbt, x, z, air, &mut states, &mut biomes, layout).to_proto_json(
+                x,
+                z,
+                &states,
+                &biomes,
+                &mut palette,
+                &mut biome_palette,
+            )
+        })
+        .collect();
     let inputs = java_canonical_inputs::Inputs {
         worldgen_settings: info.worldgen_settings,
         enabled_features: info.enabled_features,
@@ -285,42 +323,77 @@ fn export_canonical(args: &[String]) {
     };
     let text = format!(
         "{{\"edition\":\"java\",\"state_encoding\":\"java-canonical-properties-v1\",\"version\":\"{}\",\"seed\":{},\"dimension\":{},\"min_y\":{},\"height\":{},\"capture\":{},\"structures\":{},\"datapacks\":[{}],\"inputs\":{},\"palette\":[{}],\"biome_palette\":[{}],\"chunks\":[{}]}}\n",
-        info.version, info.seed, serde_json::to_string(&args[2]).unwrap(), layout.min_y,
-        layout.height(), serde_json::to_string(&args[4]).unwrap(), info.structures,
-        quoted(&info.datapacks), serde_json::to_string(&inputs).unwrap(),
-        quoted(&palette.names), quoted(&biome_palette.names), columns.join(",")
+        info.version,
+        info.seed,
+        serde_json::to_string(&args[2]).unwrap(),
+        layout.min_y,
+        layout.height(),
+        serde_json::to_string(&args[4]).unwrap(),
+        info.structures,
+        quoted(&info.datapacks),
+        serde_json::to_string(&inputs).unwrap(),
+        quoted(&palette.names),
+        quoted(&biome_palette.names),
+        columns.join(",")
     );
     std::fs::write(&args[1], text).expect("write canonical fixture");
-    println!("wrote {} complete {} chunks at {} to {}", columns.len(), args[2], args[3], args[1]);
+    println!(
+        "wrote {} complete {} chunks at {} to {}",
+        columns.len(),
+        args[2],
+        args[3],
+        args[1]
+    );
 }
 
 fn dimension_layout(dimension: &str) -> (&'static str, Layout) {
     match dimension {
         "minecraft:overworld" => ("region", Layout::OVERWORLD),
-        "minecraft:the_nether" => ("DIM-1/region", Layout { min_y: 0, sections: 16 }),
-        "minecraft:the_end" => ("DIM1/region", Layout { min_y: 0, sections: 16 }),
+        "minecraft:the_nether" => (
+            "DIM-1/region",
+            Layout {
+                min_y: 0,
+                sections: 16,
+            },
+        ),
+        "minecraft:the_end" => (
+            "DIM1/region",
+            Layout {
+                min_y: 0,
+                sections: 16,
+            },
+        ),
         other => panic!("unsupported reference dimension {other}"),
     }
 }
 
 /// Locate saved stage snapshots without guessing coordinates or changing a world.
 fn inventory(args: &[String]) {
-    assert!((2..=3).contains(&args.len()),
-        "usage: --inventory <world> <dimension> [saved-status]");
+    assert!(
+        (2..=3).contains(&args.len()),
+        "usage: --inventory <world> <dimension> [saved-status]"
+    );
     let world = Path::new(&args[0]);
     let info = WorldInfo::load(world);
-    assert_eq!(info.version, "1.21.11", "reference version must remain pinned");
+    assert_eq!(
+        info.version, "1.21.11",
+        "reference version must remain pinned"
+    );
     let (folder, _) = dimension_layout(&args[1]);
     let chunks = load_region_chunks(&world.join(folder));
-    let rows: Vec<_> = chunks.iter()
+    let rows: Vec<_> = chunks
+        .iter()
         .filter(|(_, nbt)| args.get(2).is_none_or(|status| status_of(nbt) == status))
         .map(|(&(x, z), nbt)| serde_json::json!({"x":x,"z":z,"status":status_of(nbt)}))
         .collect();
-    println!("{}", serde_json::json!({
-        "edition":"java", "version":info.version, "seed":info.seed,
-        "dimension":args[1], "structures":info.structures, "datapacks":info.datapacks,
-        "chunks":rows,
-    }));
+    println!(
+        "{}",
+        serde_json::json!({
+            "edition":"java", "version":info.version, "seed":info.seed,
+            "dimension":args[1], "structures":info.structures, "datapacks":info.datapacks,
+            "chunks":rows,
+        })
+    );
 }
 
 /// World-level settings read from `level.dat`.
@@ -375,11 +448,16 @@ impl WorldInfo {
             spawn,
             structures,
             datapacks,
-            worldgen_settings: serde_json::to_value(settings.expect("worldgen settings")).expect("typed native inputs"),
-            enabled_features: data.list("enabled_features").iter().map(|value| match value {
-                Nbt::Str(value) => value.clone(),
-                _ => panic!("non-string native feature flag"),
-            }).collect(),
+            worldgen_settings: serde_json::to_value(settings.expect("worldgen settings"))
+                .expect("typed native inputs"),
+            enabled_features: data
+                .list("enabled_features")
+                .iter()
+                .map(|value| match value {
+                    Nbt::Str(value) => value.clone(),
+                    _ => panic!("non-string native feature flag"),
+                })
+                .collect(),
         }
     }
 }
@@ -631,7 +709,9 @@ impl Column {
                 }
                 let (sy, sname) = top.unwrap_or((0, "minecraft:air"));
                 surface.push(sy as i32 + self.layout.min_y);
-                terrain.push(top_terrain.map_or(self.layout.min_y - 1, |y| y as i32 + self.layout.min_y));
+                terrain.push(
+                    top_terrain.map_or(self.layout.min_y - 1, |y| y as i32 + self.layout.min_y),
+                );
                 surface_block.push(i32::from(palette.id(sname)));
                 let biome = self.biomes[((sy >> 2) * 4 + (z >> 2)) * 4 + (x >> 2)];
                 surface_biome.push(format!("\"{}\"", biome_names.names[biome as usize]));
@@ -960,7 +1040,6 @@ impl Reader<'_> {
         s
     }
 
-
     fn payload(&mut self, tag: u8) -> Nbt {
         match tag {
             1 => Nbt::Byte(i8::from_be_bytes(self.take())),
@@ -984,7 +1063,9 @@ impl Reader<'_> {
                 loop {
                     let [t] = self.take();
                     if t == 0 {
-                        entries.sort_by(|a: &(String, Nbt), b| a.0.encode_utf16().cmp(b.0.encode_utf16()));
+                        entries.sort_by(|a: &(String, Nbt), b| {
+                            a.0.encode_utf16().cmp(b.0.encode_utf16())
+                        });
                         return Nbt::Compound(entries);
                     }
                     let name = self.string();
@@ -1022,8 +1103,16 @@ fn decode_java_string(bytes: &[u8]) -> String {
             0xe0..=0xef => {
                 let second = *bytes.get(index + 1).expect("truncated Java NBT string");
                 let third = *bytes.get(index + 2).expect("truncated Java NBT string");
-                assert!(second & 0xc0 == 0x80 && third & 0xc0 == 0x80, "invalid Java NBT continuation");
-                ((u16::from(first & 0x0f) << 12) | (u16::from(second & 0x3f) << 6) | u16::from(third & 0x3f), 3)
+                assert!(
+                    second & 0xc0 == 0x80 && third & 0xc0 == 0x80,
+                    "invalid Java NBT continuation"
+                );
+                (
+                    (u16::from(first & 0x0f) << 12)
+                        | (u16::from(second & 0x3f) << 6)
+                        | u16::from(third & 0x3f),
+                    3,
+                )
             }
             _ => panic!("invalid Java NBT modified UTF-8 lead byte"),
         };
@@ -1032,7 +1121,10 @@ fn decode_java_string(bytes: &[u8]) -> String {
     });
     let mut text = String::with_capacity(bytes.len());
     for character in char::decode_utf16(units) {
-        text.push(character.expect("unpaired surrogate in Java NBT string cannot be represented as JSON text"));
+        text.push(
+            character
+                .expect("unpaired surrogate in Java NBT string cannot be represented as JSON text"),
+        );
     }
     text
 }
@@ -1043,7 +1135,10 @@ mod canonical_tests {
 
     #[test]
     fn java_string_preserves_encoded_null_and_supplementary_characters() {
-        assert_eq!(decode_java_string(&[b'a', 0xc0, 0x80, 0xed, 0xa0, 0xbd, 0xed, 0xb8, 0x80]), "a\0\u{1f600}");
+        assert_eq!(
+            decode_java_string(&[b'a', 0xc0, 0x80, 0xed, 0xa0, 0xbd, 0xed, 0xb8, 0x80]),
+            "a\0\u{1f600}"
+        );
     }
 
     #[test]
@@ -1052,42 +1147,61 @@ mod canonical_tests {
         // in UTF-8/scalar order. The two valid modified-UTF-8 keys must agree
         // with the runtime actor encoder and native snapshot helper.
         let root = [
-            10, 0, 0,
-            1, 0, 3, 0xee, 0x80, 0x80, 1,
-            1, 0, 6, 0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80, 2,
+            10, 0, 0, 1, 0, 3, 0xee, 0x80, 0x80, 1, 1, 0, 6, 0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80, 2,
             0,
         ];
         let actual = serde_json::to_value(Nbt::read_root(&root)).unwrap();
-        assert_eq!(actual, serde_json::json!({
-            "type": "Compound",
-            "value": [
-                ["\u{10000}", {"type": "Byte", "value": 2}],
-                ["\u{e000}", {"type": "Byte", "value": 1}],
-            ],
-        }));
+        assert_eq!(
+            actual,
+            serde_json::json!({
+                "type": "Compound",
+                "value": [
+                    ["\u{10000}", {"type": "Byte", "value": 2}],
+                    ["\u{e000}", {"type": "Byte", "value": 1}],
+                ],
+            })
+        );
     }
 
     fn palette_entry(properties: &[(&str, &str)]) -> Nbt {
         Nbt::Compound(vec![
             ("Name".into(), Nbt::Str("minecraft:oak_stairs".into())),
-            ("Properties".into(), Nbt::Compound(properties.iter().map(|(key, value)| {
-                ((*key).into(), Nbt::Str((*value).into()))
-            }).collect())),
+            (
+                "Properties".into(),
+                Nbt::Compound(
+                    properties
+                        .iter()
+                        .map(|(key, value)| ((*key).into(), Nbt::Str((*value).into())))
+                        .collect(),
+                ),
+            ),
         ])
     }
 
     #[test]
     fn palette_identity_keeps_all_properties_in_stable_order() {
         let a = palette_entry(&[
-            ("waterlogged", "true"), ("shape", "straight"), ("half", "bottom"), ("facing", "north"),
+            ("waterlogged", "true"),
+            ("shape", "straight"),
+            ("half", "bottom"),
+            ("facing", "north"),
         ]);
         let b = palette_entry(&[
-            ("facing", "north"), ("half", "bottom"), ("shape", "straight"), ("waterlogged", "true"),
+            ("facing", "north"),
+            ("half", "bottom"),
+            ("shape", "straight"),
+            ("waterlogged", "true"),
         ]);
         let dry = palette_entry(&[
-            ("facing", "north"), ("half", "bottom"), ("shape", "straight"), ("waterlogged", "false"),
+            ("facing", "north"),
+            ("half", "bottom"),
+            ("shape", "straight"),
+            ("waterlogged", "false"),
         ]);
-        assert_eq!(state_name(&a), "minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=true]");
+        assert_eq!(
+            state_name(&a),
+            "minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=true]"
+        );
         assert_eq!(state_name(&a), state_name(&b));
         assert_ne!(state_name(&a), state_name(&dry));
     }
@@ -1096,7 +1210,10 @@ mod canonical_tests {
     fn source_fluid_levels_are_not_elided() {
         let water = Nbt::Compound(vec![
             ("Name".into(), Nbt::Str("minecraft:water".into())),
-            ("Properties".into(), Nbt::Compound(vec![("level".into(), Nbt::Str("0".into()))])),
+            (
+                "Properties".into(),
+                Nbt::Compound(vec![("level".into(), Nbt::Str("0".into()))]),
+            ),
         ]);
         assert_eq!(state_name(&water), "minecraft:water[level=0]");
     }

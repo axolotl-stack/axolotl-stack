@@ -1,5 +1,4 @@
-//! `BlockPickRequest` (I15): picking a block selects or creates its item
-//! like BDS 1.26.51.
+//! `BlockPickRequest` (I15), matching BDS 1.26.51 pick-block behaviour.
 //!
 //! - The packet's hotbar-slot field is ignored. Dead players, air and
 //!   blocks farther than 14 blocks (creative) or 8.7 (otherwise) from the
@@ -107,7 +106,8 @@ fn has_block_entity(world: &World, (x, y, z): (i32, i32, i32)) -> bool {
         })
 }
 
-/// Same item, aux value and user data.
+/// Same item, aux value and user data: the slot a pick reuses instead of
+/// adding a new stack.
 fn same_item(slot: &ItemStack, item: &ItemStack) -> bool {
     !slot.is_empty()
         && slot.item_id() == item.item_id()
@@ -121,8 +121,8 @@ fn item_locked(stack: &ItemStack) -> bool {
     )
 }
 
-/// Select (or in creative create) a picked `item`; nothing is sent when it
-/// fails.
+/// Put a picked `item` in the player's hand under the module rules (select,
+/// swap or, in Creative, create); nothing is sent when it fails.
 pub(super) fn select_item(
     entity: Entity,
     item: ItemStack,

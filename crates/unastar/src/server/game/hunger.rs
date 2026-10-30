@@ -21,8 +21,9 @@ use serde::Deserialize;
 use unastar_data::actor_components::body::ActorDamageCause;
 
 use crate::entity::components::{GameMode, Health, Hunger};
-use crate::entity::mob::combat::{Hit, hurt_mob};
+use crate::entity::mob::combat::Hit;
 use crate::entity::mob::components::KnockbackPower;
+use crate::entity::player_life::hurt_player;
 
 /// Ticks between natural regeneration or starvation steps.
 pub const FOOD_TICK_INTERVAL: u32 = 80;
@@ -193,7 +194,7 @@ pub fn tick_food(
 }
 
 /// System (exclusive): tick every survival or adventure player's food.
-/// Starvation goes through the shared damage path ([`hurt_mob`]).
+/// Starvation goes through the player damage path ([`hurt_player`]).
 pub fn tick_hunger(
     world: &mut World,
     players: &mut QueryState<(Entity, &mut Hunger, &mut FoodTimer, &mut Health, &GameMode)>,
@@ -223,10 +224,10 @@ pub fn tick_hunger(
         }
     }
     for entity in starving.drain(..) {
-        hurt_mob(
+        hurt_player(
             world,
             entity,
-            Hit {
+            &Hit {
                 damage: 1.0,
                 cause: ActorDamageCause::Starve,
                 attacker: None,

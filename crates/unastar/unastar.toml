@@ -24,6 +24,10 @@ max_players = 20
 # Default gamemode for new players.
 default_gamemode = "survival"
 
+# World difficulty at startup: "peaceful", "easy", "normal" or "hard".
+# Operators change it while the server runs with `/difficulty`.
+difficulty = "easy"
+
 # Chunk radius we will *advertise* to clients and stream.
 # (Clients may request a different radius; we clamp it by `max_chunk_radius`.)
 default_chunk_radius = 4

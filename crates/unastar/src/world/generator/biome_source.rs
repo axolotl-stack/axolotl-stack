@@ -13,10 +13,8 @@
 
 mod end;
 mod native;
-pub use native::{
-    fill_end_native, fill_nether_native, fill_overworld_native, sample_biome_native,
-};
 pub use end::sample_end_biome;
+pub use native::{fill_end_native, fill_nether_native, fill_overworld_native, sample_biome_native};
 
 use sha2::{Digest, Sha256};
 use unastar_noise::java_biomes::JavaBiome;
@@ -28,8 +26,8 @@ use unastar_noise::{
     overworld_biome_source, overworld_settings,
 };
 
-use super::density::NoiseRegistry;
 use super::JavaDimension;
+use super::density::NoiseRegistry;
 use super::proto::QuartBiomes;
 use crate::world::ChunkPos;
 
@@ -74,23 +72,25 @@ pub(crate) fn fill_chunk_with(
     col_grid: &ColumnContextGrid,
     lookup: impl FnMut(&[i64; overworld_biome_source::DIMS]) -> JavaBiome,
 ) -> QuartBiomes {
-    let columns: [_; 16] = std::array::from_fn(|i| {
-        col_grid.get((i % 4) * 4, (i / 4) * 4).as_scalar()
-    });
-    native::fill_lattice(JavaDimension::Overworld.block_bounds(), |qx, y, qz| {
-        let ctx = FunctionContext::new(
-            pos.x * 16 + qx as i32 * 4, y, pos.z * 16 + qz as i32 * 4,
-        );
-        let col = &columns[qz * 4 + qx];
-        overworld_biome_source::target(
-            compute_temperature(&ctx, noises, grid, col),
-            compute_vegetation(&ctx, noises, grid, col),
-            compute_continents(&ctx, noises, grid, col),
-            compute_erosion(&ctx, noises, grid, col),
-            compute_depth(&ctx, noises, grid, col),
-            compute_ridges(&ctx, noises, grid, col),
-        )
-    }, lookup)
+    let columns: [_; 16] =
+        std::array::from_fn(|i| col_grid.get((i % 4) * 4, (i / 4) * 4).as_scalar());
+    native::fill_lattice(
+        JavaDimension::Overworld.block_bounds(),
+        |qx, y, qz| {
+            let ctx =
+                FunctionContext::new(pos.x * 16 + qx as i32 * 4, y, pos.z * 16 + qz as i32 * 4);
+            let col = &columns[qz * 4 + qx];
+            overworld_biome_source::target(
+                compute_temperature(&ctx, noises, grid, col),
+                compute_vegetation(&ctx, noises, grid, col),
+                compute_continents(&ctx, noises, grid, col),
+                compute_erosion(&ctx, noises, grid, col),
+                compute_depth(&ctx, noises, grid, col),
+                compute_ridges(&ctx, noises, grid, col),
+            )
+        },
+        lookup,
+    )
 }
 
 /// Block column (x, z) where Java's world-spawn search starts: the position closest to
@@ -244,4 +244,3 @@ pub fn zoomed_biome<B: Copy>(
         if best & 1 == 0 { n } else { n + 1 },
     )
 }
-

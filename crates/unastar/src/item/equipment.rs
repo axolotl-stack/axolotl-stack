@@ -257,10 +257,7 @@ mod tests {
         for slot in [0, 2, 3, 4, usize::MAX] {
             assert!(!accepts_armour(&chest, slot));
         }
-        let ordinary = stack(
-            vanilla_row("minecraft:stone"),
-            ItemComponents::default(),
-        );
+        let ordinary = stack(vanilla_row("minecraft:stone"), ItemComponents::default());
         for slot in 0..4 {
             assert!(!accepts_armour(&ordinary, slot));
         }
@@ -280,10 +277,7 @@ mod tests {
 
     #[test]
     fn offhand_uses_native_and_typed_custom_capabilities() {
-        let native = stack(
-            vanilla_row("minecraft:arrow"),
-            ItemComponents::default(),
-        );
+        let native = stack(vanilla_row("minecraft:arrow"), ItemComponents::default());
         assert!(allows_offhand(&native));
         assert!(!accepts_armour(&native, 0));
         for enabled in [false, true] {

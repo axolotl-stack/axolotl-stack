@@ -93,7 +93,10 @@ pub fn parse_dimension_types(
         if parsed.height <= 0 || parsed.min_y % 16 != 0 || parsed.height % 16 != 0 {
             return Err(format!("{}: invalid dimension build geometry", path.display()).into());
         }
-        if dimensions.insert(dimension.generator.settings, parsed).is_some() {
+        if dimensions
+            .insert(dimension.generator.settings, parsed)
+            .is_some()
+        {
             return Err("normal preset reuses noise settings across dimension types".into());
         }
     }

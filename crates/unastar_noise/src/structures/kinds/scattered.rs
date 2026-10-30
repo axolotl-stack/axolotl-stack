@@ -909,7 +909,10 @@ impl StructurePiece for JungleTemplePiece {
         _pivot: BlockPos,
     ) {
         let mut live = self.sf.lock();
-        if !self.sf.update_average_ground_height(&mut live, world, chunk_box, 0) {
+        if !self
+            .sf
+            .update_average_ground_height(&mut live, world, chunk_box, 0)
+        {
             return;
         }
         self.sf.store(live);
@@ -1181,7 +1184,10 @@ impl StructurePiece for SwampHutPiece {
         _pivot: BlockPos,
     ) {
         let mut live = self.sf.lock();
-        if !self.sf.update_average_ground_height(&mut live, world, chunk_box, 0) {
+        if !self
+            .sf
+            .update_average_ground_height(&mut live, world, chunk_box, 0)
+        {
             return;
         }
         self.sf.store(live);

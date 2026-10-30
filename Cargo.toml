@@ -23,6 +23,7 @@ members = [
     "crates/client-diff",
     "crates/bench-compare",
     "crates/unastar_bedrock_codegen",
+    "crates/parity",
 ]
 
 [workspace.package]

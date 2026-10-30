@@ -1,7 +1,11 @@
 use super::*;
-use rand::{Rng, RngCore};
+use crate::enchanting::{self, EnchantmentInstance, ItemEnchanting};
+use rand::Rng;
 
 const MAX_TABLE_DEPTH: u8 = 16;
+/// `enchant_random_gear` level: `BASE + clamped regional difficulty × nextInt(SPREAD)`.
+const GEAR_ENCHANT_BASE_LEVEL: f32 = 5.0;
+const GEAR_ENCHANT_LEVEL_SPREAD: i32 = 18;
 
 /// Facts supplied by the entity/item/block caller. Enchantment names are
 /// resolved to protocol ids at decode, so rolls do not parse item NBT or
@@ -11,7 +15,34 @@ pub trait LootContext {
     fn enchantment_level(&self, id: i16) -> u8;
     fn block_state_matches(&self, property: &str, expected: &LootStateValue) -> bool;
     fn killed_by_player(&self) -> bool;
+    /// The killer was a tamed mob a player owns (`killed_by_player_or_pets`).
+    fn killed_by_pet(&self) -> bool {
+        false
+    }
     fn looting(&self) -> u8;
+    /// Whether the THIS actor is a baby; false without a THIS actor.
+    fn is_baby(&self) -> bool {
+        false
+    }
+    /// Whether the THIS actor rides an actor with the namespaced identifier
+    /// `entity_type`; false without a THIS actor or vehicle.
+    fn vehicle_is(&self, _entity_type: &str) -> bool {
+        false
+    }
+    /// Level difficulty; `None` when the caller supplies no level facts.
+    fn difficulty(&self) -> Option<Difficulty> {
+        None
+    }
+    /// Clamped regional difficulty in `0..=1`; `None` when the caller
+    /// supplies no level facts.
+    fn clamped_regional_difficulty(&self) -> Option<f32> {
+        None
+    }
+    /// Enchantment slots and enchantability of `item` (`enchant_with_levels`,
+    /// `enchant_random_gear`).
+    fn item_enchanting(&self, _item: &str) -> Result<ItemEnchanting, LootError> {
+        Err(LootError::MissingContext("item enchanting"))
+    }
     /// None means no THIS actor, not an actor whose fire state is false.
     fn on_fire(&self) -> Option<bool> {
         None
@@ -39,25 +70,11 @@ pub trait LootContext {
     fn luck(&self) -> f32 {
         0.0
     }
-    /// Item-dependent functions (`set_damage`, `enchant_with_levels`).
-    fn item_functions(&self) -> Option<&dyn ItemFunctions> {
-        None
+    /// Leave the drop with `fraction` of its item's maximum durability
+    /// (`set_damage`); the caller knows durability and writes item data.
+    fn set_damage(&self, _drop: &mut LootDrop, _fraction: f32) -> Result<(), LootError> {
+        Err(LootError::MissingContext("set_damage"))
     }
-}
-
-/// Functions that need the caller's item data, applied to the drop as it is
-/// built. They may rewrite the item (an enchanted book replaces a book).
-pub trait ItemFunctions {
-    /// Leave the item with `fraction` of its maximum durability.
-    fn set_damage(&self, drop: &mut LootDrop, fraction: f32) -> Result<(), LootError>;
-    /// Enchant the item as an enchanting table would at `levels`.
-    fn enchant_with_levels(
-        &self,
-        drop: &mut LootDrop,
-        levels: i32,
-        treasure: bool,
-        rng: &mut dyn RngCore,
-    ) -> Result<(), LootError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,6 +84,8 @@ pub struct LootDrop {
     pub data: i16,
     /// Present when an implemented function produces item user data.
     pub nbt: Option<Vec<u8>>,
+    /// Enchantments functions put on the item, in item list order.
+    pub enchantments: Vec<EnchantmentInstance>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -125,9 +144,8 @@ fn condition_passes(
             chance,
             looting_multiplier,
         } => rng.r#gen::<f32>() < chance + f32::from(ctx.looting()) * looting_multiplier,
-        LootCondition::KilledByPlayer | LootCondition::KilledByPlayerOrPets => {
-            ctx.killed_by_player()
-        }
+        LootCondition::KilledByPlayer => ctx.killed_by_player(),
+        LootCondition::KilledByPlayerOrPets => ctx.killed_by_player() || ctx.killed_by_pet(),
         LootCondition::MatchTool { item, enchantments } => {
             let Some(tool) = ctx.tool_item() else {
                 return Ok(false);
@@ -160,8 +178,41 @@ fn condition_passes(
             .all(|(p, v)| ctx.block_state_matches(p, v)),
         LootCondition::Inverted(inner) => !condition_passes(inner, ctx, rng)?,
         LootCondition::ThisOnFire(expected) => ctx.on_fire() == Some(*expected),
+        LootCondition::IsBaby => ctx.is_baby(),
+        LootCondition::PassengerOfEntity { entity_type } => ctx.vehicle_is(entity_type),
+        LootCondition::RandomDifficultyChance { chances } => {
+            let roll = rng.r#gen::<f32>();
+            let difficulty = ctx
+                .difficulty()
+                .ok_or(LootError::MissingContext("difficulty"))?;
+            roll < chances[difficulty as usize]
+        }
+        LootCondition::RandomRegionalDifficultyChance { max_chance } => {
+            let roll = rng.r#gen::<f32>();
+            roll < max_chance * clamped_regional_difficulty(ctx)?
+        }
         LootCondition::Other { name, .. } => return Err(LootError::Unsupported(name.clone())),
     })
+}
+
+fn clamped_regional_difficulty(ctx: &dyn LootContext) -> Result<f32, LootError> {
+    ctx.clamped_regional_difficulty()
+        .ok_or(LootError::MissingContext("regional difficulty"))
+}
+
+/// Add random enchantments for enchanting `level` to the drop's item.
+fn enchant_randomly(
+    drop: &mut LootDrop,
+    ctx: &dyn LootContext,
+    level: i32,
+    treasure: bool,
+    rng: &mut impl Rng,
+) -> Result<(), LootError> {
+    let item = ctx.item_enchanting(&drop.item_id)?;
+    for enchantment in enchanting::select_enchantments(item, level, treasure, rng) {
+        enchanting::add_enchantment(&mut drop.enchantments, item.slots, enchantment);
+    }
+    Ok(())
 }
 
 fn all_pass(
@@ -267,15 +318,19 @@ fn apply_functions(
             }
             LootFunctionKind::SetDamage { damage } => {
                 let fraction = sample_float(*damage, rng);
-                ctx.item_functions()
-                    .ok_or(LootError::MissingContext("set_damage"))?
-                    .set_damage(drop, fraction)?;
+                ctx.set_damage(drop, fraction)?;
             }
             LootFunctionKind::EnchantWithLevels { levels, treasure } => {
                 let levels = sample_int(*levels, rng);
-                ctx.item_functions()
-                    .ok_or(LootError::MissingContext("enchant_with_levels"))?
-                    .enchant_with_levels(drop, levels, *treasure, &mut *rng)?;
+                enchant_randomly(drop, ctx, levels, *treasure, rng)?;
+            }
+            LootFunctionKind::EnchantRandomGear { chance } => {
+                let special = clamped_regional_difficulty(ctx)?;
+                if rng.r#gen::<f32>() < chance * special {
+                    let spread = rng.gen_range(0..GEAR_ENCHANT_LEVEL_SPREAD) as f32;
+                    let level = (special * spread + GEAR_ENCHANT_BASE_LEVEL) as i32;
+                    enchant_randomly(drop, ctx, level, false, rng)?;
+                }
             }
             LootFunctionKind::Other { name, .. } => {
                 return Err(LootError::Unsupported(name.clone()));
@@ -297,7 +352,10 @@ struct Roller<'a, R> {
 }
 
 impl<R: Rng> Roller<'_, R> {
-    fn entry(&mut self, entry: &LootEntry, depth: u8) -> Result<(), LootError> {
+    /// Create the entry's items, then roll its nested pools when it created
+    /// any. Returns whether it created items.
+    fn entry(&mut self, entry: &LootEntry, depth: u8) -> Result<bool, LootError> {
+        let before = self.out.len();
         match &entry.kind {
             LootEntryKind::Item(item_id) => {
                 let resolved = self
@@ -310,6 +368,7 @@ impl<R: Rng> Roller<'_, R> {
                     count: 1,
                     data: 0,
                     nbt: None,
+                    enchantments: Vec::new(),
                 };
                 apply_functions(&entry.functions, &mut drop, item_id, self.ctx, self.rng)?;
                 if drop.count > 0 {
@@ -332,17 +391,36 @@ impl<R: Rng> Roller<'_, R> {
                 }
             }
         }
-        if entry.nested_pools_json.is_some() {
-            return Err(LootError::Unsupported("entry-level pools".into()));
+        let created = self.out.len() > before;
+        if created && !entry.nested_pools.is_empty() {
+            if depth >= MAX_TABLE_DEPTH {
+                return Err(LootError::TooDeep);
+            }
+            for pool in &entry.nested_pools {
+                self.pool(pool, depth + 1)?;
+            }
         }
-        Ok(())
+        Ok(created)
     }
 
     fn pool(&mut self, pool: &LootPool, depth: u8) -> Result<(), LootError> {
-        if pool.tiers_json.is_some() {
-            return Err(LootError::Unsupported("tiers".into()));
-        }
         if !all_pass(&pool.conditions, self.ctx, self.rng)? {
+            return Ok(());
+        }
+        if let Some(tiers) = pool.tiers {
+            let mut tier = if tiers.initial_range > 0 {
+                self.rng.gen_range(0..tiers.initial_range)
+            } else {
+                0
+            };
+            for _ in 0..tiers.bonus_rolls {
+                if self.rng.r#gen::<f32>() < tiers.bonus_chance {
+                    tier += 1;
+                }
+            }
+            if let Some(entry) = usize::try_from(tier).ok().and_then(|t| pool.entries.get(t)) {
+                self.entry(entry, depth)?;
+            }
             return Ok(());
         }
         let luck = self.ctx.luck();

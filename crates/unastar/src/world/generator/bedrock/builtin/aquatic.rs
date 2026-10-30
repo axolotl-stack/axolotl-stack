@@ -1271,4 +1271,22 @@ mod tests {
             assert!(in_disc(at.x, at.z, 4));
         }
     }
+
+    /// `minecraft:underwater_magma_underground_feature` measures depth from
+    /// the top solid block, not the water surface: native seed-12345 magma
+    /// never lies on the ocean floor.
+    #[test]
+    fn underground_magma_skips_the_ocean_floor() {
+        let mut world = Flat::new(40, 62, bb::STONE);
+        for seed in 0..32 {
+            let placed = run(&mut world, seed, |ctx| {
+                super::super::super::generated::f_underwater_magma_underground_feature(
+                    ctx,
+                    BlockPos::new(3, 41, 4),
+                )
+            });
+            assert_eq!(placed, None, "seed {seed}");
+        }
+        assert!(world.edits.is_empty());
+    }
 }

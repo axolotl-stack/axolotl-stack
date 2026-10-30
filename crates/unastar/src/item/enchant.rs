@@ -1,4 +1,5 @@
-//! Enchantments and durability stored in an item's user-data NBT.
+//! Enchantments, durability and the other item instance data stored in an
+//! item's user data (NBT compound, can-place-on / can-destroy lists).
 //!
 //! Bedrock keeps both in the item's NBT compound (see
 //! [`crate::item::user_data`] for the buffer layout): enchantments as the
@@ -110,6 +111,70 @@ pub fn with_item_tag(stack: &ItemStack, compound: tag::Compound) -> ItemStack {
     }
     out.extend_from_slice(tail);
     stack.clone().with_nbt(out)
+}
+
+/// Read one block-name list (`i32` count of u16-prefixed strings) from the
+/// start of `bytes`; returns the names and the bytes after the list.
+fn read_block_list(bytes: &[u8]) -> Option<(Vec<String>, &[u8])> {
+    let count = i32::from_le_bytes(bytes.get(..4)?.try_into().ok()?);
+    let mut rest = bytes.get(4..)?;
+    let mut names = Vec::new();
+    for _ in 0..count.max(0) {
+        let len = usize::from(u16::from_le_bytes(rest.get(..2)?.try_into().ok()?));
+        names.push(String::from_utf8_lossy(rest.get(2..2 + len)?).into_owned());
+        rest = rest.get(2 + len..)?;
+    }
+    Some((names, rest))
+}
+
+fn write_block_list(out: &mut Vec<u8>, blocks: &[String]) {
+    out.extend_from_slice(&(blocks.len() as i32).to_le_bytes());
+    for block in blocks {
+        let bytes = &block.as_bytes()[..block.len().min(usize::from(u16::MAX))];
+        out.extend_from_slice(&(bytes.len() as u16).to_le_bytes());
+        out.extend_from_slice(bytes);
+    }
+}
+
+/// `stack` with its can-place-on and can-destroy block lists replaced,
+/// keeping its NBT compound and shield blocking tick.
+pub fn with_block_lists(
+    stack: &ItemStack,
+    can_place_on: &[String],
+    can_destroy: &[String],
+) -> ItemStack {
+    let default = super::user_data::network_user_data(stack.item_id(), None);
+    let buffer = stack.nbt.as_deref().unwrap_or(&default);
+    let (compound, tail) = split_user_data(buffer).unwrap_or((None, &default[2..]));
+    let after_lists = read_block_list(tail)
+        .and_then(|(_, rest)| read_block_list(rest))
+        .map_or(&default[10..], |(_, rest)| rest);
+    let mut out = Vec::with_capacity(buffer.len() + 32);
+    match compound {
+        Some(compound) => {
+            out.extend_from_slice(&NBT_PRESENT.to_le_bytes());
+            out.push(NBT_VERSION);
+            NBTTag::Compound(compound)
+                .write(&mut out, LittleEndian)
+                .expect("writing NBT into a Vec cannot fail");
+        }
+        None => out.extend_from_slice(&0i16.to_le_bytes()),
+    }
+    write_block_list(&mut out, can_place_on);
+    write_block_list(&mut out, can_destroy);
+    out.extend_from_slice(after_lists);
+    stack.clone().with_nbt(out)
+}
+
+/// The can-place-on and can-destroy block lists of `stack`'s user data.
+pub fn block_lists(stack: &ItemStack) -> (Vec<String>, Vec<String>) {
+    let lists = stack.nbt.as_deref().and_then(|buffer| {
+        let (_, tail) = split_user_data(buffer)?;
+        let (place_on, rest) = read_block_list(tail)?;
+        let (destroy, _) = read_block_list(rest)?;
+        Some((place_on, destroy))
+    });
+    lists.unwrap_or_default()
 }
 
 fn as_i32(tag: &NBTTag) -> Option<i32> {

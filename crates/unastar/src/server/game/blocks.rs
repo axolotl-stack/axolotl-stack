@@ -273,6 +273,7 @@ pub(crate) fn body_in_water(world: &World, feet: glam::DVec3) -> bool {
     water_at(world, feet) || water_at(world, feet + IVec3::Y)
 }
 
+/// Runtime id of the block at `position`; `None` outside the world or an unloaded chunk.
 pub(crate) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
     let (x, y, z) = position;
     if !(crate::world::chunk::MIN_Y
@@ -1098,6 +1099,51 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
                 }
             }
         }
+    }
+}
+
+/// Break the block at `pos` without a breaker, as `/setblock … destroy` and
+/// `/fill … destroy` do: viewers see the break particles, the block becomes
+/// air, and its tool-less drops and any container contents fall as items
+/// (BDS's order: `LevelEvent` 2001, `UpdateBlock`, `AddItemActor`).
+pub(crate) fn destroy_block(world: &mut World, pos: IVec3) {
+    let Some(original) = block_at(world, (pos.x, pos.y, pos.z)) else {
+        return;
+    };
+    if original == *blocks::AIR {
+        return;
+    }
+    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+    let chunk = world
+        .get_resource::<ChunkManager>()
+        .and_then(|chunks| chunks.get_by_coords(cx, cz));
+    if let Some(viewers) = chunk.and_then(|chunk| world.get::<ChunkViewers>(chunk)) {
+        let particles = LevelEventPacket {
+            event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK,
+            position: Vec3 {
+                x: pos.x as f32 + 0.5,
+                y: pos.y as f32 + 0.5,
+                z: pos.z as f32 + 0.5,
+            },
+            data: super::types::block_network_ids(world).to_wire(original) as i32,
+        };
+        for viewer in viewers.iter() {
+            if let Some(session) = world.get::<PlayerSession>(viewer) {
+                let _ = session.send(McpePacket::from(particles.clone()));
+            }
+        }
+    }
+    let broken = super::containers::breaking(world, pos);
+    set_block(world, pos, *blocks::AIR, false);
+    super::block_drops::drop_block_items(
+        world,
+        pos,
+        original,
+        None,
+        broken.as_ref().and_then(|broken| broken.carried.as_ref()),
+    );
+    if let Some(broken) = broken {
+        super::containers::drop_contents(world, pos, broken);
     }
 }
 

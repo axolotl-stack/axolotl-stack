@@ -2,18 +2,26 @@
 //! Evaluation and typed loot schemas live in the bevy-free `unastar-rules`
 //! crate; this adapter alone knows about ItemStack and the block registry.
 
+use bevy_ecs::prelude::World;
+use unastar_data::actor_identifiers::ActorType;
+use unastar_rules::enchanting::ItemEnchanting;
+use unastar_rules::loot::{Difficulty as LootDifficulty, LootDrop, LootError, LootStateValue};
+
 use crate::entity::mob::constants::{LEGACY_ITEM_NAMES, LEGACY_WOOL, WOOL_ITEMS};
 use crate::item::ItemStack;
 use crate::item::enchant::{Enchantment, enchantment_level, with_durability_damage};
 use crate::registry::ItemRegistry;
 use crate::registry::block::{BlockEntry, StateValue};
-use unastar_rules::loot::{ItemFunctions, LootDrop, LootError, LootStateValue};
+use crate::world::regional_difficulty::clamped_regional_difficulty;
+use crate::world::rules::{Difficulty, WorldTime};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LootContext<'a> {
     pub tool: Option<&'a ItemStack>,
     pub block: Option<(&'a BlockEntry, u32)>,
     pub killed_by_player: bool,
+    /// The killer was a tamed mob a player owns (`killed_by_player_or_pets`).
+    pub killed_by_pet: bool,
     pub looting: u8,
     /// None means this evaluation has no THIS actor.
     pub on_fire: Option<bool>,
@@ -22,62 +30,35 @@ pub struct LootContext<'a> {
     pub color_index: Option<u8>,
     /// Luck of the roll: the rod's Luck of the Sea level when fishing.
     pub luck: f32,
-    /// Item data for `set_damage` and `enchant_with_levels`; tables using
-    /// them fail with a missing-context error without it.
+    /// The THIS actor is a baby (`is_baby`).
+    pub is_baby: bool,
+    /// The actor the THIS actor rides (`passenger_of_entity`).
+    pub vehicle: Option<ActorType>,
+    /// Level facts for difficulty conditions and gear enchanting; tables
+    /// that need them fail to evaluate without.
+    pub level: Option<LootLevel>,
+    /// Item definitions for item facts (random enchanting, `set_damage`);
+    /// tables that need them fail to evaluate without.
     pub items: Option<&'a ItemRegistry>,
 }
 
-impl LootContext<'_> {
-    /// The drop as a single item stack, `None` for an unknown item.
-    fn drop_stack(items: &ItemRegistry, drop: &LootDrop) -> Option<ItemStack> {
-        let mut stack = items.stack(&drop.item_id, 1)?.with_damage(drop.data);
-        stack.nbt = drop.nbt.clone().map(bytes::Bytes::from);
-        Some(stack)
-    }
-
-    fn store(drop: &mut LootDrop, stack: &ItemStack) {
-        drop.item_id.clear();
-        drop.item_id.push_str(stack.item_id());
-        drop.data = stack.damage;
-        drop.nbt = stack.nbt.as_ref().map(|nbt| nbt.to_vec());
-    }
+/// The level facts loot reads: difficulty and clamped regional difficulty.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LootLevel {
+    pub difficulty: Difficulty,
+    pub clamped_regional_difficulty: f32,
 }
 
-impl ItemFunctions for LootContext<'_> {
-    /// Damage `floor((1 - fraction) × max durability)` (public reference);
-    /// items without durability are unchanged.
-    fn set_damage(&self, drop: &mut LootDrop, fraction: f32) -> Result<(), LootError> {
-        let items = self.items.ok_or(LootError::MissingContext("set_damage"))?;
-        let Some(stack) = Self::drop_stack(items, drop) else {
-            return Ok(());
-        };
-        let max = stack
-            .item()
-            .map_or(0, crate::server::game::durability::max_durability);
-        if max > 0 {
-            let damage = ((1.0 - fraction.clamp(0.0, 1.0)) * max as f32).floor() as i32;
-            Self::store(drop, &with_durability_damage(&stack, damage.min(max - 1)));
-        }
-        Ok(())
-    }
-
-    fn enchant_with_levels(
-        &self,
-        drop: &mut LootDrop,
-        levels: i32,
-        treasure: bool,
-        mut rng: &mut dyn rand::RngCore,
-    ) -> Result<(), LootError> {
-        let items = self
-            .items
-            .ok_or(LootError::MissingContext("enchant_with_levels"))?;
-        let Some(stack) = Self::drop_stack(items, drop) else {
-            return Ok(());
-        };
-        let enchanted =
-            crate::item::enchanting::enchant_with_levels(&stack, levels, treasure, items, &mut rng);
-        Self::store(drop, &enchanted);
-        Ok(())
+impl LootLevel {
+    /// The level facts of `world` from its `Difficulty` and `WorldTime`
+    /// resources; `None` for a world without them.
+    pub fn of(world: &World) -> Option<Self> {
+        let difficulty = *world.get_resource::<Difficulty>()?;
+        world.get_resource::<WorldTime>()?;
+        Some(Self {
+            difficulty,
+            clamped_regional_difficulty: clamped_regional_difficulty(world),
+        })
     }
 }
 
@@ -115,8 +96,40 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
     fn killed_by_player(&self) -> bool {
         self.killed_by_player
     }
+    fn killed_by_pet(&self) -> bool {
+        self.killed_by_pet
+    }
     fn looting(&self) -> u8 {
         self.looting
+    }
+
+    fn is_baby(&self) -> bool {
+        self.is_baby
+    }
+
+    fn vehicle_is(&self, entity_type: &str) -> bool {
+        self.vehicle
+            .is_some_and(|vehicle| vehicle.name() == entity_type)
+    }
+
+    fn difficulty(&self) -> Option<LootDifficulty> {
+        self.level.map(|level| match level.difficulty {
+            Difficulty::Peaceful => LootDifficulty::Peaceful,
+            Difficulty::Easy => LootDifficulty::Easy,
+            Difficulty::Normal => LootDifficulty::Normal,
+            Difficulty::Hard => LootDifficulty::Hard,
+        })
+    }
+
+    fn clamped_regional_difficulty(&self) -> Option<f32> {
+        self.level.map(|level| level.clamped_regional_difficulty)
+    }
+
+    fn item_enchanting(&self, item: &str) -> Result<ItemEnchanting, LootError> {
+        self.items
+            .and_then(|items| items.get_by_name(item))
+            .and_then(crate::item::enchanting::item_enchanting)
+            .ok_or_else(|| LootError::Unsupported(format!("random enchanting of {item}")))
     }
 
     fn on_fire(&self) -> Option<bool> {
@@ -132,8 +145,24 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
         self.luck
     }
 
-    fn item_functions(&self) -> Option<&dyn ItemFunctions> {
-        self.items.map(|_| self as &dyn ItemFunctions)
+    /// Damage `floor((1 - fraction) × max durability)` (public reference);
+    /// items without durability are unchanged.
+    fn set_damage(&self, drop: &mut LootDrop, fraction: f32) -> Result<(), LootError> {
+        let items = self.items.ok_or(LootError::MissingContext("set_damage"))?;
+        let Some(mut stack) = items.stack(&drop.item_id, 1) else {
+            return Ok(());
+        };
+        let max = stack
+            .item()
+            .map_or(0, crate::server::game::durability::max_durability);
+        if max > 0 {
+            stack.nbt = drop.nbt.take().map(bytes::Bytes::from);
+            let damage = ((1.0 - fraction.clamp(0.0, 1.0)) * max as f32).floor() as i32;
+            drop.nbt = with_durability_damage(&stack, damage.min(max - 1))
+                .nbt
+                .map(|nbt| nbt.to_vec());
+        }
+        Ok(())
     }
 
     fn this_color_index(&self) -> Option<u8> {
@@ -159,285 +188,4 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::item::enchant::with_enchantments;
-    use crate::registry::BlockRegistry;
-    use rand::SeedableRng;
-    use rand::rngs::StdRng;
-    use unastar_rules::loot::{LootDrop, LootError, LootTable};
-
-    fn roll(
-        table: &LootTable,
-        ctx: &LootContext<'_>,
-        rng: &mut impl rand::Rng,
-    ) -> Result<Vec<LootDrop>, LootError> {
-        unastar_rules::loot::roll(unastar_data::loot::vanilla(), table, ctx, rng)
-    }
-
-    fn block_ctx<'a>(name: &str, tool: Option<&'a ItemStack>) -> LootContext<'a> {
-        let block = BlockRegistry::vanilla().get_by_name(name).expect(name);
-        LootContext {
-            tool,
-            block: Some((block, block.default_state_id)),
-            ..LootContext::default()
-        }
-    }
-
-    fn table(name: &str) -> &'static LootTable {
-        unastar_data::loot::get(name).expect(name)
-    }
-
-    fn counts(name: &str, ctx: &LootContext<'_>, seeds: u64) -> Vec<Vec<LootDrop>> {
-        (0..seeds)
-            .map(|seed| roll(table(name), ctx, &mut StdRng::seed_from_u64(seed)).unwrap())
-            .collect()
-    }
-
-    #[test]
-    fn stone_drops_cobblestone_unless_silk_touched() {
-        let pick = crate::item::test_support::stack("minecraft:iron_pickaxe", 1);
-        let silk = with_enchantments(&pick, &[(Enchantment::SilkTouch, 1)]);
-        let mut rng = StdRng::seed_from_u64(1);
-        let plain = roll(
-            table("blocks/stone"),
-            &block_ctx("minecraft:stone", Some(&pick)),
-            &mut rng,
-        )
-        .unwrap();
-        assert_eq!(
-            plain,
-            vec![LootDrop {
-                item_id: "minecraft:cobblestone".into(),
-                count: 1,
-                data: 0,
-                nbt: None,
-            }]
-        );
-        let silky = roll(
-            table("blocks/stone"),
-            &block_ctx("minecraft:stone", Some(&silk)),
-            &mut rng,
-        )
-        .unwrap();
-        assert_eq!(silky[0].item_id, "minecraft:stone");
-    }
-
-    #[test]
-    fn fortune_multiplies_ore_drops_within_vanilla_bounds() {
-        let pick = crate::item::test_support::stack("minecraft:iron_pickaxe", 1);
-        let fortune = with_enchantments(&pick, &[(Enchantment::Fortune, 3)]);
-        let plain = counts(
-            "blocks/diamond_ore",
-            &block_ctx("minecraft:diamond_ore", Some(&pick)),
-            50,
-        );
-        assert!(plain.iter().all(|d| d
-            == &vec![LootDrop {
-                item_id: "minecraft:diamond".into(),
-                count: 1,
-                data: 0,
-                nbt: None,
-            }]));
-        let lucky = counts(
-            "blocks/diamond_ore",
-            &block_ctx("minecraft:diamond_ore", Some(&fortune)),
-            200,
-        );
-        let amounts: Vec<u32> = lucky.iter().map(|d| d[0].count).collect();
-        assert!(amounts.iter().all(|c| (1..=4).contains(c)));
-        assert!(amounts.contains(&4) && amounts.contains(&1));
-        let lapis = counts(
-            "blocks/lapis_ore",
-            &block_ctx("minecraft:lapis_ore", Some(&pick)),
-            100,
-        );
-        assert!(lapis.iter().all(|d| (4..=9).contains(&d[0].count)));
-    }
-
-    #[test]
-    fn gravel_sometimes_drops_flint_and_leaves_need_shears() {
-        let gravel = counts("blocks/gravel", &block_ctx("minecraft:gravel", None), 300);
-        let flint = gravel
-            .iter()
-            .filter(|d| d[0].item_id == "minecraft:flint")
-            .count();
-        assert!(
-            (10..=60).contains(&flint),
-            "about 10% flint, got {flint}/300"
-        );
-        let shears = crate::item::test_support::stack("minecraft:shears", 1);
-        let sheared = roll(
-            table("blocks/oak_leaves"),
-            &block_ctx("minecraft:oak_leaves", Some(&shears)),
-            &mut StdRng::seed_from_u64(2),
-        )
-        .unwrap();
-        assert_eq!(
-            sheared,
-            vec![LootDrop {
-                item_id: "minecraft:oak_leaves".into(),
-                count: 1,
-                data: 0,
-                nbt: None,
-            }]
-        );
-        let by_hand = counts(
-            "blocks/oak_leaves",
-            &block_ctx("minecraft:oak_leaves", None),
-            400,
-        );
-        assert!(
-            by_hand
-                .iter()
-                .flatten()
-                .all(|d| d.item_id != "minecraft:oak_leaves")
-        );
-        assert!(
-            by_hand
-                .iter()
-                .flatten()
-                .any(|d| d.item_id == "minecraft:oak_sapling")
-        );
-    }
-
-    #[test]
-    fn crops_drop_produce_only_when_mature() {
-        let block = BlockRegistry::vanilla()
-            .get_by_name("minecraft:wheat")
-            .unwrap();
-        let young = LootContext {
-            block: Some((block, block.default_state_id)),
-            ..LootContext::default()
-        };
-        let mature_state = block
-            .with_state_value(block.default_state_id, "growth", StateValue::Int(7))
-            .unwrap();
-        let mature = LootContext {
-            block: Some((block, mature_state)),
-            ..LootContext::default()
-        };
-        let mut rng = StdRng::seed_from_u64(5);
-        assert_eq!(
-            roll(table("blocks/wheat"), &young, &mut rng).unwrap(),
-            vec![LootDrop {
-                item_id: "minecraft:wheat_seeds".into(),
-                count: 1,
-                data: 0,
-                nbt: None,
-            }]
-        );
-        let ripe = roll(table("blocks/wheat"), &mature, &mut rng).unwrap();
-        assert_eq!(
-            ripe[0],
-            LootDrop {
-                item_id: "minecraft:wheat".into(),
-                count: 1,
-                data: 0,
-                nbt: None,
-            }
-        );
-        assert!(ripe[1].item_id == "minecraft:wheat_seeds" && (1..=4).contains(&ripe[1].count));
-    }
-
-    /// Every block table must evaluate without unsupported features, with and
-    /// without tools and enchantments. Vanilla also ships `blocks/*` tables
-    /// that no block shares a name with (e.g. `shelf_mushroom_growth_0`,
-    /// referenced from block JSON); those roll without a block.
-    #[test]
-    fn block_tables_only_use_supported_features() {
-        let pick = crate::item::test_support::stack("minecraft:diamond_pickaxe", 1);
-        let silk = with_enchantments(&pick, &[(Enchantment::SilkTouch, 1)]);
-        let fortune = with_enchantments(&pick, &[(Enchantment::Fortune, 3)]);
-        let shears = crate::item::test_support::stack("minecraft:shears", 1);
-        let registry = BlockRegistry::vanilla();
-        let mut items = crate::registry::ItemRegistry::new();
-        items.load_vanilla();
-        for table in unastar_data::loot::vanilla()
-            .iter()
-            .filter(|t| t.name.starts_with("blocks/"))
-        {
-            let states: Vec<_> = registry
-                .get_by_name(&format!("minecraft:{}", &table.name["blocks/".len()..]))
-                .map_or_else(
-                    || vec![None],
-                    |block| {
-                        (block.min_state_id..=block.max_state_id)
-                            .map(|state| Some((block, state)))
-                            .collect()
-                    },
-                );
-            for tool in [
-                None,
-                Some(&pick),
-                Some(&silk),
-                Some(&fortune),
-                Some(&shears),
-            ] {
-                for (seed, &block) in states.iter().enumerate() {
-                    let ctx = LootContext {
-                        tool,
-                        block,
-                        ..LootContext::default()
-                    };
-                    let drops = roll(table, &ctx, &mut StdRng::seed_from_u64(seed as u64))
-                        .unwrap_or_else(|e| panic!("{}: {e}", table.name));
-                    for drop in drops {
-                        assert!(
-                            items.get_by_name(&drop.item_id).is_some(),
-                            "{} drops unknown item {}",
-                            table.name,
-                            drop.item_id
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn vanilla_entity_tables_roll_with_looting() {
-        let ctx = LootContext {
-            killed_by_player: true,
-            looting: 3,
-            ..LootContext::default()
-        };
-        let rolls: Vec<Vec<LootDrop>> = (0..50)
-            .map(|seed| {
-                roll(
-                    table("entities/spider"),
-                    &ctx,
-                    &mut StdRng::seed_from_u64(seed),
-                )
-                .unwrap()
-            })
-            .collect();
-        let strings: Vec<u32> = rolls
-            .iter()
-            .flatten()
-            .filter(|d| d.item_id == "minecraft:string")
-            .map(|d| d.count)
-            .collect();
-        assert!(
-            strings.iter().all(|c| *c <= 5),
-            "0-2 plus up to 3 from looting"
-        );
-        assert!(strings.iter().any(|c| *c > 2), "looting adds string");
-    }
-
-    #[test]
-    fn unsupported_vanilla_features_are_errors_not_skipped() {
-        let ctx = LootContext {
-            killed_by_player: true,
-            ..LootContext::default()
-        };
-        assert_eq!(
-            roll(
-                table("entities/zombie"),
-                &ctx,
-                &mut StdRng::seed_from_u64(3)
-            ),
-            Err(LootError::Unsupported("passenger_of_entity".into()))
-        );
-    }
-}
+mod tests;

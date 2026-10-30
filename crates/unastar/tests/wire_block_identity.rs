@@ -224,6 +224,7 @@ impl WireChunk {
     }
 
     /// Height and name of a column's top non-air block.
+    #[cfg(any(feature = "java-worldgen", feature = "bedrock-worldgen"))]
     fn surface(&self, x: usize, z: usize) -> (i32, &'static str) {
         (-64..320)
             .rev()
@@ -234,6 +235,7 @@ impl WireChunk {
 }
 
 /// Worldgen recursion needs more than the default test thread stack.
+#[cfg(any(feature = "java-worldgen", feature = "bedrock-worldgen"))]
 fn on_large_stack(f: impl FnOnce() + Send + 'static) {
     std::thread::Builder::new()
         .stack_size(64 << 20)
@@ -263,6 +265,8 @@ fn super_flat_wire_column_is_bedrock_dirt_grass() {
     }
 }
 
+/// The Java generator places structures, which needs the embedded templates.
+#[cfg(feature = "java-worldgen")]
 #[test]
 fn java_wire_blocks_are_natural_terrain() {
     on_large_stack(|| {

@@ -29,7 +29,7 @@
 //!   carries them as `Items` in its NBT (with a custom name as
 //!   `display.Name`) and placing it restores them and the `facing` it was
 //!   placed against.
-//! - Furnaces tick like BDS 1.26.51 furnaces: refuel when burn time
+//! - Furnaces tick once per game tick: refuel when burn time
 //!   runs out and the input can smelt, cook interval 200 (furnace) or 100
 //!   (blast furnace, smoker), progress decays by 2 while not burning, the
 //!   lit/unlit block swaps in the tick burning starts or stops, and viewers get
@@ -431,6 +431,8 @@ fn send_client_state(world: &World, pos: IVec3) {
     );
 }
 
+/// Play `name` at `at` with `data` (container sounds carry the block's wire
+/// id: BDS 1.26.51 sends `chest.open`/`chest.closed` with the chest's hash).
 fn play_sound(world: &World, at: DVec3, name: &str, data: i32) {
     let pos = at.floor().as_ivec3();
     broadcast(
@@ -730,7 +732,7 @@ pub(super) fn commit_window(
     }
     if screen.kind.smelter().is_some() {
         let (input_before, input_after) = (before.item(0).unwrap(), after.item(0).unwrap());
-        // Like BDS 1.26.51: a different (or emptied/filled) input restarts cooking.
+        // A different (or emptied/filled) input restarts cooking.
         let input_changed = !(input_after.comparable(input_before)
             || input_after.is_empty() && input_before.is_empty());
         let taken = taken_output(before.item(2).unwrap(), after.item(2).unwrap());
@@ -826,8 +828,9 @@ fn close_viewers(world: &mut World, pos: IVec3, kind: ContainerKind) {
 
 // ── Furnace XP ──────────────────────────────────────────────────────────────
 
-/// The XP multiplier of a smelted item: block overrides, else the item's
-/// native furnace XP multiplier.
+/// XP per smelted item: fixed values for terracotta (0.35), sponge (0.15) and
+/// the stone, glass, sandstone, quartz and deepslate results below (0.1),
+/// else the result item's furnace XP multiplier.
 fn xp_multiplier(stack: &ItemStack) -> f32 {
     const TENTH: &[&str] = &[
         "minecraft:stone",
@@ -924,9 +927,7 @@ pub(super) fn grant_experience(world: &mut World, player: Entity, points: i32) {
         name: name.into(),
         modifiers: vec![],
     };
-    let tick = world
-        .get_resource::<crate::ecs::resources::TickCounter>()
-        .map_or(0, |tick| tick.current);
+    let tick = crate::entity::components::input_tick_of(world, player);
     send(
         world,
         player,
@@ -938,7 +939,7 @@ pub(super) fn grant_experience(world: &mut World, player: Entity, points: i32) {
                 attribute("minecraft:player.level", level as f32, i32::MAX as f32),
                 attribute("minecraft:player.experience", progress, 1.0),
             ],
-            tick: jolyne::valentine::PlayerInputTick { inputtick: tick },
+            tick,
         },
     );
 }
@@ -1080,7 +1081,8 @@ pub(super) fn breaking(world: &mut World, pos: IVec3) -> Option<BrokenContainer>
     })
 }
 
-/// Scatter a broken container's contents.
+/// Scatter a broken container's contents: random 10..30 item chunks, or whole
+/// stacks for furnaces.
 pub(super) fn drop_contents(world: &mut World, pos: IVec3, broken: BrokenContainer) {
     for mut stack in broken.drops {
         while !stack.is_empty() {
@@ -1277,7 +1279,9 @@ fn result_stack(
         .map(|stack| stack.with_damage(data))
 }
 
-/// Whether the furnace's input has a result that fits its output slot.
+/// Whether the furnace can smelt now: the input has a smelting result that
+/// differs from it, and the output slot is empty or holds the same item with
+/// room for one more result.
 fn can_burn(world: &World, container: &BlockContainer) -> bool {
     let smelter = container.kind.smelter().expect("furnace kinds smelt");
     let input = container.items.item(0).unwrap();

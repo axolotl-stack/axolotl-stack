@@ -16,7 +16,7 @@ use jolyne::valentine::{McpePacket, MobEffectPacket};
 
 use super::attributes::{Absorption, MAX_ABSORPTION};
 use crate::entity::components::{
-    EffectType, Effects, GameMode, Health, Hunger, PlayerSession, RuntimeEntityId,
+    EffectType, Effects, GameMode, Health, Hunger, PlayerInput, PlayerSession, RuntimeEntityId,
 };
 
 /// Bedrock effect identifiers and their protocol ids.
@@ -280,7 +280,9 @@ fn pulses(base: u32, amplifier: u8, remaining: u32) -> bool {
 /// `tick_effects` has counted the durations down.
 #[allow(clippy::type_complexity)]
 pub fn apply_player_effects(
+    mut commands: Commands,
     mut players: Query<(
+        Entity,
         &Effects,
         &mut Health,
         &mut Hunger,
@@ -289,7 +291,7 @@ pub fn apply_player_effects(
     )>,
     mut absent: Query<&mut Absorption, Without<Effects>>,
 ) {
-    for (effects, mut health, mut hunger, mode, absorption) in &mut players {
+    for (player, effects, mut health, mut hunger, mode, absorption) in &mut players {
         if health.is_dead() {
             continue;
         }
@@ -310,7 +312,22 @@ pub fn apply_player_effects(
             && let Some(e) = effects.get(EffectType::WITHER)
             && pulses(40, e.level, e.duration_ticks)
         {
-            health.damage(1.0);
+            // Wither can kill, so it takes the player damage path (hurt
+            // timer, death), applied when the commands run.
+            commands.queue(move |world: &mut World| {
+                crate::entity::player_life::hurt_player(
+                    world,
+                    player,
+                    &crate::entity::mob::combat::Hit {
+                        damage: 1.0,
+                        cause: unastar_data::actor_components::body::ActorDamageCause::Wither,
+                        attacker: None,
+                        by_player: false,
+                        knockback_from: None,
+                        knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+                    },
+                );
+            });
         }
         if survival && let Some(e) = effects.get(EffectType::HUNGER) {
             hunger.exhaust(0.005 * (f32::from(e.level) + 1.0));
@@ -341,15 +358,18 @@ pub struct SentEffects(HashMap<EffectType, (u8, u32)>);
 
 /// System: send each player `MobEffect` add, modify and remove packets for
 /// the changes since the last tick.
+#[allow(clippy::type_complexity)]
 pub fn sync_player_effects(
     mut players: Query<(
         &RuntimeEntityId,
         &PlayerSession,
         Option<&Effects>,
         &mut SentEffects,
+        Option<&PlayerInput>,
     )>,
 ) {
-    for (runtime_id, session, effects, mut sent) in &mut players {
+    for (runtime_id, session, effects, mut sent, input) in &mut players {
+        let tick = input.map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick);
         let send = |event, effect: EffectType, amplifier: u8, duration: u32| {
             let _ = session.send(McpePacket::from(MobEffectPacket {
                 target_runtime_id: ActorRuntimeId {
@@ -360,7 +380,11 @@ pub fn sync_player_effects(
                 effect_amplifier: i32::from(amplifier),
                 show_particles: true,
                 effect_duration_ticks: duration as i32,
-                tick: PlayerInputTick { inputtick: 0 },
+                tick: if effect.affects_movement() {
+                    tick.clone()
+                } else {
+                    PlayerInputTick { inputtick: 0 }
+                },
                 ambient: false,
             }));
         };

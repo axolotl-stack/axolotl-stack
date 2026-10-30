@@ -9,6 +9,17 @@
 //! - `natural_spawning_populates_new_chunks_over_loopback`: joins a superflat
 //!   plains world and waits for the animals the world-generation pass spawns
 //!   in the chunks loaded around the bot.
+//! - `zombie_kills_the_player_who_then_respawns_over_loopback`: on hard at
+//!   midnight, summons a zombie next to the survival bot, which stands still
+//!   while the zombie closes in and hits it to death, then answers the
+//!   respawn screen and checks it comes back at the world spawn with full
+//!   health.
+//! - `tempted_cows_spread_out_while_following_over_loopback`: summons eight
+//!   cows next to the creative bot holding wheat, walks the bot as a real
+//!   client does (one `PlayerAuthInput` per tick at walking speed, straight
+//!   ahead, then after a turn) and checks from every cow's `MoveActorDelta`
+//!   and `MoveActorAbsolute` that the cows follow side by side instead of in
+//!   single file, without stacking on each other.
 //!
 //! The tests bind a UDP socket on `127.0.0.1` (never a public interface), so
 //! they are ignored by default. Run them with:
@@ -36,7 +47,10 @@ use std::time::Duration;
 use jolyne::stream::RakNetTransport;
 use jolyne::valentine::types::{
     ActorRuntimeId, EnumsActorEvent, EnumsItemUseOnActorInventoryTransactionActionType,
-    InventoryTransactionPacketTransaction, ItemUseOnActorInventoryTransaction, Vec3,
+    EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData,
+    EnumsPlayerPositionModeComponentPositionMode, EnumsPlayerRespawnState,
+    InventoryTransactionPacketTransaction, ItemUseOnActorInventoryTransaction, PlayerInputTick,
+    TextPacketBody, Vec2, Vec3,
 };
 use jolyne::valentine::{
     CommandOriginDatajson, CommandRequestPacket, ContainerClosePacket,
@@ -47,13 +61,15 @@ use jolyne::valentine::{
     ItemStackRequestCerealPlaceActionData, ItemStackRequestCerealSlotInfoData,
     ItemStackRequestPacket, ItemStackRequestPacketDataRequestData,
     ItemStackRequestPacketDataRequestDataActionsItem, ItemUseInventoryTransaction, McpePacket,
-    McpePacketData, TypedClientNetIdstructItemStackRequestIdTagint32T0,
+    McpePacketData, PlayerActionPacket, PlayerAuthInputPacket, RespawnPacket,
+    TypedClientNetIdstructItemStackRequestIdTagint32T0,
 };
 use jolyne::{BedrockStream, Client, ClientHandshakeConfig, GameData, Play};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::Instant;
 use unastar::UnastarConfig;
 use unastar::server::UnastarServer;
+use unastar::world::rules::Difficulty;
 use unastar::world::{WorldConfig, WorldGenerator};
 
 /// Display name of the test client; listed as a server operator.
@@ -69,6 +85,20 @@ const CHICKEN_TIMEOUT: Duration = Duration::from_secs(60);
 /// Bound for watching the natural spawns ([`FIRST_SPAWN_WITHIN`] plus
 /// [`POPULATION_SETTLE`] and slack).
 const SPAWN_TIMEOUT: Duration = Duration::from_secs(120);
+/// Bound for the zombie's summon, fight, death and respawn.
+const ZOMBIE_TIMEOUT: Duration = Duration::from_secs(120);
+/// How long the zombie may take to kill the bot ([`ZOMBIE_TIMEOUT`] less
+/// the respawn and slack).
+const ZOMBIE_KILLS_WITHIN: Duration = Duration::from_secs(60);
+/// How long the zombie may go without a hit before the bot steps next to it
+/// again (or a new zombie is summoned when it is gone).
+const ZOMBIE_STALL: Duration = Duration::from_secs(5);
+/// How long the death packets (`DeathInfo`, chat, `Respawn`, health 0) may
+/// trail `ActorEvent(Death)`, and the respawn packets the bot's request.
+const DEATH_PACKETS_WITHIN: Duration = Duration::from_secs(5);
+/// How long the bot keeps listening after respawning to show it is still
+/// connected.
+const CONNECTED_AFTER_RESPAWN: Duration = Duration::from_secs(2);
 /// Spacing between hits: longer than the 10-tick (0.5 s) hurt cooldown.
 const HIT_SPACING: Duration = Duration::from_millis(600);
 /// How long after `ActorEvent(Death)` the corpse's `RemoveActor` may take.
@@ -98,7 +128,67 @@ const CHICKEN: &str = "minecraft:chicken";
 const EGG: &str = "minecraft:egg";
 /// The animals vanilla spawns on plains grass that the test waits for.
 const PASSIVE_ANIMALS: [&str; 4] = [COW, "minecraft:sheep", "minecraft:pig", CHICKEN];
+const ZOMBIE: &str = "minecraft:zombie";
+/// The vanilla zombie's `minecraft:attack` damage before difficulty scaling.
+const ZOMBIE_ATTACK: f32 = 3.0;
+/// Hard multiplies mob damage on players by 1.5 (3 → 4.5 for the zombie).
+const HARD_DAMAGE_SCALE: f32 = 1.5;
+/// The zombie's melee cooldown (`behavior.melee_box_attack`): one hit per
+/// second while the target stays in reach.
+const ZOMBIE_ATTACK_TICKS: u64 = 20;
+/// How far apart two hits a cooldown apart may land on the bot's input
+/// clock, which runs on real time beside the server's tick.
+const INPUT_CLOCK_JITTER_TICKS: u64 = 3;
+/// Blocks along +z from the bot the zombie is summoned, so it must walk to
+/// it.
+const ZOMBIE_SUMMON_DISTANCE: f32 = 4.0;
+const PLAYER_MAX_HEALTH: f32 = 20.0;
 const HEALTH: &str = "minecraft:health";
+/// Bound for the tempted cows' summon, settle and walk.
+const TEMPT_TIMEOUT: Duration = Duration::from_secs(60);
+/// Cows summoned around the bot for the tempt walk.
+const TEMPTED_COWS: usize = 8;
+/// Ticks the bot stands still after the cows appear, so they gather.
+const TEMPT_GATHER_TICKS: u32 = 40;
+/// Ticks of the first, straight leg of the walk (along +z).
+const TEMPT_LEG_TICKS: u32 = 80;
+/// Ticks of the second leg, after an eighth turn to the right (along the
+/// +x/+z diagonal): players rarely walk along a block axis.
+const TEMPT_TURN_TICKS: u32 = 120;
+/// The bot's walking speed: about the vanilla walking speed of 0.216
+/// blocks per tick, which the tempted cows (movement 0.25 × tempt speed
+/// 1.25 on normal ground: at most 0.215 blocks per tick) can keep up with.
+const TEMPT_WALK_SPEED: f32 = 0.2;
+/// Ticks after the start of a leg before its samples count: the cows need
+/// about two seconds to reach full speed and line up behind the bot.
+const TEMPT_FORMING_TICKS: u32 = 40;
+/// An adult cow's collision box width.
+const COW_WIDTH: f32 = 0.9;
+/// Lower bound for the horizontal distance between two cows once they
+/// follow. Two pushable mobs push each other apart twice per tick by
+/// `0.05·√m` (`m` = the larger horizontal axis distance, below 1 block),
+/// and a pair is never closer than where that push balances the speed
+/// difference it absorbs: a cow driving at full tempt speed into one
+/// carried along with it (drive `0.3125² ≈ 0.098` blocks/tick², shared
+/// half each) settles where `0.1·√m = 0.049`, at `m ≈ 0.24`. Closer pairs
+/// only come from cows that walk the same points without being pushed
+/// apart; pairs closer than 0.1 on both axes are not pushed at all.
+const TEMPT_SEPARATION_FLOOR: f32 = 0.24;
+/// Pushing keeps two touching cows about 1.1 blocks apart (touching boxes
+/// plus the 0.2 push reach), so eight cows in single file span at least
+/// `7 × 1.1 = 7.7` blocks from the first to the last. A herd shorter than
+/// this along its principal axis and wider than one cow across it is not a
+/// single file.
+const TEMPT_SINGLE_FILE_LENGTH: f32 = 7.7;
+/// Share of the formed samples in which the herd must not be a single file.
+const TEMPT_HERD_SHARE: f32 = 0.8;
+/// How much farther behind the bot the herd may fall over the formed part
+/// of a leg. Tempted cows walk up to 0.215 blocks per tick, faster than the
+/// bot's 0.2, along whatever heading their path takes: walking straight at
+/// the bot they cannot fall behind; one block is the slack for pushes.
+const TEMPT_LAG_GROWTH: f32 = 1.0;
+/// Tempt gives up beyond this horizontal distance (`within_radius` 16).
+const TEMPT_RADIUS: f32 = 16.0;
 
 /// Serialises the tests: each makes its own temporary directory the process
 /// working directory.
@@ -138,12 +228,40 @@ fn natural_spawning_populates_new_chunks_over_loopback() {
     });
 }
 
+#[test]
+#[ignore = "loopback socket run: use the native lock"]
+fn zombie_kills_the_player_who_then_respawns_over_loopback() {
+    run_loopback(Scenario::Zombie, |config| {
+        // The cow's platform, wide enough that the bot's own spawn chunk
+        // generates inline. Hard scales the zombie's 3 damage to 4.5;
+        // survival lets it be hurt and targeted (the zombie ignores creative
+        // players). The bot is an operator by default.
+        config.world = WorldConfig::void_spawn_platform(4);
+        config.server.difficulty = Difficulty::Hard;
+        config.server.default_gamemode = "survival".into();
+    });
+}
+
+#[test]
+#[ignore = "loopback socket run: use the native lock"]
+fn tempted_cows_spread_out_while_following_over_loopback() {
+    run_loopback(Scenario::TemptedCows, |config| {
+        // A platform wide enough for the 40-block walk, generated inline;
+        // creative mode lets the bot take wheat from the creative
+        // inventory.
+        config.world = WorldConfig::void_spawn_platform(4);
+        config.server.default_gamemode = "creative".into();
+    });
+}
+
 /// What the joined bot does.
 #[derive(Debug, Clone, Copy)]
 enum Scenario {
     Cow,
     Chicken,
     NaturalSpawning,
+    Zombie,
+    TemptedCows,
 }
 
 impl Scenario {
@@ -152,6 +270,8 @@ impl Scenario {
             Self::Cow => COW_TIMEOUT,
             Self::Chicken => CHICKEN_TIMEOUT,
             Self::NaturalSpawning => SPAWN_TIMEOUT,
+            Self::Zombie => ZOMBIE_TIMEOUT,
+            Self::TemptedCows => TEMPT_TIMEOUT,
         }
     }
 
@@ -160,6 +280,8 @@ impl Scenario {
             Self::Cow => fight_cow(bot).await,
             Self::Chicken => glide_egg_and_kill_chicken(bot).await,
             Self::NaturalSpawning => watch_natural_spawns(bot).await,
+            Self::Zombie => zombie_kills_and_bot_respawns(bot).await,
+            Self::TemptedCows => tempted_cows_follow(bot).await,
         }
     }
 }
@@ -312,9 +434,8 @@ async fn summon(bot: &mut Bot, identifier: &str, at: &str) -> u64 {
         McpePacketData::AddActorPacket(actor) if &*actor.actor_type == identifier => {
             Some(actor.target_runtime_id.actor_runtime_id)
         }
-        // Command errors come back as system text.
-        McpePacketData::TextPacket(text) if format!("{:?}", text.body).contains("Error:") => {
-            panic!("/summon was refused: {:?}", text.body)
+        McpePacketData::CommandOutputPacket(output) if output.output.success_count == 0 => {
+            panic!("/summon was refused: {:?}", output.output.output_messages)
         }
         _ => None,
     })
@@ -512,6 +633,781 @@ async fn watch_natural_spawns(bot: &mut Bot) {
     }
 }
 
+/// a. midnight without natural spawns, b. a zombie closes in on the
+/// standing bot and hits it to death, c. the bot answers the respawn screen
+/// and comes back at the world spawn with full health.
+async fn zombie_kills_and_bot_respawns(bot: &mut Bot) {
+    // a. zombies burn in daylight: midnight, with the clock stopped there.
+    // Natural spawns could add other attackers on the dark platform.
+    bot.run_command(
+        "/gamerule dodaylightcycle false",
+        "commands.gamerule.success",
+    )
+    .await;
+    bot.run_command("/gamerule domobspawning false", "commands.gamerule.success")
+        .await;
+    bot.run_command("/time set midnight", "commands.time.set")
+        .await;
+    // The default spawn location puts the bot's eye at y 17, its feet inside
+    // the platform; a real client lands and reports itself standing on top.
+    // The bot is teleported there, then sends one standing `PlayerAuthInput`
+    // per tick, as a real client does, for the rest of the scenario.
+    let (x, z) = (bot.position.x, bot.position.z);
+    // `/tp` coordinates are feet, as in Bedrock.
+    bot.run_command(
+        &format!("/tp {x:.2} {PLATFORM_TOP:.2} {z:.2}"),
+        "commands.tp.success.coordinates",
+    )
+    .await;
+    bot.start_input_clock();
+
+    // b.
+    let (fight, zombie) = watch_zombie_fight(bot).await;
+    check_zombie_fight(bot, &fight, zombie);
+
+    // c.
+    answer_respawn_screen(bot).await;
+    let listen_until = Instant::now() + CONNECTED_AFTER_RESPAWN;
+    while let Some(packet) = bot.next_until(listen_until).await {
+        if let McpePacketData::DisconnectPacket(disconnect) = packet {
+            panic!("disconnected after respawning: {disconnect:?}");
+        }
+    }
+    assert!(bot.connected(), "the bot stays connected after respawning");
+    check_input_ticks(bot);
+}
+
+/// Every `PlayerInputTick` in a packet about the bot follows the bot's own
+/// input timeline: never ahead of the latest input it sent, never going
+/// backwards, and not 0 once it has sent input. A client disconnects on a
+/// tick that goes backwards.
+fn check_input_ticks(bot: &Bot) {
+    let ticks = &bot.self_ticks;
+    bot.log(format!(
+        "input ticks (packet, received, latest sent): {ticks:?}"
+    ));
+    assert!(
+        ticks.iter().any(|(kind, ..)| *kind == "SetActorMotion")
+            && ticks.iter().any(|(kind, ..)| *kind == "UpdateAttributes")
+            && ticks.iter().any(|(kind, ..)| *kind == "MovePlayer"),
+        "knockback, attributes and the respawn move reached the bot: {ticks:?}"
+    );
+    for (kind, received, sent) in ticks {
+        assert!(
+            received <= sent,
+            "{kind} carried tick {received}, ahead of the bot's latest input {sent}: {ticks:?}"
+        );
+        assert!(
+            *sent == 0 || *received > 0,
+            "{kind} carried tick 0 after the bot sent input {sent}: {ticks:?}"
+        );
+    }
+    assert!(
+        ticks.windows(2).all(|pair| pair[0].1 <= pair[1].1),
+        "input ticks went backwards: {ticks:?}"
+    );
+}
+
+/// What the bot saw of the zombie fight and its death.
+#[derive(Default)]
+struct ZombieFight {
+    /// Arrival of each `ActorEvent(StartAttacking)` of the zombie.
+    swings: Vec<Instant>,
+    /// Horizontal distance from the bot to the zombie at its first swing.
+    first_swing_distance: Option<f32>,
+    /// The bot's own `ActorEvent(Hurt)` count.
+    hurt: usize,
+    /// The bot's health updates: (packet tick, health, arrival).
+    health: Vec<(u64, f32, Instant)>,
+    /// `SetActorMotion` to the bot, with the horizontal direction from the
+    /// zombie to the bot when it arrived.
+    knockbacks: Vec<(Vec3, (f32, f32))>,
+    /// When the bot stepped back next to the zombie.
+    teleports: Vec<Instant>,
+    zombies_summoned: usize,
+    died: Option<Instant>,
+    /// `DeathInfo` (key, parameters).
+    death_info: Option<(String, Vec<String>)>,
+    /// The translated death message in chat (key, parameters).
+    death_chat: Option<(String, Vec<String>)>,
+    /// `Respawn` packets of the respawn screen (state, position).
+    respawn_screen: Vec<(EnumsPlayerRespawnState, Vec3)>,
+}
+
+impl ZombieFight {
+    /// Whether the death and everything that follows it arrived.
+    fn death_seen(&self) -> bool {
+        self.died.is_some()
+            && self.death_info.is_some()
+            && self.death_chat.is_some()
+            && self.respawn_screen.len() >= 2
+            && self
+                .health
+                .last()
+                .is_some_and(|(_, health, _)| *health == 0.0)
+    }
+}
+
+/// Summons a zombie [`ZOMBIE_SUMMON_DISTANCE`] blocks from the standing bot
+/// and records the fight until the bot's death and respawn screen. The bot
+/// steps next to the zombie (or summons another one when it is gone) when
+/// no hit lands for [`ZOMBIE_STALL`]. Returns the record and the zombie.
+async fn watch_zombie_fight(bot: &mut Bot) -> (ZombieFight, u64) {
+    let me = bot.runtime_id;
+    // On the platform's surface, whatever height the server has for the bot.
+    let at = format!("~ {PLATFORM_TOP} ~{ZOMBIE_SUMMON_DISTANCE}");
+    let mut fight = ZombieFight::default();
+    let mut zombie = summon(bot, ZOMBIE, &at).await;
+    fight.zombies_summoned = 1;
+    let kill_deadline = Instant::now() + ZOMBIE_KILLS_WITHIN;
+    let mut last_hit = Instant::now();
+    loop {
+        let deadline = fight
+            .died
+            .map_or(kill_deadline, |died| died + DEATH_PACKETS_WITHIN);
+        if fight.death_seen() || Instant::now() >= deadline {
+            break;
+        }
+        if fight.died.is_none() && last_hit.elapsed() >= ZOMBIE_STALL {
+            if let Some(feet) = bot.actors.get(&zombie).cloned() {
+                bot.log(format!(
+                    "no hit for {ZOMBIE_STALL:?}: stepping next to the zombie"
+                ));
+                // `/tp` coordinates are feet, as in Bedrock.
+                bot.command(&format!(
+                    "/tp {:.2} {:.2} {:.2}",
+                    feet.x,
+                    feet.y,
+                    feet.z - 1.0
+                ));
+                fight.teleports.push(Instant::now());
+            } else {
+                bot.log("the zombie is gone: summoning another".into());
+                zombie = summon(bot, ZOMBIE, &at).await;
+                fight.zombies_summoned += 1;
+            }
+            last_hit = Instant::now();
+        }
+        let wake = if fight.died.is_some() {
+            deadline
+        } else {
+            deadline.min(last_hit + ZOMBIE_STALL)
+        };
+        let Some(packet) = bot.next_until(wake).await else {
+            assert!(bot.connected(), "the bot stays connected during the fight");
+            continue;
+        };
+        match packet {
+            McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == zombie
+                    && event.event_id == EnumsActorEvent::StartAttacking =>
+            {
+                fight.swings.push(Instant::now());
+                if fight.first_swing_distance.is_none() {
+                    let (dx, dz) = bot.direction_from(zombie);
+                    fight.first_swing_distance = Some(dx.hypot(dz));
+                }
+            }
+            McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == me =>
+            {
+                match event.event_id {
+                    EnumsActorEvent::Hurt => fight.hurt += 1,
+                    EnumsActorEvent::Death => fight.died = Some(Instant::now()),
+                    _ => {}
+                }
+            }
+            McpePacketData::UpdateAttributesPacket(update)
+                if update.target_runtime_id.actor_runtime_id == me =>
+            {
+                if let Some(health) = update
+                    .attribute_list
+                    .iter()
+                    .find(|attribute| &*attribute.name == HEALTH)
+                {
+                    fight.health.push((
+                        update.tick.inputtick,
+                        health.current_value,
+                        Instant::now(),
+                    ));
+                    last_hit = Instant::now();
+                }
+            }
+            McpePacketData::SetActorMotionPacket(motion)
+                if motion.target_runtime_id.actor_runtime_id == me =>
+            {
+                let away = bot.direction_from(zombie);
+                fight.knockbacks.push((motion.motion, away));
+            }
+            McpePacketData::DeathInfoPacket(info) => {
+                fight.death_info = Some((
+                    info.death_cause_attack_name.to_string(),
+                    info.death_cause_message_list
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect(),
+                ));
+            }
+            McpePacketData::TextPacket(text) => {
+                if let TextPacketBody::MessageAndParams(message) = text.body
+                    && message.message.starts_with("death.")
+                {
+                    fight.death_chat = Some((
+                        message.message.to_string(),
+                        message
+                            .parameter_list
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect(),
+                    ));
+                }
+            }
+            McpePacketData::RespawnPacket(respawn) => {
+                fight.respawn_screen.push((respawn.state, respawn.position));
+            }
+            McpePacketData::DisconnectPacket(disconnect) => {
+                panic!("disconnected during the fight: {disconnect:?}")
+            }
+            _ => {}
+        }
+    }
+    (fight, zombie)
+}
+
+/// Checks the recorded fight: the zombie closed in and swung, each hit hurt
+/// the bot by the zombie's damage on hard (with a held weapon's bonus when
+/// the zombie spawned holding one) once per cooldown and knocked it away,
+/// and the bot died to it with the death screen and chat message.
+fn check_zombie_fight(bot: &Bot, fight: &ZombieFight, zombie: u64) {
+    let trace: Vec<(u64, f32)> = fight
+        .health
+        .iter()
+        .map(|(tick, health, _)| (*tick, *health))
+        .collect();
+    let swings = fight.swings.len();
+    bot.log(format!(
+        "zombie fight: {} zombie(s) summoned, {swings} swings, first at {:?} blocks, \
+         {} hurt events, {} knockbacks, {} step(s) back to the zombie, health (tick, value) {trace:?}",
+        fight.zombies_summoned,
+        fight.first_swing_distance,
+        fight.hurt,
+        fight.knockbacks.len(),
+        fight.teleports.len(),
+    ));
+    assert!(
+        fight.died.is_some(),
+        "the zombie kills the bot (ActorEvent Death) within {ZOMBIE_KILLS_WITHIN:?}: \
+         health {trace:?}, {swings} swings"
+    );
+
+    // The zombie walked up to the bot before its first swing.
+    let first_swing = fight
+        .first_swing_distance
+        .expect("the zombie swings (ActorEvent StartAttacking)");
+    assert!(
+        first_swing < ZOMBIE_SUMMON_DISTANCE - 1.0,
+        "the zombie closes in from {ZOMBIE_SUMMON_DISTANCE} blocks before swinging: \
+         it swung at {first_swing:.2}"
+    );
+
+    // Its damage: the attack plus a held weapon's, scaled for hard.
+    let weapon = bot
+        .mainhand
+        .get(&zombie)
+        .copied()
+        .filter(|id| *id != 0)
+        .map(|id| bot.item_name(id));
+    let weapon_bonus = weapon.map_or(0.0, |name| {
+        unastar_data::melee::attack_damage(Some(name)) - unastar_data::melee::attack_damage(None)
+    });
+    let damage = (ZOMBIE_ATTACK + weapon_bonus) * HARD_DAMAGE_SCALE;
+    bot.log(format!(
+        "the zombie holds {weapon:?}: {damage} damage per hit on hard"
+    ));
+    // Health updates that lowered health are the hits; between them a fed
+    // player may regenerate.
+    let mut previous = PLAYER_MAX_HEALTH;
+    let mut hit_updates = Vec::new();
+    for update in &fight.health {
+        if update.1 < previous {
+            hit_updates.push(*update);
+        }
+        previous = update.1;
+    }
+    let mut previous = PLAYER_MAX_HEALTH;
+    for (_, health, _) in &fight.health {
+        if *health < previous {
+            let expected = (previous - damage).max(0.0);
+            assert!(
+                (health - expected).abs() < 1e-3,
+                "each hit takes {damage} health: {previous} became {health}, trace {trace:?}"
+            );
+        } else {
+            assert!(
+                *health - previous <= 1.0 + 1e-3,
+                "between hits health only regenerates a point at a time: {trace:?}"
+            );
+        }
+        previous = *health;
+    }
+    assert_eq!(previous, 0.0, "the hits end at zero health: {trace:?}");
+    let hits = hit_updates.len();
+
+    // One swing per hit (two when the zombie holds something), one hurt
+    // event and one knockback per hit.
+    let swings_per_hit = if weapon.is_some() { 2 } else { 1 };
+    assert_eq!(
+        swings,
+        hits * swings_per_hit,
+        "ActorEvent StartAttacking per hit (holding {weapon:?})"
+    );
+    assert_eq!(fight.hurt, hits, "the bot's ActorEvent Hurt per hit");
+    assert_eq!(
+        fight.knockbacks.len(),
+        hits,
+        "SetActorMotion knockback per hit"
+    );
+    for (motion, (dx, dz)) in &fight.knockbacks {
+        assert!(
+            motion.x * dx + motion.z * dz > 0.0 && motion.y > 0.0,
+            "the knockback {motion:?} pushes the bot up and away from the zombie \
+             (direction {dx:.2}, {dz:.2})"
+        );
+    }
+
+    // Hits land every cooldown while the bot stays in reach. Health updates
+    // carry the bot's own input tick, which follows the server's tick only
+    // as closely as the bot's real-time input clock does.
+    let mut spaced = 0;
+    for pair in hit_updates.windows(2) {
+        let ((before, _, before_at), (after, _, after_at)) = (pair[0], pair[1]);
+        let stepped = fight
+            .teleports
+            .iter()
+            .any(|at| *at > before_at && *at <= after_at);
+        if !stepped {
+            assert!(
+                after.abs_diff(before).abs_diff(ZOMBIE_ATTACK_TICKS) <= INPUT_CLOCK_JITTER_TICKS,
+                "consecutive hits are one cooldown apart on the bot's input clock: {trace:?}"
+            );
+            spaced += 1;
+        }
+    }
+    assert!(
+        spaced > 0,
+        "at least two consecutive hits without a step: {trace:?}"
+    );
+
+    // The death screen and the chat name the zombie.
+    let message = (
+        "death.attack.mob".to_owned(),
+        vec![BOT.to_owned(), "%entity.zombie.name".to_owned()],
+    );
+    assert_eq!(
+        fight.death_info.as_ref(),
+        Some(&message),
+        "DeathInfo names the zombie"
+    );
+    assert_eq!(
+        fight.death_chat.as_ref(),
+        Some(&message),
+        "the chat death message names the zombie"
+    );
+    let states: Vec<_> = fight
+        .respawn_screen
+        .iter()
+        .map(|(state, _)| *state)
+        .collect();
+    assert_eq!(
+        states,
+        [
+            EnumsPlayerRespawnState::Searchingforspawn,
+            EnumsPlayerRespawnState::Readytospawn
+        ],
+        "the respawn screen opens: Respawn state 0 then 1"
+    );
+    for (_, position) in &fight.respawn_screen {
+        assert!(
+            near(position, &bot.spawn),
+            "the respawn screen points at the world spawn {:?}: {position:?}",
+            bot.spawn
+        );
+    }
+}
+
+/// Answers the respawn screen as the client's respawn button does
+/// (`Respawn` client-ready-to-spawn, then `PlayerAction` respawn, which the
+/// server ignores once the player lives) and checks the respawn: the
+/// server's ready-to-spawn acknowledgement, `MovePlayer` to the world spawn,
+/// `ActorEvent` spawn-alive and full health.
+async fn answer_respawn_screen(bot: &mut Bot) {
+    let me = bot.runtime_id;
+    bot.log("-> Respawn ClientReadyToSpawn, PlayerAction Respawn".into());
+    bot.send(RespawnPacket {
+        position: Vec3::default(),
+        state: EnumsPlayerRespawnState::Clientreadytospawn,
+        player_runtime_id: ActorRuntimeId {
+            actor_runtime_id: me,
+        },
+    });
+    bot.send(PlayerActionPacket {
+        player_runtime_id: ActorRuntimeId {
+            actor_runtime_id: me,
+        },
+        action: EnumsPlayerActionType::Respawn,
+        ..Default::default()
+    });
+    let deadline = Instant::now() + DEATH_PACKETS_WITHIN;
+    let (mut acknowledged, mut moved, mut alive, mut health) = (None, None, false, None);
+    while acknowledged.is_none() || moved.is_none() || !alive || health.is_none() {
+        let Some(packet) = bot.next_until(deadline).await else {
+            panic!(
+                "the respawn completes within {DEATH_PACKETS_WITHIN:?}: Respawn ack {acknowledged:?}, \
+                 MovePlayer {moved:?}, spawn-alive {alive}, health {health:?}, connected {}",
+                bot.connected()
+            );
+        };
+        match packet {
+            McpePacketData::RespawnPacket(respawn) => acknowledged = Some(respawn.state),
+            McpePacketData::MovePlayerPacket(move_player)
+                if move_player.player_runtime_id.actor_runtime_id == me =>
+            {
+                moved = Some((move_player.position, move_player.position_mode));
+            }
+            McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == me
+                    && event.event_id == EnumsActorEvent::SpawnAlive =>
+            {
+                alive = true;
+            }
+            McpePacketData::UpdateAttributesPacket(update)
+                if update.target_runtime_id.actor_runtime_id == me && health.is_none() =>
+            {
+                health = update
+                    .attribute_list
+                    .iter()
+                    .find(|attribute| &*attribute.name == HEALTH)
+                    .map(|attribute| attribute.current_value);
+            }
+            McpePacketData::DisconnectPacket(disconnect) => {
+                panic!("disconnected while respawning: {disconnect:?}")
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(
+        acknowledged,
+        Some(EnumsPlayerRespawnState::Readytospawn),
+        "the server acknowledges the client's ready-to-spawn"
+    );
+    let (position, mode) = moved.expect("MovePlayer after the respawn");
+    assert!(
+        near(&position, &bot.spawn),
+        "MovePlayer respawns the bot at the world spawn {:?}: {position:?}",
+        bot.spawn
+    );
+    assert_eq!(
+        mode,
+        EnumsPlayerPositionModeComponentPositionMode::Respawn,
+        "MovePlayer in respawn mode"
+    );
+    assert_eq!(
+        health,
+        Some(PLAYER_MAX_HEALTH),
+        "UpdateAttributes restores full health"
+    );
+}
+
+/// Where the bot and the cows stood after one tick of the tempt walk.
+struct WalkSample {
+    /// Ticks since the walk started.
+    tick: u32,
+    /// The bot's feet (x, z).
+    bot: (f32, f32),
+    /// Every cow's feet (x, z), in summon order.
+    cows: Vec<(f32, f32)>,
+}
+
+impl WalkSample {
+    /// The closest two cows: (horizontal distance, first, second).
+    fn closest_pair(&self) -> (f32, usize, usize) {
+        let mut closest = (f32::INFINITY, 0, 0);
+        for (i, a) in self.cows.iter().enumerate() {
+            for (j, b) in self.cows.iter().enumerate().skip(i + 1) {
+                let distance = (a.0 - b.0).hypot(a.1 - b.1);
+                if distance < closest.0 {
+                    closest = (distance, i, j);
+                }
+            }
+        }
+        closest
+    }
+
+    /// The herd's shape: its extent along its principal axis (length) and
+    /// across it (breadth).
+    fn shape(&self) -> (f32, f32) {
+        let n = self.cows.len() as f32;
+        let (mx, mz) = self
+            .cows
+            .iter()
+            .fold((0.0, 0.0), |(x, z), cow| (x + cow.0 / n, z + cow.1 / n));
+        let (mut sxx, mut sxz, mut szz) = (0.0, 0.0, 0.0);
+        for (x, z) in &self.cows {
+            let (dx, dz) = (x - mx, z - mz);
+            sxx += dx * dx;
+            sxz += dx * dz;
+            szz += dz * dz;
+        }
+        let angle = 0.5 * (2.0 * sxz).atan2(sxx - szz);
+        let (along, across) = ((angle.cos(), angle.sin()), (-angle.sin(), angle.cos()));
+        let extent = |(ux, uz): (f32, f32)| {
+            let (min, max) = self
+                .cows
+                .iter()
+                .map(|(x, z)| x * ux + z * uz)
+                .fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), v| {
+                    (lo.min(v), hi.max(v))
+                });
+            max - min
+        };
+        (extent(along), extent(across))
+    }
+
+    /// How far the herd's centre trails the bot.
+    fn lag(&self) -> f32 {
+        let n = self.cows.len() as f32;
+        let (x, z) = self
+            .cows
+            .iter()
+            .fold((0.0, 0.0), |(x, z), cow| (x + cow.0 / n, z + cow.1 / n));
+        (x - self.bot.0).hypot(z - self.bot.1)
+    }
+
+    /// Whether the herd is no single file: shorter than eight cows in a
+    /// row and wider than one cow.
+    fn herd(&self) -> bool {
+        let (length, breadth) = self.shape();
+        length < TEMPT_SINGLE_FILE_LENGTH && breadth > COW_WIDTH
+    }
+
+    /// Whether the cows have had time to line up behind the bot on the
+    /// current leg.
+    fn formed(&self) -> bool {
+        let into_leg = if self.tick < TEMPT_LEG_TICKS {
+            self.tick
+        } else {
+            self.tick - TEMPT_LEG_TICKS
+        };
+        into_leg >= TEMPT_FORMING_TICKS
+    }
+}
+
+/// The bot's walking direction (unit x, z) at `tick` of the walk:
+/// along +z on the first leg, along the +x/+z diagonal on the second.
+fn walk_direction(tick: u32) -> (f32, f32) {
+    if tick < TEMPT_LEG_TICKS {
+        (0.0, 1.0)
+    } else {
+        (
+            std::f32::consts::FRAC_1_SQRT_2,
+            std::f32::consts::FRAC_1_SQRT_2,
+        )
+    }
+}
+
+/// a. eight cows around the standing bot, which holds wheat, b. the bot
+/// walks straight along +z, turns and walks along the +x/+z diagonal, one
+/// `PlayerAuthInput` per tick, c. the cows followed, side by side and
+/// apart.
+async fn tempted_cows_follow(bot: &mut Bot) {
+    // a. no natural spawns join the herd.
+    bot.run_command("/gamerule domobspawning false", "commands.gamerule.success")
+        .await;
+    // The default spawn location puts the feet inside the platform; a real
+    // client reports itself standing on top.
+    let mut feet = (bot.position.x, bot.position.z);
+    let mut input_tick = 0;
+    bot.auth_input(feet, 0.0, false, input_tick);
+    let wheat = bot.item_id("minecraft:wheat");
+    bot.take_from_creative(wheat, 64, 0).await;
+    // Two rows of four, one block apart, three and four blocks behind the
+    // bot (it faces +z).
+    let mut cows = Vec::with_capacity(TEMPTED_COWS);
+    for i in 0..TEMPTED_COWS {
+        let x = feet.0 + (i % 4) as f32 - 1.5;
+        let z = feet.1 - 3.0 - (i / 4) as f32;
+        cows.push(summon(bot, COW, &format!("{x:.2} {PLATFORM_TOP} {z:.2}")).await);
+    }
+
+    // b. every tick: one input, then the packets until the next tick.
+    let mut samples = Vec::new();
+    let mut moves: HashMap<u64, usize> = HashMap::new();
+    let started = Instant::now();
+    let walk_ticks = TEMPT_LEG_TICKS + TEMPT_TURN_TICKS;
+    for tick in 0..TEMPT_GATHER_TICKS + walk_ticks {
+        let walk = tick.checked_sub(TEMPT_GATHER_TICKS);
+        let (yaw, step) = match walk {
+            None => (0.0, (0.0, 0.0)),
+            Some(walk) => {
+                let (dx, dz) = walk_direction(walk);
+                // Yaw 0 faces +z, −90 faces +x.
+                let yaw = -dx.atan2(dz).to_degrees();
+                (yaw, (dx * TEMPT_WALK_SPEED, dz * TEMPT_WALK_SPEED))
+            }
+        };
+        feet = (feet.0 + step.0, feet.1 + step.1);
+        input_tick += 1;
+        bot.auth_input(feet, yaw, walk.is_some(), input_tick);
+        let deadline = started + TICK * (tick + 1);
+        while let Some(packet) = bot.next_until(deadline).await {
+            let moved = match &packet {
+                McpePacketData::MoveActorDeltaPacket(moved) => {
+                    moved.move_data.actor_runtime_id.actor_runtime_id
+                }
+                McpePacketData::MoveActorAbsolutePacket(moved) => {
+                    moved.move_data.actor_runtime_id.actor_runtime_id
+                }
+                _ => continue,
+            };
+            *moves.entry(moved).or_default() += 1;
+        }
+        let Some(walk) = walk else {
+            continue;
+        };
+        let positions = cows
+            .iter()
+            .map(|cow| {
+                let at = bot
+                    .actors
+                    .get(cow)
+                    .unwrap_or_else(|| panic!("cow {cow} is still tracked"));
+                (at.x, at.z)
+            })
+            .collect();
+        samples.push(WalkSample {
+            tick: walk,
+            bot: feet,
+            cows: positions,
+        });
+    }
+    let move_counts: Vec<usize> = cows
+        .iter()
+        .map(|cow| moves.get(cow).copied().unwrap_or(0))
+        .collect();
+    bot.log(format!(
+        "tempt walk: MoveActorDelta/Absolute per cow {move_counts:?}"
+    ));
+    for sample in samples.iter().filter(|s| s.tick % 10 == 0) {
+        let (closest, a, b) = sample.closest_pair();
+        let (length, breadth) = sample.shape();
+        let herd: Vec<String> = sample
+            .cows
+            .iter()
+            .map(|(x, z)| format!("({x:.2},{z:.2})"))
+            .collect();
+        bot.log(format!(
+            "walk tick {:>3}: bot ({:.2},{:.2}) lag {:.2} herd {length:.2} x {breadth:.2} \
+             closest {closest:.2} (cows {a},{b}) cows {}",
+            sample.tick,
+            sample.bot.0,
+            sample.bot.1,
+            sample.lag(),
+            herd.join(" ")
+        ));
+    }
+
+    // c. what the cows did once formed on each leg.
+    let formed: Vec<&WalkSample> = samples.iter().filter(|s| s.formed()).collect();
+    let overlapping = formed
+        .iter()
+        .map(|s| {
+            let mut pairs = 0;
+            for (i, a) in s.cows.iter().enumerate() {
+                for b in &s.cows[i + 1..] {
+                    if (a.0 - b.0).hypot(a.1 - b.1) < COW_WIDTH {
+                        pairs += 1;
+                    }
+                }
+            }
+            pairs
+        })
+        .sum::<usize>();
+    let (closest, at) = formed
+        .iter()
+        .map(|s| (s.closest_pair(), s.tick))
+        .min_by(|a, b| a.0.0.total_cmp(&b.0.0))
+        .expect("formed samples");
+    let lines: Vec<u32> = formed
+        .iter()
+        .filter(|s| !s.herd())
+        .map(|s| s.tick)
+        .collect();
+    let herd_share = 1.0 - lines.len() as f32 / formed.len() as f32;
+    // The lag's growth over the formed part of each leg.
+    let growth = |leg: &dyn Fn(&&WalkSample) -> bool| {
+        let mut leg = formed.iter().filter(|s| leg(s));
+        let first = leg.next().expect("formed samples on the leg");
+        let last = leg.last().expect("formed samples on the leg");
+        last.lag() - first.lag()
+    };
+    let straight_growth = growth(&|s| s.tick < TEMPT_LEG_TICKS);
+    let diagonal_growth = growth(&|s| s.tick >= TEMPT_LEG_TICKS);
+    bot.log(format!(
+        "tempt walk over {} formed samples: lag growth {straight_growth:.2} straight, \
+         {diagonal_growth:.2} diagonal; closest pair {:.3} (cows {},{}) at walk tick {at}, \
+         {overlapping} pair-samples closer than a cow width; herd (not a single file) in \
+         {:.0}% (a line at walk ticks {lines:?})",
+        formed.len(),
+        closest.0,
+        closest.1,
+        closest.2,
+        herd_share * 100.0
+    ));
+
+    // They followed: still tempted at the end, having crossed most of the
+    // 37 blocks between the bot's start and end, without falling behind.
+    let first = samples.first().expect("walk samples");
+    let last = samples.last().expect("walk samples");
+    for (i, (start, end)) in first.cows.iter().zip(&last.cows).enumerate() {
+        let behind = (end.0 - last.bot.0).hypot(end.1 - last.bot.1);
+        let travelled = (end.0 - start.0).hypot(end.1 - start.1);
+        assert!(
+            behind < TEMPT_RADIUS && travelled > 20.0,
+            "cow {i} follows the bot: it ends {behind:.2} blocks from it after travelling \
+             {travelled:.2} blocks"
+        );
+    }
+    for (leg, growth) in [("straight", straight_growth), ("diagonal", diagonal_growth)] {
+        assert!(
+            growth <= TEMPT_LAG_GROWTH,
+            "the herd keeps up with the bot on the {leg} leg: it fell {growth:.2} blocks \
+             farther behind (at most {TEMPT_LAG_GROWTH})"
+        );
+    }
+    // No two following cows come closer than pushing allows.
+    assert!(
+        closest.0 >= TEMPT_SEPARATION_FLOOR,
+        "following cows stay at least {TEMPT_SEPARATION_FLOOR} blocks apart: cows {} and {} \
+         were {:.3} apart at walk tick {at}",
+        closest.1,
+        closest.2,
+        closest.0
+    );
+    // They walk as a herd, not in single file.
+    assert!(
+        herd_share >= TEMPT_HERD_SHARE,
+        "the cows walk as a herd (shorter than {TEMPT_SINGLE_FILE_LENGTH}, wider than \
+         {COW_WIDTH}) in at least {:.0}% of the samples: only {:.0}%",
+        TEMPT_HERD_SHARE * 100.0,
+        herd_share * 100.0
+    );
+}
+
+/// Whether two positions are the same to wire precision.
+fn near(a: &Vec3, b: &Vec3) -> bool {
+    (a.x - b.x).abs() < 0.01 && (a.y - b.y).abs() < 0.01 && (a.z - b.z).abs() < 0.01
+}
+
 /// Hits `mob` until it dies, respecting the hurt cooldown, and checks hurt,
 /// health, death and removal; returns the item IDs that dropped.
 async fn kill(bot: &mut Bot, mob: u64) -> Vec<i16> {
@@ -603,14 +1499,26 @@ struct Bot {
     runtime_id: u64,
     /// Where the server last placed the bot (eye position).
     position: Vec3,
+    /// The world spawn (eye position) from `StartGame`, where the bot joined.
+    spawn: Vec3,
     item_ids: HashMap<String, i16>,
     /// Last known position of every actor, by runtime ID.
     actors: HashMap<u64, Vec3>,
     /// (current, max) health from each actor's `AddActor`.
     health_on_add: HashMap<u64, (f32, f32)>,
+    /// Main-hand item ID of each mob, from its `MobEquipment` (0 when empty).
+    mainhand: HashMap<u64, i16>,
     /// Creative item network ID by item ID, from `CreativeContent`.
     creative: HashMap<i32, u32>,
     started: Instant,
+    /// The bot's own input timeline: the last `PlayerAuthInput` tick sent.
+    input_tick: u64,
+    /// When the next `PlayerAuthInput` is due, while the bot sends one per
+    /// tick as a real client does ([`Bot::start_input_clock`]).
+    next_input: Option<Instant>,
+    /// `PlayerInputTick` of every packet about the bot, with the bot's
+    /// latest input tick when it arrived: (packet, received, latest sent).
+    self_ticks: Vec<(&'static str, u64, u64)>,
     outbound: Option<mpsc::UnboundedSender<McpePacket>>,
     inbound: mpsc::UnboundedReceiver<McpePacketData>,
     io: Option<tokio::task::JoinHandle<()>>,
@@ -665,6 +1573,7 @@ impl Bot {
         Self {
             runtime_id,
             position: game_data.start_game.position.clone(),
+            spawn: game_data.start_game.position.clone(),
             item_ids: game_data
                 .item_registry
                 .item_data
@@ -673,8 +1582,12 @@ impl Bot {
                 .collect(),
             actors: HashMap::new(),
             health_on_add: HashMap::new(),
+            mainhand: HashMap::new(),
             creative: HashMap::new(),
             started: Instant::now(),
+            input_tick: 0,
+            next_input: None,
+            self_ticks: Vec::new(),
             outbound: Some(outbound),
             inbound,
             io: Some(io),
@@ -687,6 +1600,37 @@ impl Bot {
             .expect("bot is running")
             .send(packet.into())
             .expect("bot connection is open");
+    }
+
+    /// Whether the connection is still open.
+    fn connected(&self) -> bool {
+        self.io.as_ref().is_some_and(|io| !io.is_finished())
+    }
+
+    /// Runs an operator command and waits for its `CommandOutput`, which
+    /// must succeed with the translation key `reply`.
+    async fn run_command(&mut self, line: &str, reply: &str) {
+        self.command(line);
+        self.expect(&format!("the reply to {line}"), |packet| match packet {
+            McpePacketData::CommandOutputPacket(output) => {
+                let messages = &output.output.output_messages;
+                assert!(
+                    output.output.success_count > 0
+                        && messages.iter().any(|m| &*m.message_id == reply),
+                    "{line} answered {messages:?}"
+                );
+                Some(())
+            }
+            _ => None,
+        })
+        .await;
+    }
+
+    /// The horizontal direction (not normalised) from `actor`'s last known
+    /// position to the bot.
+    fn direction_from(&self, actor: u64) -> (f32, f32) {
+        let at = self.actors.get(&actor).cloned().unwrap_or_default();
+        (self.position.x - at.x, self.position.z - at.z)
     }
 
     fn command(&self, line: &str) {
@@ -844,7 +1788,8 @@ impl Bot {
         if dx * dx + dy * dy + dz * dz <= 9.0 {
             return;
         }
-        let (x, y, z) = (at.x, at.y + EYE_HEIGHT, at.z - 1.5);
+        // `/tp` coordinates are feet, as in Bedrock.
+        let (x, y, z) = (at.x, at.y, at.z - 1.5);
         self.command(&format!("/tp {x:.2} {y:.2} {z:.2}"));
         let me = self.runtime_id;
         self.expect("MovePlayer teleport", |packet| match packet {
@@ -877,9 +1822,60 @@ impl Bot {
     }
 
     async fn next(&mut self) -> Option<McpePacketData> {
-        let packet = self.inbound.recv().await?;
+        let packet = loop {
+            let Some(due) = self.next_input else {
+                break self.inbound.recv().await?;
+            };
+            match tokio::time::timeout_at(due, self.inbound.recv()).await {
+                Ok(packet) => break packet?,
+                Err(_) => self.send_tick_input(),
+            }
+        };
+        self.record_input_tick(&packet);
         self.observe(&packet);
         Some(packet)
+    }
+
+    /// From now on, send one standing `PlayerAuthInput` per tick with an
+    /// advancing client tick while waiting for packets, as a real client does.
+    fn start_input_clock(&mut self) {
+        self.next_input = Some(Instant::now());
+    }
+
+    fn send_tick_input(&mut self) {
+        self.input_tick += 1;
+        let feet = (self.position.x, self.position.z);
+        self.auth_input(feet, 0.0, false, self.input_tick);
+        let due = self.next_input.map_or_else(Instant::now, |due| due + TICK);
+        self.next_input = Some(due.max(Instant::now()));
+    }
+
+    /// Records the `PlayerInputTick` of a packet about the bot itself.
+    fn record_input_tick(&mut self, packet: &McpePacketData) {
+        let me = self.runtime_id;
+        let tick = match packet {
+            McpePacketData::UpdateAttributesPacket(p)
+                if p.target_runtime_id.actor_runtime_id == me =>
+            {
+                ("UpdateAttributes", p.tick.inputtick)
+            }
+            McpePacketData::SetActorMotionPacket(p)
+                if p.target_runtime_id.actor_runtime_id == me =>
+            {
+                ("SetActorMotion", p.tick.inputtick)
+            }
+            McpePacketData::MobEffectPacket(p) if p.target_runtime_id.actor_runtime_id == me => {
+                ("MobEffect", p.tick.inputtick)
+            }
+            McpePacketData::MovePlayerPacket(p) if p.player_runtime_id.actor_runtime_id == me => {
+                ("MovePlayer", p.tick.inputtick)
+            }
+            McpePacketData::SetActorDataPacket(p) if p.target_runtime_id.actor_runtime_id == me => {
+                ("SetActorData", p.tick.inputtick)
+            }
+            _ => return,
+        };
+        self.self_ticks.push((tick.0, tick.1, self.input_tick));
     }
 
     /// The next packet, or `None` once `deadline` passes.
@@ -928,33 +1924,55 @@ impl Bot {
                 if moved.player_runtime_id.actor_runtime_id == self.runtime_id =>
             {
                 self.position = moved.position.clone();
-                self.log(format!("<- MovePlayer (self) to {:?}", moved.position));
+                self.log(format!(
+                    "<- MovePlayer (self) to {:?} mode {:?}",
+                    moved.position, moved.position_mode
+                ));
             }
             McpePacketData::ActorEventPacket(event) => self.log(format!(
                 "<- ActorEvent {:?} runtime {} data {}",
                 event.event_id, event.target_runtime_id.actor_runtime_id, event.data
             )),
-            McpePacketData::UpdateAttributesPacket(update)
-                if update.target_runtime_id.actor_runtime_id != self.runtime_id =>
-            {
+            McpePacketData::UpdateAttributesPacket(update) => {
                 let health = update
                     .attribute_list
                     .iter()
                     .find(|attribute| &*attribute.name == HEALTH)
                     .map(|attribute| (attribute.current_value, attribute.max_value));
+                let id = update.target_runtime_id.actor_runtime_id;
+                let whose = if id == self.runtime_id { " (self)" } else { "" };
                 self.log(format!(
-                    "<- UpdateAttributes runtime {} health {health:?}",
-                    update.target_runtime_id.actor_runtime_id
+                    "<- UpdateAttributes runtime {id}{whose} tick {} health {health:?}",
+                    update.tick.inputtick
                 ));
             }
-            McpePacketData::SetActorMotionPacket(motion)
-                if motion.target_runtime_id.actor_runtime_id != self.runtime_id =>
+            McpePacketData::SetActorMotionPacket(motion) => {
+                let id = motion.target_runtime_id.actor_runtime_id;
+                let whose = if id == self.runtime_id { " (self)" } else { "" };
+                self.log(format!(
+                    "<- SetActorMotion runtime {id}{whose} {:?}",
+                    motion.motion
+                ));
+            }
+            McpePacketData::MobEquipmentPacket(equipment)
+                if equipment.slot == 0 && equipment.container_id == 0 =>
             {
+                let id = equipment.target_runtime_id.actor_runtime_id;
+                self.mainhand.insert(id, equipment.item.id);
                 self.log(format!(
-                    "<- SetActorMotion runtime {} {:?}",
-                    motion.target_runtime_id.actor_runtime_id, motion.motion
+                    "<- MobEquipment runtime {id} main hand {} (id {})",
+                    self.item_name(equipment.item.id),
+                    equipment.item.id
                 ));
             }
+            McpePacketData::DeathInfoPacket(info) => self.log(format!(
+                "<- DeathInfo {:?} {:?}",
+                info.death_cause_attack_name, info.death_cause_message_list
+            )),
+            McpePacketData::RespawnPacket(respawn) => self.log(format!(
+                "<- Respawn {:?} at {:?} runtime {}",
+                respawn.state, respawn.position, respawn.player_runtime_id.actor_runtime_id
+            )),
             McpePacketData::RemoveActorPacket(remove) => {
                 self.actors
                     .remove(&(remove.target_actor_id.actor_unique_id as u64));
@@ -964,11 +1982,7 @@ impl Bot {
                 ));
             }
             McpePacketData::AddItemActorPacket(item) => {
-                let name = self
-                    .item_ids
-                    .iter()
-                    .find(|(_, id)| **id == item.item.id)
-                    .map_or("?", |(name, _)| name.as_str());
+                let name = self.item_name(item.item.id);
                 self.log(format!(
                     "<- AddItemActor runtime {} {name} (id {}) x{} at {:?}",
                     item.target_runtime_id.actor_runtime_id,
@@ -1014,8 +2028,53 @@ impl Bot {
             .unwrap_or_else(|| panic!("{name} in the item registry"))
     }
 
+    /// The registry name of item `id`, or `?` for an unknown ID (0 is air).
+    fn item_name(&self, id: i16) -> &str {
+        if id == 0 {
+            return "minecraft:air";
+        }
+        self.item_ids
+            .iter()
+            .find(|(_, item)| **item == id)
+            .map_or("?", |(name, _)| name.as_str())
+    }
+
     fn log(&self, line: String) {
         println!("[{:>6} ms] {line}", self.started.elapsed().as_millis());
+    }
+
+    /// One `PlayerAuthInput`, as the client sends every tick: standing on
+    /// the platform at `feet` (x, z), facing `yaw`, walking forward when
+    /// `walking`.
+    fn auth_input(&mut self, feet: (f32, f32), yaw: f32, walking: bool, tick: u64) {
+        let eye = Vec3 {
+            x: feet.0,
+            y: PLATFORM_TOP + EYE_HEIGHT,
+            z: feet.1,
+        };
+        let delta = Vec3 {
+            x: eye.x - self.position.x,
+            y: eye.y - self.position.y,
+            z: eye.z - self.position.z,
+        };
+        self.position = eye.clone();
+        let mut input_data = vec![EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision];
+        if walking {
+            input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Up);
+        }
+        self.send(PlayerAuthInputPacket {
+            player_rotation: Vec2 { x: 0.0, y: yaw },
+            position: eye,
+            move_vector: Vec2 {
+                x: 0.0,
+                y: if walking { 1.0 } else { 0.0 },
+            },
+            player_head_rotation: yaw,
+            input_data,
+            client_tick: PlayerInputTick { inputtick: tick },
+            pos_delta: delta,
+            ..Default::default()
+        });
     }
 
     /// Disconnects and stops the background task.

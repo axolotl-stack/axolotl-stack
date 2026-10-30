@@ -24,7 +24,7 @@ pub enum SlotKind {
     Armor,
     Offhand,
     CreatedOutput,
-    /// Furnace-family fuel slot (accepts only items that burn).
+    /// Furnace-family fuel slot: accepts only items that burn.
     FurnaceFuel,
     /// Grindstone input: items with durability or enchantments. BDS refused
     /// an enchanted book without enchantments with `CannotPlaceItem`

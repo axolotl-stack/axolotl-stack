@@ -69,8 +69,7 @@ use glam::IVec3;
 use jolyne::valentine::{
     ActorRuntimeId, ActorUniqueId, BlockPos, ContainerOpenPacket, EnchantmentInstance,
     EnumsEnchantType, InventoryContentPacket, ItemEnchantOption, ItemEnchants, McpePacket,
-    PlayerEnchantOptionsPacket, PlayerInputTick, TypedServerNetIdstructRecipeNetIdTag,
-    UpdateAttributesPacket,
+    PlayerEnchantOptionsPacket, TypedServerNetIdstructRecipeNetIdTag, UpdateAttributesPacket,
 };
 use rand::Rng;
 use unastar_data::{banner_patterns, enchantments};
@@ -673,15 +672,12 @@ fn charge_levels(world: &mut World, player: Entity, levels: i32) {
     ) else {
         return;
     };
-    let tick = world
-        .get_resource::<crate::ecs::resources::TickCounter>()
-        .map_or(0, |tick| tick.current);
     let _ = session.send(McpePacket::from(UpdateAttributesPacket {
         target_runtime_id: ActorRuntimeId {
             actor_runtime_id: runtime_id as u64,
         },
         attribute_list: vec![level],
-        tick: PlayerInputTick { inputtick: tick },
+        tick: crate::entity::components::input_tick_of(world, player),
     }));
 }
 

@@ -9,7 +9,7 @@
 //! experience code itself (`entity::xp_orb`).
 
 use bevy_ecs::prelude::*;
-use jolyne::valentine::types::{ActorRuntimeId, AttributeData, PlayerInputTick};
+use jolyne::valentine::types::{ActorRuntimeId, AttributeData};
 use jolyne::valentine::{McpePacket, UpdateAttributesPacket};
 
 use crate::entity::components::{Health, Hunger, PlayerInput, PlayerSession, RuntimeEntityId};
@@ -99,6 +99,16 @@ impl SentAttributes {
         }
     }
 
+    /// After a respawn: the respawn sequence already sent `hunger`, and the
+    /// restored health is always sent again (even when it equals the last
+    /// value sent, as it does when death and respawn fall in one tick).
+    pub fn respawned(&mut self, hunger: &Hunger) {
+        self.food = Some(hunger.food_level);
+        self.saturation = Some(hunger.saturation);
+        self.exhaustion = Some(hunger.exhaustion);
+        self.health = None;
+    }
+
     /// The attributes that differ from what was sent; records them as sent.
     pub fn diff(&mut self, health: &Health, hunger: &Hunger, absorb: f32) -> Vec<AttributeData> {
         let mut out = Vec::new();
@@ -151,9 +161,7 @@ pub fn sync_player_attributes(
                 actor_runtime_id: runtime_id.0 as u64,
             },
             attribute_list: changed,
-            tick: PlayerInputTick {
-                inputtick: u64::try_from(input.tick).unwrap_or(0),
-            },
+            tick: input.wire_tick(),
         }));
     }
 }

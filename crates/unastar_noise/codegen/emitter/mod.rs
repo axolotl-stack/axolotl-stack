@@ -125,7 +125,13 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
             .ok_or_else(|| format!("dimension type for noise settings {name} is missing"))?;
         modules.public(
             &format!("{name}_settings"),
-            settings::emit(name, settings, dimension, inputs.density_functions, inputs.java_blocks)?,
+            settings::emit(
+                name,
+                settings,
+                dimension,
+                inputs.density_functions,
+                inputs.java_blocks,
+            )?,
         )?;
 
         let router = &settings.noise_router;
@@ -138,7 +144,10 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
             ("fluid_level_floodedness", &router.fluid_level_floodedness),
             ("fluid_level_spread", &router.fluid_level_spread),
             ("lava", &router.lava),
-            ("preliminary_surface_level", &router.preliminary_surface_level),
+            (
+                "preliminary_surface_level",
+                &router.preliminary_surface_level,
+            ),
             ("ridges", &router.ridges),
             ("temperature", &router.temperature),
             ("vegetation", &router.vegetation),
@@ -158,7 +167,9 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
             "AOT-compiled {name} noise router (regenerated at build time from worldgen JSON)."
         );
         compiled.attrs.retain(|attr| !attr.path().is_ident("doc"));
-        compiled.attrs.insert(0, syn::parse_quote!(#![doc = #module_doc]));
+        compiled
+            .attrs
+            .insert(0, syn::parse_quote!(#![doc = #module_doc]));
         let compiled = quote! { #compiled };
         if name == "overworld" {
             // Preserve the existing root API; other dimensions are explicitly scoped.
@@ -174,7 +185,6 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
 
     biome_features::emit_biome_features(output_dir, inputs.biomes)?;
     modules.glob_existing("biome_features");
-
 
     modules.public("java_blocks", java_blocks::emit(inputs.java_blocks))?;
     modules.public(

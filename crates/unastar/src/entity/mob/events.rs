@@ -6,11 +6,12 @@
 //! deferred `trigger`s whose filters pass, depth-first, with a recursion bound.
 
 use bevy_ecs::prelude::*;
-use glam::IVec3;
+use glam::{DVec3, IVec3};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use thiserror::Error;
 use unastar_data::actor_components::ActorComponent;
+use unastar_data::game_rules::GameRuleValue;
 use unastar_rules::filter::{BuiltinTest, Fact, FilterContext, FilterTest, Subject};
 use unastar_rules::molang::QueryId;
 use unastar_rules::molang::eval::{MolangContext, Value as MolangValue};
@@ -18,7 +19,7 @@ use unastar_rules::molang::eval::{MolangContext, Value as MolangValue};
 use super::MobKind;
 use super::archetype::MobArchetype;
 use crate::entity::EntityRandom;
-use crate::entity::components::{PlayerState, Position};
+use crate::entity::components::{PhysicsBody, Player, PlayerState, Position};
 use crate::entity::definition::events::{
     EventContext, EventEffect, EventEvaluationError, EventHandle, EventOutcome, FilterBinding,
     TriggerEvent,
@@ -28,6 +29,7 @@ use crate::entity::definition::properties::{ActorProperties, PropertyError, Prop
 use crate::entity::definition::{DefinitionState, GroupChange, queue_group_change};
 use crate::entity::systems::BlockSource;
 use crate::world::ecs::{ChunkData, ChunkManager, world_to_chunk_coords, world_to_local_coords};
+use crate::world::rules::GameRules;
 
 /// Bound on nested `trigger` dispatch. Vanilla chains are at most three deep;
 /// a cycle in addon data stops here instead of hanging the tick.
@@ -88,8 +90,18 @@ impl MobFacts<'_> {
             .map(|row| row.tags.as_slice())
     }
 
+    /// The block-space feet of `entity` (a player's position is its eye).
+    fn feet(&self, entity: Entity) -> Option<DVec3> {
+        let position = self.world.get::<Position>(entity)?.0;
+        Some(if self.world.get::<Player>(entity).is_some() {
+            position - DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT
+        } else {
+            position
+        })
+    }
+
     fn in_liquid(&self, entity: Entity, lava: bool) -> Option<bool> {
-        let position: IVec3 = self.world.get::<Position>(entity)?.0.floor().as_ivec3();
+        let position: IVec3 = self.feet(entity)?.floor().as_ivec3();
         let state = self.world.block_at(position)?;
         Some(
             self.world
@@ -105,6 +117,42 @@ impl MobFacts<'_> {
         )
     }
 
+    /// Where the actor breathes: a player's eye, a mob's head at
+    /// [`MOB_EYE_HEIGHT_RATIO`](super::constants::MOB_EYE_HEIGHT_RATIO) of
+    /// its box height above the feet.
+    fn breathing_point(&self, entity: Entity) -> Option<DVec3> {
+        let position = self.world.get::<Position>(entity)?.0;
+        if self.world.get::<Player>(entity).is_some() {
+            return Some(position);
+        }
+        let height = self.world.get::<PhysicsBody>(entity)?.height;
+        Some(position + DVec3::Y * height * super::constants::MOB_EYE_HEIGHT_RATIO)
+    }
+
+    /// `is_underwater`: the block at the breathing point (the actor's own x
+    /// and z) is water and the point lies below that water's surface (see
+    /// [`UNDERWATER_LEVEL_STEPS`](super::constants::UNDERWATER_LEVEL_STEPS)).
+    /// Only the block itself counts: water a block is logged with does not.
+    fn under_water(&self, entity: Entity) -> Option<bool> {
+        let point = self.breathing_point(entity)?;
+        let block = point.floor().as_ivec3();
+        let state = self.world.block_at(block)?;
+        let Some(liquid) = self.world.registry().liquid_state(state) else {
+            return Some(false);
+        };
+        if !matches!(liquid.kind, crate::registry::block::LiquidKind::Water) {
+            return Some(false);
+        }
+        let level = if liquid.depth < 8 {
+            liquid.depth + 1
+        } else {
+            1
+        };
+        let surface = f64::from(block.y) + 1.0
+            - f64::from(level - 1) / super::constants::UNDERWATER_LEVEL_STEPS;
+        Some(point.y < surface)
+    }
+
     fn property(&self, entity: Entity, test: &FilterTest) -> Option<PropertyValue> {
         let properties = self.world.get::<ActorProperties>(entity)?;
         let slot = properties.layout().slot(test.domain_str()?)?;
@@ -112,22 +160,17 @@ impl MobFacts<'_> {
     }
 }
 
-/// A boolean game rule as the server announces it in `StartGame`, if set.
-pub(crate) fn game_rule_bool(world: &World, rule: &str) -> Option<bool> {
-    use jolyne::valentine::types::GameRuleRuleValue;
-    world
-        .get_resource::<crate::server::game::types::ServerWorldTemplate>()?
-        .0
-        .start_game_template
-        .settings
-        .rule_data
-        .rules_list
-        .iter()
-        .find(|r| r.rule_name.eq_ignore_ascii_case(rule))
-        .and_then(|r| match r.rule_value {
-            GameRuleRuleValue::Bool(value) => Some(value),
-            _ => None,
-        })
+/// A boolean game rule's current value (the vanilla default before the
+/// world's [`GameRules`] exist); `None` for unknown or non-boolean rules.
+fn game_rule_bool(world: &World, rule: &str) -> Option<bool> {
+    let value = match world.get_resource::<GameRules>() {
+        Some(rules) => rules.value(rule)?.1,
+        None => GameRules::default().value(rule)?.1,
+    };
+    match value {
+        GameRuleValue::Bool(value) => Some(value),
+        _ => None,
+    }
 }
 
 impl FilterContext for MobFacts<'_> {
@@ -142,6 +185,9 @@ impl FilterContext for MobFacts<'_> {
             }
             BuiltinTest::InLava => Fact::Bool(self.in_liquid(entity, true)?),
             BuiltinTest::InWater => Fact::Bool(self.in_liquid(entity, false)?),
+            BuiltinTest::IsUnderwater => Fact::Bool(self.under_water(entity)?),
+            // Riding is not implemented: no actor ever has a vehicle.
+            BuiltinTest::IsVehicleFamily => Fact::Matches(false),
             BuiltinTest::IsBaby => Fact::Bool(
                 self.world
                     .get::<ActorFlags>(entity)
@@ -166,14 +212,7 @@ impl FilterContext for MobFacts<'_> {
                 PropertyValue::Int(value) => Fact::Number(f64::from(value)),
                 _ => return None,
             },
-            BuiltinTest::IsGameRule => {
-                let rule = test.domain_str()?;
-                let value = game_rule_bool(self.world, rule).or_else(|| {
-                    rule.eq_ignore_ascii_case(super::constants::DO_MOB_SPAWNING_RULE)
-                        .then_some(super::constants::DO_MOB_SPAWNING_DEFAULT)
-                })?;
-                Fact::Bool(value)
-            }
+            BuiltinTest::IsGameRule => Fact::Bool(game_rule_bool(self.world, test.domain_str()?)?),
             // Riding is not implemented: no actor ever has a rider.
             BuiltinTest::RiderCount => Fact::Number(0.0),
             BuiltinTest::HasComponent => {
@@ -197,6 +236,12 @@ impl FilterContext for MobFacts<'_> {
             BuiltinTest::HasEquipment => {
                 let want = super::components::ItemMatcher::parse(test.value.as_str()?).ok()?;
                 let domain = test.domain_str().unwrap_or("any");
+                if self.world.get::<MobKind>(entity).is_some() {
+                    let slots = super::gear::domain_slots(domain)?;
+                    return Some(Fact::Matches(super::gear::has_equipment(
+                        self.world, entity, slots, &want,
+                    )));
+                }
                 if !matches!(domain, "hand" | "any") {
                     return None;
                 }
@@ -249,18 +294,13 @@ pub fn is_family(world: &World, entity: Entity, family: &str) -> bool {
     families.contains(&id).unwrap_or(false)
 }
 
-/// The world difficulty as filters name it, from the level settings the
-/// server announces.
+/// The world difficulty as filters name it.
 fn world_difficulty(world: &World) -> Option<&'static str> {
-    use jolyne::valentine::types::EnumsSharedTypesLegacyDifficulty as Difficulty;
-    let template = world.get_resource::<crate::server::game::types::ServerWorldTemplate>()?;
-    match template.0.start_game_template.settings.game_difficulty {
-        Difficulty::Peaceful => Some("peaceful"),
-        Difficulty::Easy => Some("easy"),
-        Difficulty::Normal => Some("normal"),
-        Difficulty::Hard => Some("hard"),
-        _ => None,
-    }
+    Some(
+        world
+            .get_resource::<crate::world::rules::Difficulty>()?
+            .name(),
+    )
 }
 
 /// The non-empty stack in a player's selected hotbar slot.

@@ -44,6 +44,7 @@
 - `crates/example-plugin`: Example plugin implementation.
 - `crates/unastar-data`: Data/codegen support for server-side content.
 - `crates/bds-extractor`: Bedrock data extraction tooling.
+- `crates/parity`: Vanilla-parity catalog tool (`parity generate` / `parity check`) for `docs/parity/`; a feature is not finished until its parity rows are updated in the same commit.
 
 ## Protocol And Codegen Notes
 - Primary protocol work lives in `crates/valentine` and `crates/valentine_gen`.
@@ -90,6 +91,7 @@
 - Generate latest Bedrock protocol from protocolgen: `cargo run -p valentine_gen -- --latest`
 - Generate only protocol code: `cargo run -p valentine_gen -- --latest --proto`
 - Generate specific versions together for dedup consideration: `cargo run -p valentine_gen -- --versions 1.21.120,1.21.124,1.26.0`
+- Refresh / validate the vanilla-parity catalog: `cargo run -p parity -- generate`, `cargo run -p parity -- check` (see `docs/parity/README.md`)
 
 ## High-Value Paths
 - Root workspace manifest: `Cargo.toml`

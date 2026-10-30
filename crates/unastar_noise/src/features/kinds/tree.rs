@@ -304,7 +304,6 @@ impl Bounds {
     }
 }
 
-
 /// `LeavesBlock.getOptionalDistanceAt`: 0 for logs, the leaf `distance`,
 /// or none.
 fn optional_distance(s: JavaState) -> Option<i32> {
@@ -372,7 +371,6 @@ fn update_leaves<W: FeatureWorld + ?Sized>(
         smallest += 1;
     }
 }
-
 
 #[cfg(test)]
 mod tests {

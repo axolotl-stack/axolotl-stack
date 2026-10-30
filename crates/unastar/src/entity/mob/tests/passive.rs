@@ -16,8 +16,8 @@ use valentine::bedrock::codec::BedrockCodec;
 
 use crate::entity::EntityRandom;
 use crate::entity::components::{
-    DroppedItem, Experience, GameMode, Health, HeldSlot, ItemEntityStack, MainInventory, OnFire,
-    Player, PlayerSession, Position, Rotation, RuntimeEntityId, RuntimeId,
+    DroppedItem, Experience, GameMode, Health, HeldSlot, ItemEntityStack, MainInventory, Player,
+    PlayerSession, Position, Rotation, RuntimeEntityId, RuntimeId,
 };
 use crate::entity::definition::attributes::ActorAttributes;
 use crate::entity::definition::flags::ActorFlags;
@@ -398,9 +398,14 @@ fn a_sheared_sheep_eats_grass_and_regrows_wool() {
     h.packets();
 
     let mut ate = false;
+    // The eaten grass's particles and the dirt that replaces it name blocks
+    // by their wire ids.
+    let mut block_ids = 0;
     for _ in 0..20_000 {
         h.server.tick();
         let packets = h.packets();
+        let ids = crate::server::game::types::block_network_ids(h.world());
+        block_ids += crate::server::wire_audit::assert_block_ids_on_wire(ids, &packets);
         ate |= packets.iter().any(|packet| {
             matches!(packet, McpePacketData::ActorEventPacket(event)
                 if event.target_runtime_id.actor_runtime_id == runtime_id
@@ -411,6 +416,7 @@ fn a_sheared_sheep_eats_grass_and_regrows_wool() {
         }
     }
     assert!(ate, "viewers saw the sheep lower its head");
+    assert!(block_ids >= 2, "the eating sent block ids: {block_ids}");
     let world = h.world();
     assert!(!flag(world, sheep, actor_flags::SHEARED), "wool regrew");
     assert!(
@@ -463,7 +469,7 @@ fn killed_pigs_and_sheep_drop_their_loot_by_colour_and_fire() {
     );
 
     let pig = h.adult("minecraft:pig", feet);
-    h.world().entity_mut(pig).insert(OnFire::new(100));
+    crate::entity::mob::combat::fire::ignite(h.world(), pig, 100);
     h.kill(pig);
     let drops = h.take_drops();
     assert!(count(&drops, "minecraft:cooked_porkchop") >= 1, "{drops:?}");
@@ -480,7 +486,7 @@ fn killed_pigs_and_sheep_drop_their_loot_by_colour_and_fire() {
     );
 
     let sheep = h.adult("minecraft:sheep", feet);
-    h.world().entity_mut(sheep).insert(OnFire::new(100));
+    crate::entity::mob::combat::fire::ignite(h.world(), sheep, 100);
     h.kill(sheep);
     let drops = h.take_drops();
     assert!(count(&drops, "minecraft:cooked_mutton") >= 1, "{drops:?}");

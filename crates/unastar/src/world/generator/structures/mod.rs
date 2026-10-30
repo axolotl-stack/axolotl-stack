@@ -13,8 +13,8 @@ use unastar_noise::features::{Heightmap, JavaState};
 use unastar_noise::structures::context::StructureContext;
 use unastar_noise::structures::manager::StructureManager;
 
-use super::features::{DimensionDecoration, dimension_decoration};
 use super::JavaDimension;
+use super::features::{DimensionDecoration, dimension_decoration};
 
 /// Native generator primitives that must not query structure placement.
 ///
@@ -45,8 +45,12 @@ type ColumnTop = [i32; HEIGHTMAPS.len()];
 const MAX_COLUMN_HEIGHT: usize = {
     use unastar_noise::{end_settings, nether_settings, overworld_settings};
     let mut height = overworld_settings::WORLD_HEIGHT;
-    if nether_settings::WORLD_HEIGHT > height { height = nether_settings::WORLD_HEIGHT; }
-    if end_settings::WORLD_HEIGHT > height { height = end_settings::WORLD_HEIGHT; }
+    if nether_settings::WORLD_HEIGHT > height {
+        height = nether_settings::WORLD_HEIGHT;
+    }
+    if end_settings::WORLD_HEIGHT > height {
+        height = end_settings::WORLD_HEIGHT;
+    }
     height as usize
 };
 
@@ -107,7 +111,9 @@ impl<S: NativeStructureSource> JavaStructureContext<'_, S> {
         let column = &mut states[..(bounds.end - bounds.start) as usize];
         self.source.base_column(x, z, column);
         let top = HEIGHTMAPS.map(|kind| {
-            column.iter().rposition(|state| kind.is_opaque(*state))
+            column
+                .iter()
+                .rposition(|state| kind.is_opaque(*state))
                 .map_or(bounds.start, |index| bounds.start + index as i32 + 1)
         });
         let mut cache = self.columns.lock().expect("column cache");
@@ -168,42 +174,81 @@ mod native_column_tests {
     /// native-column-corpus-20261027/columns-{overworld,nether,end}-seed0.json.
     #[test]
     fn base_queries_preserve_native_columns_and_dimension_bounds() {
-        std::thread::Builder::new().stack_size(64 << 20).spawn(|| {
-            type ColumnCase<'a> = (JavaDimension, &'a [(JavaState, usize)], ColumnTop);
-            let cases: [ColumnCase<'_>; 3] = [
-                (JavaDimension::Overworld,
-                    &[(states::STONE, 120), (states::WATER, 7), (states::AIR, 257)],
-                    [63, 63, 56, 56, 63, 63]),
-                (JavaDimension::Nether,
-                    &[(states::NETHERRACK, 76), (states::AIR, 19),
-                        (states::NETHERRACK, 33), (states::AIR, 128)],
-                    [128; 6]),
-                (JavaDimension::End,
-                    &[(states::AIR, 11), (states::END_STONE, 52), (states::AIR, 193)],
-                    [63; 6]),
-            ];
-            for (dimension, runs, expected_heights) in cases {
-                let generator = JavaGenerator::with_options(0, JavaGenerationOptions {
-                    dimension, ..JavaGenerationOptions::default()
-                });
-                let structures = JavaStructures::new(dimension);
-                let context = structures.context(0, &generator);
-                let bounds = dimension.block_bounds();
-                let mut column = vec![states::AIR; (bounds.end - bounds.start) as usize];
-                context.base_column(0, 0, &mut column);
-                let mut offset = 0;
-                for &(state, length) in runs {
-                    assert!(column[offset..offset + length].iter().all(|&actual| actual == state),
-                        "{dimension:?}: wrong native states in {offset}..{}", offset + length);
-                    offset += length;
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(|| {
+                type ColumnCase<'a> = (JavaDimension, &'a [(JavaState, usize)], ColumnTop);
+                let cases: [ColumnCase<'_>; 3] = [
+                    (
+                        JavaDimension::Overworld,
+                        &[(states::STONE, 120), (states::WATER, 7), (states::AIR, 257)],
+                        [63, 63, 56, 56, 63, 63],
+                    ),
+                    (
+                        JavaDimension::Nether,
+                        &[
+                            (states::NETHERRACK, 76),
+                            (states::AIR, 19),
+                            (states::NETHERRACK, 33),
+                            (states::AIR, 128),
+                        ],
+                        [128; 6],
+                    ),
+                    (
+                        JavaDimension::End,
+                        &[
+                            (states::AIR, 11),
+                            (states::END_STONE, 52),
+                            (states::AIR, 193),
+                        ],
+                        [63; 6],
+                    ),
+                ];
+                for (dimension, runs, expected_heights) in cases {
+                    let generator = JavaGenerator::with_options(
+                        0,
+                        JavaGenerationOptions {
+                            dimension,
+                            ..JavaGenerationOptions::default()
+                        },
+                    );
+                    let structures = JavaStructures::new(dimension);
+                    let context = structures.context(0, &generator);
+                    let bounds = dimension.block_bounds();
+                    let mut column = vec![states::AIR; (bounds.end - bounds.start) as usize];
+                    context.base_column(0, 0, &mut column);
+                    let mut offset = 0;
+                    for &(state, length) in runs {
+                        assert!(
+                            column[offset..offset + length]
+                                .iter()
+                                .all(|&actual| actual == state),
+                            "{dimension:?}: wrong native states in {offset}..{}",
+                            offset + length
+                        );
+                        offset += length;
+                    }
+                    assert_eq!(offset, column.len());
+                    for (kind, expected) in HEIGHTMAPS.into_iter().zip(expected_heights) {
+                        assert_eq!(
+                            context.base_height(0, 0, kind),
+                            expected,
+                            "{dimension:?}/{kind:?}"
+                        );
+                    }
+                    assert_eq!(context.min_y(), bounds.start);
+                    assert_eq!(
+                        context.height(),
+                        if dimension == JavaDimension::Overworld {
+                            384
+                        } else {
+                            128
+                        }
+                    );
                 }
-                assert_eq!(offset, column.len());
-                for (kind, expected) in HEIGHTMAPS.into_iter().zip(expected_heights) {
-                    assert_eq!(context.base_height(0, 0, kind), expected, "{dimension:?}/{kind:?}");
-                }
-                assert_eq!(context.min_y(), bounds.start);
-                assert_eq!(context.height(), if dimension == JavaDimension::Overworld { 384 } else { 128 });
-            }
-        }).unwrap().join().unwrap();
+            })
+            .unwrap()
+            .join()
+            .unwrap();
     }
 }

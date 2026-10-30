@@ -1,34 +1,38 @@
-//! Random enchanting: the enchanting table's three offers and the loot
-//! function `enchant_with_levels`.
+//! Random enchanting for items: the enchantment slots and enchantability
+//! of each item, the enchanting table's three offers, and stacks carrying
+//! the enchantments random enchanting picks. The selection itself (the
+//! enchantment table, levels for an enchanting level, compatibility) is
+//! `unastar_rules::enchanting`, shared with the loot functions.
 //!
-//! Measured on BDS 1.26.51 (client-diff items3-20261030 `enchanting`, two
-//! player seeds): three offers for every enchantable item without
-//! enchantments, also when an offer carries no enchantment and when an
-//! offer costs less than its slot number; books may carry several
-//! enchantments; the applied `ench` list is the offer in wire-list order
-//! (equipped, held, self); the same seed, item and bookshelf count give
-//! the same offers until an enchant replaces the seed.
+//! Tools use their tier's enchantability (wood 15, stone 5, copper 13,
+//! iron 14, diamond 10, gold 22, netherite 15), humanoid armour its
+//! material's (leather 15, chainmail 12, copper 8, iron 9, gold 25,
+//! diamond 10, netherite 15, turtle 9, elytra 0); bows, crossbows and
+//! tridents have 1. Data-driven items carry `minecraft:enchantable`.
+//! Books (every enchantment), fishing rods (1) and the mace (15) are
+//! public reference (minecraft.wiki "Enchanting mechanics").
 //!
-//! Public reference (minecraft.wiki "Enchanting table mechanics", within
-//! the measured cost bounds; the tables live in `unastar-data`'s
-//! `enchantments.json`):
-//! - experience cost of each offer: `base = 1 + randInt(7) + b / 2 +
-//!   randInt(b)` for `b` bookshelves (at most 15), top `max(base / 3, 1)`,
-//!   middle `base * 2 / 3 + 1`, bottom `max(base, 2b)`;
-//! - enchantment cost: `round((xp + 1 + randInt(e / 4) + randInt(e / 4)) ×
-//!   (1 + randTri(0.15)))` for enchantability `e`;
-//! - candidates: every enchantment the item takes (a book takes every one)
-//!   whose cost range contains the enchantment cost, at the highest such
-//!   level; treasure only where allowed (never at the table);
-//! - selection: weighted pick, drop it and what conflicts with it, continue
-//!   with chance `(cost + 1) / 50`, halving the cost each time.
+//! The enchanting table, measured on BDS 1.26.51 (client-diff
+//! items3-20261030 `enchanting`, two player seeds): three offers for every
+//! enchantable item without enchantments, also when an offer carries no
+//! enchantment and when an offer costs less than its slot number; books may
+//! carry several enchantments; the applied `ench` list is the offer in
+//! wire-list order (equipped, held, self); the same seed, item and
+//! bookshelf count give the same offers until an enchant replaces the seed.
+//!
+//! Experience cost of each offer (public reference, minecraft.wiki
+//! "Enchanting table mechanics", within the measured cost bounds): `base =
+//! 1 + randInt(7) + b / 2 + randInt(b)` for `b` bookshelves (at most 15),
+//! top `max(base / 3, 1)`, middle `base * 2 / 3 + 1`, bottom `max(base, 2b)`.
 //!
 //! The random generator is ours (seeded per offer from the player's seed),
 //! so the same seed gives the same offers here but not the ones BDS makes.
 
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use unastar_data::armour::{ArmourSlot, armour_slot};
 use unastar_data::enchantments::{self, Category};
+use unastar_rules::enchanting::{ItemEnchanting, select_enchantments, slot};
 
 use super::ItemStack;
 use super::enchant::{
@@ -36,13 +40,36 @@ use super::enchant::{
     with_enchantment_list, with_item_tag,
 };
 use crate::registry::ItemRegistry;
-use crate::registry::item::ItemEntry;
+use crate::registry::item::{ItemEntry, ToolKind, ToolTier};
 
 pub const ENCHANTED_BOOK: &str = "minecraft:enchanted_book";
 pub const BOOK: &str = "minecraft:book";
 
 /// Bookshelves beyond this many add nothing.
 pub const MAX_BOOKSHELVES: u8 = 15;
+
+/// Armour material enchantability, by the item's tier tag.
+const ARMOUR_MATERIALS: [(&str, i32); 7] = [
+    ("minecraft:leather_tier", 15),
+    ("minecraft:chainmail_tier", 12),
+    ("minecraft:copper_tier", 8),
+    ("minecraft:iron_tier", 9),
+    ("minecraft:golden_tier", 25),
+    ("minecraft:diamond_tier", 10),
+    ("minecraft:netherite_tier", 15),
+];
+const TURTLE_HELMET: &str = "minecraft:turtle_helmet";
+const TURTLE_ENCHANTABILITY: i32 = 9;
+/// Items classified by identifier: their slots and enchantability.
+const BY_IDENTIFIER: [(&str, u32, i32); 7] = [
+    ("minecraft:bow", slot::BOW, 1),
+    ("minecraft:crossbow", slot::CROSSBOW, 1),
+    ("minecraft:trident", slot::TRIDENT, 1),
+    ("minecraft:fishing_rod", slot::FISHING_ROD, 1),
+    ("minecraft:mace", slot::MACE, 15),
+    ("minecraft:elytra", slot::ELYTRA, 0),
+    (BOOK, slot::ALL, 1),
+];
 
 /// Words of an offer's display name, which the client renders in the
 /// Standard Galactic Alphabet (public reference: minecraft.wiki
@@ -113,6 +140,80 @@ const NAME_WORDS: &[&str] = &[
     "baguette",
 ];
 
+fn tier_enchantability(tier: ToolTier) -> i32 {
+    match tier {
+        ToolTier::Wooden => 15,
+        ToolTier::Golden => 22,
+        ToolTier::Stone => 5,
+        ToolTier::Copper => 13,
+        ToolTier::Iron => 14,
+        ToolTier::Diamond => 10,
+        ToolTier::Netherite => 15,
+    }
+}
+
+/// Slot bits of a `minecraft:enchantable` slot name used by vanilla items.
+fn component_slot(name: &str) -> Option<u32> {
+    Some(match name {
+        "none" => 0,
+        "melee_spear" => slot::MELEE_SPEAR,
+        _ => return None,
+    })
+}
+
+/// Enchantment slots and enchantability of `item`; `None` when the item
+/// is not of a classified vanilla item class.
+pub fn item_enchanting(item: &ItemEntry) -> Option<ItemEnchanting> {
+    if let Some(enchantable) = &item.components().enchantable {
+        return Some(ItemEnchanting {
+            slots: component_slot(&enchantable.slot)?,
+            value: enchantable.value,
+        });
+    }
+    let item_id = item.identifier();
+    if let Some((_, slots, value)) = BY_IDENTIFIER.iter().find(|(id, ..)| *id == item_id) {
+        return Some(ItemEnchanting {
+            slots: *slots,
+            value: *value,
+        });
+    }
+    if let Some(worn) = armour_slot(item_id) {
+        let slots = match worn {
+            ArmourSlot::Head => slot::ARMOR_HEAD,
+            ArmourSlot::Chest => slot::ARMOR_TORSO,
+            ArmourSlot::Legs => slot::ARMOR_LEGS,
+            ArmourSlot::Feet => slot::ARMOR_FEET,
+        };
+        let value = if item_id == TURTLE_HELMET {
+            TURTLE_ENCHANTABILITY
+        } else {
+            ARMOUR_MATERIALS
+                .iter()
+                .find(|(tag, _)| item.has_tag(tag))
+                .map(|(_, value)| *value)?
+        };
+        return Some(ItemEnchanting { slots, value });
+    }
+    let tool = item.tool_info();
+    let slots = match tool.kind? {
+        ToolKind::Sword => slot::SWORD,
+        ToolKind::Shovel => slot::SHOVEL,
+        ToolKind::Pickaxe => slot::PICKAXE,
+        ToolKind::Axe => slot::AXE,
+        ToolKind::Hoe => slot::HOE,
+        ToolKind::Shears => return None,
+    };
+    Some(ItemEnchanting {
+        slots,
+        value: tier_enchantability(tool.tier?),
+    })
+}
+
+/// The random-enchanting facts of `stack`'s item, if it is classified.
+fn stack_enchanting(stack: &ItemStack) -> Option<ItemEnchanting> {
+    stack.item().and_then(item_enchanting)
+}
+
 fn in_category(stack: &ItemStack, item: &ItemEntry, category: &Category) -> bool {
     if category
         .exclude_items
@@ -141,17 +242,12 @@ pub fn accepts(stack: &ItemStack, id: i16) -> bool {
         })
 }
 
-/// Enchanting-table enchantability of `stack` (0: not enchantable).
-pub fn enchantability(stack: &ItemStack) -> i32 {
-    stack
-        .item()
-        .map_or(0, |item| enchantments::enchantability(item.identifier()))
-}
-
 /// Whether the enchanting table makes offers for `stack`: an enchantable
 /// item without enchantments.
 pub fn can_enchant(stack: &ItemStack) -> bool {
-    !stack.is_empty() && enchantability(stack) > 0 && enchantment_list(stack).is_empty()
+    !stack.is_empty()
+        && stack_enchanting(stack).is_some_and(|facts| facts.slots != 0 && facts.value > 0)
+        && enchantment_list(stack).is_empty()
 }
 
 /// The experience cost of the three offers for `bookshelves`.
@@ -165,58 +261,6 @@ pub fn offer_costs(bookshelves: u8, rng: &mut impl Rng) -> [i32; 3] {
             _ => base.max(shelves * 2),
         }
     })
-}
-
-/// The enchantment cost an experience cost of `level` gives an item of
-/// `enchantability`.
-fn enchantment_cost(level: i32, enchantability: i32, rng: &mut impl Rng) -> i32 {
-    let quarter = enchantability / 4;
-    let cost = level + 1 + rng.gen_range(0..=quarter) + rng.gen_range(0..=quarter);
-    let bonus = (rng.r#gen::<f32>() + rng.r#gen::<f32>() - 1.0) * 0.15;
-    ((cost as f32) * (1.0 + bonus)).round().max(1.0) as i32
-}
-
-/// Random enchantments for `stack` at experience cost `level`, in pick
-/// order; empty when nothing qualifies.
-fn select(stack: &ItemStack, level: i32, treasure: bool, rng: &mut impl Rng) -> Vec<(i16, i16)> {
-    let enchantability = enchantability(stack);
-    if enchantability <= 0 {
-        return Vec::new();
-    }
-    let mut cost = enchantment_cost(level, enchantability, rng);
-    let mut candidates: Vec<(i16, i16, u32)> = enchantments::all()
-        .iter()
-        .filter(|enchantment| treasure || !enchantment.treasure)
-        .filter(|enchantment| accepts(stack, enchantment.id))
-        .filter_map(|enchantment| {
-            let level = enchantment.level_for_cost(cost)?;
-            Some((enchantment.id, level, enchantment.weight))
-        })
-        .collect();
-    let mut picked = Vec::new();
-    while !candidates.is_empty() {
-        let total: u32 = candidates.iter().map(|(_, _, weight)| weight).sum();
-        let mut roll = rng.gen_range(0..total);
-        let index = candidates
-            .iter()
-            .position(|(_, _, weight)| {
-                if roll < *weight {
-                    true
-                } else {
-                    roll -= weight;
-                    false
-                }
-            })
-            .expect("roll is below the total weight");
-        let (id, level, _) = candidates.swap_remove(index);
-        picked.push((id, level));
-        candidates.retain(|(other, _, _)| !enchantments::incompatible(id, *other));
-        if candidates.is_empty() || rng.gen_range(0..50) > cost {
-            break;
-        }
-        cost /= 2;
-    }
-    picked
 }
 
 /// One enchanting-table offer.
@@ -241,33 +285,23 @@ pub fn offers(stack: &ItemStack, bookshelves: u8, seed: u32) -> Option<[Offer; 3
     if !can_enchant(stack) {
         return None;
     }
+    let facts = stack_enchanting(stack)?;
     let costs = offer_costs(bookshelves, &mut offer_rng(seed, 3));
     Some(std::array::from_fn(|slot| {
         let cost = costs[slot];
-        let mut enchantments = select(stack, cost, false, &mut offer_rng(seed, slot as u64));
-        enchantments.sort_by_key(|(id, _)| {
-            enchantments::get(*id).map_or(0, |enchantment| enchantment.activation.index())
-        });
+        let enchantments =
+            select_enchantments(facts, cost, false, &mut offer_rng(seed, slot as u64))
+                .into_iter()
+                .map(|e| (i16::from(e.id), i16::from(e.level)))
+                .collect();
         Offer { cost, enchantments }
     }))
 }
 
-/// The enchant-slot bits `PlayerEnchantOptions` sends for `stack`: -1 for
-/// a book, else the first slot-mask category the item is in (0: none).
+/// The enchant-slot bits `PlayerEnchantOptions` sends for `stack`: the
+/// item's enchantment slots (-1 for a book: every slot; 0: none).
 pub fn enchant_slot(stack: &ItemStack) -> i32 {
-    let Some(item) = stack.item() else {
-        return 0;
-    };
-    if item.identifier() == BOOK {
-        return -1;
-    }
-    enchantments::slot_masks()
-        .iter()
-        .find(|slot| {
-            enchantments::category(&slot.category)
-                .is_some_and(|category| in_category(stack, item, category))
-        })
-        .map_or(0, |slot| slot.mask)
+    stack_enchanting(stack).map_or(0, |facts| facts.slots as i32)
 }
 
 /// A display name for an offer: three or four words, each followed by a
@@ -311,27 +345,39 @@ pub fn enchanted(
     Some(with_enchantment_list(&base, &list))
 }
 
-/// Loot function `enchant_with_levels`: `stack` with random enchantments
-/// for experience cost `levels` (treasure enchantments only when
-/// `treasure`). Items the table cannot enchant come back unchanged.
-pub fn enchant_with_levels(
-    stack: &ItemStack,
-    levels: i32,
-    treasure: bool,
-    items: &ItemRegistry,
-    rng: &mut impl Rng,
-) -> ItemStack {
-    let picked = select(stack, levels, treasure, rng);
-    if picked.is_empty() {
-        return stack.clone();
-    }
-    enchanted(stack, &picked, items).unwrap_or_else(|| stack.clone())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::item::test_support::{VANILLA, stack};
+
+    fn facts(item: &str) -> (u32, i32) {
+        let facts = item_enchanting(entry(item)).unwrap_or_else(|| panic!("{item} unclassified"));
+        (facts.slots, facts.value)
+    }
+
+    fn entry(item: &str) -> &'static ItemEntry {
+        VANILLA
+            .get_by_name(item)
+            .unwrap_or_else(|| panic!("{item} is a vanilla item"))
+    }
+
+    #[test]
+    fn zombie_gear_is_classified_like_bds() {
+        assert_eq!(facts("minecraft:iron_sword"), (slot::SWORD, 14));
+        assert_eq!(facts("minecraft:iron_shovel"), (slot::SHOVEL, 14));
+        assert_eq!(facts("minecraft:iron_spear"), (slot::MELEE_SPEAR, 14));
+        assert_eq!(facts("minecraft:golden_spear"), (slot::MELEE_SPEAR, 22));
+        assert_eq!(facts("minecraft:leather_helmet"), (slot::ARMOR_HEAD, 15));
+        assert_eq!(facts("minecraft:copper_chestplate"), (slot::ARMOR_TORSO, 8));
+        assert_eq!(facts("minecraft:golden_leggings"), (slot::ARMOR_LEGS, 25));
+        assert_eq!(facts("minecraft:chainmail_boots"), (slot::ARMOR_FEET, 12));
+        assert_eq!(facts("minecraft:iron_helmet"), (slot::ARMOR_HEAD, 9));
+        assert_eq!(facts("minecraft:diamond_boots"), (slot::ARMOR_FEET, 10));
+        assert_eq!(facts("minecraft:turtle_helmet"), (slot::ARMOR_HEAD, 9));
+        assert_eq!(facts("minecraft:bow"), (slot::BOW, 1));
+        assert_eq!(facts("minecraft:golden_sword"), (slot::SWORD, 22));
+        assert_eq!(item_enchanting(entry("minecraft:rotten_flesh")), None);
+    }
 
     #[test]
     fn offer_costs_follow_the_bookshelf_ranges() {
@@ -373,7 +419,8 @@ mod tests {
                 for &(id, level) in &offer.enchantments {
                     assert!(accepts(&sword, id), "{id}");
                     let enchantment = enchantments::get(id).unwrap();
-                    assert!(!enchantment.treasure);
+                    // No treasure: frost walker, mending, binding, vanishing.
+                    assert!(![25, 26, 27, 28].contains(&id), "{id}");
                     assert!((1..=enchantment.max_level).contains(&level));
                     // Wire-list order, as BDS writes the `ench` list.
                     assert!(enchantment.activation.index() >= list);
@@ -393,6 +440,7 @@ mod tests {
     fn unenchantable_and_enchanted_items_get_no_offers() {
         assert_eq!(offers(&stack("minecraft:stick", 1), 15, 7), None);
         assert_eq!(offers(&stack("minecraft:shears", 1), 15, 7), None);
+        assert_eq!(offers(&stack("minecraft:elytra", 1), 15, 7), None);
         let enchanted = with_enchantment_list(&stack("minecraft:iron_sword", 1), &[(9, 1)]);
         assert_eq!(offers(&enchanted, 15, 7), None);
         assert_eq!(offers(&ItemStack::empty(), 15, 7), None);
@@ -454,36 +502,6 @@ mod tests {
         let mut keys: Vec<_> = item_tag(&sword).unwrap().0.into_keys().collect();
         keys.sort();
         assert_eq!(keys, ["Damage", "ench"]);
-    }
-
-    #[test]
-    fn enchant_with_levels_allows_treasure_only_when_asked() {
-        let rod = stack("minecraft:fishing_rod", 1);
-        let book = stack("minecraft:book", 1);
-        let mut treasure_seen = false;
-        for seed in 0..500 {
-            let mut rng = StdRng::seed_from_u64(seed);
-            let plain = enchant_with_levels(&book, 30, false, &VANILLA, &mut rng);
-            assert_eq!(plain.item_id(), ENCHANTED_BOOK);
-            for (id, _) in enchantment_list(&plain) {
-                assert!(!enchantments::get(id).unwrap().treasure);
-            }
-            let loot = enchant_with_levels(&book, 30, true, &VANILLA, &mut rng);
-            treasure_seen |= enchantment_list(&loot)
-                .iter()
-                .any(|(id, _)| enchantments::get(*id).unwrap().treasure);
-            let rod = enchant_with_levels(&rod, 30, true, &VANILLA, &mut rng);
-            assert!(!enchantment_list(&rod).is_empty());
-            for (id, _) in enchantment_list(&rod) {
-                assert!(accepts(&rod, id), "{id}");
-            }
-        }
-        assert!(treasure_seen);
-        let stick = stack("minecraft:stick", 1);
-        assert_eq!(
-            enchant_with_levels(&stick, 30, true, &VANILLA, &mut StdRng::seed_from_u64(1)),
-            stick
-        );
     }
 
     #[test]

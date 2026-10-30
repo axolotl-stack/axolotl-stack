@@ -20,7 +20,6 @@ use crate::features::eval::{FeatureWorld, provide_state};
 use crate::features::random::FeatureRandom;
 use crate::features::shape::update_from_neighbour_shapes;
 
-
 /// Place a `minecraft:fallen_tree` feature. Always returns `true`, like Java.
 ///
 /// `pale_moss_patch` is forwarded to the decorators (only the `pale_moss`

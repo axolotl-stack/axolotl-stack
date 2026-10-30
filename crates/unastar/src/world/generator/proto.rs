@@ -4,9 +4,9 @@
 //! neighbours without regenerating them. Native Java biome ties also depend on
 //! per-thread query history; a proto is not universally a pure seed/position value.
 
-use std::ops::Range;
 use crate::world::ChunkPos;
 use crate::world::chunk::{BlockStateSpace, Chunk, MIN_Y, SUBCHUNK_COUNT};
+use std::ops::Range;
 
 /// Physical buffer height in blocks. Logical dimension bounds may be smaller.
 pub const WORLD_HEIGHT: i32 = SUBCHUNK_COUNT as i32 * 16;
@@ -47,7 +47,11 @@ impl DenseBlocks {
 
     /// Fixed-size working storage with a dimension's legal build bounds. Physical
     /// padding is air, never generated content; no extra allocation or copy is made.
-    pub fn filled_with_bounds(block: u32, state_space: BlockStateSpace, bounds: Range<i32>) -> Self {
+    pub fn filled_with_bounds(
+        block: u32,
+        state_space: BlockStateSpace,
+        bounds: Range<i32>,
+    ) -> Self {
         assert_storage_bounds(&bounds);
         let blocks = match SPARE_BLOCKS.take() {
             Some(mut blocks) => {
@@ -56,7 +60,11 @@ impl DenseBlocks {
             }
             None => vec![block; BLOCKS_PER_CHUNK].into_boxed_slice(),
         };
-        let mut result = Self { blocks, state_space, bounds };
+        let mut result = Self {
+            blocks,
+            state_space,
+            bounds,
+        };
         let first = (result.bounds.start - MIN_Y) as usize * 256;
         let end = (result.bounds.end - MIN_Y) as usize * 256;
         result.blocks[..first].fill(state_space.air());
@@ -101,7 +109,13 @@ impl DenseBlocks {
 
     /// Pack into a chunk (paletted sub-chunks and the light height map).
     pub fn to_chunk(&self, pos: ChunkPos) -> Chunk {
-        Chunk::from_dense_with_bounds(pos.x, pos.z, &self.blocks, self.state_space, self.bounds.clone())
+        Chunk::from_dense_with_bounds(
+            pos.x,
+            pos.z,
+            &self.blocks,
+            self.state_space,
+            self.bounds.clone(),
+        )
     }
 
     /// Explicit edition boundary for consumers applying Bedrock surface/carver rules.
@@ -159,8 +173,8 @@ impl QuartBiomes {
     /// Biome of the local quart cell (`qx`, `qz` in `0..4`, `qy` in `0..QUARTS_Y` from `MIN_Y`).
     #[inline]
     pub fn get(&self, qx: usize, qy: usize, qz: usize) -> NativeBiome {
-        let quart_y = (qy as i32 + (MIN_Y >> 2))
-            .clamp(self.bounds.start >> 2, (self.bounds.end - 1) >> 2);
+        let quart_y =
+            (qy as i32 + (MIN_Y >> 2)).clamp(self.bounds.start >> 2, (self.bounds.end - 1) >> 2);
         let qy = (quart_y - (MIN_Y >> 2)) as usize;
         self.ids[Self::index(qx, qy, qz)]
     }
@@ -241,7 +255,7 @@ mod tests {
     use super::*;
     use crate::world::block_entity::BlockEntity;
     use crate::world::generator::JavaDimension;
-    use unastar_noise::features::{java_blocks::states, eval::BlockEntityData};
+    use unastar_noise::features::{eval::BlockEntityData, java_blocks::states};
 
     #[test]
     fn native_storage_keeps_upper_half_and_rejects_padding_through_persistence() {
@@ -249,7 +263,8 @@ mod tests {
         let chest = u32::from(states::CHEST.0);
         for dimension in [JavaDimension::Nether, JavaDimension::End] {
             let bounds = dimension.block_bounds();
-            let mut dense = DenseBlocks::filled_with_bounds(air, BlockStateSpace::Java, bounds.clone());
+            let mut dense =
+                DenseBlocks::filled_with_bounds(air, BlockStateSpace::Java, bounds.clone());
             for y in [-64, -1, 256, 319] {
                 dense.set_block(0, y, 0, chest);
                 assert_eq!(dense.get_block(0, y, 0), air);
@@ -264,12 +279,15 @@ mod tests {
                 assert_eq!(chunk.get_block(0, y, 0), air);
                 assert_eq!(chunk.set_block(0, y, 0, chest), None);
                 assert!(!chunk.set_block_entity(BlockEntity::generated_java(
-                    [0, i32::from(y), 0], "minecraft:chest",
+                    [0, i32::from(y), 0],
+                    "minecraft:chest",
                     BlockEntityData::loot("minecraft:chests/simple_dungeon", 7),
                 )));
             }
             assert!(chunk.set_block_entity(BlockEntity::generated_java(
-                [0, 255, 0], "minecraft:chest", BlockEntityData::loot("minecraft:chests/simple_dungeon", 9),
+                [0, 255, 0],
+                "minecraft:chest",
+                BlockEntityData::loot("minecraft:chests/simple_dungeon", 9),
             )));
             let mut biomes = QuartBiomes::filled(1);
             biomes.set(0, ((0 - MIN_Y) >> 2) as usize, 0, 2);
@@ -298,10 +316,17 @@ mod tests {
                 loaded.decode_subchunk(section, &encoded).unwrap();
             }
             for y in [0, 127, 128, 255] {
-                assert_eq!(loaded.get_block(0, y, 0), BlockStateSpace::Java.to_bedrock(chest));
+                assert_eq!(
+                    loaded.get_block(0, y, 0),
+                    BlockStateSpace::Java.to_bedrock(chest)
+                );
             }
             assert_eq!(loaded.height_map().at(0, 0), 256);
-            assert!(loaded.set_block(0, -1, 0, *crate::world::chunk::blocks::STONE).is_none());
+            assert!(
+                loaded
+                    .set_block(0, -1, 0, *crate::world::chunk::blocks::STONE)
+                    .is_none()
+            );
         }
     }
 
@@ -313,14 +338,21 @@ mod tests {
         for y in [-1, 128, 255, 319] {
             chunk.set_block(0, y, 0, chest);
             assert!(chunk.set_block_entity(BlockEntity::generated_java(
-                [0, i32::from(y), 0], "minecraft:chest",
+                [0, i32::from(y), 0],
+                "minecraft:chest",
                 BlockEntityData::loot("minecraft:chests/simple_dungeon", i64::from(y)),
             )));
         }
         chunk.set_block_bounds(JavaDimension::Nether.block_bounds());
         assert_eq!(chunk.height_map().at(0, 0), 256);
-        assert_eq!(chunk.block_entities().iter().map(BlockEntity::position).collect::<Vec<_>>(),
-            vec![[0, 128, 0], [0, 255, 0]]);
+        assert_eq!(
+            chunk
+                .block_entities()
+                .iter()
+                .map(BlockEntity::position)
+                .collect::<Vec<_>>(),
+            vec![[0, 128, 0], [0, 255, 0]]
+        );
         assert_eq!(chunk.get_block(0, -1, 0), air);
         assert_eq!(chunk.get_block(0, 319, 0), air);
         chunk.set_block(0, 255, 0, air);

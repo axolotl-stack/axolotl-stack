@@ -110,7 +110,6 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::IsBiome
         | BuiltinTest::HasComponent
         | BuiltinTest::InLava
-        | BuiltinTest::InWater
         | BuiltinTest::IsBaby
         | BuiltinTest::IsDifficulty
         | BuiltinTest::BoolProperty
@@ -119,7 +118,12 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
         // Game rules are global: any subject.
         BuiltinTest::IsGameRule => true,
-        BuiltinTest::IsFamily | BuiltinTest::HasEquipment | BuiltinTest::EnumProperty => {
+        BuiltinTest::IsFamily
+        | BuiltinTest::HasEquipment
+        | BuiltinTest::EnumProperty
+        | BuiltinTest::InWater
+        | BuiltinTest::IsUnderwater
+        | BuiltinTest::IsVehicleFamily => {
             matches!(subject, Subject::Self_ | Subject::Other)
         }
         _ => false,

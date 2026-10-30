@@ -8,8 +8,8 @@
 //! - Surface rules for biome-based block placement
 //! - Cave and canyon carvers
 
-mod native;
 mod columns;
+mod native;
 mod source;
 
 use std::collections::HashSet;
@@ -19,11 +19,9 @@ use super::JavaDimension;
 #[cfg(feature = "bedrock-worldgen")]
 use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
 use super::biome_source;
-use super::density::{NativeNoiseRegistry, NoiseRegistry};
 #[cfg(feature = "bedrock-worldgen")]
-use super::density::{
-    CachingNoiseChunk, ColumnContextGrid, FlatCacheGrid, FunctionContext,
-};
+use super::density::{CachingNoiseChunk, ColumnContextGrid, FlatCacheGrid, FunctionContext};
+use super::density::{NativeNoiseRegistry, NoiseRegistry};
 #[cfg(feature = "bedrock-worldgen")]
 use super::ore_veinifier::OreVeinifier;
 use super::pipeline::{Generator, SpawnPoint};
@@ -32,18 +30,18 @@ use super::region::DecorationRegion;
 use super::surface::SurfaceSystem;
 use super::xoroshiro::PositionalRandomFactory;
 use crate::world::ChunkPos;
-use crate::world::chunk::{Chunk, blocks};
 #[cfg(feature = "bedrock-worldgen")]
 use crate::world::chunk::BlockStateSpace;
+use crate::world::chunk::{Chunk, blocks};
 #[cfg(feature = "bedrock-worldgen")]
 use crate::world::generator::proto::DenseBlocks;
 #[cfg(feature = "bedrock-worldgen")]
 use std::simd::prelude::*;
+use unastar_noise::features::java_blocks::states;
 use unastar_noise::java_biomes::JavaBiome;
 use unastar_noise::overworld_settings;
 #[cfg(feature = "bedrock-worldgen")]
 use unastar_noise::profile::{self, Stage};
-use unastar_noise::features::java_blocks::states;
 
 /// The shared aquifer's output domain is exactly ordinary air and source water/lava.
 /// Translate that closed producer contract, never an arbitrary Bedrock state or a
@@ -136,10 +134,17 @@ impl JavaGenerator {
             ($settings:path) => {{
                 use $settings as settings;
                 let params = settings::BLENDED_NOISE;
-                NoiseRegistry::with_router_settings(seed, settings::LEGACY_RANDOM_SOURCE, [
-                    params.xz_scale, params.y_scale, params.xz_factor,
-                    params.y_factor, params.smear_scale_multiplier,
-                ])
+                NoiseRegistry::with_router_settings(
+                    seed,
+                    settings::LEGACY_RANDOM_SOURCE,
+                    [
+                        params.xz_scale,
+                        params.y_scale,
+                        params.xz_factor,
+                        params.y_factor,
+                        params.smear_scale_multiplier,
+                    ],
+                )
             }};
         }
         let noises = match options.dimension {
@@ -155,15 +160,13 @@ impl JavaGenerator {
     #[cfg(feature = "bedrock-worldgen")]
     pub fn for_bedrock_shared_terrain(seed: i64) -> Self {
         Self::with_backend(
-            seed, JavaGenerationOptions::default(), TerrainBackend::SharedBedrock(NoiseRegistry::new(seed)),
+            seed,
+            JavaGenerationOptions::default(),
+            TerrainBackend::SharedBedrock(NoiseRegistry::new(seed)),
         )
     }
 
-    fn with_backend(
-        seed: i64,
-        options: JavaGenerationOptions,
-        backend: TerrainBackend,
-    ) -> Self {
+    fn with_backend(seed: i64, options: JavaGenerationOptions, backend: TerrainBackend) -> Self {
         let surface_system = SurfaceSystem::new(seed, options.dimension);
 
         // `fromHashOf("minecraft:ore").forkPositional()` of the world's base factory.
@@ -193,7 +196,9 @@ impl JavaGenerator {
     fn shared_noises(&self) -> &NoiseRegistry {
         match &self.backend {
             TerrainBackend::SharedBedrock(noises) => noises,
-            TerrainBackend::NativeJava(_) => panic!("calibrated sampling requires the Bedrock backend"),
+            TerrainBackend::NativeJava(_) => {
+                panic!("calibrated sampling requires the Bedrock backend")
+            }
         }
     }
 
@@ -213,7 +218,9 @@ impl JavaGenerator {
                 if stage >= JavaTerrainStage::StructureStarts {
                     self.structure_starts(pos.x, pos.z);
                 }
-                if stage == JavaTerrainStage::StructureReferences && self.options.generate_structures {
+                if stage == JavaTerrainStage::StructureReferences
+                    && self.options.generate_structures
+                {
                     let context = self.structures.context(self.seed, self);
                     self.structures.manager.references(&context, pos.x, pos.z);
                 }
@@ -236,8 +243,10 @@ impl JavaGenerator {
 
     #[cfg(feature = "bedrock-worldgen")]
     fn generate_shared_stage(&self, pos: ChunkPos, stage: JavaTerrainStage) -> ProtoChunk {
-        assert!((JavaTerrainStage::Biomes..=JavaTerrainStage::Noise).contains(&stage),
-            "the calibrated shared backend only exposes biome and noise stages");
+        assert!(
+            (JavaTerrainStage::Biomes..=JavaTerrainStage::Noise).contains(&stage),
+            "the calibrated shared backend only exposes biome and noise stages"
+        );
         let noises = self.shared_noises();
         let grid = FlatCacheGrid::new(pos.x, pos.z, noises);
         let col_grid = ColumnContextGrid::new(pos.x, pos.z, noises, &grid);
@@ -246,7 +255,9 @@ impl JavaGenerator {
             return ProtoChunk {
                 pos,
                 chunk: Chunk::new_with_bounds(
-                    pos.x, pos.z, BlockStateSpace::Java,
+                    pos.x,
+                    pos.z,
+                    BlockStateSpace::Java,
                     self.options.dimension.block_bounds(),
                 ),
                 biomes,
@@ -254,9 +265,12 @@ impl JavaGenerator {
         }
         let mut aquifer = self.aquifer(pos, &grid, &col_grid);
         let dense = self.generate_shared_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
-        ProtoChunk { pos, chunk: dense.to_chunk(pos), biomes }
+        ProtoChunk {
+            pos,
+            chunk: dense.to_chunk(pos),
+            biomes,
+        }
     }
-
 
     /// Share the density stage and climate caches without imposing Java's
     /// stateful biome-search policy on another edition or on base-height queries.
@@ -280,7 +294,11 @@ impl JavaGenerator {
     pub fn sample_biome(&self, x: i32, y: i32, z: i32) -> NativeBiome {
         let biome = match &self.backend {
             TerrainBackend::NativeJava(noises) => biome_source::sample_biome_native(
-                self.options.dimension, &noises.java_source(), x >> 2, y >> 2, z >> 2,
+                self.options.dimension,
+                &noises.java_source(),
+                x >> 2,
+                y >> 2,
+                z >> 2,
             ),
             #[cfg(feature = "bedrock-worldgen")]
             TerrainBackend::SharedBedrock(noises) => {
@@ -357,7 +375,8 @@ impl JavaGenerator {
         let noises = self.shared_noises();
         // Air until filled; the paletted chunk is packed once all stages ran.
         let mut chunk = DenseBlocks::filled_with_bounds(
-            u32::from(states::AIR.0), BlockStateSpace::Java,
+            u32::from(states::AIR.0),
+            BlockStateSpace::Java,
             self.options.dimension.block_bounds(),
         );
 
@@ -429,8 +448,9 @@ impl JavaGenerator {
                                             ((cell_z as i32) * cell_width + z_in_cell) as u8;
                                         let block_z = base_block_z + z_in_cell;
                                         let ctx = FunctionContext::new(block_x, block_y, block_z);
-                                        let block =
-                                            ore_veinifier.compute(&ctx).unwrap_or(u32::from(states::STONE.0));
+                                        let block = ore_veinifier
+                                            .compute(&ctx)
+                                            .unwrap_or(u32::from(states::STONE.0));
                                         chunk.set_block(local_x, block_y as i16, local_z, block);
                                     }
                                 } else {
@@ -513,7 +533,6 @@ impl JavaGenerator {
     }
 }
 
-
 impl JavaGenerator {
     /// Structure starts that originate in chunk (`x`, `z`) (Java's
     /// `structure_starts` status), for tools and parity tests.
@@ -555,8 +574,13 @@ impl Generator for JavaGenerator {
 
     fn decorate(&self, region: &mut DecorationRegion<'_>) {
         super::features::decorate(
-            self.seed, self.options.dimension, &self.structures, self, region,
-            self.options.generate_structures, self.options.biome_features,
+            self.seed,
+            self.options.dimension,
+            &self.structures,
+            self,
+            region,
+            self.options.generate_structures,
+            self.options.biome_features,
         );
     }
 
@@ -573,13 +597,16 @@ impl Generator for JavaGenerator {
 
     fn find_spawn(&self, chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
         let start = match &self.backend {
-            TerrainBackend::NativeJava(noises) => biome_source::spawn_search_start(&noises.java_source()),
+            TerrainBackend::NativeJava(noises) => {
+                biome_source::spawn_search_start(&noises.java_source())
+            }
             #[cfg(feature = "bedrock-worldgen")]
             TerrainBackend::SharedBedrock(noises) => biome_source::spawn_search_start(noises),
         };
         super::spawn::java_spawn(
-            start, chunk_at, &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
+            start,
+            chunk_at,
+            &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
         )
     }
 }
-

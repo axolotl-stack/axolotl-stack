@@ -172,7 +172,13 @@ fn impact_damage(
         knockback_from: impact.knockback.then_some(at),
         knockback_power: knockback_power_of(world, projectile),
     };
-    let applied = hurt_mob(world, actor, hit);
+    // Players take hits through the player hurt path (game mode, armour,
+    // death); mobs through the mob one.
+    let applied = if world.get::<Player>(actor).is_some() {
+        crate::entity::player_life::hurt_player(world, actor, &hit)
+    } else {
+        hurt_mob(world, actor, hit)
+    };
     (
         impact.destroy_on_hit && (applied > 0.0 || !impact.destroy_requires_damage),
         applied,

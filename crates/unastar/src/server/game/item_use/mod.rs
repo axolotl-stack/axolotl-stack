@@ -27,7 +27,7 @@ pub mod totem;
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{
     ActorRuntimeId, DataItemEntry, DataItemEntryPayload, DataItemInt64Payload, EnumsDataItemType,
-    PlayerInputTick, PropertySyncData, SynchedActorDataCopyableDataList,
+    PropertySyncData, SynchedActorDataCopyableDataList,
 };
 use jolyne::valentine::{
     CompletedUsingItemPacket, McpePacket, SetActorDataPacket, actor_data_i_ds, actor_flags,
@@ -35,7 +35,7 @@ use jolyne::valentine::{
 
 use crate::ecs::events::{EventBuffer, ServerEvent};
 use crate::entity::components::{
-    GameMode, Health, HeldSlot, MainInventory, PlayerInput, PlayerSession, PlayerState, Position,
+    GameMode, Health, HeldSlot, MainInventory, PlayerSession, PlayerState, Position,
     RuntimeEntityId,
 };
 use crate::item::ItemStack;
@@ -178,13 +178,6 @@ pub fn send_to(world: &World, players: &[Entity], packet: &McpePacket) {
     }
 }
 
-/// The player's own input tick.
-fn input_tick(world: &World, player: Entity) -> i64 {
-    world
-        .get::<PlayerInput>(player)
-        .map_or(0, |input| input.tick)
-}
-
 /// The current server tick.
 fn server_tick(world: &World) -> u64 {
     world
@@ -299,9 +292,7 @@ fn send_flags(world: &World, player: Entity, extra: Vec<DataItemEntry>) {
         },
         actor_data: SynchedActorDataCopyableDataList { data },
         synched_properties: PropertySyncData::default(),
-        tick: PlayerInputTick {
-            inputtick: u64::try_from(input_tick(world, player)).unwrap_or(0),
-        },
+        tick: crate::entity::components::input_tick_of(world, player),
     });
     send_to(world, &nearby_players(world, player), &packet);
 }
@@ -430,9 +421,7 @@ pub fn push_player(world: &World, player: Entity, motion: glam::DVec3) {
             y: motion.y as f32,
             z: motion.z as f32,
         },
-        tick: PlayerInputTick {
-            inputtick: u64::try_from(input_tick(world, player)).unwrap_or(0),
-        },
+        tick: crate::entity::components::input_tick_of(world, player),
     });
     send_to(world, &[player], &packet);
 }
@@ -498,9 +487,7 @@ pub fn teleport(world: &mut World, player: Entity, feet: glam::DVec3, cause: Tel
             teleportation_cause,
             source_actor_type,
         }),
-        tick: PlayerInputTick {
-            inputtick: u64::try_from(input_tick(world, player)).unwrap_or(0),
-        },
+        tick: crate::entity::components::input_tick_of(world, player),
     });
     // Other players follow through the regular position broadcast.
     send_to(world, &[player], &packet);

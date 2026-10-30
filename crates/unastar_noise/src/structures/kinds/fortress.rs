@@ -1310,12 +1310,14 @@ mod tests {
                     assert_eq!(world.get_state(base.world_pos(x, 8, 8)), terrain);
                 }
                 let mut rng = FeatureRandom::new(0);
-                assert!(place_netherrack_replace_blobs(
-                    &mut world,
-                    &mut rng,
-                    &cfg,
-                    base.world_pos(3, 9, 8),
-                ) || terrain == states::BASALT);
+                assert!(
+                    place_netherrack_replace_blobs(
+                        &mut world,
+                        &mut rng,
+                        &cfg,
+                        base.world_pos(3, 9, 8),
+                    ) || terrain == states::BASALT
+                );
                 let expected = [
                     states::BASALT,
                     fence(false, true, false, false),

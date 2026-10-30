@@ -8,8 +8,17 @@ mod decode;
 mod evaluate;
 
 pub use decode::decode_table;
-pub use evaluate::{ItemFunctions, LootContext, LootDrop, LootError, roll};
+pub use evaluate::{LootContext, LootDrop, LootError, roll};
 use std::collections::BTreeMap;
+
+/// Level difficulty as loot conditions read it (`random_difficulty_chance`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Difficulty {
+    Peaceful,
+    Easy,
+    Normal,
+    Hard,
+}
 
 /// Borrowed canonical recipe output. Smelting preserves the loot count.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +71,7 @@ pub enum LootCondition {
         looting_multiplier: f32,
     },
     KilledByPlayer,
+    /// The killer is a player or a tamed mob a player owns.
     KilledByPlayerOrPets,
     MatchTool {
         item: Option<String>,
@@ -78,6 +88,21 @@ pub enum LootCondition {
     Inverted(Box<LootCondition>),
     /// The supplied THIS actor's fire state; an absent actor does not match.
     ThisOnFire(bool),
+    /// The THIS actor is a baby; an absent actor does not match.
+    IsBaby,
+    /// The THIS actor rides an actor of this identifier (namespaced).
+    PassengerOfEntity {
+        entity_type: String,
+    },
+    /// Random chance per level difficulty, indexed by [`Difficulty`].
+    RandomDifficultyChance {
+        chances: [f32; 4],
+    },
+    /// Random chance of `max_chance` scaled by the clamped regional
+    /// difficulty.
+    RandomRegionalDifficultyChance {
+        max_chance: f32,
+    },
     Other {
         name: String,
         json: serde_json::Value,
@@ -120,15 +145,21 @@ pub enum LootFunctionKind {
     /// picks its item by data value (`minecraft:wool`) becomes that item.
     SetDataFromColorIndex,
     /// Remaining durability as a fraction of the item's maximum; the
-    /// context's [`ItemFunctions`] writes the resulting damage.
+    /// context's [`LootContext::set_damage`] writes the resulting damage.
     SetDamage {
         damage: LootNumber,
     },
-    /// Enchant the item as an enchanting table would at `levels`; the
-    /// context's [`ItemFunctions`] picks the enchantments.
+    /// Randomly enchant the item at enchanting level `levels` (treasure
+    /// enchantments only when `treasure`), classified by the context's
+    /// [`LootContext::item_enchanting`].
     EnchantWithLevels {
         levels: LootNumber,
         treasure: bool,
+    },
+    /// With `chance` × clamped regional difficulty, randomly enchant a
+    /// single item at level `5 + clamped regional difficulty × nextInt(18)`.
+    EnchantRandomGear {
+        chance: f32,
     },
     Other {
         name: String,
@@ -151,7 +182,9 @@ pub struct LootEntry {
     pub quality: i32,
     pub conditions: Vec<LootCondition>,
     pub functions: Vec<LootFunction>,
-    pub nested_pools_json: Option<serde_json::Value>,
+    /// Pools rolled after this entry created an item (`pools` inside an
+    /// entry; the `armor_set_*` tables chain armour pieces this way).
+    pub nested_pools: Vec<LootPool>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -160,7 +193,18 @@ pub struct LootPool {
     pub bonus_rolls: f32,
     pub conditions: Vec<LootCondition>,
     pub entries: Vec<LootEntry>,
-    pub tiers_json: Option<serde_json::Value>,
+    /// `tiers` replace `rolls`: one entry picked by tier index.
+    pub tiers: Option<LootTiers>,
+}
+
+/// Pool `tiers`: the entry at index `nextInt(initial_range)` plus one for
+/// each of `bonus_rolls` draws below `bonus_chance` (no entry when past the
+/// end). Entry conditions and weights are not consulted.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LootTiers {
+    pub initial_range: i32,
+    pub bonus_rolls: i32,
+    pub bonus_chance: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -1,65 +1,132 @@
-//! Chat and command domain system.
+//! Chat and command domain systems.
 //!
-//! Processes Text (chat broadcast) and CommandRequest packets, including
-//! the /tp command which writes Position and /summon, which spawns its mob
-//! from the command buffer (spawning needs exclusive world access).
+//! `apply_chat_and_commands` turns Text packets into chat events and queues
+//! CommandRequest packets; `run_commands` (exclusive, executors need the whole
+//! world) runs queued player requests and server-console lines through
+//! [`crate::command::execute`] and answers each player request with a
+//! `CommandOutputPacket` whose origin echoes the request's.
 
 use bevy_ecs::prelude::*;
-use glam::DVec3;
-use tracing::{debug, info, trace};
+use std::sync::Mutex;
+use std::sync::mpsc::{Receiver, Sender};
+use tracing::{debug, info, trace, warn};
 
 use super::packet_queues::{ChatAction, ChatEvents, ChatPacketQueue};
-use super::types::{CommandRegistryResource, system_text};
-use crate::command::{
-    CommandContext, CommandOutput, CommandParseError, Operator, SummonRequest, parse_command_line,
-};
+use crate::command::{CommandSource, execute};
 use crate::ecs::events::ServerEvent;
-use crate::entity::components::transform::Position;
-use crate::entity::components::{PlayerName, PlayerSession, PlayerUuid, RuntimeEntityId};
-use crate::entity::mob::{SpawnCause, spawn_mob};
-use crate::world::ecs::ChunkLoader;
+use crate::entity::components::{PlayerName, PlayerSession, PlayerUuid};
 use jolyne::valentine::types::{
-    ActorRuntimeId, EnumsPlayerPositionModeComponentPositionMode, EnumsTextPacketType,
-    PlayerInputTick, TextPacketBody, TextPacketPayloadAuthorAndMessageMessageType, Vec2, Vec3,
+    EnumsTextPacketType, TextPacketBody, TextPacketPayloadAuthorAndMessageMessageType,
 };
-use jolyne::valentine::{McpePacket, MovePlayerPacket, MovePlayerTeleportData, TextPacket};
+use jolyne::valentine::{CommandRequestPacket, McpePacket, TextPacket};
 
-/// ECS system: drain chat/command packet queue and process.
+/// Player command requests waiting for `run_commands`.
+#[derive(Resource, Default)]
+pub struct PendingCommands(pub Vec<(Entity, CommandRequestPacket)>);
+
+/// Lines typed on the server console (stdin), run with server permission.
+#[derive(Resource)]
+pub struct ConsoleCommands {
+    receiver: Mutex<Receiver<String>>,
+}
+
+impl ConsoleCommands {
+    /// A console queue fed by `sender`.
+    pub fn channel() -> (Sender<String>, Self) {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        (
+            sender,
+            Self {
+                receiver: Mutex::new(receiver),
+            },
+        )
+    }
+
+    /// Reads stdin lines on a background thread for the life of the process.
+    pub fn stdin() -> Self {
+        let (sender, console) = Self::channel();
+        let spawned = std::thread::Builder::new()
+            .name("console".into())
+            .spawn(move || {
+                let stdin = std::io::stdin();
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match stdin.read_line(&mut line) {
+                        Ok(0) | Err(_) => break,
+                        Ok(_) => {
+                            let command = line.trim();
+                            if !command.is_empty() && sender.send(command.to_owned()).is_err() {
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+        if let Err(error) = spawned {
+            warn!(%error, "Server console unavailable");
+        }
+        console
+    }
+
+    fn drain(&self) -> Vec<String> {
+        self.receiver
+            .lock()
+            .map(|receiver| receiver.try_iter().collect())
+            .unwrap_or_default()
+    }
+}
+
+/// ECS system: drain the chat/command packet queue.
 ///
-/// Runs in `PacketApplySet`. Serializes with movement (both write Position
-/// due to /tp), but parallel with inventory and chunks.
-#[allow(clippy::too_many_arguments)]
+/// Runs in `PacketApplySet`; chat becomes `PlayerChat` events, command
+/// requests wait in [`PendingCommands`] for the exclusive `run_commands`.
 pub fn apply_chat_and_commands(
     mut queue: ResMut<ChatPacketQueue>,
     mut events: ResMut<ChatEvents>,
-    commands: Res<CommandRegistryResource>,
-    tick_counter: Res<crate::ecs::resources::TickCounter>,
-    sessions: Query<&PlayerSession>,
+    mut pending: ResMut<PendingCommands>,
     names: Query<(&PlayerName, &PlayerUuid)>,
-    runtime_ids: Query<&RuntimeEntityId>,
-    operators: Query<(), With<Operator>>,
-    mut tp_targets: Query<(&mut Position, Option<&mut ChunkLoader>)>,
-    mut deferred: Commands,
 ) {
     let _span = tracing::info_span!("apply_chat_and_commands", count = queue.0.len()).entered();
     for (entity, _session_id, action) in queue.0.drain(..) {
         match action {
-            ChatAction::Text(pk) => {
-                handle_text(entity, &pk, &names, &mut events);
+            ChatAction::Text(pk) => handle_text(entity, &pk, &names, &mut events),
+            ChatAction::Command(request) => {
+                if request.is_internal {
+                    trace!("Ignoring internal CommandRequest");
+                } else {
+                    pending.0.push((entity, request));
+                }
             }
-            ChatAction::Command(req) => {
-                handle_command_request(
-                    entity,
-                    &req,
-                    &commands,
-                    &tick_counter,
-                    &sessions,
-                    &runtime_ids,
-                    &operators,
-                    &mut tp_targets,
-                    &mut deferred,
-                );
-            }
+        }
+    }
+}
+
+/// Exclusive ECS system: runs queued player commands, then console lines.
+pub fn run_commands(world: &mut World) {
+    let requests = std::mem::take(&mut world.resource_mut::<PendingCommands>().0);
+    for (entity, request) in requests {
+        let Some(source) = CommandSource::player(world, entity) else {
+            continue;
+        };
+        debug!(player = %source.name, command = %request.command, "Command");
+        let output = execute(world, source, &request.command);
+        // BDS answers `/say` and `/me` with their chat line only.
+        if output.messages.is_empty() {
+            continue;
+        }
+        if let Some(session) = world.get::<PlayerSession>(entity) {
+            let _ = session.send(McpePacket::from(output.to_packet(request.origin)));
+        }
+    }
+    let lines = world
+        .get_resource::<ConsoleCommands>()
+        .map(ConsoleCommands::drain)
+        .unwrap_or_default();
+    for line in lines {
+        let output = execute(world, CommandSource::server(), &line);
+        for text in output.to_text() {
+            info!(target: "console", "{text}");
         }
     }
 }
@@ -116,284 +183,21 @@ fn handle_text(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn handle_command_request(
-    entity: Entity,
-    req: &jolyne::valentine::CommandRequestPacket,
-    commands: &Res<CommandRegistryResource>,
-    tick_counter: &Res<crate::ecs::resources::TickCounter>,
-    sessions: &Query<&PlayerSession>,
-    runtime_ids: &Query<&RuntimeEntityId>,
-    operators: &Query<(), With<Operator>>,
-    tp_targets: &mut Query<(&mut Position, Option<&mut ChunkLoader>)>,
-    deferred: &mut Commands,
-) {
-    if req.is_internal {
-        trace!("Ignoring internal CommandRequest");
-        return;
-    }
-
-    let command_line = req.command.trim();
-    if !command_line.starts_with('/') {
-        return;
-    }
-
-    let mut invocation = match parse_command_line(command_line) {
-        Ok(inv) => inv,
-        Err(CommandParseError::Empty) => return,
-        Err(e) => {
-            send_command_output(
-                entity,
-                sessions,
-                CommandOutput {
-                    messages: vec![],
-                    errors: vec![e.to_string()],
-                    ..Default::default()
-                },
-            );
-            return;
-        }
-    };
-
-    let Ok(session) = sessions.get(entity) else {
-        return;
-    };
-    let context = CommandContext::new(session.session_id, operators.contains(entity));
-    let mut output = commands.0.execute(&context, &mut invocation);
-    if let Some(target) = output.teleport {
-        handle_teleport_command(
-            entity,
-            target,
-            tick_counter,
-            sessions,
-            runtime_ids,
-            tp_targets,
-        );
-    }
-    if let Some(summon) = output.summon.take() {
-        deferred.queue(move |world: &mut World| apply_summon(world, entity, &summon));
-    }
-    if !output.is_empty() {
-        send_command_output(entity, sessions, output);
-    }
-}
-
-fn handle_teleport_command(
-    entity: Entity,
-    target: DVec3,
-    tick_counter: &Res<crate::ecs::resources::TickCounter>,
-    sessions: &Query<&PlayerSession>,
-    runtime_ids: &Query<&RuntimeEntityId>,
-    tp_targets: &mut Query<(&mut Position, Option<&mut ChunkLoader>)>,
-) {
-    let DVec3 { x, y, z } = target;
-
-    let runtime_id = runtime_ids.get(entity).map(|r| r.0).unwrap_or(0);
-
-    // Update position and chunk loader
-    if let Ok((mut position, chunk_loader)) = tp_targets.get_mut(entity) {
-        position.0 = DVec3::new(x, y, z);
-        if let Some(mut loader) = chunk_loader {
-            let new_chunk_x = (x / 16.0).floor() as i32;
-            let new_chunk_z = (z / 16.0).floor() as i32;
-            loader.move_to(new_chunk_x, new_chunk_z);
-        }
-    }
-
-    // Send teleport packet
-    let packet = MovePlayerPacket {
-        player_runtime_id: ActorRuntimeId {
-            actor_runtime_id: runtime_id as u64,
-        },
-        position: Vec3 {
-            x: x as f32,
-            y: y as f32,
-            z: z as f32,
-        },
-        rotation: Vec2 { x: 0.0, y: 0.0 },
-        y_head_rotation: 0.0,
-        position_mode: EnumsPlayerPositionModeComponentPositionMode::Teleport,
-        on_ground: false,
-        riding_runtime_id: ActorRuntimeId {
-            actor_runtime_id: 0,
-        },
-        teleport_data: Some(MovePlayerTeleportData {
-            teleportation_cause: 3,
-            source_actor_type: 63,
-        }),
-        tick: PlayerInputTick {
-            inputtick: tick_counter.current,
-        },
-    };
-
-    if let Ok(session) = sessions.get(entity) {
-        let _ = session.send(McpePacket::from(packet));
-    }
-
-    send_command_output(
-        entity,
-        sessions,
-        CommandOutput {
-            messages: vec![format!("Teleported to {x:.1}, {y:.1}, {z:.1}")],
-            errors: vec![],
-            ..Default::default()
-        },
-    );
-}
-
-/// Spawn a `/summon`ed mob (relative coordinates resolve against the
-/// executor's feet) and reply with the outcome.
-fn apply_summon(world: &mut World, executor: Entity, request: &SummonRequest) {
-    let Some(eye) = world.get::<Position>(executor).map(|p| p.0) else {
-        return;
-    };
-    let feet = eye - DVec3::new(0.0, crate::entity::PLAYER_EYE_HEIGHT, 0.0);
-    let position = request.resolve(feet);
-    let mut output = CommandOutput::default();
-    match spawn_mob(
-        world,
-        &request.identifier,
-        position,
-        0.0,
-        SpawnCause::Spawned,
-    ) {
-        Ok(_) => output.message("Object successfully summoned"),
-        Err(error) => output.error(format!("Unable to summon object: {error}")),
-    }
-    if let Some(session) = world.get::<PlayerSession>(executor) {
-        send_output(session, output);
-    }
-}
-
-fn send_command_output(entity: Entity, sessions: &Query<&PlayerSession>, output: CommandOutput) {
-    if let Ok(session) = sessions.get(entity) {
-        send_output(session, output);
-    }
-}
-
-fn send_output(session: &PlayerSession, output: CommandOutput) {
-    for message in output.messages {
-        let _ = session.send(McpePacket::from(system_text(&message)));
-    }
-    for error in output.errors {
-        let _ = session.send(McpePacket::from(system_text(&format!("Error: {error}"))));
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::{Command, CommandArgs, CommandContext, CommandRegistry, Operator};
+    use crate::command::Operator;
+    use crate::entity::components::RuntimeEntityId;
+    use crate::entity::components::transform::Position;
     use bevy_ecs::system::RunSystemOnce;
+    use glam::DVec3;
     use jolyne::valentine::McpePacketData;
-    use jolyne::valentine::types::TextPacketPayloadAuthorAndMessage;
+    use jolyne::valentine::types::{CommandOriginDatajson, TextPacketPayloadAuthorAndMessage};
     use tokio::sync::mpsc;
-
-    fn fixture() -> (World, Entity, mpsc::Receiver<McpePacket>) {
-        let mut world = World::new();
-        world.insert_resource(ChatPacketQueue::default());
-        world.insert_resource(ChatEvents::default());
-        world.insert_resource(CommandRegistryResource(CommandRegistry::with_defaults()));
-        world.insert_resource(crate::ecs::resources::TickCounter::default());
-        let (tx, rx) = mpsc::channel(16);
-        let entity = world
-            .spawn((
-                PlayerSession::new(1, "Alice".into(), None, None, tx),
-                PlayerName("Alice".into()),
-                PlayerUuid(uuid::Uuid::nil()),
-                Position(DVec3::ZERO),
-                RuntimeEntityId(1),
-            ))
-            .id();
-        let mut sessions = super::super::types::SessionEntityMap::default();
-        sessions.insert(1, entity);
-        world.insert_resource(sessions);
-        (world, entity, rx)
-    }
-
-    fn command(world: &mut World, entity: Entity, line: &str) {
-        let mut request = jolyne::valentine::CommandRequestPacket {
-            command: line.into(),
-            ..Default::default()
-        };
-        // A client claiming console origin must not gain operator authority.
-        request.origin.type_ = "console".into();
-        world
-            .resource_mut::<ChatPacketQueue>()
-            .0
-            .push((entity, 1, ChatAction::Command(request)));
-        world.run_system_once(apply_chat_and_commands).unwrap();
-    }
-
-    #[test]
-    fn teleport_rejects_nonoperators_without_moving() {
-        for name in ["tp", "teleport", "TP"] {
-            let (mut world, entity, mut rx) = fixture();
-            command(&mut world, entity, &format!("/{name} 32 70 -16"));
-            assert_eq!(world.get::<Position>(entity).unwrap().0, DVec3::ZERO);
-            let McpePacketData::TextPacket(packet) = rx.try_recv().unwrap().data else {
-                panic!("expected permission error, not teleport");
-            };
-            assert!(format!("{packet:?}").contains("permission"));
-            assert!(rx.try_recv().is_err());
-        }
-    }
-
-    #[test]
-    fn teleport_allows_server_granted_operators() {
-        for name in ["tp", "teleport"] {
-            let (mut world, entity, mut rx) = fixture();
-            world.entity_mut(entity).insert(Operator);
-            command(&mut world, entity, &format!("/{name} 32 70 -16"));
-            assert_eq!(
-                world.get::<Position>(entity).unwrap().0,
-                DVec3::new(32.0, 70.0, -16.0)
-            );
-            assert!(matches!(
-                rx.try_recv().unwrap().data,
-                McpePacketData::MovePlayerPacket(_)
-            ));
-            assert!(matches!(
-                rx.try_recv().unwrap().data,
-                McpePacketData::TextPacket(_)
-            ));
-            assert!(rx.try_recv().is_err());
-        }
-    }
-
-    struct RestrictedCommand;
-
-    impl Command for RestrictedCommand {
-        fn name(&self) -> &'static str {
-            "restricted"
-        }
-        fn requires_operator(&self) -> bool {
-            true
-        }
-        fn execute(&self, _ctx: &CommandContext, _args: &mut CommandArgs) -> CommandOutput {
-            let mut output = CommandOutput::default();
-            output.message("actual execution");
-            output
-        }
-    }
-
-    #[test]
-    fn registry_permissions_apply_to_custom_commands_and_execute_authorized_handlers() {
-        let (mut world, entity, mut rx) = fixture();
-        world
-            .resource_mut::<CommandRegistryResource>()
-            .0
-            .register(RestrictedCommand);
-        command(&mut world, entity, "/restricted");
-        assert!(format!("{:?}", rx.try_recv().unwrap()).contains("permission"));
-        world.entity_mut(entity).insert(Operator);
-        command(&mut world, entity, "/restricted");
-        assert!(format!("{:?}", rx.try_recv().unwrap()).contains("actual execution"));
-    }
 
     /// A game server with one player standing (eye height) at x 3.5,
     /// feet y 64, z 3.5 over a loaded empty chunk.
-    fn summon_server(
+    fn test_server(
         operator: bool,
     ) -> (super::super::GameServer, Entity, mpsc::Receiver<McpePacket>) {
         let mut server = super::super::GameServer::with_config(super::super::ServerConfig {
@@ -413,7 +217,9 @@ mod tests {
         let (tx, rx) = mpsc::channel(256);
         let player = world
             .spawn((
+                crate::entity::components::Player,
                 PlayerSession::new(1, "Alice".into(), None, None, tx),
+                PlayerName("Alice".into()),
                 Position(DVec3::new(
                     3.5,
                     64.0 + crate::entity::PLAYER_EYE_HEIGHT,
@@ -428,7 +234,7 @@ mod tests {
         (server, player, rx)
     }
 
-    fn summon(server: &mut super::super::GameServer, player: Entity, line: &str) {
+    fn command(server: &mut super::super::GameServer, player: Entity, line: &str) {
         server
             .ecs
             .world_mut()
@@ -437,12 +243,47 @@ mod tests {
             .push((
                 player,
                 1,
-                ChatAction::Command(jolyne::valentine::CommandRequestPacket {
+                ChatAction::Command(CommandRequestPacket {
                     command: line.into(),
-                    ..Default::default()
+                    origin: CommandOriginDatajson {
+                        type_: "player".into(),
+                        request_id: "req-7".into(),
+                        ..Default::default()
+                    },
+                    is_internal: false,
+                    version: "latest".into(),
                 }),
             ));
         server.tick();
+    }
+
+    /// (success count, [(key, params)]) of one CommandOutput.
+    type Received = (u32, Vec<(String, Vec<String>)>);
+
+    /// Every CommandOutput the player received.
+    fn outputs(rx: &mut mpsc::Receiver<McpePacket>) -> Vec<Received> {
+        let mut out = Vec::new();
+        while let Ok(packet) = rx.try_recv() {
+            if let McpePacketData::CommandOutputPacket(packet) = packet.data {
+                assert_eq!(&*packet.origin_data.request_id, "req-7");
+                assert_eq!(&*packet.output.output_type, "alloutput");
+                out.push((
+                    packet.output.success_count,
+                    packet
+                        .output
+                        .output_messages
+                        .iter()
+                        .map(|m| {
+                            (
+                                m.message_id.to_string(),
+                                m.parameters.iter().map(|p| p.to_string()).collect(),
+                            )
+                        })
+                        .collect(),
+                ));
+            }
+        }
+        out
     }
 
     fn mob_positions(server: &mut super::super::GameServer) -> Vec<DVec3> {
@@ -454,55 +295,64 @@ mod tests {
             .collect()
     }
 
-    fn texts(rx: &mut mpsc::Receiver<McpePacket>) -> Vec<String> {
-        let mut texts = Vec::new();
-        while let Ok(packet) = rx.try_recv() {
-            if let McpePacketData::TextPacket(TextPacket {
-                body: TextPacketBody::AuthorAndMessage(body),
-                ..
-            }) = packet.data
-            {
-                texts.push(body.message.to_string());
-            }
-        }
-        texts
+    #[test]
+    fn members_get_the_bds_permission_error_for_operator_commands() {
+        let (mut server, player, mut rx) = test_server(false);
+        command(&mut server, player, "/summon minecraft:cow 6 70 9");
+        assert!(mob_positions(&mut server).is_empty());
+        assert_eq!(
+            outputs(&mut rx),
+            [(
+                0,
+                vec![(
+                    "commands.generic.error.permissions".to_owned(),
+                    vec!["summon".to_owned()]
+                )]
+            )]
+        );
     }
 
     #[test]
-    fn operators_summon_cows_at_absolute_relative_and_own_positions() {
-        let (mut server, player, mut rx) = summon_server(true);
-        summon(&mut server, player, "/summon minecraft:cow 6 70 9");
+    fn operators_summon_at_absolute_relative_and_own_positions() {
+        let (mut server, player, mut rx) = test_server(true);
+        command(&mut server, player, "/summon minecraft:cow 6 70 9");
         assert_eq!(mob_positions(&mut server), [DVec3::new(6.5, 70.0, 9.5)]);
-        assert!(
-            texts(&mut rx)
-                .iter()
-                .any(|t| t.contains("Object successfully summoned"))
+        assert_eq!(
+            outputs(&mut rx),
+            [(1, vec![("commands.summon.success".to_owned(), vec![])])]
         );
 
-        let (mut server, player, _rx) = summon_server(true);
-        summon(&mut server, player, "/summon cow ~2 ~ ~-1.5");
+        let (mut server, player, _rx) = test_server(true);
+        command(&mut server, player, "/summon cow ~2 ~ ~-1.5");
         assert_eq!(mob_positions(&mut server), [DVec3::new(5.5, 64.0, 2.0)]);
 
-        let (mut server, player, _rx) = summon_server(true);
-        summon(&mut server, player, "/summon cow");
+        let (mut server, player, _rx) = test_server(true);
+        command(&mut server, player, "/summon cow");
         assert_eq!(mob_positions(&mut server), [DVec3::new(3.5, 64.0, 3.5)]);
     }
 
     #[test]
-    fn summon_refuses_nonoperators_and_reports_unknown_actors() {
-        let (mut server, player, mut rx) = summon_server(false);
-        summon(&mut server, player, "/summon minecraft:cow 6 70 9");
+    fn unknown_actor_types_are_syntax_errors_and_unsupported_ones_say_why() {
+        let (mut server, player, mut rx) = test_server(true);
+        command(&mut server, player, "/summon minecraft:not_a_mob");
         assert!(mob_positions(&mut server).is_empty());
-        assert!(texts(&mut rx).iter().any(|t| t.contains("permission")));
-
-        let (mut server, player, mut rx) = summon_server(true);
-        summon(&mut server, player, "/summon minecraft:not_a_mob");
-        assert!(mob_positions(&mut server).is_empty());
-        assert!(texts(&mut rx).iter().any(|t| t.contains("Unable to summon object")
-            && t.contains("minecraft:not_a_mob")));
+        assert_eq!(
+            outputs(&mut rx),
+            [(
+                0,
+                vec![(
+                    "commands.generic.syntax".to_owned(),
+                    vec![
+                        "/summon ".to_owned(),
+                        "minecraft:not_a_mob".to_owned(),
+                        String::new()
+                    ]
+                )]
+            )]
+        );
 
         // A known actor the mob runtime cannot run yet reports why.
-        let (mut server, player, mut rx) = summon_server(true);
+        let (mut server, player, mut rx) = test_server(true);
         let reason = server
             .ecs
             .world()
@@ -510,18 +360,38 @@ mod tests {
             .unsupported_reason("minecraft:ender_dragon")
             .expect("the ender dragon is not spawnable yet")
             .to_owned();
-        summon(&mut server, player, "/summon ender_dragon");
+        command(&mut server, player, "/summon ender_dragon");
         assert!(mob_positions(&mut server).is_empty());
-        assert!(
-            texts(&mut rx)
-                .iter()
-                .any(|t| t.contains("not supported yet") && t.contains(&reason))
-        );
+        let outputs = outputs(&mut rx);
+        assert_eq!(outputs.len(), 1);
+        assert_eq!(outputs[0].0, 0);
+        assert!(outputs[0].1[0].0.contains(&reason), "{outputs:?}");
+    }
+
+    #[test]
+    fn console_lines_run_with_server_permission() {
+        let (mut server, _player, _rx) = test_server(false);
+        let (sender, console) = ConsoleCommands::channel();
+        server.ecs.world_mut().insert_resource(console);
+        sender.send("summon cow 1 70 1".into()).unwrap();
+        server.tick();
+        assert_eq!(mob_positions(&mut server), [DVec3::new(1.5, 70.0, 1.5)]);
     }
 
     #[test]
     fn chat_only_queues_cancellable_event_without_delivery() {
-        let (mut world, entity, mut rx) = fixture();
+        let mut world = World::new();
+        world.insert_resource(ChatPacketQueue::default());
+        world.insert_resource(ChatEvents::default());
+        world.insert_resource(PendingCommands::default());
+        let (tx, mut rx) = mpsc::channel(16);
+        let entity = world
+            .spawn((
+                PlayerSession::new(1, "Alice".into(), None, None, tx),
+                PlayerName("Alice".into()),
+                PlayerUuid(uuid::Uuid::nil()),
+            ))
+            .id();
         let packet = TextPacket {
             localize: false,
             body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {

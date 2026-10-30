@@ -11,8 +11,8 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 
 use super::generated::body::{
-    ActorDamageCause, ActorDefinitionTrigger, BlockDescriptor, FloatRange, GoalsControlFlags,
-    ItemDescriptor, LevelSoundEvent, MolangValue, Vec3,
+    ActorDamageCause, ActorDefinitionTrigger, BlockDescriptor, EquipmentSlot, FloatRange,
+    GoalsControlFlags, ItemDescriptor, LevelSoundEvent, MolangValue, Vec3,
 };
 use super::provisional as p;
 use super::{ActorComponent, ComponentBody, FilterJson, decode};
@@ -188,6 +188,16 @@ defaults! {
     transformation_flag -> bool = p::TRANSFORMATION_FLAG;
     transformation_delay_value -> f32 = p::TRANSFORMATION_DELAY_VALUE;
     transformation_delay_block_count -> i32 = p::TRANSFORMATION_DELAY_BLOCK_COUNT;
+    attack_effect_duration -> f32 = p::ATTACK_EFFECT_DURATION;
+    timer_looping -> bool = p::TIMER_LOOPING;
+    timer_random_interval -> bool = p::TIMER_RANDOM_INTERVAL;
+    timer_time -> TimerTime = TimerTime::Seconds(p::TIMER_TIME);
+    equip_item_can_wear_armor -> bool = p::EQUIP_ITEM_CAN_WEAR_ARMOR;
+    shareables_amount -> i32 = p::SHAREABLES_AMOUNT;
+    shareables_flag -> bool = p::SHAREABLES_FLAG;
+    shareables_priority -> i32 = p::SHAREABLES_PRIORITY;
+    break_door_break_time -> f32 = p::BREAK_DOOR_BREAK_TIME;
+    break_door_min_difficulty -> Difficulty = p::BREAK_DOOR_MIN_DIFFICULTY;
 }
 
 /// `minecraft:ageable`: a growth timer, accelerated by feeding.
@@ -1114,6 +1124,172 @@ pub struct TransformationDelayDetail {
     pub value: f32,
 }
 
+/// `minecraft:attack`: the actor's melee damage and the effect a hit applies.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Attack {
+    pub damage: AttackDamage,
+    /// Seconds of `effect_name` a hit applies.
+    #[serde(default = "attack_effect_duration")]
+    pub effect_duration: f32,
+    /// The mob effect a hit applies (no effect when absent).
+    pub effect_name: Option<String>,
+}
+
+/// Melee damage: a fixed amount or a uniform range (`[min, max]` or
+/// `{"range_min", "range_max"}`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum AttackDamage {
+    Value(f32),
+    Pair([f32; 2]),
+    Range(RandomRange<f32>),
+}
+
+/// `minecraft:environment_sensor`: events fired while their filters pass.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EnvironmentSensor {
+    #[serde(default, deserialize_with = "super::de::one_or_many")]
+    pub triggers: Vec<ActorDefinitionTrigger>,
+}
+
+/// `minecraft:timer`: fires `time_down_event` once the time runs out.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Timer {
+    #[serde(default = "timer_looping")]
+    pub looping: bool,
+    /// Pick a random time in the `time` range each run.
+    #[serde(rename = "randomInterval", default = "timer_random_interval")]
+    pub random_interval: bool,
+    /// Weighted times in seconds; used instead of `time` when not empty.
+    #[serde(default)]
+    pub random_time_choices: Vec<TimerChoice>,
+    #[serde(default = "timer_time")]
+    pub time: TimerTime,
+    pub time_down_event: ActorDefinitionTrigger,
+}
+
+/// Seconds until a [`Timer`] fires: fixed or `[min, max]`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum TimerTime {
+    Seconds(f32),
+    Range([f32; 2]),
+}
+
+/// One `random_time_choices` entry.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TimerChoice {
+    pub value: f32,
+    pub weight: i32,
+}
+
+/// `minecraft:equipment`: the loot table the actor's gear is rolled from
+/// and per-slot drop chances.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Equipment {
+    #[serde(default)]
+    pub slot_drop_chance: Vec<SlotDropChance>,
+    /// Loot table path relative to the behaviour pack root.
+    pub table: Option<String>,
+}
+
+/// One `minecraft:equipment` `slot_drop_chance` entry.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SlotDropChance {
+    pub drop_chance: f32,
+    pub slot: EquipmentSlot,
+}
+
+/// `minecraft:equip_item`: the actor wears or holds the items it picks up.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EquipItem {
+    #[serde(default = "equip_item_can_wear_armor")]
+    pub can_wear_armor: bool,
+    /// Items the actor holds instead of wearing.
+    #[serde(default, deserialize_with = "super::de::one_or_many")]
+    pub excluded_items: Vec<ItemDescriptor>,
+}
+
+/// `minecraft:shareables`: the items the actor wants and how much of each.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Shareables {
+    /// Every other item is wanted too (least priority).
+    #[serde(default = "shareables_flag")]
+    pub all_items: bool,
+    #[serde(default = "shareables_amount")]
+    pub all_items_max_amount: i32,
+    #[serde(default = "shareables_amount")]
+    pub all_items_surplus_amount: i32,
+    #[serde(default = "shareables_amount")]
+    pub all_items_want_amount: i32,
+    #[serde(default, deserialize_with = "super::de::one_or_many")]
+    pub items: Vec<ShareableItem>,
+    /// The actor holds at most one of each wanted item.
+    #[serde(default = "shareables_flag")]
+    pub singular_pickup: bool,
+}
+
+/// One `minecraft:shareables` `items` entry.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShareableItem {
+    #[serde(default = "shareables_flag")]
+    pub admire: bool,
+    #[serde(default = "shareables_flag")]
+    pub barter: bool,
+    #[serde(default = "shareables_flag")]
+    pub consume_item: bool,
+    pub craft_into: Option<String>,
+    /// Item name (`minecraft:skull:1` names an aux value).
+    pub item: String,
+    #[serde(default = "shareables_amount")]
+    pub max_amount: i32,
+    #[serde(default = "shareables_amount")]
+    pub pickup_limit: i32,
+    #[serde(default = "shareables_flag")]
+    pub pickup_only: bool,
+    /// 0 is the most wanted.
+    #[serde(default = "shareables_priority")]
+    pub priority: i32,
+    #[serde(default = "shareables_flag")]
+    pub stored_in_inventory: bool,
+    #[serde(default = "shareables_amount")]
+    pub surplus_amount: i32,
+    #[serde(default = "shareables_amount")]
+    pub want_amount: i32,
+}
+
+/// A world difficulty as behaviour packs name it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Difficulty {
+    Peaceful,
+    Easy,
+    Normal,
+    Hard,
+}
+
+/// `minecraft:annotation.break_door`: a pathing mob breaks the closed doors
+/// in its way.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnnotationBreakDoor {
+    /// Seconds needed to break through a door.
+    #[serde(default = "break_door_break_time")]
+    pub break_time: f32,
+    /// The lowest world difficulty on which doors are broken.
+    #[serde(default = "break_door_min_difficulty")]
+    pub min_difficulty: Difficulty,
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1138,7 +1314,9 @@ macro_rules! dynamic_bodies {
 
 dynamic_bodies!(
     Ageable,
+    AnnotationBreakDoor,
     AmbientSoundInterval,
+    Attack,
     Balloonable,
     BehaviorPanic,
     BehaviorTempt,
@@ -1149,6 +1327,9 @@ dynamic_bodies!(
     ConditionalBandwidthOptimization,
     DamageSensor,
     Despawn,
+    EnvironmentSensor,
+    EquipItem,
+    Equipment,
     Health,
     HurtOnCondition,
     IsDyeable,
@@ -1164,8 +1345,10 @@ dynamic_bodies!(
     PushableByBlock,
     Rideable,
     Scale,
+    Shareables,
     SpawnEggInteraction,
     SpawnEntity,
     Transformation,
+    Timer,
     TypeFamily,
 );
