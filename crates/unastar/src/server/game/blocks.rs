@@ -90,6 +90,12 @@ fn process_auth_input_block_actions(
                 break_block(world, player_entity, x, y, z);
             }
             EnumsPlayerActionType::Startdestroyblock => {
+                // Punching the face of a block with fire on it puts the fire
+                // out instead of starting to break the block.
+                let facing = u8::try_from(action_item.facing).unwrap_or(u8::MAX);
+                if super::block_behaviour::fire::punch(world, IVec3::new(x, y, z), facing) {
+                    continue;
+                }
                 let is_creative = world
                     .get::<crate::entity::components::GameMode>(player_entity)
                     .map(|gm| gm.instant_break())

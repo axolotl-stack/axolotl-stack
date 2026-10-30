@@ -1,0 +1,3837 @@
+{
+ "source": "measured on BDS 1.26.51 with the bds-sweep blocks job (redstone and fire scenarios), 2026-10-30 UTC",
+ "conventions": {
+  "arena": "stone floor at y=-61 (x -10..24, z -12..24), survival player standing on it (feet y=-60), noon, clear sky, peaceful (fire steps name their difficulty); the redstone scenarios run at randomtickspeed 0, fire at randomtickspeed 1 with doFireTick on",
+  "faces": "0 down, 1 up, 2 north (-z), 3 south (+z), 4 west (-x), 5 east (+x)",
+  "yaw": "yaw 0 south, 90 west, 180 north, 270 east",
+  "placement": "levers, repeaters, comparators, buttons, torches and doors are clicked into place by the player (steps with action \"use\"); dust, lamps, plates, note blocks, stone, redstone blocks and fire are /setblock",
+  "ticks": "the watched cells are read once per server tick; tick 0 is the tick in which the trigger cell (the clicked lever/button/comparator, or the pressed plate) was first seen changed, or the tick of the command when a step has no trigger; a change at tick n was first seen n ticks after tick 0; tick_0_server_tick is a running server tick count, so steps can be compared for even/odd phase",
+  "changes": "per tick, the watched cells that changed and their new state in block state notation",
+  "samples": "fire: every samples_every ticks, the watched cells per block name (air only counted)",
+  "packets": "sounds and level events received by the player after the step started, identical ones merged with a \"times\" count; block runtime ids in sound data are written as the block state they denote; block_update_packets counts the block update packets"
+ },
+ "redstone_dust": [
+  {
+   "step": "line_15_lever_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [0, -59, 0], "block": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "line_15_lever_on_1",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 54,
+   "watched_ticks": 38,
+   "positions": {
+    "dust_01": [1, -60, 0],
+    "dust_02": [2, -60, 0],
+    "dust_03": [3, -60, 0],
+    "dust_04": [4, -60, 0],
+    "dust_05": [5, -60, 0],
+    "dust_06": [6, -60, 0],
+    "dust_07": [7, -60, 0],
+    "dust_08": [8, -60, 0],
+    "dust_09": [9, -60, 0],
+    "dust_10": [10, -60, 0],
+    "dust_11": [11, -60, 0],
+    "dust_12": [12, -60, 0],
+    "dust_13": [13, -60, 0],
+    "dust_14": [14, -60, 0],
+    "dust_15": [15, -60, 0],
+    "lamp": [16, -60, 0],
+    "lever": [0, -59, 0]
+   },
+   "before": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=0]",
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {
+     "tick": 1,
+     "cells": {
+      "dust_01": "minecraft:redstone_wire[redstone_signal=15]",
+      "dust_02": "minecraft:redstone_wire[redstone_signal=14]",
+      "dust_03": "minecraft:redstone_wire[redstone_signal=13]",
+      "dust_04": "minecraft:redstone_wire[redstone_signal=12]",
+      "dust_05": "minecraft:redstone_wire[redstone_signal=11]",
+      "dust_06": "minecraft:redstone_wire[redstone_signal=10]",
+      "dust_07": "minecraft:redstone_wire[redstone_signal=9]",
+      "dust_08": "minecraft:redstone_wire[redstone_signal=8]",
+      "dust_09": "minecraft:redstone_wire[redstone_signal=7]",
+      "dust_10": "minecraft:redstone_wire[redstone_signal=6]",
+      "dust_11": "minecraft:redstone_wire[redstone_signal=5]",
+      "dust_12": "minecraft:redstone_wire[redstone_signal=4]",
+      "dust_13": "minecraft:redstone_wire[redstone_signal=3]",
+      "dust_14": "minecraft:redstone_wire[redstone_signal=2]",
+      "dust_15": "minecraft:redstone_wire[redstone_signal=1]",
+      "lamp": "minecraft:lit_redstone_lamp"
+     }
+    }
+   ],
+   "after": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=15]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=14]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=13]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=12]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=11]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=10]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=9]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=8]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=7]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=6]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=5]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=4]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=3]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=2]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=1]",
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 17
+  },
+  {
+   "step": "line_15_lever_off_1",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 99,
+   "watched_ticks": 39,
+   "positions": {
+    "dust_01": [1, -60, 0],
+    "dust_02": [2, -60, 0],
+    "dust_03": [3, -60, 0],
+    "dust_04": [4, -60, 0],
+    "dust_05": [5, -60, 0],
+    "dust_06": [6, -60, 0],
+    "dust_07": [7, -60, 0],
+    "dust_08": [8, -60, 0],
+    "dust_09": [9, -60, 0],
+    "dust_10": [10, -60, 0],
+    "dust_11": [11, -60, 0],
+    "dust_12": [12, -60, 0],
+    "dust_13": [13, -60, 0],
+    "dust_14": [14, -60, 0],
+    "dust_15": [15, -60, 0],
+    "lamp": [16, -60, 0],
+    "lever": [0, -59, 0]
+   },
+   "before": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=15]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=14]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=13]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=12]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=11]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=10]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=9]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=8]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=7]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=6]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=5]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=4]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=3]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=2]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=1]",
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {
+     "tick": 2,
+     "cells": {
+      "dust_01": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_02": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_03": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_04": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_05": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_06": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_07": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_08": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_09": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_10": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_11": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_12": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_13": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_14": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_15": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    },
+    {"tick": 6, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=0]",
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 17
+  },
+  {
+   "step": "line_15_lever_on_2",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 146,
+   "watched_ticks": 38,
+   "positions": {
+    "dust_01": [1, -60, 0],
+    "dust_02": [2, -60, 0],
+    "dust_03": [3, -60, 0],
+    "dust_04": [4, -60, 0],
+    "dust_05": [5, -60, 0],
+    "dust_06": [6, -60, 0],
+    "dust_07": [7, -60, 0],
+    "dust_08": [8, -60, 0],
+    "dust_09": [9, -60, 0],
+    "dust_10": [10, -60, 0],
+    "dust_11": [11, -60, 0],
+    "dust_12": [12, -60, 0],
+    "dust_13": [13, -60, 0],
+    "dust_14": [14, -60, 0],
+    "dust_15": [15, -60, 0],
+    "lamp": [16, -60, 0],
+    "lever": [0, -59, 0]
+   },
+   "before": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=0]",
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {
+     "tick": 3,
+     "cells": {
+      "dust_01": "minecraft:redstone_wire[redstone_signal=15]",
+      "dust_02": "minecraft:redstone_wire[redstone_signal=14]",
+      "dust_03": "minecraft:redstone_wire[redstone_signal=13]",
+      "dust_04": "minecraft:redstone_wire[redstone_signal=12]",
+      "dust_05": "minecraft:redstone_wire[redstone_signal=11]",
+      "dust_06": "minecraft:redstone_wire[redstone_signal=10]",
+      "dust_07": "minecraft:redstone_wire[redstone_signal=9]",
+      "dust_08": "minecraft:redstone_wire[redstone_signal=8]",
+      "dust_09": "minecraft:redstone_wire[redstone_signal=7]",
+      "dust_10": "minecraft:redstone_wire[redstone_signal=6]",
+      "dust_11": "minecraft:redstone_wire[redstone_signal=5]",
+      "dust_12": "minecraft:redstone_wire[redstone_signal=4]",
+      "dust_13": "minecraft:redstone_wire[redstone_signal=3]",
+      "dust_14": "minecraft:redstone_wire[redstone_signal=2]",
+      "dust_15": "minecraft:redstone_wire[redstone_signal=1]",
+      "lamp": "minecraft:lit_redstone_lamp"
+     }
+    }
+   ],
+   "after": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=15]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=14]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=13]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=12]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=11]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=10]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=9]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=8]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=7]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=6]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=5]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=4]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=3]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=2]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=1]",
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 17
+  },
+  {
+   "step": "line_15_lever_off_2",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 191,
+   "watched_ticks": 39,
+   "positions": {
+    "dust_01": [1, -60, 0],
+    "dust_02": [2, -60, 0],
+    "dust_03": [3, -60, 0],
+    "dust_04": [4, -60, 0],
+    "dust_05": [5, -60, 0],
+    "dust_06": [6, -60, 0],
+    "dust_07": [7, -60, 0],
+    "dust_08": [8, -60, 0],
+    "dust_09": [9, -60, 0],
+    "dust_10": [10, -60, 0],
+    "dust_11": [11, -60, 0],
+    "dust_12": [12, -60, 0],
+    "dust_13": [13, -60, 0],
+    "dust_14": [14, -60, 0],
+    "dust_15": [15, -60, 0],
+    "lamp": [16, -60, 0],
+    "lever": [0, -59, 0]
+   },
+   "before": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=15]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=14]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=13]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=12]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=11]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=10]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=9]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=8]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=7]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=6]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=5]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=4]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=3]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=2]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=1]",
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {
+     "tick": 2,
+     "cells": {
+      "dust_01": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_02": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_03": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_04": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_05": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_06": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_07": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_08": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_09": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_10": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_11": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_12": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_13": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_14": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_15": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    },
+    {"tick": 6, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=0]",
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 17
+  },
+  {
+   "step": "line_16_lever_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [0, -59, 0], "block": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "line_16_lever_on_1",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 278,
+   "watched_ticks": 38,
+   "positions": {
+    "dust_01": [1, -60, 0],
+    "dust_02": [2, -60, 0],
+    "dust_03": [3, -60, 0],
+    "dust_04": [4, -60, 0],
+    "dust_05": [5, -60, 0],
+    "dust_06": [6, -60, 0],
+    "dust_07": [7, -60, 0],
+    "dust_08": [8, -60, 0],
+    "dust_09": [9, -60, 0],
+    "dust_10": [10, -60, 0],
+    "dust_11": [11, -60, 0],
+    "dust_12": [12, -60, 0],
+    "dust_13": [13, -60, 0],
+    "dust_14": [14, -60, 0],
+    "dust_15": [15, -60, 0],
+    "dust_16": [16, -60, 0],
+    "lamp": [17, -60, 0],
+    "lever": [0, -59, 0]
+   },
+   "before": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_16": "minecraft:redstone_wire[redstone_signal=0]",
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {
+     "tick": 3,
+     "cells": {
+      "dust_01": "minecraft:redstone_wire[redstone_signal=15]",
+      "dust_02": "minecraft:redstone_wire[redstone_signal=14]",
+      "dust_03": "minecraft:redstone_wire[redstone_signal=13]",
+      "dust_04": "minecraft:redstone_wire[redstone_signal=12]",
+      "dust_05": "minecraft:redstone_wire[redstone_signal=11]",
+      "dust_06": "minecraft:redstone_wire[redstone_signal=10]",
+      "dust_07": "minecraft:redstone_wire[redstone_signal=9]",
+      "dust_08": "minecraft:redstone_wire[redstone_signal=8]",
+      "dust_09": "minecraft:redstone_wire[redstone_signal=7]",
+      "dust_10": "minecraft:redstone_wire[redstone_signal=6]",
+      "dust_11": "minecraft:redstone_wire[redstone_signal=5]",
+      "dust_12": "minecraft:redstone_wire[redstone_signal=4]",
+      "dust_13": "minecraft:redstone_wire[redstone_signal=3]",
+      "dust_14": "minecraft:redstone_wire[redstone_signal=2]",
+      "dust_15": "minecraft:redstone_wire[redstone_signal=1]"
+     }
+    }
+   ],
+   "after": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=15]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=14]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=13]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=12]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=11]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=10]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=9]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=8]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=7]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=6]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=5]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=4]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=3]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=2]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=1]",
+    "dust_16": "minecraft:redstone_wire[redstone_signal=0]",
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 16
+  },
+  {
+   "step": "line_16_lever_off_1",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 323,
+   "watched_ticks": 39,
+   "positions": {
+    "dust_01": [1, -60, 0],
+    "dust_02": [2, -60, 0],
+    "dust_03": [3, -60, 0],
+    "dust_04": [4, -60, 0],
+    "dust_05": [5, -60, 0],
+    "dust_06": [6, -60, 0],
+    "dust_07": [7, -60, 0],
+    "dust_08": [8, -60, 0],
+    "dust_09": [9, -60, 0],
+    "dust_10": [10, -60, 0],
+    "dust_11": [11, -60, 0],
+    "dust_12": [12, -60, 0],
+    "dust_13": [13, -60, 0],
+    "dust_14": [14, -60, 0],
+    "dust_15": [15, -60, 0],
+    "dust_16": [16, -60, 0],
+    "lamp": [17, -60, 0],
+    "lever": [0, -59, 0]
+   },
+   "before": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=15]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=14]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=13]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=12]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=11]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=10]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=9]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=8]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=7]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=6]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=5]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=4]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=3]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=2]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=1]",
+    "dust_16": "minecraft:redstone_wire[redstone_signal=0]",
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {
+     "tick": 2,
+     "cells": {
+      "dust_01": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_02": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_03": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_04": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_05": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_06": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_07": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_08": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_09": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_10": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_11": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_12": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_13": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_14": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_15": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    }
+   ],
+   "after": {
+    "dust_01": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_02": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_03": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_04": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_05": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_06": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_07": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_08": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_09": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_10": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_11": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_12": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_13": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_14": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_15": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_16": "minecraft:redstone_wire[redstone_signal=0]",
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 16
+  }
+ ],
+ "repeaters": [
+  {
+   "step": "delay_1_lever_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [0, -59, 0], "block": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "delay_1_repeater_place",
+   "action": "use",
+   "clicked": [1, -61, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [1, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}
+   },
+   "sounds": [{"sound": "place", "position": [1.5, -59.5, 0.5], "data": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}],
+   "block_update_packets": 8
+  },
+  {
+   "step": "delay_1_lever_on",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 437,
+   "watched_ticks": 39,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {"tick": 2, "cells": {"repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]", "lamp": "minecraft:lit_redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "delay_1_lever_off",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 484,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {"tick": 3, "cells": {"repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}},
+    {"tick": 7, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "delay_2_lever_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [0, -59, 0], "block": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "delay_2_repeater_place",
+   "action": "use",
+   "clicked": [1, -61, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [1, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}
+   },
+   "sounds": [{"sound": "place", "position": [1.5, -59.5, 0.5], "data": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}],
+   "block_update_packets": 8
+  },
+  {
+   "step": "delay_2_click_1",
+   "action": "use",
+   "clicked": [1, -60, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"repeater": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=1]"}},
+   "block_update_packets": 1
+  },
+  {
+   "step": "delay_2_lever_on",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 613,
+   "watched_ticks": 39,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=1]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {"tick": 4, "cells": {"repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=1]", "lamp": "minecraft:lit_redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=1]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "delay_2_lever_off",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 659,
+   "watched_ticks": 39,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=1]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {"tick": 4, "cells": {"repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=1]"}},
+    {"tick": 8, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=1]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "delay_3_lever_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [0, -59, 0], "block": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "delay_3_repeater_place",
+   "action": "use",
+   "clicked": [1, -61, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [1, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}
+   },
+   "sounds": [{"sound": "place", "position": [1.5, -59.5, 0.5], "data": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}],
+   "block_update_packets": 8
+  },
+  {
+   "step": "delay_3_click_1",
+   "action": "use",
+   "clicked": [1, -60, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"repeater": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=1]"}},
+   "block_update_packets": 1
+  },
+  {
+   "step": "delay_3_click_2",
+   "action": "use",
+   "clicked": [1, -60, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"repeater": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=2]"}},
+   "block_update_packets": 1
+  },
+  {
+   "step": "delay_3_lever_on",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 806,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=2]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {"tick": 7, "cells": {"repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=2]", "lamp": "minecraft:lit_redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=2]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "delay_3_lever_off",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 852,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=2]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {"tick": 7, "cells": {"repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=2]"}},
+    {"tick": 11, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=2]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "delay_4_lever_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [0, -59, 0], "block": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "delay_4_repeater_place",
+   "action": "use",
+   "clicked": [1, -61, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [1, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}
+   },
+   "sounds": [{"sound": "place", "position": [1.5, -59.5, 0.5], "data": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}],
+   "block_update_packets": 8
+  },
+  {
+   "step": "delay_4_click_1",
+   "action": "use",
+   "clicked": [1, -60, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"repeater": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=1]"}},
+   "block_update_packets": 1
+  },
+  {
+   "step": "delay_4_click_2",
+   "action": "use",
+   "clicked": [1, -60, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"repeater": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=2]"}},
+   "block_update_packets": 1
+  },
+  {
+   "step": "delay_4_click_3",
+   "action": "use",
+   "clicked": [1, -60, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"repeater": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=3]"}},
+   "block_update_packets": 1
+  },
+  {
+   "step": "delay_4_lever_on",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 1013,
+   "watched_ticks": 39,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=3]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {"tick": 8, "cells": {"repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=3]", "lamp": "minecraft:lit_redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=3]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "delay_4_lever_off",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 1060,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=3]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {"tick": 9, "cells": {"repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=3]"}},
+    {"tick": 13, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=3]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "lock_lever_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [0, -59, 0], "block": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "lock_repeater_place",
+   "action": "use",
+   "clicked": [1, -61, 0],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [1, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [1, -60, 0], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}
+   },
+   "sounds": [{"sound": "place", "position": [1.5, -59.5, 0.5], "data": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}],
+   "block_update_packets": 9
+  },
+  {
+   "step": "lock_side_repeater_place",
+   "action": "use",
+   "clicked": [1, -61, 1],
+   "face": "up",
+   "player": {"feet": [3.5, -60.0, 1.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [1, -61, 1], "block": "minecraft:stone"},
+    "target": {"pos": [1, -60, 1], "block": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"}
+   },
+   "sounds": [{"sound": "place", "position": [1.5, -59.5, 1.5], "data": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "lock_side_lever_place",
+   "action": "use",
+   "clicked": [1, -60, 2],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, 4.5], "yaw": 180.0, "pitch": 17.22},
+   "used": true,
+   "cells": {"clicked": {"pos": [1, -60, 2], "block": "minecraft:stone"}, "target": {"pos": [1, -59, 2], "block": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [1.5, -58.5, 2.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "lock_main_on",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 1228,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0], "side_lever": [1, -59, 2], "side_repeater": [1, -60, 1]},
+   "before": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "side_repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {"tick": 3, "cells": {"repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]", "lamp": "minecraft:lit_redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "side_repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "lock_side_on_lock",
+   "action": "use_watch",
+   "clicked": [1, -59, 2],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, 4.5], "yaw": 180.0, "pitch": -10.76},
+   "used": true,
+   "trigger": "side_lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 1274,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0], "side_lever": [1, -59, 2], "side_repeater": [1, -60, 1]},
+   "before": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "side_repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {"tick": 3, "cells": {"side_repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"}}
+   ],
+   "after": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "side_repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [1.5, -58.5, 2.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "lock_main_off_while_locked",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 1320,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0], "side_lever": [1, -59, 2], "side_repeater": [1, -60, 1]},
+   "before": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "side_repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "changes": [{"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}}],
+   "after": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "side_repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 1
+  },
+  {
+   "step": "lock_side_off_unlock",
+   "action": "use_watch",
+   "clicked": [1, -59, 2],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, 4.5], "yaw": 180.0, "pitch": -10.76},
+   "used": true,
+   "trigger": "side_lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 1366,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0], "side_lever": [1, -59, 2], "side_repeater": [1, -60, 1]},
+   "before": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "side_repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {"tick": 3, "cells": {"side_repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"}},
+    {"tick": 5, "cells": {"repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]"}},
+    {"tick": 9, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "side_repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [1.5, -58.5, 2.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 4
+  },
+  {
+   "step": "lock_side_on_lock_unpowered",
+   "action": "use_watch",
+   "clicked": [1, -59, 2],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, 4.5], "yaw": 180.0, "pitch": -10.76},
+   "used": true,
+   "trigger": "side_lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 1412,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0], "side_lever": [1, -59, 2], "side_repeater": [1, -60, 1]},
+   "before": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "side_repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {"tick": 3, "cells": {"side_repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"}}
+   ],
+   "after": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "side_repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [1.5, -58.5, 2.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "lock_main_on_while_locked",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 1458,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0], "side_lever": [1, -59, 2], "side_repeater": [1, -60, 1]},
+   "before": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "side_repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "changes": [{"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}}],
+   "after": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "side_repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 1
+  },
+  {
+   "step": "lock_side_off_unlock_2",
+   "action": "use_watch",
+   "clicked": [1, -59, 2],
+   "face": "up",
+   "player": {"feet": [1.5, -60.0, 4.5], "yaw": 180.0, "pitch": -10.76},
+   "used": true,
+   "trigger": "side_lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 1504,
+   "watched_ticks": 38,
+   "positions": {"lamp": [2, -60, 0], "lever": [0, -59, 0], "repeater": [1, -60, 0], "side_lever": [1, -59, 2], "side_repeater": [1, -60, 1]},
+   "before": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "side_repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {"tick": 1, "cells": {"side_repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"}},
+    {"tick": 3, "cells": {"repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]", "lamp": "minecraft:lit_redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "repeater": "minecraft:powered_repeater[minecraft:cardinal_direction=\"west\",repeater_delay=0]",
+    "side_lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "side_repeater": "minecraft:unpowered_repeater[minecraft:cardinal_direction=\"south\",repeater_delay=0]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [1.5, -58.5, 2.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 4
+  }
+ ],
+ "redstone_torch": [
+  {
+   "step": "torch_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "east",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 9.46, "pitch": 20.22},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [1, -60, 0], "block": "minecraft:redstone_torch[torch_facing_direction=\"west\"]"}},
+   "sounds": [{"sound": "place", "position": [1.5, -59.5, 0.5], "data": "minecraft:redstone_torch[torch_facing_direction=\"unknown\"]"}],
+   "block_update_packets": 9
+  },
+  {
+   "step": "lever_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [0, -59, 0], "block": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "lever_on_1",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 1615,
+   "watched_ticks": 39,
+   "positions": {"lamp": [1, -60, 1], "lever": [0, -59, 0], "torch": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {"tick": 2, "cells": {"torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]"}},
+    {"tick": 6, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "lever_off_1",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 1662,
+   "watched_ticks": 38,
+   "positions": {"lamp": [1, -60, 1], "lever": [0, -59, 0], "torch": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {"tick": 1, "cells": {"torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]", "lamp": "minecraft:lit_redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "lever_on_2",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 3,
+   "tick_0_server_tick": 1709,
+   "watched_ticks": 37,
+   "positions": {"lamp": [1, -60, 1], "lever": [0, -59, 0], "torch": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}},
+    {"tick": 2, "cells": {"torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]"}},
+    {"tick": 6, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]"
+   },
+   "sounds": [{"sound": "button.click_on", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "lever_off_2",
+   "action": "use_watch",
+   "clicked": [0, -59, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, -2.5], "yaw": 0.0, "pitch": -7.22},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 1753,
+   "watched_ticks": 39,
+   "positions": {"lamp": [1, -60, 1], "lever": [0, -59, 0], "torch": [1, -60, 0]},
+   "before": {
+    "lamp": "minecraft:redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=true]",
+    "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}},
+    {"tick": 2, "cells": {"torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]", "lamp": "minecraft:lit_redstone_lamp"}}
+   ],
+   "after": {
+    "lamp": "minecraft:lit_redstone_lamp",
+    "lever": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]",
+    "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]"
+   },
+   "sounds": [{"sound": "button.click_off", "position": [0.5, -58.5, 0.5], "data": "minecraft:lever[lever_direction=\"up_north_south\",open_bit=false]"}],
+   "block_update_packets": 3
+  },
+  {
+   "step": "clock_torch_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "east",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 9.46, "pitch": 20.22},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [1, -60, 0], "block": "minecraft:redstone_torch[torch_facing_direction=\"west\"]"}},
+   "sounds": [{"sound": "place", "position": [1.5, -59.5, 0.5], "data": "minecraft:redstone_torch[torch_facing_direction=\"unknown\"]"}],
+   "block_update_packets": 17
+  },
+  {
+   "step": "clock_closed",
+   "action": "command_watch",
+   "commands": ["setblock 0 -60 1 redstone_wire"],
+   "tick_0_server_tick": 1832,
+   "watched_ticks": 400,
+   "positions": {"dust_1": [2, -60, 0], "dust_2": [2, -60, 1], "dust_3": [2, -60, 2], "dust_4": [1, -60, 2], "dust_5": [0, -60, 2], "dust_6": [0, -60, 1], "torch": [1, -60, 0]},
+   "before": {
+    "dust_1": "minecraft:redstone_wire[redstone_signal=15]",
+    "dust_2": "minecraft:redstone_wire[redstone_signal=14]",
+    "dust_3": "minecraft:redstone_wire[redstone_signal=13]",
+    "dust_4": "minecraft:redstone_wire[redstone_signal=12]",
+    "dust_5": "minecraft:redstone_wire[redstone_signal=11]",
+    "dust_6": "minecraft:air",
+    "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"dust_6": "minecraft:redstone_wire[redstone_signal=0]"}},
+    {"tick": 3, "cells": {"torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]", "dust_6": "minecraft:redstone_wire[redstone_signal=10]"}},
+    {
+     "tick": 5,
+     "cells": {
+      "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    },
+    {
+     "tick": 7,
+     "cells": {
+      "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=15]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=14]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=13]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=12]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=11]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=10]"
+     }
+    },
+    {
+     "tick": 9,
+     "cells": {
+      "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    },
+    {
+     "tick": 11,
+     "cells": {
+      "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=15]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=14]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=13]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=12]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=11]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=10]"
+     }
+    },
+    {
+     "tick": 13,
+     "cells": {
+      "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    },
+    {
+     "tick": 15,
+     "cells": {
+      "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=15]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=14]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=13]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=12]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=11]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=10]"
+     }
+    },
+    {
+     "tick": 17,
+     "cells": {
+      "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    },
+    {
+     "tick": 19,
+     "cells": {
+      "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=15]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=14]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=13]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=12]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=11]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=10]"
+     }
+    },
+    {
+     "tick": 21,
+     "cells": {
+      "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    },
+    {
+     "tick": 23,
+     "cells": {
+      "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=15]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=14]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=13]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=12]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=11]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=10]"
+     }
+    },
+    {
+     "tick": 25,
+     "cells": {
+      "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    },
+    {
+     "tick": 27,
+     "cells": {
+      "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=15]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=14]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=13]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=12]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=11]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=10]"
+     }
+    },
+    {
+     "tick": 29,
+     "cells": {
+      "torch": "minecraft:redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    },
+    {
+     "tick": 31,
+     "cells": {
+      "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]",
+      "dust_1": "minecraft:redstone_wire[redstone_signal=15]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=14]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=13]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=12]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=11]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=10]"
+     }
+    },
+    {
+     "tick": 33,
+     "cells": {
+      "dust_1": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_2": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_3": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_4": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_5": "minecraft:redstone_wire[redstone_signal=0]",
+      "dust_6": "minecraft:redstone_wire[redstone_signal=0]"
+     }
+    }
+   ],
+   "after": {
+    "dust_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_3": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_4": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_5": "minecraft:redstone_wire[redstone_signal=0]",
+    "dust_6": "minecraft:redstone_wire[redstone_signal=0]",
+    "torch": "minecraft:unlit_redstone_torch[torch_facing_direction=\"west\"]"
+   },
+   "block_update_packets": 107
+  }
+ ],
+ "comparators": [
+  {
+   "step": "rear_15_side_0_place",
+   "action": "use",
+   "clicked": [8, -61, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [8, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [8, -60, 0], "block": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"}
+   },
+   "sounds": [
+    {
+     "sound": "place",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 10
+  },
+  {
+   "step": "rear_15_side_0_compare",
+   "action": "command_watch",
+   "commands": ["setblock 6 -60 0 redstone_block"],
+   "tick_0_server_tick": 2274,
+   "watched_ticks": 30,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=0]"
+   },
+   "changes": [
+    {
+     "tick": 3,
+     "cells": {
+      "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+      "rear_dust": "minecraft:redstone_wire[redstone_signal=15]"
+     }
+    },
+    {"tick": 5, "cells": {"out_1": "minecraft:redstone_wire[redstone_signal=15]", "out_2": "minecraft:redstone_wire[redstone_signal=14]"}}
+   ],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=15]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=14]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=15]"
+   },
+   "block_update_packets": 5
+  },
+  {
+   "step": "rear_15_side_0_subtract",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 2312,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0]},
+   "before": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=15]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=14]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=15]"
+   },
+   "changes": [{"tick": 0, "cells": {"comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]"}}],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=15]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=14]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=15]"
+   },
+   "sounds": [
+    {
+     "sound": "power.off",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]"
+    }
+   ],
+   "block_update_packets": 1
+  },
+  {
+   "step": "rear_15_side_0_compare_again",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 2348,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0]},
+   "before": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=15]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=14]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=15]"
+   },
+   "changes": [{"tick": 0, "cells": {"comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]"}}],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=15]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=14]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=15]"
+   },
+   "sounds": [
+    {
+     "sound": "power.on",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 1
+  },
+  {
+   "step": "rear_12_side_5_place",
+   "action": "use",
+   "clicked": [8, -61, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [8, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [8, -60, 0], "block": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"}
+   },
+   "sounds": [
+    {
+     "sound": "place",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 24
+  },
+  {
+   "step": "rear_12_side_5_compare",
+   "action": "command_watch",
+   "commands": ["setblock 3 -60 0 redstone_block", "setblock 8 -60 12 redstone_block"],
+   "tick_0_server_tick": 2418,
+   "watched_ticks": 30,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=0]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=0]"
+   },
+   "changes": [
+    {
+     "tick": 3,
+     "cells": {
+      "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+      "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+      "side_dust": "minecraft:redstone_wire[redstone_signal=5]"
+     }
+    },
+    {"tick": 5, "cells": {"out_1": "minecraft:redstone_wire[redstone_signal=12]", "out_2": "minecraft:redstone_wire[redstone_signal=11]"}}
+   ],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=12]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=11]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=5]"
+   },
+   "block_update_packets": 20
+  },
+  {
+   "step": "rear_12_side_5_subtract",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 2456,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=12]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=11]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=5]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]"}},
+    {"tick": 5, "cells": {"out_1": "minecraft:redstone_wire[redstone_signal=7]", "out_2": "minecraft:redstone_wire[redstone_signal=6]"}}
+   ],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=7]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=6]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=5]"
+   },
+   "sounds": [
+    {
+     "sound": "power.off",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]"
+    }
+   ],
+   "block_update_packets": 3
+  },
+  {
+   "step": "rear_12_side_5_compare_again",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 2491,
+   "watched_ticks": 29,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=7]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=6]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=5]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]"}},
+    {"tick": 4, "cells": {"out_1": "minecraft:redstone_wire[redstone_signal=12]", "out_2": "minecraft:redstone_wire[redstone_signal=11]"}}
+   ],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=12]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=11]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=5]"
+   },
+   "sounds": [
+    {
+     "sound": "power.on",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 3
+  },
+  {
+   "step": "rear_12_side_12_place",
+   "action": "use",
+   "clicked": [8, -61, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [8, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [8, -60, 0], "block": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"}
+   },
+   "sounds": [
+    {
+     "sound": "place",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 17
+  },
+  {
+   "step": "rear_12_side_12_compare",
+   "action": "command_watch",
+   "commands": ["setblock 3 -60 0 redstone_block", "setblock 8 -60 5 redstone_block"],
+   "tick_0_server_tick": 2562,
+   "watched_ticks": 30,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=0]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=0]"
+   },
+   "changes": [
+    {
+     "tick": 3,
+     "cells": {
+      "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+      "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+      "side_dust": "minecraft:redstone_wire[redstone_signal=12]"
+     }
+    },
+    {"tick": 5, "cells": {"out_1": "minecraft:redstone_wire[redstone_signal=12]", "out_2": "minecraft:redstone_wire[redstone_signal=11]"}}
+   ],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=12]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=11]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=12]"
+   },
+   "block_update_packets": 13
+  },
+  {
+   "step": "rear_12_side_12_subtract",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 2600,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=12]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=11]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=12]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]"}},
+    {"tick": 3, "cells": {"comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]"}},
+    {"tick": 5, "cells": {"out_1": "minecraft:redstone_wire[redstone_signal=0]", "out_2": "minecraft:redstone_wire[redstone_signal=0]"}}
+   ],
+   "after": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=12]"
+   },
+   "sounds": [
+    {
+     "sound": "power.off",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]"
+    }
+   ],
+   "block_update_packets": 4
+  },
+  {
+   "step": "rear_12_side_12_compare_again",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 2636,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=12]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"}},
+    {"tick": 3, "cells": {"comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]"}},
+    {"tick": 5, "cells": {"out_1": "minecraft:redstone_wire[redstone_signal=12]", "out_2": "minecraft:redstone_wire[redstone_signal=11]"}}
+   ],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=12]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=11]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=12]"
+   },
+   "sounds": [
+    {
+     "sound": "power.on",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 4
+  },
+  {
+   "step": "rear_12_side_14_place",
+   "action": "use",
+   "clicked": [8, -61, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [8, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [8, -60, 0], "block": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"}
+   },
+   "sounds": [
+    {
+     "sound": "place",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 15
+  },
+  {
+   "step": "rear_12_side_14_compare",
+   "action": "command_watch",
+   "commands": ["setblock 3 -60 0 redstone_block", "setblock 8 -60 3 redstone_block"],
+   "tick_0_server_tick": 2706,
+   "watched_ticks": 30,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=0]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=0]"
+   },
+   "changes": [{"tick": 3, "cells": {"rear_dust": "minecraft:redstone_wire[redstone_signal=12]", "side_dust": "minecraft:redstone_wire[redstone_signal=14]"}}],
+   "after": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=14]"
+   },
+   "block_update_packets": 8
+  },
+  {
+   "step": "rear_12_side_14_subtract",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 2744,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=14]"
+   },
+   "changes": [{"tick": 0, "cells": {"comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]"}}],
+   "after": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=14]"
+   },
+   "sounds": [
+    {
+     "sound": "power.off",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]"
+    }
+   ],
+   "block_update_packets": 1
+  },
+  {
+   "step": "rear_12_side_14_compare_again",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 2780,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=14]"
+   },
+   "changes": [{"tick": 0, "cells": {"comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"}}],
+   "after": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=12]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=14]"
+   },
+   "sounds": [
+    {
+     "sound": "power.on",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 1
+  },
+  {
+   "step": "rear_5_side_10_place",
+   "action": "use",
+   "clicked": [8, -61, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [8, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [8, -60, 0], "block": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"}
+   },
+   "sounds": [
+    {
+     "sound": "place",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 26
+  },
+  {
+   "step": "rear_5_side_10_compare",
+   "action": "command_watch",
+   "commands": ["setblock -4 -60 0 redstone_block", "setblock 8 -60 7 redstone_block"],
+   "tick_0_server_tick": 2850,
+   "watched_ticks": 30,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=0]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=0]"
+   },
+   "changes": [{"tick": 3, "cells": {"rear_dust": "minecraft:redstone_wire[redstone_signal=5]", "side_dust": "minecraft:redstone_wire[redstone_signal=10]"}}],
+   "after": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=5]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=10]"
+   },
+   "block_update_packets": 19
+  },
+  {
+   "step": "rear_5_side_10_subtract",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 2888,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=5]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=10]"
+   },
+   "changes": [{"tick": 0, "cells": {"comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]"}}],
+   "after": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=5]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=10]"
+   },
+   "sounds": [
+    {
+     "sound": "power.off",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]"
+    }
+   ],
+   "block_update_packets": 1
+  },
+  {
+   "step": "rear_5_side_10_compare_again",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 2924,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=5]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=10]"
+   },
+   "changes": [{"tick": 0, "cells": {"comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"}}],
+   "after": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=5]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=10]"
+   },
+   "sounds": [
+    {
+     "sound": "power.on",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 1
+  },
+  {
+   "step": "rear_8_side_7_place",
+   "action": "use",
+   "clicked": [8, -61, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 270.0, "pitch": 28.37},
+   "used": true,
+   "cells": {
+    "clicked": {"pos": [8, -61, 0], "block": "minecraft:stone"},
+    "target": {"pos": [8, -60, 0], "block": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"}
+   },
+   "sounds": [
+    {
+     "sound": "place",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 26
+  },
+  {
+   "step": "rear_8_side_7_compare",
+   "action": "command_watch",
+   "commands": ["setblock -1 -60 0 redstone_block", "setblock 8 -60 10 redstone_block"],
+   "tick_0_server_tick": 2994,
+   "watched_ticks": 30,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:unpowered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=false,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=0]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=0]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=0]"
+   },
+   "changes": [
+    {
+     "tick": 3,
+     "cells": {
+      "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+      "rear_dust": "minecraft:redstone_wire[redstone_signal=8]",
+      "side_dust": "minecraft:redstone_wire[redstone_signal=7]"
+     }
+    },
+    {"tick": 5, "cells": {"out_1": "minecraft:redstone_wire[redstone_signal=8]", "out_2": "minecraft:redstone_wire[redstone_signal=7]"}}
+   ],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=8]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=7]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=8]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=7]"
+   },
+   "block_update_packets": 22
+  },
+  {
+   "step": "rear_8_side_7_subtract",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 3032,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=8]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=7]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=8]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=7]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]"}},
+    {"tick": 5, "cells": {"out_1": "minecraft:redstone_wire[redstone_signal=1]", "out_2": "minecraft:redstone_wire[redstone_signal=0]"}}
+   ],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=1]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=8]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=7]"
+   },
+   "sounds": [
+    {
+     "sound": "power.off",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]"
+    }
+   ],
+   "block_update_packets": 3
+  },
+  {
+   "step": "rear_8_side_7_compare_again",
+   "action": "use_watch",
+   "clicked": [8, -60, 0],
+   "face": "up",
+   "player": {"feet": [8.5, -60.0, -2.5], "yaw": 0.0, "pitch": 11.68},
+   "used": true,
+   "trigger": "comparator",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 3068,
+   "watched_ticks": 28,
+   "positions": {"comparator": [8, -60, 0], "out_1": [9, -60, 0], "out_2": [10, -60, 0], "rear_dust": [7, -60, 0], "side_dust": [8, -60, 1]},
+   "before": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=true]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=1]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=0]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=8]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=7]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]"}},
+    {"tick": 5, "cells": {"out_1": "minecraft:redstone_wire[redstone_signal=8]", "out_2": "minecraft:redstone_wire[redstone_signal=7]"}}
+   ],
+   "after": {
+    "comparator": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]",
+    "out_1": "minecraft:redstone_wire[redstone_signal=8]",
+    "out_2": "minecraft:redstone_wire[redstone_signal=7]",
+    "rear_dust": "minecraft:redstone_wire[redstone_signal=8]",
+    "side_dust": "minecraft:redstone_wire[redstone_signal=7]"
+   },
+   "sounds": [
+    {
+     "sound": "power.on",
+     "position": [8.5, -59.5, 0.5],
+     "data": "minecraft:powered_comparator[minecraft:cardinal_direction=\"west\",output_lit_bit=true,output_subtract_bit=false]"
+    }
+   ],
+   "block_update_packets": 3
+  }
+ ],
+ "buttons": [
+  {
+   "step": "stone_button_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "east",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 9.46, "pitch": 20.22},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [1, -60, 0], "block": "minecraft:stone_button[button_pressed_bit=false,facing_direction=5]"}},
+   "sounds": [{"sound": "place", "position": [1.5, -59.5, 0.5], "data": "minecraft:stone_button[button_pressed_bit=false,facing_direction=0]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "stone_button_press",
+   "action": "use_watch",
+   "clicked": [1, -60, 0],
+   "face": "east",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 7.13, "pitch": 20.33},
+   "used": true,
+   "trigger": "button",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 3144,
+   "watched_ticks": 58,
+   "positions": {"button": [1, -60, 0], "lamp": [-1, -60, 0]},
+   "before": {"button": "minecraft:stone_button[button_pressed_bit=false,facing_direction=5]", "lamp": "minecraft:redstone_lamp"},
+   "changes": [
+    {"tick": 0, "cells": {"button": "minecraft:stone_button[button_pressed_bit=true,facing_direction=5]"}},
+    {"tick": 3, "cells": {"lamp": "minecraft:lit_redstone_lamp"}},
+    {"tick": 20, "cells": {"button": "minecraft:stone_button[button_pressed_bit=false,facing_direction=5]"}},
+    {"tick": 25, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {"button": "minecraft:stone_button[button_pressed_bit=false,facing_direction=5]", "lamp": "minecraft:redstone_lamp"},
+   "sounds": [
+    {"sound": "button.click_on", "position": [1.5, -59.5, 0.5], "data": "minecraft:stone_button[button_pressed_bit=true,facing_direction=5]"},
+    {"sound": "button.click_off", "position": [1.5, -59.5, 0.5], "data": "minecraft:stone_button[button_pressed_bit=false,facing_direction=5]"}
+   ],
+   "block_update_packets": 4
+  },
+  {
+   "step": "wooden_button_place",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "east",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 9.46, "pitch": 20.22},
+   "used": true,
+   "cells": {"clicked": {"pos": [0, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [1, -60, 0], "block": "minecraft:wooden_button[button_pressed_bit=false,facing_direction=5]"}},
+   "sounds": [{"sound": "place", "position": [1.5, -59.5, 0.5], "data": "minecraft:wooden_button[button_pressed_bit=false,facing_direction=0]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "wooden_button_press",
+   "action": "use_watch",
+   "clicked": [1, -60, 0],
+   "face": "east",
+   "player": {"feet": [1.5, -60.0, -2.5], "yaw": 7.13, "pitch": 20.33},
+   "used": true,
+   "trigger": "button",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 3250,
+   "watched_ticks": 58,
+   "positions": {"button": [1, -60, 0], "lamp": [-1, -60, 0]},
+   "before": {"button": "minecraft:wooden_button[button_pressed_bit=false,facing_direction=5]", "lamp": "minecraft:redstone_lamp"},
+   "changes": [
+    {"tick": 0, "cells": {"button": "minecraft:wooden_button[button_pressed_bit=true,facing_direction=5]"}},
+    {"tick": 1, "cells": {"lamp": "minecraft:lit_redstone_lamp"}},
+    {"tick": 30, "cells": {"button": "minecraft:wooden_button[button_pressed_bit=false,facing_direction=5]"}},
+    {"tick": 35, "cells": {"lamp": "minecraft:redstone_lamp"}}
+   ],
+   "after": {"button": "minecraft:wooden_button[button_pressed_bit=false,facing_direction=5]", "lamp": "minecraft:redstone_lamp"},
+   "sounds": [
+    {"sound": "button.click_on", "position": [1.5, -59.5, 0.5], "data": "minecraft:wooden_button[button_pressed_bit=true,facing_direction=5]"},
+    {"sound": "button.click_off", "position": [1.5, -59.5, 0.5], "data": "minecraft:wooden_button[button_pressed_bit=false,facing_direction=5]"}
+   ],
+   "block_update_packets": 4
+  }
+ ],
+ "pressure_plates": [
+  {
+   "step": "oak_item_on",
+   "action": "command_watch",
+   "commands": ["tp @e[type=item] 0.5 -59.95 4.5"],
+   "trigger": "oak_plate",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 3369,
+   "watched_ticks": 59,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "changes": [{"tick": 0, "cells": {"oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=1]"}}, {"tick": 2, "cells": {"oak_lamp": "minecraft:lit_redstone_lamp"}}],
+   "after": {
+    "oak_lamp": "minecraft:lit_redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=1]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "item_actors": [{"item": "minecraft:dirt", "count": 1, "position": [0.5, -60.0, 4.5]}],
+   "sounds": [{"sound": "pressure_plate.click_on", "position": [0.5, -59.9, 4.5], "data": "minecraft:wooden_pressure_plate[redstone_signal=1]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "oak_item_killed",
+   "action": "command_watch",
+   "commands": ["kill @e[type=item]"],
+   "tick_0_server_tick": 3428,
+   "watched_ticks": 60,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:lit_redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=1]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "changes": [{"tick": 1, "cells": {"oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]"}}, {"tick": 7, "cells": {"oak_lamp": "minecraft:redstone_lamp"}}],
+   "after": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "sounds": [{"sound": "pressure_plate.click_off", "position": [0.5, -59.9, 4.5], "data": "minecraft:wooden_pressure_plate[redstone_signal=0]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "stone_item_on",
+   "action": "command_watch",
+   "commands": ["tp @e[type=item] 0.5 -59.95 0.5"],
+   "trigger": "stone_plate",
+   "trigger_changed": false,
+   "tick_0_server_tick": 3528,
+   "watched_ticks": 60,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "changes": [],
+   "after": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "item_actors": [{"item": "minecraft:dirt", "count": 1, "position": [0.5, -60.0, 0.5]}]
+  },
+  {
+   "step": "stone_item_killed",
+   "action": "command_watch",
+   "commands": ["kill @e[type=item]"],
+   "tick_0_server_tick": 3588,
+   "watched_ticks": 60,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "changes": [],
+   "after": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   }
+  },
+  {
+   "step": "stone_player_on_1",
+   "action": "command_watch",
+   "commands": ["tp \"BDSSweep\" 0.5 -60 0.5"],
+   "trigger": "stone_plate",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 3649,
+   "watched_ticks": 59,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "changes": [{"tick": 0, "cells": {"stone_plate": "minecraft:stone_pressure_plate[redstone_signal=1]"}}, {"tick": 2, "cells": {"stone_lamp": "minecraft:lit_redstone_lamp"}}],
+   "after": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:lit_redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=1]"
+   },
+   "sounds": [{"sound": "pressure_plate.click_on", "position": [0.5, -59.9, 0.5], "data": "minecraft:stone_pressure_plate[redstone_signal=1]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "stone_player_off_1",
+   "action": "command_watch",
+   "commands": ["tp \"BDSSweep\" 4.5 -60 2.5"],
+   "tick_0_server_tick": 3708,
+   "watched_ticks": 60,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:lit_redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=1]"
+   },
+   "changes": [{"tick": 1, "cells": {"stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"}}, {"tick": 7, "cells": {"stone_lamp": "minecraft:redstone_lamp"}}],
+   "after": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "sounds": [{"sound": "pressure_plate.click_off", "position": [0.5, -59.9, 0.5], "data": "minecraft:stone_pressure_plate[redstone_signal=0]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "stone_player_on_2",
+   "action": "command_watch",
+   "commands": ["tp \"BDSSweep\" 0.5 -60 0.5"],
+   "trigger": "stone_plate",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 3769,
+   "watched_ticks": 46,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "changes": [{"tick": 0, "cells": {"stone_plate": "minecraft:stone_pressure_plate[redstone_signal=1]"}}, {"tick": 2, "cells": {"stone_lamp": "minecraft:lit_redstone_lamp"}}],
+   "after": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:lit_redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=1]"
+   },
+   "sounds": [{"sound": "pressure_plate.click_on", "position": [0.5, -59.9, 0.5], "data": "minecraft:stone_pressure_plate[redstone_signal=1]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "stone_player_off_2",
+   "action": "command_watch",
+   "commands": ["tp \"BDSSweep\" 4.5 -60 2.5"],
+   "tick_0_server_tick": 3815,
+   "watched_ticks": 60,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:lit_redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=1]"
+   },
+   "changes": [{"tick": 14, "cells": {"stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"}}, {"tick": 20, "cells": {"stone_lamp": "minecraft:redstone_lamp"}}],
+   "after": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "sounds": [{"sound": "pressure_plate.click_off", "position": [0.5, -59.9, 0.5], "data": "minecraft:stone_pressure_plate[redstone_signal=0]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "oak_player_on_1",
+   "action": "command_watch",
+   "commands": ["tp \"BDSSweep\" 0.5 -60 4.5"],
+   "trigger": "oak_plate",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 3876,
+   "watched_ticks": 59,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "changes": [{"tick": 0, "cells": {"oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=1]"}}, {"tick": 3, "cells": {"oak_lamp": "minecraft:lit_redstone_lamp"}}],
+   "after": {
+    "oak_lamp": "minecraft:lit_redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=1]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "sounds": [{"sound": "pressure_plate.click_on", "position": [0.5, -59.9, 4.5], "data": "minecraft:wooden_pressure_plate[redstone_signal=1]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "oak_player_off_1",
+   "action": "command_watch",
+   "commands": ["tp \"BDSSweep\" 4.5 -60 2.5"],
+   "tick_0_server_tick": 3935,
+   "watched_ticks": 60,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:lit_redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=1]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "changes": [{"tick": 1, "cells": {"oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]"}}, {"tick": 6, "cells": {"oak_lamp": "minecraft:redstone_lamp"}}],
+   "after": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "sounds": [{"sound": "pressure_plate.click_off", "position": [0.5, -59.9, 4.5], "data": "minecraft:wooden_pressure_plate[redstone_signal=0]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "oak_player_on_2",
+   "action": "command_watch",
+   "commands": ["tp \"BDSSweep\" 0.5 -60 4.5"],
+   "trigger": "oak_plate",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 3996,
+   "watched_ticks": 46,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "changes": [{"tick": 0, "cells": {"oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=1]"}}, {"tick": 3, "cells": {"oak_lamp": "minecraft:lit_redstone_lamp"}}],
+   "after": {
+    "oak_lamp": "minecraft:lit_redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=1]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "sounds": [{"sound": "pressure_plate.click_on", "position": [0.5, -59.9, 4.5], "data": "minecraft:wooden_pressure_plate[redstone_signal=1]"}],
+   "block_update_packets": 2
+  },
+  {
+   "step": "oak_player_off_2",
+   "action": "command_watch",
+   "commands": ["tp \"BDSSweep\" 4.5 -60 2.5"],
+   "tick_0_server_tick": 4042,
+   "watched_ticks": 60,
+   "positions": {"oak_lamp": [1, -60, 4], "oak_plate": [0, -60, 4], "stone_lamp": [1, -60, 0], "stone_plate": [0, -60, 0]},
+   "before": {
+    "oak_lamp": "minecraft:lit_redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=1]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "changes": [{"tick": 14, "cells": {"oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]"}}, {"tick": 19, "cells": {"oak_lamp": "minecraft:redstone_lamp"}}],
+   "after": {
+    "oak_lamp": "minecraft:redstone_lamp",
+    "oak_plate": "minecraft:wooden_pressure_plate[redstone_signal=0]",
+    "stone_lamp": "minecraft:redstone_lamp",
+    "stone_plate": "minecraft:stone_pressure_plate[redstone_signal=0]"
+   },
+   "sounds": [{"sound": "pressure_plate.click_off", "position": [0.5, -59.9, 4.5], "data": "minecraft:wooden_pressure_plate[redstone_signal=0]"}],
+   "block_update_packets": 2
+  }
+ ],
+ "iron_door_lever": [
+  {
+   "step": "door_place",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "block": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"},
+    "upper": {"pos": [0, -59, 0], "block": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"}
+   },
+   "sounds": [
+    {
+     "sound": "place",
+     "position": [0.0, -60.0, 0.0],
+     "data": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+    }
+   ],
+   "block_update_packets": 9
+  },
+  {
+   "step": "lever_place",
+   "action": "use",
+   "clicked": [1, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 143.13, "pitch": 24.13},
+   "used": true,
+   "cells": {"clicked": {"pos": [1, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [2, -60, 0], "block": "minecraft:lever[lever_direction=\"east\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "lever_on_1",
+   "action": "use_watch",
+   "clicked": [2, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 147.99, "pitch": 25.4},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 4175,
+   "watched_ticks": 29,
+   "positions": {"lever": [2, -60, 0], "lower": [0, -60, 0], "upper": [0, -59, 0]},
+   "before": {
+    "lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]",
+    "lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+    "upper": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]"}},
+    {"tick": 2, "cells": {"lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]"}}
+   ],
+   "after": {
+    "lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]",
+    "lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]",
+    "upper": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+   },
+   "sounds": [
+    {"sound": "button.click_on", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"east\",open_bit=true]"},
+    {
+     "sound": "door.open",
+     "position": [0.5, -59.5, 0.5],
+     "data": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+    }
+   ],
+   "block_update_packets": 3
+  },
+  {
+   "step": "lever_off_1",
+   "action": "use_watch",
+   "clicked": [2, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 147.99, "pitch": 25.4},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 4212,
+   "watched_ticks": 28,
+   "positions": {"lever": [2, -60, 0], "lower": [0, -60, 0], "upper": [0, -59, 0]},
+   "before": {
+    "lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]",
+    "lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]",
+    "upper": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]"}},
+    {"tick": 1, "cells": {"lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"}}
+   ],
+   "after": {
+    "lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]",
+    "lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+    "upper": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+   },
+   "sounds": [
+    {"sound": "button.click_off", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"east\",open_bit=false]"},
+    {
+     "sound": "door.close",
+     "position": [0.5, -59.5, 0.5],
+     "data": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]"
+    }
+   ],
+   "block_update_packets": 3
+  },
+  {
+   "step": "lever_on_2",
+   "action": "use_watch",
+   "clicked": [2, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 147.99, "pitch": 25.4},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 4248,
+   "watched_ticks": 28,
+   "positions": {"lever": [2, -60, 0], "lower": [0, -60, 0], "upper": [0, -59, 0]},
+   "before": {
+    "lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]",
+    "lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+    "upper": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]"}},
+    {"tick": 3, "cells": {"lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]"}}
+   ],
+   "after": {
+    "lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]",
+    "lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]",
+    "upper": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+   },
+   "sounds": [
+    {"sound": "button.click_on", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"east\",open_bit=true]"},
+    {
+     "sound": "door.open",
+     "position": [0.5, -59.5, 0.5],
+     "data": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+    }
+   ],
+   "block_update_packets": 3
+  },
+  {
+   "step": "lever_off_2",
+   "action": "use_watch",
+   "clicked": [2, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 147.99, "pitch": 25.4},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 4284,
+   "watched_ticks": 28,
+   "positions": {"lever": [2, -60, 0], "lower": [0, -60, 0], "upper": [0, -59, 0]},
+   "before": {
+    "lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]",
+    "lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]",
+    "upper": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]"}},
+    {"tick": 3, "cells": {"lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"}}
+   ],
+   "after": {
+    "lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]",
+    "lower": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+    "upper": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+   },
+   "sounds": [
+    {"sound": "button.click_off", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"east\",open_bit=false]"},
+    {
+     "sound": "door.close",
+     "position": [0.5, -59.5, 0.5],
+     "data": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]"
+    }
+   ],
+   "block_update_packets": 3
+  }
+ ],
+ "note_blocks": [
+  {
+   "step": "on_dirt_lever_place",
+   "action": "use",
+   "clicked": [1, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 143.13, "pitch": 24.13},
+   "used": true,
+   "cells": {"clicked": {"pos": [1, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [2, -60, 0], "block": "minecraft:lever[lever_direction=\"east\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "on_dirt_lever_on",
+   "action": "use_watch",
+   "clicked": [2, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 147.99, "pitch": 25.4},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 4360,
+   "watched_ticks": 18,
+   "positions": {"lever": [2, -60, 0], "note_block": [0, -60, 0], "under": [0, -61, 0]},
+   "before": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]", "note_block": "minecraft:noteblock", "under": "minecraft:dirt"},
+   "changes": [{"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]"}}],
+   "after": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]", "note_block": "minecraft:noteblock", "under": "minecraft:dirt"},
+   "sounds": [
+    {"sound": "button.click_on", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"east\",open_bit=true]"},
+    {"sound": "note", "position": [0.0, -60.0, 0.0], "data": 0}
+   ],
+   "block_events": [{"position": [0, -60, 0], "event_type": 0, "event_value": 0}],
+   "block_update_packets": 1
+  },
+  {
+   "step": "on_dirt_lever_off",
+   "action": "use_watch",
+   "clicked": [2, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 147.99, "pitch": 25.4},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 4386,
+   "watched_ticks": 18,
+   "positions": {"lever": [2, -60, 0], "note_block": [0, -60, 0], "under": [0, -61, 0]},
+   "before": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]", "note_block": "minecraft:noteblock", "under": "minecraft:dirt"},
+   "changes": [{"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]"}}],
+   "after": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]", "note_block": "minecraft:noteblock", "under": "minecraft:dirt"},
+   "sounds": [{"sound": "button.click_off", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"east\",open_bit=false]"}],
+   "block_update_packets": 1
+  },
+  {
+   "step": "on_stone_lever_place",
+   "action": "use",
+   "clicked": [1, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 143.13, "pitch": 24.13},
+   "used": true,
+   "cells": {"clicked": {"pos": [1, -60, 0], "block": "minecraft:stone"}, "target": {"pos": [2, -60, 0], "block": "minecraft:lever[lever_direction=\"east\",open_bit=false]"}},
+   "sounds": [{"sound": "place", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"down_east_west\",open_bit=false]"}],
+   "block_update_packets": 7
+  },
+  {
+   "step": "on_stone_lever_on",
+   "action": "use_watch",
+   "clicked": [2, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 147.99, "pitch": 25.4},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 1,
+   "tick_0_server_tick": 4451,
+   "watched_ticks": 19,
+   "positions": {"lever": [2, -60, 0], "note_block": [0, -60, 0], "under": [0, -61, 0]},
+   "before": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]", "note_block": "minecraft:noteblock", "under": "minecraft:stone"},
+   "changes": [{"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]"}}],
+   "after": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]", "note_block": "minecraft:noteblock", "under": "minecraft:stone"},
+   "sounds": [
+    {"sound": "button.click_on", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"east\",open_bit=true]"},
+    {"sound": "note", "position": [0.0, -60.0, 0.0], "data": 256}
+   ],
+   "block_events": [{"position": [0, -60, 0], "event_type": 1, "event_value": 0}],
+   "block_update_packets": 1
+  },
+  {
+   "step": "on_stone_lever_off",
+   "action": "use_watch",
+   "clicked": [2, -60, 0],
+   "face": "east",
+   "player": {"feet": [3.5, -60.0, 2.5], "yaw": 147.99, "pitch": 25.4},
+   "used": true,
+   "trigger": "lever",
+   "trigger_seen_ticks_after_order": 2,
+   "tick_0_server_tick": 4478,
+   "watched_ticks": 18,
+   "positions": {"lever": [2, -60, 0], "note_block": [0, -60, 0], "under": [0, -61, 0]},
+   "before": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=true]", "note_block": "minecraft:noteblock", "under": "minecraft:stone"},
+   "changes": [{"tick": 0, "cells": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]"}}],
+   "after": {"lever": "minecraft:lever[lever_direction=\"east\",open_bit=false]", "note_block": "minecraft:noteblock", "under": "minecraft:stone"},
+   "sounds": [{"sound": "button.click_off", "position": [2.5, -59.5, 0.5], "data": "minecraft:lever[lever_direction=\"east\",open_bit=false]"}],
+   "block_update_packets": 1
+  }
+ ],
+ "fire": [
+  {
+   "step": "fires_set",
+   "action": "command_watch",
+   "commands": [
+    "setblock 13 -60 0 fire",
+    "setblock -8 -60 0 fire",
+    "setblock -8 -60 -6 fire",
+    "setblock -4 -60 -6 fire",
+    "setblock 0 -60 -6 fire",
+    "setblock 4 -60 -6 fire",
+    "setblock 8 -60 -6 fire",
+    "setblock 16 -60 -6 fire",
+    "setblock 20 -60 -6 fire",
+    "setblock 24 -60 -6 fire"
+   ],
+   "tick_0_server_tick": 4506,
+   "watched_ticks": 1200,
+   "positions": {
+    "11,-55,-1": [11, -55, -1],
+    "11,-55,0": [11, -55, 0],
+    "11,-55,1": [11, -55, 1],
+    "11,-56,-1": [11, -56, -1],
+    "11,-56,0": [11, -56, 0],
+    "11,-56,1": [11, -56, 1],
+    "11,-57,-1": [11, -57, -1],
+    "11,-57,0": [11, -57, 0],
+    "11,-57,1": [11, -57, 1],
+    "11,-58,-1": [11, -58, -1],
+    "11,-58,0": [11, -58, 0],
+    "11,-58,1": [11, -58, 1],
+    "11,-59,-1": [11, -59, -1],
+    "11,-59,0": [11, -59, 0],
+    "11,-59,1": [11, -59, 1],
+    "11,-60,-1": [11, -60, -1],
+    "11,-60,0": [11, -60, 0],
+    "11,-60,1": [11, -60, 1],
+    "12,-55,-1": [12, -55, -1],
+    "12,-55,0": [12, -55, 0],
+    "12,-55,1": [12, -55, 1],
+    "12,-56,-1": [12, -56, -1],
+    "12,-56,0": [12, -56, 0],
+    "12,-56,1": [12, -56, 1],
+    "12,-57,-1": [12, -57, -1],
+    "12,-57,0": [12, -57, 0],
+    "12,-57,1": [12, -57, 1],
+    "12,-58,-1": [12, -58, -1],
+    "12,-58,0": [12, -58, 0],
+    "12,-58,1": [12, -58, 1],
+    "12,-59,-1": [12, -59, -1],
+    "12,-59,0": [12, -59, 0],
+    "12,-59,1": [12, -59, 1],
+    "12,-60,-1": [12, -60, -1],
+    "12,-60,0": [12, -60, 0],
+    "12,-60,1": [12, -60, 1],
+    "13,-55,-1": [13, -55, -1],
+    "13,-55,0": [13, -55, 0],
+    "13,-55,1": [13, -55, 1],
+    "13,-56,-1": [13, -56, -1],
+    "13,-56,0": [13, -56, 0],
+    "13,-56,1": [13, -56, 1],
+    "13,-57,-1": [13, -57, -1],
+    "13,-57,0": [13, -57, 0],
+    "13,-57,1": [13, -57, 1],
+    "13,-58,-1": [13, -58, -1],
+    "13,-58,0": [13, -58, 0],
+    "13,-58,1": [13, -58, 1],
+    "13,-59,-1": [13, -59, -1],
+    "13,-59,0": [13, -59, 0],
+    "13,-59,1": [13, -59, 1],
+    "13,-60,-1": [13, -60, -1],
+    "13,-60,0": [13, -60, 0],
+    "13,-60,1": [13, -60, 1],
+    "netherrack_fire": [-8, -60, 0],
+    "stone_fire_1": [-8, -60, -6],
+    "stone_fire_2": [-4, -60, -6],
+    "stone_fire_3": [0, -60, -6],
+    "stone_fire_4": [4, -60, -6],
+    "stone_fire_5": [8, -60, -6],
+    "stone_fire_6": [16, -60, -6],
+    "stone_fire_7": [20, -60, -6],
+    "stone_fire_8": [24, -60, -6]
+   },
+   "before": {
+    "11,-55,-1": "minecraft:air",
+    "11,-55,0": "minecraft:air",
+    "11,-55,1": "minecraft:air",
+    "11,-56,-1": "minecraft:air",
+    "11,-56,0": "minecraft:air",
+    "11,-56,1": "minecraft:air",
+    "11,-57,-1": "minecraft:air",
+    "11,-57,0": "minecraft:air",
+    "11,-57,1": "minecraft:air",
+    "11,-58,-1": "minecraft:air",
+    "11,-58,0": "minecraft:air",
+    "11,-58,1": "minecraft:air",
+    "11,-59,-1": "minecraft:air",
+    "11,-59,0": "minecraft:air",
+    "11,-59,1": "minecraft:air",
+    "11,-60,-1": "minecraft:air",
+    "11,-60,0": "minecraft:air",
+    "11,-60,1": "minecraft:air",
+    "12,-55,-1": "minecraft:air",
+    "12,-55,0": "minecraft:air",
+    "12,-55,1": "minecraft:air",
+    "12,-56,-1": "minecraft:air",
+    "12,-56,0": "minecraft:air",
+    "12,-56,1": "minecraft:air",
+    "12,-57,-1": "minecraft:air",
+    "12,-57,0": "minecraft:oak_planks",
+    "12,-57,1": "minecraft:air",
+    "12,-58,-1": "minecraft:air",
+    "12,-58,0": "minecraft:oak_planks",
+    "12,-58,1": "minecraft:air",
+    "12,-59,-1": "minecraft:air",
+    "12,-59,0": "minecraft:oak_planks",
+    "12,-59,1": "minecraft:air",
+    "12,-60,-1": "minecraft:air",
+    "12,-60,0": "minecraft:oak_planks",
+    "12,-60,1": "minecraft:air",
+    "13,-55,-1": "minecraft:air",
+    "13,-55,0": "minecraft:air",
+    "13,-55,1": "minecraft:air",
+    "13,-56,-1": "minecraft:air",
+    "13,-56,0": "minecraft:air",
+    "13,-56,1": "minecraft:air",
+    "13,-57,-1": "minecraft:air",
+    "13,-57,0": "minecraft:air",
+    "13,-57,1": "minecraft:air",
+    "13,-58,-1": "minecraft:air",
+    "13,-58,0": "minecraft:air",
+    "13,-58,1": "minecraft:air",
+    "13,-59,-1": "minecraft:air",
+    "13,-59,0": "minecraft:air",
+    "13,-59,1": "minecraft:air",
+    "13,-60,-1": "minecraft:air",
+    "13,-60,0": "minecraft:air",
+    "13,-60,1": "minecraft:air",
+    "netherrack_fire": "minecraft:air",
+    "stone_fire_1": "minecraft:air",
+    "stone_fire_2": "minecraft:air",
+    "stone_fire_3": "minecraft:air",
+    "stone_fire_4": "minecraft:air",
+    "stone_fire_5": "minecraft:air",
+    "stone_fire_6": "minecraft:air",
+    "stone_fire_7": "minecraft:air",
+    "stone_fire_8": "minecraft:air"
+   },
+   "changes": [
+    {
+     "tick": 0,
+     "cells": {
+      "netherrack_fire": "minecraft:fire[age=0]",
+      "stone_fire_1": "minecraft:fire[age=0]",
+      "stone_fire_2": "minecraft:fire[age=0]",
+      "stone_fire_3": "minecraft:fire[age=0]",
+      "stone_fire_4": "minecraft:fire[age=0]",
+      "stone_fire_5": "minecraft:fire[age=0]",
+      "stone_fire_6": "minecraft:fire[age=0]",
+      "stone_fire_7": "minecraft:fire[age=0]",
+      "stone_fire_8": "minecraft:fire[age=0]",
+      "13,-60,0": "minecraft:fire[age=0]"
+     }
+    },
+    {"tick": 1, "cells": {"stone_fire_1": "minecraft:fire[age=1]", "stone_fire_7": "minecraft:fire[age=1]", "stone_fire_8": "minecraft:fire[age=1]"}},
+    {"tick": 32, "cells": {"stone_fire_4": "minecraft:fire[age=1]"}},
+    {"tick": 34, "cells": {"stone_fire_6": "minecraft:fire[age=1]"}},
+    {"tick": 38, "cells": {"stone_fire_8": "minecraft:fire[age=2]"}},
+    {"tick": 40, "cells": {"stone_fire_3": "minecraft:fire[age=1]"}},
+    {"tick": 67, "cells": {"stone_fire_4": "minecraft:fire[age=2]"}},
+    {"tick": 97, "cells": {"stone_fire_5": "minecraft:fire[age=1]"}},
+    {"tick": 134, "cells": {"stone_fire_3": "minecraft:fire[age=2]", "stone_fire_5": "minecraft:fire[age=2]"}},
+    {"tick": 137, "cells": {"stone_fire_2": "minecraft:fire[age=1]"}},
+    {"tick": 138, "cells": {"stone_fire_7": "minecraft:fire[age=2]"}},
+    {"tick": 139, "cells": {"stone_fire_1": "minecraft:fire[age=2]"}},
+    {"tick": 145, "cells": {"stone_fire_8": "minecraft:fire[age=3]"}},
+    {"tick": 170, "cells": {"stone_fire_7": "minecraft:fire[age=3]"}},
+    {"tick": 175, "cells": {"stone_fire_4": "minecraft:fire[age=3]"}},
+    {"tick": 178, "cells": {"13,-60,0": "minecraft:fire[age=1]"}},
+    {"tick": 208, "cells": {"stone_fire_7": "minecraft:air", "13,-60,0": "minecraft:fire[age=2]"}},
+    {"tick": 242, "cells": {"stone_fire_1": "minecraft:fire[age=3]"}},
+    {"tick": 244, "cells": {"stone_fire_2": "minecraft:fire[age=2]"}},
+    {"tick": 245, "cells": {"12,-59,-1": "minecraft:fire[age=3]", "13,-60,0": "minecraft:fire[age=3]"}},
+    {"tick": 280, "cells": {"stone_fire_1": "minecraft:air"}},
+    {"tick": 281, "cells": {"13,-60,0": "minecraft:fire[age=4]"}},
+    {"tick": 304, "cells": {"stone_fire_3": "minecraft:fire[age=3]"}},
+    {"tick": 311, "cells": {"13,-60,0": "minecraft:fire[age=5]"}},
+    {"tick": 316, "cells": {"stone_fire_8": "minecraft:air"}},
+    {"tick": 321, "cells": {"stone_fire_6": "minecraft:fire[age=2]"}},
+    {"tick": 322, "cells": {"12,-59,0": "minecraft:fire[age=3]"}},
+    {"tick": 323, "cells": {"12,-59,-1": "minecraft:air"}},
+    {"tick": 337, "cells": {"stone_fire_3": "minecraft:air"}},
+    {"tick": 383, "cells": {"stone_fire_5": "minecraft:fire[age=3]", "12,-59,0": "minecraft:fire[age=4]", "13,-58,0": "minecraft:fire[age=4]"}},
+    {"tick": 384, "cells": {"stone_fire_2": "minecraft:fire[age=3]"}},
+    {"tick": 413, "cells": {"stone_fire_4": "minecraft:air"}},
+    {"tick": 415, "cells": {"11,-58,0": "minecraft:fire[age=4]"}},
+    {"tick": 424, "cells": {"stone_fire_6": "minecraft:fire[age=3]"}},
+    {"tick": 454, "cells": {"12,-58,0": "minecraft:air"}},
+    {"tick": 455, "cells": {"11,-58,0": "minecraft:air", "13,-58,0": "minecraft:air"}},
+    {"tick": 489, "cells": {"13,-60,0": "minecraft:fire[age=6]"}},
+    {"tick": 520, "cells": {"stone_fire_2": "minecraft:air"}},
+    {"tick": 525, "cells": {"12,-60,0": "minecraft:air"}},
+    {"tick": 526, "cells": {"12,-59,0": "minecraft:air"}},
+    {"tick": 557, "cells": {"13,-60,0": "minecraft:air"}},
+    {"tick": 567, "cells": {"stone_fire_6": "minecraft:air"}},
+    {"tick": 660, "cells": {"stone_fire_5": "minecraft:air"}}
+   ],
+   "after": {
+    "11,-55,-1": "minecraft:air",
+    "11,-55,0": "minecraft:air",
+    "11,-55,1": "minecraft:air",
+    "11,-56,-1": "minecraft:air",
+    "11,-56,0": "minecraft:air",
+    "11,-56,1": "minecraft:air",
+    "11,-57,-1": "minecraft:air",
+    "11,-57,0": "minecraft:air",
+    "11,-57,1": "minecraft:air",
+    "11,-58,-1": "minecraft:air",
+    "11,-58,0": "minecraft:air",
+    "11,-58,1": "minecraft:air",
+    "11,-59,-1": "minecraft:air",
+    "11,-59,0": "minecraft:air",
+    "11,-59,1": "minecraft:air",
+    "11,-60,-1": "minecraft:air",
+    "11,-60,0": "minecraft:air",
+    "11,-60,1": "minecraft:air",
+    "12,-55,-1": "minecraft:air",
+    "12,-55,0": "minecraft:air",
+    "12,-55,1": "minecraft:air",
+    "12,-56,-1": "minecraft:air",
+    "12,-56,0": "minecraft:air",
+    "12,-56,1": "minecraft:air",
+    "12,-57,-1": "minecraft:air",
+    "12,-57,0": "minecraft:oak_planks",
+    "12,-57,1": "minecraft:air",
+    "12,-58,-1": "minecraft:air",
+    "12,-58,0": "minecraft:air",
+    "12,-58,1": "minecraft:air",
+    "12,-59,-1": "minecraft:air",
+    "12,-59,0": "minecraft:air",
+    "12,-59,1": "minecraft:air",
+    "12,-60,-1": "minecraft:air",
+    "12,-60,0": "minecraft:air",
+    "12,-60,1": "minecraft:air",
+    "13,-55,-1": "minecraft:air",
+    "13,-55,0": "minecraft:air",
+    "13,-55,1": "minecraft:air",
+    "13,-56,-1": "minecraft:air",
+    "13,-56,0": "minecraft:air",
+    "13,-56,1": "minecraft:air",
+    "13,-57,-1": "minecraft:air",
+    "13,-57,0": "minecraft:air",
+    "13,-57,1": "minecraft:air",
+    "13,-58,-1": "minecraft:air",
+    "13,-58,0": "minecraft:air",
+    "13,-58,1": "minecraft:air",
+    "13,-59,-1": "minecraft:air",
+    "13,-59,0": "minecraft:air",
+    "13,-59,1": "minecraft:air",
+    "13,-60,-1": "minecraft:air",
+    "13,-60,0": "minecraft:air",
+    "13,-60,1": "minecraft:air",
+    "netherrack_fire": "minecraft:fire[age=0]",
+    "stone_fire_1": "minecraft:air",
+    "stone_fire_2": "minecraft:air",
+    "stone_fire_3": "minecraft:air",
+    "stone_fire_4": "minecraft:air",
+    "stone_fire_5": "minecraft:air",
+    "stone_fire_6": "minecraft:air",
+    "stone_fire_7": "minecraft:air",
+    "stone_fire_8": "minecraft:air"
+   },
+   "samples_every": 20,
+   "samples": [
+    {
+     "tick": 0,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 20,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 40,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 60,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 80,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 100,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 120,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 140,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 160,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 180,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 200,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_7", "stone_fire_8"]
+    },
+    {
+     "tick": 220,
+     "air": 50,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_8"]
+    },
+    {
+     "tick": 240,
+     "air": 50,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_8"]
+    },
+    {
+     "tick": 260,
+     "air": 49,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["12,-59,-1", "13,-60,0", "netherrack_fire", "stone_fire_1", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_8"]
+    },
+    {
+     "tick": 280,
+     "air": 50,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["12,-59,-1", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_8"]
+    },
+    {
+     "tick": 300,
+     "air": 50,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["12,-59,-1", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6", "stone_fire_8"]
+    },
+    {
+     "tick": 320,
+     "air": 51,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"],
+     "fire": ["12,-59,-1", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_3", "stone_fire_4", "stone_fire_5", "stone_fire_6"]
+    },
+    {
+     "tick": 340,
+     "air": 53,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-60,0"],
+     "fire": ["12,-59,0", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_4", "stone_fire_5", "stone_fire_6"]
+    },
+    {
+     "tick": 360,
+     "air": 53,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-60,0"],
+     "fire": ["12,-59,0", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_4", "stone_fire_5", "stone_fire_6"]
+    },
+    {
+     "tick": 380,
+     "air": 53,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-60,0"],
+     "fire": ["12,-59,0", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_4", "stone_fire_5", "stone_fire_6"]
+    },
+    {
+     "tick": 400,
+     "air": 52,
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-60,0"],
+     "fire": ["12,-59,0", "13,-58,0", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_4", "stone_fire_5", "stone_fire_6"]
+    },
+    {
+     "tick": 420,
+     "air": 52,
+     "fire": ["11,-58,0", "12,-59,0", "13,-58,0", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_5", "stone_fire_6"],
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-60,0"]
+    },
+    {
+     "tick": 440,
+     "air": 52,
+     "fire": ["11,-58,0", "12,-59,0", "13,-58,0", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_5", "stone_fire_6"],
+     "oak_planks": ["12,-57,0", "12,-58,0", "12,-60,0"]
+    },
+    {"tick": 460, "air": 55, "oak_planks": ["12,-57,0", "12,-60,0"], "fire": ["12,-59,0", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_5", "stone_fire_6"]},
+    {"tick": 480, "air": 55, "oak_planks": ["12,-57,0", "12,-60,0"], "fire": ["12,-59,0", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_5", "stone_fire_6"]},
+    {"tick": 500, "air": 55, "oak_planks": ["12,-57,0", "12,-60,0"], "fire": ["12,-59,0", "13,-60,0", "netherrack_fire", "stone_fire_2", "stone_fire_5", "stone_fire_6"]},
+    {"tick": 520, "air": 56, "oak_planks": ["12,-57,0", "12,-60,0"], "fire": ["12,-59,0", "13,-60,0", "netherrack_fire", "stone_fire_5", "stone_fire_6"]},
+    {"tick": 540, "air": 58, "oak_planks": ["12,-57,0"], "fire": ["13,-60,0", "netherrack_fire", "stone_fire_5", "stone_fire_6"]},
+    {"tick": 560, "air": 59, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire", "stone_fire_5", "stone_fire_6"]},
+    {"tick": 580, "air": 60, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire", "stone_fire_5"]},
+    {"tick": 600, "air": 60, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire", "stone_fire_5"]},
+    {"tick": 620, "air": 60, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire", "stone_fire_5"]},
+    {"tick": 640, "air": 60, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire", "stone_fire_5"]},
+    {"tick": 660, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 680, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 700, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 720, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 740, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 760, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 780, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 800, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 820, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 840, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 860, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 880, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 900, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 920, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 940, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 960, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 980, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1000, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1020, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1040, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1060, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1080, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1100, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1120, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1140, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1160, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1180, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]},
+    {"tick": 1200, "air": 61, "oak_planks": ["12,-57,0"], "fire": ["netherrack_fire"]}
+   ],
+   "difficulty": "peaceful",
+   "block_update_packets": 30
+  },
+  {
+   "step": "planks_fire_normal_difficulty",
+   "action": "command_watch",
+   "commands": ["setblock 13 -60 0 fire"],
+   "tick_0_server_tick": 5716,
+   "watched_ticks": 1200,
+   "positions": {
+    "11,-55,-1": [11, -55, -1],
+    "11,-55,0": [11, -55, 0],
+    "11,-55,1": [11, -55, 1],
+    "11,-56,-1": [11, -56, -1],
+    "11,-56,0": [11, -56, 0],
+    "11,-56,1": [11, -56, 1],
+    "11,-57,-1": [11, -57, -1],
+    "11,-57,0": [11, -57, 0],
+    "11,-57,1": [11, -57, 1],
+    "11,-58,-1": [11, -58, -1],
+    "11,-58,0": [11, -58, 0],
+    "11,-58,1": [11, -58, 1],
+    "11,-59,-1": [11, -59, -1],
+    "11,-59,0": [11, -59, 0],
+    "11,-59,1": [11, -59, 1],
+    "11,-60,-1": [11, -60, -1],
+    "11,-60,0": [11, -60, 0],
+    "11,-60,1": [11, -60, 1],
+    "12,-55,-1": [12, -55, -1],
+    "12,-55,0": [12, -55, 0],
+    "12,-55,1": [12, -55, 1],
+    "12,-56,-1": [12, -56, -1],
+    "12,-56,0": [12, -56, 0],
+    "12,-56,1": [12, -56, 1],
+    "12,-57,-1": [12, -57, -1],
+    "12,-57,0": [12, -57, 0],
+    "12,-57,1": [12, -57, 1],
+    "12,-58,-1": [12, -58, -1],
+    "12,-58,0": [12, -58, 0],
+    "12,-58,1": [12, -58, 1],
+    "12,-59,-1": [12, -59, -1],
+    "12,-59,0": [12, -59, 0],
+    "12,-59,1": [12, -59, 1],
+    "12,-60,-1": [12, -60, -1],
+    "12,-60,0": [12, -60, 0],
+    "12,-60,1": [12, -60, 1],
+    "13,-55,-1": [13, -55, -1],
+    "13,-55,0": [13, -55, 0],
+    "13,-55,1": [13, -55, 1],
+    "13,-56,-1": [13, -56, -1],
+    "13,-56,0": [13, -56, 0],
+    "13,-56,1": [13, -56, 1],
+    "13,-57,-1": [13, -57, -1],
+    "13,-57,0": [13, -57, 0],
+    "13,-57,1": [13, -57, 1],
+    "13,-58,-1": [13, -58, -1],
+    "13,-58,0": [13, -58, 0],
+    "13,-58,1": [13, -58, 1],
+    "13,-59,-1": [13, -59, -1],
+    "13,-59,0": [13, -59, 0],
+    "13,-59,1": [13, -59, 1],
+    "13,-60,-1": [13, -60, -1],
+    "13,-60,0": [13, -60, 0],
+    "13,-60,1": [13, -60, 1]
+   },
+   "before": {
+    "11,-55,-1": "minecraft:air",
+    "11,-55,0": "minecraft:air",
+    "11,-55,1": "minecraft:air",
+    "11,-56,-1": "minecraft:air",
+    "11,-56,0": "minecraft:air",
+    "11,-56,1": "minecraft:air",
+    "11,-57,-1": "minecraft:air",
+    "11,-57,0": "minecraft:air",
+    "11,-57,1": "minecraft:air",
+    "11,-58,-1": "minecraft:air",
+    "11,-58,0": "minecraft:air",
+    "11,-58,1": "minecraft:air",
+    "11,-59,-1": "minecraft:air",
+    "11,-59,0": "minecraft:air",
+    "11,-59,1": "minecraft:air",
+    "11,-60,-1": "minecraft:air",
+    "11,-60,0": "minecraft:air",
+    "11,-60,1": "minecraft:air",
+    "12,-55,-1": "minecraft:air",
+    "12,-55,0": "minecraft:air",
+    "12,-55,1": "minecraft:air",
+    "12,-56,-1": "minecraft:air",
+    "12,-56,0": "minecraft:air",
+    "12,-56,1": "minecraft:air",
+    "12,-57,-1": "minecraft:air",
+    "12,-57,0": "minecraft:oak_planks",
+    "12,-57,1": "minecraft:air",
+    "12,-58,-1": "minecraft:air",
+    "12,-58,0": "minecraft:oak_planks",
+    "12,-58,1": "minecraft:air",
+    "12,-59,-1": "minecraft:air",
+    "12,-59,0": "minecraft:oak_planks",
+    "12,-59,1": "minecraft:air",
+    "12,-60,-1": "minecraft:air",
+    "12,-60,0": "minecraft:oak_planks",
+    "12,-60,1": "minecraft:air",
+    "13,-55,-1": "minecraft:air",
+    "13,-55,0": "minecraft:air",
+    "13,-55,1": "minecraft:air",
+    "13,-56,-1": "minecraft:air",
+    "13,-56,0": "minecraft:air",
+    "13,-56,1": "minecraft:air",
+    "13,-57,-1": "minecraft:air",
+    "13,-57,0": "minecraft:air",
+    "13,-57,1": "minecraft:air",
+    "13,-58,-1": "minecraft:air",
+    "13,-58,0": "minecraft:air",
+    "13,-58,1": "minecraft:air",
+    "13,-59,-1": "minecraft:air",
+    "13,-59,0": "minecraft:air",
+    "13,-59,1": "minecraft:air",
+    "13,-60,-1": "minecraft:air",
+    "13,-60,0": "minecraft:air",
+    "13,-60,1": "minecraft:air"
+   },
+   "changes": [
+    {"tick": 0, "cells": {"13,-60,0": "minecraft:fire[age=0]"}},
+    {"tick": 31, "cells": {"13,-60,0": "minecraft:fire[age=1]"}},
+    {"tick": 97, "cells": {"13,-60,0": "minecraft:fire[age=2]"}},
+    {"tick": 163, "cells": {"12,-60,1": "minecraft:fire[age=2]"}},
+    {"tick": 228, "cells": {"13,-60,0": "minecraft:fire[age=3]"}},
+    {"tick": 230, "cells": {"12,-60,1": "minecraft:fire[age=3]"}},
+    {"tick": 266, "cells": {"12,-58,-1": "minecraft:fire[age=3]", "12,-57,-1": "minecraft:fire[age=4]", "12,-60,0": "minecraft:air", "13,-59,0": "minecraft:fire[age=3]"}},
+    {"tick": 302, "cells": {"13,-57,0": "minecraft:fire[age=3]"}},
+    {"tick": 334, "cells": {"12,-57,-1": "minecraft:fire[age=5]"}},
+    {"tick": 335, "cells": {"13,-60,0": "minecraft:air"}},
+    {"tick": 362, "cells": {"12,-60,1": "minecraft:air"}},
+    {"tick": 366, "cells": {"12,-58,-1": "minecraft:fire[age=4]"}},
+    {"tick": 376, "cells": {"13,-57,0": "minecraft:fire[age=4]"}},
+    {"tick": 399, "cells": {"13,-59,0": "minecraft:fire[age=4]"}},
+    {"tick": 408, "cells": {"12,-57,-1": "minecraft:fire[age=6]"}},
+    {"tick": 410, "cells": {"13,-57,0": "minecraft:fire[age=5]"}},
+    {"tick": 438, "cells": {"12,-58,-1": "minecraft:fire[age=5]"}},
+    {"tick": 477, "cells": {"12,-56,0": "minecraft:fire[age=7]"}},
+    {"tick": 506, "cells": {"12,-59,-1": "minecraft:fire[age=4]"}},
+    {"tick": 507, "cells": {"13,-57,0": "minecraft:fire[age=6]"}},
+    {"tick": 509, "cells": {"12,-56,0": "minecraft:fire[age=8]"}},
+    {"tick": 537, "cells": {"12,-58,-1": "minecraft:fire[age=6]"}},
+    {"tick": 541, "cells": {"12,-56,0": "minecraft:fire[age=9]"}},
+    {"tick": 542, "cells": {"11,-57,0": "minecraft:fire[age=6]"}},
+    {"tick": 575, "cells": {"11,-57,0": "minecraft:fire[age=7]"}},
+    {"tick": 576, "cells": {"12,-56,0": "minecraft:fire[age=10]", "13,-57,0": "minecraft:fire[age=7]"}},
+    {"tick": 581, "cells": {"12,-59,-1": "minecraft:fire[age=5]"}},
+    {"tick": 609, "cells": {"12,-57,-1": "minecraft:air", "12,-57,0": "minecraft:air"}},
+    {"tick": 610, "cells": {"11,-57,0": "minecraft:air", "12,-56,0": "minecraft:air", "13,-57,0": "minecraft:air"}},
+    {"tick": 618, "cells": {"12,-59,-1": "minecraft:fire[age=6]"}},
+    {"tick": 645, "cells": {"12,-58,-1": "minecraft:fire[age=7]"}},
+    {"tick": 648, "cells": {"12,-59,-1": "minecraft:air", "12,-59,0": "minecraft:fire[age=4]"}},
+    {"tick": 649, "cells": {"13,-59,0": "minecraft:air"}},
+    {"tick": 679, "cells": {"12,-58,-1": "minecraft:fire[age=8]"}},
+    {"tick": 684, "cells": {"12,-59,0": "minecraft:fire[age=5]"}},
+    {"tick": 709, "cells": {"12,-58,-1": "minecraft:fire[age=9]"}},
+    {"tick": 747, "cells": {"11,-58,0": "minecraft:fire[age=5]"}},
+    {"tick": 748, "cells": {"11,-58,0": "minecraft:fire[age=6]"}},
+    {"tick": 783, "cells": {"12,-59,0": "minecraft:fire[age=6]"}},
+    {"tick": 821, "cells": {"11,-58,0": "minecraft:fire[age=7]"}},
+    {"tick": 845, "cells": {"12,-59,0": "minecraft:fire[age=7]"}},
+    {"tick": 847, "cells": {"12,-58,-1": "minecraft:fire[age=10]", "13,-58,0": "minecraft:fire[age=10]"}},
+    {"tick": 878, "cells": {"12,-58,-1": "minecraft:fire[age=11]"}},
+    {"tick": 884, "cells": {"12,-59,0": "minecraft:fire[age=8]"}},
+    {"tick": 889, "cells": {"11,-58,0": "minecraft:fire[age=8]"}},
+    {"tick": 908, "cells": {"12,-58,0": "minecraft:air", "13,-58,0": "minecraft:fire[age=11]"}},
+    {"tick": 909, "cells": {"11,-58,0": "minecraft:air", "12,-58,-1": "minecraft:air", "12,-59,0": "minecraft:air", "13,-58,0": "minecraft:air"}}
+   ],
+   "after": {
+    "11,-55,-1": "minecraft:air",
+    "11,-55,0": "minecraft:air",
+    "11,-55,1": "minecraft:air",
+    "11,-56,-1": "minecraft:air",
+    "11,-56,0": "minecraft:air",
+    "11,-56,1": "minecraft:air",
+    "11,-57,-1": "minecraft:air",
+    "11,-57,0": "minecraft:air",
+    "11,-57,1": "minecraft:air",
+    "11,-58,-1": "minecraft:air",
+    "11,-58,0": "minecraft:air",
+    "11,-58,1": "minecraft:air",
+    "11,-59,-1": "minecraft:air",
+    "11,-59,0": "minecraft:air",
+    "11,-59,1": "minecraft:air",
+    "11,-60,-1": "minecraft:air",
+    "11,-60,0": "minecraft:air",
+    "11,-60,1": "minecraft:air",
+    "12,-55,-1": "minecraft:air",
+    "12,-55,0": "minecraft:air",
+    "12,-55,1": "minecraft:air",
+    "12,-56,-1": "minecraft:air",
+    "12,-56,0": "minecraft:air",
+    "12,-56,1": "minecraft:air",
+    "12,-57,-1": "minecraft:air",
+    "12,-57,0": "minecraft:air",
+    "12,-57,1": "minecraft:air",
+    "12,-58,-1": "minecraft:air",
+    "12,-58,0": "minecraft:air",
+    "12,-58,1": "minecraft:air",
+    "12,-59,-1": "minecraft:air",
+    "12,-59,0": "minecraft:air",
+    "12,-59,1": "minecraft:air",
+    "12,-60,-1": "minecraft:air",
+    "12,-60,0": "minecraft:air",
+    "12,-60,1": "minecraft:air",
+    "13,-55,-1": "minecraft:air",
+    "13,-55,0": "minecraft:air",
+    "13,-55,1": "minecraft:air",
+    "13,-56,-1": "minecraft:air",
+    "13,-56,0": "minecraft:air",
+    "13,-56,1": "minecraft:air",
+    "13,-57,-1": "minecraft:air",
+    "13,-57,0": "minecraft:air",
+    "13,-57,1": "minecraft:air",
+    "13,-58,-1": "minecraft:air",
+    "13,-58,0": "minecraft:air",
+    "13,-58,1": "minecraft:air",
+    "13,-59,-1": "minecraft:air",
+    "13,-59,0": "minecraft:air",
+    "13,-59,1": "minecraft:air",
+    "13,-60,-1": "minecraft:air",
+    "13,-60,0": "minecraft:air",
+    "13,-60,1": "minecraft:air"
+   },
+   "samples_every": 20,
+   "samples": [
+    {"tick": 0, "air": 49, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["13,-60,0"]},
+    {"tick": 20, "air": 49, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["13,-60,0"]},
+    {"tick": 40, "air": 49, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["13,-60,0"]},
+    {"tick": 60, "air": 49, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["13,-60,0"]},
+    {"tick": 80, "air": 49, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["13,-60,0"]},
+    {"tick": 100, "air": 49, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["13,-60,0"]},
+    {"tick": 120, "air": 49, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["13,-60,0"]},
+    {"tick": 140, "air": 49, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["13,-60,0"]},
+    {"tick": 160, "air": 49, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["13,-60,0"]},
+    {"tick": 180, "air": 48, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["12,-60,1", "13,-60,0"]},
+    {"tick": 200, "air": 48, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["12,-60,1", "13,-60,0"]},
+    {"tick": 220, "air": 48, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["12,-60,1", "13,-60,0"]},
+    {"tick": 240, "air": 48, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["12,-60,1", "13,-60,0"]},
+    {"tick": 260, "air": 48, "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0", "12,-60,0"], "fire": ["12,-60,1", "13,-60,0"]},
+    {"tick": 280, "air": 46, "fire": ["12,-57,-1", "12,-58,-1", "12,-60,1", "13,-59,0", "13,-60,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 300, "air": 46, "fire": ["12,-57,-1", "12,-58,-1", "12,-60,1", "13,-59,0", "13,-60,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 320, "air": 45, "fire": ["12,-57,-1", "12,-58,-1", "12,-60,1", "13,-57,0", "13,-59,0", "13,-60,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 340, "air": 46, "fire": ["12,-57,-1", "12,-58,-1", "12,-60,1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 360, "air": 46, "fire": ["12,-57,-1", "12,-58,-1", "12,-60,1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 380, "air": 47, "fire": ["12,-57,-1", "12,-58,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 400, "air": 47, "fire": ["12,-57,-1", "12,-58,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 420, "air": 47, "fire": ["12,-57,-1", "12,-58,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 440, "air": 47, "fire": ["12,-57,-1", "12,-58,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 460, "air": 47, "fire": ["12,-57,-1", "12,-58,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 480, "air": 46, "fire": ["12,-56,0", "12,-57,-1", "12,-58,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 500, "air": 46, "fire": ["12,-56,0", "12,-57,-1", "12,-58,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 520, "air": 45, "fire": ["12,-56,0", "12,-57,-1", "12,-58,-1", "12,-59,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 540, "air": 45, "fire": ["12,-56,0", "12,-57,-1", "12,-58,-1", "12,-59,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 560, "air": 44, "fire": ["11,-57,0", "12,-56,0", "12,-57,-1", "12,-58,-1", "12,-59,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 580, "air": 44, "fire": ["11,-57,0", "12,-56,0", "12,-57,-1", "12,-58,-1", "12,-59,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 600, "air": 44, "fire": ["11,-57,0", "12,-56,0", "12,-57,-1", "12,-58,-1", "12,-59,-1", "13,-57,0", "13,-59,0"], "oak_planks": ["12,-57,0", "12,-58,0", "12,-59,0"]},
+    {"tick": 620, "air": 49, "fire": ["12,-58,-1", "12,-59,-1", "13,-59,0"], "oak_planks": ["12,-58,0", "12,-59,0"]},
+    {"tick": 640, "air": 49, "fire": ["12,-58,-1", "12,-59,-1", "13,-59,0"], "oak_planks": ["12,-58,0", "12,-59,0"]},
+    {"tick": 660, "air": 51, "fire": ["12,-58,-1", "12,-59,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 680, "air": 51, "fire": ["12,-58,-1", "12,-59,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 700, "air": 51, "fire": ["12,-58,-1", "12,-59,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 720, "air": 51, "fire": ["12,-58,-1", "12,-59,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 740, "air": 51, "fire": ["12,-58,-1", "12,-59,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 760, "air": 50, "fire": ["11,-58,0", "12,-58,-1", "12,-59,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 780, "air": 50, "fire": ["11,-58,0", "12,-58,-1", "12,-59,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 800, "air": 50, "fire": ["11,-58,0", "12,-58,-1", "12,-59,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 820, "air": 50, "fire": ["11,-58,0", "12,-58,-1", "12,-59,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 840, "air": 50, "fire": ["11,-58,0", "12,-58,-1", "12,-59,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 860, "air": 49, "fire": ["11,-58,0", "12,-58,-1", "12,-59,0", "13,-58,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 880, "air": 49, "fire": ["11,-58,0", "12,-58,-1", "12,-59,0", "13,-58,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 900, "air": 49, "fire": ["11,-58,0", "12,-58,-1", "12,-59,0", "13,-58,0"], "oak_planks": ["12,-58,0"]},
+    {"tick": 920, "air": 54},
+    {"tick": 940, "air": 54},
+    {"tick": 960, "air": 54},
+    {"tick": 980, "air": 54},
+    {"tick": 1000, "air": 54},
+    {"tick": 1020, "air": 54},
+    {"tick": 1040, "air": 54},
+    {"tick": 1060, "air": 54},
+    {"tick": 1080, "air": 54},
+    {"tick": 1100, "air": 54},
+    {"tick": 1120, "air": 54},
+    {"tick": 1140, "air": 54},
+    {"tick": 1160, "air": 54},
+    {"tick": 1180, "air": 54},
+    {"tick": 1200, "air": 54}
+   ],
+   "difficulty": "normal",
+   "block_update_packets": 28
+  },
+  {
+   "step": "punch_netherrack",
+   "action": "mine_watch",
+   "clicked": [-8, -61, 0],
+   "face": "up",
+   "player": {"feet": [-7.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "stop_order_after_ticks": 5,
+   "tick_0_server_tick": 6936,
+   "watched_ticks": 25,
+   "positions": {"fire": [-8, -60, 0], "under": [-8, -61, 0]},
+   "before": {"fire": "minecraft:fire[age=0]", "under": "minecraft:netherrack"},
+   "changes": [{"tick": 2, "cells": {"fire": "minecraft:air"}}],
+   "after": {"fire": "minecraft:air", "under": "minecraft:netherrack"},
+   "sounds": [{"sound": "extinguish.fire", "position": [-7.5, -59.5, 0.5], "data": -1}],
+   "level_events": [
+    {"event": 3600, "name": "StartBlockCracking", "position": [-8.0, -61.0, 0.0], "data": 1638, "times": 5},
+    {"event": 3604, "name": "ParticlesCrackBlockUp", "position": [-7.5, -60.5, 0.5], "data": -2144106048, "times": 5},
+    {"event": 3602, "name": "UpdateBlockCracking", "position": [-8.0, -61.0, 0.0], "data": 1638, "times": 5},
+    {"event": 3601, "name": "StopBlockCracking", "position": [-8.0, -61.0, 0.0], "data": 0, "times": 5}
+   ],
+   "block_update_packets": 1
+  },
+  {
+   "step": "punch_stone",
+   "action": "mine_watch",
+   "clicked": [0, -61, 6],
+   "face": "up",
+   "player": {"feet": [0.5, -60.0, 8.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "stop_order_after_ticks": 5,
+   "tick_0_server_tick": 6971,
+   "watched_ticks": 25,
+   "positions": {"fire": [0, -60, 6], "under": [0, -61, 6]},
+   "before": {"fire": "minecraft:fire[age=0]", "under": "minecraft:stone"},
+   "changes": [{"tick": 2, "cells": {"fire": "minecraft:air"}}],
+   "after": {"fire": "minecraft:air", "under": "minecraft:stone"},
+   "sounds": [{"sound": "extinguish.fire", "position": [0.5, -59.5, 6.5], "data": -1}],
+   "level_events": [
+    {"event": 3600, "name": "StartBlockCracking", "position": [0.0, -61.0, 6.0], "data": 436, "times": 5},
+    {"event": 3604, "name": "ParticlesCrackBlockUp", "position": [0.5, -60.5, 6.5], "data": -2144268767, "times": 5},
+    {"event": 3602, "name": "UpdateBlockCracking", "position": [0.0, -61.0, 6.0], "data": 436, "times": 5},
+    {"event": 3601, "name": "StopBlockCracking", "position": [0.0, -61.0, 6.0], "data": 0, "times": 5}
+   ],
+   "block_update_packets": 1
+  }
+ ]
+}

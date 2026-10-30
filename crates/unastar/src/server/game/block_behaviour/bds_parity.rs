@@ -303,15 +303,7 @@ fn crop_growth_rate_matches_the_bds_capture() {
         h.world.insert_resource(super::RandomTickSpeed(speed));
         // Only the arena's two chunks (x = -1 and x = 0..1) matter; the
         // others would only add draws.
-        for (cx, cz) in [
-            (-1, -1),
-            (-1, 1),
-            (0, -1),
-            (0, 1),
-            (1, -1),
-            (1, 0),
-            (1, 1),
-        ] {
+        for (cx, cz) in [(-1, -1), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)] {
             h.world
                 .resource_mut::<crate::world::ecs::ChunkManager>()
                 .remove_by_coords(cx, cz);

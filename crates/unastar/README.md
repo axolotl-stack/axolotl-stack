@@ -607,10 +607,37 @@ glass), seeds planting only on farmland, and the wheat growth rate. Other
 constants (crop growth formula, bone meal +2..4, farmland moisture and
 trampling, button durations, sugar cane/cactus growth, trapdoor and lever
 states) follow BDS behaviour not yet captured; family modules mark what is
-provisional. Not modelled yet: redstone, liquids flowing, fire, block light,
-bed colour and sign text (both need block actors), sneaking hanging signs.
-UpdateSubChunkBlocks batching (BDS sends both door halves in one packet) is
-replaced by two UpdateBlock packets.
+provisional. Not modelled yet: block light, bed colour and sign text (both
+need block actors), sneaking hanging signs. UpdateSubChunkBlocks batching (BDS
+sends both door halves in one packet) is replaced by two UpdateBlock packets.
+
+Fire (`block_behaviour/fire.rs`) ages, burns and spreads on its own scheduled
+ticks (30-39 ticks apart) with the `doFireTick` rule, burns out on blocks that
+cannot catch fire, never on netherrack/magma/soul blocks, turns into soul fire
+on soul sand and soil, is lit by lava's random ticks and goes out when the
+block under it is punched (`extinguish.fire`). Rain does not put it out (the
+server has no weather state on blocks yet). Concrete powder hardens next to
+water (`block_behaviour/gravity.rs`); sand, gravel and concrete powder fall
+through the change path (`server/game/falling.rs`).
+
+Redstone (`block_behaviour/redstone/`): dust with signal decay and up/down
+steps, levers, buttons (20/30 ticks), pressure plates (wooden, stone, weighted),
+redstone blocks, redstone torches with burnout, repeaters (2/4/6/8 ticks,
+locking), comparators (compare/subtract, container fullness), lamps (4-tick
+off delay), note blocks, doors (iron too), trapdoors and fence gates by power,
+observers and pistons (12-block push limit, sticky pull, slime and honey,
+`PistonArm`/`MovingBlock` actors for the client animation). Changes run on
+BDS's two-tick circuit grid. Replayed against the BDS 1.26.51 capture
+`testdata/bds_1_26_51_redstone.json` (`block_behaviour/redstone/bds_parity.rs`)
+for dust, repeaters, torches, comparators, buttons, plates, the iron door and
+note blocks; fire burnout, spread and punching are checked against the same
+capture in `fire.rs`. Not captured: observers and pistons (their rules are
+marked provisional). Comparators re-read a container only when a neighbour
+changes (container contents do not notify blocks yet); note block pitches
+cannot be tuned (no storage); entities are not pushed by pistons.
+
+Liquids (flow, sources, waterlogging, mixing, sponges) belong to an outside
+contributor and are not part of this module.
 
 ### Containers
 

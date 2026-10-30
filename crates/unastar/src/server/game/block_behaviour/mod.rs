@@ -44,7 +44,10 @@ pub mod beds;
 pub mod connections;
 pub mod crops;
 pub mod doors;
+pub mod fire;
+pub mod gravity;
 pub mod plants;
+pub mod redstone;
 pub mod signs;
 mod support;
 pub mod toggles;
@@ -144,6 +147,20 @@ pub enum Family {
     DoublePlant,
     /// Carpets and other thin blocks that need any non-air block below.
     Carpet,
+    /// Water and lava. Their flow is not part of this module (an outside
+    /// contributor owns liquids); lava's random tick may start fires
+    /// ([`fire::lava_ignites`]).
+    Liquid,
+    /// Fire and soul fire ([`fire`]).
+    Fire,
+    /// Redstone components ([`redstone`]): dust, repeaters, comparators,
+    /// pressure plates, lamps, note blocks, redstone blocks, observers and
+    /// pistons. Redstone torches stay in [`Family::Torch`] for placement and
+    /// support; [`redstone`] also runs their power logic.
+    Redstone,
+    /// Concrete powder: falls, and hardens into concrete next to water
+    /// ([`gravity`]).
+    ConcretePowder,
 }
 
 impl Family {
@@ -152,6 +169,24 @@ impl Family {
         let id = entry.string_id.as_str();
         let state = entry.default_state_id;
         let has = |property: &str| entry.state_value(state, property).is_some();
+        if matches!(
+            id,
+            "minecraft:water"
+                | "minecraft:flowing_water"
+                | "minecraft:lava"
+                | "minecraft:flowing_lava"
+        ) {
+            return Self::Liquid;
+        }
+        if matches!(id, "minecraft:fire" | "minecraft:soul_fire") {
+            return Self::Fire;
+        }
+        if id.ends_with("_concrete_powder") {
+            return Self::ConcretePowder;
+        }
+        if redstone::is_component(entry) {
+            return Self::Redstone;
+        }
         if has("door_hinge_bit") {
             return Self::Door {
                 iron: id == "minecraft:iron_door",
@@ -229,6 +264,8 @@ impl Family {
                 | Self::Farmland
                 | Self::SugarCane
                 | Self::Cactus
+                | Self::Liquid
+                | Self::Fire
         )
     }
 }
@@ -292,6 +329,21 @@ impl Default for RandomTickSpeed {
     }
 }
 
+/// Whether fire spreads and burns out (`doFireTick`, default on).
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DoFireTick(pub bool);
+
+impl Default for DoFireTick {
+    fn default() -> Self {
+        Self(true)
+    }
+}
+
+/// The `doFireTick` rule.
+pub fn fire_ticks(world: &World) -> bool {
+    world.get_resource::<DoFireTick>().is_none_or(|rule| rule.0)
+}
+
 /// Random source of block ticks and growth (seedable in tests).
 #[derive(Resource, Debug)]
 pub struct BlockRandom(pub StdRng);
@@ -350,6 +402,9 @@ pub fn schedule_tick(world: &mut World, pos: IVec3, delay: u64) {
 pub fn block_changed(world: &mut World, pos: IVec3) {
     let draining = {
         let mut updates = world.get_resource_or_init::<NeighbourUpdates>();
+        // The changed block itself first (`from == pos`: placement reactions
+        // such as fire scheduling its first tick), then its six neighbours.
+        updates.queue.push_back((pos, pos));
         updates
             .queue
             .extend(NEIGHBOURS.iter().map(|offset| (pos + *offset, pos)));
@@ -387,6 +442,15 @@ fn neighbour_changed(world: &mut World, pos: IVec3, from: IVec3) {
         return;
     };
     let family = family(world, state);
+    if from == pos {
+        placed(world, pos, state, family);
+        return;
+    }
+    // A solid block passes changes on to the redstone around it (a lever
+    // broken on one side of a block unpowers the dust on the other side).
+    if family != Family::Redstone && !redstone::is_consumer(family) {
+        redstone::relay(world, pos, state, from);
+    }
     if family == Family::Plain {
         return;
     }
@@ -399,6 +463,10 @@ fn neighbour_changed(world: &mut World, pos: IVec3, from: IVec3) {
                 state,
                 LEVEL_EVENT_PARTICLES_DESTROY_BLOCK_NO_SOUND,
             );
+            let air = air(&world.resource::<BlockRegistryResource>().0);
+            super::blocks::set_block(world, pos, air, false);
+        } else if family == Family::Fire {
+            // Fire that cannot stay goes out at once, without particles.
             let air = air(&world.resource::<BlockRegistryResource>().0);
             super::blocks::set_block(world, pos, air, false);
         } else {
@@ -416,8 +484,38 @@ fn neighbour_changed(world: &mut World, pos: IVec3, from: IVec3) {
         Family::Farmland => crops::farmland_neighbour_changed(world, pos, state),
         Family::Stem => detach_stem(world, pos, state, from),
         Family::Vine => attached::vine_neighbour_changed(world, pos, state),
+        Family::Fire => fire::neighbour_changed(world, pos, state),
+        Family::ConcretePowder => gravity::harden_concrete_powder(world, pos, state),
         _ => {}
     }
+    // Redstone components and the blocks power acts on (doors, trapdoors,
+    // fence gates, redstone torches, lamps, note blocks).
+    if family == Family::Redstone || redstone::is_consumer(family) {
+        redstone::neighbour_changed(world, pos, from);
+    }
+}
+
+/// The block at `pos` was just set to `state` (placed, grown, toggled):
+/// placement reactions. Survival is not checked here; placement already
+/// refused blocks that could not stay.
+fn placed(world: &mut World, pos: IVec3, state: u32, family: Family) {
+    match family {
+        Family::Fire => fire::placed(world, pos, state),
+        Family::ConcretePowder => gravity::harden_concrete_powder(world, pos, state),
+        _ => {}
+    }
+    if family == Family::Redstone || redstone::is_consumer(family) {
+        redstone::neighbour_changed(world, pos, pos);
+    }
+}
+
+/// Whether `state` is lava (still or flowing).
+fn is_lava(world: &World, state: u32) -> bool {
+    world
+        .resource::<BlockRegistryResource>()
+        .0
+        .liquid_state(state)
+        .is_some_and(|liquid| liquid.kind == crate::registry::block::LiquidKind::Lava)
 }
 
 /// Whether `state` is a wall (it has `wall_post_bit`).
@@ -471,12 +569,16 @@ pub fn can_survive(blocks: &impl BlockSource, pos: IVec3, state: u32) -> bool {
         Family::Plant => plants::plant_can_survive(blocks, pos, entry),
         Family::DoublePlant => plants::double_plant_can_survive(blocks, pos, state, entry),
         Family::Carpet => plants::carpet_can_survive(blocks, pos),
+        Family::Fire => fire::can_survive(blocks, pos, state, entry),
+        Family::Redstone => redstone::can_survive(blocks, pos, state, entry),
         Family::Plain
         | Family::Trapdoor { .. }
         | Family::FenceGate
         | Family::Connected
         | Family::Stairs
-        | Family::Farmland => true,
+        | Family::Farmland
+        | Family::Liquid
+        | Family::ConcretePowder => true,
     }
 }
 
@@ -509,6 +611,7 @@ pub fn placement_state(
         Family::Trapdoor { .. } => toggles::trapdoor_placement(&place)?,
         Family::FenceGate => toggles::fence_gate_placement(&place)?,
         Family::Connected | Family::Stairs => connections::placement(&place)?,
+        Family::Redstone => redstone::placement(&place)?,
         _ => state,
     };
     let mut placed = vec![(position, state)];
@@ -638,6 +741,7 @@ pub fn use_block(world: &mut World, player: Entity, pos: IVec3) -> bool {
         Family::FenceGate => toggles::toggle_fence_gate(world, player, pos, state),
         Family::Button { wooden } => toggles::press_button(world, pos, state, wooden),
         Family::Lever => toggles::toggle_lever(world, pos, state),
+        Family::Redstone => redstone::use_block(world, player, pos, state),
         _ => false,
     }
 }
@@ -645,14 +749,17 @@ pub fn use_block(world: &mut World, player: Entity, pos: IVec3) -> bool {
 /// Whether `use` on `state` is a block interaction (the client then does
 /// not expect a placement even with a block in hand).
 pub fn is_usable(registry: &BlockRegistry, state: u32) -> bool {
-    matches!(
-        family_of(registry, state),
+    match family_of(registry, state) {
         Family::Door { iron: false }
-            | Family::Trapdoor { iron: false }
-            | Family::FenceGate
-            | Family::Button { .. }
-            | Family::Lever
-    )
+        | Family::Trapdoor { iron: false }
+        | Family::FenceGate
+        | Family::Button { .. }
+        | Family::Lever => true,
+        Family::Redstone => registry
+            .get_by_runtime_id(state)
+            .is_some_and(redstone::is_usable),
+        _ => false,
+    }
 }
 
 /// A player is breaking the block `state` at `pos`: remove the other parts
@@ -831,26 +938,27 @@ pub fn deferred<T>(world: &mut World, change: impl FnOnce(&mut World) -> T) -> T
     result
 }
 
-/// Exclusive system: run due scheduled ticks, then random ticks.
+/// Exclusive system: run due scheduled ticks, then the redstone changes due
+/// on this circuit tick, then random ticks.
 pub fn tick_blocks(world: &mut World) {
     let now = world.get_resource::<TickCounter>().map_or(0, |t| t.current);
-    let due: Vec<(IVec3, u32)> = {
-        let Some(mut ticks) = world.get_resource_mut::<ScheduledTicks>() else {
-            return random_ticks(world);
-        };
-        let mut due: Vec<_> = Vec::new();
-        ticks.0.retain(|(at, pos, block)| {
-            if *at <= now {
-                due.push((*at, *pos, *block));
-                false
-            } else {
-                true
-            }
-        });
-        due.sort_by_key(|(at, _, _)| *at);
-        due.into_iter()
-            .map(|(_, pos, block)| (pos, block))
-            .collect()
+    let due: Vec<(IVec3, u32)> = match world.get_resource_mut::<ScheduledTicks>() {
+        None => Vec::new(),
+        Some(mut ticks) => {
+            let mut due: Vec<_> = Vec::new();
+            ticks.0.retain(|(at, pos, block)| {
+                if *at <= now {
+                    due.push((*at, *pos, *block));
+                    false
+                } else {
+                    true
+                }
+            });
+            due.sort_by_key(|(at, _, _)| *at);
+            due.into_iter()
+                .map(|(_, pos, block)| (pos, block))
+                .collect()
+        }
     };
     for (pos, block) in due {
         let Some(state) = world.block_at(pos) else {
@@ -864,6 +972,8 @@ pub fn tick_blocks(world: &mut World) {
             scheduled_tick(world, pos, state);
         }
     }
+    // Redstone changes due on this circuit tick.
+    redstone::circuit::tick(world);
     random_ticks(world);
 }
 
@@ -872,7 +982,12 @@ pub fn tick_blocks(world: &mut World) {
 /// dirt; walls and fence gates rewrite their neighbour-derived states.
 fn scheduled_tick(world: &mut World, pos: IVec3, state: u32) {
     if !can_survive(world, pos, state) {
-        destroy_block(world, pos, true);
+        if family(world, state) == Family::Fire {
+            let air = air(&world.resource::<BlockRegistryResource>().0);
+            super::blocks::set_block(world, pos, air, false);
+        } else {
+            destroy_block(world, pos, true);
+        }
         return;
     }
     match family(world, state) {
@@ -880,6 +995,8 @@ fn scheduled_tick(world: &mut World, pos: IVec3, state: u32) {
         Family::Farmland => crops::farmland_tick(world, pos, state),
         Family::FenceGate => toggles::fence_gate_neighbour_changed(world, pos, state),
         Family::Connected => connections::neighbour_changed(world, pos, state),
+        Family::Fire => fire::scheduled_tick(world, pos, state),
+        Family::Redstone | Family::Torch => redstone::scheduled_tick(world, pos, state),
         _ => {}
     }
 }
@@ -984,6 +1101,8 @@ pub fn random_tick(world: &mut World, pos: IVec3, state: u32) {
         Family::Farmland => crops::farmland_random_tick(world, pos, state),
         Family::SugarCane => plants::sugar_cane_random_tick(world, pos, state),
         Family::Cactus => plants::cactus_random_tick(world, pos, state),
+        Family::Liquid if is_lava(world, state) => fire::lava_ignites(world, pos),
+        Family::Fire => fire::random_tick(world, pos, state),
         _ => {}
     }
 }

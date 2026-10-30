@@ -23,6 +23,10 @@
 //!   toggle; iron doors ignore hands (redstone only), so a block in hand is
 //!   placed against them instead. BDS sends both halves in one
 //!   UpdateSubChunkBlocks packet; unastar sends two UpdateBlock packets.
+//! - **Power** (wooden and iron doors) opens the door when either half
+//!   becomes powered and closes it when the door loses power, as a use
+//!   would, with the same sounds ([`set_open`], driven by
+//!   [`super::redstone`]).
 //! - **Survival**: the lower half needs its support and its upper half;
 //!   the upper half needs its lower half. A half left alone breaks with its
 //!   drops one tick after the neighbour update (only the lower half
@@ -198,6 +202,16 @@ pub fn toggle(world: &mut World, pos: IVec3, state: u32, _player: Option<Entity>
         lower_state,
     );
     true
+}
+
+/// Open (`open`) or close the door with its lower half `state` at `pos`,
+/// as a use would; nothing when it already is. Returns whether it moved.
+pub fn set_open(world: &mut World, pos: IVec3, state: u32, open: bool) -> bool {
+    let is_open = world
+        .registry()
+        .get_by_runtime_id(state)
+        .is_some_and(|entry| bit(entry, state, OPEN));
+    is_open != open && toggle(world, pos, state, None)
 }
 
 /// A mob broke the door half at `cell` (see `annotation.break_door`): the
