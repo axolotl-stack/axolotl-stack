@@ -117,7 +117,8 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
     }
 
     fn killer_is(&self, entity_type: &str) -> bool {
-        self.killer.is_some_and(|killer| killer.name() == entity_type)
+        self.killer
+            .is_some_and(|killer| killer.name() == entity_type)
     }
 
     fn explosion_radius(&self) -> Option<f32> {

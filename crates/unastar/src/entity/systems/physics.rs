@@ -544,9 +544,9 @@ pub fn step_body_sensed(
     if body.gravity_stage == GravityStage::BeforeMove && flotation.is_none() {
         velocity.y -= body.gravity;
     }
-    let climbs = climbing.as_deref().is_some_and(|c| {
-        c.wall_climbing && c.collided && living_liquid != Some(LiquidKind::Water)
-    });
+    let climbs = climbing
+        .as_deref()
+        .is_some_and(|c| c.wall_climbing && c.collided && living_liquid != Some(LiquidKind::Water));
     if climbs {
         velocity.y = crate::entity::mob::constants::CLIMB_SPEED;
     }
@@ -575,7 +575,15 @@ pub fn step_body_sensed(
     }
 
     if body.model == PhysicsModel::Living {
-        apply_living_drag(blocks, body, feet, *on_ground, living_liquid, climbs, velocity);
+        apply_living_drag(
+            blocks,
+            body,
+            feet,
+            *on_ground,
+            living_liquid,
+            climbs,
+            velocity,
+        );
         return (feet, living_liquid);
     }
 
@@ -619,9 +627,7 @@ pub fn tick_physics(
         Option<&mut Climbing>,
     )>,
 ) {
-    for (mut position, mut velocity, mut on_ground, body, age, fall, climbing) in
-        query.iter_mut()
-    {
+    for (mut position, mut velocity, mut on_ground, body, age, fall, climbing) in query.iter_mut() {
         if blocks.block_at(position.0.floor().as_ivec3()).is_none() {
             continue;
         }

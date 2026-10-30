@@ -542,4 +542,3 @@ fn random_int(world: &mut World, bound: i32) -> i32 {
         .0
         .gen_range(0..bound.max(1))
 }
-

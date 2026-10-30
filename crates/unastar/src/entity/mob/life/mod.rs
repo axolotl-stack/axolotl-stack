@@ -4,8 +4,8 @@
 //! looked at ([`looked_at`]), teleporting ([`teleport`]) and natural
 //! despawning ([`despawn`]).
 
-pub mod angry;
 pub mod ageing;
+pub mod angry;
 pub mod breeding;
 pub mod despawn;
 pub mod sensors;

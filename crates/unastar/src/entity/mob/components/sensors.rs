@@ -176,10 +176,7 @@ fn compile_target_nearby_sensor(
     b: body::TargetNearbySensor,
 ) -> Result<TargetNearbySensorConfig, SensorError> {
     let event = |trigger: &Option<body::EventTrigger>| {
-        trigger
-            .as_ref()
-            .map(super::common::self_event)
-            .transpose()
+        trigger.as_ref().map(super::common::self_event).transpose()
     };
     Ok(TargetNearbySensorConfig {
         inside_range: f64::from(b.inside_range),

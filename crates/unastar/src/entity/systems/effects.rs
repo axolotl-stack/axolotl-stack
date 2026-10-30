@@ -15,7 +15,11 @@ use crate::entity::player_life::hurt_player;
 /// System: Tick all status effects. A player whose effect runs out is told
 /// so (`MobEffect` remove).
 pub fn tick_effects(
-    mut query: Query<(&mut Effects, Option<&PlayerSession>, Option<&RuntimeEntityId>)>,
+    mut query: Query<(
+        &mut Effects,
+        Option<&PlayerSession>,
+        Option<&RuntimeEntityId>,
+    )>,
 ) {
     for (mut effects, session, runtime_id) in query.iter_mut() {
         let expired = effects.tick();

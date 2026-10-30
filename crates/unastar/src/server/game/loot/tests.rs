@@ -285,7 +285,9 @@ fn killed_by_entity_needs_the_named_killer() {
     )
     .unwrap();
     assert!(
-        drops.iter().all(|drop| drop.item_id == "minecraft:gunpowder"),
+        drops
+            .iter()
+            .all(|drop| drop.item_id == "minecraft:gunpowder"),
         "{drops:?}"
     );
 }
