@@ -180,6 +180,7 @@ pub fn record_block_entities(world: &mut dyn FeatureWorld, placed: &[PlacedBlock
                 loot,
                 spawner_entity,
                 template_nbt,
+                ..BlockEntityData::NONE
             },
         );
     }
@@ -221,9 +222,15 @@ impl StructurePiece for TemplatePiece {
             return;
         }
         record_block_entities(world, &placed);
+        // Only markers inside the placement box run. Native evidence: a warm
+        // ocean ruin spanning two chunks (seed 6788061584965324779, start chunk
+        // -136,121) placed by each chunk at its own height keeps only the chest
+        // of the chunk holding the marker; shipwreck loot markers likewise
+        // stay in the decorated chunk.
         for (pos, info) in self.filter_blocks(&settings, rng, b::STRUCTURE_BLOCK) {
             if let (Some(BlockEntityInfo::DataMarker { metadata }), Some(handler)) =
                 (info, self.on_data_marker)
+                && chunk_box.is_inside(pos)
             {
                 handler(self, metadata, pos, world, rng, chunk_box);
             }
