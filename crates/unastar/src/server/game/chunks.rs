@@ -11,12 +11,12 @@ use super::packet_queues::{ChunkAction, ChunkPacketQueue};
 use super::types::ServerConfigResource;
 use crate::entity::components::{ChunkRadius, PlayerSession};
 use crate::world::ecs::{
-    ChunkData, ChunkLoader, ChunkManager, ChunkNetCache, ChunkViewers, StreamStats,
+    ChunkData, ChunkLoader, ChunkManager, ChunkNetCache, ChunkViewers, ColumnLoads, StreamStats,
 };
 use jolyne::valentine::types::{
     EnumsSubChunkPacketPayloadHeightMapDataType, EnumsSubChunkPacketPayloadSubChunkRequestResult,
     SubChunkPacketPayloadHeightmapData, SubChunkPacketPayloadHeightmapDataRenderHeightMapType,
-    SubChunkPacketPayloadSubChunkPacketData, SubChunkPos,
+    SubChunkPacketPayloadSubChunkPacketData, SubChunkPacketPayloadSubChunkPosOffset, SubChunkPos,
 };
 use jolyne::valentine::{ChunkRadiusUpdatedPacket, McpePacket, SubChunkPacket};
 
@@ -39,6 +39,7 @@ pub fn apply_chunk_requests(
     mut queue: ResMut<ChunkPacketQueue>,
     config: Res<ServerConfigResource>,
     chunk_manager: Res<ChunkManager>,
+    mut loads: ResMut<ColumnLoads>,
     stats: Res<StreamStats>,
     sessions: Query<&PlayerSession>,
     mut chunk_radii: Query<&mut ChunkRadius>,
@@ -47,26 +48,33 @@ pub fn apply_chunk_requests(
     mut chunk_viewers_q: Query<&mut ChunkViewers>,
 ) {
     let _span = tracing::info_span!("apply_chunk_requests", count = queue.0.len()).entered();
+    // Requests naming an edited column wait until its new encoding is ready.
+    let mut deferred = Vec::new();
     for (entity, action) in queue.0.drain(..) {
         match action {
             ChunkAction::RadiusRequest(req) => {
                 handle_chunk_radius_request(entity, &req, &config, &sessions, &mut chunk_radii);
             }
             ChunkAction::SubchunkRequest(req) => {
-                handle_subchunk_request(
+                let answered = handle_subchunk_request(
                     entity,
                     &req,
                     config.0.block_network_ids,
                     &chunk_manager,
+                    &mut loads,
                     &stats,
                     &sessions,
                     &mut loaders,
                     &mut chunk_data_q,
                     &mut chunk_viewers_q,
                 );
+                if !answered {
+                    deferred.push((entity, ChunkAction::SubchunkRequest(req)));
+                }
             }
         }
     }
+    queue.0.extend(deferred);
 }
 
 fn handle_chunk_radius_request(
@@ -102,21 +110,25 @@ fn granted_chunk_radius(requested: i32, client_max: u8, server_max: i32) -> i32 
         .min(i32::from(client_max).max(1))
 }
 
-/// Answers a `SubChunkRequest` from the columns' shared encodings (an edited
-/// column is encoded again first). The request acknowledges every column it
-/// names in the player's send window.
+/// Answers a `SubChunkRequest` from the columns' shared encodings. The request
+/// acknowledges every column it names in the player's send window, and its
+/// answers count against the player's send budget. Returns `false`, answering
+/// nothing, while a named column is being encoded again after an edit (the
+/// caller retries next tick), so an answer never shows a column as it was
+/// before an edit the client was already told about.
 #[allow(clippy::too_many_arguments)]
 fn handle_subchunk_request(
     entity: Entity,
     req: &jolyne::valentine::SubChunkRequestPacket,
     block_ids: crate::registry::block::BlockNetworkIds,
     chunk_manager: &ChunkManager,
+    loads: &mut ColumnLoads,
     stats: &StreamStats,
     sessions: &Query<&PlayerSession>,
     loaders: &mut Query<&mut ChunkLoader>,
     chunk_data_q: &mut Query<(&ChunkData, Option<&mut ChunkNetCache>)>,
     chunk_viewers_q: &mut Query<&mut ChunkViewers>,
-) {
+) -> bool {
     let started = Instant::now();
     let session_id = sessions.get(entity).map(|s| s.session_id).unwrap_or(0);
 
@@ -131,30 +143,56 @@ fn handle_subchunk_request(
         "SubChunkRequest received"
     );
 
-    let mut served_chunks: std::collections::HashSet<(i32, i32)> = std::collections::HashSet::new();
-    let mut entries = Vec::with_capacity(
-        req.sub_chunk_position_offset_list
-            .len()
-            .min(MAX_SUBCHUNK_REQUESTS),
-    );
-    // Requests usually name one column several times; look it up once.
-    let mut column: Option<((i32, i32), ColumnLookup)> = None;
+    let offsets = &req.sub_chunk_position_offset_list[..req
+        .sub_chunk_position_offset_list
+        .len()
+        .min(MAX_SUBCHUNK_REQUESTS)];
+    let column_of = |offset: &SubChunkPacketPayloadSubChunkPosOffset| {
+        (
+            chunk_x + offset.subchunk_offset_x as i32,
+            chunk_z + offset.subchunk_offset_z as i32,
+        )
+    };
+
+    // Every named column, looked up once.
+    let mut columns: std::collections::HashMap<(i32, i32), ColumnLookup> =
+        std::collections::HashMap::new();
+    for offset in offsets {
+        let target = column_of(offset);
+        if columns.contains_key(&target) {
+            continue;
+        }
+        let lookup = match chunk_manager.get_by_coords(target.0, target.1) {
+            None => ColumnLookup::Absent,
+            Some(chunk_entity) => match chunk_data_q.get_mut(chunk_entity) {
+                Ok((data, Some(mut cache))) => match cache.current(
+                    target,
+                    &data.inner,
+                    loads,
+                    chunk_manager.runtime(),
+                    block_ids,
+                    stats,
+                ) {
+                    Some(encoded) => ColumnLookup::Ready(encoded),
+                    None => return false,
+                },
+                // A chunk entity spawned without the streaming components
+                // (built by hand in tools and tests) is encoded for the answer.
+                Ok((data, None)) => ColumnLookup::Ready(std::sync::Arc::new(
+                    crate::world::ecs::EncodedColumn::encode(&data.inner, block_ids),
+                )),
+                Err(_) => ColumnLookup::Loading,
+            },
+        };
+        columns.insert(target, lookup);
+    }
 
     let min_sub_y = crate::world::chunk::MIN_Y >> 4;
     let max_sub_y = min_sub_y + (crate::world::SUBCHUNK_COUNT as i32) - 1;
-    for offset in req
-        .sub_chunk_position_offset_list
-        .iter()
-        .take(MAX_SUBCHUNK_REQUESTS)
-    {
+    let mut entries = Vec::with_capacity(offsets.len());
+    for offset in offsets {
         let sub_y = origin.subchunk_position_y + offset.subchunk_offset_y as i32;
-        let target = (
-            chunk_x + offset.subchunk_offset_x as i32,
-            chunk_z + offset.subchunk_offset_z as i32,
-        );
-
-        served_chunks.insert(target);
-
+        let target = column_of(offset);
         if sub_y < min_sub_y || sub_y > max_sub_y {
             entries.push(empty_entry(
                 offset.clone(),
@@ -162,28 +200,11 @@ fn handle_subchunk_request(
             ));
             continue;
         }
-
-        if column.as_ref().is_none_or(|(pos, _)| *pos != target) {
-            let lookup = match chunk_manager.get_by_coords(target.0, target.1) {
-                None => ColumnLookup::Absent,
-                Some(chunk_entity) => match chunk_data_q.get_mut(chunk_entity) {
-                    Ok((data, Some(mut cache))) => {
-                        ColumnLookup::Ready(cache.current(&data.inner, block_ids, stats))
-                    }
-                    // Spawned without an encoding (tools, tests): encode for this answer.
-                    Ok((data, None)) => ColumnLookup::Ready(std::sync::Arc::new(
-                        crate::world::ecs::EncodedColumn::encode(&data.inner, block_ids),
-                    )),
-                    Err(_) => ColumnLookup::Loading,
-                },
-            };
-            column = Some((target, lookup));
-        }
-        let entry = match column.as_ref().map(|(_, lookup)| lookup) {
-            Some(ColumnLookup::Ready(encoded)) => encoded
+        let entry = match &columns[&target] {
+            ColumnLookup::Ready(encoded) => encoded
                 .subchunk_entry(sub_y, offset.clone())
                 .expect("sub-chunk index checked against the column height"),
-            Some(ColumnLookup::Loading) => {
+            ColumnLookup::Loading => {
                 trace!(chunk = ?target, "SubChunkRequest for loading chunk");
                 empty_entry(
                     offset.clone(),
@@ -191,7 +212,7 @@ fn handle_subchunk_request(
                 )
             }
             // Not in memory: an empty column.
-            Some(ColumnLookup::Absent) | None => empty_entry(
+            ColumnLookup::Absent => empty_entry(
                 offset.clone(),
                 EnumsSubChunkPacketPayloadSubChunkRequestResult::Successallair,
             ),
@@ -199,41 +220,45 @@ fn handle_subchunk_request(
         entries.push(entry);
     }
 
-    // Add player as viewer for served chunks, and acknowledge them.
+    // Add player as viewer for served chunks, acknowledge them, and count
+    // their answers against the player's send budget.
     let now = Instant::now();
     let mut loader = loaders.get_mut(entity).ok();
-    for (cx, cz) in &served_chunks {
-        if let Some(chunk_entity) = chunk_manager.get_by_coords(*cx, *cz)
+    for (&(cx, cz), lookup) in &columns {
+        if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz)
             && let Ok(mut viewers) = chunk_viewers_q.get_mut(chunk_entity)
         {
             viewers.insert(entity);
         }
-        if let Some(loader) = loader.as_mut()
-            && let Some(delay) = loader.window_mut().ack((*cx, *cz), now)
-        {
+        let Some(loader) = loader.as_mut() else {
+            continue;
+        };
+        if let Some(delay) = loader.window_mut().ack((cx, cz), now) {
             stats.acked.record(delay);
+        } else if let ColumnLookup::Ready(encoded) = lookup {
+            loader.window_mut().answered(encoded.wire_bytes(), now);
         }
     }
 
-    let Ok(session) = sessions.get(entity) else {
-        return;
-    };
-    for sub_chunk_data in split_answer(entries) {
-        let response = SubChunkPacket {
-            cache_enabled: false,
-            dimension_type: req.dimension_type.clone(),
-            center_pos: SubChunkPos {
-                subchunk_position_x: origin.subchunk_position_x,
-                subchunk_position_y: origin.subchunk_position_y,
-                subchunk_position_z: origin.subchunk_position_z,
-            },
-            sub_chunk_data,
-        };
-        if !session.send(McpePacket::from(response)) {
-            debug!(session_id, "Failed to send SubChunk response");
+    if let Ok(session) = sessions.get(entity) {
+        for sub_chunk_data in split_answer(entries) {
+            let response = SubChunkPacket {
+                cache_enabled: false,
+                dimension_type: req.dimension_type.clone(),
+                center_pos: SubChunkPos {
+                    subchunk_position_x: origin.subchunk_position_x,
+                    subchunk_position_y: origin.subchunk_position_y,
+                    subchunk_position_z: origin.subchunk_position_z,
+                },
+                sub_chunk_data,
+            };
+            if !session.send(McpePacket::from(response)) {
+                debug!(session_id, "Failed to send SubChunk response");
+            }
         }
     }
     stats.answered.record(started.elapsed());
+    true
 }
 
 /// Groups a request's answers into packets of about
@@ -337,6 +362,7 @@ mod tests {
         world.insert_resource(ServerConfigResource(Default::default()));
         world.init_resource::<ChunkPacketQueue>();
         world.init_resource::<StreamStats>();
+        world.init_resource::<ColumnLoads>();
         let chunk = world.get_or_create_chunk(0, 0).unwrap();
         // Replace the grass at y=3 with stone.
         let edited = {
@@ -367,9 +393,21 @@ mod tests {
                 },
             }),
         ));
-        world.run_system_once(apply_chunk_requests).unwrap();
-
-        let McpePacketData::SubChunkPacket(packet) = rx.try_recv().unwrap().data else {
+        // The edited chunk is encoded again in the background; the request is
+        // answered once that finished, never from the old encoding.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let answer = loop {
+            world.run_system_once(apply_chunk_requests).unwrap();
+            if let Ok(answer) = rx.try_recv() {
+                break answer;
+            }
+            assert!(std::time::Instant::now() < deadline, "never answered");
+            std::thread::sleep(std::time::Duration::from_millis(2));
+            world
+                .run_system_once(crate::world::ecs::systems::apply_loaded_columns)
+                .unwrap();
+        };
+        let McpePacketData::SubChunkPacket(packet) = answer.data else {
             panic!("expected a SubChunk packet");
         };
         let served = packet.sub_chunk_data[0]

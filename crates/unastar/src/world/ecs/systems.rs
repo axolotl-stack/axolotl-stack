@@ -15,23 +15,23 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use bevy_ecs::prelude::*;
 use tracing::{debug, error, trace, warn};
 
 use crate::entity::components::{ChunkRadius, Player, PlayerSession, Position};
-use crate::entity::mob::persistence::{restore_chunk_actors, snapshot_chunks};
+use crate::entity::mob::persistence::{restore_actors_of_chunk, snapshot_chunks};
 use crate::registry::block::BlockNetworkIds;
 use crate::storage::ChunkColumn;
 use crate::world::ecs::manager::{chunk_entity_components, restore_held_columns};
 use crate::world::ecs::streaming::{
     ChunkNetCache, ColumnLoads, EncodedColumn, LoadState, MAX_STORAGE_READS,
-    PENDING_GENERATIONS_PER_WORKER, StreamStats, generate_inline, log_stream_stats,
+    PENDING_GENERATIONS_PER_WORKER, StreamStats, log_stream_stats,
 };
 use crate::world::ecs::{
     ChunkData, ChunkLoader, ChunkManager, ChunkPendingUnload, ChunkPosition, ChunkState,
-    ChunkStateFlags, ChunkTickingState, ChunkViewers,
+    ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingActorRestore,
 };
 use jolyne::valentine::types::BlockPos;
 use jolyne::valentine::{
@@ -303,17 +303,35 @@ fn spawn_column(
     manager.insert(position, entity);
 }
 
-/// System: turns finished background loads into chunk entities, and puts back
-/// columns whose unload write failed. A column that failed to load leaves every queue (it is requested again only when the
-/// view is rebuilt), never replaced by generated terrain.
+/// Tick time spent spawning finished columns at most; the rest wait for the
+/// next tick.
+const SPAWN_BUDGET: Duration = Duration::from_millis(4);
+
+/// System: turns finished background loads into chunk entities, within
+/// [`SPAWN_BUDGET`], installs finished re-encodings of edited chunks, and puts
+/// back columns whose unload write failed. A column that failed to load leaves
+/// every queue (it is requested again only when the view is rebuilt), never
+/// replaced by generated terrain.
 pub fn apply_loaded_columns(
     mut commands: Commands,
     mut manager: ResMut<ChunkManager>,
     mut loads: ResMut<ColumnLoads>,
     mut loaders: Query<&mut ChunkLoader>,
+    mut caches: Query<&mut ChunkNetCache>,
 ) {
+    let started = Instant::now();
     let drained = loads.drain(manager.dimension());
-    for loaded in drained.ready {
+    for (pos, encoded) in drained.reencoded {
+        if let Some(entity) = manager.get_by_coords(pos.0, pos.1)
+            && let Ok(mut cache) = caches.get_mut(entity)
+        {
+            cache.install(encoded);
+        }
+    }
+    while started.elapsed() < SPAWN_BUDGET {
+        let Some(loaded) = loads.next_ready() else {
+            break;
+        };
         spawn_column(
             &mut commands,
             &mut manager,
@@ -349,23 +367,30 @@ fn send_column(
     )) {
         return false;
     }
-    loader
-        .window_mut()
-        .sent(pos, encoded.highest_subchunk() > 0, now);
+    loader.window_mut().sent(
+        pos,
+        encoded.highest_subchunk() > 0,
+        encoded.wire_bytes(),
+        now,
+    );
     loader.mark_loaded(pos.0, pos.1);
     true
 }
 
 /// System: streams every player's view.
 ///
-/// Walks each player's queue in priority order and sends every column that is
-/// in memory while the player's [`SendWindow`](super::streaming::SendWindow)
-/// has room; there is no per-tick cap. Columns not in memory are collected as
-/// storage reads or generation requests, and the players' wishes are then
-/// started in turns (one per player per round, nearest first), up to
-/// [`MAX_STORAGE_READS`] reads and [`PENDING_GENERATIONS_PER_WORKER`] per pool
-/// worker in flight. Without storage and with a cheap generator, a column is
-/// generated right here when it can be sent.
+/// Walks each player's queue in priority order and sends the columns that are
+/// in memory and encoded while the player's
+/// [`SendWindow`](super::streaming::SendWindow) has room (by columns and by
+/// bytes against the transport's queue); there is no per-tick cap, and the
+/// first column that does not fit ends the player's sending for the tick so
+/// the order holds. Columns not in memory are collected as loads (storage
+/// reads, or generation for worlds without storage) and generation requests,
+/// and the players' wishes are then started in turns (one per player per
+/// round, nearest first), up to [`MAX_STORAGE_READS`] loads and
+/// [`PENDING_GENERATIONS_PER_WORKER`] per pool worker in flight. Nothing is
+/// read, generated or encoded on the tick: an edited chunk is copied and
+/// encoded in the background, and sent once that finished.
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn stream_chunks(
     mut commands: Commands,
@@ -383,23 +408,24 @@ pub fn stream_chunks(
         With<Player>,
     >,
     mut chunks: Query<(&ChunkData, Option<&mut ChunkNetCache>)>,
+    mut pending_viewers: Local<Vec<((i32, i32), Entity)>>,
     mut ticks: Local<u32>,
 ) {
     let now = Instant::now();
     let ids = config.block_network_ids;
     let has_storage = manager.provider().is_some();
     let has_pool = manager.has_generation_pool();
-    let inline_generation = !has_storage && !has_pool;
-    let read_budget = if has_storage {
+    // Worlds with storage read every column first; worlds without storage
+    // and a cheap generator generate it in the background the same way.
+    let loads_first = has_storage || !has_pool;
+    let read_budget = if loads_first {
         MAX_STORAGE_READS.saturating_sub(loads.reads_in_flight())
     } else {
         0
     };
     let generation_budget = (manager.generation_threads() * PENDING_GENERATIONS_PER_WORKER)
         .saturating_sub(loads.generations_in_flight());
-    // Generated inline this tick: spawned through commands, not queryable yet.
-    let mut fresh: HashMap<(i32, i32), Arc<EncodedColumn>> = HashMap::new();
-    // Per player, nearest first: columns to read and columns to generate.
+    // Per player, nearest first: columns to load and columns to generate.
     let mut wishes: Vec<(Vec<(i32, i32)>, Vec<(i32, i32)>)> = Vec::new();
 
     for (player, session, mut loader, publisher) in players.iter_mut() {
@@ -411,20 +437,18 @@ pub fn stream_chunks(
         if unacked > 0 {
             stats.unacked.fetch_add(unacked as u64, Ordering::Relaxed);
         }
+        let transport_queued = session.transport_queued_bytes();
+        stats.record_queue(transport_queued);
         let started = Instant::now();
         let mut reads = Vec::new();
         let mut generations = Vec::new();
         let mut sent = HashSet::new();
-        let mut failed = HashSet::new();
         let mut can_send = true;
         for pos in loader.queue().to_vec() {
             if !can_send && reads.len() >= read_budget && generations.len() >= generation_budget {
                 break;
             }
-            can_send &= loader.window().has_room();
-            let encoded = if let Some(encoded) = fresh.get(&pos) {
-                Some(encoded.clone())
-            } else if let Some(entity) = manager.get_by_coords(pos.0, pos.1) {
+            if let Some(entity) = manager.get_by_coords(pos.0, pos.1) {
                 if !can_send {
                     continue;
                 }
@@ -432,70 +456,53 @@ pub fn stream_chunks(
                 let Ok((data, cache)) = chunks.get_mut(entity) else {
                     continue;
                 };
-                Some(match cache {
-                    Some(mut cache) => cache.current(&data.inner, ids, &stats),
-                    // A chunk spawned without one (tools, tests) gets one now.
+                let encoded = match cache {
+                    Some(mut cache) => {
+                        cache.current(pos, &data.inner, &mut loads, manager.runtime(), ids, &stats)
+                    }
+                    // A chunk spawned without one (tools, tests) gets one.
                     None => {
-                        let encoded = Arc::new(EncodedColumn::encode(&data.inner, ids));
-                        commands
-                            .entity(entity)
-                            .insert(ChunkNetCache::new(encoded.clone()));
+                        let mut cache = ChunkNetCache::default();
+                        let encoded = cache.current(
+                            pos,
+                            &data.inner,
+                            &mut loads,
+                            manager.runtime(),
+                            ids,
+                            &stats,
+                        );
+                        commands.entity(entity).insert(cache);
                         encoded
                     }
-                })
-            } else {
-                match loads.state(pos) {
-                    Some(LoadState::Missing) if generations.len() < generation_budget => {
-                        generations.push(pos);
-                    }
-                    None if has_storage && reads.len() < read_budget => reads.push(pos),
-                    None if !has_storage && has_pool && generations.len() < generation_budget => {
-                        generations.push(pos);
-                    }
-                    _ => {}
+                };
+                // Being encoded: it goes out once the encoding finished.
+                let Some(encoded) = encoded else { continue };
+                if !loader
+                    .window_mut()
+                    .has_room_for(encoded.wire_bytes(), transport_queued, now)
+                {
+                    can_send = false;
+                    continue;
                 }
-                if inline_generation && can_send {
-                    let column = match generate_inline(
-                        manager.pipeline(),
-                        manager.world_config().bounds,
-                        pos,
-                    ) {
-                        Ok(column) => column,
-                        Err(failure) => {
-                            failure.log(pos, manager.dimension());
-                            failed.insert(pos);
-                            continue;
-                        }
-                    };
-                    let encoded = Arc::new(EncodedColumn::encode(&column.chunk, ids));
-                    spawn_column(
-                        &mut commands,
-                        &mut manager,
-                        pos,
-                        column,
-                        encoded.clone(),
-                        false,
-                    );
-                    fresh.insert(pos, encoded.clone());
-                    Some(encoded)
-                } else {
-                    None
+                if !send_column(session, &mut loader, &encoded, pos, config.dimension, now) {
+                    debug!(chunk = ?pos, player = ?player, "Session queue full; the chunk waits for the next tick");
+                    can_send = false;
+                    continue;
                 }
-            };
-            let Some(encoded) = encoded else { continue };
-            if !can_send {
+                sent.insert(pos);
+                pending_viewers.push((pos, player));
                 continue;
             }
-            if !send_column(session, &mut loader, &encoded, pos, config.dimension, now) {
-                debug!(chunk = ?pos, player = ?player, "Session queue full; the chunk waits for the next tick");
-                can_send = false;
-                continue;
+            match loads.state(pos) {
+                Some(LoadState::Missing) if generations.len() < generation_budget => {
+                    generations.push(pos);
+                }
+                None if loads_first && reads.len() < read_budget => reads.push(pos),
+                None if !loads_first && generations.len() < generation_budget => {
+                    generations.push(pos);
+                }
+                _ => {}
             }
-            sent.insert(pos);
-            manager.pending_viewers.entry(pos).or_default().push(player);
-        }
-        if !failed.is_empty() {
-            loader.retain_queue(|pos| !failed.contains(pos));
         }
         if !sent.is_empty() {
             loader.retain_queue(|pos| !sent.contains(pos));
@@ -503,8 +510,40 @@ pub fn stream_chunks(
         }
         wishes.push((reads, generations));
     }
+    for (pos, player) in pending_viewers.drain(..) {
+        manager.pending_viewers.entry(pos).or_default().push(player);
+    }
+    start_loads(
+        &manager,
+        &mut loads,
+        &stats,
+        ids,
+        wishes,
+        read_budget,
+        generation_budget,
+    );
 
-    // Start the wished loads in turns, one per player per round.
+    // Now and then, forget storage misses no player wants any more.
+    *ticks += 1;
+    if (*ticks).is_multiple_of(200) {
+        let wanted: HashSet<(i32, i32)> = players
+            .iter()
+            .flat_map(|(_, _, loader, _)| loader.queue().iter().copied())
+            .collect();
+        loads.retain_missing(|pos| wanted.contains(&pos));
+    }
+}
+
+/// Starts the players' wished loads in turns, one per player per round.
+fn start_loads(
+    manager: &ChunkManager,
+    loads: &mut ColumnLoads,
+    stats: &StreamStats,
+    ids: BlockNetworkIds,
+    wishes: Vec<(Vec<(i32, i32)>, Vec<(i32, i32)>)>,
+    read_budget: usize,
+    generation_budget: usize,
+) {
     let (mut reads_left, mut generations_left) = (read_budget, generation_budget);
     let mut round = 0;
     while reads_left + generations_left > 0 {
@@ -516,7 +555,7 @@ pub fn stream_chunks(
                     && loads.state(pos).is_none()
                     && !manager.contains_coords(pos.0, pos.1)
                 {
-                    loads.start_read(pos, &manager, ids, &stats);
+                    loads.start_read(pos, manager, ids, stats);
                     reads_left -= 1;
                 }
             }
@@ -525,7 +564,7 @@ pub fn stream_chunks(
                 if generations_left > 0
                     && matches!(loads.state(pos), None | Some(LoadState::Missing))
                     && !manager.contains_coords(pos.0, pos.1)
-                    && loads.start_generation(pos, &manager, ids, &stats)
+                    && loads.start_generation(pos, manager, ids, stats)
                 {
                     generations_left -= 1;
                 }
@@ -535,16 +574,6 @@ pub fn stream_chunks(
             break;
         }
         round += 1;
-    }
-
-    // Now and then, forget storage misses no player wants any more.
-    *ticks += 1;
-    if (*ticks).is_multiple_of(200) {
-        let wanted: HashSet<(i32, i32)> = players
-            .iter()
-            .flat_map(|(_, _, loader, _)| loader.queue().iter().copied())
-            .collect();
-        loads.retain_missing(|pos| wanted.contains(&pos));
     }
 }
 
@@ -655,23 +684,34 @@ impl HeldChunkReport {
     }
 }
 
+/// Tick time spent unloading expired chunks at most; chunks left over stay
+/// expired and unload on the next ticks.
+const UNLOAD_BUDGET: Duration = Duration::from_millis(4);
+/// Expired chunks unloaded together (one pass over the mobs per batch).
+const UNLOAD_BATCH: usize = 16;
+
 /// System: Process pending chunk unloads.
 /// Ticks down grace periods. An expired chunk is written in the background
 /// together with the mobs standing in it (when anything changed), and the mobs
 /// and the chunk are removed from the world; the column is not read again
-/// until the write finished. If that write fails the column comes back with
-/// its edits and mobs (see [`ColumnLoads::take_held`]) and its unload is
-/// retried with an exponential backoff per chunk (see
+/// until the write finished. Unloading stops for the tick after
+/// [`UNLOAD_BUDGET`]. If a write fails the column comes back with its edits
+/// and mobs (see [`ColumnLoads::take_held`]) and its unload is retried with an
+/// exponential backoff per chunk (see
 /// [`ChunkPendingUnload::after_failed_save`]); one rate-limited summary
 /// reports how many chunks are held (see [`HeldChunkReport`]).
 pub fn process_chunk_unloads(world: &mut World) {
+    let started = Instant::now();
     let mut pending = world.query::<(Entity, &mut ChunkPendingUnload)>();
     let expired: Vec<Entity> = pending
         .iter_mut(world)
         .filter_map(|(entity, mut grace)| grace.tick().then_some(entity))
         .collect();
-    if !expired.is_empty() {
-        unload_expired_chunks(world, &expired);
+    for batch in expired.chunks(UNLOAD_BATCH) {
+        if started.elapsed() >= UNLOAD_BUDGET {
+            break;
+        }
+        unload_expired_chunks(world, batch);
     }
     report_held_chunks(world);
 }
@@ -730,6 +770,23 @@ fn unload_expired_chunks(world: &mut World, expired: &[Entity]) {
             .remove_by_coords(pos.x, pos.z);
         world.despawn(snapshot.chunk);
         debug!(chunk = ?(pos.x, pos.z), "Chunk unloaded");
+    }
+}
+
+/// Tick time spent restoring the stored mobs of loaded chunks at most.
+const RESTORE_BUDGET: Duration = Duration::from_millis(4);
+
+/// System: restores the mobs stored with chunks that loaded, chunk by chunk,
+/// until [`RESTORE_BUDGET`] is spent; the rest follow on the next ticks.
+pub fn restore_loaded_chunk_actors(world: &mut World) {
+    let started = Instant::now();
+    let mut pending = world.query_filtered::<Entity, With<PendingActorRestore>>();
+    let chunks: Vec<Entity> = pending.iter(world).collect();
+    for chunk in chunks {
+        if started.elapsed() >= RESTORE_BUDGET {
+            break;
+        }
+        restore_actors_of_chunk(world, chunk);
     }
 }
 
@@ -901,7 +958,7 @@ pub fn on_block_changed(trigger: On<BlockChanged>, mut chunks: Query<&mut ChunkS
 /// - `stream_chunks` sends what each view needs within the player's send window and starts
 ///   the loads it is missing. Nothing on the tick waits for storage or generation.
 pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
-    use crate::ecs::ChunkSet;
+    use crate::ecs::{ChunkSet, stage_marker};
 
     schedule.add_systems(
         (
@@ -909,15 +966,20 @@ pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
             update_chunk_loaders,
             send_chunk_publisher_updates, // the view precedes every chunk below
             flush_pending_viewers,
+            stage_marker("chunks: apply loads"),
             // Finished loads first: the slots they free are refilled this tick.
             apply_loaded_columns,
+            stage_marker("chunks: stream"),
             stream_chunks,
-            restore_chunk_actors, // Mobs stored with chunks loaded above
-            send_spawn_status,    // after the first view and chunks
+            stage_marker("chunks: restore actors"),
+            restore_loaded_chunk_actors, // Mobs stored with chunks loaded above
+            send_spawn_status,           // after the first view and chunks
             handle_radius_changes,
+            stage_marker("chunks: unloads"),
             schedule_chunk_unloads,
             cancel_chunk_unloads,
             process_chunk_unloads,
+            stage_marker("chunks: ticking"),
             update_chunk_ticking,
             log_stream_stats,
         )

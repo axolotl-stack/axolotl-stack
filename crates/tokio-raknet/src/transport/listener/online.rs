@@ -134,10 +134,11 @@ pub(super) async fn handle_outgoing_msg(
     // Vanilla: only IMMEDIATE sends wake Mojang's update loop; other
     // priorities leave on the next 10 ms listener tick.
     if vanilla && !immediate {
+        state.publish_link();
         return;
     }
     flush_managed(&mut state.managed, socket, msg.peer, now, vanilla, send_buf).await;
-    state.publish_rtt();
+    state.publish_link();
 }
 
 #[tracing::instrument(skip(socket, sessions), level = "trace")]
@@ -153,7 +154,7 @@ pub(super) async fn tick_sessions(
     for (&peer, state) in sessions.iter_mut() {
         maybe_announce_connection(peer, state, new_conn_tx).await;
         flush_managed(&mut state.managed, socket, peer, now, true, send_buf).await;
-        state.publish_rtt();
+        state.publish_link();
         let pending = state.managed.drain_pending_incoming(now);
         update_handshake_confirmation(&pending, state);
         if state.handshake_confirmed {
@@ -227,7 +228,7 @@ async fn handle_incoming_udp(
     // Vanilla: a received datagram wakes Mojang's update cycle.
     let run_tick = state.managed.transmission_policy().is_vanilla();
     flush_managed(&mut state.managed, socket, peer, now, run_tick, send_buf).await;
-    state.publish_rtt();
+    state.publish_link();
 
     if closed_after || matches!(state.managed.state(), ConnectionState::Closed) {
         if state.announced {
@@ -261,7 +262,7 @@ pub(super) async fn maybe_announce_connection(
         let accepted = Accepted {
             peer,
             incoming,
-            rtt: state.rtt.clone(),
+            link: state.link.clone(),
         };
         match new_conn_tx.try_send(accepted) {
             Ok(()) => {
@@ -368,7 +369,7 @@ mod tests {
                 pending_rx: None,
                 announced: false,
                 handshake_confirmed: false,
-                rtt: crate::transport::RttCell::new(),
+                link: crate::transport::LinkCell::new(),
                 client_guid: 7,
                 created_at: created,
             },
@@ -443,7 +444,7 @@ mod tests {
                     pending_rx: None,
                     announced: false,
                     handshake_confirmed: false,
-                    rtt: crate::transport::RttCell::new(),
+                    link: crate::transport::LinkCell::new(),
                     client_guid: 7,
                     created_at: now,
                 },

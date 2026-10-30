@@ -185,6 +185,12 @@ impl<S: PhaseOf<R>, R: Role, T: Transport> BedrockStream<S, R, T> {
         self.parts_ref().transport.latency()
     }
 
+    /// Reports the bytes the transport has queued towards the peer, when it
+    /// tracks them (see [`transport::SendQueueProbe`]).
+    pub fn send_queue_probe(&self) -> Option<transport::SendQueueProbe> {
+        self.parts_ref().transport.send_queue_probe()
+    }
+
     /// A snapshot of the connection's packet, batch and byte counters.
     pub fn metrics(&self) -> ConnectionMetrics {
         self.parts_ref().owner.connection_ref().metrics()

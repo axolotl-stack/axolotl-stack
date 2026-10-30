@@ -59,6 +59,8 @@ pub struct EncodedColumn {
     biomes: Bytes,
     /// Indexed from the lowest sub-chunk up.
     subchunks: Vec<EncodedSubChunk>,
+    /// Estimated compressed size of all of the column's sub-chunk answers.
+    wire_bytes: usize,
 }
 
 #[derive(Debug)]
@@ -71,7 +73,13 @@ struct EncodedSubChunk {
 impl EncodedColumn {
     /// Encode `chunk`'s current contents.
     pub fn encode(chunk: &Chunk, ids: BlockNetworkIds) -> Self {
-        let subchunks = (0..i32::from(SUBCHUNK_COUNT))
+        Self::encode_as(chunk, ids, chunk.revision())
+    }
+
+    /// Encode `chunk` as the contents of `revision` (a copy of the chunk at
+    /// that revision, encoded away from the original).
+    pub(crate) fn encode_as(chunk: &Chunk, ids: BlockNetworkIds, revision: ChunkRevision) -> Self {
+        let subchunks: Vec<EncodedSubChunk> = (0..i32::from(SUBCHUNK_COUNT))
             .map(|index| {
                 let sub_y = LOWEST_SUBCHUNK + index;
                 let empty =
@@ -84,17 +92,27 @@ impl EncodedColumn {
                 }
             })
             .collect();
+        let highest_subchunk = chunk.highest_subchunk();
+        let requested = usize::from(highest_subchunk).min(subchunks.len());
+        let wire_bytes = wire_estimate(&subchunks[..requested]);
         Self {
-            revision: chunk.revision(),
-            highest_subchunk: chunk.highest_subchunk(),
+            revision,
+            highest_subchunk,
             biomes: Bytes::from(chunk.encode_biomes()),
             subchunks,
+            wire_bytes,
         }
     }
 
     /// Whether this is the encoding of `chunk`'s current contents.
     pub fn is_current(&self, chunk: &Chunk) -> bool {
         self.revision == chunk.revision()
+    }
+
+    /// Estimated bytes on the wire (compressed) of the sub-chunk answers the
+    /// client requests for this column.
+    pub fn wire_bytes(&self) -> usize {
+        self.wire_bytes
     }
 
     /// Sub-chunks the client requests, counted from the bottom; 0 means it
@@ -166,55 +184,120 @@ fn height_map_data(
     }
 }
 
+/// Answer bytes per sub-chunk entry besides its payload (offset, result,
+/// height map types) before compression.
+const ENTRY_OVERHEAD: usize = 8;
+
+/// Compressed size of the answers to a column's requested sub-chunks: their
+/// payloads and height maps deflated together at the fastest level, which
+/// compresses no better than the session's level and batching do.
+fn wire_estimate(subchunks: &[EncodedSubChunk]) -> usize {
+    use std::io::Write as _;
+    let mut encoder = flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::fast());
+    for sub in subchunks {
+        if let Some(payload) = &sub.payload {
+            encoder.write_all(payload).expect("in-memory write");
+        }
+        for rows in [
+            &sub.height_map.subchunk_height_map,
+            &sub.height_map.subchunk_render_height_map,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            for row in rows {
+                let bytes: Vec<u8> = row.iter().map(|&h| h as u8).collect();
+                encoder.write_all(&bytes).expect("in-memory write");
+            }
+        }
+    }
+    let compressed = encoder.finish().expect("in-memory deflate").len();
+    compressed + subchunks.len() * ENTRY_OVERHEAD
+}
+
 /// The chunk's network encoding, kept with the chunk entity.
+///
+/// An edited chunk is encoded again in the background from a copy taken on
+/// the tick; until that finishes the column is neither sent nor answered.
 #[derive(Component, Debug, Default)]
-pub struct ChunkNetCache(Option<Arc<EncodedColumn>>);
+pub struct ChunkNetCache {
+    encoded: Option<Arc<EncodedColumn>>,
+    /// The revision being encoded in the background.
+    encoding: Option<ChunkRevision>,
+}
 
 impl ChunkNetCache {
     pub fn new(encoded: Arc<EncodedColumn>) -> Self {
-        Self(Some(encoded))
+        Self {
+            encoded: Some(encoded),
+            encoding: None,
+        }
     }
 
-    /// The encoding of `chunk`'s current contents; a chunk edited since it was
-    /// encoded is encoded again here (on the calling thread).
+    /// The encoding of `chunk`'s current contents, or `None` while it is
+    /// being encoded; a stale encoding starts a background encode of a copy.
     pub fn current(
         &mut self,
+        pos: (i32, i32),
         chunk: &Chunk,
+        loads: &mut ColumnLoads,
+        runtime: Option<&tokio::runtime::Handle>,
         ids: BlockNetworkIds,
         stats: &StreamStats,
-    ) -> Arc<EncodedColumn> {
-        if let Some(encoded) = &self.0
+    ) -> Option<Arc<EncodedColumn>> {
+        if let Some(encoded) = &self.encoded
             && encoded.is_current(chunk)
         {
-            return encoded.clone();
+            return Some(encoded.clone());
         }
-        let started = Instant::now();
-        let encoded = Arc::new(EncodedColumn::encode(chunk, ids));
-        stats.reencoded.record(started.elapsed());
-        self.0 = Some(encoded.clone());
-        encoded
+        let revision = chunk.revision();
+        if self.encoding != Some(revision) {
+            self.encoding = Some(revision);
+            loads.start_reencode(pos, chunk.clone(), revision, runtime, ids, stats);
+        }
+        None
+    }
+
+    /// A background encode finished.
+    pub fn install(&mut self, encoded: Arc<EncodedColumn>) {
+        if self.encoding == Some(encoded.revision) {
+            self.encoding = None;
+        }
+        self.encoded = Some(encoded);
     }
 }
 
 // =============================================================================
-// Send window: acknowledgement-clocked, no per-tick cap
+// Send window: acknowledgement-clocked and bounded by the transport's queue
 // =============================================================================
 
-/// How many columns a player may have been sent without having requested
-/// their sub-chunks yet.
+/// Which columns a player may be sent next.
 ///
-/// A column is acknowledged by the client's first `SubChunkRequest` for it,
-/// which the client sends only once the `LevelChunk` reached it. Because every
-/// packet shares one ordered channel, the window bounds the terrain queued
-/// towards a client and adapts to how fast that client takes it: it grows by
-/// one per acknowledgement that arrives within [`SendWindow::TARGET_ACK`]
-/// (doubling every round trip, like slow start) and halves, at most once per
-/// target interval, when acknowledgements arrive later. Columns that are never
-/// acknowledged stop counting after [`SendWindow::ACK_TIMEOUT`].
+/// Two bounds apply, and there is no per-tick cap besides them:
+///
+/// - **Columns.** A column is acknowledged by the client's first
+///   `SubChunkRequest` for it, which the client sends only once the
+///   `LevelChunk` reached it. The column limit grows by one per
+///   acknowledgement that arrives within [`SendWindow::TARGET_ACK`] (doubling
+///   every round trip, like slow start) and halves, at most once per target
+///   interval, when acknowledgements arrive later. Columns never acknowledged
+///   stop counting after [`SendWindow::ACK_TIMEOUT`].
+/// - **Bytes.** Each column commits its sub-chunk answers ([`EncodedColumn::wire_bytes`]).
+///   A column is sent only while the bytes the transport still has queued for
+///   the player, plus the answers of columns sent but not yet requested, plus
+///   answers queued in the last [`SendWindow::ANSWER_VISIBLE`] (not yet
+///   reported by the transport), stay within [`SendWindow::BYTE_BUDGET`]. The
+///   budget is half of the RakNet session's queue limit, so terrain alone can
+///   never fill the queue that disconnects a player: only a peer that stops
+///   acknowledging lets the queue grow.
 #[derive(Debug)]
 pub struct SendWindow {
     limit: usize,
-    awaiting: HashMap<(i32, i32), Instant>,
+    /// Sent, not yet requested: when, and the answer bytes it commits.
+    awaiting: HashMap<(i32, i32), (Instant, usize)>,
+    awaiting_bytes: usize,
+    /// Answers queued recently, possibly not yet in the transport's queue.
+    answered: std::collections::VecDeque<(Instant, usize)>,
     last_shrink: Option<Instant>,
 }
 
@@ -223,6 +306,8 @@ impl Default for SendWindow {
         Self {
             limit: Self::INITIAL,
             awaiting: HashMap::new(),
+            awaiting_bytes: 0,
+            answered: std::collections::VecDeque::new(),
             last_shrink: None,
         }
     }
@@ -238,6 +323,14 @@ impl SendWindow {
     /// behind, and the window shrinks.
     pub const TARGET_ACK: Duration = Duration::from_millis(400);
     pub const ACK_TIMEOUT: Duration = Duration::from_secs(3);
+    /// Terrain bytes committed towards one player at most: half of the
+    /// RakNet session's 1 MiB queue limit.
+    pub const BYTE_BUDGET: usize = 512 * 1024;
+    /// How long queued answers are counted before the transport's reported
+    /// queue is trusted to include them: they leave on the flush right after
+    /// the tick that answered them, so the next tick normally sees them in
+    /// the transport; they are counted until the tick after that.
+    pub const ANSWER_VISIBLE: Duration = Duration::from_millis(80);
 
     /// Current limit of unacknowledged columns.
     pub fn limit(&self) -> usize {
@@ -249,22 +342,54 @@ impl SendWindow {
         self.awaiting.len()
     }
 
-    pub fn has_room(&self) -> bool {
-        self.awaiting.len() < self.limit
+    /// Bytes committed towards the player: `transport_queued` (as the
+    /// transport reports it), answers of unacknowledged columns, and answers
+    /// queued within [`Self::ANSWER_VISIBLE`].
+    pub fn committed(&mut self, transport_queued: usize, now: Instant) -> usize {
+        while self
+            .answered
+            .front()
+            .is_some_and(|&(at, _)| now.saturating_duration_since(at) >= Self::ANSWER_VISIBLE)
+        {
+            self.answered.pop_front();
+        }
+        let answered: usize = self.answered.iter().map(|&(_, bytes)| bytes).sum();
+        transport_queued + self.awaiting_bytes + answered
+    }
+
+    /// Whether a column committing `bytes` may be sent now. With nothing
+    /// committed one column always may, however large.
+    pub fn has_room_for(&mut self, bytes: usize, transport_queued: usize, now: Instant) -> bool {
+        if self.awaiting.len() >= self.limit {
+            return false;
+        }
+        let committed = self.committed(transport_queued, now);
+        committed == 0 || committed + bytes <= Self::BYTE_BUDGET
     }
 
     /// A column was sent. Columns without sub-chunks are never requested and
     /// do not count.
-    pub fn sent(&mut self, pos: (i32, i32), requests_subchunks: bool, now: Instant) {
+    pub fn sent(&mut self, pos: (i32, i32), requests_subchunks: bool, bytes: usize, now: Instant) {
         if requests_subchunks {
-            self.awaiting.insert(pos, now);
+            if let Some((_, old)) = self.awaiting.insert(pos, (now, bytes)) {
+                self.awaiting_bytes -= old;
+            }
+            self.awaiting_bytes += bytes;
         }
     }
 
+    /// Sub-chunk answers of `bytes` were queued for the player.
+    pub fn answered(&mut self, bytes: usize, now: Instant) {
+        self.answered.push_back((now, bytes));
+    }
+
     /// The client requested `pos`'s sub-chunks. Returns the acknowledgement
-    /// delay for a column that was awaited.
+    /// delay for a column that was awaited; its committed bytes count as
+    /// queued answers from now on.
     pub fn ack(&mut self, pos: (i32, i32), now: Instant) -> Option<Duration> {
-        let sent = self.awaiting.remove(&pos)?;
+        let (sent, bytes) = self.awaiting.remove(&pos)?;
+        self.awaiting_bytes -= bytes;
+        self.answered(bytes, now);
         let delay = now.saturating_duration_since(sent);
         if delay <= Self::TARGET_ACK {
             self.limit = (self.limit + 1).min(Self::MAX);
@@ -277,14 +402,23 @@ impl SendWindow {
     /// Drops columns not acknowledged within [`Self::ACK_TIMEOUT`]; returns how many.
     pub fn expire(&mut self, now: Instant) -> usize {
         let before = self.awaiting.len();
-        self.awaiting
-            .retain(|_, sent| now.saturating_duration_since(*sent) < Self::ACK_TIMEOUT);
+        let mut released = 0;
+        self.awaiting.retain(|_, &mut (sent, bytes)| {
+            let keep = now.saturating_duration_since(sent) < Self::ACK_TIMEOUT;
+            if !keep {
+                released += bytes;
+            }
+            keep
+        });
+        self.awaiting_bytes -= released;
         before - self.awaiting.len()
     }
 
     /// The column left the view; it no longer counts.
     pub fn forget(&mut self, pos: (i32, i32)) {
-        self.awaiting.remove(&pos);
+        if let Some((_, bytes)) = self.awaiting.remove(&pos) {
+            self.awaiting_bytes -= bytes;
+        }
     }
 
     fn shrink(&mut self, now: Instant) {
@@ -329,6 +463,8 @@ enum LoadEvent {
     Failed((i32, i32), LoadFailure),
     /// An unloaded column was written, or comes back held after a failed write.
     Saved((i32, i32), Result<(), Box<HeldColumn>>),
+    /// An edited chunk's new encoding.
+    Reencoded((i32, i32), Arc<EncodedColumn>),
 }
 
 /// Why a column could not be loaded. Either way nothing replaces it: a stored
@@ -402,6 +538,8 @@ pub enum LoadState {
     /// Not stored; waits for a generation slot.
     Missing,
     Generating,
+    /// Loaded and encoded, waiting to become a chunk entity.
+    Ready,
     /// Unloaded and being written; read again only once the write is done.
     Saving,
 }
@@ -414,13 +552,14 @@ pub struct LoadedColumn {
     pub stored: bool,
 }
 
-/// What [`ColumnLoads::drain`] collected this tick.
+/// What [`ColumnLoads::drain`] collected this tick besides finished columns
+/// (which wait in [`ColumnLoads::next_ready`]).
 #[derive(Default)]
 pub struct DrainedLoads {
-    pub ready: Vec<LoadedColumn>,
     pub failed: Vec<(i32, i32)>,
     /// Unloaded columns whose write failed, to put back into the world.
     pub held: Vec<HeldColumn>,
+    pub reencoded: Vec<((i32, i32), Arc<EncodedColumn>)>,
 }
 
 /// Columns being read, waiting for generation, or generating.
@@ -430,6 +569,9 @@ pub struct ColumnLoads {
     rx: mpsc::UnboundedReceiver<LoadEvent>,
     /// Load events received while waiting for a save, handled by the next drain.
     deferred: Vec<LoadEvent>,
+    /// Finished columns not yet spawned (the tick spawns them within a time
+    /// budget).
+    ready: std::collections::VecDeque<LoadedColumn>,
     state: HashMap<(i32, i32), LoadState>,
     reads: usize,
     /// Pool generations in flight, also taken by storage reads that miss.
@@ -446,6 +588,7 @@ impl Default for ColumnLoads {
             tx,
             rx,
             deferred: Vec::new(),
+            ready: std::collections::VecDeque::new(),
             state: HashMap::new(),
             reads: 0,
             generating: Arc::new(AtomicUsize::new(0)),
@@ -473,9 +616,13 @@ impl ColumnLoads {
         self.saves
     }
 
-    /// Whether every load and save has finished.
+    /// Whether every load and save has finished and every loaded column was
+    /// taken.
     pub fn is_idle(&self) -> bool {
-        self.reads == 0 && self.generations_in_flight() == 0 && self.saves == 0
+        self.reads == 0
+            && self.generations_in_flight() == 0
+            && self.saves == 0
+            && self.ready.is_empty()
     }
 
     /// Collects finished loads (non-blocking); failures are logged for
@@ -493,7 +640,8 @@ impl ColumnLoads {
                     stored,
                 } => {
                     self.finish(pos);
-                    drained.ready.push(LoadedColumn {
+                    self.state.insert(pos, LoadState::Ready);
+                    self.ready.push_back(LoadedColumn {
                         pos,
                         column: *column,
                         encoded,
@@ -510,18 +658,58 @@ impl ColumnLoads {
                     drained.failed.push(pos);
                 }
                 LoadEvent::Saved(pos, result) => self.saved(pos, result),
+                LoadEvent::Reencoded(pos, encoded) => drained.reencoded.push((pos, encoded)),
             }
         }
         drained.held = self.take_held();
         drained
     }
 
+    /// The next finished column to spawn, oldest first.
+    pub fn next_ready(&mut self) -> Option<LoadedColumn> {
+        let loaded = self.ready.pop_front()?;
+        self.state.remove(&loaded.pos);
+        Some(loaded)
+    }
+
+    /// Finished columns waiting to be spawned.
+    pub fn ready_len(&self) -> usize {
+        self.ready.len()
+    }
+
     fn finish(&mut self, pos: (i32, i32)) {
         match self.state.remove(&pos) {
             Some(LoadState::Reading) => self.reads -= 1,
             Some(LoadState::Saving) => self.saves -= 1,
-            Some(LoadState::Generating | LoadState::Missing) | None => {}
+            Some(LoadState::Generating | LoadState::Missing | LoadState::Ready) | None => {}
         }
+    }
+
+    /// Encodes a copy of an edited chunk (taken at `revision`) in the
+    /// background; the result arrives through [`Self::drain`].
+    pub fn start_reencode(
+        &mut self,
+        pos: (i32, i32),
+        chunk: Chunk,
+        revision: ChunkRevision,
+        runtime: Option<&tokio::runtime::Handle>,
+        ids: BlockNetworkIds,
+        stats: &StreamStats,
+    ) {
+        let tx = self.tx.clone();
+        let stats = stats.clone();
+        spawn_job(runtime, async move {
+            let encoded = tokio::task::spawn_blocking(move || {
+                let started = Instant::now();
+                let encoded = EncodedColumn::encode_as(&chunk, ids, revision);
+                stats.reencoded.record(started.elapsed());
+                encoded
+            })
+            .await;
+            if let Ok(encoded) = encoded {
+                let _ = tx.send(LoadEvent::Reencoded(pos, Arc::new(encoded)));
+            }
+        });
     }
 
     /// Writes an unloaded column in the background; `pos` is not read again
@@ -622,7 +810,8 @@ impl ColumnLoads {
             .retain(|&pos, state| *state != LoadState::Missing || wanted(pos));
     }
 
-    /// Starts reading `pos` from storage. The manager must have a provider.
+    /// Starts loading `pos`: read from storage when the world has one, else
+    /// go straight to generation.
     ///
     /// A storage miss is generated right away: inline for cheap generators,
     /// or by the pool when a generation slot is free (a fresh world then
@@ -636,9 +825,7 @@ impl ColumnLoads {
         ids: BlockNetworkIds,
         stats: &StreamStats,
     ) {
-        let provider = manager
-            .provider()
-            .expect("storage reads need a world provider");
+        let provider = manager.provider();
         let on_miss = match manager.generation_pool() {
             Some(pool) => OnMiss::Pool {
                 pool,
@@ -658,10 +845,15 @@ impl ColumnLoads {
         self.reads += 1;
         spawn_job(manager.runtime(), async move {
             let started = Instant::now();
-            let event = match provider
-                .load_column(ChunkPos::new(pos.0, pos.1), dimension)
-                .await
-            {
+            let stored = match provider {
+                Some(provider) => {
+                    provider
+                        .load_column(ChunkPos::new(pos.0, pos.1), dimension)
+                        .await
+                }
+                None => Ok(None),
+            };
+            let event = match stored {
                 Ok(Some(column)) => {
                     stats.read.record(started.elapsed());
                     ready(pos, column, true, ids, stats).await
@@ -832,26 +1024,22 @@ async fn ready(
     }
 }
 
-/// Runs a load on the server's runtime, or on a private one on a helper
-/// thread when the world lives outside any runtime (tools and tests).
+/// Runs a background job on the server's runtime, or on a shared private
+/// runtime when the world lives outside any runtime (tools and tests).
 fn spawn_job(
     runtime: Option<&tokio::runtime::Handle>,
     job: impl Future<Output = ()> + Send + 'static,
 ) {
-    match runtime {
-        Some(handle) => {
-            handle.spawn(job);
-        }
-        None => {
-            std::thread::spawn(move || {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("chunk load runtime")
-                    .block_on(job)
-            });
-        }
-    }
+    static FALLBACK: std::sync::LazyLock<tokio::runtime::Runtime> =
+        std::sync::LazyLock::new(|| {
+            tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .thread_name("unastar-chunk-load")
+                .enable_all()
+                .build()
+                .expect("chunk load runtime")
+        });
+    runtime.unwrap_or_else(|| FALLBACK.handle()).spawn(job);
 }
 
 // =============================================================================
@@ -919,6 +1107,15 @@ pub struct StreamStatsInner {
     pub acked: StageStat,
     /// Columns never acknowledged within the window timeout.
     pub unacked: AtomicU64,
+    /// Largest send queue a transport reported for a streaming player.
+    pub peak_queue: AtomicUsize,
+}
+
+impl StreamStats {
+    /// A player's transport reported `queued` bytes.
+    pub fn record_queue(&self, queued: usize) {
+        self.peak_queue.fetch_max(queued, Ordering::Relaxed);
+    }
 }
 
 impl std::ops::Deref for StreamStats {
@@ -951,10 +1148,12 @@ pub fn log_stream_stats(stats: Res<StreamStats>, mut ticks: Local<u32>) {
     let (answered, answered_ms) = stats.answered.take();
     let (acked, acked_ms) = stats.acked.take();
     let unacked = stats.unacked.swap(0, Ordering::Relaxed);
+    let peak_queue_kib = stats.peak_queue.swap(0, Ordering::Relaxed) / 1024;
     info!(
         target: "unastar::stream",
         read, read_ms, missed, missed_ms, generated, generated_ms, encoded, encoded_ms,
         reencoded, reencoded_ms, sent, sent_ms, answered, answered_ms, acked, acked_ms, unacked,
+        peak_queue_kib,
         "chunk streaming (counts and mean ms over the last second)"
     );
 }
@@ -990,13 +1189,49 @@ mod tests {
         let now = Instant::now();
         let mut window = SendWindow::default();
         for i in 0..SendWindow::INITIAL as i32 {
-            assert!(window.has_room());
-            window.sent((i, 0), true, now);
+            assert!(window.has_room_for(1, 0, now));
+            window.sent((i, 0), true, 1, now);
         }
-        assert!(!window.has_room());
+        assert!(!window.has_room_for(1, 0, now));
         // All-air columns are never requested, so they never block the window.
-        window.sent((99, 99), false, now);
+        window.sent((99, 99), false, 0, now);
         assert_eq!(window.in_flight(), SendWindow::INITIAL);
+    }
+
+    #[test]
+    fn bytes_committed_and_queued_in_the_transport_bound_what_is_sent() {
+        let start = Instant::now();
+        let budget = SendWindow::BYTE_BUDGET;
+        let mut window = SendWindow::default();
+        // Nothing committed: one column goes out however large it is.
+        assert!(window.has_room_for(budget * 2, 0, start));
+        window.sent((0, 0), true, budget / 2, start);
+        assert!(window.has_room_for(budget / 2, 0, start));
+        assert!(!window.has_room_for(budget / 2 + 1, 0, start));
+        // Bytes the transport still holds count too.
+        assert!(!window.has_room_for(budget / 4, budget / 2, start));
+        // Requested: the answers stay counted until the transport reports
+        // them, then only the transport's queue counts.
+        window.ack((0, 0), start + ms(10));
+        assert_eq!(window.committed(0, start + ms(20)), budget / 2);
+        let visible = start + ms(10) + SendWindow::ANSWER_VISIBLE;
+        assert_eq!(window.committed(budget / 2, visible), budget / 2);
+        assert_eq!(window.committed(0, visible), 0);
+        // Answers to columns not awaited (a repeated request) count as well.
+        window.answered(1000, visible);
+        assert_eq!(window.committed(0, visible), 1000);
+    }
+
+    #[test]
+    fn forgotten_and_expired_columns_release_their_bytes() {
+        let start = Instant::now();
+        let mut window = SendWindow::default();
+        window.sent((0, 0), true, 300, start);
+        window.sent((1, 0), true, 500, start);
+        window.forget((0, 0));
+        assert_eq!(window.committed(0, start), 500);
+        window.expire(start + SendWindow::ACK_TIMEOUT);
+        assert_eq!(window.committed(0, start + SendWindow::ACK_TIMEOUT), 0);
     }
 
     #[test]
@@ -1004,7 +1239,7 @@ mod tests {
         let start = Instant::now();
         let mut window = SendWindow::default();
         for i in 0..2000 {
-            window.sent((i, 0), true, start);
+            window.sent((i, 0), true, 1, start);
             assert_eq!(window.ack((i, 0), start + ms(10)), Some(ms(10)));
         }
         assert_eq!(window.limit(), SendWindow::MAX);
@@ -1019,7 +1254,7 @@ mod tests {
         let late = SendWindow::TARGET_ACK + ms(1);
         let mut window = SendWindow::default();
         for i in 0..12 {
-            window.sent((i, 0), true, start);
+            window.sent((i, 0), true, 1, start);
         }
         window.ack((0, 0), start + late);
         assert_eq!(window.limit(), SendWindow::INITIAL / 2);
@@ -1038,7 +1273,7 @@ mod tests {
         assert_eq!(window.limit(), SendWindow::MIN);
         for i in 10..20 {
             t += SendWindow::TARGET_ACK;
-            window.sent((i, 0), true, start);
+            window.sent((i, 0), true, 1, start);
             window.ack((i, 0), t);
         }
         assert_eq!(window.limit(), SendWindow::MIN);
@@ -1048,8 +1283,8 @@ mod tests {
     fn unacknowledged_columns_stop_counting_after_the_timeout() {
         let start = Instant::now();
         let mut window = SendWindow::default();
-        window.sent((0, 0), true, start);
-        window.sent((1, 0), true, start + ms(500));
+        window.sent((0, 0), true, 1, start);
+        window.sent((1, 0), true, 1, start + ms(500));
         assert_eq!(window.expire(start + SendWindow::ACK_TIMEOUT - ms(1)), 0);
         assert_eq!(window.expire(start + SendWindow::ACK_TIMEOUT), 1);
         assert_eq!(window.in_flight(), 1);
@@ -1102,19 +1337,47 @@ mod tests {
     }
 
     #[test]
-    fn the_cache_reencodes_only_an_edited_chunk() {
+    fn an_edited_chunk_is_reencoded_off_the_caller_and_served_only_once_current() {
         let stats = StreamStats::default();
         let ids = BlockNetworkIds::Hashed;
+        let mut loads = ColumnLoads::default();
         let mut chunk = sample_chunk();
         let mut cache = ChunkNetCache::new(Arc::new(EncodedColumn::encode(&chunk, ids)));
-        let first = cache.current(&chunk, ids, &stats);
-        assert!(Arc::ptr_eq(&first, &cache.current(&chunk, ids, &stats)));
-        assert_eq!(stats.reencoded.count(), 0);
+        let first = cache
+            .current((3, -7), &chunk, &mut loads, None, ids, &stats)
+            .unwrap();
+        let again = cache
+            .current((3, -7), &chunk, &mut loads, None, ids, &stats)
+            .unwrap();
+        assert!(Arc::ptr_eq(&first, &again));
 
         chunk.set_block(4, 70, 9, *blocks::AIR);
-        let edited = cache.current(&chunk, ids, &stats);
-        assert!(!Arc::ptr_eq(&first, &edited));
+        // Stale: nothing is served while the copy is encoded in the background,
+        // and asking again does not start a second encode.
+        assert!(
+            cache
+                .current((3, -7), &chunk, &mut loads, None, ids, &stats)
+                .is_none()
+        );
+        assert!(
+            cache
+                .current((3, -7), &chunk, &mut loads, None, ids, &stats)
+                .is_none()
+        );
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let (pos, encoded) = loop {
+            if let Some(done) = loads.drain(0).reencoded.pop() {
+                break done;
+            }
+            assert!(Instant::now() < deadline, "the re-encode never finished");
+            std::thread::sleep(ms(1));
+        };
+        assert_eq!(pos, (3, -7));
         assert_eq!(stats.reencoded.count(), 1);
+        cache.install(encoded);
+        let edited = cache
+            .current((3, -7), &chunk, &mut loads, None, ids, &stats)
+            .unwrap();
         let sub_y = 70 >> 4;
         assert_eq!(
             edited

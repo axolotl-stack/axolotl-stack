@@ -171,6 +171,11 @@ impl ManagedSession {
         self.inner.rtt_micros()
     }
 
+    /// Reliable bytes counted against `max_queued_reliable_bytes`.
+    pub(crate) fn queued_reliable_bytes(&self) -> usize {
+        self.queued_reliable_bytes
+    }
+
     pub fn peer(&self) -> SocketAddr {
         self.peer
     }
