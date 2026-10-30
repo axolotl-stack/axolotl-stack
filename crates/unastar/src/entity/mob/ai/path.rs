@@ -399,6 +399,17 @@ pub fn settle(
         }
         pos.y += 1;
     }
+    settle_down(blocks, pos, min_y, boxes)
+}
+
+/// [`settle`] from the free cell `pos`: down onto the first block with
+/// collision, not below `min_y`.
+fn settle_down(
+    blocks: &impl BlockSource,
+    mut pos: IVec3,
+    min_y: i32,
+    boxes: &mut Vec<Aabb>,
+) -> Option<DVec3> {
     while !solid(blocks, pos - IVec3::Y) {
         if pos.y <= min_y {
             return None;
@@ -427,21 +438,51 @@ pub fn settle(
 }
 
 /// The walkable column below `point` (a player's or mob's feet): its block
-/// column, settled within a few blocks.
+/// column, settled within a few blocks. Feet standing in the free part of a
+/// cell that has collision (a doorway beside the door's panel, a slab) stand
+/// in that cell, as the native path search ends on the target's own block:
+/// on the highest shape under the cell's centre up to the feet, else on the
+/// ground below the cell.
 pub fn ground_below(
     blocks: &impl BlockSource,
     point: DVec3,
     boxes: &mut Vec<Aabb>,
 ) -> Option<DVec3> {
-    let block = (point + DVec3::Y * 1.0e-3).floor().as_ivec3();
-    settle(
+    let probe = point + DVec3::Y * 1.0e-3;
+    let block = probe.floor().as_ivec3();
+    let min_y = block.y - PATH_MAX_DROP as i32 - 1;
+    let feet_free = !collides_with_blocks(
         blocks,
-        block,
-        block.y,
-        block.y - PATH_MAX_DROP as i32 - 1,
-        block.y + 1,
+        Aabb::new(
+            probe - DVec3::new(1.0e-4, 0.0, 1.0e-4),
+            probe + DVec3::splat(1.0e-4),
+        ),
+    );
+    if !feet_free || !solid(blocks, block) {
+        return settle(blocks, block, block.y, min_y, block.y + 1, boxes);
+    }
+    let centre = DVec3::new(
+        f64::from(block.x) + 0.5,
+        f64::from(block.y),
+        f64::from(block.z) + 0.5,
+    );
+    boxes.clear();
+    collect_block_boxes(
+        blocks,
+        Aabb::new(
+            centre - DVec3::new(1.0e-4, 0.0, 1.0e-4),
+            DVec3::new(centre.x + 1.0e-4, probe.y, centre.z + 1.0e-4),
+        ),
         boxes,
-    )
+    );
+    let top = boxes
+        .iter()
+        .map(|b| b.max.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    if top.is_finite() {
+        return Some(DVec3::new(centre.x, top, centre.z));
+    }
+    settle_down(blocks, block, min_y, boxes)
 }
 
 /// Up to [`RANDOM_POS_ATTEMPTS`] random walkable targets within `±xz`

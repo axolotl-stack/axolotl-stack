@@ -9,10 +9,11 @@
 //! targets, `path_fail_time_increase` more when no path is found (a wall
 //! climber instead heads straight for the target, `super::climb`).
 //! Without `track_target` it only re-paths while it sees the target. A hit needs
-//! the target in reach, the cooldown run out and the target inside the
-//! `melee_fov` cone; the hit itself is dealt after the mob's tick
-//! (`mob::combat::melee`). The cooldown starts full when the goal is
-//! built, as the native goal is constructed with it.
+//! the target in reach, the cooldown run out, a clear line of sight (no block
+//! collision box between the eyes) and the target inside the `melee_fov` cone;
+//! the hit itself is dealt after the mob's tick (`mob::combat::melee`). The
+//! cooldown starts full when the goal is built, as the native goal is
+//! constructed with it.
 
 use glam::DVec3;
 use rand::Rng;
@@ -166,7 +167,10 @@ impl<'a> GoalContext<'a> {
         let dz = target.pos.z - self.body.feet.z;
         self.move_toward_target(goal, &target, in_reach, dx * dx + dz * dz);
         let centre = (target.aabb.min + target.aabb.max) / 2.0;
-        if in_reach && self.within_fov(centre, goal.melee_fov) {
+        // A hit needs the line from the mob's eye to the target's clear of
+        // block collision boxes (matches BDS 1.26.51): no hit through a
+        // closed door or a wall, however close the boxes are.
+        if in_reach && self.sees(&target) && self.within_fov(centre, goal.melee_fov) {
             self.states.melee.attack_ticks = Some(goal.cooldown_ticks);
             self.effects.attack = Some(target.entity);
         }

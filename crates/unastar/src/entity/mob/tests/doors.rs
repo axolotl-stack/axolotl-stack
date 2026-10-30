@@ -75,6 +75,23 @@ fn door_state(name: &str, upper: bool) -> u32 {
 /// [`DOOR`]. One survival player stands east of the wall at (8.5, 64, 0.5).
 /// Night, so the zombie does not burn.
 fn harness(seed: u64, door: &str, difficulty: Difficulty) -> Harness {
+    let stone = BlockRegistry::vanilla()
+        .default_state_id_by_name("minecraft:stone")
+        .unwrap();
+    let (lower, upper) = (door_state(door, false), door_state(door, true));
+    built(seed, difficulty, move |pos| {
+        (pos.x == DOOR.x && (64..=66).contains(&pos.y)).then(|| match (pos.z == DOOR.z, pos.y) {
+            (true, 64) => lower,
+            (true, 65) => upper,
+            _ => stone,
+        })
+    })
+}
+
+/// A grass floor at y = 63 over chunks -1..=1 × -1..=1 with the blocks
+/// `layout` gives at y = 63..=67 on top. One survival player stands at
+/// (8.5, 64, 0.5). Night, so a zombie does not burn.
+fn built(seed: u64, difficulty: Difficulty, layout: impl Fn(IVec3) -> Option<u32>) -> Harness {
     let mut server = GameServer::with_config(ServerConfig {
         world: crate::world::WorldConfig::void_spawn_platform(1),
         ..ServerConfig::default()
@@ -109,28 +126,17 @@ fn harness(seed: u64, door: &str, difficulty: Difficulty) -> Harness {
             ),
         ))
         .id();
-    let registry = BlockRegistry::vanilla();
-    let stone = registry
-        .default_state_id_by_name("minecraft:stone")
-        .unwrap();
-    let (lower, upper) = (door_state(door, false), door_state(door, true));
     for cx in -1..=1 {
         for cz in -1..=1 {
             let mut column = Chunk::new(cx, cz);
             for x in 0..16u8 {
                 for z in 0..16u8 {
                     column.set_block(x, 63, z, *blocks::GRASS_BLOCK);
-                    if cx * 16 + i32::from(x) != DOOR.x {
-                        continue;
-                    }
-                    let wz = cz * 16 + i32::from(z);
-                    for y in 64..=66 {
-                        let state = match (wz == DOOR.z, y) {
-                            (true, 64) => lower,
-                            (true, 65) => upper,
-                            _ => stone,
-                        };
-                        column.set_block(x, y as i16, z, state);
+                    for y in 63..=67 {
+                        let pos = IVec3::new(cx * 16 + i32::from(x), y, cz * 16 + i32::from(z));
+                        if let Some(state) = layout(pos) {
+                            column.set_block(x, y as i16, z, state);
+                        }
                     }
                 }
             }
@@ -158,8 +164,12 @@ impl Harness {
     /// An adult zombie west of the wall; with `breaker` it also gets the
     /// `minecraft:can_break_doors` group through its definition stack.
     fn zombie(&mut self, breaker: bool) -> Entity {
+        self.zombie_at(DVec3::new(0.5, 64.0, 0.5), breaker)
+    }
+
+    /// [`Self::zombie`] with its feet at `feet`.
+    fn zombie_at(&mut self, feet: DVec3, breaker: bool) -> Entity {
         let world = self.world();
-        let feet = DVec3::new(0.5, 64.0, 0.5);
         let zombie = (0..400)
             .find_map(|_| {
                 let mob =
@@ -356,4 +366,156 @@ fn zombie_without_the_annotation_does_not_path_through_the_door() {
         "it paths up to the door: {east}"
     );
     assert!(east < f64::from(DOOR.x), "{east}");
+}
+
+/// The player stands just east of the door's cell, close enough that a
+/// zombie pressed against the closed panel from the west has the player's
+/// box within its reach box; only the door stands between them.
+fn stand_behind_the_door(h: &mut Harness) {
+    let player = h.player;
+    h.world().get_mut::<Position>(player).unwrap().0 = DVec3::new(
+        f64::from(DOOR.x) + 1.05,
+        64.0 + crate::entity::PLAYER_EYE_HEIGHT,
+        0.5,
+    );
+}
+
+#[test]
+fn zombie_behind_a_closed_door_cannot_hurt_the_player_until_the_door_is_gone() {
+    let mut h = harness(7, "minecraft:wooden_door", Difficulty::Hard);
+    let air = BlockRegistry::vanilla()
+        .default_state_id_by_name("minecraft:air")
+        .unwrap();
+    let zombie = h.zombie(true);
+    h.provoke(zombie);
+    stand_behind_the_door(&mut h);
+    let player = h.player;
+    let mut events = Vec::new();
+    let mut broken_at = None;
+    let mut hurt_at = None;
+    let mut pressed = 0;
+    for tick in 0..900u64 {
+        h.server.tick();
+        h.door_events(tick, &mut events);
+        let feet = h.world().get::<Position>(zombie).unwrap().0;
+        if feet.x > f64::from(DOOR.x) - 1.0 && (feet.z - 0.5).abs() < 1.0 {
+            pressed += 1;
+        }
+        if broken_at.is_none() && h.block(DOOR) == air {
+            broken_at = Some(tick);
+        }
+        let health = h.world().get::<Health>(player).unwrap().current;
+        if health < 20.0 {
+            hurt_at = Some(tick);
+            break;
+        }
+    }
+    assert!(pressed > 0, "the zombie reaches the door");
+    if let Some(hurt_at) = hurt_at {
+        assert!(
+            broken_at.is_some_and(|broken_at| hurt_at > broken_at),
+            "hurt through the closed door at tick {hurt_at} (door broken at {broken_at:?}): \
+             {events:?}"
+        );
+    }
+    assert!(broken_at.is_some(), "the door breaks: {events:?}");
+    assert!(
+        hurt_at.is_some(),
+        "the zombie hurts the player once the door is gone"
+    );
+}
+
+#[test]
+fn zombie_never_hurts_the_player_through_an_iron_door() {
+    let mut h = harness(7, "minecraft:iron_door", Difficulty::Hard);
+    let zombie = h.zombie(true);
+    h.provoke(zombie);
+    stand_behind_the_door(&mut h);
+    let player = h.player;
+    let mut pressed = 0;
+    let mut events = Vec::new();
+    for tick in 0..600u64 {
+        h.server.tick();
+        h.door_events(tick, &mut events);
+        let feet = h.world().get::<Position>(zombie).unwrap().0;
+        if feet.x > f64::from(DOOR.x) - 1.0 && (feet.z - 0.5).abs() < 1.0 {
+            pressed += 1;
+        }
+    }
+    let health = h.world().get::<Health>(player).unwrap().current;
+    assert_eq!(health, 20.0, "hurt through the iron door");
+    assert!(pressed > 300, "it presses against the door: {pressed}");
+}
+
+/// A door half of `name` facing `direction` (`minecraft:cardinal_direction`),
+/// open or closed.
+fn door_facing(name: &str, direction: &'static str, open: bool, upper: bool) -> u32 {
+    let entry = BlockRegistry::vanilla().get_by_name(name).unwrap();
+    let set = |state, property, value| entry.with_state_value(state, property, value).unwrap();
+    let state = set(
+        entry.default_state_id,
+        "minecraft:cardinal_direction",
+        StateValue::Str(direction),
+    );
+    let state = set(state, "open_bit", StateValue::Byte(u8::from(open)));
+    set(state, "upper_block_bit", StateValue::Byte(u8::from(upper)))
+}
+
+/// The `zombie-open-doorway` scenario (client-diff, BDS 1.26.51 capture
+/// `zombie-open-doorway.jsonl`): an oak-plank room (walls x -3..=1,
+/// z -2..=2, floor y 63, roof y 66) whose east wall holds an open oak door
+/// at (1, 64, 0); the player stands inside at (-0.5, 64, 0.5) and a zombie
+/// that turned on it starts outside at (6.5, 64, 0.5). On BDS the zombie walks
+/// through the doorway and reaches x = -0.98, hurting the player 4 s after it
+/// started.
+#[test]
+#[ignore = "reproduces the open-doorway stop measured against BDS (zombie halts at x 0.27, BDS reaches -0.98); fix pending"]
+fn zombie_walks_through_an_open_doorway_to_the_player() {
+    let planks = BlockRegistry::vanilla()
+        .default_state_id_by_name("minecraft:oak_planks")
+        .unwrap();
+    let (lower, upper) = (
+        door_facing("minecraft:wooden_door", "north", true, false),
+        door_facing("minecraft:wooden_door", "north", true, true),
+    );
+    let mut h = built(3, Difficulty::Hard, move |pos| {
+        let inside =
+            (-3..=1).contains(&pos.x) && (-2..=2).contains(&pos.z) && (63..=66).contains(&pos.y);
+        if !inside {
+            return None;
+        }
+        if pos == IVec3::new(1, 64, 0) {
+            return Some(lower);
+        }
+        if pos == IVec3::new(1, 65, 0) {
+            return Some(upper);
+        }
+        let shell = pos.x == -3 || pos.x == 1 || pos.z.abs() == 2 || pos.y == 63 || pos.y == 66;
+        Some(if shell { planks } else { air() })
+    });
+    let zombie = h.zombie_at(DVec3::new(6.5, 64.0, 0.5), false);
+    h.provoke(zombie);
+    let player = h.player;
+    h.world().get_mut::<Position>(player).unwrap().0 =
+        DVec3::new(-0.5, 64.0 + crate::entity::PLAYER_EYE_HEIGHT, 0.5);
+    let mut west = f64::MAX;
+    let mut hurt = None;
+    let mut events = Vec::new();
+    for tick in 0..400u64 {
+        h.server.tick();
+        h.door_events(tick, &mut events);
+        let feet = h.world().get::<Position>(zombie).unwrap().0;
+        west = west.min(feet.x);
+        if hurt.is_none() && h.world().get::<Health>(player).unwrap().current < 20.0 {
+            hurt = Some(tick);
+        }
+    }
+    assert!(west < 0.0, "the zombie comes into the room: {west}");
+    assert!(hurt.is_some(), "and hurts the player");
+}
+
+fn air() -> u32 {
+    BlockRegistry::vanilla()
+        .default_state_id_by_name("minecraft:air")
+        .unwrap()
 }
