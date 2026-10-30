@@ -20,79 +20,11 @@ pub(crate) use native::{fill_overworld_native_with, overworld_target_native};
 pub use end::sample_end_biome;
 
 use sha2::{Digest, Sha256};
-use unastar_noise::java_biomes::JavaBiome;
 use unastar_noise::{
-    ColumnContextGrid, FlatCacheGrid, FunctionContext, compute_continents,
-    compute_continents_uncached, compute_depth, compute_depth_uncached, compute_erosion,
-    compute_erosion_uncached, compute_ridges, compute_ridges_uncached, compute_temperature,
-    compute_temperature_uncached, compute_vegetation, compute_vegetation_uncached,
+    FunctionContext, compute_continents_uncached, compute_erosion_uncached,
+    compute_ridges_uncached, compute_temperature_uncached, compute_vegetation_uncached,
     overworld_biome_source, overworld_settings,
 };
-
-use super::density::NoiseRegistry;
-use super::JavaDimension;
-use super::proto::QuartBiomes;
-use crate::world::ChunkPos;
-
-/// Biome at an absolute quart position, without chunk caches.
-pub fn sample_biome(noises: &NoiseRegistry, quart_x: i32, quart_y: i32, quart_z: i32) -> JavaBiome {
-    overworld_biome_source::find(&sample_target(noises, quart_x, quart_y, quart_z))
-}
-
-/// Source climate coordinates, before a caller chooses its search-history policy.
-pub(crate) fn sample_target(
-    noises: &NoiseRegistry,
-    quart_x: i32,
-    quart_y: i32,
-    quart_z: i32,
-) -> [i64; overworld_biome_source::DIMS] {
-    let ctx = FunctionContext::new(quart_x << 2, quart_y << 2, quart_z << 2);
-    overworld_biome_source::target(
-        compute_temperature_uncached(&ctx, noises),
-        compute_vegetation_uncached(&ctx, noises),
-        compute_continents_uncached(&ctx, noises),
-        compute_erosion_uncached(&ctx, noises),
-        compute_depth_uncached(&ctx, noises),
-        compute_ridges_uncached(&ctx, noises),
-    )
-}
-
-/// The 3D quart biomes of a chunk, using the chunk's flat and column caches.
-pub fn fill_chunk(
-    noises: &NoiseRegistry,
-    pos: ChunkPos,
-    grid: &FlatCacheGrid,
-    col_grid: &ColumnContextGrid,
-) -> QuartBiomes {
-    fill_chunk_with(noises, pos, grid, col_grid, overworld_biome_source::find)
-}
-
-/// Fill the shared climate lattice with an edition-owned lookup policy.
-pub(crate) fn fill_chunk_with(
-    noises: &NoiseRegistry,
-    pos: ChunkPos,
-    grid: &FlatCacheGrid,
-    col_grid: &ColumnContextGrid,
-    lookup: impl FnMut(&[i64; overworld_biome_source::DIMS]) -> JavaBiome,
-) -> QuartBiomes {
-    let columns: [_; 16] = std::array::from_fn(|i| {
-        col_grid.get((i % 4) * 4, (i / 4) * 4).as_scalar()
-    });
-    native::fill_lattice(JavaDimension::Overworld.block_bounds(), |qx, y, qz| {
-        let ctx = FunctionContext::new(
-            pos.x * 16 + qx as i32 * 4, y, pos.z * 16 + qz as i32 * 4,
-        );
-        let col = &columns[qz * 4 + qx];
-        overworld_biome_source::target(
-            compute_temperature(&ctx, noises, grid, col),
-            compute_vegetation(&ctx, noises, grid, col),
-            compute_continents(&ctx, noises, grid, col),
-            compute_erosion(&ctx, noises, grid, col),
-            compute_depth(&ctx, noises, grid, col),
-            compute_ridges(&ctx, noises, grid, col),
-        )
-    }, lookup)
-}
 
 /// Block column (x, z) where Java's world-spawn search starts: the position closest to
 /// the origin whose climate (at y = 0, depth forced to 0) best fits the noise settings'
