@@ -6,6 +6,7 @@ pub mod clock;
 pub mod ecs;
 pub mod explosion;
 pub mod generator;
+pub mod light;
 pub mod regional_difficulty;
 pub mod rules;
 pub mod weather;

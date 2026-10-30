@@ -255,7 +255,7 @@ fn compile_attack(b: body::Attack) -> Result<AttackConfig, HostileError> {
 }
 
 /// The mob effect an `effect_name` names.
-fn effect_type(name: &str) -> Option<EffectType> {
+pub(super) fn effect_type(name: &str) -> Option<EffectType> {
     Some(match name.strip_prefix("minecraft:").unwrap_or(name) {
         "speed" => EffectType::SPEED,
         "slowness" => EffectType::SLOWNESS,
@@ -280,6 +280,8 @@ fn effect_type(name: &str) -> Option<EffectType> {
         "health_boost" => EffectType::HEALTH_BOOST,
         "absorption" => EffectType::ABSORPTION,
         "saturation" => EffectType::SATURATION,
+        // Slime lane.
+        "oozing" => EffectType::OOZING,
         _ => return None,
     })
 }

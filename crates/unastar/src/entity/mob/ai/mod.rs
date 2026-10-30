@@ -30,6 +30,8 @@ mod swell;
 // Skeleton lane.
 mod flee_sun;
 mod ranged_attack;
+// Slime lane.
+mod hop;
 
 #[cfg(test)]
 mod tests;
@@ -53,7 +55,7 @@ use super::MobKind;
 use super::components::follow_range::FollowRange;
 use super::components::hostile::OnTargetEscape;
 use super::components::{
-    BasicMovementConfig, JumpConfig, Pushable, SelfEvent, WalkNavigationConfig,
+    BasicMovementConfig, JumpConfig, JumpMovementConfig, Pushable, SelfEvent, WalkNavigationConfig,
 };
 use super::constants::{
     DEFAULT_FOLLOW_RANGE, DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_MIN_DISTANCE,
@@ -85,6 +87,8 @@ pub struct MobBrain {
     nav: PathFollower,
     movement: MoveControl,
     look: LookControl,
+    /// The jumping move control of `minecraft:movement.jump` mobs.
+    hop: hop::HopControl,
 }
 
 impl MobBrain {
@@ -378,6 +382,7 @@ fn think(
         nav,
         movement,
         look,
+        hop,
     } = brain;
     if turn == Turn::Think(true) {
         // A rebuilt composition rebuilds the native goals.
@@ -404,6 +409,7 @@ fn think(
         nav: &mut *nav,
         movement: &mut *movement,
         look: &mut *look,
+        hop: &mut *hop,
         jump: false,
         effects: &mut effects,
     };
@@ -430,25 +436,34 @@ fn think(
     selector.tick(&mut ctx);
     let goal_jump = ctx.jump;
 
-    let door_hold = nav.current().is_some_and(|(index, path)| {
-        break_door::held_by_breakable_door(
-            world,
-            entity,
-            table,
-            path,
-            index,
-            Aabb::from_feet(feet, physics.width, physics.height),
-        )
-    });
-    let wall_climbing = if policy.climbs_walls {
-        let collided = mob.get::<Climbing>().is_some_and(|c| c.collided);
-        climb::navigate(world, table, &body, collided, nav, movement, door_hold)
-    } else {
-        nav.tick(&body, movement, door_hold);
-        false
-    };
     let mut yaw = effects.face.unwrap_or(rotation.yaw);
-    let move_jump = movement.tick(&body, &mut yaw, max_turn);
+    // A hopping mob follows no path: its goals drive the jumping move
+    // control instead of the land move control.
+    let (wall_climbing, move_jump) = if let Some(config) = mob.get::<JumpMovementConfig>() {
+        (
+            false,
+            hop.tick(config, &body, &mut yaw, movement, &mut rng.0),
+        )
+    } else {
+        let door_hold = nav.current().is_some_and(|(index, path)| {
+            break_door::held_by_breakable_door(
+                world,
+                entity,
+                table,
+                path,
+                index,
+                Aabb::from_feet(feet, physics.width, physics.height),
+            )
+        });
+        let wall_climbing = if policy.climbs_walls {
+            let collided = mob.get::<Climbing>().is_some_and(|c| c.collided);
+            climb::navigate(world, table, &body, collided, nav, movement, door_hold)
+        } else {
+            nav.tick(&body, movement, door_hold);
+            false
+        };
+        (wall_climbing, movement.tick(&body, &mut yaw, max_turn))
+    };
     let mut head_yaw = effects.face.unwrap_or(rotation.head_yaw);
     look.tick(feet + DVec3::Y * body.height, yaw, &mut head_yaw);
     let velocity = effects

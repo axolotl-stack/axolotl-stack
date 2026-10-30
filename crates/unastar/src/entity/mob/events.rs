@@ -187,11 +187,10 @@ impl MobFacts<'_> {
     // actor's feet.
 
     /// `is_brightness`: the overworld brightness of the light at the feet
-    /// block (sky light after the time of day's darkening; block light is
-    /// not modelled).
+    /// block (raw brightness, `world::light::brightness`).
     fn brightness(&self, entity: Entity) -> Option<f32> {
         let block = self.feet(entity)?.floor().as_ivec3();
-        let light = crate::world::clock::sky_brightness(self.world, block);
+        let light = crate::world::light::brightness(self.world, block);
         Some(super::constants::OVERWORLD_BRIGHTNESS_RAMP[usize::from(light.min(15))])
     }
 

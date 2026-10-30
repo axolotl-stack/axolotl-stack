@@ -38,9 +38,7 @@ pub fn regional_difficulty_at(difficulty: Difficulty, time: i32) -> f32 {
     if difficulty == Difficulty::Peaceful {
         return 0.0;
     }
-    let day = time / DAY_TICKS;
-    let phase = (((time >> 31) ^ day.abs()) & 7) as usize;
-    let moon = MOON_BRIGHTNESS[phase];
+    let moon = moon_brightness(time);
     let time_term = (time as f32 + TIME_OFFSET).clamp(0.0, 1.0) * TIME_SCALE;
     let inhabited = if difficulty == Difficulty::Hard {
         INHABITED_TERM_HARD
@@ -52,6 +50,15 @@ pub fn regional_difficulty_at(difficulty: Difficulty, time: i32) -> f32 {
         local *= EASY_LOCAL_SCALE;
     }
     difficulty.wire() as f32 * (BASE + time_term + local)
+}
+
+/// The moon brightness at level time `time` (BDS keeps the level time as a
+/// 32-bit tick count): by moon phase `(time / 24000) & 7`, full moon (1)
+/// first, new moon (0) at phase 4.
+pub fn moon_brightness(time: i32) -> f32 {
+    let day = time / DAY_TICKS;
+    let phase = (((time >> 31) ^ day.abs()) & 7) as usize;
+    MOON_BRIGHTNESS[phase]
 }
 
 /// The clamped regional difficulty (`0..=1`) of a regional difficulty.
@@ -110,6 +117,15 @@ mod tests {
         let hard_new = regional_difficulty_at(Difficulty::Hard, 4 * 24_000);
         assert_eq!(hard_new, 4.5);
         assert_eq!(clamp_regional_difficulty(hard_new), 1.0);
+    }
+
+    #[test]
+    fn moon_brightness_follows_the_eight_day_cycle() {
+        let by_day: Vec<f32> = (0..9)
+            .map(|day| moon_brightness(day * 24_000 + 5))
+            .collect();
+        assert_eq!(by_day, [1.0, 0.75, 0.5, 0.25, 0.0, 0.25, 0.5, 0.75, 1.0]);
+        assert_eq!(moon_brightness(24_000 - 1), 1.0);
     }
 
     #[test]

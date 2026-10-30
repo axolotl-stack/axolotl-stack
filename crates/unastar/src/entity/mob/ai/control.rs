@@ -10,10 +10,10 @@
 use glam::{DVec3, IVec3};
 
 use crate::entity::mob::constants::{
-    JUMP_COOLDOWN_TICKS, LIQUID_JUMP_IMPULSE, LOOK_IDLE_HEAD_TURN, MOVE_ARRIVAL_FLOOR,
-    MOVE_ARRIVE_DIST_SQ, MOVE_ARRIVE_HEIGHT, MOVE_DESCEND_CAP, MOVE_JUMP_HEIGHT_IN_WATER,
-    MOVE_SPEED_RAMP, NORMAL_GROUND_FRICTION, PATH_STUCK_CHECK_TICKS, PATH_STUCK_DISTANCE,
-    PATH_WAYPOINT_REACH, WATER_MOVE_SPEED,
+    JUMP_COOLDOWN_TICKS, LIQUID_JUMP_IMPULSE, LOOK_IDLE_HEAD_TURN, MOB_AIR_SPEED,
+    MOVE_ARRIVAL_FLOOR, MOVE_ARRIVE_DIST_SQ, MOVE_ARRIVE_HEIGHT, MOVE_DESCEND_CAP,
+    MOVE_JUMP_HEIGHT_IN_WATER, MOVE_SPEED_RAMP, NORMAL_GROUND_FRICTION, PATH_STUCK_CHECK_TICKS,
+    PATH_STUCK_DISTANCE, PATH_WAYPOINT_REACH, WATER_MOVE_SPEED,
 };
 use crate::entity::navigation::{WalkNavigation, WalkWaypoint};
 use crate::registry::block::LiquidKind;
@@ -277,10 +277,10 @@ impl PathFollower {
     }
 }
 
-/// The travel step: jump, then accelerate along the body yaw by the move
-/// control's speed. On the ground the acceleration is
-/// `speed × (0.546 / (friction × 0.91))³` times the forward input (which
-/// equals the speed); in the air the friction factor is 1; in liquid the
+/// The travel step: jump, then accelerate along the body yaw by the forward
+/// input, which equals the move control's speed. On the ground the
+/// acceleration is `speed × (0.546 / (friction × 0.91))³` times that input;
+/// in the air it is [`MOB_AIR_SPEED`] times the input; in liquid the
 /// underwater speed replaces it. Returns the new velocity.
 #[allow(clippy::too_many_arguments)]
 pub fn travel(
@@ -314,7 +314,7 @@ pub fn travel(
         let friction = block_friction * LIVING_FRICTION_FACTOR;
         speed * (NORMAL_GROUND_FRICTION / friction).powi(3)
     } else {
-        speed
+        MOB_AIR_SPEED
     };
     // The forward input is the speed itself, normalised when above 1.
     let input = speed.abs().min(1.0) * speed.signum();
@@ -396,6 +396,20 @@ mod tests {
         let v = travel(&body(), &mut control, false, 0.42, 0.0, 0.6, DVec3::ZERO);
         assert!((v.z - 0.04).abs() < 1e-6, "{v}");
         assert!(v.x.abs() < 1e-12);
+    }
+
+    #[test]
+    fn air_acceleration_is_the_air_speed_times_the_input() {
+        let mut control = MoveControl {
+            speed: 0.2,
+            ..MoveControl::default()
+        };
+        let airborne = Body {
+            on_ground: false,
+            ..body()
+        };
+        let v = travel(&airborne, &mut control, false, 0.42, 0.0, 0.6, DVec3::ZERO);
+        assert!((v.z - 0.004).abs() < 1e-9, "{v}");
     }
 
     fn follow(points: &[DVec3]) -> (PathFollower, MoveControl) {

@@ -1,6 +1,6 @@
 //! Movement and navigation components: `minecraft:navigation.walk`,
-//! `minecraft:navigation.climb`, `minecraft:movement.basic` and
-//! `minecraft:jump.static`.
+//! `minecraft:navigation.climb`, `minecraft:movement.basic`,
+//! `minecraft:movement.jump` and `minecraft:jump.static`.
 
 use bevy_ecs::prelude::*;
 use unastar_data::actor_components::body;
@@ -47,6 +47,17 @@ pub struct JumpConfig {
     pub jump_power: f32,
 }
 
+/// `minecraft:movement.jump`: the jumping move control (`mob::ai::hop`).
+/// The mob only moves forward while hopping; on the ground it waits a
+/// delay drawn from `jump_delay` before each jump.
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct JumpMovementConfig {
+    /// Seconds waited on the ground before each jump, drawn per jump.
+    pub jump_delay: (f32, f32),
+    /// Degrees the body turns per tick at most.
+    pub max_turn: f32,
+}
+
 /// Register the movement and navigation component kinds.
 pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
@@ -58,6 +69,10 @@ pub fn register_component_kinds(
     })?;
     insert_infallible(builder, |b: body::JumpStatic| JumpConfig {
         jump_power: b.jump_power,
+    })?;
+    insert_infallible(builder, |b: body::MovementJump| JumpMovementConfig {
+        jump_delay: (b.jump_delay.min, b.jump_delay.max),
+        max_turn: b.max_turn,
     })
 }
 

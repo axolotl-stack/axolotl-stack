@@ -84,6 +84,7 @@ impl EffectType {
     pub const LEVITATION: Self = Self(24);
     pub const SLOW_FALLING: Self = Self(27);
     pub const WEAVING: Self = Self(33);
+    pub const OOZING: Self = Self(34);
 
     /// Whether the effect changes how the player moves. Only these effects
     /// carry the player's input tick in `MobEffect` (measured on BDS

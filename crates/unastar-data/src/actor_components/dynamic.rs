@@ -257,6 +257,14 @@ defaults! {
     shooter_power -> f32 = p::SHOOTER_POWER;
     shooter_lose_target -> bool = p::SHOOTER_PROJECTILE_LOSE_TARGET;
     shooter_projectile_chance -> f32 = p::SHOOTER_PROJECTILE_CHANCE;
+    // Slime lane.
+    movement_jump_max_turn -> f32 = p::MOVEMENT_JUMP_MAX_TURN;
+    movement_jump_delay -> FloatRange = p::MOVEMENT_JUMP_JUMP_DELAY;
+    area_attack_damage_per_tick -> i32 = p::AREA_ATTACK_DAMAGE_PER_TICK;
+    area_attack_damage_range -> f32 = p::AREA_ATTACK_DAMAGE_RANGE;
+    area_attack_damage_cooldown -> f32 = p::AREA_ATTACK_DAMAGE_COOLDOWN;
+    area_attack_play_attack_sound -> bool = p::AREA_ATTACK_PLAY_ATTACK_SOUND;
+    variant_value -> i32 = p::VARIANT_VALUE;
 }
 
 /// `minecraft:ageable`: a growth timer, accelerated by feeding.
@@ -1692,6 +1700,55 @@ pub struct ShooterProjectile {
     pub lose_target: bool,
 }
 
+// Slime lane.
+
+/// `minecraft:movement.jump`: the jumping move control (slimes): the mob
+/// only moves while hopping, and waits `jump_delay` after each landing.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MovementJump {
+    /// Seconds to wait on the ground before the next jump, drawn per jump.
+    #[serde(default = "movement_jump_delay")]
+    pub jump_delay: FloatRange,
+    /// Maximum turn per tick, in degrees.
+    #[serde(default = "movement_jump_max_turn")]
+    pub max_turn: f32,
+}
+
+/// `minecraft:area_attack`: damage to every matching actor near the box.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AreaAttack {
+    pub cause: Option<ActorDamageCause>,
+    /// Seconds before the same actor is damaged again.
+    #[serde(default = "area_attack_damage_cooldown")]
+    pub damage_cooldown: f32,
+    #[serde(default = "area_attack_damage_per_tick")]
+    pub damage_per_tick: i32,
+    /// Blocks the owner's box is grown by on every side.
+    #[serde(default = "area_attack_damage_range")]
+    pub damage_range: f32,
+    pub entity_filter: Option<FilterJson>,
+    #[serde(default = "area_attack_play_attack_sound")]
+    pub play_attack_sound: bool,
+}
+
+/// `minecraft:mob_effect_immunity`: effects the entity cannot have.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MobEffectImmunity {
+    #[serde(default, deserialize_with = "super::de::one_or_many")]
+    pub mob_effects: Vec<String>,
+}
+
+/// `minecraft:variant`: the `VARIANT` actor data (and `query.variant`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Variant {
+    #[serde(default = "variant_value")]
+    pub value: i32,
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1765,4 +1822,9 @@ dynamic_bodies!(
     FollowRange,
     // Skeleton lane.
     Shooter,
+    // Slime lane.
+    MovementJump,
+    AreaAttack,
+    MobEffectImmunity,
+    Variant,
 );

@@ -12,6 +12,7 @@ use super::MobKind;
 use super::archetype::MobArchetype;
 use super::components::WalkNavigationConfig;
 use super::components::auto_step::AutoStepConfig;
+use super::components::variant::VariantConfig;
 use crate::entity::components::{AirSupply, Health, PhysicsBody};
 use crate::entity::definition::DefinitionState;
 use crate::entity::definition::attributes::{ActorAttributes, AttributeValue};
@@ -33,6 +34,7 @@ type DeriveInputs<'a> = (
     Option<&'a MovementConfig>,
     Option<&'a AirSupply>,
     Option<&'a AutoStepConfig>,
+    Option<&'a VariantConfig>,
 );
 
 /// Derived state of one mob from its composition.
@@ -49,10 +51,14 @@ struct Derived {
     health: Option<(f32, f32)>,
     movement: Option<f32>,
     air: Option<(i16, i16)>,
+    /// `minecraft:variant`; without it the `VARIANT` data keeps its value.
+    variant: Option<i32>,
 }
 
 fn derive(
-    (kind, collision, scale, physics, walk, health, movement, air, auto_step): DeriveInputs<'_>,
+    (kind, collision, scale, physics, walk, health, movement, air, auto_step, variant): DeriveInputs<
+        '_,
+    >,
 ) -> Derived {
     let scale = scale.map_or(1.0, |s| s.value);
     // Published rule: negative collision dimensions count as zero.
@@ -77,6 +83,7 @@ fn derive(
         health: health.map(|h| (h.current, h.max)),
         movement: movement.map(|m| m.value),
         air: air.map(|a| (a.current_ticks as i16, a.max_ticks as i16)),
+        variant: variant.map(|v| v.value),
     }
 }
 
@@ -113,6 +120,9 @@ fn store(
     if let Some((current, max)) = derived.air {
         metadata.set_short(ids::AIR_SUPPLY, current);
         metadata.set_short(ids::AIR_SUPPLY_MAX, max);
+    }
+    if let Some(variant) = derived.variant {
+        metadata.set_int(ids::VARIANT, variant);
     }
     if let (Some(id), Some((current, max))) = (&archetype.health_attribute, derived.health) {
         let mut value = attributes.get(id).expect("archetype attribute layout");

@@ -260,6 +260,10 @@ fn spawn_unattached(
         if let Some(kind) = archetype.native.variant {
             metadata.set_int(jolyne::valentine::actor_data_i_ds::VARIANT, kind);
         }
+        // Slime lane: the native client event data.
+        if archetype.native.client_event_data {
+            metadata.set_byte(jolyne::valentine::actor_data_i_ds::CLIENT_EVENT, 0);
+        }
         // Enderman lane: the native carried-block data, always air.
         if archetype.native.carried_block_data
             && let Some(air) =

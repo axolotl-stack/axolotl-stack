@@ -32,6 +32,10 @@ use crate::entity::mob::components::hostile::melee_goal;
 // Skeleton lane.
 use crate::entity::mob::components::flee_sun::FleeSunGoal;
 use crate::entity::mob::components::ranged_attack::RangedAttackGoal;
+// Slime lane.
+use crate::entity::mob::components::slime_goals::{
+    HopAttackGoal, HopFloatGoal, HopKeepJumpingGoal, HopRandomDirectionGoal,
+};
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
     FOLLOW_PARENT_MAX_DIST, FOLLOW_PARENT_MIN_DIST, FOLLOW_PARENT_REPATH_TICKS,
@@ -75,10 +79,15 @@ pub enum Goal {
     // Skeleton lane.
     RangedAttack,
     FleeSun,
+    // Slime lane.
+    HopFloat,
+    HopKeepJumping,
+    HopRandomDirection,
+    HopAttack,
 }
 
 impl Goal {
-    const ALL: [Goal; 21] = [
+    const ALL: [Goal; 25] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -100,6 +109,10 @@ impl Goal {
         Goal::AvoidMobType,
         Goal::RangedAttack,
         Goal::FleeSun,
+        Goal::HopFloat,
+        Goal::HopKeepJumping,
+        Goal::HopRandomDirection,
+        Goal::HopAttack,
     ];
 
     pub fn id(self) -> GoalId {
@@ -128,6 +141,8 @@ impl Goal {
             Goal::Leap => GoalControls::MOVE | GoalControls::JUMP,
             Goal::Swell | Goal::AvoidMobType | Goal::FleeSun => GoalControls::MOVE,
             Goal::RangedAttack => GoalControls::MOVE | GoalControls::LOOK,
+            Goal::HopFloat | Goal::HopKeepJumping => GoalControls::MOVE | GoalControls::JUMP,
+            Goal::HopRandomDirection | Goal::HopAttack => GoalControls::LOOK,
         }
     }
 }
@@ -287,6 +302,42 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls,
         });
     }
+    // Slime lane.
+    let hops = [
+        (
+            Goal::HopFloat,
+            entity
+                .get::<HopFloatGoal>()
+                .map(|g| (g.priority, g.controls)),
+        ),
+        (
+            Goal::HopKeepJumping,
+            entity
+                .get::<HopKeepJumpingGoal>()
+                .map(|g| (g.priority, g.controls)),
+        ),
+        (
+            Goal::HopRandomDirection,
+            entity
+                .get::<HopRandomDirectionGoal>()
+                .map(|g| (g.priority, g.controls)),
+        ),
+        (
+            Goal::HopAttack,
+            entity
+                .get::<HopAttackGoal>()
+                .map(|g| (g.priority, g.controls)),
+        ),
+    ];
+    out.extend(hops.into_iter().filter_map(|(goal, authored)| {
+        let (priority, controls) = authored?;
+        Some(GoalSpec {
+            id: goal.id(),
+            kind: GoalKind::Normal,
+            priority,
+            controls,
+        })
+    }));
 }
 
 /// World writes the goals request; applied after the mob's tick.
@@ -365,6 +416,8 @@ pub struct GoalStates {
     pub(super) pickup: super::pickup::PickupState,
     pub(super) avoid: super::avoid_mob_type::AvoidState,
     pub(super) ranged: super::ranged_attack::RangedState,
+    // Slime lane.
+    pub(super) hop: super::hop::HopState,
 }
 
 /// Everything a goal reads and writes during one mob's tick.
@@ -386,6 +439,9 @@ pub struct GoalContext<'a> {
     pub nav: &'a mut PathFollower,
     pub movement: &'a mut MoveControl,
     pub look: &'a mut LookControl,
+    /// The jumping move control (`super::hop`); only `movement.jump` mobs
+    /// use it.
+    pub hop: &'a mut super::hop::HopControl,
     pub jump: bool,
     pub effects: &'a mut Effects,
 }
@@ -765,6 +821,10 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::AvoidMobType => self.avoid_can_start(),
             Goal::RangedAttack => self.ranged_can_start(),
             Goal::FleeSun => self.flee_sun_can_start(),
+            Goal::HopFloat => self.hop_float_can_continue(),
+            Goal::HopKeepJumping => self.config::<HopKeepJumpingGoal>().is_some(),
+            Goal::HopRandomDirection => self.hop_random_direction_can_continue(),
+            Goal::HopAttack => self.hop_attack_can_start(),
         }
     }
 
@@ -829,6 +889,10 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::AvoidMobType => self.avoid_can_continue(),
             Goal::RangedAttack => self.ranged_can_continue(),
             Goal::FleeSun => !self.nav.is_done(),
+            Goal::HopFloat => self.hop_float_can_continue(),
+            Goal::HopKeepJumping => self.config::<HopKeepJumpingGoal>().is_some(),
+            Goal::HopRandomDirection => self.hop_random_direction_can_continue(),
+            Goal::HopAttack => self.hop_attack_can_continue(),
             Goal::Breed => {
                 let Some(partner) = self.mob(self.states.breed.partner) else {
                     return false;
@@ -910,6 +974,9 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::AvoidMobType => self.avoid_start(),
             Goal::RangedAttack => self.ranged_start(),
             Goal::FleeSun => self.flee_sun_start(),
+            Goal::HopFloat | Goal::HopKeepJumping => {}
+            Goal::HopRandomDirection => self.hop_random_direction_start(),
+            Goal::HopAttack => self.hop_attack_start(),
         }
     }
 
@@ -947,6 +1014,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::AvoidMobType => self.avoid_stop(),
             Goal::RangedAttack => self.ranged_stop(),
             Goal::FleeSun => self.nav.stop(self.movement),
+            Goal::HopFloat | Goal::HopKeepJumping | Goal::HopRandomDirection | Goal::HopAttack => {}
         }
     }
 
@@ -989,6 +1057,10 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::AvoidMobType => self.avoid_tick(),
             Goal::RangedAttack => self.ranged_tick(),
             Goal::FleeSun => {}
+            Goal::HopFloat => self.hop_float_tick(),
+            Goal::HopKeepJumping => self.hop_keep_jumping_tick(),
+            Goal::HopRandomDirection => self.hop_random_direction_tick(),
+            Goal::HopAttack => self.hop_attack_tick(),
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return;

@@ -466,6 +466,13 @@ impl GameServer {
                 .after(movement::apply_movement),
         );
 
+        // Block light for the chunks loaded and the blocks written since the
+        // last tick, before anything this tick reads brightness.
+        ecs.schedule_mut().add_systems(
+            crate::world::light::update_block_light
+                .in_set(PhysicsSet)
+                .before(crate::entity::definition::apply_pending_definitions),
+        );
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::definition::apply_pending_definitions,
@@ -556,13 +563,14 @@ impl GameServer {
                 .before(crate::entity::player_life::environment::land_players)
                 .before(crate::entity::mob::combat::fall::apply_fall_damage),
         );
-        // Mob fall damage, condition damage, daylight burning and fire, death,
+        // Mob fall damage, condition damage, contact damage, daylight burning and fire, death,
         // then experience orbs. After the entity chain so deaths from
         // fire/effects are caught the same tick.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::combat::fall::apply_fall_damage,
                 crate::entity::mob::combat::hurt_on_condition,
+                crate::entity::mob::combat::area_attack::area_attack,
                 crate::entity::mob::combat::fire::burn_in_daylight,
                 crate::entity::mob::combat::fire::burn_mobs,
                 crate::entity::mob::combat::death::die_at_zero_health,

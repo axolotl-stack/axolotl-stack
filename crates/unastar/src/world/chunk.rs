@@ -410,6 +410,21 @@ pub struct Chunk {
     /// Whether height map needs recalculation (reserved for future lazy recalculation)
     #[allow(dead_code)]
     recalculate_height_map: bool,
+    /// Cell writes since the block-light layer (`world::light`) last took
+    /// them; `None` until that layer tracks the chunk, so generation and
+    /// loading record nothing.
+    cell_changes: Option<Vec<CellChange>>,
+}
+
+/// A cell write recorded for the block-light layer: the cell (local x/z,
+/// absolute y) and the states both layers held before the write.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CellChange {
+    pub x: u8,
+    pub y: i16,
+    pub z: u8,
+    pub old_primary: u32,
+    pub old_secondary: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -609,6 +624,7 @@ impl Chunk {
             biomes,
             block_entities: Vec::new(),
             recalculate_height_map: false,
+            cell_changes: None,
         }
     }
 
@@ -676,6 +692,7 @@ impl Chunk {
             block_entities: Vec::new(),
             height_map,
             recalculate_height_map: false,
+            cell_changes: None,
         }
     }
 
@@ -1152,6 +1169,26 @@ impl Chunk {
         &self.sub_chunks[index]
     }
 
+    /// Start recording cell writes for the block-light layer.
+    pub(crate) fn track_cell_changes(&mut self) {
+        self.cell_changes.get_or_insert_with(Vec::new);
+    }
+
+    /// Whether cell writes were recorded since they were last taken.
+    pub(crate) fn has_cell_changes(&self) -> bool {
+        self.cell_changes
+            .as_ref()
+            .is_some_and(|changes| !changes.is_empty())
+    }
+
+    /// Take the recorded cell writes, oldest first.
+    pub(crate) fn take_cell_changes(&mut self) -> Vec<CellChange> {
+        self.cell_changes
+            .as_mut()
+            .map(std::mem::take)
+            .unwrap_or_default()
+    }
+
     /// Insert or replace an actor, rejecting another chunk or invalid world height.
     pub fn set_block_entity(&mut self, entity: BlockEntity) -> bool {
         let [x, y, z] = entity.position();
@@ -1342,6 +1379,10 @@ impl Chunk {
         let subchunk_idx = (adjusted_y / 16) as usize;
         let local_y = (adjusted_y % 16) as u8;
 
+        let old_secondary = self
+            .cell_changes
+            .is_some()
+            .then(|| self.get_block_layer(x, y, z, 1));
         let old = self.sub_chunks[subchunk_idx].set_block_layers(
             x,
             local_y,
@@ -1350,6 +1391,18 @@ impl Chunk {
             secondary,
             self.state_space,
         );
+        if let Some(old_secondary) = old_secondary
+            && (old != block_id || old_secondary != self.get_block_layer(x, y, z, 1))
+            && let Some(changes) = &mut self.cell_changes
+        {
+            changes.push(CellChange {
+                x,
+                y,
+                z,
+                old_primary: old,
+                old_secondary,
+            });
+        }
         if old != block_id && !self.block_entities.is_empty() {
             let position = [(self.x << 4) | x as i32, y as i32, (self.z << 4) | z as i32];
             if let Some(index) = self
@@ -1627,6 +1680,20 @@ impl SubChunk {
             self.set_secondary(x, y, z, secondary.unwrap_or(*blocks::AIR));
         }
         old
+    }
+
+    /// Every state either layer's palette lists (a superset of the states
+    /// the section holds).
+    pub(crate) fn palette_states(&self) -> impl Iterator<Item = u32> + '_ {
+        self.storage
+            .palette
+            .iter()
+            .chain(
+                self.secondary
+                    .iter()
+                    .flat_map(|layer| layer.storage.palette.iter()),
+            )
+            .copied()
     }
 
     /// Underlying-liquid block, or `None` when this section has no secondary storage.

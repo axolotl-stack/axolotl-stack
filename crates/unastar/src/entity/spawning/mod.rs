@@ -3,9 +3,10 @@
 //!
 //! [`rules`] compiles the typed vanilla spawn rules into weighted entries per
 //! biome; [`natural_spawning`] is the spawn cycle (see `cycle.rs` for the
-//! cycle, the world-generation pass and how brightness is derived), and
-//! `spawn_check.rs` the check each mob's native class runs at its spawn
-//! position.
+//! cycle, the world-generation pass and how brightness is derived),
+//! `ticking_area.rs` the chunks it runs in, `spawn_check.rs` the check
+//! each mob's native class runs at its spawn position, and
+//! [`slime_chunk`] the slime rule's slime-chunk and swamp placement test.
 //!
 //! Population caps count the mobs of each `population_control` category in
 //! the 9 × 9 chunks around the spawning chunk, separately for mobs the cycle
@@ -17,7 +18,9 @@
 mod cycle;
 mod position;
 pub mod rules;
+pub mod slime_chunk;
 pub mod spawn_check;
+mod ticking_area;
 
 #[cfg(test)]
 mod tests;

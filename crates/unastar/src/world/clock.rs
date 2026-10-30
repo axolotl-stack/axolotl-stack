@@ -10,13 +10,14 @@
 //! Sky darkening follows the time of day only. The server has no weather,
 //! so rain and thunder never darken the sky further.
 //!
-//! Light is not tracked by the server, so the sky light at a block is
+//! Sky light is not tracked by the server, so the sky light at a block is
 //! derived from its chunk column: at or above the column's heightmap (the
 //! first air block above the highest non-air block) it is full sky light;
 //! below, sky light falls by the light filtering of every block from the
-//! heightmap down to and including the block. Block light is not modelled
-//! (0). The model is the overworld's: the server runs one dimension and
-//! treats it as having a sky.
+//! heightmap down to and including the block. Block light is tracked in
+//! `world::light`, whose `brightness` combines the two for gameplay. The
+//! model is the overworld's: the server runs one dimension and treats it as
+//! having a sky.
 
 use std::f32::consts::PI;
 
@@ -169,9 +170,9 @@ pub fn is_daytime(world: &World) -> bool {
     sky_darken(world) < DAYTIME_DARKEN_LIMIT
 }
 
-/// Sky light at `pos` after the time of day darkened it (block light is
-/// not modelled). Below the world it is 0; above it and in unloaded chunks
-/// it is full sky light, as BDS reads it.
+/// Sky light at `pos` after the time of day darkened it (the sky part of
+/// `world::light::brightness`). Below the world it is 0; above it and in
+/// unloaded chunks it is full sky light, as BDS reads it.
 pub fn sky_brightness(world: &World, pos: IVec3) -> u8 {
     sky_brightness_with_darken(world, pos, sky_darken(world))
 }
