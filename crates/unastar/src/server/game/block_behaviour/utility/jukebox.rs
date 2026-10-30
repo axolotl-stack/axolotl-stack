@@ -389,7 +389,7 @@ mod tests {
         assert!(packets.iter().any(|packet| matches!(
             packet,
             McpePacketData::PlaySoundPacket(sound)
-                if sound.name.to_string() == "record.13"
+                if sound.name == "record.13"
                     && sound.position.x == (AT.x * 8 + 4)
                     && sound.position.y == (AT.y * 8 + 4)
         )));
@@ -398,7 +398,7 @@ mod tests {
             McpePacketData::TextPacket(TextPacket {
                 body: TextPacketBody::MessageAndParams(popup),
                 ..
-            }) if popup.message.to_string() == "record.nowPlaying"
+            }) if popup.message == "record.nowPlaying"
                 && popup.parameter_list.iter().map(ToString::to_string).collect::<Vec<_>>()
                     == vec!["%C418 - 13".to_string()]
         )));

@@ -262,11 +262,12 @@ fn shoot(
     Some(projectile)
 }
 
-/// The projectile actor, climate variant and carried potion (and whether
-/// it is a tipped arrow's) a dispensed `stack` launches.
-fn projectile_of(
-    stack: &ItemStack,
-) -> Option<(&'static str, Option<&'static str>, Option<(i16, bool)>)> {
+/// What a dispensed stack launches: the projectile actor, its climate
+/// variant and its carried potion (and whether it is a tipped arrow's).
+type Launch = (&'static str, Option<&'static str>, Option<(i16, bool)>);
+
+/// The [`Launch`] a dispensed `stack` makes.
+fn projectile_of(stack: &ItemStack) -> Option<Launch> {
     use unastar_data::actor_identifiers::ActorType;
     match stack.item_id() {
         "minecraft:arrow" => {
