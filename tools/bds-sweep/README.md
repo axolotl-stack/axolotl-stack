@@ -39,6 +39,13 @@ The plugin sends these chat orders to `bds-sweep-client`:
 | `bds-sweep:drop hotbar SLOT COUNT` | Closed-screen Drop from hotbar index 0..8; count 1 is Q, a full stack is ctrl-Q |
 | `bds-sweep:drop inventory SLOT COUNT` | Open the inventory, wait for its server-allocated window ID, then Drop from native inventory index 0..35 |
 | `bds-sweep:close-inventory` | Close the tracked native inventory window |
+| `bds-sweep:use X Y Z FACE CX CY CZ [BLOCK_RUNTIME_ID]` | Right-click FACE (0 down, 1 up, 2 north, 3 south, 4 west, 5 east) of the block at X Y Z at click position CX CY CZ (relative to the block): an `InventoryTransaction` use-item click-block from the eye position with the selected hotbar slot and its synchronized stack, so BDS runs its real use/placement logic; the look is the rotation the server last set (`/tp … yaw pitch`), which the client echoes in `PlayerAuthInput` |
+
+`--trace NAMES` (comma-separated packet names, e.g. `LevelSoundEventPacket`)
+logs those server packets decoded to stdout, together with every non-order
+`bds-sweep:` chat line (the `blocks` job's `bds-sweep:mark SCENARIO/STEP`), so
+packets can be attributed to job steps. The client connects to
+`127.0.0.1:19140` unless `--addr` says otherwise.
 
 Drop references come only from server `InventoryContent`/`InventorySlot`
 updates; missing/empty/idless slots and invalid counts fail rather than invent
@@ -60,6 +67,7 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `armor-values` | health lost per `/damage <player> D entity_attack` wearing one item | max health 2000, hits repeated for sub-point precision; needs the full `armor-slots` result for slot assignment |
 | `attack` | melee damage per held item, warm-up + 3 trials | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value |
 | `fuel` | furnace burn ticks per item | pool of 32 furnaces, 1 cobblestone input + the item as fuel |
+| `blocks` | one row per scenario (`doors`, `torches`, `crops`): full block states (name, states, runtime id) of the watched cells before/after every step, per-tick changes after `/setblock` removals and hand breaks, item actors spawned | flat stone arena x -10..24, z -12..24 at y -61; survival player clicks with `bds-sweep:use` / breaks with `bds-sweep:mine`; item pickup is cancelled; the client runs with `--capture-dir <out>/capture --trace …` (sounds, level events, block updates, item actors, logged in `client.log` after each step mark); `summarize.py blocks <dir>` writes the observed-results fixture |
 
 ```powershell
 & $py tools/bds-sweep/sweep.py drops --blocks all --samples 400   # first palette state of every block
@@ -67,8 +75,15 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 & $py tools/bds-sweep/sweep.py mining --blocks slice
 & $py tools/bds-sweep/sweep.py armor-slots --items all
 & $py tools/bds-sweep/sweep.py fuel --items all
+& $py tools/bds-sweep/sweep.py blocks --dry-run                    # job.json + client command only
+& $py tools/bds-sweep/sweep.py blocks --scenarios doors,torches,crops --growth-runs 100:60,1:60
+& $py tools/bds-sweep/summarize.py blocks <dir>
 & $py tools/bds-sweep/summarize.py drops <dir> [<repeat dir> ...]
 ```
+
+`sweep.py` runs BDS on `--port` (default 19140, IPv6 on the next port) and
+points the client there; 19132/19133 are refused so the game server's port is
+never taken.
 
 Sweeps are resumable: rerun with the same `--out` and finished items
 (`results.jsonl`) are skipped. To hand the BDS over mid-run, create

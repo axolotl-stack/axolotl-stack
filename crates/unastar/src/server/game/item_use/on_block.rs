@@ -6,10 +6,11 @@
 //! identities come from the block registry (stripped logs are the
 //! registered `stripped_*` blocks, copper ageing follows the registered
 //! `exposed_`/`weathered_`/`oxidized_`/`waxed_` names) so no conversion
-//! table is retyped. Which blocks a hoe tills and a shovel flattens, the
-//! bone meal growth amounts and the sound names follow public references
-//! and are recorded in `bds-quirks.md` until a BDS capture of block clicks
-//! confirms them.
+//! table is retyped. Which blocks a hoe tills and a shovel flattens and the
+//! sound names follow public references and are recorded in
+//! `bds-quirks.md` until a BDS capture of block clicks confirms them. Crop,
+//! stem and sugar cane growth from bone meal follows the block behaviour
+//! rules (`block_behaviour::fertilize`).
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
@@ -385,34 +386,11 @@ fn ignite(world: &mut World, ctx: &Use) -> bool {
     true
 }
 
-/// Growth stages a crop with `growth` 0..=7 advances by from bone meal.
-fn bone_meal_growth(rng: &mut impl Rng) -> i32 {
-    rng.gen_range(2..=5)
-}
-
-/// Bone meal: grow a crop or stem by 2-5 stages, a sweet berry bush by one,
-/// or plant grass and flowers around a grass block.
+/// Bone meal: grow a crop, stem or sugar cane through the block behaviour
+/// rules, a sweet berry bush by one, or plant grass and flowers around a
+/// grass block.
 fn fertilize(world: &mut World, ctx: &Use) -> bool {
-    let grown = if ctx.block.has_tag("minecraft:crop")
-        || matches!(
-            ctx.block_name(),
-            "minecraft:melon_stem" | "minecraft:pumpkin_stem"
-        ) {
-        let Some(StateValue::Int(growth)) = ctx.block.state_value(ctx.state, "growth") else {
-            return false;
-        };
-        if growth >= 7 {
-            return false;
-        }
-        let step = bone_meal_growth(&mut world.get_resource_or_init::<EntityRandom>().0);
-        let next = (growth + step).min(7);
-        let Some(state) = ctx
-            .block
-            .with_state_value(ctx.state, "growth", StateValue::Int(next))
-        else {
-            return false;
-        };
-        set_block(world, ctx.clicked, state, false);
+    let grown = if crate::server::game::block_behaviour::fertilize(world, ctx.clicked) {
         true
     } else if ctx.block_name() == "minecraft:sweet_berry_bush" {
         let Some(StateValue::Int(age)) = ctx.block.state_value(ctx.state, "growth") else {
@@ -708,7 +686,7 @@ mod tests {
     }
 
     #[test]
-    fn bone_meal_grows_crops_two_to_five_stages() {
+    fn bone_meal_grows_crops_two_to_four_stages() {
         let (mut world, player, chunk) = world_with("minecraft:wheat", "minecraft:bone_meal", 3);
         assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
         let id = world
@@ -720,7 +698,7 @@ mod tests {
         let Some(StateValue::Int(growth)) = wheat.state_value(id, "growth") else {
             panic!("wheat growth");
         };
-        assert!((2..=5).contains(&growth), "{growth}");
+        assert!((2..=4).contains(&growth), "{growth}");
         assert_eq!(held_stack(&world, player).count, 2);
     }
 

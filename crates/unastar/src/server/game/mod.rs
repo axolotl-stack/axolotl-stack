@@ -4,6 +4,7 @@
 //! replacing the legacy Server struct.
 
 pub mod attributes;
+pub mod block_behaviour;
 mod block_drops;
 pub(crate) mod blocks;
 mod chunks;
@@ -535,6 +536,23 @@ impl GameServer {
                 .in_set(EntityLogicSet)
                 .after(falling::process_gravity_checks)
                 .before(tick_block_breaking),
+        );
+        // Scheduled and random block ticks: crops grow, buttons release
+        // (exclusive: edits chunks).
+        ecs.schedule_mut().add_systems(
+            block_behaviour::tick_blocks
+                .in_set(EntityLogicSet)
+                .after(containers::tick_block_containers)
+                .before(tick_block_breaking),
+        );
+        // Farmland trampled by this tick's landings, before the landings
+        // are resolved (they consume the player's landing).
+        ecs.schedule_mut().add_systems(
+            block_behaviour::trample_farmland
+                .in_set(EntityLogicSet)
+                .after(despawn_dead)
+                .before(crate::entity::player_life::environment::land_players)
+                .before(crate::entity::mob::combat::fall::apply_fall_damage),
         );
         // Mob fall damage, condition damage, daylight burning and fire, death,
         // then experience orbs. After the entity chain so deaths from

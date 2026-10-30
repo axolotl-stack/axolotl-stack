@@ -408,5 +408,378 @@ def attack(ctx: Context, job: dict):
     ctx.player.inventory.item_in_main_hand = None
 
 
+def _json_value(value):
+    if isinstance(value, (bool, int, float, str)) or value is None:
+        return value
+    return str(value)
+
+
+EYE_HEIGHT = 1.62
+# Faces as the protocol numbers them, with the click position on each face
+# (relative to the block) and the offset of the cell a placement fills.
+FACES = {
+    'down': (0, (0.5, 0.0, 0.5), (0, -1, 0)),
+    'up': (1, (0.5, 1.0, 0.5), (0, 1, 0)),
+    'north': (2, (0.5, 0.5, 0.0), (0, 0, -1)),
+    'south': (3, (0.5, 0.5, 1.0), (0, 0, 1)),
+    'west': (4, (0.0, 0.5, 0.5), (-1, 0, 0)),
+    'east': (5, (1.0, 0.5, 0.5), (1, 0, 0)),
+}
+
+
+def look_at(stand, target) -> tuple[float, float]:
+    """Bedrock yaw/pitch (yaw 0 south, 90 west, 180 north, 270 east; pitch
+    positive looks down) from the eyes of a player standing at `stand` to
+    `target`."""
+    import math
+    dx, dy, dz = target[0] - stand[0], target[1] - (stand[1] + EYE_HEIGHT), target[2] - stand[2]
+    yaw = math.degrees(math.atan2(-dx, dz)) % 360
+    pitch = -math.degrees(math.atan2(dy, math.hypot(dx, dz)))
+    return round(yaw, 2), round(pitch, 2)
+
+
+class Blocks:
+    """Shared steps of the `blocks` job: arena reset, held items, block
+    clicks through the scripted client and per-tick block watches. Every
+    step sends the client a `bds-sweep:mark SCENARIO/STEP` chat line first,
+    so the packets it logs (`--trace`) can be attributed to the step."""
+
+    def __init__(self, ctx: Context, job: dict) -> None:
+        self.ctx = ctx
+        self.job = job
+        self.name = job['player']
+        self.arena = job['arena']['blocks']
+        self.scenario = ''
+
+    @property
+    def tick(self) -> int:
+        return self.ctx.plugin.ticks
+
+    def state(self, pos) -> dict:
+        data = self.ctx.block(pos).data
+        return {'name': data.type, 'states': {k: _json_value(v) for k, v in sorted(data.block_states.items())},
+                'runtime_id': data.runtime_id}
+
+    def cells(self, cells: dict) -> dict:
+        return {label: self.state(pos) for label, pos in cells.items()}
+
+    def mark(self, step: str) -> str:
+        label = f'{self.scenario}/{step}'
+        self.ctx.player.send_message(f'bds-sweep:mark {label}')
+        return label
+
+    def reset(self):
+        """Flat stone floor at y = floor, air above, no item actors, empty
+        inventory. Marked as `SCENARIO/reset` so the block updates it causes
+        are not attributed to the previous step."""
+        self.mark('reset')
+        a = self.arena
+        (x0, z0), (x1, z1), floor = a['min'], a['max'], a['floor']
+        # `fill` reports failure when nothing changes (a second reset).
+        self.ctx.cmd(f'fill {x0} {floor} {z0} {x1} {floor} {z1} stone')
+        self.ctx.cmd(f'fill {x0} {floor + 1} {z0} {x1} {floor + 8} {z1} air')
+        for x, z in ((x0, z0), (x1, z1)):
+            if self.ctx.block((x, floor, z)).type != 'minecraft:stone':
+                raise RuntimeError('arena reset did not fill the stone floor')
+        self.ctx.take_items()
+        # Fails when the inventory is already empty.
+        self.ctx.cmd(f'clear "{self.name}"')
+        yield 2
+
+    def hold(self, item: str | None, count: int = 64):
+        """Hotbar slot 0 (selected) holds `count` x `item`, or nothing. Set
+        with vanilla commands: after an Endstone `item_in_main_hand` change
+        the client's first click with the new stack was rejected (BDS
+        resynced the clicked blocks without using the item)."""
+        self.ctx.player.inventory.held_item_slot = 0
+        if item:
+            self.ctx.must(f'replaceitem entity "{self.name}" slot.hotbar 0 {item} {count}')
+        else:
+            self.ctx.cmd(f'clear "{self.name}"')
+        # Let the slot update reach the client before it clicks with it.
+        yield 10
+
+    def stand(self, stand, target, yaw: float | None = None):
+        """Teleports the player to `stand` (feet) looking at `target`; an
+        explicit `yaw` keeps the pitch towards the target. Returns the look
+        requested and the one the server holds after the client's inputs."""
+        look_yaw, pitch = look_at(stand, target)
+        yaw = look_yaw if yaw is None else yaw
+        self.ctx.must(f'tp "{self.name}" {stand[0]} {stand[1]} {stand[2]} {yaw} {pitch}')
+        yield 6
+        location = self.ctx.player.location
+        return {'requested': [yaw, pitch],
+                'server': [round(location.yaw % 360, 2), round(location.pitch, 2)],
+                'position': [round(location.x, 3), round(location.y, 3), round(location.z, 3)]}
+
+    def click(self, step: str, block, face: str, stand, cells: dict, yaw: float | None = None,
+              click=None, wait: int = 10):
+        """Right-clicks `face` of `block` from `stand`; returns the step record
+        with the watched `cells` before and `wait` ticks after the click."""
+        number, face_click, _ = FACES[face]
+        click = click or face_click
+        target = [block[0] + click[0], block[1] + click[1], block[2] + click[2]]
+        look = yield from self.stand(stand, target, yaw)
+        before = self.cells(cells)
+        label = self.mark(step)
+        self.ctx.plugin.events.clear()
+        runtime_id = self.ctx.block(block).data.runtime_id
+        self.ctx.player.send_message(
+            f'bds-sweep:use {block[0]} {block[1]} {block[2]} {number} {click[0]} {click[1]} {click[2]} {runtime_id}')
+        yield wait
+        after = self.cells(cells)
+        held = self.ctx.player.inventory.item_in_main_hand
+        return {'step': label, 'action': 'use', 'block': list(block), 'face': face, 'click': list(click),
+                'look': look, 'cells': {k: list(v) for k, v in cells.items()}, 'before': before, 'after': after,
+                'changed': sorted(k for k in cells if before[k] != after[k]),
+                'held_after': [held.type.id, held.amount] if held is not None else None,
+                'interactions': [[t, k, list(w)] for t, k, w in self.ctx.plugin.events]}
+
+    def watch(self, cells: dict, ticks: int, origin: int, until=None):
+        """Samples `cells` every tick for `ticks` ticks (or until
+        `until(states)`); returns the changes as [ticks since `origin`, cell,
+        state] and the final states."""
+        last = self.cells(cells)
+        changes = []
+        for _ in range(ticks):
+            yield 1
+            now = self.cells(cells)
+            for label in cells:
+                if now[label] != last[label]:
+                    changes.append([self.tick - origin, label, now[label]])
+            last = now
+            if until is not None and until(now):
+                break
+        return changes, last
+
+    def items(self) -> list[dict]:
+        """Removes every item actor and returns their stacks and positions."""
+        found = []
+        for actor in self.ctx.dimension.actors:
+            if actor.type == 'minecraft:item':
+                stack = actor.item_stack
+                location = actor.location
+                found.append({'item': stack.type.id, 'data': stack.data, 'count': stack.amount,
+                              'position': [round(location.x, 2), round(location.y, 2), round(location.z, 2)]})
+                actor.remove()
+        return sorted(found, key=lambda item: (item['item'], item['position']))
+
+    def remove(self, step: str, pos, cells: dict, ticks: int):
+        """`/setblock` `pos` to air and watch `cells`: their states in the
+        same tick, every change after it, and the item actors spawned."""
+        label = self.mark(step)
+        command = f'setblock {pos[0]} {pos[1]} {pos[2]} air'
+        origin = self.tick
+        self.ctx.must(command)
+        same_tick = self.cells(cells)
+        changes, final = yield from self.watch(cells, ticks, origin)
+        yield 10
+        return {'step': label, 'action': 'setblock', 'command': command,
+                'cells': {k: list(v) for k, v in cells.items()}, 'same_tick': same_tick,
+                'changes': changes, 'after': final, 'drops': self.items()}
+
+
+def blocks(ctx: Context, job: dict):
+    """Block behaviour scenarios (doors, torches, crops) on a flat stone
+    arena, played by the survival sweep player through `bds-sweep:use` and
+    `bds-sweep:mine`; one result row per scenario with the full block states
+    of the watched cells after every step."""
+    b = Blocks(ctx, job)
+    ctx.must(f'gamemode survival "{job["player"]}"')
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        b.scenario = item['key']
+        steps = yield from SCENARIOS[item['key']](b, item)
+        ctx.record({'key': item['key'], 'steps': steps})
+    ctx.player.inventory.clear()
+    ctx.must(f'gamemode creative "{job["player"]}"')
+
+
+def _door_cells(pos) -> dict:
+    return {'lower': tuple(pos), 'upper': (pos[0], pos[1] + 1, pos[2])}
+
+
+def _place_door(b: Blocks, step: str, cell, look: str, item: str = 'minecraft:wooden_door', click=None,
+                extra_cells: dict | None = None):
+    """Places a door into `cell` by clicking the top of the floor below it
+    from two blocks away, looking `look` (north: from the south, yaw 180;
+    east: from the west, yaw 270)."""
+    x, y, z = cell
+    stand, yaw = {'north': ((x + 0.5, y, z + 2.5), 180), 'east': ((x - 1.5, y, z + 0.5), 270)}[look]
+    yield from b.hold(item)
+    cells = {**_door_cells(cell), **(extra_cells or {})}
+    return (yield from b.click(step, (x, y - 1, z), 'up', stand, cells, yaw=yaw, click=click))
+
+
+def doors(b: Blocks, item: dict):
+    ctx = b.ctx
+    floor = b.arena['floor']
+    cell = (0, floor + 1, 0)
+    y = cell[1]
+    watch_ticks = int(item.get('watch_ticks', 20))
+    steps = []
+
+    # Placement: facing, hinge and the neighbours that decide the hinge.
+    placements = [
+        ('place_looking_north', 'north', [], None),
+        ('place_looking_east', 'east', [], None),
+        ('place_looking_north_click_west_half', 'north', [], (0.2, 1.0, 0.5)),
+        ('place_looking_north_click_east_half', 'north', [], (0.8, 1.0, 0.5)),
+        ('place_stone_stacked_west', 'north', [(-1, y, 0), (-1, y + 1, 0)], None),
+        ('place_stone_stacked_east', 'north', [(1, y, 0), (1, y + 1, 0)], None),
+    ]
+    for step, look, stones, click in placements:
+        yield from b.reset()
+        for pos in stones:
+            ctx.must(f'setblock {pos[0]} {pos[1]} {pos[2]} stone')
+        steps.append((yield from _place_door(b, step, cell, look, click=click)))
+
+    # A second door directly east of the first (both placed looking north).
+    yield from b.reset()
+    steps.append((yield from _place_door(b, 'pair_first', cell, 'north')))
+    pair = {'first_lower': cell, 'first_upper': (0, y + 1, 0)}
+    steps.append((yield from _place_door(b, 'pair_second_east', (1, y, 0), 'north', extra_cells=pair)))
+
+    # Toggling an oak door with dirt in hand (not sneaking).
+    stand = (0.5, y, 2.5)
+    watched = {**_door_cells(cell), 'in_front': (0, y, 1)}
+    yield from b.reset()
+    steps.append((yield from _place_door(b, 'toggle_place', cell, 'north')))
+    yield from b.hold('minecraft:dirt')
+    for index in range(3):
+        steps.append((yield from b.click(f'toggle_lower_{index + 1}', cell, 'south', stand, watched)))
+    steps.append((yield from b.click('toggle_upper_1', (0, y + 1, 0), 'south', stand, watched)))
+
+    # Iron door: empty hand, then dirt in hand.
+    yield from b.reset()
+    steps.append((yield from _place_door(b, 'iron_place', cell, 'north', item='minecraft:iron_door')))
+    yield from b.hold(None)
+    steps.append((yield from b.click('iron_click_empty_hand', cell, 'south', stand, watched)))
+    yield from b.hold('minecraft:dirt')
+    steps.append((yield from b.click('iron_click_dirt', cell, 'south', stand, watched)))
+
+    # Survival player breaks one half by hand.
+    for half in ('upper', 'lower'):
+        yield from b.reset()
+        steps.append((yield from _place_door(b, f'break_{half}_place', cell, 'north')))
+        yield from b.hold(None)
+        target = _door_cells(cell)[half]
+        look = yield from b.stand(stand, (target[0] + 0.5, target[1] + 0.5, target[2] + 1.0))
+        label = b.mark(f'break_{half}_by_hand')
+        ctx.plugin.events.clear()
+        origin = b.tick
+        ctx.player.send_message(f'bds-sweep:mine {target[0]} {target[1]} {target[2]} {FACES["south"][0]} 0')
+        changes, _ = yield from b.watch(
+            _door_cells(cell), int(item.get('max_break_ticks', 400)), origin,
+            until=lambda s: s['lower']['name'] == 'minecraft:air' and s['upper']['name'] == 'minecraft:air')
+        ctx.player.send_message('bds-sweep:stop')
+        more, final = yield from b.watch(_door_cells(cell), watch_ticks, origin)
+        events = [[t - origin, k, list(w)] for t, k, w in ctx.plugin.events]
+        steps.append({'step': label, 'action': 'mine', 'block': list(target), 'face': 'south', 'look': look,
+                      'cells': {k: list(v) for k, v in _door_cells(cell).items()},
+                      'changes': changes + more, 'after': final, 'events': events, 'drops': b.items()})
+
+    # Removing the floor under the lower half.
+    yield from b.reset()
+    steps.append((yield from _place_door(b, 'floor_removed_place', cell, 'north')))
+    steps.append((yield from b.remove('floor_removed', (0, floor, 0), _door_cells(cell), watch_ticks)))
+    return steps
+
+
+def torches(b: Blocks, item: dict):
+    ctx = b.ctx
+    floor = b.arena['floor']
+    y = floor + 1
+    steps = []
+    yield from b.reset()
+    support = (6, y, 0)
+    overhang = (12, y + 2, 0)
+    fence = (16, y, 0)
+    glass = (20, y, 0)
+    for pos, block in ((support, 'stone'), (overhang, 'stone'), (fence, 'oak_fence'), (glass, 'glass')):
+        ctx.must(f'setblock {pos[0]} {pos[1]} {pos[2]} {block}')
+    yield 2
+    yield from b.hold('minecraft:torch')
+
+    # (step, clicked block, face, standing position)
+    clicks = [
+        ('floor_top', (0, floor, 0), 'up', (0.5, y, 2.5)),
+        ('stone_north_face', support, 'north', (6.5, y, -2.5)),
+        ('stone_south_face', support, 'south', (6.5, y, 3.5)),
+        ('stone_west_face', support, 'west', (3.5, y, 0.5)),
+        ('stone_east_face', support, 'east', (9.5, y, 0.5)),
+        ('overhang_bottom_face', overhang, 'down', (12.5, y, 2.5)),
+        ('oak_fence_top', fence, 'up', (16.5, y, 2.5)),
+        ('glass_top', glass, 'up', (20.5, y, 2.5)),
+    ]
+    side_torches = {}
+    for step, block, face, stand in clicks:
+        d = FACES[face][2]
+        cell = (block[0] + d[0], block[1] + d[1], block[2] + d[2])
+        steps.append((yield from b.click(step, block, face, stand, {'target': cell, 'clicked': block})))
+        if block == support:
+            side_torches[face] = cell
+    steps.append((yield from b.remove('support_removed', support, side_torches,
+                                      int(item.get('watch_ticks', 20)))))
+    return steps
+
+
+def crops(b: Blocks, item: dict):
+    ctx = b.ctx
+    floor = b.arena['floor']
+    y = floor + 1
+    steps = []
+    yield from b.reset()
+    # Seeds: farmland (planted) and dirt (refused).
+    ctx.must(f'setblock 0 {floor} -6 farmland')
+    ctx.must(f'setblock 3 {floor} -6 dirt')
+    yield 2
+    yield from b.hold('minecraft:wheat_seeds')
+    steps.append((yield from b.click('seeds_on_farmland', (0, floor, -6), 'up', (0.5, y, -3.5),
+                                     {'target': (0, y, -6), 'clicked': (0, floor, -6)})))
+    steps.append((yield from b.click('seeds_on_dirt', (3, floor, -6), 'up', (3.5, y, -3.5),
+                                     {'target': (3, y, -6), 'clicked': (3, floor, -6)})))
+
+    # Growth: wheat (growth 0) on 8 farmland cells around one water source,
+    # open sky at noon, sampled every `sample_ticks`.
+    interval = int(item.get('sample_ticks', 20))
+    for speed, seconds in item['growth_runs']:
+        yield from b.reset()
+        plants = {}
+        for dx in (-1, 0, 1):
+            for dz in (-1, 0, 1):
+                x, z = dx, 8 + dz
+                if dx == dz == 0:
+                    ctx.must(f'setblock {x} {floor} {z} water')
+                    continue
+                ctx.must(f'setblock {x} {floor} {z} farmland')
+                ctx.must(f'setblock {x} {y} {z} wheat')
+                plants[f'{x},{z}'] = (x, z)
+        yield from b.stand((4.5, y, 8.5), (0.5, y, 8.5))
+        label = b.mark(f'growth_randomtickspeed_{speed}')
+        ctx.must(f'gamerule randomtickspeed {speed}')
+        origin = b.tick
+        samples = []
+        for _ in range(int(seconds * 20 / interval) + 1):
+            row = {'tick': b.tick - origin, 'growth': {}, 'moisturized_amount': {}, 'other': {}}
+            for key, (x, z) in plants.items():
+                crop, land = b.state((x, y, z)), b.state((x, floor, z))
+                if crop['name'] == 'minecraft:wheat':
+                    row['growth'][key] = crop['states']['growth']
+                else:
+                    row['other'][key] = crop['name']
+                row['moisturized_amount'][key] = (land['states'].get('moisturized_amount')
+                                                  if land['name'] == 'minecraft:farmland' else land['name'])
+            samples.append(row)
+            yield interval
+        ctx.must('gamerule randomtickspeed 0')
+        steps.append({'step': label, 'action': 'random_ticks', 'randomtickspeed': speed, 'seconds': seconds,
+                      'samples': samples, 'after': {key: b.state((x, y, z)) for key, (x, z) in plants.items()}})
+    return steps
+
+
+SCENARIOS = {'doors': doors, 'torches': torches, 'crops': crops}
+
 JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'attack': attack,
-        'fuel': fuel, 'mining': mining}
+        'fuel': fuel, 'mining': mining, 'blocks': blocks}

@@ -1,22 +1,22 @@
 //! Block placement rules: target position, placed state and obstruction.
 //!
-//! Vanilla placement behaviour (as implemented by dragonfly's
-//! `block.place`/`item.UseOnBlock` handling), to be confirmed against BDS:
-//!
 //! - A replaceable clicked block (air, liquids, fire, grass, ferns, vines,
 //!   snow layers below a full stack, ...) is replaced in place; otherwise the
 //!   block goes next to the clicked face, which must be replaceable.
-//! - States from the click: `pillar_axis` from the clicked face's axis; slabs
-//!   on the top or bottom half (upper half of a side face or the underside of
-//!   a block gives a top slab) and merge into a double slab; stairs face where
-//!   the player looks and flip on the upper half; `minecraft:cardinal_direction`
-//!   blocks face the player; `facing_direction` blocks (pistons, dispensers,
-//!   droppers, barrels) face the player in 3D; hoppers point into the block
-//!   they were placed against (down when placed on a top or bottom face);
-//!   ladders attach to the clicked side; torches attach to the clicked face
-//!   (never under a block); doors take two blocks and face where the player
-//!   looks.
-//! - The new block's collision boxes may not intersect a player or a
+//! - Generic states from the click: `pillar_axis` from the clicked face's
+//!   axis; slabs on the top or bottom half (upper half of a side face or the
+//!   underside of a block gives a top slab) and merge into a double slab;
+//!   stairs face where the player looks and flip on the upper half;
+//!   `minecraft:cardinal_direction` blocks face the player;
+//!   `facing_direction` blocks (pistons, dispensers, droppers, barrels) face
+//!   the player in 3D; hoppers point into the block they were placed
+//!   against (down when placed on a top or bottom face).
+//! - Families with their own rules (doors, beds, torches, ladders, buttons,
+//!   levers, vines, signs, trapdoors, fence gates, connected blocks, stairs
+//!   corners) refine the state and add structure parts in
+//!   [`super::block_behaviour`], which also refuses blocks that could not
+//!   survive where they would go (no support, wrong soil).
+//! - The new blocks' collision boxes may not intersect a player or a
 //!   non-item physics body (items do not block placement).
 
 use bevy_ecs::prelude::*;
@@ -72,7 +72,44 @@ impl Horizontal {
         }
     }
 
-    fn cardinal(self) -> &'static str {
+    /// The direction 90° clockwise seen from above (north → east).
+    pub fn clockwise(self) -> Self {
+        match self {
+            Self::North => Self::East,
+            Self::East => Self::South,
+            Self::South => Self::West,
+            Self::West => Self::North,
+        }
+    }
+
+    /// The direction 90° counter-clockwise seen from above (north → west).
+    pub fn counter_clockwise(self) -> Self {
+        self.clockwise().opposite()
+    }
+
+    /// Unit offset of one block in this direction.
+    pub fn offset(self) -> IVec3 {
+        match self {
+            Self::South => IVec3::Z,
+            Self::West => IVec3::NEG_X,
+            Self::North => IVec3::NEG_Z,
+            Self::East => IVec3::X,
+        }
+    }
+
+    /// The direction of a horizontal unit offset.
+    pub fn from_offset(offset: IVec3) -> Option<Self> {
+        Some(match (offset.x, offset.z) {
+            (0, 1) => Self::South,
+            (-1, 0) => Self::West,
+            (0, -1) => Self::North,
+            (1, 0) => Self::East,
+            _ => return None,
+        })
+    }
+
+    /// `minecraft:cardinal_direction` value.
+    pub fn cardinal(self) -> &'static str {
         match self {
             Self::South => "south",
             Self::West => "west",
@@ -81,8 +118,19 @@ impl Horizontal {
         }
     }
 
+    /// The direction a `minecraft:cardinal_direction` value names.
+    pub fn from_cardinal(value: &str) -> Option<Self> {
+        Some(match value {
+            "south" => Self::South,
+            "west" => Self::West,
+            "north" => Self::North,
+            "east" => Self::East,
+            _ => return None,
+        })
+    }
+
     /// Stairs `weirdo_direction`: 0 east, 1 west, 2 south, 3 north.
-    fn weirdo(self) -> i32 {
+    pub fn weirdo(self) -> i32 {
         match self {
             Self::East => 0,
             Self::West => 1,
@@ -91,14 +139,57 @@ impl Horizontal {
         }
     }
 
+    /// The direction of a stairs `weirdo_direction`.
+    pub fn from_weirdo(value: i32) -> Option<Self> {
+        Some(match value {
+            0 => Self::East,
+            1 => Self::West,
+            2 => Self::South,
+            3 => Self::North,
+            _ => return None,
+        })
+    }
+
     /// `facing_direction` ordinal (2 north, 3 south, 4 west, 5 east).
-    fn facing(self) -> i32 {
+    pub fn facing(self) -> i32 {
         match self {
             Self::North => 2,
             Self::South => 3,
             Self::West => 4,
             Self::East => 5,
         }
+    }
+
+    /// The direction of a horizontal `facing_direction` ordinal.
+    pub fn from_facing(value: i32) -> Option<Self> {
+        Some(match value {
+            2 => Self::North,
+            3 => Self::South,
+            4 => Self::West,
+            5 => Self::East,
+            _ => return None,
+        })
+    }
+
+    /// Legacy `direction` (0 south, 1 west, 2 north, 3 east), as beds,
+    /// trapdoors' neighbours and other old blocks number it.
+    pub fn legacy(self) -> i32 {
+        match self {
+            Self::South => 0,
+            Self::West => 1,
+            Self::North => 2,
+            Self::East => 3,
+        }
+    }
+
+    /// The direction of a legacy `direction` value.
+    pub fn from_legacy(value: i32) -> Option<Self> {
+        Some(match value.rem_euclid(4) {
+            0 => Self::South,
+            1 => Self::West,
+            2 => Self::North,
+            _ => Self::East,
+        })
     }
 }
 
@@ -114,12 +205,12 @@ pub struct PlacementInput {
 }
 
 /// Where and what to place.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Placement {
     pub position: IVec3,
     pub state: u32,
-    /// Second block (upper door half).
-    pub upper: Option<(IVec3, u32)>,
+    /// The other blocks of the structure (upper door half, bed head).
+    pub parts: Vec<(IVec3, u32)>,
 }
 
 /// Whether placing a block may replace `state` (the block is "built over").
@@ -194,9 +285,11 @@ fn upper_half(input: &PlacementInput) -> bool {
     }
 }
 
-/// State of `block` placed by `input`, or `None` when the block cannot go
-/// on that face (torches and ladders under blocks).
-fn placed_state(block: &BlockEntry, input: &PlacementInput) -> Option<u32> {
+/// Generic state of `block` placed by `input`: pillar axis, stairs
+/// direction and half, slab half, cardinal direction facing the player and
+/// 3D facing. Families with their own placement rules refine it in
+/// [`super::block_behaviour::placement_state`].
+fn placed_state(block: &BlockEntry, input: &PlacementInput) -> u32 {
     let mut state = block.default_state_id;
     let looking = Horizontal::from_yaw(input.yaw);
     if block.state_value(state, "pillar_axis").is_some() {
@@ -229,14 +322,7 @@ fn placed_state(block: &BlockEntry, input: &PlacementInput) -> Option<u32> {
             StateValue::Str(half),
         );
     }
-    if block.state_value(state, "door_hinge_bit").is_some() {
-        state = set(
-            block,
-            state,
-            "minecraft:cardinal_direction",
-            StateValue::Str(looking.cardinal()),
-        );
-    } else if block
+    if block
         .state_value(state, "minecraft:cardinal_direction")
         .is_some()
     {
@@ -247,34 +333,7 @@ fn placed_state(block: &BlockEntry, input: &PlacementInput) -> Option<u32> {
             StateValue::Str(looking.opposite().cardinal()),
         );
     }
-    if let Some(StateValue::Str(_)) = block.state_value(state, "torch_facing_direction") {
-        let facing = match input.face {
-            1 => "top",
-            2 => "north",
-            3 => "south",
-            4 => "west",
-            5 => "east",
-            _ => return None,
-        };
-        state = set(
-            block,
-            state,
-            "torch_facing_direction",
-            StateValue::Str(facing),
-        );
-    }
     match block.string_id.as_str() {
-        "minecraft:ladder" => {
-            if input.face < 2 {
-                return None;
-            }
-            state = set(
-                block,
-                state,
-                "facing_direction",
-                StateValue::Int(i32::from(input.face)),
-            );
-        }
         "minecraft:piston"
         | "minecraft:sticky_piston"
         | "minecraft:dispenser"
@@ -297,7 +356,7 @@ fn placed_state(block: &BlockEntry, input: &PlacementInput) -> Option<u32> {
         }
         _ => {}
     }
-    Some(state)
+    state
 }
 
 /// Resolve where `held` goes for `input`. `None` when nothing can be placed.
@@ -322,7 +381,7 @@ pub fn resolve_placement(
             return Some(Placement {
                 position: input.clicked,
                 state: double.default_state_id,
-                upper: None,
+                parts: Vec::new(),
             });
         }
     }
@@ -334,7 +393,7 @@ pub fn resolve_placement(
     };
     let target_state = blocks.block_at(position)?;
     let target = registry.get_by_runtime_id(target_state)?;
-    let state = placed_state(held, input)?;
+    let state = placed_state(held, input);
 
     // Slab next to the same slab of the other half: merge.
     if held.string_id.ends_with("_slab") && target.string_id == held.string_id {
@@ -345,7 +404,7 @@ pub fn resolve_placement(
             return Some(Placement {
                 position,
                 state: double.default_state_id,
-                upper: None,
+                parts: Vec::new(),
             });
         }
         return None;
@@ -354,26 +413,21 @@ pub fn resolve_placement(
         return None;
     }
 
-    let upper = if held.state_value(state, "upper_block_bit").is_some() {
-        let above = position + IVec3::Y;
-        let above_state = blocks.block_at(above)?;
+    let state = super::block_behaviour::placement_state(blocks, held, state, input, position)?;
+    let parts = super::block_behaviour::parts(blocks, position, state);
+    for (part, _) in &parts {
+        let part_state = blocks.block_at(*part)?;
         if !registry
-            .get_by_runtime_id(above_state)
-            .is_some_and(|entry| is_replaceable(entry, above_state))
+            .get_by_runtime_id(part_state)
+            .is_some_and(|entry| is_replaceable(entry, part_state))
         {
             return None;
         }
-        Some((
-            above,
-            set(held, state, "upper_block_bit", StateValue::Byte(1)),
-        ))
-    } else {
-        None
-    };
+    }
     Some(Placement {
         position,
         state,
-        upper,
+        parts,
     })
 }
 
@@ -514,10 +568,12 @@ mod tests {
         .unwrap();
         assert_eq!(
             value(&door, "minecraft:cardinal_direction"),
-            Some(StateValue::Str("east"))
+            Some(StateValue::Str("south"))
         );
         assert_eq!(value(&door, "upper_block_bit"), Some(StateValue::Byte(0)));
-        let (above, upper) = door.upper.unwrap();
+        let [(above, upper)] = door.parts[..] else {
+            panic!("a door has one upper half: {:?}", door.parts);
+        };
         assert_eq!(above, IVec3::new(0, 66, 0));
         let upper_entry = BlockRegistry::vanilla().get_by_runtime_id(upper).unwrap();
         assert_eq!(
@@ -556,10 +612,11 @@ mod tests {
     #[test]
     fn torches_attach_to_the_clicked_face_but_not_underneath() {
         let torch = entry("minecraft:torch");
+        // On the south face: the supporting block is north of the torch.
         let wall = resolve_placement(&world(), torch, &input(3, 0.5, 0.0)).unwrap();
         assert_eq!(
             value(&wall, "torch_facing_direction"),
-            Some(StateValue::Str("south"))
+            Some(StateValue::Str("north"))
         );
         let floor = resolve_placement(&world(), torch, &input(1, 1.0, 0.0)).unwrap();
         assert_eq!(

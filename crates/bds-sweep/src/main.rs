@@ -2,10 +2,12 @@
 //!
 //! Joins an offline BDS over loopback and behaves like an idle vanilla
 //! client so the server simulates it: `PlayerAuthInput` every 50 ms at the
-//! position and rotation the server last set, latency probes answered,
-//! respawns and dimension changes acknowledged. The Endstone sweep plugin
-//! drives experiments server-side through this player (held items, armour
-//! slots, `/execute as`) and sends it orders as chat messages:
+//! position and rotation (pitch, yaw, head yaw) the server last set with
+//! `MovePlayer` (`/tp … yaw pitch` or `/tp … facing …` sets the look the
+//! server uses for placement), latency probes answered, respawns and
+//! dimension changes acknowledged. The Endstone sweep plugin drives
+//! experiments server-side through this player (held items, armour slots,
+//! `/execute as`) and sends it orders as chat messages:
 //!
 //! * `bds-sweep:mine X Y Z FACE PREDICT`: start destroying the block (block
 //!   action `StartDestroyBlock`), then `ContinueDestroyBlock` every tick; when
@@ -19,13 +21,24 @@
 //!   ctrl-Q (`COUNT=stack size`) from hotbar index 0..8;
 //! * `bds-sweep:drop inventory SLOT COUNT`: open the native inventory, wait
 //!   for `ContainerOpen`, then drop from main-inventory index 0..35;
-//! * `bds-sweep:close-inventory`: close the inventory opened by this client.
+//! * `bds-sweep:close-inventory`: close the inventory opened by this client;
+//! * `bds-sweep:use X Y Z FACE CX CY CZ [BLOCK_RUNTIME_ID]`: right-click
+//!   the block at X Y Z on FACE (0 down, 1 up, 2 north, 3 south, 4 west,
+//!   5 east) at click position CX CY CZ relative to the block, like a vanilla
+//!   click (`InventoryTransaction` use-item click-block from the eye
+//!   position, with the selected hotbar slot and its item as last sent by the
+//!   server); BLOCK_RUNTIME_ID is the clicked block's network id, 0 if
+//!   omitted. BDS runs its real use/placement logic.
 //!
 //! Drop orders require server-synchronized nonempty slots with stack net IDs.
 //! Inventory drops leave the screen open; hotbar drops close it first.
 //! `--capture-dir DIR` records the entire session, including login and both
 //! directions, in `DIR/packets.jsonl` using the client-diff wire recorder.
 //! Packets are flushed as recorded and again on session completion/error.
+//! `--trace NAMES` (comma-separated packet names such as
+//! `LevelSoundEventPacket`) logs those received packets in decoded form to
+//! stdout, and every `bds-sweep:` chat message that is not an order (a job's
+//! step marks), so a job can read what the server sent after each step.
 //!
 //! Exits successfully when the server closes the session.
 
@@ -38,18 +51,21 @@ use jolyne::{
     stream::{Handshake, transport::Transport},
     valentine::{
         ActorRuntimeId, BlockPos, CerealizerNetworkItemStackDescriptorSerializedData,
-        ContainerClosePacket, EnumsClientPlayMode, EnumsContainerEnumName, EnumsInputMode,
-        EnumsInteractPacketPayloadAction, EnumsItemStackRequestActionType,
+        ContainerClosePacket, EnumsClientPlayMode, EnumsContainerEnumName, EnumsHandSlot,
+        EnumsInputMode, EnumsInteractPacketPayloadAction, EnumsItemStackRequestActionType,
+        EnumsItemUseInventoryTransactionActionType,
+        EnumsItemUseInventoryTransactionPredictedResult,
+        EnumsItemUseInventoryTransactionTriggerType,
         EnumsItemUseOnActorInventoryTransactionActionType, EnumsNewInteractionModel,
         EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData, EnumsPlayerRespawnState,
         FullContainerName, InteractPacket, InventoryTransactionPacket,
         InventoryTransactionPacketTransaction, ItemStackRequestCerealDropActionData,
         ItemStackRequestCerealSlotInfoData, ItemStackRequestPacket,
         ItemStackRequestPacketDataRequestData, ItemStackRequestPacketDataRequestDataActionsItem,
-        ItemUseOnActorInventoryTransaction, McpePacket, McpePacketData, McpePacketName,
-        MobEquipmentPacket, PlayerActionPacket, PlayerAuthInputPacket, PlayerBlockActionData,
-        PlayerInputTick, RespawnPacket, TypedClientNetIdstructItemStackRequestIdTagint32T0, Vec2,
-        Vec3,
+        ItemUseInventoryTransaction, ItemUseOnActorInventoryTransaction, McpePacket,
+        McpePacketData, McpePacketName, MobEquipmentPacket, PlayerActionPacket,
+        PlayerAuthInputPacket, PlayerBlockActionData, PlayerInputTick, RespawnPacket,
+        TypedClientNetIdstructItemStackRequestIdTagint32T0, Vec2, Vec3,
     },
 };
 use std::net::SocketAddr;
@@ -61,7 +77,7 @@ use tracing::info;
 #[derive(Parser, Debug)]
 #[command(about = "Idle scripted player for BDS sweeps")]
 struct Args {
-    #[arg(long, default_value = "127.0.0.1:19132")]
+    #[arg(long, default_value = "127.0.0.1:19140")]
     addr: SocketAddr,
     #[arg(long, default_value = "BDSSweep")]
     name: String,
@@ -71,6 +87,10 @@ struct Args {
     /// Record both packet directions (login included) to DIR/packets.jsonl.
     #[arg(long)]
     capture_dir: Option<PathBuf>,
+    /// Log these received packets (comma-separated names, e.g.
+    /// `LevelSoundEventPacket,UpdateBlockPacket`) in decoded form.
+    #[arg(long, value_delimiter = ',')]
+    trace: Vec<String>,
 }
 
 /// A mining order in progress.
@@ -96,7 +116,19 @@ struct DropOrder {
     count: u8,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A right-click on a block face (`bds-sweep:use`).
+#[derive(Debug, Clone, PartialEq)]
+struct Click {
+    pos: [i32; 3],
+    /// 0 down, 1 up, 2 north, 3 south, 4 west, 5 east.
+    face: u8,
+    /// Click position relative to the block.
+    click: [f32; 3],
+    /// Network id of the clicked block, 0 when the plugin did not give one.
+    block_runtime_id: u32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 enum Order {
     Mine(Mining),
     Stop,
@@ -104,6 +136,13 @@ enum Order {
     Attack(u64),
     Drop(DropOrder),
     CloseInventory,
+    Use(Click),
+}
+
+/// Trims the closing quote (and anything after) of the Debug form of the
+/// text body from a word.
+fn number_word(word: &str) -> &str {
+    word.trim_end_matches(|c: char| !c.is_ascii_digit())
 }
 
 /// The first `n` numbers of an order. The order arrives inside the Debug
@@ -112,7 +151,7 @@ enum Order {
 fn numbers<'a>(words: impl Iterator<Item = &'a str>, n: usize) -> Option<Vec<i64>> {
     let numbers: Vec<i64> = words
         .take(n)
-        .map(|word| word.trim_end_matches(|c: char| !c.is_ascii_digit()).parse())
+        .map(|word| number_word(word).parse())
         .collect::<Result<_, _>>()
         .ok()?;
     (numbers.len() == n).then_some(numbers)
@@ -148,6 +187,21 @@ fn parse_order(text: &str) -> Option<Order> {
                 source,
                 slot: u8::try_from(values[0]).ok()?,
                 count: u8::try_from(values[1]).ok()?,
+            }))
+        }
+        "use" => {
+            let words: Vec<&str> = words.collect();
+            let int = |index: usize| number_word(words.get(index)?).parse::<i32>().ok();
+            let float = |index: usize| number_word(words.get(index)?).parse::<f32>().ok();
+            let face = u8::try_from(int(3)?).ok().filter(|face| *face <= 5)?;
+            Some(Order::Use(Click {
+                pos: [int(0)?, int(1)?, int(2)?],
+                face,
+                click: [float(4)?, float(5)?, float(6)?],
+                block_runtime_id: words
+                    .get(7)
+                    .and_then(|word| number_word(word).parse().ok())
+                    .unwrap_or(0),
             }))
         }
         "close-inventory" | "close-inventory\"" => Some(Order::CloseInventory),
@@ -228,8 +282,45 @@ impl Player {
                 );
                 return Ok(self.close_inventory().into_iter().collect());
             }
+            Order::Use(click) => return Ok(vec![self.use_block(&click)]),
         }
         Ok(Vec::new())
+    }
+
+    /// `InventoryTransaction` use-item click-block with the selected hotbar
+    /// slot, from the eye position, as a vanilla right-click sends it.
+    fn use_block(&self, click: &Click) -> McpePacket {
+        let slot = self.selected_slot;
+        McpePacket::from(InventoryTransactionPacket {
+            transaction: InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
+                Box::new(ItemUseInventoryTransaction {
+                    action_type: EnumsItemUseInventoryTransactionActionType::Place,
+                    trigger_type: EnumsItemUseInventoryTransactionTriggerType::Playerinput,
+                    position: BlockPos {
+                        x: click.pos[0],
+                        y: click.pos[1],
+                        z: click.pos[2],
+                    },
+                    face: click.face,
+                    slot: i32::from(slot),
+                    hand: EnumsHandSlot::Mainhand,
+                    item: self.inventory[usize::from(slot)]
+                        .clone()
+                        .unwrap_or_default(),
+                    from_position: self.position.clone(),
+                    click_position: Vec3 {
+                        x: click.click[0],
+                        y: click.click[1],
+                        z: click.click[2],
+                    },
+                    target_block_id: click.block_runtime_id,
+                    client_interact_prediction:
+                        EnumsItemUseInventoryTransactionPredictedResult::Success,
+                    ..Default::default()
+                }),
+            ),
+            ..Default::default()
+        })
     }
 
     /// `InventoryTransaction` use-item-on-actor `Attack` with the held slot.
@@ -437,10 +528,19 @@ impl Player {
                 self.rotation = packet.rotation;
             }
             McpePacketData::TextPacket(text) => {
-                if let Some(order) = parse_order(&format!("{:?}", text.body)) {
+                let body = format!("{:?}", text.body);
+                if let Some(order) = parse_order(&body) {
                     info!("order {order:?}");
                     return self.order(order);
                 }
+                if body.contains("bds-sweep:") {
+                    info!("plugin message {body}");
+                }
+            }
+            McpePacketData::PlayerHotbarPacket(hotbar)
+                if hotbar.container_id == 0 && hotbar.selected_slot < 9 =>
+            {
+                self.selected_slot = hotbar.selected_slot as u8;
             }
             McpePacketData::InventoryContentPacket(content) if content.container_id == 0 => {
                 self.inventory = std::array::from_fn(|_| None);
@@ -559,7 +659,7 @@ async fn run(args: Args) -> Result<()> {
             .context("login timed out")?
             .context("login")?;
             info!("spawned as {}", args.name);
-            run_session(play, game).await
+            run_session(play, game, &args.trace).await
         } else {
             let (play, game) = tokio::time::timeout(Duration::from_secs(args.timeout), async {
                 BedrockStream::connect(args.addr).await?.join(config).await
@@ -568,7 +668,7 @@ async fn run(args: Args) -> Result<()> {
             .context("login timed out")?
             .context("login")?;
             info!("spawned as {}", args.name);
-            run_session(play, game).await
+            run_session(play, game, &args.trace).await
         }
     }
     .await;
@@ -591,6 +691,7 @@ async fn run(args: Args) -> Result<()> {
 async fn run_session<T: Transport>(
     mut play: BedrockStream<Play, Client, T>,
     game: GameData,
+    trace: &[String],
 ) -> Result<()> {
     let mut player = Player {
         runtime_id: game.start_game.runtime_id.actor_runtime_id,
@@ -618,8 +719,10 @@ async fn run_session<T: Transport>(
                     }
                     Err(error) => return Err(error.into()),
                 };
-                if matches!(
-                    packet.name(),
+                let name = packet.name();
+                let traced = name.is_some_and(|name| trace.contains(&format!("{name:?}")));
+                let handled = matches!(
+                    name,
                     Some(
                         McpePacketName::MovePlayerPacket
                             | McpePacketName::CorrectPlayerMovePredictionPacket
@@ -631,10 +734,18 @@ async fn run_session<T: Transport>(
                             | McpePacketName::InventorySlotPacket
                             | McpePacketName::ContainerOpenPacket
                             | McpePacketName::ContainerClosePacket
+                            | McpePacketName::PlayerHotbarPacket
                     )
-                ) {
-                    for reply in player.handle(packet.decode()?.data)? {
-                        play.send_packet(reply).await?;
+                );
+                if traced || handled {
+                    let data = packet.decode()?.data;
+                    if traced {
+                        info!("trace {data:?}");
+                    }
+                    if handled {
+                        for reply in player.handle(data)? {
+                            play.send_packet(reply).await?;
+                        }
                     }
                 }
             }
@@ -1074,6 +1185,94 @@ mod tests {
                 vec![],
             ]
         );
+    }
+
+    #[test]
+    fn use_orders_parse_with_optional_block_id() {
+        assert_eq!(
+            parse_order(r#"{ message: "bds-sweep:use 0 -61 0 1 0.5 1 0.5" })"#),
+            Some(Order::Use(Click {
+                pos: [0, -61, 0],
+                face: 1,
+                click: [0.5, 1.0, 0.5],
+                block_runtime_id: 0,
+            }))
+        );
+        assert_eq!(
+            parse_order(r#"{ message: "bds-sweep:use 5 -60 0 2 0.5 0.5 0 2965535437" })"#),
+            Some(Order::Use(Click {
+                pos: [5, -60, 0],
+                face: 2,
+                click: [0.5, 0.5, 0.0],
+                block_runtime_id: 2965535437,
+            }))
+        );
+        assert_eq!(parse_order("bds-sweep:use 0 0 0 6 0.5 0.5 0.5"), None);
+        assert_eq!(parse_order("bds-sweep:use 0 0 0 1 0.5 0.5"), None);
+    }
+
+    #[test]
+    fn use_sends_click_block_with_selected_server_slot() {
+        let mut player = player();
+        player.position = Vec3 {
+            x: 0.5,
+            y: -58.38,
+            z: 2.5,
+        };
+        synchronize(&mut player, 3, 64, Some(55));
+        player
+            .handle(McpePacketData::PlayerHotbarPacket(
+                jolyne::valentine::PlayerHotbarPacket {
+                    selected_slot: 3,
+                    container_id: 0,
+                    shouldselectslot: true,
+                },
+            ))
+            .unwrap();
+        let packets = player
+            .order(parse_order("bds-sweep:use 0 -61 0 1 0.5 1 0.5 7").unwrap())
+            .unwrap();
+        let [packet] = packets.as_slice() else {
+            panic!("expected one transaction");
+        };
+        let mut wire = Vec::new();
+        packet.data.encode_inner(&mut wire, 0, 0).unwrap();
+        let mut input = wire.as_slice();
+        let (_, data) = McpePacketData::decode_inner(&mut input, McpePacketArgs).unwrap();
+        assert!(input.is_empty());
+        let McpePacketData::InventoryTransactionPacket(packet) = data else {
+            panic!("expected InventoryTransaction");
+        };
+        let InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(use_item) =
+            packet.transaction
+        else {
+            panic!("expected an item-use transaction");
+        };
+        assert_eq!(
+            use_item.action_type,
+            EnumsItemUseInventoryTransactionActionType::Place
+        );
+        assert_eq!(
+            (
+                use_item.position.x,
+                use_item.position.y,
+                use_item.position.z
+            ),
+            (0, -61, 0)
+        );
+        assert_eq!(use_item.face, 1);
+        assert_eq!(use_item.slot, 3);
+        assert_eq!(use_item.item.net_id_variant, Some(55));
+        assert_eq!(use_item.from_position.z, 2.5);
+        assert_eq!(
+            (
+                use_item.click_position.x,
+                use_item.click_position.y,
+                use_item.click_position.z
+            ),
+            (0.5, 1.0, 0.5)
+        );
+        assert_eq!(use_item.target_block_id, 7);
     }
 
     #[test]

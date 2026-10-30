@@ -109,5 +109,44 @@ class ToolSets(unittest.TestCase):
                          'minecraft:oak_log[a=1,b=false,pillar_axis="y"]')
 
 
+class BlocksTrace(unittest.TestCase):
+    LOG = '\n'.join([
+        'Z INFO bds_sweep_client: trace LevelSoundEventPacket(LevelSoundEventPacket { sound_event: "place", '
+        'position: Vec3 { x: 0.0, y: -60.0, z: 0.0 }, data: -1, actor_identifier: "", is_baby: false, '
+        'is_global: false, actor_unique_id: -1, fire_at_position: None })',
+        'Z INFO bds_sweep_client: plugin message MessageOnly(TextPacketPayloadMessageOnly { message_type: Raw, '
+        'message: "bds-sweep:mark doors/toggle" })',
+        'Z INFO bds_sweep_client: trace LevelSoundEventPacket(LevelSoundEventPacket { sound_event: "door.open", '
+        'position: Vec3 { x: 0.5, y: -59.5, z: 0.5 }, data: -1476754069, actor_identifier: "", is_baby: false, '
+        'is_global: false, actor_unique_id: -1, fire_at_position: None })',
+        'Z INFO bds_sweep_client: trace UpdateBlockPacket(UpdateBlockPacket { block_position: BlockPos '
+        '{ x: 0, y: -60, z: 0 }, block_runtime_id: 7, flags: 3, layer: 0 })',
+        'Z INFO bds_sweep_client: trace UpdateBlockPacket(UpdateBlockPacket { block_position: BlockPos '
+        '{ x: 0, y: -60, z: 0 }, block_runtime_id: 7, flags: 3, layer: 0 })',
+        'Z INFO bds_sweep_client: trace LevelEventPacket(LevelEventPacket { event_id: 3600, position: Vec3 '
+        '{ x: 0.0, y: -59.0, z: 0.0 }, data: 728 })',
+    ])
+
+    def test_packets_after_a_mark_are_decoded_grouped_and_named(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / 'client.log'
+            log.write_text(self.LOG, encoding='utf-8')
+            steps = summarize.trace_packets(log, {2818213227: 'minecraft:wooden_door', 7: 'minecraft:air'})
+        # Packets before the first mark belong to no step.
+        self.assertEqual(list(steps), ['doors/toggle'])
+        step = steps['doors/toggle']
+        self.assertEqual(step['sounds'], [{'sound': 'door.open', 'position': [0.5, -59.5, 0.5],
+                                           'data': 'minecraft:wooden_door'}])
+        self.assertEqual(step['block_updates'], [{'position': [0, -60, 0], 'block': 'minecraft:air', 'times': 2}])
+        self.assertEqual(step['level_events'], [{'event': 3600, 'name': 'StartBlockCracking',
+                                                 'position': [0.0, -59.0, 0.0], 'data': 728}])
+
+    def test_compact_json_keeps_short_values_on_one_line(self):
+        text = summarize.compact_json({'a': [1, 2], 'b': {'c': 'x' * 200}}, width=40)
+        self.assertEqual(json.loads(text), {'a': [1, 2], 'b': {'c': 'x' * 200}})
+        self.assertIn('"a": [1, 2]', text)
+
+
+
 if __name__ == '__main__':
     unittest.main()

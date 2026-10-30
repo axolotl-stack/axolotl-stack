@@ -19,7 +19,7 @@ import traceback
 from pathlib import Path
 
 from endstone.event import (ActorDamageEvent, BlockBreakEvent, EventPriority, PlayerInteractEvent,
-                            PlayerJoinEvent, ServerLoadEvent, event_handler)
+                            PlayerJoinEvent, PlayerPickupItemEvent, ServerLoadEvent, event_handler)
 from endstone.plugin import Plugin
 
 from . import jobs
@@ -82,6 +82,13 @@ class BdsSweep(Plugin):
     @event_handler(priority=EventPriority.MONITOR, ignore_cancelled=True)
     def on_damage(self, event: ActorDamageEvent) -> None:
         self.damage.append((self.ticks, event.actor.type, event.damage, event.damage_source.type))
+
+    @event_handler
+    def on_pickup(self, event: PlayerPickupItemEvent) -> None:
+        # The blocks job counts the item actors a break spawns: the sweep
+        # player must not pick them up first.
+        if self.job['kind'] == 'blocks' and event.player.name == self.job['player']:
+            event.cancel()
 
     def tick(self) -> None:
         if self.runner is None:
