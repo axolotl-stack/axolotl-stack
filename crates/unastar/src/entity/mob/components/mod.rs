@@ -23,6 +23,7 @@ pub mod goals;
 pub mod hurt_on_condition;
 pub mod interact;
 pub mod knockback;
+pub mod leash;
 pub mod loot;
 pub mod movement;
 pub mod shearing;
@@ -63,12 +64,8 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
         "network send-rate tuning only; unastar replicates every significant change",
     ),
     (
-        ActorComponent::Leashable,
-        "leads are not implemented; using a lead on the mob does nothing",
-    ),
-    (
         ActorComponent::LeashableTo,
-        "leads are not implemented; nothing can be leashed to the mob",
+        "mob-to-mob leads are not implemented; only players hold leads",
     ),
     (
         ActorComponent::Balloonable,
@@ -127,7 +124,7 @@ pub fn register_component_kinds(
     loot::register_component_kinds(builder)?;
     interact::register_component_kinds(builder)?;
     inert::<bodies::ConditionalBandwidthOptimization>(builder)?;
-    inert::<bodies::Leashable>(builder)?;
+    leash::register_component_kinds(builder)?;
     inert::<bodies::LeashableTo>(builder)?;
     inert::<bodies::Balloonable>(builder)?;
     inert::<bodies::Rideable>(builder)?;

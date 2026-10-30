@@ -280,6 +280,16 @@ fn restore_state(
             });
         }
     };
+    let custom_name = match fields.0.get("CustomName") {
+        None => None,
+        Some(NBTTag::String(name)) => Some(name.0.clone()),
+        Some(_) => {
+            return Err(ActorDecodeError::WrongType {
+                name: "CustomName",
+                kind: "a String",
+            });
+        }
+    };
 
     let now = current_tick(world);
     let mut entity = world.entity_mut(mob);
@@ -326,6 +336,9 @@ fn restore_state(
     }
     if persistent {
         entity.insert(Persistent);
+    }
+    if let Some(name) = custom_name {
+        crate::entity::mob::interaction::naming::set_custom_name(&mut entity, name);
     }
     if let Some(ticks) = in_love.filter(|&ticks| ticks > 0) {
         entity.insert(InLove {

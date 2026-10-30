@@ -61,10 +61,17 @@ pub fn player_interact(
         resend_held(world, player);
         return;
     }
+    // Whatever the hand holds, a player interacting with a mob it holds on a
+    // lead takes the lead off.
+    if super::leash::release(world, player, target) {
+        return;
+    }
     let Some(held) = held_item(world, player).cloned() else {
         return;
     };
-    let used = apply_dye(world, player, target, &held)
+    let used = super::leash::use_lead(world, player, target, &held)
+        || super::naming::apply_name_tag(world, player, target, &held)
+        || apply_dye(world, player, target, &held)
         || spawn_baby_from_egg(world, player, target, &held)
         || ageable_interaction(world, player, target, &held)
         || fall_in_love(world, player, target, &held)
@@ -459,7 +466,7 @@ fn is_baby(world: &World, entity: Entity) -> bool {
 }
 
 /// Use one of the held item (kept in creative).
-fn use_held_item(world: &mut World, player: Entity, result: Option<ItemStack>) {
+pub(super) fn use_held_item(world: &mut World, player: Entity, result: Option<ItemStack>) {
     use_held_item_with(world, player, true, result);
 }
 

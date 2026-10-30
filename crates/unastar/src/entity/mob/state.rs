@@ -38,6 +38,19 @@ pub struct Dead;
 #[component(storage = "SparseSet")]
 pub struct Persistent;
 
+/// The name a name tag gave the mob (actor data `NAME`, saved as
+/// `CustomName`). Written by interaction and persistence.
+#[derive(Component, Debug, Clone, PartialEq, Eq)]
+pub struct CustomName(pub String);
+
+/// The mob is on a lead held by `holder` (a player). Written by the lead
+/// interaction; the leash tick pulls the mob and breaks the lead.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct Leashed {
+    pub holder: Entity,
+}
+
 /// Love mode after being fed a breed item. Written by interaction; read by
 /// the breed goal. Active while `TickCounter::current < until_tick`.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]

@@ -103,6 +103,7 @@ fn drop_loot(world: &mut World, mob: Entity) {
         on_fire: Some(on_fire),
         recipes: recipes.as_deref(),
         color_index: crate::entity::mob::components::color::color_of(world, mob),
+        ..LootContext::default()
     };
     let drops = match unastar_rules::loot::roll(
         unastar_data::loot::vanilla(),

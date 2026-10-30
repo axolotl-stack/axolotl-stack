@@ -4,9 +4,10 @@
 
 use crate::entity::mob::constants::{LEGACY_ITEM_NAMES, LEGACY_WOOL, WOOL_ITEMS};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level};
+use crate::item::enchant::{Enchantment, enchantment_level, with_durability_damage};
+use crate::registry::ItemRegistry;
 use crate::registry::block::{BlockEntry, StateValue};
-use unastar_rules::loot::LootStateValue;
+use unastar_rules::loot::{ItemFunctions, LootDrop, LootError, LootStateValue};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LootContext<'a> {
@@ -19,6 +20,65 @@ pub struct LootContext<'a> {
     pub recipes: Option<&'a unastar_data::recipes::RecipeRegistry>,
     /// Palette colour of the THIS actor, when it has one.
     pub color_index: Option<u8>,
+    /// Luck of the roll: the rod's Luck of the Sea level when fishing.
+    pub luck: f32,
+    /// Item data for `set_damage` and `enchant_with_levels`; tables using
+    /// them fail with a missing-context error without it.
+    pub items: Option<&'a ItemRegistry>,
+}
+
+impl LootContext<'_> {
+    /// The drop as a single item stack, `None` for an unknown item.
+    fn drop_stack(items: &ItemRegistry, drop: &LootDrop) -> Option<ItemStack> {
+        let mut stack = items.stack(&drop.item_id, 1)?.with_damage(drop.data);
+        stack.nbt = drop.nbt.clone().map(bytes::Bytes::from);
+        Some(stack)
+    }
+
+    fn store(drop: &mut LootDrop, stack: &ItemStack) {
+        drop.item_id.clear();
+        drop.item_id.push_str(stack.item_id());
+        drop.data = stack.damage;
+        drop.nbt = stack.nbt.as_ref().map(|nbt| nbt.to_vec());
+    }
+}
+
+impl ItemFunctions for LootContext<'_> {
+    /// Damage `floor((1 - fraction) × max durability)` (public reference);
+    /// items without durability are unchanged.
+    fn set_damage(&self, drop: &mut LootDrop, fraction: f32) -> Result<(), LootError> {
+        let items = self.items.ok_or(LootError::MissingContext("set_damage"))?;
+        let Some(stack) = Self::drop_stack(items, drop) else {
+            return Ok(());
+        };
+        let max = stack
+            .item()
+            .map_or(0, crate::server::game::durability::max_durability);
+        if max > 0 {
+            let damage = ((1.0 - fraction.clamp(0.0, 1.0)) * max as f32).floor() as i32;
+            Self::store(drop, &with_durability_damage(&stack, damage.min(max - 1)));
+        }
+        Ok(())
+    }
+
+    fn enchant_with_levels(
+        &self,
+        drop: &mut LootDrop,
+        levels: i32,
+        treasure: bool,
+        mut rng: &mut dyn rand::RngCore,
+    ) -> Result<(), LootError> {
+        let items = self
+            .items
+            .ok_or(LootError::MissingContext("enchant_with_levels"))?;
+        let Some(stack) = Self::drop_stack(items, drop) else {
+            return Ok(());
+        };
+        let enchanted =
+            crate::item::enchanting::enchant_with_levels(&stack, levels, treasure, items, &mut rng);
+        Self::store(drop, &enchanted);
+        Ok(())
+    }
 }
 
 impl unastar_rules::loot::LootContext for LootContext<'_> {
@@ -66,6 +126,14 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
     fn furnace(&self) -> Option<&dyn unastar_rules::loot::FurnaceSmelt> {
         self.recipes
             .map(|recipes| recipes as &dyn unastar_rules::loot::FurnaceSmelt)
+    }
+
+    fn luck(&self) -> f32 {
+        self.luck
+    }
+
+    fn item_functions(&self) -> Option<&dyn ItemFunctions> {
+        self.items.map(|_| self as &dyn ItemFunctions)
     }
 
     fn this_color_index(&self) -> Option<u8> {

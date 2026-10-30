@@ -13,7 +13,7 @@ use crate::entity::definition::properties::{ActorProperties, NamedPropertyValue}
 use crate::entity::mob::MobKind;
 use crate::entity::mob::components::spawn_entity::SpawnEntityTimers;
 use crate::entity::mob::life::ageing::BabyAge;
-use crate::entity::mob::state::{BreedCooldown, InLove, Persistent};
+use crate::entity::mob::state::{BreedCooldown, CustomName, InLove, Persistent};
 
 use super::HEALTH_ATTRIBUTE;
 
@@ -102,6 +102,9 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
         "Persistent",
         NBTTag::Byte(u8::from(world.get::<Persistent>(mob).is_some()).into()),
     );
+    if let Some(name) = world.get::<CustomName>(mob) {
+        put("CustomName", NBTTag::String(name.0.as_str().into()));
+    }
     if let Some(colour) = crate::entity::mob::components::color::color_of(world, mob) {
         put("Color", NBTTag::Byte(colour.into()));
     }
