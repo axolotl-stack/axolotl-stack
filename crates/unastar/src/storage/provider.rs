@@ -122,6 +122,10 @@ pub struct PlayerData {
     pub exhaustion: f32,
     #[serde(default)]
     pub experience_progress: f32,
+    /// Enchanting-table seed; missing on records saved before enchanting
+    /// (a fresh one is drawn at spawn).
+    #[serde(default)]
+    pub enchantment_seed: Option<u32>,
 }
 
 impl Default for PlayerData {
@@ -145,6 +149,7 @@ impl Default for PlayerData {
             saturation: default_saturation(),
             exhaustion: 0.0,
             experience_progress: 0.0,
+            enchantment_seed: None,
         }
     }
 }

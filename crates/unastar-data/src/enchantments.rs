@@ -110,6 +110,15 @@ struct EnchantabilityRow {
     items: Vec<String>,
 }
 
+/// The enchant-slot bit of the items in one category.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SlotMask {
+    /// Category name (a key of [`category`]).
+    pub category: String,
+    pub mask: i32,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Table {
@@ -118,6 +127,7 @@ struct Table {
     enchantments: Vec<Enchantment>,
     incompatible: Vec<Vec<i16>>,
     enchantability: Vec<EnchantabilityRow>,
+    slot_masks: Vec<SlotMask>,
 }
 
 static TABLE: LazyLock<Table> = LazyLock::new(|| {
@@ -171,6 +181,12 @@ pub fn enchantability(identifier: &str) -> i32 {
     ENCHANTABILITY.get(identifier).copied().unwrap_or(0)
 }
 
+/// Enchant-slot bits in priority order: an item takes the first category
+/// it is in.
+pub fn slot_masks() -> &'static [SlotMask] {
+    &TABLE.slot_masks
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,6 +212,9 @@ mod tests {
             for id in group {
                 assert!(get(*id).is_some(), "{id}");
             }
+        }
+        for slot in slot_masks() {
+            assert!(category(&slot.category).is_some(), "{}", slot.category);
         }
     }
 

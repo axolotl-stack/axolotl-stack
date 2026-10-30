@@ -197,6 +197,7 @@ fn replay(capture: &str) -> Replayed {
                     crafting: &super::test_support::CRAFTING.1,
                     items: &VANILLA,
                     levels,
+                    enchanting: None,
                 };
                 let outcome = process(&request, &mut stores, &mut cache, &ctx);
                 pending = Some((request.client_request_id.id, outcome));
@@ -306,6 +307,7 @@ struct Bench {
     creative: bool,
     levels: i32,
     next: i32,
+    enchanting: Option<super::engine::EnchantingContext>,
 }
 
 impl Bench {
@@ -323,6 +325,7 @@ impl Bench {
             creative: false,
             levels: 30,
             next: -1,
+            enchanting: None,
         }
     }
 
@@ -359,6 +362,7 @@ impl Bench {
                 crafting: &super::test_support::CRAFTING.1,
                 items: &VANILLA,
                 levels: self.levels,
+                enchanting: self.enchanting,
             },
         )
     }
@@ -538,6 +542,411 @@ fn station_screens_address_their_ui_slots_only() {
             .index(17),
         Some(Some(17))
     );
+}
+
+// ── Enchanting table, stonecutter, loom, cartography table ─────────────────
+
+const OPTION_BASE: u32 = 90_000;
+
+fn craft(net_id: u32, count: u8) -> Action {
+    Action::CraftRecipeActionData(
+        jolyne::valentine::ItemStackRequestCerealCraftRecipeActionData {
+            recipe_net_id: TypedServerNetIdstructRecipeNetIdTag { raw_id: net_id },
+            numberofrequestedcrafts: count,
+            ..Default::default()
+        },
+    )
+}
+
+fn enchanting_bench(seed: u32, item: ItemStack, lapis: u8) -> (Bench, i32, i32) {
+    let mut bench = Bench::new(StationKind::EnchantingTable);
+    bench.enchanting = Some(super::engine::EnchantingContext {
+        seed,
+        bookshelves: 15,
+        first_option_id: OPTION_BASE,
+    });
+    let item = bench.put(14, item);
+    let lapis = bench.put(15, stack("minecraft:lapis_lazuli", lapis));
+    (bench, item, lapis)
+}
+
+fn enchant(bench: &mut Bench, option: u8, item: i32, lapis: i32, lapis_used: u8) -> Outcome {
+    let request = bench.next;
+    bench.run(
+        vec![
+            craft(OPTION_BASE + u32::from(option), 1),
+            consume(Name::Enchantinginputcontainer, 14, item, 1),
+            consume(Name::Enchantingmaterialcontainer, 15, lapis, lapis_used),
+            take_output(request, 0),
+        ],
+        &[],
+    )
+}
+
+#[test]
+fn enchanting_applies_the_offer_and_takes_lapis_and_levels() {
+    let sword = stack("minecraft:iron_sword", 1);
+    let offers = crate::item::enchanting::offers(&sword, 15, 77).unwrap();
+    let (mut bench, item, lapis) = enchanting_bench(77, sword, 5);
+    let outcome = enchant(&mut bench, 2, item, lapis, 3);
+    assert_eq!(status(&outcome), Status::Success);
+    assert_eq!(outcome.station, Some(StationUse::Enchant { levels: 3 }));
+    let result = bench.main.item(0).unwrap();
+    assert_eq!(result.item_id(), "minecraft:iron_sword");
+    assert_eq!(
+        crate::item::enchant::enchantments(result),
+        offers[2].enchantments
+    );
+    assert!(bench.ui.item(14).unwrap().is_empty());
+    // Measured: `{Damage: 0, ench: [...]}`.
+    assert_eq!(crate::item::enchant::durability_damage(result), 0);
+    assert!(item_tag(result).unwrap().0.contains_key("Damage"));
+    assert_eq!(bench.ui.item(15).unwrap().count, 2);
+}
+
+#[test]
+fn enchanting_refuses_bad_ids_missing_levels_and_short_lapis() {
+    let sword = || stack("minecraft:diamond_sword", 1);
+    // Unknown option IDs, and no table context at all.
+    let (mut bench, item, lapis) = enchanting_bench(5, sword(), 3);
+    let request = bench.next;
+    let outcome = bench.run(
+        vec![
+            craft(OPTION_BASE + 3, 1),
+            consume(Name::Enchantinginputcontainer, 14, item, 1),
+            take_output(request, 0),
+        ],
+        &[],
+    );
+    assert_eq!(status(&outcome), Status::Failedtofindrecipebynetid);
+    bench.enchanting = None;
+    assert_eq!(
+        status(&enchant(&mut bench, 0, item, lapis, 1)),
+        Status::Failedtofindrecipebynetid
+    );
+    // The bottom offer costs 30 levels with 15 bookshelves (measured
+    // status for a level 2 player).
+    let (mut bench, item, lapis) = enchanting_bench(5, sword(), 3);
+    bench.levels = 29;
+    assert_eq!(
+        status(&enchant(&mut bench, 2, item, lapis, 3)),
+        Status::Insufficientplayerleveltoenchant
+    );
+    bench.creative = true;
+    assert_eq!(
+        status(&enchant(&mut bench, 2, item, lapis, 3)),
+        Status::Success
+    );
+    // Two lapis cannot pay for the bottom offer.
+    let (mut bench, item, lapis) = enchanting_bench(5, sword(), 2);
+    assert_ne!(
+        status(&enchant(&mut bench, 2, item, lapis, 2)),
+        Status::Success
+    );
+    assert_ne!(
+        status(&enchant(&mut bench, 2, item, lapis, 3)),
+        Status::Success
+    );
+    assert_eq!(
+        bench.ui.item(14).unwrap().item_id(),
+        "minecraft:diamond_sword"
+    );
+    // Already enchanted items get no offers.
+    let enchanted = crate::item::enchant::with_enchantment_list(&sword(), &[(9, 1)]);
+    let (mut bench, item, lapis) = enchanting_bench(5, enchanted, 3);
+    assert_eq!(
+        status(&enchant(&mut bench, 0, item, lapis, 1)),
+        Status::Failedtoenchant
+    );
+}
+
+#[test]
+fn enchanting_a_book_makes_an_enchanted_book() {
+    let book = stack("minecraft:book", 1);
+    let seed = (0..100)
+        .find(|seed| {
+            !crate::item::enchanting::offers(&book, 15, *seed).unwrap()[0]
+                .enchantments
+                .is_empty()
+        })
+        .unwrap();
+    let offer = crate::item::enchanting::offers(&book, 15, seed).unwrap()[0].clone();
+    let (mut bench, item, lapis) = enchanting_bench(seed, book, 1);
+    assert_eq!(
+        status(&enchant(&mut bench, 0, item, lapis, 1)),
+        Status::Success
+    );
+    let result = bench.main.item(0).unwrap();
+    assert_eq!(result.item_id(), "minecraft:enchanted_book");
+    assert_eq!(
+        crate::item::enchant::enchantments(result),
+        offer.enchantments
+    );
+    assert!(bench.ui.item(15).unwrap().is_empty());
+}
+
+#[test]
+fn enchanting_slots_take_one_item_and_lapis_only() {
+    let table = ScreenKind::Station(StationScreen {
+        kind: StationKind::EnchantingTable,
+        at: IVec3::ZERO,
+    });
+    let input = table.rule(Name::Enchantinginputcontainer).unwrap();
+    assert_eq!(input.index(14), Some(Some(14)));
+    assert_eq!(input.set_count(&stack("minecraft:book", 64)), 1);
+    let lapis = table.rule(Name::Enchantingmaterialcontainer).unwrap();
+    assert!(lapis.accepts(15, &stack("minecraft:lapis_lazuli", 1)));
+    assert!(!lapis.accepts(15, &stack("minecraft:stick", 1)));
+    assert!(table.rule(Name::Anvilinputcontainer).is_none());
+}
+
+/// Our network ID of the advertised recipe `identifier` with station `tag`.
+fn tagged_recipe(identifier: &str, tag: &str) -> u32 {
+    super::test_support::CRAFTING
+        .0
+        .packet()
+        .shapeless_recipes
+        .iter()
+        .find(|recipe| &*recipe.recipe_id == identifier && &*recipe.tag == tag)
+        .map(|recipe| recipe.net_id.raw_id)
+        .unwrap_or_else(|| panic!("{identifier} ({tag}) is advertised"))
+}
+
+#[test]
+fn stonecutter_crafts_its_recipes_only() {
+    let mut bench = Bench::new(StationKind::Stonecutter);
+    let stone = bench.put(3, stack("minecraft:stone", 5));
+    let slab = tagged_recipe("minecraft:stonecutter_double_stone_slab", "stonecutter");
+    let request = bench.next;
+    let outcome = bench.run(
+        vec![
+            craft(slab, 2),
+            consume(Name::Stonecutterinputcontainer, 3, stone, 2),
+            Action::TakeActionData(ItemStackRequestCerealTakeActionData {
+                amount: 4,
+                source: slot(Name::Createdoutputcontainer, 50, request),
+                destination: slot(Name::Hotbarcontainer, 0, 0),
+                ..Default::default()
+            }),
+        ],
+        &[],
+    );
+    assert_eq!(status(&outcome), Status::Success);
+    assert_eq!(outcome.station, Some(StationUse::Crafted));
+    assert_eq!(bench.main.item(0).unwrap().count, 4);
+    assert!(bench.main.item(0).unwrap().item_id().contains("slab"));
+    assert_eq!(bench.ui.item(3).unwrap().count, 3);
+    // A crafting-table recipe is not a stonecutter recipe.
+    let planks = super::test_support::recipe_id("minecraft:oak_planks");
+    let request = bench.next;
+    let outcome = bench.run(
+        vec![
+            craft(planks, 1),
+            consume(Name::Stonecutterinputcontainer, 3, stone, 1),
+            take_output(request, 1),
+        ],
+        &[],
+    );
+    assert_eq!(status(&outcome), Status::Mismatchedrecipeforinputgriditems);
+    // Nor does a stonecutter recipe accept another input.
+    let mut bench = Bench::new(StationKind::Stonecutter);
+    let dirt = bench.put(3, stack("minecraft:dirt", 1));
+    let brick = tagged_recipe("minecraft:stonecutter_stonebrick", "stonecutter");
+    let request = bench.next;
+    let outcome = bench.run(
+        vec![
+            craft(brick, 1),
+            consume(Name::Stonecutterinputcontainer, 3, dirt, 1),
+            take_output(request, 0),
+        ],
+        &[],
+    );
+    assert_eq!(status(&outcome), Status::Mismatchedrecipeforinputgriditems);
+}
+
+#[test]
+fn cartography_table_makes_empty_and_locator_maps() {
+    let mut bench = Bench::new(StationKind::CartographyTable);
+    let paper = bench.put(12, stack("minecraft:paper", 2));
+    let map = tagged_recipe("minecraft:cartography_table_map", "cartography_table");
+    let request = bench.next;
+    let outcome = bench.run(
+        vec![
+            craft(map, 1),
+            consume(Name::Cartographyinputcontainer, 12, paper, 1),
+            take_output(request, 0),
+        ],
+        &[],
+    );
+    assert_eq!(status(&outcome), Status::Success);
+    assert_eq!(bench.main.item(0).unwrap().item_id(), "minecraft:empty_map");
+    assert_eq!(bench.main.item(0).unwrap().damage, 0);
+    let compass = bench.put(13, stack("minecraft:compass", 1));
+    let locator = tagged_recipe(
+        "minecraft:cartography_table_locator_map",
+        "cartography_table",
+    );
+    let request = bench.next;
+    let outcome = bench.run(
+        vec![
+            craft(locator, 1),
+            consume(Name::Cartographyinputcontainer, 12, paper, 1),
+            consume(Name::Cartographyadditionalcontainer, 13, compass, 1),
+            take_output(request, 1),
+        ],
+        &[],
+    );
+    assert_eq!(status(&outcome), Status::Success);
+    assert_eq!(bench.main.item(1).unwrap().item_id(), "minecraft:empty_map");
+    assert_eq!(bench.main.item(1).unwrap().damage, 2);
+    assert!(bench.ui.item(12).unwrap().is_empty() && bench.ui.item(13).unwrap().is_empty());
+}
+
+fn loom_action(pattern: &str, count: u8) -> Action {
+    Action::CraftLoomActionData(
+        jolyne::valentine::ItemStackRequestCerealCraftLoomActionData {
+            pattern_name_id: pattern.into(),
+            num_crafts: count,
+            ..Default::default()
+        },
+    )
+}
+
+fn patterns(stack: &ItemStack) -> Vec<(i32, String)> {
+    use zuri_nbt::NBTTag;
+    let Some(NBTTag::List(list)) = item_tag(stack).and_then(|tag| tag.0.get("Patterns").cloned())
+    else {
+        return Vec::new();
+    };
+    list.0
+        .iter()
+        .map(|entry| {
+            let NBTTag::Compound(entry) = entry else {
+                panic!("{entry:?}")
+            };
+            let (Some(NBTTag::Int(colour)), Some(NBTTag::String(pattern))) =
+                (entry.0.get("Color"), entry.0.get("Pattern"))
+            else {
+                panic!("{entry:?}")
+            };
+            (colour.0, pattern.0.clone())
+        })
+        .collect()
+}
+
+fn weave(bench: &mut Bench, pattern: &str, banner: i32, dye: i32, to: u8) -> Outcome {
+    let request = bench.next;
+    bench.run(
+        vec![
+            loom_action(pattern, 1),
+            consume(Name::Loominputcontainer, 9, banner, 1),
+            consume(Name::Loomdyecontainer, 10, dye, 1),
+            take_output(request, to),
+        ],
+        &[],
+    )
+}
+
+#[test]
+fn loom_adds_a_dyed_pattern_to_a_banner() {
+    let mut bench = Bench::new(StationKind::Loom);
+    let white_banner = stack("minecraft:banner", 1).with_damage(15);
+    let banner = bench.put(9, white_banner);
+    let dye = bench.put(10, stack("minecraft:red_dye", 8));
+    let outcome = weave(&mut bench, "bs", banner, dye, 0);
+    assert_eq!(status(&outcome), Status::Success);
+    assert_eq!(outcome.station, Some(StationUse::Crafted));
+    let result = bench.main.item(0).unwrap().clone();
+    assert_eq!((result.item_id(), result.damage), ("minecraft:banner", 15));
+    assert_eq!(patterns(&result), vec![(1, "bs".to_string())]);
+    assert!(bench.ui.item(9).unwrap().is_empty());
+    assert_eq!(bench.ui.item(10).unwrap().count, 7);
+
+    // The flower needs its banner pattern item, which stays.
+    let banner = bench.put(9, result);
+    assert_eq!(
+        status(&weave(&mut bench, "flo", banner, dye, 1)),
+        Status::Invalidcraftresult
+    );
+    bench.put(11, stack("minecraft:flower_banner_pattern", 1));
+    assert_eq!(
+        status(&weave(&mut bench, "flo", banner, dye, 1)),
+        Status::Success
+    );
+    assert_eq!(
+        patterns(bench.main.item(1).unwrap()),
+        vec![(1, "bs".to_string()), (1, "flo".to_string())]
+    );
+    assert_eq!(
+        bench.ui.item(11).unwrap().item_id(),
+        "minecraft:flower_banner_pattern"
+    );
+    // Unknown patterns, non-dyes and a seventh layer make nothing.
+    let mut banner_stack = bench.main.item(1).unwrap().clone();
+    for _ in 0..4 {
+        banner_stack = super::stations::loom(
+            &banner_stack,
+            &stack("minecraft:blue_dye", 1),
+            &ItemStack::empty(),
+            "ts",
+        )
+        .unwrap();
+    }
+    assert_eq!(patterns(&banner_stack).len(), 6);
+    let banner = bench.put(9, banner_stack);
+    assert_eq!(
+        status(&weave(&mut bench, "ts", banner, dye, 2)),
+        Status::Invalidcraftresult
+    );
+    let fresh = bench.put(9, stack("minecraft:banner", 1));
+    assert_eq!(
+        status(&weave(&mut bench, "nope", fresh, dye, 2)),
+        Status::Invalidcraftresult
+    );
+    let stick = bench.put(10, stack("minecraft:stick", 1));
+    assert_eq!(
+        status(&weave(&mut bench, "ts", fresh, stick, 2)),
+        Status::Invalidcraftresult
+    );
+}
+
+#[test]
+fn bookshelves_count_around_the_table_unless_blocked() {
+    use super::stations::count_bookshelves;
+    use std::collections::HashSet;
+    // A full ring two blocks out on both levels: 32 shelves, capped at 15.
+    let ring: HashSet<IVec3> = (-2..=2)
+        .flat_map(|x| (-2..=2).map(move |z| (x, z)))
+        .filter(|(x, z): &(i32, i32)| x.abs() == 2 || z.abs() == 2)
+        .flat_map(|(x, z)| [IVec3::new(x, 0, z), IVec3::new(x, 1, z)])
+        .collect();
+    assert_eq!(count_bookshelves(|p| ring.contains(&p), |_| true), 15);
+    // One shelf straight out, one diagonal, one offset.
+    let shelves: HashSet<IVec3> = [
+        IVec3::new(2, 0, 0),
+        IVec3::new(-2, 1, -2),
+        IVec3::new(1, 0, 2),
+        // Too close and too far count nothing.
+        IVec3::new(1, 0, 0),
+        IVec3::new(3, 0, 0),
+        IVec3::new(2, 2, 0),
+    ]
+    .into();
+    assert_eq!(count_bookshelves(|p| shelves.contains(&p), |_| true), 3);
+    // A block between the table and a shelf, at the table's level or
+    // above, cuts it off: (1, 0, 0) blocks the shelf at (2, 0, 0); (-1, 1,
+    // -1) the diagonal one; (1, 1, 1) the offset one.
+    for blocker in [
+        IVec3::new(1, 0, 0),
+        IVec3::new(-1, 1, -1),
+        IVec3::new(1, 1, 1),
+    ] {
+        assert_eq!(
+            count_bookshelves(|p| shelves.contains(&p) && p != blocker, |p| p != blocker),
+            2,
+            "{blocker}"
+        );
+    }
 }
 
 // ── World side ──────────────────────────────────────────────────────────────
@@ -956,6 +1365,158 @@ mod world {
                 world.get::<ContainerWindows>(player).unwrap().screen(),
                 ScreenKind::None
             );
+        });
+    }
+
+    #[test]
+    fn enchanting_table_offers_enchants_and_reoffers() {
+        with_world(GameMode::Survival, |h| {
+            let at = IVec3::new(5, 64, 5);
+            h.place(at, "minecraft:enchanting_table", "north");
+            for z in 3..=7 {
+                for y in 64..=65 {
+                    h.place(IVec3::new(7, y, z), "minecraft:bookshelf", "north");
+                }
+            }
+            // Blocks the columns at (7, 3) and (7, 4): 10 - 4 shelves.
+            h.place(IVec3::new(6, 65, 4), "minecraft:stone", "north");
+            assert_eq!(stations::bookshelves(h.world(), at), 6);
+            h.packets();
+            let player = h.player;
+            stations::open(h.world(), player, at, StationKind::EnchantingTable);
+            let open = h.packets();
+            let [
+                McpePacketData::ContainerOpenPacket(window),
+                McpePacketData::InventoryContentPacket(content),
+            ] = &open[..]
+            else {
+                panic!("{open:?}");
+            };
+            assert_eq!((window.container_type, content.slots.len()), (3, 2));
+
+            let sword = stack("minecraft:iron_sword", 1);
+            let seed = h
+                .world()
+                .get::<Experience>(player)
+                .unwrap()
+                .enchantment_seed;
+            let offers = crate::item::enchanting::offers(&sword, 6, seed).unwrap();
+            let put_sword = |h: &mut Harness, hotbar: usize| {
+                let player = h.player;
+                let sword_id = {
+                    let mut main = h.world().get_mut::<MainInventory>(player).unwrap();
+                    main.0
+                        .set_item(hotbar, stack("minecraft:iron_sword", 1).into_slot())
+                        .unwrap();
+                    main.0.item(hotbar).unwrap().net_id
+                };
+                h.request(
+                    |_| {
+                        vec![Action::PlaceActionData(
+                            jolyne::valentine::ItemStackRequestCerealPlaceActionData {
+                                amount: 1,
+                                source: super::slot(Name::Hotbarcontainer, hotbar as u8, sword_id),
+                                destination: super::slot(Name::Enchantinginputcontainer, 14, 0),
+                                ..Default::default()
+                            },
+                        )]
+                    },
+                    &[],
+                );
+                h.packets()
+            };
+            let lapis = h.put(15, stack("minecraft:lapis_lazuli", 3));
+            let packets = put_sword(h, 0);
+            // Measured: the options precede the response.
+            let [
+                McpePacketData::PlayerEnchantOptionsPacket(options),
+                McpePacketData::ItemStackResponsePacket(response),
+            ] = &packets[..]
+            else {
+                panic!("{packets:?}");
+            };
+            assert_eq!(response.responses[0].result, Status::Success);
+            let first = h
+                .world()
+                .resource::<crate::server::game::types::CraftingExecutorResource>()
+                .0
+                .next_free_net_id();
+            let expected: Vec<(u32, u8, i32)> = offers
+                .iter()
+                .enumerate()
+                .map(|(slot, offer)| (first + slot as u32, offer.cost as u8, 16))
+                .collect();
+            let sent: Vec<(u32, u8, i32)> = options
+                .options
+                .iter()
+                .map(|o| (o.enchant_net_id.raw_id, o.cost, o.enchants.slot))
+                .collect();
+            assert_eq!(sent, expected);
+            let top = options.options[0].clone();
+            assert!(top.enchant_name.ends_with(' '));
+            let listed: usize = top.enchants.item_enchants.iter().map(Vec::len).sum();
+            assert_eq!(listed, offers[0].enchantments.len());
+
+            let item = h
+                .world()
+                .get::<PlayerUi>(player)
+                .unwrap()
+                .0
+                .item(14)
+                .unwrap()
+                .net_id;
+            h.request(
+                |request| {
+                    vec![
+                        super::craft(top.enchant_net_id.raw_id, 1),
+                        consume(Name::Enchantinginputcontainer, 14, item, 1),
+                        consume(Name::Enchantingmaterialcontainer, 15, lapis, 1),
+                        take_output(request, 1),
+                    ]
+                },
+                &[],
+            );
+            let packets = h.packets();
+            // Measured: only the level attribute follows; no new offers.
+            assert_eq!(
+                kinds(&packets),
+                [
+                    format!("response {:?}", Status::Success),
+                    "attributes [(\"minecraft:player.level\", 999.0)]".to_string()
+                ]
+            );
+            assert!(
+                !packets
+                    .iter()
+                    .any(|p| matches!(p, McpePacketData::PlayerEnchantOptionsPacket(_)))
+            );
+            let world = h.world();
+            assert_ne!(
+                world.get::<Experience>(player).unwrap().enchantment_seed,
+                seed
+            );
+            assert_eq!(world.get::<Experience>(player).unwrap().level, 999);
+            let main = &world.get::<MainInventory>(player).unwrap().0;
+            assert_eq!(
+                crate::item::enchant::enchantments(main.item(1).unwrap()),
+                offers[0].enchantments
+            );
+            assert_eq!(
+                world
+                    .get::<PlayerUi>(player)
+                    .unwrap()
+                    .0
+                    .item(15)
+                    .unwrap()
+                    .count,
+                2
+            );
+            // The next options packet takes the next three IDs.
+            let packets = put_sword(h, 2);
+            let Some(McpePacketData::PlayerEnchantOptionsPacket(again)) = packets.first() else {
+                panic!("{packets:?}");
+            };
+            assert_eq!(again.options[0].enchant_net_id.raw_id, first + 3);
         });
     }
 }

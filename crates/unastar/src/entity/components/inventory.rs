@@ -497,7 +497,8 @@ pub enum ScreenKind {
     Workbench,
     /// A container block's window (chest, barrel, furnace, hopper, ...).
     Block(BlockScreen),
-    /// An anvil, smithing table or grindstone window.
+    /// A station window: anvil, smithing table, grindstone, enchanting
+    /// table, stonecutter, loom or cartography table.
     Station(StationScreen),
 }
 
@@ -516,6 +517,10 @@ pub enum StationKind {
     Anvil,
     SmithingTable,
     Grindstone,
+    EnchantingTable,
+    Stonecutter,
+    Loom,
+    CartographyTable,
 }
 
 /// A station window: the station and the clicked block.

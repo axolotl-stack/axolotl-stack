@@ -1,7 +1,8 @@
-//! Anvil, grindstone and smithing table: what they make from their input
-//! slots (pure functions over stacks; the request engine owns slots,
-//! consumption and the response) and the world side of a committed use
-//! (window opening, XP, anvil wear, events).
+//! Anvil, grindstone, smithing table, enchanting table, stonecutter, loom
+//! and cartography table: what they make from their input slots (pure
+//! functions over stacks; the request engine owns slots, consumption and
+//! the response) and the world side of a committed use (window opening,
+//! XP, anvil wear, events, enchanting offers).
 //!
 //! Measured on BDS 1.26.51 (client-diff `blocks-20261029`: scenarios
 //! `anvil`, `anvil-wear`, `smithing-table`, `grindstone-probe`):
@@ -42,15 +43,32 @@
 //! `RepairCost` 0, name and damage kept, an enchanted book becomes a plain
 //! book, any curse refuses the craft, anvil inputs stay in their slots
 //! after a close.
+//!
+//! Enchanting table, stonecutter, loom and cartography table (public
+//! reference, not yet measured): windows `ContainerOpen` type 3, 29, 24 and
+//! 30 (the protocol's container types) listing the station's input slots;
+//! the enchanting table counts bookshelves two blocks out on the table's
+//! level and the one above, each column only when both blocks between it
+//! and the table are air (minecraft.wiki "Enchanting table mechanics",
+//! Bedrock), sends `PlayerEnchantOptions` whenever its input slot changes
+//! (see [`crate::item::enchanting`] for the offers), and an enchant
+//! charges the offer slot's number of levels and replaces the player's
+//! seed. Stonecutter and cartography crafts are the advertised recipes
+//! tagged `stonecutter` / `cartography_table`; filled maps do not exist on
+//! this server, so the cartography table's map multi recipes (clone,
+//! extend, lock) answer like any unsupported recipe. The loom adds one
+//! pattern in the dye's colour to a banner's `Patterns`.
 
 use bevy_ecs::prelude::*;
 use glam::IVec3;
 use jolyne::valentine::{
-    ActorRuntimeId, ActorUniqueId, BlockPos, ContainerOpenPacket, InventoryContentPacket,
-    McpePacket, PlayerInputTick, UpdateAttributesPacket,
+    ActorRuntimeId, ActorUniqueId, BlockPos, ContainerOpenPacket, EnchantmentInstance,
+    EnumsEnchantType, InventoryContentPacket, ItemEnchantOption, ItemEnchants, McpePacket,
+    PlayerEnchantOptionsPacket, PlayerInputTick, TypedServerNetIdstructRecipeNetIdTag,
+    UpdateAttributesPacket,
 };
 use rand::Rng;
-use unastar_data::enchantments::{self, Category};
+use unastar_data::{banner_patterns, enchantments};
 
 use super::engine::StationUse;
 use crate::entity::EntityRandom;
@@ -61,18 +79,17 @@ use crate::entity::components::{
 
 use crate::item::ItemStack;
 use crate::item::enchant::{
-    custom_name, durability_damage, enchantments as enchantment_list, has_repair_cost, repair_cost,
-    with_custom_name, with_durability_damage, with_enchantment_list, with_repair_cost,
+    custom_name, durability_damage, enchantments as enchantment_list, has_repair_cost, item_tag,
+    repair_cost, with_custom_name, with_durability_damage, with_enchantment_list, with_item_tag,
+    with_repair_cost,
 };
+use crate::item::enchanting::{BOOK, ENCHANTED_BOOK, accepts};
 use crate::registry::item::ItemEntry;
 use crate::server::game::durability::max_durability;
 
 /// Survival anvil operations must cost less than this many levels
 /// ("Too Expensive!").
 pub const ANVIL_COST_LIMIT: i32 = 40;
-
-const ENCHANTED_BOOK: &str = "minecraft:enchanted_book";
-const BOOK: &str = "minecraft:book";
 
 /// An anvil operation the inputs allow.
 #[derive(Debug, Clone, PartialEq)]
@@ -84,27 +101,6 @@ pub struct AnvilResult {
     pub input_used: u8,
     /// How many of the material slot are used.
     pub material_used: u8,
-}
-
-fn in_category(stack: &ItemStack, item: &ItemEntry, category: &Category) -> bool {
-    category
-        .armor_slot
-        .is_some_and(|slot| crate::item::equipment::accepts_armour(stack, usize::from(slot)))
-        || category.tags.iter().any(|tag| item.has_tag(tag))
-        || category.items.iter().any(|id| id == item.identifier())
-        || (category.durable && max_durability(item) > 0)
-}
-
-/// Whether `stack` can carry enchantment `id` (books take every one).
-fn accepts(stack: &ItemStack, id: i16) -> bool {
-    let (Some(item), Some(enchantment)) = (stack.item(), enchantments::get(id)) else {
-        return false;
-    };
-    item.identifier() == ENCHANTED_BOOK
-        || item.identifier() == BOOK
-        || enchantment.targets.iter().any(|target| {
-            enchantments::category(target).is_some_and(|c| in_category(stack, item, c))
-        })
 }
 
 /// Whether `material` unit-repairs `target`.
@@ -350,6 +346,57 @@ pub fn trimmed(base: &ItemStack, template: &ItemStack, material: &ItemStack) -> 
     Some(crate::item::enchant::with_item_tag(base, compound).with_count(1))
 }
 
+/// The loom's output for the `banner`, `dye` and pattern-slot item: one of
+/// the banner with `pattern` in the dye's colour appended to its
+/// `Patterns` (and `Type` 0 when it had none). `None` for anything but a
+/// banner and a dye, an unknown pattern, a pattern whose banner pattern
+/// item is not in the pattern slot, or a banner already at the pattern
+/// limit.
+pub fn loom(
+    banner: &ItemStack,
+    dye: &ItemStack,
+    pattern_item: &ItemStack,
+    pattern: &str,
+) -> Option<ItemStack> {
+    use zuri_nbt::{NBTTag, tag};
+    if banner.item_id() != "minecraft:banner" {
+        return None;
+    }
+    let colour = banner_patterns::dye_colour(dye.item_id())?;
+    if let Some(item) = banner_patterns::required_item(pattern)?
+        && pattern_item.item_id() != item
+    {
+        return None;
+    }
+    let mut compound = item_tag(banner).unwrap_or_default();
+    let mut patterns = match compound.0.remove("Patterns") {
+        Some(NBTTag::List(list)) => list.0,
+        _ => Vec::new(),
+    };
+    if patterns.len() >= banner_patterns::max_patterns() {
+        return None;
+    }
+    patterns.push(NBTTag::Compound(tag::Compound(
+        [
+            ("Color".to_string(), NBTTag::Int(tag::Int(colour))),
+            (
+                "Pattern".to_string(),
+                NBTTag::String(tag::String(pattern.to_string())),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    )));
+    compound
+        .0
+        .insert("Patterns".to_string(), NBTTag::List(tag::List(patterns)));
+    compound
+        .0
+        .entry("Type".to_string())
+        .or_insert(NBTTag::Int(tag::Int(0)));
+    Some(with_item_tag(&banner.clone().with_count(1), compound))
+}
+
 // ── World side ──────────────────────────────────────────────────────────────
 
 /// `LevelEvent` of an anvil use (measured).
@@ -367,12 +414,17 @@ const ANVIL_STAGES: [&str; 3] = [
     "minecraft:damaged_anvil",
 ];
 
-/// Signed `ContainerType` of a station window (measured).
+/// Signed `ContainerType` of a station window (anvil, smithing table and
+/// grindstone measured; the others the protocol's container types).
 pub const fn wire_type(kind: StationKind) -> i8 {
     match kind {
         StationKind::Anvil => 5,
         StationKind::SmithingTable => 33,
         StationKind::Grindstone => 26,
+        StationKind::EnchantingTable => 3,
+        StationKind::Stonecutter => 29,
+        StationKind::Loom => 24,
+        StationKind::CartographyTable => 30,
     }
 }
 
@@ -381,14 +433,35 @@ pub fn station_of(identifier: &str) -> Option<StationKind> {
     match identifier {
         "minecraft:smithing_table" => Some(StationKind::SmithingTable),
         "minecraft:grindstone" => Some(StationKind::Grindstone),
+        "minecraft:enchanting_table" => Some(StationKind::EnchantingTable),
+        "minecraft:stonecutter_block" => Some(StationKind::Stonecutter),
+        "minecraft:loom" => Some(StationKind::Loom),
+        "minecraft:cartography_table" => Some(StationKind::CartographyTable),
         _ if ANVIL_STAGES.contains(&identifier) => Some(StationKind::Anvil),
         _ => None,
     }
 }
 
+/// The UI slots a station window lists, from its first input slot.
+/// Measured for the anvil (1..=3), smithing table (51..=53) and grindstone
+/// (16..=18); the others list their input slots (public reference).
+fn window_slots(kind: StationKind) -> std::ops::Range<usize> {
+    use super::containers::*;
+    let (first, len) = match kind {
+        StationKind::Anvil => (ANVIL_INPUT_SLOT, 3),
+        StationKind::SmithingTable => (SMITHING_INPUT_SLOT, 3),
+        StationKind::Grindstone => (GRINDSTONE_INPUT_SLOT, 3),
+        StationKind::EnchantingTable => (ENCHANTING_INPUT_SLOT, 2),
+        StationKind::Stonecutter => (STONECUTTER_INPUT_SLOT, 1),
+        StationKind::Loom => (LOOM_BANNER_SLOT, 3),
+        StationKind::CartographyTable => (CARTOGRAPHY_INPUT_SLOT, 2),
+    };
+    usize::from(first)..usize::from(first) + len
+}
+
 /// Station `use`: open its window at the block from the player's window
 /// counter, unless a window is already open. The slots live in the
-/// player's UI container, so the window content is three empty slots.
+/// player's UI container, so the window content lists those slots.
 pub(in crate::server::game) fn open(
     world: &mut World,
     player: Entity,
@@ -417,21 +490,15 @@ pub(in crate::server::game) fn open(
             actor_unique_id: -1,
         },
     }));
-    // BDS lists the station's three UI slots from index 0 (anvil 1..=3,
-    // smithing 51..=53, grindstone 16..=18): empty for a fresh window, the
-    // kept anvil inputs on a reopen.
-    let first = match kind {
-        StationKind::Anvil => usize::from(super::containers::ANVIL_INPUT_SLOT),
-        StationKind::SmithingTable => usize::from(super::containers::SMITHING_INPUT_SLOT),
-        StationKind::Grindstone => usize::from(super::containers::GRINDSTONE_INPUT_SLOT),
-    };
+    // BDS lists the station's UI slots from index 0: empty for a fresh
+    // window, the kept anvil inputs on a reopen.
     let block_ids = crate::server::game::types::block_network_ids(world);
     let slots = world
         .get::<crate::entity::components::PlayerUi>(player)
         .map_or_else(
-            || vec![Default::default(); 3],
+            || vec![Default::default(); window_slots(kind).len()],
             |ui| {
-                (first..first + 3)
+                window_slots(kind)
                     .map(|slot| {
                         ui.0.item(slot)
                             .and_then(|stack| super::wire_item(stack, block_ids))
@@ -460,6 +527,11 @@ pub(super) enum AfterResponse {
     /// Spawn `xp` experience at the player.
     Grindstone {
         xp: u32,
+    },
+    /// Charge `levels` levels, replace the enchanting seed and resend the
+    /// table's offers.
+    Enchant {
+        levels: i32,
     },
 }
 
@@ -501,7 +573,10 @@ pub(super) fn before_response(
     creative: bool,
 ) -> AfterResponse {
     match used {
-        StationUse::Smithing => AfterResponse::Nothing,
+        StationUse::Smithing | StationUse::Crafted => AfterResponse::Nothing,
+        StationUse::Enchant { levels } => AfterResponse::Enchant {
+            levels: if creative { 0 } else { levels },
+        },
         StationUse::Grindstone { enchantment_value } => {
             let xp = grindstone_xp(enchantment_value, |half| {
                 world
@@ -560,6 +635,15 @@ pub(super) fn after_response(world: &mut World, player: Entity, after: AfterResp
                 charge_levels(world, player, cost);
             }
         }
+        AfterResponse::Enchant { levels } => {
+            if levels > 0 {
+                charge_levels(world, player, levels);
+            }
+            let seed = world.get_resource_or_init::<EntityRandom>().0.r#gen();
+            if let Some(mut experience) = world.get_mut::<Experience>(player) {
+                experience.enchantment_seed = seed;
+            }
+        }
     }
 }
 
@@ -587,6 +671,186 @@ fn charge_levels(world: &mut World, player: Entity, levels: i32) {
         attribute_list: vec![level],
         tick: PlayerInputTick { inputtick: tick },
     }));
+}
+
+/// Bookshelves powering an enchanting table, at most
+/// [`MAX_BOOKSHELVES`](crate::item::enchanting::MAX_BOOKSHELVES):
+/// `bookshelf` and `air` tell whether the block at an offset from the table
+/// is a bookshelf or air. Columns two blocks out (on the table's level and
+/// one above) count when the two blocks between the column and the table,
+/// next to the column, are both air.
+pub fn count_bookshelves(
+    mut bookshelf: impl FnMut(IVec3) -> bool,
+    mut air: impl FnMut(IVec3) -> bool,
+) -> u8 {
+    let mut count = 0u8;
+    for dx in -2..=2i32 {
+        for dz in -2..=2i32 {
+            if dx.abs() != 2 && dz.abs() != 2 {
+                continue;
+            }
+            let gap = IVec3::new(dx.clamp(-1, 1), 0, dz.clamp(-1, 1));
+            if !(air(gap) && air(gap + IVec3::Y)) {
+                continue;
+            }
+            for dy in 0..=1 {
+                count += u8::from(bookshelf(IVec3::new(dx, dy, dz)));
+            }
+        }
+    }
+    count.min(crate::item::enchanting::MAX_BOOKSHELVES)
+}
+
+/// Bookshelves powering the enchanting table at `at` in the world.
+pub fn bookshelves(world: &World, at: IVec3) -> u8 {
+    let Some(registry) = world.get_resource::<crate::server::game::types::BlockRegistryResource>()
+    else {
+        return 0;
+    };
+    let block = |offset: IVec3| {
+        let p = at + offset;
+        crate::server::game::blocks::block_at(world, (p.x, p.y, p.z))
+    };
+    count_bookshelves(
+        |offset| {
+            block(offset)
+                .and_then(|state| registry.0.get_by_runtime_id(state))
+                .is_some_and(|entry| entry.string_id == "minecraft:bookshelf")
+        },
+        |offset| block(offset) == Some(*crate::world::chunk::blocks::AIR),
+    )
+}
+
+/// What the player's open enchanting table at `at` offers depend on, for
+/// the request engine.
+pub(in crate::server::game) fn enchanting_context(
+    world: &World,
+    player: Entity,
+    at: IVec3,
+) -> Option<super::engine::EnchantingContext> {
+    Some(super::engine::EnchantingContext {
+        seed: world.get::<Experience>(player)?.enchantment_seed,
+        bookshelves: bookshelves(world, at),
+        first_option_id: world.get::<EnchantOptionIds>(player)?.current?,
+    })
+}
+
+/// Network IDs of a player's enchanting offers. Measured: the first
+/// `PlayerEnchantOptions` of a session names its offers by the three IDs
+/// after the last advertised recipe, every later one by the next three,
+/// even for the same offers again.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EnchantOptionIds {
+    /// The first ID of the next options packet.
+    next: u32,
+    /// The first ID of the offers last sent.
+    current: Option<u32>,
+}
+
+/// The `PlayerEnchantOptions` for `stack` and `table` (whose
+/// `first_option_id` names the first offer): the three offers, each with
+/// the item's enchant-slot bits; `None` for an item the table cannot
+/// enchant.
+pub fn enchant_options(
+    stack: &ItemStack,
+    table: super::engine::EnchantingContext,
+    rng: &mut impl Rng,
+) -> Option<PlayerEnchantOptionsPacket> {
+    use jolyne::valentine::bedrock::codec::BedrockCodec;
+    let offers = crate::item::enchanting::offers(stack, table.bookshelves, table.seed)?;
+    let slot_mask = crate::item::enchanting::enchant_slot(stack);
+    let options = offers
+        .iter()
+        .enumerate()
+        .map(|(slot, offer)| {
+            let mut lists: [Vec<EnchantmentInstance>; 3] = Default::default();
+            for &(id, level) in &offer.enchantments {
+                let enchantment = enchantments::get(id).expect("offers name known enchantments");
+                let byte = [u8::try_from(id).expect("enchantment ids fit a byte")];
+                lists[enchantment.activation.index()].push(EnchantmentInstance {
+                    enchant_type: EnumsEnchantType::decode(&mut &byte[..], ())
+                        .expect("a byte decodes as an enchantment type"),
+                    enchant_level: u8::try_from(level).expect("levels fit a byte"),
+                });
+            }
+            ItemEnchantOption {
+                cost: u8::try_from(offer.cost).expect("offer costs are at most 30"),
+                enchants: ItemEnchants {
+                    slot: slot_mask,
+                    item_enchants: lists,
+                },
+                enchant_name: crate::item::enchanting::offer_name(rng).into(),
+                enchant_net_id: TypedServerNetIdstructRecipeNetIdTag {
+                    raw_id: table.first_option_id + slot as u32,
+                },
+            }
+        })
+        .collect();
+    Some(PlayerEnchantOptionsPacket { options })
+}
+
+/// After a request changed the input slot of the player's enchanting table
+/// at `at` from `before`: send the offers for the new item, unless the
+/// table cannot enchant it. Measured: options follow an item put in (also
+/// the same item again), never a removal, lapis or an enchanted item, and
+/// precede the request's response.
+pub(in crate::server::game) fn offer_on_change(
+    world: &mut World,
+    player: Entity,
+    at: IVec3,
+    before: &ItemStack,
+) {
+    let stack = enchanting_input(world, player);
+    if same_slot(before, &stack) || !crate::item::enchanting::can_enchant(&stack) {
+        return;
+    }
+    let Some(first_free) = world
+        .get_resource::<crate::server::game::types::CraftingExecutorResource>()
+        .map(|executor| executor.0.next_free_net_id())
+    else {
+        return;
+    };
+    let ids = world
+        .get::<EnchantOptionIds>(player)
+        .copied()
+        .unwrap_or(EnchantOptionIds {
+            next: first_free,
+            current: None,
+        });
+    let first = ids.next;
+    world.entity_mut(player).insert(EnchantOptionIds {
+        next: first + 3,
+        current: Some(first),
+    });
+    let Some(table) = enchanting_context(world, player, at) else {
+        return;
+    };
+    let packet = enchant_options(
+        &stack,
+        table,
+        &mut world.get_resource_or_init::<EntityRandom>().0,
+    )
+    .expect("the table enchants the item");
+    if let Some(session) = world.get::<PlayerSession>(player) {
+        let _ = session.send(McpePacket::from(packet));
+    }
+}
+
+/// The item in the player's enchanting-table input slot.
+pub(in crate::server::game) fn enchanting_input(world: &World, player: Entity) -> ItemStack {
+    world
+        .get::<crate::entity::components::PlayerUi>(player)
+        .and_then(|ui| {
+            ui.0.item(usize::from(super::containers::ENCHANTING_INPUT_SLOT))
+                .cloned()
+        })
+        .unwrap_or_else(ItemStack::empty)
+}
+
+/// Whether a slot still holds the same stack (kind, count and network ID).
+fn same_slot(before: &ItemStack, after: &ItemStack) -> bool {
+    before.is_empty() && after.is_empty()
+        || (before.same_kind(after) && before.count == after.count && before.net_id == after.net_id)
 }
 
 #[cfg(test)]
@@ -946,6 +1210,33 @@ mod tests {
             Some(StationKind::SmithingTable)
         );
         assert_eq!(station_of("minecraft:crafting_table"), None);
+        assert_eq!(
+            [
+                "minecraft:enchanting_table",
+                "minecraft:stonecutter_block",
+                "minecraft:loom",
+                "minecraft:cartography_table",
+                "minecraft:stonecutter",
+            ]
+            .map(station_of),
+            [
+                Some(StationKind::EnchantingTable),
+                Some(StationKind::Stonecutter),
+                Some(StationKind::Loom),
+                Some(StationKind::CartographyTable),
+                None,
+            ]
+        );
+        assert_eq!(
+            [
+                StationKind::EnchantingTable,
+                StationKind::Stonecutter,
+                StationKind::Loom,
+                StationKind::CartographyTable,
+            ]
+            .map(|kind| (wire_type(kind), window_slots(kind))),
+            [(3, 14..16), (29, 3..4), (24, 9..12), (30, 12..14)]
+        );
         assert_eq!(
             [
                 StationKind::Anvil,

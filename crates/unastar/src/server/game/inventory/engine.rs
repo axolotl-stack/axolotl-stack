@@ -32,9 +32,11 @@ use jolyne::valentine::{
 };
 
 use super::containers::{
-    ANVIL_INPUT_SLOT, ANVIL_MATERIAL_SLOT, CREATED_OUTPUT_SLOT, ContainerRule,
-    GRINDSTONE_ADDITIONAL_SLOT, GRINDSTONE_INPUT_SLOT, SMITHING_INPUT_SLOT, SMITHING_MATERIAL_SLOT,
-    SMITHING_TEMPLATE_SLOT, ScreenKind, Store,
+    ANVIL_INPUT_SLOT, ANVIL_MATERIAL_SLOT, CARTOGRAPHY_ADDITIONAL_SLOT, CARTOGRAPHY_INPUT_SLOT,
+    CREATED_OUTPUT_SLOT, ContainerRule, ENCHANTING_INPUT_SLOT, ENCHANTING_MATERIAL_SLOT,
+    GRINDSTONE_ADDITIONAL_SLOT, GRINDSTONE_INPUT_SLOT, LOOM_BANNER_SLOT, LOOM_DYE_SLOT,
+    LOOM_PATTERN_SLOT, SMITHING_INPUT_SLOT, SMITHING_MATERIAL_SLOT, SMITHING_TEMPLATE_SLOT,
+    STONECUTTER_INPUT_SLOT, ScreenKind, Store,
 };
 use super::stations;
 use crate::crafting::execution::{CraftingExecutor, CraftingGrid, SmithingPlan, ValidationError};
@@ -171,8 +173,21 @@ pub struct Context<'a> {
     pub creative_item: &'a dyn Fn(u32) -> Option<ItemStack>,
     pub crafting: &'a CraftingExecutor,
     pub items: &'a ItemRegistry,
-    /// The player's XP level, which pays for anvil work outside creative.
+    /// The player's XP level, which pays for anvil and enchanting work
+    /// outside creative.
     pub levels: i32,
+    /// What the open enchanting table's offers depend on.
+    pub enchanting: Option<EnchantingContext>,
+}
+
+/// What an enchanting table's offers depend on besides the item: the
+/// player's seed and the bookshelves, plus the network ID of the first
+/// offer (the next two follow it).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EnchantingContext {
+    pub seed: u32,
+    pub bookshelves: u8,
+    pub first_option_id: u32,
 }
 
 /// A station operation a committed request performed; the world commit
@@ -185,6 +200,11 @@ pub enum StationUse {
     Grindstone { enchantment_value: i32 },
     /// A smithing-table transform or trim.
     Smithing,
+    /// An enchant from offer slot `levels - 1`, which costs `levels` XP
+    /// levels and replaces the player's enchanting seed.
+    Enchant { levels: i32 },
+    /// A stonecutter, loom or cartography-table craft.
+    Crafted,
 }
 
 /// Slots of equipment containers a committed request changed; BDS follows
@@ -226,6 +246,15 @@ const STATION_NO_RESULT: Status = Status::Invalidcraftresult;
 /// Anvil work a survival player cannot pay for, or "Too Expensive!". Not
 /// measured; answered like a craft without a result.
 const ANVIL_TOO_EXPENSIVE: Status = Status::Invalidcraftresult;
+/// An enchant the player lacks the levels for (measured, client-diff
+/// items3-20261030 `enchanting`: level 2 asking for a 30-level offer).
+const ENCHANT_UNAFFORDABLE: Status = Status::Insufficientplayerleveltoenchant;
+/// An offer without enchantments, or an item the table cannot enchant. Not
+/// measured.
+const ENCHANT_NOTHING: Status = Status::Failedtoenchant;
+/// A recipe of another station on a stonecutter or cartography table. Not
+/// measured.
+const WRONG_STATION_RECIPE: Status = Status::Mismatchedrecipeforinputgriditems;
 
 /// Unsupported native contracts stay distinct from a mismatching grid. In
 /// particular, no client result descriptor can supply missing server output.
@@ -517,6 +546,26 @@ impl Request<'_, '_> {
 
     fn craft_recipe(&mut self, net_id: u32, num_crafts: u32) -> Result<(), Status> {
         let executor = self.ctx.crafting;
+        match self.station() {
+            Some(StationKind::EnchantingTable) => return self.craft_enchant(net_id, num_crafts),
+            Some(StationKind::Stonecutter) => {
+                return self.craft_station_recipe(
+                    net_id,
+                    num_crafts,
+                    "stonecutter",
+                    &[STONECUTTER_INPUT_SLOT],
+                );
+            }
+            Some(StationKind::CartographyTable) => {
+                return self.craft_station_recipe(
+                    net_id,
+                    num_crafts,
+                    "cartography_table",
+                    &[CARTOGRAPHY_INPUT_SLOT, CARTOGRAPHY_ADDITIONAL_SLOT],
+                );
+            }
+            _ => {}
+        }
         if executor.is_repair(net_id) {
             return self.craft_repair(num_crafts);
         }
@@ -552,11 +601,20 @@ impl Request<'_, '_> {
             .ok_or_else(|| GridCraftError::UnrepresentableOutput.status())?;
         // Preserve the packet's aux, exact block state, NBT and registered
         // item handle. Consume actions, not this validation step, remove input.
-        let output = output
+        let mut output = output
             .template
             .clone()
             .with_count(count)
             .with_net_id(fresh_net_id());
+        // A user-data recipe (dyeing a shulker box or bundle) keeps the
+        // dyed item's NBT, such as a shulker box's contents.
+        if let Some(index) = plan.user_data_source {
+            let ui_slot = plan.grid_size.ui_slot(index).expect("bounded grid cell");
+            let source = self.staging.get(self.stores, (Store::Ui, usize::from(ui_slot)));
+            if let Some(tag) = crate::item::enchant::item_tag(source) {
+                output = crate::item::enchant::with_item_tag(&output, tag);
+            }
+        }
         self.consumption = std::array::from_fn(|index| {
             let remaining = plan.consumption[index];
             (remaining != 0).then(|| {
@@ -758,6 +816,123 @@ impl Request<'_, '_> {
         Ok(())
     }
 
+    /// Enchanting table: offer `net_id` of those last sent, which the
+    /// player's seed and the bookshelves make for the input item (see
+    /// [`crate::item::enchanting::offers`]). Takes the item, one lapis per
+    /// offer slot (1 to 3) and, outside creative, as many levels; the
+    /// player needs at least the offer's cost in levels (measured).
+    fn craft_enchant(&mut self, net_id: u32, num_crafts: u32) -> Result<(), Status> {
+        let table = self
+            .ctx
+            .enchanting
+            .ok_or(Status::Failedtofindrecipebynetid)?;
+        let slot = net_id
+            .checked_sub(table.first_option_id)
+            .filter(|slot| *slot < 3)
+            .ok_or(Status::Failedtofindrecipebynetid)? as usize;
+        if num_crafts != 1 {
+            return Err(Status::Invalidnumcrafts);
+        }
+        let input = self.ui_stack(ENCHANTING_INPUT_SLOT);
+        let offers = crate::item::enchanting::offers(&input, table.bookshelves, table.seed)
+            .ok_or(ENCHANT_NOTHING)?;
+        let offer = &offers[slot];
+        if offer.enchantments.is_empty() {
+            return Err(ENCHANT_NOTHING);
+        }
+        let price = slot as u8 + 1;
+        if !self.ctx.creative && (self.ctx.levels < offer.cost || self.ctx.levels < i32::from(price))
+        {
+            return Err(ENCHANT_UNAFFORDABLE);
+        }
+        let output = crate::item::enchanting::enchanted(
+            &input.clone().with_count(1),
+            &offer.enchantments,
+            self.ctx.items,
+        )
+        .ok_or(ENCHANT_NOTHING)?;
+        self.station_output(
+            output,
+            &[
+                (ENCHANTING_INPUT_SLOT, 1),
+                (ENCHANTING_MATERIAL_SLOT, price),
+            ],
+            StationUse::Enchant {
+                levels: i32::from(price),
+            },
+        );
+        Ok(())
+    }
+
+    /// Stonecutter and cartography table: advertised recipe `net_id`
+    /// carrying the station's `tag`, matched shapelessly against the
+    /// station's input `slots`; each occupied slot gives one item per craft.
+    fn craft_station_recipe(
+        &mut self,
+        net_id: u32,
+        num_crafts: u32,
+        tag: &str,
+        slots: &[u8],
+    ) -> Result<(), Status> {
+        let executor = self.ctx.crafting;
+        if executor.station_tag(net_id) != Some(tag) {
+            // Unknown and non-grid IDs keep the grid's statuses.
+            executor
+                .requires_3x3(net_id)
+                .map_err(|error| GridCraftError::Validation(error).status())?;
+            return Err(WRONG_STATION_RECIPE);
+        }
+        let grid = CraftingGrid::Inventory(std::array::from_fn(|index| {
+            slots.get(index).map_or(&EMPTY, |slot| {
+                self.staging
+                    .get(self.stores, (Store::Ui, usize::from(*slot)))
+            })
+        }));
+        let plan = executor
+            .validate(net_id, grid, num_crafts)
+            .map_err(|error| GridCraftError::Validation(error).status())?;
+        let mut outputs = plan.outputs();
+        let output = outputs.next().ok_or(Status::Emptycraftresults)?;
+        if outputs.next().is_some() {
+            return Err(GridCraftError::MultipleOutputs.status());
+        }
+        let count = u8::try_from(output.count)
+            .ok()
+            .filter(|count| *count != 0)
+            .ok_or_else(|| GridCraftError::UnrepresentableOutput.status())?;
+        let output = output.template.clone().with_count(count);
+        let consumed: Vec<(u8, u8)> = slots
+            .iter()
+            .zip(plan.consumption)
+            .map(|(slot, amount)| (*slot, amount))
+            .collect();
+        self.station_output(output, &consumed, StationUse::Crafted);
+        Ok(())
+    }
+
+    /// Loom: banner pattern `pattern` in the dye's colour on `num_crafts`
+    /// banners (see [`stations::loom`]); takes one banner and one dye per
+    /// craft, never the pattern item.
+    fn craft_loom(&mut self, pattern: &str, num_crafts: u8) -> Result<(), Status> {
+        if num_crafts == 0 {
+            return Err(Status::Invalidnumcrafts);
+        }
+        let banner = self.ui_stack(LOOM_BANNER_SLOT);
+        let dye = self.ui_stack(LOOM_DYE_SLOT);
+        let pattern_item = self.ui_stack(LOOM_PATTERN_SLOT);
+        if banner.count < num_crafts || dye.count < num_crafts {
+            return Err(STATION_NO_RESULT);
+        }
+        let output =
+            stations::loom(&banner, &dye, &pattern_item, pattern).ok_or(STATION_NO_RESULT)?;
+        self.station_output(
+            output.with_count(num_crafts),
+            &[(LOOM_BANNER_SLOT, num_crafts), (LOOM_DYE_SLOT, num_crafts)],
+            StationUse::Crafted,
+        );
+        Ok(())
+    }
+
     fn consume(
         &mut self,
         amount: u8,
@@ -880,6 +1055,10 @@ impl Request<'_, '_> {
             {
                 self.crafted = true;
                 self.craft_grindstone(craft.recipe_net_id)
+            }
+            Action::CraftLoomActionData(craft) if self.station() == Some(StationKind::Loom) => {
+                self.crafted = true;
+                self.craft_loom(&craft.pattern_name_id, craft.num_crafts)
             }
             Action::CraftRecipeOptionalActionData(_)
             | Action::CraftRepairAndDisenchantActionData(_)
@@ -1115,6 +1294,7 @@ mod tests {
                         crafting: &super::super::test_support::CRAFTING.1,
                         items: &VANILLA,
                         levels: 0,
+                        enchanting: None,
                     };
                     let outcome = process(&request, &mut stores, &mut cache, &ctx);
                     pending = Some((request.client_request_id.id, outcome));
@@ -1222,6 +1402,7 @@ mod regressions {
                     crafting: &super::super::test_support::CRAFTING.1,
                     items: &crate::item::test_support::VANILLA,
                     levels: self.levels,
+                    enchanting: None,
                 },
             )
         }
