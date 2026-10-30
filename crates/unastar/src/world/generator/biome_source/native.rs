@@ -37,7 +37,7 @@ pub fn sample_biome_native<N: NoiseSource>(
     let ctx = noise::FunctionContext::new(quart_x << 2, quart_y << 2, quart_z << 2);
     match dimension {
         JavaDimension::Overworld => noise::overworld_biome_source::find(
-            &climate_target!(unastar_noise, &ctx, noises),
+            &overworld_target_native(noises, quart_x, quart_y, quart_z),
         ),
         JavaDimension::Nether => noise::nether_biome_source::find(
             &climate_target!(unastar_noise::nether_compiled, &ctx, noises),
@@ -80,6 +80,18 @@ pub(super) fn fill_lattice(
     biomes
 }
 
+/// Overworld climate target at an absolute quart, in Java-exact arithmetic,
+/// before a caller chooses its search-history policy.
+pub(crate) fn overworld_target_native<N: NoiseSource>(
+    noises: &N,
+    quart_x: i32,
+    quart_y: i32,
+    quart_z: i32,
+) -> [i64; 7] {
+    let ctx = noise::FunctionContext::new(quart_x << 2, quart_y << 2, quart_z << 2);
+    climate_target!(unastar_noise, &ctx, noises)
+}
+
 /// Overworld depth varies with Y; the other five vanilla climate axes do not.
 /// Scalar cache extraction and those five samples happen once per quart column.
 pub fn fill_overworld_native<N: NoiseSource>(
@@ -87,6 +99,17 @@ pub fn fill_overworld_native<N: NoiseSource>(
     pos: ChunkPos,
     flat: &noise::FlatCacheGrid,
     columns: &noise::ColumnContextGrid,
+) -> QuartBiomes {
+    fill_overworld_native_with(noises, pos, flat, columns, noise::overworld_biome_source::find)
+}
+
+/// [`fill_overworld_native`] with an edition-owned biome lookup policy.
+pub(crate) fn fill_overworld_native_with<N: NoiseSource>(
+    noises: &N,
+    pos: ChunkPos,
+    flat: &noise::FlatCacheGrid,
+    columns: &noise::ColumnContextGrid,
+    lookup: impl FnMut(&[i64; 7]) -> JavaBiome,
 ) -> QuartBiomes {
     let columns: [_; 16] = std::array::from_fn(|i| {
         columns.get((i % 4) * 4, (i / 4) * 4).as_scalar()
@@ -115,7 +138,7 @@ pub fn fill_overworld_native<N: NoiseSource>(
             temperature, vegetation, continents, erosion,
             noise::compute_depth_native(&ctx, noises, flat, &columns[i]), ridges,
         )
-    }, noise::overworld_biome_source::find)
+    }, lookup)
 }
 
 /// Nether's native climate has no Y dependency. Reuse arithmetic, not search

@@ -83,7 +83,7 @@ impl BedrockGenerator {
             pos,
             |noises, pos, grid, columns| {
                 let _biomes = unastar_noise::profile::scope(unastar_noise::profile::Stage::Biomes);
-                biome_source::fill_chunk_with(noises, pos, grid, columns, Self::lookup_climate)
+                biome_source::fill_overworld_native_with(noises, pos, grid, columns, Self::lookup_climate)
             },
         );
         {
