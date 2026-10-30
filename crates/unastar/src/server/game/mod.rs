@@ -417,6 +417,12 @@ impl GameServer {
                 .in_set(PhysicsSet)
                 .after(tick_physics),
         );
+        // Fishing hooks land, bob and hook actors after the projectiles flew.
+        ecs.schedule_mut().add_systems(
+            item_use::fishing::tick_fishing_hooks
+                .in_set(PhysicsSet)
+                .after(crate::entity::projectile::tick_projectiles),
+        );
         // Mob AI turns goals into rotation and velocity before the physics
         // step integrates them; pushing separates overlapping mobs.
         ecs.schedule_mut().add_systems(
@@ -427,6 +433,13 @@ impl GameServer {
                 .chain()
                 .in_set(PhysicsSet)
                 .after(crate::entity::mob::derive_mob_state)
+                .before(tick_physics),
+        );
+        // Leads pull leashed mobs (after the AI chose its motion) and break.
+        ecs.schedule_mut().add_systems(
+            crate::entity::mob::interaction::leash::tick_leashes
+                .in_set(PhysicsSet)
+                .after(crate::entity::mob::ai::push_mobs)
                 .before(tick_physics),
         );
 

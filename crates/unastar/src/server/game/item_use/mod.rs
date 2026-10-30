@@ -10,6 +10,7 @@
 //! has in the selected hotbar slot; the client's item description is not
 //! trusted.
 
+pub mod fishing;
 pub mod food;
 pub mod on_block;
 pub mod ranged;
@@ -63,6 +64,8 @@ pub struct ItemUsing {
 pub enum UseKind {
     Consume(food::Consumable),
     Draw(ranged::Drawn),
+    /// A fishing rod: cast or reel in.
+    Fish,
     Throw,
 }
 
@@ -74,6 +77,9 @@ pub fn use_kind(stack: &ItemStack) -> Option<UseKind> {
     }
     if let Some(drawn) = ranged::drawn(entry.identifier()) {
         return Some(UseKind::Draw(drawn));
+    }
+    if entry.identifier() == fishing::FISHING_ROD {
+        return Some(UseKind::Fish);
     }
     ranged::thrown(entry.identifier()).map(|_| UseKind::Throw)
 }
@@ -327,6 +333,7 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
         (Some(UseKind::Throw), UseRequest::UseAir, _) => {
             ranged::throw(world, player, stack.item_id())
         }
+        (Some(UseKind::Fish), UseRequest::UseAir, _) => fishing::use_rod(world, player, &stack),
         (_, UseRequest::Release | UseRequest::Consume, _) => stop_using(world, player),
         (None, UseRequest::UseAir, _) => {}
     }
