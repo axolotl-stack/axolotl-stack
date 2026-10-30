@@ -382,7 +382,8 @@ fn brewing_stand_brews_awkward_potions_over_loopback() {
             response(&mut client, id).await;
         }
 
-        // The brew starts: 400 ticks to go, one of 20 brews used.
+        // The brew starts: the powder becomes 20 brews and 400 ticks run;
+        // fuel only drops when the brew completes (as measured on BDS).
         let mut started = Vec::new();
         recv_until(&mut client, "brew starts", |data| match data {
             McpePacketData::ContainerSetDataPacket(data)
@@ -394,29 +395,56 @@ fn brewing_stand_brews_awkward_potions_over_loopback() {
             _ => None,
         })
         .await;
-        assert_eq!(started, [(0, 400), (1, 19), (2, 20)]);
+        assert_eq!(started, [(0, 400), (1, 20), (2, 20)]);
 
-        let brewed = recv_within(
+        // Completion: InventorySlot for bottles 1..=3 then the used-up
+        // ingredient, the brew time and fuel values, then `potion.brewed`.
+        let mut slots = Vec::new();
+        recv_within(
             &mut client,
             "awkward potions",
             BREW_TIMEOUT,
             |data| match data {
-                McpePacketData::InventoryContentPacket(content)
-                    if content.container_id == window && content.slots[1].auxvalue == AWKWARD =>
+                McpePacketData::InventorySlotPacket(slot)
+                    if u32::from(slot.container_id) == window && slot.slot != 4 =>
                 {
-                    Some(content)
+                    slots.push((slot.slot, slot.item.id, slot.item.auxvalue));
+                    (slots.len() == 4).then_some(())
                 }
                 _ => None,
             },
         )
         .await;
-        for bottle in &brewed.slots[1..4] {
-            assert_eq!(
-                (bottle.id, bottle.auxvalue, bottle.stacksize),
-                (potion_id, AWKWARD, 1)
-            );
-        }
-        assert_eq!(brewed.slots[0].id, 0, "the only wart was used");
+        assert_eq!(
+            slots,
+            [
+                (1, potion_id, AWKWARD),
+                (2, potion_id, AWKWARD),
+                (3, potion_id, AWKWARD),
+                (0, 0, 0)
+            ]
+        );
+        let mut done = Vec::new();
+        recv_until(&mut client, "brew completion data", |data| match data {
+            McpePacketData::ContainerSetDataPacket(data)
+                if u32::from(data.container_id) == window =>
+            {
+                done.push((data.id, data.value));
+                (done.len() == 2).then_some(())
+            }
+            _ => None,
+        })
+        .await;
+        assert_eq!(done, [(0, 0), (1, 19)]);
+        recv_until(&mut client, "potion.brewed", |data| match data {
+            McpePacketData::LevelSoundEventPacket(sound)
+                if &*sound.sound_event == "potion.brewed" =>
+            {
+                Some(())
+            }
+            _ => None,
+        })
+        .await;
         server_task.abort();
     });
 }
