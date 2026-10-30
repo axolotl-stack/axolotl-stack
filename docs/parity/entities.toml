@@ -32,7 +32,7 @@
 "minecraft:cod/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); cod cannot spawn yet" }
 "minecraft:cod/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cod cannot spawn yet" }
 "minecraft:cod/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cod cannot spawn yet" }
-"minecraft:cod/spawn_rules" = { status = "partial", gaps = "cod cannot spawn yet, so drawn entries spawn nothing; the native spawn check of cod's class is not modelled; brightness is sky light only" }
+"minecraft:cod/spawn_rules" = { status = "partial", gaps = "cod cannot spawn yet, so drawn entries spawn nothing; the native spawn check of cod's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:cod/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cod cannot spawn yet" }
 "minecraft:cod/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:glow_squid" = { status = "missing", gaps = "not spawnable: needs behavior.squid_dive, behavior.squid_flee, behavior.squid_idle, behavior.squid_move_away_from_ground, behavior.squid_out_of_water" }
@@ -66,9 +66,9 @@
 "minecraft:glow_squid/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but glow_squid cannot spawn yet" }
 "minecraft:glow_squid/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but glow_squid cannot spawn yet" }
 "minecraft:glow_squid/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but glow_squid cannot spawn yet" }
-"minecraft:glow_squid/spawn_rules" = { status = "partial", gaps = "glow_squid cannot spawn yet, so drawn entries spawn nothing; the native spawn check of glow_squid's class is not modelled; brightness is sky light only" }
+"minecraft:glow_squid/spawn_rules" = { status = "partial", gaps = "glow_squid cannot spawn yet, so drawn entries spawn nothing; the native spawn check of glow_squid's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:glow_squid/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but glow_squid cannot spawn yet" }
-"minecraft:nautilus" = { status = "missing", gaps = "not spawnable: needs behavior.aquatic_charge_attack, behavior.player_ride_tamed, behavior.random_swim, behavior.swim_idle, behavior.swim_wander, dash_action (+15 more)" }
+"minecraft:nautilus" = { status = "missing", gaps = "not spawnable: needs behavior.aquatic_charge_attack, behavior.player_ride_tamed, behavior.random_swim, behavior.swim_idle, behavior.swim_wander, dash_action (+14 more)" }
 "minecraft:nautilus/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but nautilus cannot spawn yet" }
 "minecraft:nautilus/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but nautilus cannot spawn yet" }
 "minecraft:nautilus/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but nautilus cannot spawn yet" }
@@ -108,7 +108,7 @@
 "minecraft:nautilus/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
 "minecraft:nautilus/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but nautilus cannot spawn yet" }
 "minecraft:nautilus/mob_effect" = { status = "missing", gaps = "not implemented: needs mob effects" }
-"minecraft:nautilus/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:nautilus/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented on the slime but untested, and nautilus cannot spawn yet" }
 "minecraft:nautilus/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but nautilus cannot spawn yet" }
 "minecraft:nautilus/movement.sway" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:nautilus/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; nautilus cannot spawn yet" }
@@ -120,13 +120,13 @@
 "minecraft:nautilus/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but nautilus cannot spawn yet" }
 "minecraft:nautilus/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:nautilus/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but nautilus cannot spawn yet" }
-"minecraft:nautilus/spawn_rules" = { status = "partial", gaps = "nautilus cannot spawn yet, so drawn entries spawn nothing; the native spawn check of nautilus's class is not modelled; brightness is sky light only" }
+"minecraft:nautilus/spawn_rules" = { status = "partial", gaps = "nautilus cannot spawn yet, so drawn entries spawn nothing; the native spawn check of nautilus's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:nautilus/tameable" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:nautilus/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but nautilus cannot spawn yet" }
 "minecraft:nautilus/underwater_mount_breathing" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:nautilus/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
-"minecraft:pufferfish" = { status = "missing", gaps = "not spawnable: needs area_attack, behavior.random_swim, behavior.swim_wander, entity_sensor, flocking, mob_effect (+4 more)" }
-"minecraft:pufferfish/area_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:pufferfish" = { status = "missing", gaps = "not spawnable: needs area_attack, behavior.random_swim, behavior.swim_wander, entity_sensor, flocking, mob_effect (+3 more)" }
+"minecraft:pufferfish/area_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on the slime, but this entity_filter uses has_ability, which component filters do not support, so the component is rejected; pufferfish cannot spawn yet" }
 "minecraft:pufferfish/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no avoid_mob_sound or check_if_outnumbered), but pufferfish cannot spawn yet" }
 "minecraft:pufferfish/behavior.random_swim" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:pufferfish/behavior.swim_wander" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
@@ -150,11 +150,11 @@
 "minecraft:pufferfish/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); pufferfish cannot spawn yet" }
 "minecraft:pufferfish/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pufferfish cannot spawn yet" }
 "minecraft:pufferfish/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pufferfish cannot spawn yet" }
-"minecraft:pufferfish/spawn_rules" = { status = "partial", gaps = "pufferfish cannot spawn yet, so drawn entries spawn nothing; the native spawn check of pufferfish's class is not modelled; brightness is sky light only" }
+"minecraft:pufferfish/spawn_rules" = { status = "partial", gaps = "pufferfish cannot spawn yet, so drawn entries spawn nothing; the native spawn check of pufferfish's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:pufferfish/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pufferfish cannot spawn yet" }
 "minecraft:pufferfish/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pufferfish cannot spawn yet" }
 "minecraft:pufferfish/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
-"minecraft:pufferfish/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:pufferfish/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pufferfish cannot spawn yet" }
 "minecraft:salmon" = { status = "missing", gaps = "not spawnable: needs behavior.random_swim, behavior.swim_idle, behavior.swim_wander, flocking, movement.sway, navigation.generic (+1 more)" }
 "minecraft:salmon/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no avoid_mob_sound or check_if_outnumbered), but salmon cannot spawn yet" }
 "minecraft:salmon/behavior.random_swim" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
@@ -178,7 +178,7 @@
 "minecraft:salmon/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); salmon cannot spawn yet" }
 "minecraft:salmon/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but salmon cannot spawn yet" }
 "minecraft:salmon/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but salmon cannot spawn yet" }
-"minecraft:salmon/spawn_rules" = { status = "partial", gaps = "salmon cannot spawn yet, so drawn entries spawn nothing; the native spawn check of salmon's class is not modelled; brightness is sky light only" }
+"minecraft:salmon/spawn_rules" = { status = "partial", gaps = "salmon cannot spawn yet, so drawn entries spawn nothing; the native spawn check of salmon's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:salmon/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but salmon cannot spawn yet" }
 "minecraft:salmon/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:squid" = { status = "missing", gaps = "not spawnable: needs behavior.squid_dive, behavior.squid_flee, behavior.squid_idle, behavior.squid_move_away_from_ground, behavior.squid_out_of_water" }
@@ -213,7 +213,7 @@
 "minecraft:squid/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but squid cannot spawn yet" }
 "minecraft:squid/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but squid cannot spawn yet" }
 "minecraft:squid/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but squid cannot spawn yet" }
-"minecraft:squid/spawn_rules" = { status = "partial", gaps = "squid cannot spawn yet, so drawn entries spawn nothing; the native spawn check of squid's class is not modelled; brightness is sky light only" }
+"minecraft:squid/spawn_rules" = { status = "partial", gaps = "squid cannot spawn yet, so drawn entries spawn nothing; the native spawn check of squid's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:squid/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but squid cannot spawn yet" }
 "minecraft:tadpole" = { status = "missing", gaps = "not spawnable: needs behavior.random_swim, movement.sway, navigation.generic, underwater_movement" }
 "minecraft:tadpole/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but tadpole cannot spawn yet" }
@@ -238,7 +238,7 @@
 "minecraft:tadpole/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
 "minecraft:tadpole/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but tadpole cannot spawn yet" }
 "minecraft:tadpole/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
-"minecraft:tropicalfish" = { status = "missing", gaps = "not spawnable: needs behavior.random_swim, behavior.swim_idle, behavior.swim_wander, color2, flocking, mark_variant (+4 more)" }
+"minecraft:tropicalfish" = { status = "missing", gaps = "not spawnable: needs behavior.random_swim, behavior.swim_idle, behavior.swim_wander, color2, flocking, mark_variant (+3 more)" }
 "minecraft:tropicalfish/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no avoid_mob_sound or check_if_outnumbered), but tropicalfish cannot spawn yet" }
 "minecraft:tropicalfish/behavior.random_swim" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:tropicalfish/behavior.swim_idle" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
@@ -264,10 +264,10 @@
 "minecraft:tropicalfish/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); tropicalfish cannot spawn yet" }
 "minecraft:tropicalfish/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but tropicalfish cannot spawn yet" }
 "minecraft:tropicalfish/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but tropicalfish cannot spawn yet" }
-"minecraft:tropicalfish/spawn_rules" = { status = "partial", gaps = "tropicalfish cannot spawn yet, so drawn entries spawn nothing; the native spawn check of tropicalfish's class is not modelled; brightness is sky light only" }
+"minecraft:tropicalfish/spawn_rules" = { status = "partial", gaps = "tropicalfish cannot spawn yet, so drawn entries spawn nothing; the native spawn check of tropicalfish's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:tropicalfish/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but tropicalfish cannot spawn yet" }
 "minecraft:tropicalfish/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
-"minecraft:tropicalfish/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:tropicalfish/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but tropicalfish cannot spawn yet" }
 
 # boss (62)
 "minecraft:ender_dragon" = { status = "missing", gaps = "not spawnable: needs behavior.dragonchargeplayer, behavior.dragondeath, behavior.dragonflaming, behavior.dragonholdingpattern, behavior.dragonlanding, behavior.dragonscanning (+11 more)" }
@@ -420,7 +420,7 @@
 "minecraft:bogged/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
 "minecraft:bogged/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
 "minecraft:bogged/shooter" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no magic or filtered projectile choices), but bogged cannot spawn yet" }
-"minecraft:bogged/spawn_rules" = { status = "partial", gaps = "bogged cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:bogged/spawn_rules" = { status = "partial", gaps = "bogged cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:bogged/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
 "minecraft:breeze" = { status = "missing", gaps = "not spawnable: needs behavior.fire_at_target, behavior.jump_around_target, behavior.move_around_target, knockback_resistance, persistent, reflect_projectiles" }
 "minecraft:breeze/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
@@ -458,7 +458,7 @@
 "minecraft:breeze/reflect_projectiles" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:breeze/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
 "minecraft:breeze/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
-"minecraft:cave_spider" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spider.rs::spawned_cave_spider_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/spider.rs::vanilla_spiders_compile_to_spawnable_archetypes"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/cave_spider.bin", notes = "Sub-row gaps: jockeys and riding, cobweb slowdown (accepted without behaviour), ladder and vine climbing, random_look_around untested, no drowning; spawn rules lack block light. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
+"minecraft:cave_spider" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spider.rs::spawned_cave_spider_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/spider.rs::vanilla_spiders_compile_to_spawnable_archetypes"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/cave_spider.bin", notes = "Sub-row gaps: jockeys and riding, cobweb slowdown (accepted without behaviour), ladder and vine climbing, random_look_around untested, no drowning; spawn rules ignore weather. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
 "minecraft:cave_spider/addrider" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: riding is not implemented, so the jockey riders never spawn; the jockey spawn events still add the spider groups" }
 "minecraft:cave_spider/angry" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spider.rs::spider_hurt_by_a_player_in_daylight_fights_back"], notes = "Anger broadcasting, anger filters and angry_sound are rejected; the spider uses none of them." }
 "minecraft:cave_spider/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spider.rs::cave_spider_poisons_on_normal_and_hard_but_not_easy", "crates/unastar/src/entity/mob/tests/spider.rs::cave_spider_poison_hurts_the_player"] }
@@ -495,7 +495,7 @@
 "minecraft:cave_spider/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::overlapping_cows_push_each_other_apart", "crates/unastar/src/entity/mob/ai/tests.rs::pushing_matches_bds_reach_strength_and_minimum_distance"] }
 "minecraft:cave_spider/renders_when_invisible" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spider.rs::spawned_cave_spider_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/cave_spider.bin" }
 "minecraft:cave_spider/rideable" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: riding is not implemented; nothing can ride or be ridden" }
-"minecraft:cave_spider/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::cave_spiders_spawn_only_underground_in_sulfur_caves", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no block light, so torches do not stop spawns; no weather (adjust_for_weather inert)" }
+"minecraft:cave_spider/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::cave_spiders_spawn_only_underground_in_sulfur_caves", "crates/unastar/src/entity/spawning/tests.rs::monsters_never_spawn_on_a_torch_lit_platform_at_night_but_do_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no weather (adjust_for_weather inert); sky light does not spread sideways (world.lighting)" }
 "minecraft:cave_spider/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:creaking" = { status = "missing", gaps = "not spawnable: needs behavior.timer_flag_1, body_rotation_blocked, dimension_bound, fire_immune, home, instant_despawn (+2 more)" }
 "minecraft:creaking/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
@@ -533,7 +533,7 @@
 "minecraft:creaking/renders_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
 "minecraft:creaking/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
 "minecraft:creaking/variable_max_auto_step" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
-"minecraft:creeper" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/creeper.rs::spawned_creeper_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/creeper.rs::vanilla_creeper_compiles_to_a_spawnable_archetype", "crates/unastar/tests/mob_e2e.rs::creeper_explodes_next_to_the_player_over_loopback"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/creeper.bin", notes = "The loopback test is ignored by default (exclusive socket run under the native lock). Sub-row gaps: the approach goal and on_target_escape untested, no lightning to charge a struck creeper, random_look_around untested, no drowning; spawn rules lack block light. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
+"minecraft:creeper" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/creeper.rs::spawned_creeper_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/creeper.rs::vanilla_creeper_compiles_to_a_spawnable_archetype", "crates/unastar/tests/mob_e2e.rs::creeper_explodes_next_to_the_player_over_loopback"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/creeper.bin", notes = "The loopback test is ignored by default (exclusive socket run under the native lock). Sub-row gaps: the approach goal and on_target_escape untested, no lightning to charge a struck creeper, random_look_around untested, no drowning; spawn rules ignore weather. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
 "minecraft:creeper/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:creeper/behavior.avoid_mob_type" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/skeleton.rs::skeletons_flee_wolves"] }
 "minecraft:creeper/behavior.float" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::cow_in_water_floats_up"] }
@@ -567,7 +567,7 @@
 "minecraft:creeper/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::cow_dropped_above_grass_lands_and_stays_on_the_surface"] }
 "minecraft:creeper/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
 "minecraft:creeper/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::overlapping_cows_push_each_other_apart", "crates/unastar/src/entity/mob/ai/tests.rs::pushing_matches_bds_reach_strength_and_minimum_distance"] }
-"minecraft:creeper/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::creepers_spawn_at_night_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no block light, so torches do not stop spawns; no weather (adjust_for_weather inert)" }
+"minecraft:creeper/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::creepers_spawn_at_night_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::monsters_never_spawn_on_a_torch_lit_platform_at_night_but_do_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no weather (adjust_for_weather inert); sky light does not spread sideways (world.lighting)" }
 "minecraft:creeper/target_nearby_sensor" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/creeper.rs::the_fuse_stops_when_the_player_leaves_the_outside_range"] }
 "minecraft:creeper/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:drowned" = { status = "missing", gaps = "not spawnable: needs movement.generic, navigation.generic, underwater_movement", notes = "Drowned conversion still needs the drowned to be spawnable (swim navigation among others) and the conversion itself (entity backlog)." }
@@ -618,7 +618,7 @@
 "minecraft:drowned/shooter" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no magic or filtered projectile choices), but drowned cannot spawn yet" }
 "minecraft:drowned/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/spawn_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
-"minecraft:drowned/spawn_rules" = { status = "partial", gaps = "drowned cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:drowned/spawn_rules" = { status = "partial", gaps = "drowned cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:drowned/target_nearby_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
@@ -652,7 +652,7 @@
 "minecraft:elder_guardian/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but elder_guardian cannot spawn yet" }
 "minecraft:elder_guardian/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:elder_guardian/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but elder_guardian cannot spawn yet" }
-"minecraft:enderman" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/enderman.rs::spawned_enderman_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/enderman.rs::vanilla_enderman_compiles_to_a_spawnable_archetype"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/enderman.bin", notes = "Sub-row gaps: follow_range and random_look_around untested, no drowning; spawn rules lack block light. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
+"minecraft:enderman" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/enderman.rs::spawned_enderman_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/enderman.rs::vanilla_enderman_compiles_to_a_spawnable_archetype"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/enderman.bin", notes = "Sub-row gaps: follow_range and random_look_around untested, no drowning; spawn rules ignore weather. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
 "minecraft:enderman/angry" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/enderman.rs::enderman_turns_angry_at_a_player_staring_at_it"], notes = "Anger broadcasting, anger filters and angry_sound are rejected; the enderman uses none of them." }
 "minecraft:enderman/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:enderman/behavior.float" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::cow_in_water_floats_up"] }
@@ -687,7 +687,7 @@
 "minecraft:enderman/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
 "minecraft:enderman/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::overlapping_cows_push_each_other_apart", "crates/unastar/src/entity/mob/ai/tests.rs::pushing_matches_bds_reach_strength_and_minimum_distance"] }
 "minecraft:enderman/renders_when_invisible" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/enderman.rs::spawned_enderman_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/enderman.bin" }
-"minecraft:enderman/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::endermen_spawn_in_herds_of_up_to_four_on_end_biome_ground_at_night", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no block light, so torches do not stop spawns; no weather (adjust_for_weather inert)" }
+"minecraft:enderman/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::endermen_spawn_in_herds_of_up_to_four_on_end_biome_ground_at_night", "crates/unastar/src/entity/spawning/tests.rs::monsters_never_spawn_on_a_torch_lit_platform_at_night_but_do_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no weather (adjust_for_weather inert); sky light does not spread sideways (world.lighting)" }
 "minecraft:enderman/teleport" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/enderman.rs::random_teleports_land_on_ground_inside_the_cube", "crates/unastar/src/entity/mob/tests/enderman.rs::teleports_toward_a_distant_target_close_in", "crates/unastar/src/entity/mob/tests/enderman.rs::enderman_teleports_out_of_water", "crates/unastar/src/entity/mob/tests/enderman.rs::projectiles_make_the_enderman_teleport_without_hurting_it"], notes = "teleports_on_projectile_hit and projectile_filter are compiled but do not act: the native enderman rule teleports on every projectile hit." }
 "minecraft:enderman/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:enderman/variable_max_auto_step" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/enderman.rs::enderman_steps_up_a_full_block"], notes = "Only base_value acts; jump_prevented_value and controlled_value need jump prevention and riding." }
@@ -784,7 +784,7 @@
 "minecraft:ghast/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); ghast cannot spawn yet" }
 "minecraft:ghast/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/shooter" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no magic or filtered projectile choices), but ghast cannot spawn yet" }
-"minecraft:ghast/spawn_rules" = { status = "partial", gaps = "ghast cannot spawn yet, so drawn entries spawn nothing; the native spawn check of ghast's class is not modelled; brightness is sky light only" }
+"minecraft:ghast/spawn_rules" = { status = "partial", gaps = "ghast cannot spawn yet, so drawn entries spawn nothing; the native spawn check of ghast's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:ghast/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:guardian" = { status = "missing", gaps = "not spawnable: needs behavior.guardian_attack, behavior.move_towards_home_restriction, behavior.random_swim, home, movement.sway, navigation.generic (+1 more)" }
 "minecraft:guardian/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
@@ -815,13 +815,13 @@
 "minecraft:guardian/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
 "minecraft:guardian/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); guardian cannot spawn yet" }
 "minecraft:guardian/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
-"minecraft:guardian/spawn_rules" = { status = "partial", gaps = "guardian cannot spawn yet, so drawn entries spawn nothing; the native spawn check of guardian's class is not modelled; brightness is sky light only" }
+"minecraft:guardian/spawn_rules" = { status = "partial", gaps = "guardian cannot spawn yet, so drawn entries spawn nothing; the native spawn check of guardian's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:guardian/target_nearby_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
 "minecraft:guardian/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
 "minecraft:guardian/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
 "minecraft:guardian/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:guardian/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
-"minecraft:husk" = { status = "missing", gaps = "not spawnable: needs variant" }
+"minecraft:husk" = { status = "missing", gaps = "not confirmed spawnable: the components that blocked it (variant) are implemented now, but no test compiles or spawns it" }
 "minecraft:husk/annotation.break_door" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
 "minecraft:husk/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
 "minecraft:husk/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
@@ -865,19 +865,19 @@
 "minecraft:husk/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
 "minecraft:husk/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
 "minecraft:husk/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
-"minecraft:husk/spawn_rules" = { status = "partial", gaps = "husk cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:husk/spawn_rules" = { status = "partial", gaps = "husk cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:husk/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
 "minecraft:husk/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)", notes = "Drowned conversion still needs the drowned to be spawnable (swim navigation among others) and the conversion itself (entity backlog)." }
 "minecraft:husk/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
-"minecraft:husk/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:magma_cube" = { status = "missing", gaps = "not spawnable: needs area_attack, behavior.slime_attack, behavior.slime_float, behavior.slime_keep_on_jumping, behavior.slime_random_direction, fire_immune (+3 more)" }
-"minecraft:magma_cube/area_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:husk/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
+"minecraft:magma_cube" = { status = "missing", gaps = "not spawnable: needs fire_immune, freezing_vulnerable" }
+"minecraft:magma_cube/area_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
-"minecraft:magma_cube/behavior.slime_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:magma_cube/behavior.slime_float" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:magma_cube/behavior.slime_keep_on_jumping" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:magma_cube/behavior.slime_random_direction" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:magma_cube/behavior.slime_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
+"minecraft:magma_cube/behavior.slime_float" = { status = "partial", owner = "entities", gaps = "implemented on the slime but untested, and magma_cube cannot spawn yet" }
+"minecraft:magma_cube/behavior.slime_keep_on_jumping" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
+"minecraft:magma_cube/behavior.slime_random_direction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; magma_cube cannot spawn yet" }
 "minecraft:magma_cube/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; magma_cube cannot spawn yet" }
@@ -893,7 +893,7 @@
 "minecraft:magma_cube/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
-"minecraft:magma_cube/movement.jump" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:magma_cube/movement.jump" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; magma_cube cannot spawn yet" }
 "minecraft:magma_cube/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/on_target_acquired" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (self events only), but magma_cube cannot spawn yet" }
@@ -901,10 +901,10 @@
 "minecraft:magma_cube/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); magma_cube cannot spawn yet" }
 "minecraft:magma_cube/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
-"minecraft:magma_cube/spawn_rules" = { status = "partial", gaps = "magma_cube cannot spawn yet, so drawn entries spawn nothing; the native spawn check of magma_cube's class is not modelled; brightness is sky light only" }
+"minecraft:magma_cube/spawn_rules" = { status = "partial", gaps = "magma_cube cannot spawn yet, so drawn entries spawn nothing; the native spawn check of magma_cube's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:magma_cube/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
-"minecraft:magma_cube/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:parched" = { status = "missing", gaps = "not spawnable: needs mob_effect_immunity" }
+"minecraft:magma_cube/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
+"minecraft:parched" = { status = "missing", gaps = "not confirmed spawnable: the components that blocked it (mob_effect_immunity) are implemented now, but no test compiles or spawns it" }
 "minecraft:parched/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no avoid_mob_sound or check_if_outnumbered), but parched cannot spawn yet" }
 "minecraft:parched/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
@@ -931,7 +931,7 @@
 "minecraft:parched/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:parched/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented on the slime but untested, and parched cannot spawn yet" }
 "minecraft:parched/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; parched cannot spawn yet" }
@@ -941,7 +941,7 @@
 "minecraft:parched/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/shooter" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no magic or filtered projectile choices), but parched cannot spawn yet" }
-"minecraft:parched/spawn_rules" = { status = "partial", gaps = "parched cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:parched/spawn_rules" = { status = "partial", gaps = "parched cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:parched/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:phantom" = { status = "missing", gaps = "not spawnable: needs behavior.circle_around_anchor, behavior.swoop_attack, movement.glide" }
 "minecraft:phantom/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
@@ -968,9 +968,9 @@
 "minecraft:phantom/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); phantom cannot spawn yet" }
 "minecraft:phantom/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
 "minecraft:phantom/renders_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
-"minecraft:phantom/spawn_rules" = { status = "partial", gaps = "phantom cannot spawn yet, so drawn entries spawn nothing; the native spawn check of phantom's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:phantom/spawn_rules" = { status = "partial", gaps = "phantom cannot spawn yet, so drawn entries spawn nothing; the native spawn check of phantom's class is not modelled; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:phantom/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
-"minecraft:piglin" = { status = "missing", gaps = "not spawnable: needs admire_item, annotation.open_door, attack_cooldown, barter, behavior.admire_item, behavior.avoid_block (+7 more)" }
+"minecraft:piglin" = { status = "missing", gaps = "not spawnable: needs admire_item, annotation.open_door, attack_cooldown, barter, behavior.admire_item, behavior.avoid_block (+6 more)" }
 "minecraft:piglin/admire_item" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:piglin/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but piglin cannot spawn yet" }
 "minecraft:piglin/annotation.open_door" = { status = "missing", gaps = "not implemented: needs block interaction" }
@@ -1028,12 +1028,12 @@
 "minecraft:piglin/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
 "minecraft:piglin/shooter" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no magic or filtered projectile choices), but piglin cannot spawn yet" }
 "minecraft:piglin/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
-"minecraft:piglin/spawn_rules" = { status = "partial", gaps = "piglin cannot spawn yet, so drawn entries spawn nothing; the native spawn check of piglin's class is not modelled; brightness is sky light only" }
+"minecraft:piglin/spawn_rules" = { status = "partial", gaps = "piglin cannot spawn yet, so drawn entries spawn nothing; the native spawn check of piglin's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:piglin/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
 "minecraft:piglin/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
 "minecraft:piglin/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
-"minecraft:piglin/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:piglin_brute" = { status = "missing", gaps = "not spawnable: needs annotation.open_door, behavior.go_home, behavior.nearest_prioritized_attackable_target, home, variant" }
+"minecraft:piglin/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
+"minecraft:piglin_brute" = { status = "missing", gaps = "not spawnable: needs annotation.open_door, behavior.go_home, behavior.nearest_prioritized_attackable_target, home" }
 "minecraft:piglin_brute/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but piglin_brute cannot spawn yet" }
 "minecraft:piglin_brute/annotation.open_door" = { status = "missing", gaps = "not implemented: needs block interaction" }
 "minecraft:piglin_brute/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet" }
@@ -1071,8 +1071,8 @@
 "minecraft:piglin_brute/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet" }
 "minecraft:piglin_brute/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
 "minecraft:piglin_brute/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet" }
-"minecraft:piglin_brute/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:pillager" = { status = "missing", gaps = "not spawnable: needs behavior.celebrate, behavior.charge_held_item, behavior.follow_target_captain, behavior.hold_ground, behavior.move_to_random_block, behavior.move_to_village (+7 more)" }
+"minecraft:piglin_brute/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet" }
+"minecraft:pillager" = { status = "missing", gaps = "not spawnable: needs behavior.celebrate, behavior.charge_held_item, behavior.follow_target_captain, behavior.hold_ground, behavior.move_to_random_block, behavior.move_to_village (+6 more)" }
 "minecraft:pillager/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:pillager/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:pillager/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no avoid_mob_sound or check_if_outnumbered), but pillager cannot spawn yet" }
@@ -1124,7 +1124,7 @@
 "minecraft:pillager/shooter" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no magic or filtered projectile choices), but pillager cannot spawn yet" }
 "minecraft:pillager/spawn_rules" = { status = "missing", gaps = "the rule has no natural conditions: pillager spawns only from structures or villages, which do not spawn mobs yet" }
 "minecraft:pillager/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
-"minecraft:pillager/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:pillager/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:ravager" = { status = "missing", gaps = "not spawnable: needs behavior.celebrate, behavior.delayed_attack, behavior.knockback_roar, behavior.look_at_entity, behavior.move_to_village, break_blocks (+6 more)" }
 "minecraft:ravager/addrider" = { status = "missing", gaps = "not implemented: needs riding" }
 "minecraft:ravager/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
@@ -1168,7 +1168,7 @@
 "minecraft:ravager/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:ravager/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
-"minecraft:shulker" = { status = "missing", gaps = "not spawnable: needs fire_immune, is_collidable, peek, variant" }
+"minecraft:shulker" = { status = "missing", gaps = "not spawnable: needs fire_immune, is_collidable, peek" }
 "minecraft:shulker/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:shulker/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:shulker/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
@@ -1192,7 +1192,7 @@
 "minecraft:shulker/renders_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:shulker/shooter" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no magic or filtered projectile choices), but shulker cannot spawn yet" }
 "minecraft:shulker/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
-"minecraft:shulker/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:shulker/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:silverfish" = { status = "missing", gaps = "not spawnable: needs behavior.silverfish_merge_with_stone, behavior.silverfish_wake_up_friends, block_climber, can_stand_on_powder_snow, mob_effect_immunity" }
 "minecraft:silverfish/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but silverfish cannot spawn yet" }
 "minecraft:silverfish/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
@@ -1215,7 +1215,7 @@
 "minecraft:silverfish/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
 "minecraft:silverfish/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
 "minecraft:silverfish/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
-"minecraft:silverfish/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:silverfish/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented on the slime, but the infested effect is unknown, so the component is rejected; silverfish cannot spawn yet" }
 "minecraft:silverfish/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
 "minecraft:silverfish/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
 "minecraft:silverfish/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; silverfish cannot spawn yet" }
@@ -1225,7 +1225,7 @@
 "minecraft:silverfish/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); silverfish cannot spawn yet" }
 "minecraft:silverfish/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
 "minecraft:silverfish/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
-"minecraft:skeleton" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/skeleton.rs::spawned_skeleton_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/skeleton.rs::vanilla_skeleton_and_stray_compile_to_spawnable_archetypes", "crates/unastar/tests/mob_e2e.rs::skeleton_shoots_the_player_over_loopback"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/skeleton.bin", notes = "The loopback test is ignored by default (exclusive socket run under the native lock). Sub-row gaps: powder-snow conversion to a stray, freezing and riding (accepted without behaviour), random_look_around untested, no drowning; spawn rules lack block light. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
+"minecraft:skeleton" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/skeleton.rs::spawned_skeleton_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/skeleton.rs::vanilla_skeleton_and_stray_compile_to_spawnable_archetypes", "crates/unastar/tests/mob_e2e.rs::skeleton_shoots_the_player_over_loopback"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/skeleton.bin", notes = "The loopback test is ignored by default (exclusive socket run under the native lock). Sub-row gaps: powder-snow conversion to a stray, freezing and riding (accepted without behaviour), random_look_around untested, no drowning; spawn rules ignore weather. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
 "minecraft:skeleton/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:skeleton/behavior.avoid_mob_type" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/skeleton.rs::skeletons_flee_wolves"] }
 "minecraft:skeleton/behavior.equip_item" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_picks_up_a_better_sword_and_drops_its_old_one"] }
@@ -1266,43 +1266,43 @@
 "minecraft:skeleton/rotation_locked_to_vehicle" = { status = "partial", owner = "entities", gaps = "the flag is replicated; riding is not implemented" }
 "minecraft:skeleton/shareables" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_picks_up_a_better_sword_and_drops_its_old_one"] }
 "minecraft:skeleton/shooter" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/skeleton.rs::skeleton_targets_the_player_and_shoots_every_61_ticks_on_normal_and_41_on_hard", "crates/unastar/src/entity/mob/tests/skeleton.rs::skeleton_arrows_are_more_accurate_on_harder_difficulties", "crates/unastar/src/entity/mob/tests/skeleton.rs::stray_arrows_carry_long_slowness_and_slow_the_player_for_600_ticks", "crates/unastar/tests/mob_e2e.rs::skeleton_shoots_the_player_over_loopback"], notes = "The loopback test is ignored by default (exclusive socket run under the native lock)." }
-"minecraft:skeleton/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::skeletons_spawn_at_night_in_the_dark_outside_frozen_biomes", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no block light, so torches do not stop spawns; no weather (adjust_for_weather inert)" }
+"minecraft:skeleton/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::skeletons_spawn_at_night_in_the_dark_outside_frozen_biomes", "crates/unastar/src/entity/spawning/tests.rs::monsters_never_spawn_on_a_torch_lit_platform_at_night_but_do_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no weather (adjust_for_weather inert); sky light does not spread sideways (world.lighting)" }
 "minecraft:skeleton/timer" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/sensors.rs::a_looping_timer_fires_at_every_deadline", "crates/unastar/src/entity/mob/tests/sensors.rs::a_one_shot_timer_fires_once"] }
 "minecraft:skeleton/transformation" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: a skeleton gains it after 20 s in powder snow and shakes (is_shaking) without becoming a stray" }
 "minecraft:skeleton/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
-"minecraft:slime" = { status = "missing", gaps = "not spawnable: needs area_attack, behavior.slime_attack, behavior.slime_float, behavior.slime_keep_on_jumping, behavior.slime_random_direction, mob_effect_immunity (+2 more)" }
-"minecraft:slime/area_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:slime/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/behavior.slime_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:slime/behavior.slime_float" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:slime/behavior.slime_keep_on_jumping" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:slime/behavior.slime_random_direction" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:slime/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; slime cannot spawn yet" }
-"minecraft:slime/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; slime cannot spawn yet" }
-"minecraft:slime/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
-"minecraft:slime/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
-"minecraft:slime/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
-"minecraft:slime/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/movement.jump" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:slime/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; slime cannot spawn yet" }
-"minecraft:slime/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/on_target_acquired" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (self events only), but slime cannot spawn yet" }
-"minecraft:slime/on_target_escape" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); slime cannot spawn yet" }
-"minecraft:slime/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/spawn_rules" = { status = "partial", gaps = "slime cannot spawn yet, so drawn entries spawn nothing; the native spawn check of slime's class is not modelled; brightness is sky light only" }
-"minecraft:slime/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:spider" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spider.rs::spawned_spider_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/spider.rs::vanilla_spiders_compile_to_spawnable_archetypes"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/spider.bin", notes = "Sub-row gaps: jockeys and riding, cobweb slowdown (accepted without behaviour), ladder and vine climbing, random_look_around untested, no drowning; spawn rules lack block light. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
+"minecraft:slime" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::spawned_small_slime_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/slime.rs::vanilla_slime_compiles_to_a_spawnable_archetype"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/slime.bin", notes = "Dead slimes above the smallest size split into 2 to 4 halves of half the size when the body is removed (dead_slimes_split_into_two_to_four_halves). Sub-row gaps: slime_float, on_target_escape and mob_effect_immunity untested, no drowning, climbing or piston pushing; spawn rules read sky light that does not spread sideways. Slime constants (hopping, area attack, splitting, slime spawning) are in the D12 decisions table: confirmed on the 26.30 game build and against BDS 1.26.51; movement.jump defaults are provisional." }
+"minecraft:slime/area_attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::medium_and_large_slimes_hurt_on_contact_and_small_ones_do_not"] }
+"minecraft:slime/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
+"minecraft:slime/behavior.nearest_attackable_target" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_ignores_creative_players", "crates/unastar/src/entity/mob/tests/slime.rs::a_slime_with_a_target_hops_at_its_aggressive_delay"] }
+"minecraft:slime/behavior.slime_attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::a_slime_with_a_target_hops_at_its_aggressive_delay", "crates/unastar/src/entity/mob/tests/slime.rs::medium_and_large_slimes_hurt_on_contact_and_small_ones_do_not"], notes = "No test checks the turn toward the target or grow_tired_cooldown_time." }
+"minecraft:slime/behavior.slime_float" = { status = "partial", owner = "entities", gaps = "jumps at jump_chance_percentage in water or lava, but no test puts a slime in a liquid" }
+"minecraft:slime/behavior.slime_keep_on_jumping" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::each_size_has_its_body_and_waits_its_jump_delay_between_hops", "crates/unastar/src/entity/mob/ai/hop.rs::grounded_hopper_waits_its_delay_then_jumps_forward"] }
+"minecraft:slime/behavior.slime_random_direction" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::each_size_has_its_body_and_waits_its_jump_delay_between_hops", "crates/unastar/src/entity/mob/ai/hop.rs::hopper_turns_by_max_turn"], notes = "No test checks the new directions or their timing." }
+"minecraft:slime/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
+"minecraft:slime/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
+"minecraft:slime/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::each_size_has_its_body_and_waits_its_jump_delay_between_hops", "crates/unastar/src/entity/mob/tests/slime.rs::spawned_small_slime_add_actor_matches_native_summon"] }
+"minecraft:slime/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: network send-rate tuning is not modelled; every significant change is replicated" }
+"minecraft:slime/despawn" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/life/despawn.rs::a_cow_far_from_the_only_player_despawns_at_once", "crates/unastar/src/entity/mob/life/despawn.rs::a_cow_between_32_and_128_blocks_despawns_at_random_after_30_inactive_seconds"] }
+"minecraft:slime/experience_reward" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::slimes_give_their_size_in_experience_to_players_only"] }
+"minecraft:slime/health" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::each_size_has_its_body_and_waits_its_jump_delay_between_hops", "crates/unastar/src/entity/mob/tests/spawn.rs::adult_cow_carries_authored_health_goals_and_loot", "crates/unastar/src/entity/mob/combat/hit/tests.rs::a_killed_cow_dies_drops_loot_and_after_twenty_ticks_leaves_experience"], notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
+"minecraft:slime/hurt_on_condition" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::a_cow_standing_in_lava_burns_to_death_without_experience"] }
+"minecraft:slime/is_hidden_when_invisible" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::spawned_small_slime_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/slime.bin" }
+"minecraft:slime/jump.static" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::each_size_has_its_body_and_waits_its_jump_delay_between_hops", "crates/unastar/src/entity/mob/ai/tests.rs::cow_jumps_a_full_block_to_reach_a_stroll_target"] }
+"minecraft:slime/loot" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::only_small_slimes_drop_slimeballs"] }
+"minecraft:slime/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "oozing is refused whenever a hit would give it, but no test gives an immune mob an effect" }
+"minecraft:slime/movement" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::each_size_has_its_body_and_waits_its_jump_delay_between_hops"] }
+"minecraft:slime/movement.jump" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::each_size_has_its_body_and_waits_its_jump_delay_between_hops", "crates/unastar/src/entity/mob/tests/slime.rs::a_slime_with_a_target_hops_at_its_aggressive_delay", "crates/unastar/src/entity/mob/ai/hop.rs::grounded_hopper_waits_its_delay_then_jumps_forward", "crates/unastar/src/entity/mob/ai/hop.rs::airborne_hopper_keeps_moving_and_stops_without_a_request", "crates/unastar/src/entity/mob/ai/hop.rs::hopper_turns_by_max_turn"], notes = "Defaults for an omitted max_turn or jump_delay are provisional (D12)." }
+"minecraft:slime/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
+"minecraft:slime/navigation.walk" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::cow_jumps_a_full_block_to_reach_a_stroll_target", "crates/unastar/src/entity/mob/ai/tests.rs::strolling_herd_never_stacks", "crates/unastar/src/entity/navigation.rs::open_ground_paths_walk_the_diagonal", "crates/unastar/src/entity/navigation.rs::diagonals_need_both_sides_walkable", "crates/unastar/src/entity/mob/tests/pathing.rs::a_start_half_over_an_edge_still_finds_a_path", "crates/unastar/src/entity/navigation.rs::partial_request_publishes_the_route_to_the_closest_expanded_node"], notes = "The slime never follows a path: its goals steer its hops directly (matches BDS 1.26.51), so its path options do not act." }
+"minecraft:slime/on_target_acquired" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::a_slime_with_a_target_hops_at_its_aggressive_delay"] }
+"minecraft:slime/on_target_escape" = { status = "partial", owner = "entities", gaps = "fires become_calm when the slime drops its target, but no test exercises it" }
+"minecraft:slime/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::cow_dropped_above_grass_lands_and_stays_on_the_surface", "crates/unastar/src/entity/mob/ai/control.rs::air_acceleration_is_the_air_speed_times_the_input"] }
+"minecraft:slime/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:slime/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::overlapping_cows_push_each_other_apart", "crates/unastar/src/entity/mob/ai/tests.rs::pushing_matches_bds_reach_strength_and_minimum_distance"] }
+"minecraft:slime/spawn_rules" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::slimes_spawn_deep_in_slime_chunks_only", "crates/unastar/src/entity/mob/tests/slime.rs::swamp_surface_slimes_follow_the_moon", "crates/unastar/src/entity/mob/tests/slime.rs::superflat_slimes_pass_the_native_check_one_time_in_four", "crates/unastar/src/entity/spawning/slime_chunk.rs::known_slime_chunks", "crates/unastar/src/entity/spawning/slime_chunk.rs::first_output_matches_a_full_mt19937_on_chunk_seeds", "crates/unastar/src/entity/spawning/slime_chunk.rs::the_slime_biome_tag_resolves_to_the_swamps", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], notes = "The swamp test draws from the server random, not a Bedrock-exact stream; sky light does not spread sideways (world.lighting)." }
+"minecraft:slime/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
+"minecraft:slime/variant" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/slime.rs::each_size_has_its_body_and_waits_its_jump_delay_between_hops", "crates/unastar/src/entity/mob/tests/slime.rs::dead_slimes_split_into_two_to_four_halves", "crates/unastar/src/entity/mob/tests/slime.rs::spawned_small_slime_add_actor_matches_native_summon"] }
+"minecraft:spider" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spider.rs::spawned_spider_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/spider.rs::vanilla_spiders_compile_to_spawnable_archetypes"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/spider.bin", notes = "Sub-row gaps: jockeys and riding, cobweb slowdown (accepted without behaviour), ladder and vine climbing, random_look_around untested, no drowning; spawn rules ignore weather. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
 "minecraft:spider/addrider" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: riding is not implemented, so the jockey riders never spawn; the jockey spawn events still add the spider groups" }
 "minecraft:spider/angry" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spider.rs::spider_hurt_by_a_player_in_daylight_fights_back"], notes = "Anger broadcasting, anger filters and angry_sound are rejected; the spider uses none of them." }
 "minecraft:spider/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spider.rs::spider_is_hostile_at_night"] }
@@ -1339,9 +1339,9 @@
 "minecraft:spider/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::overlapping_cows_push_each_other_apart", "crates/unastar/src/entity/mob/ai/tests.rs::pushing_matches_bds_reach_strength_and_minimum_distance"] }
 "minecraft:spider/renders_when_invisible" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spider.rs::spawned_spider_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/spider.bin" }
 "minecraft:spider/rideable" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: riding is not implemented; nothing can ride or be ridden" }
-"minecraft:spider/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::spiders_spawn_at_night_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no block light, so torches do not stop spawns; no weather (adjust_for_weather inert)" }
+"minecraft:spider/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::spiders_spawn_at_night_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::monsters_never_spawn_on_a_torch_lit_platform_at_night_but_do_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no weather (adjust_for_weather inert); sky light does not spread sideways (world.lighting)" }
 "minecraft:spider/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
-"minecraft:stray" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/skeleton.rs::spawned_stray_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/skeleton.rs::vanilla_skeleton_and_stray_compile_to_spawnable_archetypes"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/stray.bin", notes = "Sub-row gaps: conversion to a skeleton, freezing (accepted without behaviour), random_look_around untested, no drowning; spawn rules lack block light. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
+"minecraft:stray" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/skeleton.rs::spawned_stray_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/skeleton.rs::vanilla_skeleton_and_stray_compile_to_spawnable_archetypes"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/stray.bin", notes = "Sub-row gaps: conversion to a skeleton, freezing (accepted without behaviour), random_look_around untested, no drowning; spawn rules ignore weather. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
 "minecraft:stray/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:stray/behavior.avoid_mob_type" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/skeleton.rs::skeletons_flee_wolves"] }
 "minecraft:stray/behavior.equip_item" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_picks_up_a_better_sword_and_drops_its_old_one"] }
@@ -1379,7 +1379,7 @@
 "minecraft:stray/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::overlapping_cows_push_each_other_apart", "crates/unastar/src/entity/mob/ai/tests.rs::pushing_matches_bds_reach_strength_and_minimum_distance"] }
 "minecraft:stray/shareables" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_picks_up_a_better_sword_and_drops_its_old_one"] }
 "minecraft:stray/shooter" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/skeleton.rs::stray_arrows_carry_long_slowness_and_slow_the_player_for_600_ticks"] }
-"minecraft:stray/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::strays_spawn_in_frozen_biomes_through_their_spawn_event", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no block light, so torches do not stop spawns; no weather (adjust_for_weather inert)" }
+"minecraft:stray/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::strays_spawn_in_frozen_biomes_through_their_spawn_event", "crates/unastar/src/entity/spawning/tests.rs::monsters_never_spawn_on_a_torch_lit_platform_at_night_but_do_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no weather (adjust_for_weather inert); sky light does not spread sideways (world.lighting)" }
 "minecraft:stray/transformation" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: a naturally spawned stray gains it from its change_to_skeleton spawn event (always underground, else 1 in 5) and stays a stray instead of becoming a skeleton" }
 "minecraft:stray/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:vex" = { status = "missing", gaps = "not spawnable: needs behavior.charge_attack, behavior.look_at_entity, damage_over_time, fire_immune" }
@@ -1409,7 +1409,7 @@
 "minecraft:vex/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
 "minecraft:vex/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
 "minecraft:vex/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vindicator" = { status = "missing", gaps = "not spawnable: needs behavior.celebrate, behavior.follow_target_captain, behavior.move_to_random_block, behavior.move_to_village, can_join_raid, dweller (+3 more)" }
+"minecraft:vindicator" = { status = "missing", gaps = "not spawnable: needs behavior.celebrate, behavior.follow_target_captain, behavior.move_to_random_block, behavior.move_to_village, can_join_raid, dweller (+2 more)" }
 "minecraft:vindicator/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but vindicator cannot spawn yet" }
 "minecraft:vindicator/annotation.break_door" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
@@ -1455,7 +1455,7 @@
 "minecraft:vindicator/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
-"minecraft:vindicator/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:vindicator/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:warden" = { status = "missing", gaps = "not spawnable: needs anger_level, behavior.dig, behavior.emerge, behavior.investigate_suspicious_location, behavior.roar, behavior.sniff (+10 more)" }
 "minecraft:warden/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet" }
 "minecraft:warden/anger_level" = { status = "missing", gaps = "not implemented: needs warden behaviour" }
@@ -1532,7 +1532,7 @@
 "minecraft:witch/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); witch cannot spawn yet" }
 "minecraft:witch/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
 "minecraft:witch/shooter" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no magic or filtered projectile choices), but witch cannot spawn yet" }
-"minecraft:witch/spawn_rules" = { status = "partial", gaps = "witch cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:witch/spawn_rules" = { status = "partial", gaps = "witch cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:witch/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
 "minecraft:wither_skeleton" = { status = "missing", gaps = "not spawnable: needs fire_immune" }
 "minecraft:wither_skeleton/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skeleton cannot spawn yet" }
@@ -1606,7 +1606,7 @@
 "minecraft:zoglin/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
 "minecraft:zoglin/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
 "minecraft:zoglin/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zombie" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::spawned_baby_zombie_add_actor_matches_native_summon", "crates/unastar/tests/mob_e2e.rs::zombie_kills_the_player_who_then_respawns_over_loopback"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie.bin", notes = "Sub-row gaps: drowned conversion, jockeys and riding, turtle-egg stomping and spear attacks (accepted without behaviour); spawn rules lack block light. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
+"minecraft:zombie" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::spawned_baby_zombie_add_actor_matches_native_summon", "crates/unastar/tests/mob_e2e.rs::zombie_kills_the_player_who_then_respawns_over_loopback"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie.bin", notes = "Sub-row gaps: drowned conversion, jockeys and riding, turtle-egg stomping and spear attacks (accepted without behaviour); spawn rules ignore weather. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
 "minecraft:zombie/annotation.break_door" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/doors.rs::breaker_breaks_a_closed_oak_door_after_the_native_time_on_hard", "crates/unastar/src/entity/mob/tests/doors.rs::breaker_never_breaks_doors_on_normal", "crates/unastar/src/entity/mob/tests/doors.rs::breaker_never_breaks_an_iron_door", "crates/unastar/src/entity/mob/tests/doors.rs::zombie_without_the_annotation_does_not_path_through_the_door", "crates/unastar/src/server/game/block_behaviour/doors.rs::a_mob_removes_its_half_quietly_and_the_other_half_breaks_next_tick"], notes = "A mob breaking a door goes through the door block behaviour: the broken half is removed quietly and the other half breaks the next tick through the neighbour update." }
 "minecraft:zombie/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:zombie/behavior.equip_item" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_picks_up_a_better_sword_and_drops_its_old_one"] }
@@ -1622,7 +1622,7 @@
 "minecraft:zombie/behavior.stomp_turtle_egg" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: turtle eggs are not implemented, so there is nothing to stomp" }
 "minecraft:zombie/behavior.use_kinetic_weapon" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: kinetic (spear) weapons and charge attacks are not implemented; a mob holding a spear uses its melee attack" }
 "minecraft:zombie/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
-"minecraft:zombie/burns_in_daylight" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_burns_in_daylight_and_takes_fire_damage", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_does_not_burn_at_night_in_shade_in_water_or_with_a_helmet"] }
+"minecraft:zombie/burns_in_daylight" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_burns_in_daylight_and_takes_fire_damage", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_does_not_burn_at_night_in_shade_in_water_or_with_a_helmet", "crates/unastar/src/entity/mob/tests/zombie.rs::a_torch_lit_zombie_follows_the_brightness_rules"] }
 "minecraft:zombie/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
 "minecraft:zombie/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spawn.rs::spawned_adult_cow_add_actor_matches_native_summon"] }
 "minecraft:zombie/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: network send-rate tuning is not modelled; every significant change is replicated" }
@@ -1651,11 +1651,11 @@
 "minecraft:zombie/scale" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::spawned_baby_zombie_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/spawn.rs::baby_cow_is_half_scale_and_flagged", "crates/unastar/src/entity/mob/tests/zombie.rs::baby_zombies_are_faster_and_smaller"] }
 "minecraft:zombie/shareables" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_picks_up_a_better_sword_and_drops_its_old_one"] }
 "minecraft:zombie/spawn_egg_interaction" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/interaction.rs::cow_spawn_egg_on_a_cow_spawns_a_calf"] }
-"minecraft:zombie/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::zombies_spawn_in_herds_of_two_to_four_at_night_within_the_caps", "crates/unastar/src/entity/spawning/tests.rs::no_zombie_spawns_on_a_sunlit_surface_at_noon", "crates/unastar/src/entity/spawning/tests.rs::zombies_spawn_under_cover_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::a_full_monster_cap_spawns_no_zombie", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no block light, so torches do not stop spawns; no weather (adjust_for_weather inert); the zombie_villager_v2 permutation is blocked (not spawnable)" }
+"minecraft:zombie/spawn_rules" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::zombies_spawn_in_herds_of_two_to_four_at_night_within_the_caps", "crates/unastar/src/entity/spawning/tests.rs::no_zombie_spawns_on_a_sunlit_surface_at_noon", "crates/unastar/src/entity/spawning/tests.rs::zombies_spawn_under_cover_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::a_full_monster_cap_spawns_no_zombie", "crates/unastar/src/entity/spawning/tests.rs::monsters_never_spawn_on_a_torch_lit_platform_at_night_but_do_in_the_dark", "crates/unastar/src/entity/spawning/tests.rs::zombies_spawn_in_snow_layers_of_any_height", "crates/unastar/src/entity/mob/tests/zombie.rs::a_torch_lit_zombie_follows_the_brightness_rules", "crates/unastar/src/entity/spawning/tests.rs::no_monster_spawns_on_peaceful"], gaps = "no weather (adjust_for_weather inert); sky light does not spread sideways (world.lighting); the zombie_villager_v2 permutation is blocked (not spawnable)" }
 "minecraft:zombie/timer" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/sensors.rs::a_looping_timer_fires_at_every_deadline", "crates/unastar/src/entity/mob/tests/sensors.rs::a_one_shot_timer_fires_once"] }
 "minecraft:zombie/transformation" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: an underwater zombie shakes (is_shaking) but never converts, because the drowned is not spawnable", notes = "Drowned conversion still needs the drowned to be spawnable (swim navigation among others) and the conversion itself (entity backlog)." }
 "minecraft:zombie/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
-"minecraft:zombie_nautilus" = { status = "missing", gaps = "not spawnable: needs behavior.aquatic_charge_attack, behavior.player_ride_tamed, behavior.random_swim, behavior.swim_idle, behavior.swim_wander, dash_action (+15 more)" }
+"minecraft:zombie_nautilus" = { status = "missing", gaps = "not spawnable: needs behavior.aquatic_charge_attack, behavior.player_ride_tamed, behavior.random_swim, behavior.swim_idle, behavior.swim_wander, dash_action (+14 more)" }
 "minecraft:zombie_nautilus/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_nautilus cannot spawn yet" }
@@ -1692,7 +1692,7 @@
 "minecraft:zombie_nautilus/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
 "minecraft:zombie_nautilus/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/mob_effect" = { status = "missing", gaps = "not implemented: needs mob effects" }
-"minecraft:zombie_nautilus/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:zombie_nautilus/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented on the slime but untested, and zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/movement.sway" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:zombie_nautilus/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; zombie_nautilus cannot spawn yet" }
@@ -1747,9 +1747,9 @@
 "minecraft:zombie_pigman/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
 "minecraft:zombie_pigman/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
 "minecraft:zombie_pigman/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
-"minecraft:zombie_pigman/spawn_rules" = { status = "partial", gaps = "zombie_pigman cannot spawn yet, so drawn entries spawn nothing; the native spawn check of zombie_pigman's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:zombie_pigman/spawn_rules" = { status = "partial", gaps = "zombie_pigman cannot spawn yet, so drawn entries spawn nothing; the native spawn check of zombie_pigman's class is not modelled; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:zombie_pigman/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
-"minecraft:zombie_villager" = { status = "missing", gaps = "not spawnable: needs spell_effects, variant" }
+"minecraft:zombie_villager" = { status = "missing", gaps = "not spawnable: needs spell_effects" }
 "minecraft:zombie_villager/annotation.break_door" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
 "minecraft:zombie_villager/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
 "minecraft:zombie_villager/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
@@ -1793,8 +1793,8 @@
 "minecraft:zombie_villager/spell_effects" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:zombie_villager/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)", notes = "Drowned conversion still needs the drowned to be spawnable (swim navigation among others) and the conversion itself (entity backlog)." }
 "minecraft:zombie_villager/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:zombie_villager_v2" = { status = "missing", gaps = "not spawnable: needs mark_variant, skin_id, spell_effects, variant" }
+"minecraft:zombie_villager/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
+"minecraft:zombie_villager_v2" = { status = "missing", gaps = "not spawnable: needs mark_variant, skin_id, spell_effects" }
 "minecraft:zombie_villager_v2/annotation.break_door" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
 "minecraft:zombie_villager_v2/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
 "minecraft:zombie_villager_v2/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
@@ -1843,7 +1843,7 @@
 "minecraft:zombie_villager_v2/spell_effects" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:zombie_villager_v2/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)", notes = "Drowned conversion still needs the drowned to be spawnable (swim navigation among others) and the conversion itself (entity backlog)." }
 "minecraft:zombie_villager_v2/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:zombie_villager_v2/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
 
 # object (170)
 "minecraft:area_effect_cloud" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/ranged.rs::a_lingering_potion_leaves_a_shrinking_cloud"], notes = "Spawned by lingering potions: reapplies its effect every 40 ticks, shrinking by 0.5, and disappears after 600 ticks." }
@@ -1920,14 +1920,14 @@
 "minecraft:command_block_minecart/rail_movement" = { status = "missing", gaps = "not implemented: needs vehicles" }
 "minecraft:command_block_minecart/rail_sensor" = { status = "missing", gaps = "not implemented: needs vehicles" }
 "minecraft:command_block_minecart/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but command_block_minecart cannot spawn yet" }
-"minecraft:cushion" = { status = "missing", gaps = "not spawnable: needs variant" }
+"minecraft:cushion" = { status = "missing", gaps = "not confirmed spawnable: the components that blocked it (variant) are implemented now, but no test compiles or spawns it" }
 "minecraft:cushion/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cushion cannot spawn yet" }
 "minecraft:cushion/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:cushion/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cushion cannot spawn yet" }
 "minecraft:cushion/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; cushion cannot spawn yet" }
 "minecraft:cushion/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:cushion/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cushion cannot spawn yet" }
-"minecraft:cushion/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:cushion/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cushion cannot spawn yet" }
 "minecraft:eye_of_ender_signal" = { status = "missing", gaps = "not spawnable: no native AddActor attribute observation is retained for it" }
 "minecraft:eye_of_ender_signal/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but eye_of_ender_signal cannot spawn yet" }
 "minecraft:eye_of_ender_signal/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
@@ -2100,10 +2100,10 @@
 "minecraft:armadillo/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armadillo cannot spawn yet" }
 "minecraft:armadillo/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armadillo cannot spawn yet" }
 "minecraft:armadillo/spawn_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armadillo cannot spawn yet" }
-"minecraft:armadillo/spawn_rules" = { status = "partial", gaps = "armadillo cannot spawn yet, so drawn entries spawn nothing; the native spawn check of armadillo's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:armadillo/spawn_rules" = { status = "partial", gaps = "armadillo cannot spawn yet, so drawn entries spawn nothing; the native spawn check of armadillo's class is not modelled; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:armadillo/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armadillo cannot spawn yet" }
 "minecraft:armadillo/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armadillo cannot spawn yet" }
-"minecraft:axolotl" = { status = "missing", gaps = "not spawnable: needs attack_cooldown, behavior.move_to_water, behavior.play_dead, behavior.random_swim, behavior.swim_idle, combat_regeneration (+6 more)" }
+"minecraft:axolotl" = { status = "missing", gaps = "not spawnable: needs attack_cooldown, behavior.move_to_water, behavior.play_dead, behavior.random_swim, behavior.swim_idle, combat_regeneration (+5 more)" }
 "minecraft:axolotl/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
 "minecraft:axolotl/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
 "minecraft:axolotl/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
@@ -2146,11 +2146,11 @@
 "minecraft:axolotl/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
 "minecraft:axolotl/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
 "minecraft:axolotl/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
-"minecraft:axolotl/spawn_rules" = { status = "partial", gaps = "axolotl cannot spawn yet, so drawn entries spawn nothing; the native spawn check of axolotl's class is not modelled; brightness is sky light only" }
+"minecraft:axolotl/spawn_rules" = { status = "partial", gaps = "axolotl cannot spawn yet, so drawn entries spawn nothing; the native spawn check of axolotl's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:axolotl/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
 "minecraft:axolotl/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:axolotl/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
-"minecraft:axolotl/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:axolotl/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
 "minecraft:bat" = { status = "missing", gaps = "not spawnable: needs behavior.float_wander, can_fly, navigation.float" }
 "minecraft:bat/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
 "minecraft:bat/behavior.float_wander" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
@@ -2170,7 +2170,7 @@
 "minecraft:bat/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; bat cannot spawn yet" }
 "minecraft:bat/navigation.float" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
 "minecraft:bat/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
-"minecraft:bat/spawn_rules" = { status = "partial", gaps = "bat cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:bat/spawn_rules" = { status = "partial", gaps = "bat cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:bat/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
 "minecraft:bee" = { status = "missing", gaps = "not spawnable: needs behavior.go_home, behavior.move_to_block, behavior.move_towards_home_restriction, behavior.random_hover, behavior.timer_flag_1, block_sensor (+8 more)" }
 "minecraft:bee/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
@@ -2225,7 +2225,7 @@
 "minecraft:bee/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:bee/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:bee/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
-"minecraft:bee/spawn_rules" = { status = "partial", gaps = "bee cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:bee/spawn_rules" = { status = "partial", gaps = "bee cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:bee/spell_effects" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:bee/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:bee/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
@@ -2276,7 +2276,7 @@
 "minecraft:camel/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:camel/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but camel cannot spawn yet" }
 "minecraft:camel/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but camel cannot spawn yet" }
-"minecraft:camel/spawn_rules" = { status = "partial", gaps = "camel cannot spawn yet, so drawn entries spawn nothing; the native spawn check of camel's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:camel/spawn_rules" = { status = "partial", gaps = "camel cannot spawn yet, so drawn entries spawn nothing; the native spawn check of camel's class is not modelled; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:camel/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but camel cannot spawn yet" }
 "minecraft:camel/variable_max_auto_step" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but camel cannot spawn yet" }
 "minecraft:camel_husk" = { status = "missing", gaps = "not spawnable: needs behavior.player_ride_tamed, behavior.random_look_around_and_sit, dash_action, equippable, healable, input_ground_controlled (+2 more)" }
@@ -2321,10 +2321,10 @@
 "minecraft:camel_husk/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); camel_husk cannot spawn yet" }
 "minecraft:camel_husk/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but camel_husk cannot spawn yet" }
 "minecraft:camel_husk/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
-"minecraft:camel_husk/spawn_rules" = { status = "partial", gaps = "camel_husk cannot spawn yet, so drawn entries spawn nothing; the native spawn check of camel_husk's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:camel_husk/spawn_rules" = { status = "partial", gaps = "camel_husk cannot spawn yet, so drawn entries spawn nothing; the native spawn check of camel_husk's class is not modelled; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:camel_husk/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but camel_husk cannot spawn yet" }
 "minecraft:camel_husk/variable_max_auto_step" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but camel_husk cannot spawn yet" }
-"minecraft:cat" = { status = "missing", gaps = "not spawnable: needs attack_damage, behavior.drop_item_for, behavior.follow_owner, behavior.move_towards_dwelling_restriction, behavior.ocelot_sit_on_block, behavior.ocelotattack (+10 more)" }
+"minecraft:cat" = { status = "missing", gaps = "not spawnable: needs attack_damage, behavior.drop_item_for, behavior.follow_owner, behavior.move_towards_dwelling_restriction, behavior.ocelot_sit_on_block, behavior.ocelotattack (+9 more)" }
 "minecraft:cat/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cat cannot spawn yet" }
 "minecraft:cat/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cat cannot spawn yet" }
 "minecraft:cat/attack_damage" = { status = "missing", gaps = "component behaviour not implemented" }
@@ -2385,7 +2385,7 @@
 "minecraft:cat/tameable" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:cat/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cat cannot spawn yet" }
 "minecraft:cat/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cat cannot spawn yet" }
-"minecraft:cat/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:cat/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cat cannot spawn yet" }
 "minecraft:chicken" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/chicken.rs::spawned_adult_chicken_add_actor_matches_native_summon", "crates/unastar/tests/mob_e2e.rs::chicken_summon_flap_egg_and_kill_over_loopback"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/chicken.bin", notes = "Sub-row gaps: leads, riding and vibrations (accepted without behaviour), no drowning. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
 "minecraft:chicken/ageable" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/interaction.rs::calf_grows_up_after_its_duration_and_wheat_speeds_it"] }
 "minecraft:chicken/ambient_sound_interval" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/chicken.rs::spawned_adult_chicken_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/chicken.bin" }
@@ -2428,7 +2428,7 @@
 "minecraft:chicken/scale" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spawn.rs::baby_cow_is_half_scale_and_flagged"] }
 "minecraft:chicken/spawn_egg_interaction" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/interaction.rs::cow_spawn_egg_on_a_cow_spawns_a_calf"] }
 "minecraft:chicken/spawn_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/chicken.rs::adult_chicken_lays_an_egg_within_the_max_wait_and_a_baby_never_does", "crates/unastar/src/entity/mob/tests/chicken.rs::chicken_round_trips_through_storage_with_its_egg_timer"] }
-"minecraft:chicken/spawn_rules" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::grass_plains_spawn_animal_herds_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::animals_never_spawn_on_stone_in_darkness_or_outside_animal_biomes", "crates/unastar/src/entity/spawning/tests.rs::the_animal_cap_stops_spawning", "crates/unastar/src/entity/spawning/tests.rs::world_generation_places_herds_in_fresh_animal_chunks", "crates/unastar/tests/mob_e2e.rs::natural_spawning_populates_new_chunks_over_loopback"], notes = "Brightness is sky light only (no block light) and there is no weather, so adjust_for_weather has no effect (entity backlog 4-5)." }
+"minecraft:chicken/spawn_rules" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::grass_plains_spawn_animal_herds_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::animals_never_spawn_on_stone_in_darkness_or_outside_animal_biomes", "crates/unastar/src/entity/spawning/tests.rs::the_animal_cap_stops_spawning", "crates/unastar/src/entity/spawning/tests.rs::world_generation_places_herds_in_fresh_animal_chunks", "crates/unastar/tests/mob_e2e.rs::natural_spawning_populates_new_chunks_over_loopback"], notes = "Sky light does not spread sideways (world.lighting) and there is no weather, so adjust_for_weather has no effect (entity backlog 4-5)." }
 "minecraft:chicken/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:chicken/uses_legacy_friction" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/chicken.rs::spawned_adult_chicken_add_actor_matches_native_summon"] }
 "minecraft:copper_golem" = { status = "missing", gaps = "not spawnable: needs annotation.open_door, behavior.take_flower, behavior.transport_items, instant_despawn, persistent" }
@@ -2506,7 +2506,7 @@
 "minecraft:cow/rideable" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: riding is not implemented; nothing can ride or be ridden" }
 "minecraft:cow/scale" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spawn.rs::baby_cow_is_half_scale_and_flagged"] }
 "minecraft:cow/spawn_egg_interaction" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/interaction.rs::cow_spawn_egg_on_a_cow_spawns_a_calf"] }
-"minecraft:cow/spawn_rules" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::grass_plains_spawn_animal_herds_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::animals_never_spawn_on_stone_in_darkness_or_outside_animal_biomes", "crates/unastar/src/entity/spawning/tests.rs::the_animal_cap_stops_spawning", "crates/unastar/src/entity/spawning/tests.rs::world_generation_places_herds_in_fresh_animal_chunks", "crates/unastar/tests/mob_e2e.rs::natural_spawning_populates_new_chunks_over_loopback"], notes = "Brightness is sky light only (no block light) and there is no weather, so adjust_for_weather has no effect (entity backlog 4-5)." }
+"minecraft:cow/spawn_rules" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::grass_plains_spawn_animal_herds_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::animals_never_spawn_on_stone_in_darkness_or_outside_animal_biomes", "crates/unastar/src/entity/spawning/tests.rs::the_animal_cap_stops_spawning", "crates/unastar/src/entity/spawning/tests.rs::world_generation_places_herds_in_fresh_animal_chunks", "crates/unastar/tests/mob_e2e.rs::natural_spawning_populates_new_chunks_over_loopback"], notes = "Sky light does not spread sideways (world.lighting) and there is no weather, so adjust_for_weather has no effect (entity backlog 4-5)." }
 "minecraft:cow/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:dolphin" = { status = "missing", gaps = "not spawnable: needs behavior.find_underwater_treasure, behavior.move_to_water, behavior.random_breach, behavior.random_swim, behavior.swim_up_for_breath, behavior.swim_with_entity (+6 more)" }
 "minecraft:dolphin/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
@@ -2557,7 +2557,7 @@
 "minecraft:dolphin/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
 "minecraft:dolphin/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
 "minecraft:dolphin/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
-"minecraft:dolphin/spawn_rules" = { status = "partial", gaps = "dolphin cannot spawn yet, so drawn entries spawn nothing; the native spawn check of dolphin's class is not modelled; brightness is sky light only" }
+"minecraft:dolphin/spawn_rules" = { status = "partial", gaps = "dolphin cannot spawn yet, so drawn entries spawn nothing; the native spawn check of dolphin's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:dolphin/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
 "minecraft:dolphin/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:dolphin/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
@@ -2612,7 +2612,7 @@
 "minecraft:donkey/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:donkey/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but donkey cannot spawn yet" }
 "minecraft:donkey/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but donkey cannot spawn yet" }
-"minecraft:donkey/spawn_rules" = { status = "partial", gaps = "donkey cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:donkey/spawn_rules" = { status = "partial", gaps = "donkey cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:donkey/tamemount" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:donkey/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but donkey cannot spawn yet" }
 "minecraft:ender_crystal" = { status = "missing", gaps = "not spawnable: needs fire_immune, on_hurt" }
@@ -2625,7 +2625,7 @@
 "minecraft:ender_crystal/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_crystal cannot spawn yet" }
 "minecraft:ender_crystal/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); ender_crystal cannot spawn yet" }
 "minecraft:ender_crystal/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_crystal cannot spawn yet" }
-"minecraft:fox" = { status = "missing", gaps = "not spawnable: needs behavior.defend_trusted_target, behavior.eat_carried_item, behavior.find_cover, behavior.nap, behavior.nearest_prioritized_attackable_target, behavior.raid_garden (+8 more)" }
+"minecraft:fox" = { status = "missing", gaps = "not spawnable: needs behavior.defend_trusted_target, behavior.eat_carried_item, behavior.find_cover, behavior.nap, behavior.nearest_prioritized_attackable_target, behavior.raid_garden (+7 more)" }
 "minecraft:fox/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but fox cannot spawn yet" }
 "minecraft:fox/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but fox cannot spawn yet" }
 "minecraft:fox/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but fox cannot spawn yet" }
@@ -2684,11 +2684,11 @@
 "minecraft:fox/scheduler" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:fox/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but fox cannot spawn yet" }
 "minecraft:fox/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but fox cannot spawn yet" }
-"minecraft:fox/spawn_rules" = { status = "partial", gaps = "fox cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:fox/spawn_rules" = { status = "partial", gaps = "fox cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:fox/trust" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:fox/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but fox cannot spawn yet" }
-"minecraft:fox/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:frog" = { status = "missing", gaps = "not spawnable: needs behavior.croak, behavior.eat_mob, behavior.jump_to_block, behavior.lay_egg, behavior.move_to_land, behavior.move_to_water (+4 more)" }
+"minecraft:fox/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but fox cannot spawn yet" }
+"minecraft:frog" = { status = "missing", gaps = "not spawnable: needs behavior.croak, behavior.eat_mob, behavior.jump_to_block, behavior.lay_egg, behavior.move_to_land, behavior.move_to_water (+3 more)" }
 "minecraft:frog/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but frog cannot spawn yet" }
 "minecraft:frog/behavior.breed" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but frog cannot spawn yet" }
 "minecraft:frog/behavior.croak" = { status = "missing", gaps = "component behaviour not implemented" }
@@ -2723,12 +2723,12 @@
 "minecraft:frog/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); frog cannot spawn yet" }
 "minecraft:frog/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but frog cannot spawn yet" }
 "minecraft:frog/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but frog cannot spawn yet" }
-"minecraft:frog/spawn_rules" = { status = "partial", gaps = "frog cannot spawn yet, so drawn entries spawn nothing; brightness is sky light only" }
+"minecraft:frog/spawn_rules" = { status = "partial", gaps = "frog cannot spawn yet, so drawn entries spawn nothing; sky light does not spread sideways (world.lighting)" }
 "minecraft:frog/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but frog cannot spawn yet" }
 "minecraft:frog/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:frog/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but frog cannot spawn yet" }
-"minecraft:frog/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:goat" = { status = "missing", gaps = "not spawnable: needs attack_cooldown, behavior.jump_to_block, behavior.ram_attack, genetics, variant" }
+"minecraft:frog/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but frog cannot spawn yet" }
+"minecraft:goat" = { status = "missing", gaps = "not spawnable: needs attack_cooldown, behavior.jump_to_block, behavior.ram_attack, genetics" }
 "minecraft:goat/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but goat cannot spawn yet" }
 "minecraft:goat/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but goat cannot spawn yet" }
 "minecraft:goat/attack_cooldown" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
@@ -2771,9 +2771,9 @@
 "minecraft:goat/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but goat cannot spawn yet" }
 "minecraft:goat/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but goat cannot spawn yet" }
 "minecraft:goat/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but goat cannot spawn yet" }
-"minecraft:goat/spawn_rules" = { status = "partial", gaps = "goat cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:goat/spawn_rules" = { status = "partial", gaps = "goat cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:goat/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but goat cannot spawn yet" }
-"minecraft:goat/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:goat/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but goat cannot spawn yet" }
 "minecraft:happy_ghast" = { status = "missing", gaps = "not spawnable: needs behavior.float_tempt, behavior.float_wander, behavior.follow_mob, behavior.player_ride_tamed, behavior.random_hover, body_rotation_always_follows_head (+14 more)" }
 "minecraft:happy_ghast/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
@@ -2875,11 +2875,11 @@
 "minecraft:hoglin/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:hoglin/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
 "minecraft:hoglin/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
-"minecraft:hoglin/spawn_rules" = { status = "partial", gaps = "hoglin cannot spawn yet, so drawn entries spawn nothing; brightness is sky light only" }
+"minecraft:hoglin/spawn_rules" = { status = "partial", gaps = "hoglin cannot spawn yet, so drawn entries spawn nothing; sky light does not spread sideways (world.lighting)" }
 "minecraft:hoglin/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
 "minecraft:hoglin/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
 "minecraft:hoglin/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
-"minecraft:horse" = { status = "missing", gaps = "not spawnable: needs behavior.player_ride_tamed, behavior.run_around_like_crazy, buoyant, can_power_jump, equippable, healable (+7 more)" }
+"minecraft:horse" = { status = "missing", gaps = "not spawnable: needs behavior.player_ride_tamed, behavior.run_around_like_crazy, buoyant, can_power_jump, equippable, healable (+6 more)" }
 "minecraft:horse/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but horse cannot spawn yet" }
 "minecraft:horse/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but horse cannot spawn yet" }
 "minecraft:horse/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
@@ -2930,11 +2930,11 @@
 "minecraft:horse/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:horse/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but horse cannot spawn yet" }
 "minecraft:horse/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but horse cannot spawn yet" }
-"minecraft:horse/spawn_rules" = { status = "partial", gaps = "horse cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:horse/spawn_rules" = { status = "partial", gaps = "horse cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:horse/tamemount" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:horse/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but horse cannot spawn yet" }
-"minecraft:horse/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:llama" = { status = "missing", gaps = "not spawnable: needs behavior.follow_caravan, behavior.run_around_like_crazy, equippable, healable, inventory, is_chested (+5 more)" }
+"minecraft:horse/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but horse cannot spawn yet" }
+"minecraft:llama" = { status = "missing", gaps = "not spawnable: needs behavior.follow_caravan, behavior.run_around_like_crazy, equippable, healable, inventory, is_chested (+4 more)" }
 "minecraft:llama/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
 "minecraft:llama/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but llama cannot spawn yet" }
 "minecraft:llama/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
@@ -2989,12 +2989,12 @@
 "minecraft:llama/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
 "minecraft:llama/shooter" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no magic or filtered projectile choices), but llama cannot spawn yet" }
 "minecraft:llama/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
-"minecraft:llama/spawn_rules" = { status = "partial", gaps = "llama cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:llama/spawn_rules" = { status = "partial", gaps = "llama cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:llama/strength" = { status = "missing", gaps = "not implemented: needs mob inventories and mount gear" }
 "minecraft:llama/tamemount" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:llama/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
-"minecraft:llama/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:mooshroom" = { status = "missing", gaps = "not spawnable: needs mark_variant, variant" }
+"minecraft:llama/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
+"minecraft:mooshroom" = { status = "missing", gaps = "not spawnable: needs mark_variant" }
 "minecraft:mooshroom/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but mooshroom cannot spawn yet" }
 "minecraft:mooshroom/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
 "minecraft:mooshroom/behavior.breed" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but mooshroom cannot spawn yet" }
@@ -3035,10 +3035,10 @@
 "minecraft:mooshroom/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:mooshroom/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but mooshroom cannot spawn yet" }
 "minecraft:mooshroom/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but mooshroom cannot spawn yet" }
-"minecraft:mooshroom/spawn_rules" = { status = "partial", gaps = "mooshroom cannot spawn yet, so drawn entries spawn nothing; the native spawn check of mooshroom's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:mooshroom/spawn_rules" = { status = "partial", gaps = "mooshroom cannot spawn yet, so drawn entries spawn nothing; the native spawn check of mooshroom's class is not modelled; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:mooshroom/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
 "minecraft:mooshroom/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but mooshroom cannot spawn yet" }
-"minecraft:mooshroom/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:mooshroom/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but mooshroom cannot spawn yet" }
 "minecraft:mule" = { status = "missing", gaps = "not spawnable: needs behavior.player_ride_tamed, behavior.run_around_like_crazy, buoyant, can_power_jump, equippable, healable (+6 more)" }
 "minecraft:mule/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but mule cannot spawn yet" }
 "minecraft:mule/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but mule cannot spawn yet" }
@@ -3139,10 +3139,10 @@
 "minecraft:ocelot/sittable" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:ocelot/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ocelot cannot spawn yet" }
 "minecraft:ocelot/spawn_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ocelot cannot spawn yet" }
-"minecraft:ocelot/spawn_rules" = { status = "partial", gaps = "ocelot cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:ocelot/spawn_rules" = { status = "partial", gaps = "ocelot cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:ocelot/trusting" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:ocelot/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ocelot cannot spawn yet" }
-"minecraft:panda" = { status = "missing", gaps = "not spawnable: needs behavior.lay_down, behavior.random_sitting, behavior.roll, behavior.scared, behavior.snacking, behavior.sneeze (+6 more)" }
+"minecraft:panda" = { status = "missing", gaps = "not spawnable: needs behavior.lay_down, behavior.random_sitting, behavior.roll, behavior.scared, behavior.snacking, behavior.sneeze (+5 more)" }
 "minecraft:panda/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
 "minecraft:panda/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
 "minecraft:panda/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but panda cannot spawn yet" }
@@ -3196,11 +3196,11 @@
 "minecraft:panda/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:panda/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
 "minecraft:panda/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
-"minecraft:panda/spawn_rules" = { status = "partial", gaps = "panda cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:panda/spawn_rules" = { status = "partial", gaps = "panda cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:panda/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
-"minecraft:panda/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:panda/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
 "minecraft:panda/water_movement" = { status = "missing", gaps = "component behaviour not implemented" }
-"minecraft:parrot" = { status = "missing", gaps = "not spawnable: needs behavior.follow_mob, behavior.follow_owner, behavior.random_fly, behavior.stay_while_sitting, behavior.teleport_to_owner, can_fly (+8 more)" }
+"minecraft:parrot" = { status = "missing", gaps = "not spawnable: needs behavior.follow_mob, behavior.follow_owner, behavior.random_fly, behavior.stay_while_sitting, behavior.teleport_to_owner, can_fly (+7 more)" }
 "minecraft:parrot/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
 "minecraft:parrot/behavior.find_mount" = { status = "missing", gaps = "riding is not implemented; baby zombie jockeys never mount" }
 "minecraft:parrot/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parrot cannot spawn yet" }
@@ -3237,10 +3237,10 @@
 "minecraft:parrot/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); parrot cannot spawn yet" }
 "minecraft:parrot/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parrot cannot spawn yet" }
 "minecraft:parrot/sittable" = { status = "missing", gaps = "not implemented: needs taming and owners" }
-"minecraft:parrot/spawn_rules" = { status = "partial", gaps = "parrot cannot spawn yet, so drawn entries spawn nothing; the native spawn check of parrot's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:parrot/spawn_rules" = { status = "partial", gaps = "parrot cannot spawn yet, so drawn entries spawn nothing; the native spawn check of parrot's class is not modelled; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:parrot/tameable" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:parrot/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parrot cannot spawn yet" }
-"minecraft:parrot/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:parrot/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parrot cannot spawn yet" }
 "minecraft:pig" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/passive.rs::spawned_adult_pig_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/pig.bin", notes = "Sub-row gaps: riding (saddled pigs cannot be ridden), lightning conversion, leads, no drowning. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
 "minecraft:pig/ageable" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/interaction.rs::calf_grows_up_after_its_duration_and_wheat_speeds_it"] }
 "minecraft:pig/ambient_sound_interval" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/passive.rs::spawned_adult_pig_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/chicken.rs::spawned_adult_chicken_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/pig.bin" }
@@ -3286,7 +3286,7 @@
 "minecraft:pig/rideable" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: riding is not implemented; nothing can ride or be ridden" }
 "minecraft:pig/scale" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spawn.rs::baby_cow_is_half_scale_and_flagged"] }
 "minecraft:pig/spawn_egg_interaction" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/interaction.rs::cow_spawn_egg_on_a_cow_spawns_a_calf"] }
-"minecraft:pig/spawn_rules" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::grass_plains_spawn_animal_herds_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::animals_never_spawn_on_stone_in_darkness_or_outside_animal_biomes", "crates/unastar/src/entity/spawning/tests.rs::the_animal_cap_stops_spawning", "crates/unastar/src/entity/spawning/tests.rs::world_generation_places_herds_in_fresh_animal_chunks", "crates/unastar/tests/mob_e2e.rs::natural_spawning_populates_new_chunks_over_loopback"], notes = "Brightness is sky light only (no block light) and there is no weather, so adjust_for_weather has no effect (entity backlog 4-5)." }
+"minecraft:pig/spawn_rules" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::grass_plains_spawn_animal_herds_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::animals_never_spawn_on_stone_in_darkness_or_outside_animal_biomes", "crates/unastar/src/entity/spawning/tests.rs::the_animal_cap_stops_spawning", "crates/unastar/src/entity/spawning/tests.rs::world_generation_places_herds_in_fresh_animal_chunks", "crates/unastar/tests/mob_e2e.rs::natural_spawning_populates_new_chunks_over_loopback"], notes = "Sky light does not spread sideways (world.lighting) and there is no weather, so adjust_for_weather has no effect (entity backlog 4-5)." }
 "minecraft:pig/transformation" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: a pig struck by lightning never converts, because there is no lightning" }
 "minecraft:pig/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:polar_bear" = { status = "missing", gaps = "not spawnable: needs behavior.stomp_attack, on_friendly_anger, water_movement" }
@@ -3332,11 +3332,11 @@
 "minecraft:polar_bear/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
 "minecraft:polar_bear/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
 "minecraft:polar_bear/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/spawn_rules" = { status = "partial", gaps = "polar_bear cannot spawn yet, so drawn entries spawn nothing; the native spawn check of polar_bear's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:polar_bear/spawn_rules" = { status = "partial", gaps = "polar_bear cannot spawn yet, so drawn entries spawn nothing; the native spawn check of polar_bear's class is not modelled; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:polar_bear/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
 "minecraft:polar_bear/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
 "minecraft:polar_bear/water_movement" = { status = "missing", gaps = "component behaviour not implemented" }
-"minecraft:rabbit" = { status = "missing", gaps = "not spawnable: needs behavior.raid_garden, block_climber, can_stand_on_powder_snow, jump.dynamic, movement.skip, variant" }
+"minecraft:rabbit" = { status = "missing", gaps = "not spawnable: needs behavior.raid_garden, block_climber, can_stand_on_powder_snow, jump.dynamic, movement.skip" }
 "minecraft:rabbit/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
 "minecraft:rabbit/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
 "minecraft:rabbit/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no avoid_mob_sound or check_if_outnumbered), but rabbit cannot spawn yet" }
@@ -3375,9 +3375,9 @@
 "minecraft:rabbit/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
 "minecraft:rabbit/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
 "minecraft:rabbit/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
-"minecraft:rabbit/spawn_rules" = { status = "partial", gaps = "conditions not implemented: biome test is_snow_covered (1 of 5 entries left out of every pool); rabbit cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:rabbit/spawn_rules" = { status = "partial", gaps = "rabbit cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:rabbit/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
-"minecraft:rabbit/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:rabbit/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
 "minecraft:sheep" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/passive.rs::spawned_adult_sheep_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/sheep.bin", notes = "Sub-row gaps: leads and riding (accepted without behaviour), no drowning. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (mob-runtime follow-up N1)." }
 "minecraft:sheep/ageable" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/interaction.rs::calf_grows_up_after_its_duration_and_wheat_speeds_it"] }
 "minecraft:sheep/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
@@ -3421,7 +3421,7 @@
 "minecraft:sheep/rideable" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: riding is not implemented; nothing can ride or be ridden" }
 "minecraft:sheep/scale" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spawn.rs::baby_cow_is_half_scale_and_flagged"] }
 "minecraft:sheep/spawn_egg_interaction" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/interaction.rs::cow_spawn_egg_on_a_cow_spawns_a_calf"] }
-"minecraft:sheep/spawn_rules" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::grass_plains_spawn_animal_herds_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::animals_never_spawn_on_stone_in_darkness_or_outside_animal_biomes", "crates/unastar/src/entity/spawning/tests.rs::the_animal_cap_stops_spawning", "crates/unastar/src/entity/spawning/tests.rs::world_generation_places_herds_in_fresh_animal_chunks", "crates/unastar/tests/mob_e2e.rs::natural_spawning_populates_new_chunks_over_loopback"], notes = "Brightness is sky light only (no block light) and there is no weather, so adjust_for_weather has no effect (entity backlog 4-5)." }
+"minecraft:sheep/spawn_rules" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::grass_plains_spawn_animal_herds_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::animals_never_spawn_on_stone_in_darkness_or_outside_animal_biomes", "crates/unastar/src/entity/spawning/tests.rs::the_animal_cap_stops_spawning", "crates/unastar/src/entity/spawning/tests.rs::world_generation_places_herds_in_fresh_animal_chunks", "crates/unastar/tests/mob_e2e.rs::natural_spawning_populates_new_chunks_over_loopback"], notes = "Sky light does not spread sideways (world.lighting) and there is no weather, so adjust_for_weather has no effect (entity backlog 4-5)." }
 "minecraft:sheep/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:skeleton_horse" = { status = "missing", gaps = "not spawnable: needs behavior.player_ride_tamed, behavior.skeleton_horse_trap, can_power_jump, horse.jump_strength, input_ground_controlled, is_tamed (+1 more)" }
 "minecraft:skeleton_horse/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton_horse cannot spawn yet" }
@@ -3589,17 +3589,17 @@
 "minecraft:strider/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:strider/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
 "minecraft:strider/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
-"minecraft:strider/spawn_rules" = { status = "partial", gaps = "strider cannot spawn yet, so drawn entries spawn nothing; the native spawn check of strider's class is not modelled; brightness is sky light only" }
+"minecraft:strider/spawn_rules" = { status = "partial", gaps = "strider cannot spawn yet, so drawn entries spawn nothing; the native spawn check of strider's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:strider/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
-"minecraft:sulfur_cube" = { status = "missing", gaps = "not spawnable: needs air_drag_modifier, area_attack, behavior.slime_float, behavior.slime_keep_on_jumping, behavior.slime_random_direction, bounciness (+9 more)" }
+"minecraft:sulfur_cube" = { status = "missing", gaps = "not spawnable: needs air_drag_modifier, area_attack, bounciness, buoyant, friction_modifier, knockback_resistance (+3 more)" }
 "minecraft:sulfur_cube/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/air_drag_modifier" = { status = "missing", gaps = "component behaviour not implemented" }
-"minecraft:sulfur_cube/area_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:sulfur_cube/area_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on the slime, but this entity_filter uses actor_has_item_with_enchantment_in_slot, which component filters do not support, so the component is rejected; death_message_override and use_self_as_damage_source are not modelled; sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
-"minecraft:sulfur_cube/behavior.slime_float" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:sulfur_cube/behavior.slime_keep_on_jumping" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:sulfur_cube/behavior.slime_random_direction" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:sulfur_cube/behavior.slime_float" = { status = "partial", owner = "entities", gaps = "implemented on the slime but untested, and sulfur_cube cannot spawn yet" }
+"minecraft:sulfur_cube/behavior.slime_keep_on_jumping" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
+"minecraft:sulfur_cube/behavior.slime_random_direction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/behavior.tempt" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/bounciness" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:sulfur_cube/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; sulfur_cube cannot spawn yet" }
@@ -3624,9 +3624,9 @@
 "minecraft:sulfur_cube/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
 "minecraft:sulfur_cube/leashable" = { status = "missing", gaps = "leads are not implemented; using a lead on the mob does nothing" }
 "minecraft:sulfur_cube/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
-"minecraft:sulfur_cube/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:sulfur_cube/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented on the slime but untested, and sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
-"minecraft:sulfur_cube/movement.jump" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:sulfur_cube/movement.jump" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/not_pickable_from_inside" = { status = "missing", gaps = "component behaviour not implemented" }
@@ -3639,13 +3639,13 @@
 "minecraft:sulfur_cube/rotation_axis_aligned" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:sulfur_cube/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
-"minecraft:sulfur_cube/spawn_rules" = { status = "partial", gaps = "sulfur_cube cannot spawn yet, so drawn entries spawn nothing; the native spawn check of sulfur_cube's class is not modelled; brightness is sky light only" }
+"minecraft:sulfur_cube/spawn_rules" = { status = "partial", gaps = "sulfur_cube cannot spawn yet, so drawn entries spawn nothing; the native spawn check of sulfur_cube's class is not modelled; sky light does not spread sideways (world.lighting)" }
 "minecraft:sulfur_cube/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/uses_uniform_air_drag" = { status = "partial", owner = "entities", gaps = "the flag is replicated; no test, and no spawnable actor uses it; sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/variable_max_auto_step" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
-"minecraft:sulfur_cube/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:trader_llama" = { status = "missing", gaps = "not spawnable: needs behavior.follow_caravan, behavior.run_around_like_crazy, equippable, healable, inventory, is_chested (+7 more)" }
+"minecraft:sulfur_cube/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
+"minecraft:trader_llama" = { status = "missing", gaps = "not spawnable: needs behavior.follow_caravan, behavior.run_around_like_crazy, equippable, healable, inventory, is_chested (+6 more)" }
 "minecraft:trader_llama/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
 "minecraft:trader_llama/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but trader_llama cannot spawn yet" }
 "minecraft:trader_llama/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
@@ -3706,7 +3706,7 @@
 "minecraft:trader_llama/strength" = { status = "missing", gaps = "not implemented: needs mob inventories and mount gear" }
 "minecraft:trader_llama/tamemount" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:trader_llama/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
-"minecraft:trader_llama/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:trader_llama/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
 "minecraft:turtle" = { status = "missing", gaps = "not spawnable: needs behavior.go_home, behavior.lay_egg, behavior.move_to_land, behavior.move_to_water, behavior.random_swim, home (+4 more)" }
 "minecraft:turtle/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet" }
 "minecraft:turtle/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
@@ -3746,11 +3746,11 @@
 "minecraft:turtle/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet" }
 "minecraft:turtle/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet" }
 "minecraft:turtle/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet" }
-"minecraft:turtle/spawn_rules" = { status = "partial", gaps = "turtle cannot spawn yet, so drawn entries spawn nothing; the native spawn check of turtle's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:turtle/spawn_rules" = { status = "partial", gaps = "turtle cannot spawn yet, so drawn entries spawn nothing; the native spawn check of turtle's class is not modelled; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:turtle/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet" }
 "minecraft:turtle/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:turtle/water_movement" = { status = "missing", gaps = "component behaviour not implemented" }
-"minecraft:wolf" = { status = "missing", gaps = "not spawnable: needs behavior.beg, behavior.follow_owner, behavior.owner_hurt_by_target, behavior.owner_hurt_target, behavior.stay_while_sitting, behavior.teleport_to_owner (+5 more)" }
+"minecraft:wolf" = { status = "missing", gaps = "not spawnable: needs behavior.beg, behavior.follow_owner, behavior.owner_hurt_by_target, behavior.owner_hurt_target, behavior.stay_while_sitting, behavior.teleport_to_owner (+4 more)" }
 "minecraft:wolf/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
 "minecraft:wolf/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
 "minecraft:wolf/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but wolf cannot spawn yet" }
@@ -3807,11 +3807,11 @@
 "minecraft:wolf/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
 "minecraft:wolf/sittable" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:wolf/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
-"minecraft:wolf/spawn_rules" = { status = "partial", gaps = "wolf cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:wolf/spawn_rules" = { status = "partial", gaps = "wolf cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:wolf/tameable" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:wolf/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
 "minecraft:wolf/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
-"minecraft:wolf/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:wolf/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
 "minecraft:zombie_horse" = { status = "missing", gaps = "not spawnable: needs behavior.player_ride_tamed, behavior.run_around_like_crazy, buoyant, can_power_jump, equippable, healable (+5 more)" }
 "minecraft:zombie_horse/addrider" = { status = "missing", gaps = "not implemented: needs riding" }
 "minecraft:zombie_horse/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_horse cannot spawn yet" }
@@ -3861,7 +3861,7 @@
 "minecraft:zombie_horse/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:zombie_horse/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_horse cannot spawn yet" }
 "minecraft:zombie_horse/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_horse cannot spawn yet" }
-"minecraft:zombie_horse/spawn_rules" = { status = "partial", gaps = "zombie_horse cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:zombie_horse/spawn_rules" = { status = "partial", gaps = "zombie_horse cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; sky light does not spread sideways (world.lighting)" }
 "minecraft:zombie_horse/tamemount" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:zombie_horse/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_horse cannot spawn yet" }
 
@@ -4094,7 +4094,7 @@
 "minecraft:iron_golem/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); iron_golem cannot spawn yet" }
 "minecraft:iron_golem/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet" }
 "minecraft:iron_golem/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet" }
-"minecraft:villager" = { status = "missing", gaps = "not spawnable: needs annotation.open_door, behavior.celebrate_survive, behavior.harvest_farm_block, behavior.look_at_trading_player, behavior.make_love, behavior.move_indoors (+12 more)" }
+"minecraft:villager" = { status = "missing", gaps = "not spawnable: needs annotation.open_door, behavior.celebrate_survive, behavior.harvest_farm_block, behavior.look_at_trading_player, behavior.make_love, behavior.move_indoors (+11 more)" }
 "minecraft:villager/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager cannot spawn yet" }
 "minecraft:villager/annotation.open_door" = { status = "missing", gaps = "not implemented: needs block interaction" }
 "minecraft:villager/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no avoid_mob_sound or check_if_outnumbered), but villager cannot spawn yet" }
@@ -4140,8 +4140,8 @@
 "minecraft:villager/trade_table" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:villager/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
 "minecraft:villager/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager cannot spawn yet" }
-"minecraft:villager/variant" = { status = "missing", gaps = "not implemented: needs variants" }
-"minecraft:villager_v2" = { status = "missing", gaps = "not spawnable: needs annotation.open_door, behavior.celebrate_survive, behavior.explore_outskirts, behavior.fertilize_farm_block, behavior.harvest_farm_block, behavior.hide (+27 more)" }
+"minecraft:villager/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager cannot spawn yet" }
+"minecraft:villager_v2" = { status = "missing", gaps = "not spawnable: needs annotation.open_door, behavior.celebrate_survive, behavior.explore_outskirts, behavior.fertilize_farm_block, behavior.harvest_farm_block, behavior.hide (+26 more)" }
 "minecraft:villager_v2/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet" }
 "minecraft:villager_v2/annotation.open_door" = { status = "missing", gaps = "not implemented: needs block interaction" }
 "minecraft:villager_v2/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no avoid_mob_sound or check_if_outnumbered), but villager_v2 cannot spawn yet" }
@@ -4206,7 +4206,7 @@
 "minecraft:villager_v2/trade_resupply" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:villager_v2/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
 "minecraft:villager_v2/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet" }
-"minecraft:villager_v2/variant" = { status = "missing", gaps = "not implemented: needs variants" }
+"minecraft:villager_v2/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet" }
 "minecraft:wandering_trader" = { status = "missing", gaps = "not spawnable: needs behavior.drink_milk, behavior.drink_potion, behavior.look_at_trading_player, behavior.move_towards_home_restriction, behavior.trade_interest, behavior.trade_with_player (+3 more)" }
 "minecraft:wandering_trader/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no anger broadcasting, anger filters or angry_sound), but wandering_trader cannot spawn yet" }
 "minecraft:wandering_trader/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no avoid_mob_sound or check_if_outnumbered), but wandering_trader cannot spawn yet" }

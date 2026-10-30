@@ -12,8 +12,8 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 110 | 0 | 8 | 15 | 4 | 17.3% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1003 | 2665 | 352 | 16 | 46 | 9.1% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 109 | 0 | 8 | 16 | 4 | 18.0% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 949 | 2696 | 374 | 17 | 46 | 9.7% |
 | [Blocks](#blocks) | 1477 | 0 | 671 | 637 | 2 | 167 | 48.8% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 154 | 543 | 1443 | 28 | 179 | 67.9% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
@@ -30,7 +30,7 @@ Open rows are missing or partial headline rows (the first summary line of each d
 
 Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for the area: `area`, `owner` (your `@github-handle`), `since` (the date), `domain`, and the `families`, `ids` or id `prefixes` you are taking; remove it when you stop. `parity check` rejects unknown families or ids and claims that overlap, so talk to the owner of a claimed area before working inside it. The rest of the workflow is in [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-**Entities**: 57 open rows free, 53 claimed.
+**Entities**: 57 open rows free, 52 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
@@ -43,7 +43,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 53 |
+| Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 52 |
 
 **Blocks**: 351 open rows free, 320 claimed.
 
@@ -122,7 +122,7 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | aquatic | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
 | boss | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
 | built_in | 9 | 4 | 0 | 0 | 2 | 3 | 33.3% |
-| hostile | 38 | 31 | 0 | 0 | 7 | 0 | 18.4% |
+| hostile | 38 | 30 | 0 | 0 | 8 | 0 | 21.1% |
 | object | 18 | 15 | 0 | 1 | 1 | 1 | 11.8% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
@@ -134,34 +134,34 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | pushable_by_block | 117 | 2 | 115 | 0 | 0 | 0 | 0.0% |
-| conditional_bandwidth_optimization | 116 | 94 | 21 | 0 | 0 | 1 | 0.0% |
-| physics | 125 | 0 | 105 | 19 | 0 | 1 | 15.3% |
-| type_family | 124 | 1 | 103 | 19 | 0 | 1 | 15.4% |
-| collision_box | 124 | 0 | 103 | 20 | 0 | 1 | 16.3% |
-| pushable_by_entity | 109 | 0 | 98 | 11 | 0 | 0 | 10.1% |
+| conditional_bandwidth_optimization | 116 | 93 | 22 | 0 | 0 | 1 | 0.0% |
+| physics | 125 | 0 | 104 | 20 | 0 | 1 | 16.1% |
+| type_family | 124 | 1 | 102 | 20 | 0 | 1 | 16.3% |
+| collision_box | 124 | 0 | 102 | 21 | 0 | 1 | 17.1% |
+| pushable_by_entity | 109 | 0 | 97 | 12 | 0 | 0 | 11.0% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
 | breathable | 84 | 1 | 83 | 0 | 0 | 0 | 0.0% |
-| health | 94 | 1 | 81 | 11 | 0 | 1 | 11.8% |
-| is_hidden_when_invisible | 92 | 1 | 80 | 0 | 11 | 0 | 12.0% |
-| movement | 92 | 0 | 81 | 11 | 0 | 0 | 12.0% |
-| hurt_on_condition | 87 | 0 | 74 | 12 | 0 | 1 | 14.0% |
-| experience_reward | 80 | 0 | 68 | 12 | 0 | 0 | 15.0% |
-| jump.static | 79 | 0 | 68 | 11 | 0 | 0 | 13.9% |
-| despawn | 76 | 0 | 65 | 11 | 0 | 0 | 14.5% |
-| loot | 78 | 0 | 65 | 12 | 0 | 1 | 15.6% |
+| health | 94 | 1 | 80 | 12 | 0 | 1 | 12.9% |
+| is_hidden_when_invisible | 92 | 1 | 79 | 0 | 12 | 0 | 13.0% |
+| movement | 92 | 0 | 80 | 12 | 0 | 0 | 13.0% |
+| hurt_on_condition | 87 | 0 | 73 | 13 | 0 | 1 | 15.1% |
+| experience_reward | 80 | 0 | 67 | 13 | 0 | 0 | 16.2% |
+| jump.static | 79 | 0 | 67 | 12 | 0 | 0 | 15.2% |
+| despawn | 76 | 0 | 64 | 12 | 0 | 0 | 15.8% |
+| loot | 78 | 0 | 64 | 13 | 0 | 1 | 16.9% |
 | behavior.look_at_player | 69 | 0 | 58 | 11 | 0 | 0 | 15.9% |
 | can_climb | 57 | 0 | 57 | 0 | 0 | 0 | 0.0% |
-| navigation.walk | 66 | 0 | 57 | 9 | 0 | 0 | 13.6% |
+| navigation.walk | 66 | 0 | 56 | 10 | 0 | 0 | 15.2% |
 | behavior.random_look_around | 55 | 0 | 55 | 0 | 0 | 0 | 0.0% |
-| spawn_rules | 59 | 4 | 51 | 4 | 0 | 0 | 6.8% |
 | movement.basic | 65 | 0 | 54 | 11 | 0 | 0 | 16.9% |
+| spawn_rules | 59 | 4 | 50 | 5 | 0 | 0 | 8.5% |
 | behavior.random_stroll | 64 | 0 | 53 | 11 | 0 | 0 | 17.2% |
 | leashable | 43 | 39 | 4 | 0 | 0 | 0 | 0.0% |
-| behavior.nearest_attackable_target | 49 | 0 | 42 | 7 | 0 | 0 | 14.3% |
 | leashable_to | 42 | 38 | 4 | 0 | 0 | 0 | 0.0% |
 | scale | 47 | 0 | 42 | 5 | 0 | 0 | 10.6% |
-| attack | 48 | 0 | 41 | 7 | 0 | 0 | 14.6% |
 | behavior.float | 49 | 0 | 41 | 8 | 0 | 0 | 16.3% |
+| behavior.nearest_attackable_target | 49 | 0 | 41 | 8 | 0 | 0 | 16.3% |
+| attack | 48 | 0 | 40 | 8 | 0 | 0 | 16.7% |
 | is_baby | 44 | 0 | 39 | 5 | 0 | 0 | 11.4% |
 
 ### Entities gaps
@@ -182,7 +182,7 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **hostile**
 
-- missing: `minecraft:blaze`, `minecraft:bogged`, `minecraft:breeze`, `minecraft:creaking`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:endermite`, `minecraft:evocation_illager`, `minecraft:ghast`, `minecraft:guardian`, `minecraft:husk`, `minecraft:magma_cube` and 19 more
+- missing: `minecraft:blaze`, `minecraft:bogged`, `minecraft:breeze`, `minecraft:creaking`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:endermite`, `minecraft:evocation_illager`, `minecraft:ghast`, `minecraft:guardian`, `minecraft:husk`, `minecraft:magma_cube` and 18 more
 
 **object**
 
@@ -795,13 +795,13 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 
 **mobs**
 
-- `mobs.natural_spawning`: caps, herds, brightness, spawn events and despawning work for implemented mobs; rules with delay_filter, mob_event_filter, player_in_village_filter, is_experimental, non-tag biome filters or block descriptors with states or tags never spawn; no weather (adjust_for_weather), sky light only (no block light); block identities resolved by name string
+- `mobs.natural_spawning`: caps, herds, brightness (sky and block light), spawn events, slime chunks and despawning work for implemented mobs; rules with delay_filter, mob_event_filter, player_in_village_filter, is_experimental, biome filter tests other than has_biome_tag and is_snow_covered, or block descriptors with states or tags never spawn; no weather (adjust_for_weather); sky light does not spread sideways; a neighbour chunk counts as ticked only when a player ticks it that tick (BDS: within the last 2 ticks); block identities resolved by name string
 - `mobs.pathfinding`: ground navigation with diagonals, steps, ledges, doors, jumps and drops, and spiders climb walls by heading straight at the target; the path search has no wall-climbing nodes; no swimming, flying or hovering navigation; block identities resolved by name string
 - missing: `mobs.end_fight`, `mobs.game_events`, `mobs.leads`, `mobs.patrols_and_phantoms`, `mobs.raids`, `mobs.riding`, `mobs.villages`, `mobs.wither_summoning`
 
 **performance**
 
-- `performance.chunk_streaming`: chunks stream to players nearest first under a fixed per-player chunk budget per tick; no committed join or flight benchmark and no comparison with BDS 1.26.51 on the same machine
+- `performance.chunk_streaming`: not yet checked with the real client; the BDS 1.26.51 comparison covers radius 4-6 only (BDS stops answering the benchmark client's sub-chunk requests from radius 8) and no BDS flight; eight players flying apart into fresh terrain outrun generation
 - `performance.generation_speed`: the worldgen_bench example measures generation throughput and allocations (tools/worldgen-perf); no committed comparison with BDS 1.26.51 on the same machine
 
 **platform**
@@ -823,7 +823,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **world**
 
 - `world.block_updates`: every block change updates its six neighbours: unsupported blocks break with drops a tick later, connecting blocks and stair corners reshape, stems let go of their fruit, covered farmland turns to dirt and buttons release on scheduled ticks; no redstone, observer, piston, liquid or fire updates; delays other than the one-tick break are provisional and the captured support-loss steps are not replayed
-- `world.chunk_ticking`: chunks load around players, entities tick in loaded chunks and random block ticks run in the simulation-distance diamond around each player; no ticking areas; random ticks reach only crop and plant blocks (see world.random_ticks)
+- `world.chunk_ticking`: chunks load around players in a view disk (nearest first with look-ahead, storage reads and generation off the tick, acknowledgement-paced sending; timings in tools/perf/README.md), entities tick in loaded chunks and random block ticks run in the simulation-distance diamond around each player; the disk is centred on the player's chunk, BDS appears to centre it on the block position (153 columns at radius 6 against our 149); no ticking areas; random ticks reach only crop and plant blocks (see world.random_ticks)
 - `world.day_cycle`: clock, daylight cycle and moon phase work; no sleeping skip and time is not persisted
 - `world.difficulty`: mob damage and explosion damage scaling, peaceful monsters and hunger, regional difficulty, hard-only door breaking, skeleton fire rate and spread, cave spider poison and burning zombies igniting players on hard; difficulty effects of unimplemented mobs are missing
 - `world.explosions`: creeper explosions cast rays against blast resistance, break blocks into drops (mobGriefing respected), damage and knock back mobs and players by exposure and send the particle events and sound in the BDS order; no primed TNT, shields do not reduce it, knockback resistance is ignored, items, XP orbs and projectiles are not pushed, block changes are not batched, wind charge explosions are rejected and explosion drops and fire have no test
