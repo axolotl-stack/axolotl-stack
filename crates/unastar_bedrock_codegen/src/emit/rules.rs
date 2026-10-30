@@ -100,7 +100,7 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
                 }
             })
         };
-        let body = scatter::emit(em, &rule.source, &rule.scatter, call)?;
+        let body = scatter::emit(em, &rule.source, &rule.scatter, quote!(), call)?;
         let hash = rule_hash(&rule.identifier);
         let doc = format!(
             " `{}` from `{}`: places `{}`.",
