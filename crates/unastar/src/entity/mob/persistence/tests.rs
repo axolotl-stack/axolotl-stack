@@ -283,8 +283,39 @@ impl crate::storage::WorldProvider for UnwritableWorld {
     }
 }
 
-/// A chunk whose save before unload fails stays loaded with its edits and its
-/// mobs, and unloads (saved) once storage accepts the write.
+/// One tick, then wait until the unload writes it started have finished, so
+/// the next tick sees their outcome.
+fn tick_and_settle_saves(server: &mut GameServer) {
+    server.tick();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while server
+        .ecs
+        .world()
+        .resource::<crate::world::ecs::ColumnLoads>()
+        .saves_in_flight()
+        > 0
+    {
+        server
+            .ecs
+            .world_mut()
+            .resource_mut::<crate::world::ecs::ColumnLoads>()
+            .wait_for_saves();
+        assert!(
+            std::time::Instant::now() < deadline,
+            "unload writes never finished"
+        );
+    }
+    // What the next tick does first: take back the columns whose write failed.
+    let world = server.ecs.world_mut();
+    let held = world
+        .resource_mut::<crate::world::ecs::ColumnLoads>()
+        .take_held();
+    crate::world::ecs::restore_held_columns(world, held);
+}
+
+/// A chunk whose background save before unload fails comes back with its
+/// edits and its mobs, stays dirty, and unloads (saved) once storage accepts
+/// the write.
 #[test]
 fn a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits() {
     let dir = TempDir::new();
@@ -307,19 +338,19 @@ fn a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits() {
         .unwrap()
         .mark_dirty();
     let cow = spawn_cow(world, false);
+    let cow_id = unique_id(world, cow);
 
     for _ in 0..5 {
-        server.tick();
+        tick_and_settle_saves(&mut server);
     }
     let world = server.ecs.world_mut();
-    assert_eq!(
-        world.resource::<ChunkManager>().get_by_coords(0, 0),
-        Some(chunk),
-        "a chunk that could not be saved is not unloaded"
-    );
+    let chunk = world
+        .resource::<ChunkManager>()
+        .get_by_coords(0, 0)
+        .expect("a chunk that could not be saved is back in the world");
     let data = world
         .get::<crate::world::ecs::ChunkData>(chunk)
-        .expect("terrain put back after the failed save");
+        .expect("its terrain is back after the failed save");
     assert_eq!(data.inner.get_block(3, 40, 3), diamond);
     assert!(
         world
@@ -327,12 +358,21 @@ fn a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits() {
             .unwrap()
             .is_dirty()
     );
-    assert!(world.get_entity(cow).is_ok(), "its mobs stay too");
+    assert!(
+        world
+            .get::<crate::world::ecs::ChunkPendingUnload>(chunk)
+            .unwrap()
+            .is_held()
+    );
+    let [restored] = cows(world)[..] else {
+        panic!("its cow is back too");
+    };
+    assert_eq!(unique_id(world, restored), cow_id);
 
     // Once storage works again the retried unload saves and removes it.
     world.resource_mut::<ChunkManager>().set_provider(working);
-    for _ in 0..5 {
-        server.tick();
+    for _ in 0..8 {
+        tick_and_settle_saves(&mut server);
     }
     let world = server.ecs.world_mut();
     assert!(!world.resource::<ChunkManager>().contains_coords(0, 0));
@@ -349,7 +389,7 @@ fn a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits() {
 }
 
 /// While storage keeps refusing writes, a held chunk retries with an
-/// exponential backoff instead of a blocking write every grace period.
+/// exponential backoff instead of a write every grace period.
 #[test]
 fn a_held_chunk_backs_off_between_save_attempts() {
     let dir = TempDir::new();
@@ -361,23 +401,24 @@ fn a_held_chunk_backs_off_between_save_attempts() {
         .resource_mut::<ChunkManager>()
         .set_provider(storage.clone());
     // A generated chunk is dirty, so every unload attempt tries to save it.
-    let chunk = world.get_or_create_chunk(0, 0).unwrap();
+    world.get_or_create_chunk(0, 0).unwrap();
 
     for _ in 0..64 {
-        server.tick();
+        tick_and_settle_saves(&mut server);
     }
-    // Waits of 2, 4, 8, 16 and 32 ticks: attempts on ticks 1, 3, 7, 15, 31
-    // and 63. Without the backoff it would be one attempt every tick.
+    // Waits of 2, 4, 8, 16 and 32 ticks, each plus the tick that takes the
+    // column back: about 5 attempts. Without the backoff it would be one
+    // attempt every other tick.
     let attempts = storage.0.load(std::sync::atomic::Ordering::Relaxed);
     assert!(
-        (5..=7).contains(&attempts),
+        (4..=7).contains(&attempts),
         "{attempts} save attempts in 64 ticks"
     );
     let world = server.ecs.world_mut();
-    assert_eq!(
-        world.resource::<ChunkManager>().get_by_coords(0, 0),
-        Some(chunk)
-    );
+    let chunk = world
+        .resource::<ChunkManager>()
+        .get_by_coords(0, 0)
+        .expect("held, not dropped");
     let pending = world
         .get::<crate::world::ecs::ChunkPendingUnload>(chunk)
         .unwrap();

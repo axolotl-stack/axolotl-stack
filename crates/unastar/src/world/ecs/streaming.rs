@@ -21,7 +21,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use bevy_ecs::prelude::*;
@@ -34,8 +34,9 @@ use jolyne::valentine::types::{
     SubChunkPacketPayloadSubChunkPosOffset,
 };
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
+use super::generation_worker::ChunkGenerationWorker;
 use super::manager::ChunkManager;
 use crate::registry::block::BlockNetworkIds;
 use crate::storage::{ChunkColumn, StorageError};
@@ -326,6 +327,8 @@ enum LoadEvent {
     /// Storage has no such column; the generation pool must make it.
     Missing((i32, i32)),
     Failed((i32, i32), LoadFailure),
+    /// An unloaded column was written, or comes back held after a failed write.
+    Saved((i32, i32), Result<(), Box<HeldColumn>>),
 }
 
 /// Why a column could not be loaded. Either way nothing replaces it: a stored
@@ -383,12 +386,24 @@ fn log_unloadable_column(x: i32, z: i32, dimension: i32, error: &impl std::fmt::
     );
 }
 
+/// An unloaded column whose background write failed. It comes back into the
+/// world, edits and actors included, and its unload is retried later (see
+/// [`ChunkPendingUnload::after_failed_save`](super::ChunkPendingUnload::after_failed_save)).
+pub struct HeldColumn {
+    pub pos: (i32, i32),
+    pub column: ChunkColumn,
+    /// Saves of this column that failed in a row, this one included.
+    pub failed_saves: u32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoadState {
     Reading,
     /// Not stored; waits for a generation slot.
     Missing,
     Generating,
+    /// Unloaded and being written; read again only once the write is done.
+    Saving,
 }
 
 /// A loaded column ready to become a chunk entity.
@@ -404,6 +419,8 @@ pub struct LoadedColumn {
 pub struct DrainedLoads {
     pub ready: Vec<LoadedColumn>,
     pub failed: Vec<(i32, i32)>,
+    /// Unloaded columns whose write failed, to put back into the world.
+    pub held: Vec<HeldColumn>,
 }
 
 /// Columns being read, waiting for generation, or generating.
@@ -411,9 +428,15 @@ pub struct DrainedLoads {
 pub struct ColumnLoads {
     tx: mpsc::UnboundedSender<LoadEvent>,
     rx: mpsc::UnboundedReceiver<LoadEvent>,
+    /// Load events received while waiting for a save, handled by the next drain.
+    deferred: Vec<LoadEvent>,
     state: HashMap<(i32, i32), LoadState>,
     reads: usize,
-    generations: usize,
+    /// Pool generations in flight, also taken by storage reads that miss.
+    generating: Arc<AtomicUsize>,
+    saves: usize,
+    /// Columns whose unload write failed, until the world takes them back.
+    held: Vec<HeldColumn>,
 }
 
 impl Default for ColumnLoads {
@@ -422,9 +445,12 @@ impl Default for ColumnLoads {
         Self {
             tx,
             rx,
+            deferred: Vec::new(),
             state: HashMap::new(),
             reads: 0,
-            generations: 0,
+            generating: Arc::new(AtomicUsize::new(0)),
+            saves: 0,
+            held: Vec::new(),
         }
     }
 }
@@ -439,19 +465,26 @@ impl ColumnLoads {
     }
 
     pub fn generations_in_flight(&self) -> usize {
-        self.generations
+        self.generating.load(Ordering::Acquire)
     }
 
-    /// Whether every load has finished.
+    /// Unloaded columns still being written.
+    pub fn saves_in_flight(&self) -> usize {
+        self.saves
+    }
+
+    /// Whether every load and save has finished.
     pub fn is_idle(&self) -> bool {
-        self.reads == 0 && self.generations == 0
+        self.reads == 0 && self.generations_in_flight() == 0 && self.saves == 0
     }
 
     /// Collects finished loads (non-blocking); failures are logged for
     /// `dimension`.
     pub fn drain(&mut self, dimension: i32) -> DrainedLoads {
         let mut drained = DrainedLoads::default();
-        while let Ok(event) = self.rx.try_recv() {
+        let deferred = std::mem::take(&mut self.deferred);
+        let received = std::iter::from_fn(|| self.rx.try_recv().ok()).collect::<Vec<_>>();
+        for event in deferred.into_iter().chain(received) {
             match event {
                 LoadEvent::Ready {
                     pos,
@@ -476,16 +509,110 @@ impl ColumnLoads {
                     self.finish(pos);
                     drained.failed.push(pos);
                 }
+                LoadEvent::Saved(pos, result) => self.saved(pos, result),
             }
         }
+        drained.held = self.take_held();
         drained
     }
 
     fn finish(&mut self, pos: (i32, i32)) {
         match self.state.remove(&pos) {
             Some(LoadState::Reading) => self.reads -= 1,
-            Some(LoadState::Generating) => self.generations -= 1,
-            Some(LoadState::Missing) | None => {}
+            Some(LoadState::Saving) => self.saves -= 1,
+            Some(LoadState::Generating | LoadState::Missing) | None => {}
+        }
+    }
+
+    /// Writes an unloaded column in the background; `pos` is not read again
+    /// until the write finished, so a returning player gets what was saved.
+    /// `failed_saves` counts this column's earlier writes that failed in a
+    /// row; a failed write hands the column back (see [`HeldColumn`]).
+    pub fn start_save(
+        &mut self,
+        pos: (i32, i32),
+        column: ChunkColumn,
+        failed_saves: u32,
+        manager: &ChunkManager,
+    ) {
+        let Some(provider) = manager.provider() else {
+            return;
+        };
+        let dimension = manager.dimension();
+        let tx = self.tx.clone();
+        self.state.insert(pos, LoadState::Saving);
+        self.saves += 1;
+        spawn_job(manager.runtime(), async move {
+            let result = provider
+                .save_column(ChunkPos::new(pos.0, pos.1), dimension, &column)
+                .await;
+            let result = result.map_err(|error| {
+                debug!(
+                    chunk = ?pos,
+                    %error,
+                    failed_saves = failed_saves + 1,
+                    "Failed to save chunk before unload; keeping it loaded"
+                );
+                Box::new(HeldColumn {
+                    pos,
+                    column,
+                    failed_saves: failed_saves.saturating_add(1),
+                })
+            });
+            let _ = tx.send(LoadEvent::Saved(pos, result));
+        });
+    }
+
+    fn saved(&mut self, pos: (i32, i32), result: Result<(), Box<HeldColumn>>) {
+        self.finish(pos);
+        if let Err(held) = result {
+            self.held.push(*held);
+        }
+    }
+
+    /// Columns whose unload write failed, for the world to take back.
+    pub fn take_held(&mut self) -> Vec<HeldColumn> {
+        std::mem::take(&mut self.held)
+    }
+
+    /// Takes back `pos` if its unload write failed.
+    pub fn take_held_at(&mut self, pos: (i32, i32)) -> Option<HeldColumn> {
+        let index = self.held.iter().position(|held| held.pos == pos)?;
+        Some(self.held.swap_remove(index))
+    }
+
+    /// Blocks until `pos` is not being saved, for code that reads storage
+    /// synchronously. Other finished loads wait for the next [`Self::drain`].
+    pub fn wait_for_save(&mut self, pos: (i32, i32)) {
+        while self.state(pos) == Some(LoadState::Saving) && self.receive_save_blocking() {}
+    }
+
+    /// Blocks until no unload write is in flight (see [`Self::wait_for_save`]).
+    pub fn wait_for_saves(&mut self) {
+        while self.saves > 0 && self.receive_save_blocking() {}
+    }
+
+    /// Handles the next event, keeping any but a finished save for the next
+    /// [`Self::drain`]; sleeps briefly when none arrived. `false` once no
+    /// event can arrive any more.
+    fn receive_save_blocking(&mut self) -> bool {
+        match self.rx.try_recv() {
+            Ok(LoadEvent::Saved(saved, result)) => self.saved(saved, result),
+            Ok(other) => self.deferred.push(other),
+            Err(mpsc::error::TryRecvError::Empty) => std::thread::sleep(Duration::from_millis(1)),
+            Err(mpsc::error::TryRecvError::Disconnected) => return false,
+        }
+        true
+    }
+
+    /// Waits until every unload save finished (server shutdown).
+    pub async fn finish_saves(&mut self) {
+        while self.saves > 0 {
+            match self.rx.recv().await {
+                Some(LoadEvent::Saved(pos, result)) => self.saved(pos, result),
+                Some(other) => self.deferred.push(other),
+                None => return,
+            }
         }
     }
 
@@ -496,6 +623,12 @@ impl ColumnLoads {
     }
 
     /// Starts reading `pos` from storage. The manager must have a provider.
+    ///
+    /// A storage miss is generated right away: inline for cheap generators,
+    /// or by the pool when a generation slot is free (a fresh world then
+    /// starts generating without waiting a tick). Otherwise the column is
+    /// reported [`LoadState::Missing`] and the tick asks for it in priority
+    /// order once slots free up.
     pub fn start_read(
         &mut self,
         pos: (i32, i32),
@@ -506,12 +639,18 @@ impl ColumnLoads {
         let provider = manager
             .provider()
             .expect("storage reads need a world provider");
-        // Cheap generators make a missing column right after the read.
-        let inline_generator = (!manager.has_generation_pool()).then(|| {
-            let pipeline = manager.pipeline().clone();
-            let bounds = manager.world_config().bounds;
-            move |pos: (i32, i32)| generate_inline(&pipeline, bounds, pos)
-        });
+        let on_miss = match manager.generation_pool() {
+            Some(pool) => OnMiss::Pool {
+                pool,
+                slots: self.generating.clone(),
+                cap: manager.generation_threads() * PENDING_GENERATIONS_PER_WORKER,
+                dimension: manager.dimension(),
+            },
+            None => OnMiss::Inline {
+                pipeline: manager.pipeline().clone(),
+                bounds: manager.world_config().bounds,
+            },
+        };
         let dimension = manager.dimension();
         let tx = self.tx.clone();
         let stats = stats.clone();
@@ -529,23 +668,7 @@ impl ColumnLoads {
                 }
                 Ok(None) => {
                     stats.missed.record(started.elapsed());
-                    match inline_generator {
-                        Some(generate) => {
-                            let started = Instant::now();
-                            match tokio::task::spawn_blocking(move || generate(pos)).await {
-                                Ok(Ok(column)) => {
-                                    stats.generated.record(started.elapsed());
-                                    ready(pos, column, false, ids, stats).await
-                                }
-                                Ok(Err(failure)) => LoadEvent::Failed(pos, failure),
-                                Err(error) => LoadEvent::Failed(
-                                    pos,
-                                    LoadFailure::Generation(error.to_string()),
-                                ),
-                            }
-                        }
-                        None => LoadEvent::Missing(pos),
-                    }
+                    on_miss.generate(pos, ids, stats).await
                 }
                 Err(error) => LoadEvent::Failed(pos, error.into()),
             };
@@ -562,32 +685,112 @@ impl ColumnLoads {
         ids: BlockNetworkIds,
         stats: &StreamStats,
     ) -> bool {
-        let Some(receiver) = manager.request_pool_generation(pos.0, pos.1) else {
+        let Some(pool) = manager.generation_pool() else {
+            warn!(chunk = ?pos, "Chunk generation pool is unavailable");
+            return false;
+        };
+        let Some(receiver) = pool.generate(pos.0, pos.1, None, manager.dimension()) else {
             warn!(chunk = ?pos, "Chunk generation pool is unavailable");
             return false;
         };
         let tx = self.tx.clone();
         let stats = stats.clone();
+        let slots = self.generating.clone();
+        slots.fetch_add(1, Ordering::AcqRel);
         self.state.insert(pos, LoadState::Generating);
-        self.generations += 1;
         spawn_job(manager.runtime(), async move {
-            let started = Instant::now();
-            let event = match receiver.await {
-                Ok(Ok((column, stored))) => {
-                    stats.generated.record(started.elapsed());
-                    ready(pos, column, stored, ids, stats).await
-                }
-                Ok(Err(error)) => {
-                    LoadEvent::Failed(pos, LoadFailure::Generation(error.to_string()))
-                }
-                Err(_) => LoadEvent::Failed(
-                    pos,
-                    LoadFailure::Generation("the generation pool dropped the request".into()),
-                ),
-            };
+            let event = pool_column(pos, receiver, &slots, ids, stats).await;
             let _ = tx.send(event);
         });
         true
+    }
+}
+
+/// What a storage read does when the column is not stored.
+enum OnMiss {
+    Inline {
+        pipeline: Arc<crate::world::generator::ChunkPipeline>,
+        bounds: crate::world::WorldBounds,
+    },
+    Pool {
+        pool: ChunkGenerationWorker,
+        slots: Arc<AtomicUsize>,
+        cap: usize,
+        dimension: i32,
+    },
+}
+
+impl OnMiss {
+    async fn generate(
+        self,
+        pos: (i32, i32),
+        ids: BlockNetworkIds,
+        stats: StreamStats,
+    ) -> LoadEvent {
+        match self {
+            Self::Inline { pipeline, bounds } => {
+                let started = Instant::now();
+                match tokio::task::spawn_blocking(move || generate_inline(&pipeline, bounds, pos))
+                    .await
+                {
+                    Ok(Ok(column)) => {
+                        stats.generated.record(started.elapsed());
+                        ready(pos, column, false, ids, stats).await
+                    }
+                    Ok(Err(failure)) => LoadEvent::Failed(pos, failure),
+                    Err(error) => {
+                        LoadEvent::Failed(pos, LoadFailure::Generation(error.to_string()))
+                    }
+                }
+            }
+            Self::Pool {
+                pool,
+                slots,
+                cap,
+                dimension,
+            } => {
+                let reserved = slots
+                    .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
+                        (n < cap).then_some(n + 1)
+                    })
+                    .is_ok();
+                if !reserved {
+                    return LoadEvent::Missing(pos);
+                }
+                let Some(receiver) = pool.generate(pos.0, pos.1, None, dimension) else {
+                    slots.fetch_sub(1, Ordering::AcqRel);
+                    return LoadEvent::Failed(
+                        pos,
+                        LoadFailure::Generation("the generation pool shut down".into()),
+                    );
+                };
+                pool_column(pos, receiver, &slots, ids, stats).await
+            }
+        }
+    }
+}
+
+/// Waits for a pool generation, frees its slot, and encodes the column.
+async fn pool_column(
+    pos: (i32, i32),
+    receiver: tokio::sync::oneshot::Receiver<super::generation_worker::ChunkLoadResult>,
+    slots: &AtomicUsize,
+    ids: BlockNetworkIds,
+    stats: StreamStats,
+) -> LoadEvent {
+    let started = Instant::now();
+    let result = receiver.await;
+    slots.fetch_sub(1, Ordering::AcqRel);
+    match result {
+        Ok(Ok((column, stored))) => {
+            stats.generated.record(started.elapsed());
+            ready(pos, column, stored, ids, stats).await
+        }
+        Ok(Err(error)) => LoadEvent::Failed(pos, LoadFailure::Generation(error.to_string())),
+        Err(_) => LoadEvent::Failed(
+            pos,
+            LoadFailure::Generation("the generation pool dropped the request".into()),
+        ),
     }
 }
 

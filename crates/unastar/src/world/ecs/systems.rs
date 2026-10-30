@@ -24,7 +24,7 @@ use crate::entity::components::{ChunkRadius, Player, PlayerSession, Position};
 use crate::entity::mob::persistence::{restore_chunk_actors, snapshot_chunks};
 use crate::registry::block::BlockNetworkIds;
 use crate::storage::ChunkColumn;
-use crate::world::ecs::manager::{block_on_storage, chunk_entity_components};
+use crate::world::ecs::manager::{chunk_entity_components, restore_held_columns};
 use crate::world::ecs::streaming::{
     ChunkNetCache, ColumnLoads, EncodedColumn, LoadState, MAX_STORAGE_READS,
     PENDING_GENERATIONS_PER_WORKER, StreamStats, generate_inline, log_stream_stats,
@@ -303,8 +303,8 @@ fn spawn_column(
     manager.insert(position, entity);
 }
 
-/// System: turns finished background loads into chunk entities. A column that
-/// failed to load leaves every queue (it is requested again only when the
+/// System: turns finished background loads into chunk entities, and puts back
+/// columns whose unload write failed. A column that failed to load leaves every queue (it is requested again only when the
 /// view is rebuilt), never replaced by generated terrain.
 pub fn apply_loaded_columns(
     mut commands: Commands,
@@ -327,6 +327,10 @@ pub fn apply_loaded_columns(
         for mut loader in loaders.iter_mut() {
             loader.retain_queue(|pos| !drained.failed.contains(pos));
         }
+    }
+    if !drained.held.is_empty() {
+        let held = drained.held;
+        commands.queue(move |world: &mut World| restore_held_columns(world, held));
     }
 }
 
@@ -652,13 +656,14 @@ impl HeldChunkReport {
 }
 
 /// System: Process pending chunk unloads.
-/// Ticks down grace periods. An expired chunk is saved together with the mobs
-/// standing in it (when anything changed), then the mobs and the chunk are
-/// removed from the world. If that save fails the chunk and its mobs stay
-/// loaded, with their edits: the unload is retried with an exponential
-/// backoff per chunk (see [`ChunkPendingUnload::after_failed_save`]), and one
-/// rate-limited summary reports how many chunks are held (see
-/// [`HeldChunkReport`]).
+/// Ticks down grace periods. An expired chunk is written in the background
+/// together with the mobs standing in it (when anything changed), and the mobs
+/// and the chunk are removed from the world; the column is not read again
+/// until the write finished. If that write fails the column comes back with
+/// its edits and mobs (see [`ColumnLoads::take_held`]) and its unload is
+/// retried with an exponential backoff per chunk (see
+/// [`ChunkPendingUnload::after_failed_save`]); one rate-limited summary
+/// reports how many chunks are held (see [`HeldChunkReport`]).
 pub fn process_chunk_unloads(world: &mut World) {
     let mut pending = world.query::<(Entity, &mut ChunkPendingUnload)>();
     let expired: Vec<Entity> = pending
@@ -697,42 +702,25 @@ fn report_held_chunks(world: &mut World) {
     }
 }
 
-/// Save and unload the chunks whose grace period ran out.
+/// Start writing the chunks whose grace period ran out and remove them (and
+/// their mobs) from the world.
 fn unload_expired_chunks(world: &mut World, expired: &[Entity]) {
-    let (provider, dim) = {
-        let chunk_manager = world.resource::<ChunkManager>();
-        (chunk_manager.provider(), chunk_manager.dimension())
-    };
-    let grace_ticks = world.resource::<ChunkLoadConfig>().unload_grace_ticks;
+    let failed_saves: HashMap<Entity, u32> = expired
+        .iter()
+        .filter_map(|&chunk| Some((chunk, world.get::<ChunkPendingUnload>(chunk)?.failed_saves)))
+        .collect();
     for snapshot in snapshot_chunks(world, expired, true) {
         let pos = snapshot.pos;
-        if let (Some(column), Some(provider)) = (snapshot.column, provider.clone()) {
-            let (result, column) = block_on_storage(async move {
-                let result = provider.save_column(pos, dim, &column).await;
-                (result, column)
+        if let Some(column) = snapshot.column {
+            let failed = failed_saves.get(&snapshot.chunk).copied().unwrap_or(0);
+            world.resource_scope(|world, mut loads: Mut<ColumnLoads>| {
+                loads.start_save(
+                    (pos.x, pos.z),
+                    column,
+                    failed,
+                    world.resource::<ChunkManager>(),
+                );
             });
-            match result {
-                Ok(()) => debug!(chunk = ?(pos.x, pos.z), "Saved chunk before unload"),
-                Err(e) => {
-                    // The snapshot moved the terrain out; put it back and try
-                    // again later instead of dropping the unsaved edits.
-                    let retry = world.get::<ChunkPendingUnload>(snapshot.chunk).map_or_else(
-                        || ChunkPendingUnload::new(grace_ticks),
-                        |pending| pending.after_failed_save(grace_ticks),
-                    );
-                    debug!(
-                        chunk = ?(pos.x, pos.z),
-                        error = %e,
-                        failed_saves = retry.failed_saves,
-                        retry_in_ticks = retry.ticks_remaining,
-                        "Failed to save chunk before unload; keeping it loaded"
-                    );
-                    world
-                        .entity_mut(snapshot.chunk)
-                        .insert((ChunkData::new(column.chunk), retry));
-                    continue;
-                }
-            }
         }
         for mob in snapshot.mobs {
             world.despawn(mob);

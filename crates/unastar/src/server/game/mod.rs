@@ -742,6 +742,14 @@ impl GameServer {
     }
 
     pub async fn save_all_chunks(&mut self) -> SaveCounts {
+        // Unloaded columns still being written finish first; one whose write
+        // failed comes back as a loaded chunk and is saved again below.
+        if let Some(mut loads) = self.ecs.world_mut().remove_resource::<ColumnLoads>() {
+            loads.finish_saves().await;
+            let held = loads.take_held();
+            self.ecs.world_mut().insert_resource(loads);
+            crate::world::ecs::restore_held_columns(self.ecs.world_mut(), held);
+        }
         let Some((provider, dimension)) =
             self.ecs
                 .world()

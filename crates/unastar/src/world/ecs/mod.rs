@@ -44,7 +44,7 @@ pub use components::{
 };
 pub use events::{BlockBroadcastEvent, BlockChanged, PlayerDespawnedEvent, PlayerSpawnedEvent};
 pub use loader::ChunkLoader;
-pub use manager::{ChunkManager, ChunkManagerWorldExt};
+pub use manager::{ChunkManager, ChunkManagerWorldExt, restore_held_columns};
 pub use streaming::{ChunkNetCache, ColumnLoads, EncodedColumn, SendWindow, StreamStats};
 pub use systems::{
     AwaitingSpawnStatus, ChunkLoadConfig, LastPublisherState, on_block_changed,

@@ -5,11 +5,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::components::{
-    ChunkActorStore, ChunkData, ChunkPosition, ChunkState, ChunkStateFlags, ChunkViewers,
-    PendingActorRestore,
+    ChunkActorStore, ChunkData, ChunkPendingUnload, ChunkPosition, ChunkState, ChunkStateFlags,
+    ChunkViewers, PendingActorRestore,
 };
-use super::generation_worker::{ChunkGenerationWorker, ChunkLoadResult, generation_threads};
-use super::streaming::ChunkNetCache;
+use super::generation_worker::{ChunkGenerationWorker, generation_threads};
+use super::streaming::{ChunkNetCache, ColumnLoads, HeldColumn};
 use crate::storage::{ChunkColumn, StorageResult, WorldProvider};
 use crate::world::generator::ChunkPipeline;
 use crate::world::{Chunk, ChunkPos, WorldConfig};
@@ -77,6 +77,57 @@ pub(crate) fn chunk_entity_components(
         ),
         restore,
     )
+}
+
+/// Components of a chunk entity for an unloaded column whose write failed:
+/// its edits and actors come back, it stays dirty, and its unload is retried
+/// after a backoff (see [`ChunkPendingUnload::after_failed_save`]).
+pub(crate) fn held_column_components(
+    held: HeldColumn,
+    grace_ticks: u32,
+) -> (
+    ChunkEntityComponents,
+    Option<PendingActorRestore>,
+    ChunkPendingUnload,
+) {
+    let retry = ChunkPendingUnload {
+        ticks_remaining: 0,
+        failed_saves: held.failed_saves.saturating_sub(1),
+    }
+    .after_failed_save(grace_ticks);
+    let (mut components, restore) = chunk_entity_components(
+        ChunkPosition::new(held.pos.0, held.pos.1),
+        held.column,
+        true,
+    );
+    components.5.mark_dirty();
+    (components, restore, retry)
+}
+
+/// Puts columns whose unload write failed back into the world (see
+/// [`held_column_components`]), restoring their actors at once.
+pub fn restore_held_columns(world: &mut World, held: Vec<HeldColumn>) {
+    for column in held {
+        spawn_held_column(world, column);
+    }
+}
+
+fn spawn_held_column(world: &mut World, held: HeldColumn) -> Entity {
+    let grace_ticks = world
+        .get_resource::<super::ChunkLoadConfig>()
+        .map_or(ChunkPendingUnload::default().ticks_remaining, |config| {
+            config.unload_grace_ticks
+        });
+    let pos = ChunkPosition::new(held.pos.0, held.pos.1);
+    let (components, actors, retry) = held_column_components(held, grace_ticks);
+    let mut spawned = world.spawn((components, retry));
+    if let Some(actors) = actors {
+        spawned.insert(actors);
+    }
+    let entity = spawned.id();
+    world.resource_mut::<ChunkManager>().insert(pos, entity);
+    crate::entity::mob::persistence::restore_actors_of_chunk(world, entity);
+    entity
 }
 
 /// Global resource for chunk entity management.
@@ -265,16 +316,10 @@ impl ChunkManager {
             .map_or(0, ChunkGenerationWorker::threads)
     }
 
-    /// Asks the pool to generate a column storage does not have. `None`
-    /// without a pool or once it shut down.
-    pub fn request_pool_generation(
-        &self,
-        x: i32,
-        z: i32,
-    ) -> Option<tokio::sync::oneshot::Receiver<ChunkLoadResult>> {
-        self.generation_worker
-            .as_ref()?
-            .generate(x, z, None, self.dimension())
+    /// The generation pool (expensive generators only). Storage misses are
+    /// requested with no provider: the caller has already read storage.
+    pub fn generation_pool(&self) -> Option<ChunkGenerationWorker> {
+        self.generation_worker.clone()
     }
 }
 
@@ -300,6 +345,17 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
             }
         }
 
+        // A column still being written after an unload is read only once the
+        // write is done; one whose write failed comes back as it was.
+        let held = self
+            .get_resource_mut::<ColumnLoads>()
+            .and_then(|mut loads| {
+                loads.wait_for_save((x, z));
+                loads.take_held_at((x, z))
+            });
+        if let Some(held) = held {
+            return Ok(spawn_held_column(self, held));
+        }
         let (column, was_loaded) = self
             .get_resource::<ChunkManager>()
             .expect("ChunkManager must exist")
