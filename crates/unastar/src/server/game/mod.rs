@@ -555,6 +555,14 @@ impl GameServer {
                 .after(containers::tick_block_containers)
                 .before(tick_block_breaking),
         );
+        // Pressure plates pressed by the entities on them this tick, before
+        // block ticks re-check the pressed ones.
+        ecs.schedule_mut().add_systems(
+            block_behaviour::redstone::press_plates
+                .in_set(EntityLogicSet)
+                .after(despawn_dead)
+                .before(block_behaviour::tick_blocks),
+        );
         // Farmland trampled by this tick's landings, before the landings
         // are resolved (they consume the player's landing).
         ecs.schedule_mut().add_systems(

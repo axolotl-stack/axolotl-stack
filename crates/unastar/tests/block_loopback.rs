@@ -2,7 +2,8 @@
 //! runtime as a saved survival player, places an oak door, opens and
 //! closes it, then breaks its upper half. The client's view of the world,
 //! rebuilt only from the UpdateBlock packets it receives, must end with no
-//! door block left in either cell (the "invisible lower half" bug).
+//! door block left in either cell (the "invisible lower half" bug). A
+//! second run flips a lever beside an iron door and sees the door follow.
 //!
 //! Exclusive loopback socket run: take the native lock first
 //! (`native-lock.sh acquire blocks ...`).
@@ -152,6 +153,7 @@ fn click(
     position: BlockPos,
     face: u8,
     item: CerealizerNetworkItemStackDescriptorSerializedData,
+    slot: i32,
 ) -> InventoryTransactionPacket {
     InventoryTransactionPacket {
         transaction: InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(Box::new(
@@ -159,7 +161,7 @@ fn click(
                 action_type: EnumsItemUseInventoryTransactionActionType::Place,
                 position,
                 face,
-                slot: 0,
+                slot,
                 hand: EnumsHandSlot::Mainhand,
                 item,
                 click_position: Vec3 {
@@ -174,21 +176,39 @@ fn click(
     }
 }
 
-#[test]
-fn placed_toggled_and_broken_door_leaves_nothing_on_the_client() {
+/// A joined client on a fresh void-platform server, with its view.
+struct Session {
+    client: ClientPlay,
+    view: ClientView,
+    runtime_id: u64,
+}
+
+/// Start a server with one saved survival player holding `hotbar`, join it
+/// over loopback RakNet, wait for the hotbar and run `body`.
+fn run<F, Fut>(name: &str, hotbar: &[(&str, u8)], body: F)
+where
+    F: FnOnce(Session) -> Fut,
+    Fut: std::future::Future<Output = ()>,
+{
+    // Each run changes the process's working directory: one at a time.
+    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _serial = SERIAL
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let directory = tempfile::tempdir().unwrap();
     std::env::set_current_dir(directory.path()).unwrap();
     let uuid = uuid::Uuid::new_v4();
-    let name = "Doorman";
     let players = directory.path().join("players");
     {
         let provider = LevelDBPlayerProvider::open(players.join("db")).unwrap();
         let mut inventory = vec![StoredItemStack::default(); 36];
-        inventory[0] = StoredItemStack {
-            item_id: "minecraft:wooden_door".into(),
-            count: 2,
-            ..Default::default()
-        };
+        for (slot, (item, count)) in hotbar.iter().enumerate() {
+            inventory[slot] = StoredItemStack {
+                item_id: (*item).into(),
+                count: *count,
+                ..Default::default()
+            };
+        }
         let data = PlayerData {
             uuid: uuid.to_string(),
             game_mode: 0,
@@ -221,6 +241,7 @@ fn placed_toggled_and_broken_door_leaves_nothing_on_the_client() {
         .thread_stack_size(64 * 1024 * 1024)
         .build()
         .unwrap();
+    let name = name.to_string();
     runtime.block_on(async move {
         let mut server = unastar::server::UnastarServer::new(Arc::new(config))
             .await
@@ -239,9 +260,9 @@ fn placed_toggled_and_broken_door_leaves_nothing_on_the_client() {
                 Err(error) => panic!("connect: {error}"),
             }
         };
-        let mut handshake = ClientHandshakeConfig::random(address, name);
+        let mut handshake = ClientHandshakeConfig::random(address, &name);
         handshake.uuid = uuid;
-        let (mut client, _game) = tokio::time::timeout(TIMEOUT, client.join(handshake))
+        let (mut client, game) = tokio::time::timeout(TIMEOUT, client.join(handshake))
             .await
             .expect("join in time")
             .expect("join");
@@ -260,78 +281,174 @@ fn placed_toggled_and_broken_door_leaves_nothing_on_the_client() {
             view.hotbar.first().is_some_and(|item| item.id != 0)
         })
         .await;
-
-        // Place: both halves arrive.
-        let door = view.hotbar[0].clone();
-        send(&mut client, click(FLOOR, 1, door)).await;
-        until(&mut client, &mut view, "both door halves", |view, _| {
-            view.name(LOWER) == Some("minecraft:wooden_door")
-                && view.name(UPPER) == Some("minecraft:wooden_door")
+        body(Session {
+            client,
+            view,
+            runtime_id: game.start_game.runtime_id.actor_runtime_id,
         })
         .await;
-        assert_eq!(
-            view.value(UPPER, "upper_block_bit"),
-            Some(StateValue::Byte(1))
-        );
+        server_task.abort();
+    });
+}
 
-        // Open and close it: every click flips the lower half.
-        for open in [1u8, 0] {
-            let hand = view.hotbar[0].clone();
-            let target = BlockPos {
-                x: LOWER.0,
-                y: LOWER.1,
-                z: LOWER.2,
+#[test]
+fn placed_toggled_and_broken_door_leaves_nothing_on_the_client() {
+    run(
+        "Doorman",
+        &[("minecraft:wooden_door", 2)],
+        |session| async move {
+            let Session {
+                mut client,
+                mut view,
+                ..
+            } = session;
+            // Place: both halves arrive.
+            let door = view.hotbar[0].clone();
+            send(&mut client, click(FLOOR, 1, door, 0)).await;
+            until(&mut client, &mut view, "both door halves", |view, _| {
+                view.name(LOWER) == Some("minecraft:wooden_door")
+                    && view.name(UPPER) == Some("minecraft:wooden_door")
+            })
+            .await;
+            assert_eq!(
+                view.value(UPPER, "upper_block_bit"),
+                Some(StateValue::Byte(1))
+            );
+
+            // Open and close it: every click flips the lower half.
+            for open in [1u8, 0] {
+                let hand = view.hotbar[0].clone();
+                let target = BlockPos {
+                    x: LOWER.0,
+                    y: LOWER.1,
+                    z: LOWER.2,
+                };
+                send(&mut client, click(target, 2, hand, 0)).await;
+                until(
+                    &mut client,
+                    &mut view,
+                    "the door toggles",
+                    |view, packet| {
+                        matches!(packet, McpePacketData::LevelSoundEventPacket(sound)
+                    if sound.sound_event.starts_with("door."))
+                            && view.value(LOWER, "open_bit") == Some(StateValue::Byte(open))
+                    },
+                )
+                .await;
+            }
+
+            // Break the upper half by hand (wooden door: 90 ticks by hand).
+            let upper = BlockPos {
+                x: UPPER.0,
+                y: UPPER.1,
+                z: UPPER.2,
             };
-            send(&mut client, click(target, 2, hand)).await;
+            let action = |kind| PlayerBlockActionData {
+                player_action_type: kind,
+                position: upper.clone(),
+                facing: 2,
+            };
+            send(
+                &mut client,
+                auth_input(10, vec![action(EnumsPlayerActionType::Startdestroyblock)]),
+            )
+            .await;
+            drain(&mut client, &mut view, Duration::from_millis(5000)).await;
+            send(
+                &mut client,
+                auth_input(120, vec![action(EnumsPlayerActionType::Stopdestroyblock)]),
+            )
+            .await;
             until(
                 &mut client,
                 &mut view,
-                "the door toggles",
-                |view, packet| {
-                    matches!(packet, McpePacketData::LevelSoundEventPacket(sound)
-                    if sound.sound_event.starts_with("door."))
-                        && view.value(LOWER, "open_bit") == Some(StateValue::Byte(open))
+                "the door item drops",
+                |_, packet| matches!(packet, McpePacketData::AddItemActorPacket(_)),
+            )
+            .await;
+            drain(&mut client, &mut view, Duration::from_millis(500)).await;
+            assert_eq!(view.name(UPPER), Some("minecraft:air"), "upper half gone");
+            assert_eq!(
+                view.name(LOWER),
+                Some("minecraft:air"),
+                "no invisible lower half left on the client"
+            );
+        },
+    );
+}
+
+#[test]
+fn a_lever_beside_an_iron_door_opens_and_closes_it() {
+    run(
+        "Redstoner",
+        &[("minecraft:iron_door", 1), ("minecraft:lever", 1)],
+        |session| async move {
+            let Session {
+                mut client,
+                mut view,
+                runtime_id,
+            } = session;
+            // The iron door on the platform in front of the player.
+            let door = view.hotbar[0].clone();
+            send(&mut client, click(FLOOR, 1, door, 0)).await;
+            until(&mut client, &mut view, "the iron door", |view, _| {
+                view.name(UPPER) == Some("minecraft:iron_door")
+            })
+            .await;
+            // A lever on the floor right beside the door's lower half.
+            send(
+                &mut client,
+                MobEquipmentPacket {
+                    target_runtime_id: ActorRuntimeId {
+                        actor_runtime_id: runtime_id,
+                    },
+                    slot: 1,
+                    selected_slot: 1,
+                    container_id: 0,
+                    ..Default::default()
                 },
             )
             .await;
-        }
-
-        // Break the upper half by hand (wooden door: 90 ticks by hand).
-        let upper = BlockPos {
-            x: UPPER.0,
-            y: UPPER.1,
-            z: UPPER.2,
-        };
-        let action = |kind| PlayerBlockActionData {
-            player_action_type: kind,
-            position: upper.clone(),
-            facing: 2,
-        };
-        send(
-            &mut client,
-            auth_input(10, vec![action(EnumsPlayerActionType::Startdestroyblock)]),
-        )
-        .await;
-        drain(&mut client, &mut view, Duration::from_millis(5000)).await;
-        send(
-            &mut client,
-            auth_input(120, vec![action(EnumsPlayerActionType::Stopdestroyblock)]),
-        )
-        .await;
-        until(
-            &mut client,
-            &mut view,
-            "the door item drops",
-            |_, packet| matches!(packet, McpePacketData::AddItemActorPacket(_)),
-        )
-        .await;
-        drain(&mut client, &mut view, Duration::from_millis(500)).await;
-        assert_eq!(view.name(UPPER), Some("minecraft:air"), "upper half gone");
-        assert_eq!(
-            view.name(LOWER),
-            Some("minecraft:air"),
-            "no invisible lower half left on the client"
-        );
-        server_task.abort();
-    });
+            let lever_floor = BlockPos {
+                x: FLOOR.x + 1,
+                y: FLOOR.y,
+                z: FLOOR.z,
+            };
+            let lever = (LOWER.0 + 1, LOWER.1, LOWER.2);
+            let held = view.hotbar[1].clone();
+            send(&mut client, click(lever_floor, 1, held, 1)).await;
+            until(&mut client, &mut view, "the lever", |view, _| {
+                view.name(lever) == Some("minecraft:lever")
+            })
+            .await;
+            // Every flip of the lever opens or closes the door.
+            for open in [1u8, 0] {
+                let target = BlockPos {
+                    x: lever.0,
+                    y: lever.1,
+                    z: lever.2,
+                };
+                send(
+                    &mut client,
+                    click(
+                        target,
+                        1,
+                        CerealizerNetworkItemStackDescriptorSerializedData::default(),
+                        1,
+                    ),
+                )
+                .await;
+                until(
+                    &mut client,
+                    &mut view,
+                    "the door follows the lever",
+                    |view, _| {
+                        view.value(lever, "open_bit") == Some(StateValue::Byte(open))
+                            && view.value(LOWER, "open_bit") == Some(StateValue::Byte(open))
+                    },
+                )
+                .await;
+            }
+        },
+    );
 }

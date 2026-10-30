@@ -4,15 +4,17 @@
     python tools/bds-sweep/summarize.py armor-slots SWEEP_DIR
     python tools/bds-sweep/summarize.py fuel SWEEP_DIR
     python tools/bds-sweep/summarize.py blocks SWEEP_DIR
+    python tools/bds-sweep/summarize.py redstone SWEEP_DIR
     python tools/bds-sweep/summarize.py compare-drops SWEEP_DIR_A SWEEP_DIR_B
 
 Writes into `crates/unastar-data/data/measured/` and records every artefact
 (SHA-256, sweep parameters, sample counts, run times) in `manifest.json`
 there. Raw `results.jsonl`/logs stay in the sweep directories (outside the
-repository). See that directory's README for the schemas. `blocks` instead
-writes the observed-results fixture
+repository). See that directory's README for the schemas. `blocks` and
+`redstone` instead write the observed-results fixtures
 `crates/unastar/src/server/game/block_behaviour/testdata/bds_1_26_51_blocks.json`
-(from `results.jsonl` and the packets the client logged in `client.log`).
+and `bds_1_26_51_redstone.json` next to it (from `results.jsonl` and the
+packets the client logged in `client.log`).
 """
 
 from __future__ import annotations
@@ -433,6 +435,8 @@ _TRACE = {
                                     r'block_runtime_id: (\d+), flags: (\d+), layer: (\d+)'),
     'AddItemActorPacket': re.compile(r'item: CerealizerNetworkItemStackDescriptorSerializedData \{ id: (-?\d+), '
                                      r'stacksize: (\d+)'),
+    'BlockEventPacket': re.compile(r'block_position: BlockPos \{ x: (-?\d+), y: (-?\d+), z: (-?\d+) \}, '
+                                   r'event_type: (-?\d+), event_value: (-?\d+)'),
 }
 _SUB_CHUNK_BLOCK = re.compile(r'pos: BlockPos \{ x: (-?\d+), y: (-?\d+), z: (-?\d+) \}, runtime_id: (\d+), '
                               r'update_flags: (\d+)')
@@ -495,6 +499,9 @@ def trace_packets(client_log: Path, names: dict[int, str]) -> dict[str, dict]:
                     entries.append(('block_updates', entry))
         elif kind == 'AddItemActorPacket' and match:
             entries.append(('item_actors', {'item_network_id': int(match.group(1)), 'count': int(match.group(2))}))
+        elif kind == 'BlockEventPacket' and match:
+            entries.append(('block_events', {'position': [int(match.group(i)) for i in (1, 2, 3)],
+                                             'event_type': int(match.group(4)), 'event_value': int(match.group(5))}))
         else:
             entries.append(('other', {'packet': kind, 'debug': body[:300]}))
         for group, entry in entries:
@@ -629,6 +636,140 @@ def summarize_blocks(sweep: Path) -> None:
     print(f'{BLOCKS_FIXTURE.relative_to(REPO)}: {", ".join(rows)}')
 
 
+REDSTONE_FIXTURE = BLOCKS_FIXTURE.with_name('bds_1_26_51_redstone.json')
+REDSTONE_SCENARIOS = ('redstone_dust', 'repeaters', 'redstone_torch', 'comparators', 'buttons', 'pressure_plates',
+                      'iron_door_lever', 'note_blocks', 'fire')
+
+
+def _snapshots(step: dict, start: int) -> list[dict]:
+    """Every `sample_every` ticks from tick 0: the labels of the watched
+    cells per block name (air only counted)."""
+    state = {label: s['name'] for label, s in step['before'].items()}
+    changes = sorted(step['changes'], key=lambda c: c[0])
+    out, index = [], 0
+    for tick in range(0, step['ticks'] + 1, step['sample_every']):
+        while index < len(changes) and changes[index][0] - start <= tick:
+            state[changes[index][1]] = changes[index][2]['name']
+            index += 1
+        row: dict = {'tick': tick}
+        for label, name in state.items():
+            if name == 'minecraft:air':
+                row['air'] = row.get('air', 0) + 1
+            else:
+                row.setdefault(name.removeprefix('minecraft:'), []).append(label)
+        out.append(row)
+    return out
+
+
+def redstone_step(step: dict, packets: dict) -> dict:
+    """One step of a redstone/fire scenario: watched cells before, the
+    per-tick changes counted from the trigger cell's first change (or from
+    the command / order when there is no trigger), the cells after, and the
+    sounds and level events the client received."""
+    out = {'step': step['step'].split('/', 1)[1], 'action': step['action']}
+    if 'look' in step:
+        out.update(clicked=step['block'], face=step['face'],
+                   player={'feet': step['look']['position'], 'yaw': step['look']['server'][0],
+                           'pitch': step['look']['server'][1]})
+    if 'interactions' in step:
+        out['used'] = bool(step['interactions'])
+    if step['action'] == 'use':
+        out['cells'] = {label: {'pos': step['cells'][label], 'block': block_text(s)}
+                        for label, s in step['after'].items()}
+    else:
+        if 'commands' in step:
+            out['commands'] = step['commands']
+            if not all(step['succeeded']):
+                out['failed_commands'] = [c for c, ok in zip(step['commands'], step['succeeded']) if not ok]
+        if 'stopped_after' in step:
+            out['stop_order_after_ticks'] = step['stopped_after']
+        start = 0
+        trigger = step.get('trigger')
+        if trigger:
+            out['trigger'] = trigger
+            first = next((tick for tick, cell, _ in step['changes'] if cell == trigger), None)
+            if first is None:
+                out['trigger_changed'] = False
+            else:
+                start = first
+                out['trigger_seen_ticks_after_order'] = first
+        out['tick_0_server_tick'] = step['origin_tick'] + start
+        out['watched_ticks'] = step['ticks'] - start
+        out['positions'] = step['cells']
+        out['before'] = {label: block_text(s) for label, s in step['before'].items()}
+        changes: list[dict] = []
+        for tick, cell, state in step['changes']:
+            if not changes or changes[-1]['tick'] != tick - start:
+                changes.append({'tick': tick - start, 'cells': {}})
+            changes[-1]['cells'][cell] = block_text(state)
+        out['changes'] = changes
+        out['after'] = {label: block_text(s) for label, s in step['after'].items()}
+        if step.get('sample_every'):
+            out['samples_every'] = step['sample_every']
+            out['samples'] = _snapshots(step, start)
+        if 'difficulty' in step:
+            out['difficulty'] = step['difficulty']
+    if 'items' in step:
+        out['item_actors'] = [{'item': i['item'], 'count': i['count'], 'position': i['position']}
+                              for i in step['items']]
+    received = packets.get(step['step'], {})
+    for group in ('sounds', 'level_events', 'block_events'):
+        if received.get(group):
+            out[group] = received[group]
+    if received.get('block_updates'):
+        out['block_update_packets'] = sum(e.get('times', 1) for e in received['block_updates'])
+    return out
+
+
+def summarize_redstone(sweep: Path) -> None:
+    """The observed-results fixture of the redstone and fire scenarios of a
+    `blocks` sweep."""
+    rows = {row['key']: row for row in results(sweep) if row['key'] in REDSTONE_SCENARIOS}
+    names: dict[int, str] = {}
+    for row in rows.values():
+        for runtime_id, state in row.get('palette', {}).items():
+            names[int(runtime_id)] = block_text(state)
+        for step in row['steps']:
+            for key in ('before', 'after'):
+                for state in (step.get(key) or {}).values():
+                    names[state['runtime_id']] = block_text(state)
+            for _, _, state in step.get('changes', []):
+                names[state['runtime_id']] = block_text(state)
+    packets = trace_packets(sweep / 'client.log', names)
+    finished = [r for r in runs(sweep) if r['status'] == 'done'] or runs(sweep)
+    stamp = finished[-1]['started']
+    fixture = {
+        'source': f'measured on BDS 1.26.51 with the bds-sweep blocks job (redstone and fire scenarios), '
+                  f'{stamp[:4]}-{stamp[4:6]}-{stamp[6:8]} UTC',
+        'conventions': {
+            'arena': 'stone floor at y=-61 (x -10..24, z -12..24), survival player standing on it (feet y=-60), '
+                     'noon, clear sky, peaceful (fire steps name their difficulty); the redstone scenarios run at '
+                     'randomtickspeed 0, fire at randomtickspeed 1 with doFireTick on',
+            'faces': '0 down, 1 up, 2 north (-z), 3 south (+z), 4 west (-x), 5 east (+x)',
+            'yaw': 'yaw 0 south, 90 west, 180 north, 270 east',
+            'placement': 'levers, repeaters, comparators, buttons, torches and doors are clicked into place by '
+                         'the player (steps with action "use"); dust, lamps, plates, note blocks, stone, '
+                         'redstone blocks and fire are /setblock',
+            'ticks': 'the watched cells are read once per server tick; tick 0 is the tick in which the trigger '
+                     'cell (the clicked lever/button/comparator, or the pressed plate) was first seen changed, '
+                     'or the tick of the command when a step has no trigger; a change at tick n was first seen '
+                     'n ticks after tick 0; tick_0_server_tick is a running server tick count, so steps can be '
+                     'compared for even/odd phase',
+            'changes': 'per tick, the watched cells that changed and their new state in block state notation',
+            'samples': 'fire: every samples_every ticks, the watched cells per block name (air only counted)',
+            'packets': 'sounds and level events received by the player after the step started, identical ones '
+                       'merged with a "times" count; block runtime ids in sound data are written as the block '
+                       'state they denote; block_update_packets counts the block update packets',
+        },
+    }
+    for key in REDSTONE_SCENARIOS:
+        if key in rows:
+            fixture[key] = [redstone_step(step, packets) for step in rows[key]['steps']]
+    REDSTONE_FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+    REDSTONE_FIXTURE.write_bytes((compact_json(fixture) + '\n').encode('utf-8'))
+    print(f'{REDSTONE_FIXTURE.relative_to(REPO)}: {", ".join(rows)}')
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         print(__doc__)
@@ -652,6 +793,8 @@ def main() -> int:
         summarize_attack(dirs[0])
     elif kind == 'blocks':
         summarize_blocks(dirs[0])
+    elif kind == 'redstone':
+        summarize_redstone(dirs[0])
     else:
         print(__doc__)
         return 2

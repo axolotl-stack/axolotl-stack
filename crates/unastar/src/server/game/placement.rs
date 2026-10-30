@@ -8,8 +8,8 @@
 //!   underside of a block gives a top slab) and merge into a double slab;
 //!   stairs face where the player looks and flip on the upper half;
 //!   `minecraft:cardinal_direction` blocks face the player;
-//!   `facing_direction` blocks (pistons, dispensers, droppers, barrels) face
-//!   the player in 3D; hoppers point into the block they were placed
+//!   `facing_direction` blocks (dispensers, droppers, barrels) face the
+//!   player in 3D; hoppers point into the block they were placed
 //!   against (down when placed on a top or bottom face).
 //! - Families with their own rules (doors, beds, torches, ladders, buttons,
 //!   levers, vines, signs, trapdoors, fence gates, connected blocks, stairs
@@ -334,9 +334,7 @@ fn placed_state(block: &BlockEntry, input: &PlacementInput) -> u32 {
         );
     }
     match block.string_id.as_str() {
-        "minecraft:piston"
-        | "minecraft:sticky_piston"
-        | "minecraft:dispenser"
+        "minecraft:dispenser"
         | "minecraft:dropper"
         | "minecraft:barrel" => {
             let facing = opposite_facing(look_facing(input.yaw, input.pitch));

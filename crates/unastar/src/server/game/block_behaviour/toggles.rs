@@ -28,8 +28,14 @@
 //! Every switch plays its LevelSoundEvent at the block centre carrying the
 //! new state's wire id (`trapdoor.open`/`trapdoor.close`,
 //! `fence_gate.open`/`fence_gate.close`, `button.click_on` when a button
-//! or lever turns on, `button.click_off` when it turns off). Redstone power
-//! is not modelled.
+//! or lever turns on, `button.click_off` when it turns off).
+//!
+//! Power ([`super::redstone`]): a lever that is on and a pressed button
+//! power the block they are attached to strongly and their other
+//! neighbours weakly with 15. Trapdoors (iron ones too) and fence gates
+//! open when they become powered and close when they lose power, with
+//! the same sounds as a use; a fence gate keeps its direction
+//! ([`power_trapdoor`], [`power_fence_gate`]).
 
 use bevy_ecs::prelude::*;
 use glam::IVec3;
@@ -188,6 +194,35 @@ pub fn toggle_fence_gate(world: &mut World, player: Entity, pos: IVec3, state: u
     };
     switch(world, pos, next, sound);
     true
+}
+
+/// Open (`open`) or close the trapdoor at `pos` by power; nothing when it
+/// already is.
+pub fn power_trapdoor(world: &mut World, pos: IVec3, state: u32, open: bool) {
+    let is_open = world
+        .registry()
+        .get_by_runtime_id(state)
+        .is_some_and(|entry| bit(entry, state, OPEN));
+    if is_open != open {
+        toggle_trapdoor(world, pos, state);
+    }
+}
+
+/// Open (`open`) or close the fence gate at `pos` by power, keeping its
+/// direction; nothing when it already is.
+pub fn power_fence_gate(world: &mut World, pos: IVec3, state: u32, open: bool) {
+    let Some((next, now_open)) = flipped(world, state, OPEN) else {
+        return;
+    };
+    if now_open != open {
+        return;
+    }
+    let sound = if open {
+        "fence_gate.open"
+    } else {
+        "fence_gate.close"
+    };
+    switch(world, pos, next, sound);
 }
 
 /// Press the button at `pos` and schedule its release. A pressed button

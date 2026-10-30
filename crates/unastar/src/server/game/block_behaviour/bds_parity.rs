@@ -300,7 +300,13 @@ fn crop_growth_rate_matches_the_bds_capture() {
     let run = |seed: u64, speed: u32| -> u32 {
         let mut h = Harness::new();
         h.world.insert_resource(super::BlockRandom::seeded(seed));
-        h.world.insert_resource(super::RandomTickSpeed(speed));
+        h.world
+            .resource_mut::<crate::world::rules::GameRules>()
+            .set_value(
+                "randomTickSpeed",
+                unastar_data::game_rules::GameRuleValue::Int(speed as i32),
+            )
+            .unwrap();
         // Only the arena's two chunks (x = -1 and x = 0..1) matter; the
         // others would only add draws.
         for (cx, cz) in [(-1, -1), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)] {
