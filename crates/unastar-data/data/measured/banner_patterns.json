@@ -1,0 +1,30 @@
+{
+  "source": "public reference, not measured on BDS: banner pattern ids (the `Pattern` string of a banner's `Patterns` entries) and which banner pattern item a loom needs for each, from dragonfly's banner pattern table and minecraft.wiki 'Banner' and 'Loom' (Bedrock), retrieved 2026-10-29; dye colours in the Bedrock numbering a banner's `Base`, data value and pattern `Color` use (black 0 to white 15); at most 6 patterns per banner (minecraft.wiki 'Loom').",
+  "max_patterns": 6,
+  "patterns": {
+    "bs": null, "ts": null, "ls": null, "rs": null, "cs": null, "ms": null,
+    "drs": null, "dls": null, "ss": null, "cr": null, "sc": null, "ld": null,
+    "rud": null, "lud": null, "rd": null, "vh": null, "vhr": null, "hh": null,
+    "hhb": null, "bl": null, "br": null, "tl": null, "tr": null, "bt": null,
+    "tt": null, "bts": null, "tts": null, "mc": null, "mr": null, "bo": null,
+    "gra": null, "gru": null,
+    "cbo": "minecraft:bordure_indented_banner_pattern",
+    "bri": "minecraft:field_masoned_banner_pattern",
+    "cre": "minecraft:creeper_banner_pattern",
+    "sku": "minecraft:skull_banner_pattern",
+    "flo": "minecraft:flower_banner_pattern",
+    "moj": "minecraft:mojang_banner_pattern",
+    "pig": "minecraft:piglin_banner_pattern",
+    "glb": "minecraft:globe_banner_pattern",
+    "flw": "minecraft:flow_banner_pattern",
+    "gus": "minecraft:guster_banner_pattern"
+  },
+  "dyes": {
+    "minecraft:black_dye": 0, "minecraft:red_dye": 1, "minecraft:green_dye": 2,
+    "minecraft:brown_dye": 3, "minecraft:blue_dye": 4, "minecraft:purple_dye": 5,
+    "minecraft:cyan_dye": 6, "minecraft:light_gray_dye": 7, "minecraft:gray_dye": 8,
+    "minecraft:pink_dye": 9, "minecraft:lime_dye": 10, "minecraft:yellow_dye": 11,
+    "minecraft:light_blue_dye": 12, "minecraft:magenta_dye": 13,
+    "minecraft:orange_dye": 14, "minecraft:white_dye": 15
+  }
+}
