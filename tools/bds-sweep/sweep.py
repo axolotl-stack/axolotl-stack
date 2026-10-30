@@ -5,6 +5,7 @@
     python tools/bds-sweep/sweep.py armor-slots --out DIR
     python tools/bds-sweep/sweep.py fuel --out DIR
     python tools/bds-sweep/sweep.py blocks --scenarios doors,torches,crops --out DIR
+    python tools/bds-sweep/sweep.py blocks --scenarios redstone --out DIR
 
 Starts BDS 1.26.51 under Endstone on a fresh superflat creative world
 (`bds-sweep-1.26.51`, peaceful, operators by default) on UDP `--port`
@@ -48,6 +49,17 @@ ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 
          'miner': [0.5, -60, 0.5, -90, 0], 'mine_block': [1, -59, 0], 'mine_face': 4,
          'target': [2.0, -60, 0.5], 'blocks': {'min': [-10, -12], 'max': [24, 24], 'floor': -61}}
 BLOCK_SCENARIOS = ('doors', 'torches', 'crops')
+# Redstone and fire scenarios (`--scenarios redstone` runs them all); their
+# summary is `summarize.py redstone`.
+REDSTONE_SCENARIOS = ('redstone_dust', 'repeaters', 'redstone_torch', 'comparators', 'buttons', 'pressure_plates',
+                      'iron_door_lever', 'note_blocks', 'fire')
+# Blocks whose every palette state the redstone scenarios map to a runtime
+# id, so the summary can name the block states that sounds carry as data.
+PALETTE_BLOCKS = ('air', 'stone', 'dirt', 'lever', 'redstone_wire', 'redstone_lamp', 'lit_redstone_lamp',
+                  'unpowered_repeater', 'powered_repeater', 'unpowered_comparator', 'powered_comparator',
+                  'redstone_torch', 'unlit_redstone_torch', 'stone_button', 'wooden_button', 'stone_pressure_plate',
+                  'wooden_pressure_plate', 'iron_door', 'noteblock', 'fire', 'netherrack', 'oak_planks',
+                  'redstone_block')
 # Server packets the `blocks` job's client logs per step.
 BLOCK_TRACE = ('LevelSoundEventPacket', 'LevelEventPacket', 'LevelEventGenericPacket', 'UpdateBlockPacket',
                'UpdateBlockSyncedPacket', 'UpdateSubChunkBlocksPacket', 'BlockEventPacket', 'AddItemActorPacket')
@@ -247,13 +259,18 @@ def build_job(args, out: Path) -> dict:
                    max_ticks=args.max_ticks,
                    items=[{'key': name, 'item': name} for name in item_names(args.items, SLICE_FUELS)])
     elif args.kind == 'blocks':
-        names = args.scenarios.split(',')
-        unknown = sorted(set(names) - set(BLOCK_SCENARIOS))
+        names = [n for name in args.scenarios.split(',')
+                 for n in (REDSTONE_SCENARIOS if name == 'redstone' else (name,))]
+        unknown = sorted(set(names) - set(BLOCK_SCENARIOS) - set(REDSTONE_SCENARIOS))
         if unknown:
-            raise SystemExit(f'unknown blocks scenarios: {unknown}; choose from {BLOCK_SCENARIOS}')
+            raise SystemExit(f'unknown blocks scenarios: {unknown}; choose from '
+                             f'{BLOCK_SCENARIOS + REDSTONE_SCENARIOS} or redstone')
         runs = [[int(speed), float(seconds)] for speed, seconds in
                 (run.split(':') for run in args.growth_runs.split(','))]
         job['items'] = [{'key': name, **({'growth_runs': runs} if name == 'crops' else {})} for name in names]
+        if set(names) & set(REDSTONE_SCENARIOS):
+            wanted = {f'minecraft:{name}' for name in PALETTE_BLOCKS}
+            job['palette_states'] = [entry for entry in native.block_states() if entry['name'] in wanted]
     return job
 
 

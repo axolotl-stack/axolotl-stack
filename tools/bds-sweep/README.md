@@ -66,6 +66,7 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `attack` | melee damage per held item, warm-up + 3 trials | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value |
 | `fuel` | furnace burn ticks per item | pool of 32 furnaces, 1 cobblestone input + the item as fuel |
 | `blocks` | one row per scenario (`doors`, `torches`, `crops`): full block states (name, states, runtime id) of the watched cells before/after every step, per-tick changes after `/setblock` removals and hand breaks, item actors spawned | flat stone arena x -10..24, z -12..24 at y -61; survival player clicks with `bds-sweep:use` / breaks with `bds-sweep:mine`; item pickup is cancelled; the client runs with `--capture-dir <out>/capture --trace …` (sounds, level events, block updates, item actors, logged in `client.log` after each step mark); `summarize.py blocks <dir>` writes the observed-results fixture |
+| `blocks` (redstone) | `--scenarios redstone` (or any of `redstone_dust`, `repeaters`, `redstone_torch`, `comparators`, `buttons`, `pressure_plates`, `iron_door_lever`, `note_blocks`, `fire`): the watched cells' states every tick after each lever/button/comparator click, command or punch, plus the runtime ids of every palette state of the blocks involved (to name sound data) | same arena; oriented components are clicked into place by the player, the rest is `/setblock`; fire runs at randomtickspeed 1 with doFireTick on; `summarize.py redstone <dir>` writes `bds_1_26_51_redstone.json` next to the blocks fixture |
 
 ```powershell
 & $py tools/bds-sweep/sweep.py drops --blocks all --samples 400   # first palette state of every block
@@ -76,6 +77,8 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 & $py tools/bds-sweep/sweep.py blocks --dry-run                    # job.json + client command only
 & $py tools/bds-sweep/sweep.py blocks --scenarios doors,torches,crops --growth-runs 100:60,1:60
 & $py tools/bds-sweep/summarize.py blocks <dir>
+& $py tools/bds-sweep/sweep.py blocks --scenarios redstone
+& $py tools/bds-sweep/summarize.py redstone <dir>
 & $py tools/bds-sweep/summarize.py drops <dir> [<repeat dir> ...]
 ```
 

@@ -147,6 +147,48 @@ class BlocksTrace(unittest.TestCase):
         self.assertIn('"a": [1, 2]', text)
 
 
+class RedstoneSteps(unittest.TestCase):
+    @staticmethod
+    def state(name, **states):
+        return {'name': name, 'states': states, 'runtime_id': hash((name, tuple(states.items()))) & 0xFFFF}
+
+    def test_changes_count_from_the_trigger_and_group_per_tick(self):
+        lever_off, lever_on = self.state('minecraft:lever', open_bit=False), self.state('minecraft:lever', open_bit=True)
+        dust = self.state('minecraft:redstone_wire', redstone_signal=15)
+        step = {'step': 'redstone_dust/on', 'action': 'use_watch', 'block': [0, -59, 0], 'face': 'up',
+                'look': {'position': [0.5, -60, -2.5], 'server': [0.0, 10.0]}, 'interactions': [[1, 'r', [0, 0, 0]]],
+                'cells': {'lever': [0, -59, 0], 'dust': [1, -60, 0]}, 'trigger': 'lever', 'origin_tick': 100,
+                'ticks': 40, 'before': {'lever': lever_off, 'dust': self.state('minecraft:redstone_wire',
+                                                                            redstone_signal=0)},
+                'changes': [[2, 'lever', lever_on], [4, 'dust', dust]], 'after': {'lever': lever_on, 'dust': dust}}
+        out = summarize.redstone_step(step, {'redstone_dust/on': {'sounds': [{'sound': 'click', 'data': 1}]}})
+        self.assertEqual(out['trigger_seen_ticks_after_order'], 2)
+        self.assertEqual(out['tick_0_server_tick'], 102)
+        self.assertEqual(out['changes'], [{'tick': 0, 'cells': {'lever': 'minecraft:lever[open_bit=true]'}},
+                                          {'tick': 2, 'cells': {'dust': 'minecraft:redstone_wire[redstone_signal=15]'}}])
+        self.assertEqual(out['sounds'], [{'sound': 'click', 'data': 1}])
+
+    def test_fire_samples_list_cells_per_block_name(self):
+        fire, air = self.state('minecraft:fire', age=0), self.state('minecraft:air')
+        step = {'step': 'fire/set', 'action': 'command_watch', 'commands': ['setblock 0 0 0 fire'],
+                'succeeded': [True], 'cells': {'a': [0, 0, 0], 'b': [1, 0, 0]}, 'trigger': None, 'origin_tick': 5,
+                'ticks': 40, 'sample_every': 20, 'before': {'a': air, 'b': air},
+                'changes': [[0, 'a', fire], [25, 'a', air], [30, 'b', fire]], 'after': {'a': air, 'b': fire}}
+        out = summarize.redstone_step(step, {})
+        self.assertEqual(out['samples'], [{'tick': 0, 'fire': ['a'], 'air': 1}, {'tick': 20, 'fire': ['a'], 'air': 1},
+                                          {'tick': 40, 'air': 1, 'fire': ['b']}])
+
+    def test_redstone_alias_lists_every_scenario_with_palette_states(self):
+        import argparse
+        from unittest import mock
+        args = argparse.Namespace(kind='blocks', scenarios='doors,redstone', growth_runs='1:1')
+        palette = [{'name': 'minecraft:lever', 'states': {'open_bit': 1}}, {'name': 'minecraft:wheat', 'states': {}}]
+        with mock.patch.object(sweep.native, 'block_states', return_value=palette):
+            job = sweep.build_job(args, Path('out'))
+        self.assertEqual([item['key'] for item in job['items']], ['doors', *sweep.REDSTONE_SCENARIOS])
+        self.assertEqual(job['palette_states'], palette[:1])
+
+
 
 if __name__ == '__main__':
     unittest.main()

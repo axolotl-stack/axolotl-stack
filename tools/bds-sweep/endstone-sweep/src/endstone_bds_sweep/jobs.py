@@ -552,8 +552,9 @@ class Blocks:
                 break
         return changes, last
 
-    def items(self) -> list[dict]:
-        """Removes every item actor and returns their stacks and positions."""
+    def items(self, remove: bool = True) -> list[dict]:
+        """Returns the stacks and positions of every item actor and removes
+        them unless `remove` is false."""
         found = []
         for actor in self.ctx.dimension.actors:
             if actor.type == 'minecraft:item':
@@ -561,7 +562,8 @@ class Blocks:
                 location = actor.location
                 found.append({'item': stack.type.id, 'data': stack.data, 'count': stack.amount,
                               'position': [round(location.x, 2), round(location.y, 2), round(location.z, 2)]})
-                actor.remove()
+                if remove:
+                    actor.remove()
         return sorted(found, key=lambda item: (item['item'], item['position']))
 
     def remove(self, step: str, pos, cells: dict, ticks: int):
@@ -578,12 +580,74 @@ class Blocks:
                 'cells': {k: list(v) for k, v in cells.items()}, 'same_tick': same_tick,
                 'changes': changes, 'after': final, 'drops': self.items()}
 
+    def place(self, step: str, item: str, block, face: str, stand, yaw: float | None = None, click=None):
+        """Holds `item` and right-clicks `face` of `block`; the step watches
+        the clicked block and the cell the placement fills (`target`)."""
+        d = FACES[face][2]
+        cell = (block[0] + d[0], block[1] + d[1], block[2] + d[2])
+        yield from self.hold(item)
+        return (yield from self.click(step, block, face, stand, {'target': cell, 'clicked': tuple(block)},
+                                      yaw=yaw, click=click))
+
+    def use_watch(self, step: str, block, face: str, stand, cells: dict, ticks: int, trigger: str | None = None,
+                  yaw: float | None = None, click=None):
+        """Right-clicks `face` of `block` (the held item stays as it is) and
+        samples `cells` every tick for `ticks` ticks. `trigger` names the
+        watched cell the click itself changes (lever, button, repeater): the
+        summary counts ticks from its first change."""
+        number, face_click, _ = FACES[face]
+        click = click or face_click
+        target = [block[0] + click[0], block[1] + click[1], block[2] + click[2]]
+        look = yield from self.stand(stand, target, yaw)
+        before = self.cells(cells)
+        label = self.mark(step)
+        self.ctx.plugin.events.clear()
+        runtime_id = self.ctx.block(block).data.runtime_id
+        origin = self.tick
+        self.ctx.player.send_message(
+            f'bds-sweep:use {block[0]} {block[1]} {block[2]} {number} {click[0]} {click[1]} {click[2]} {runtime_id}')
+        changes, final = yield from self.watch(cells, ticks, origin)
+        return {'step': label, 'action': 'use_watch', 'block': list(block), 'face': face, 'click': list(click),
+                'look': look, 'cells': {k: list(v) for k, v in cells.items()}, 'trigger': trigger,
+                'origin_tick': origin, 'ticks': ticks, 'before': before, 'changes': changes, 'after': final,
+                'interactions': [[t - origin, k, list(w)] for t, k, w in self.ctx.plugin.events]}
+
+    def command_watch(self, step: str, commands: list[str], cells: dict, ticks: int, trigger: str | None = None,
+                      sample_every: int | None = None):
+        """Runs `commands` in one tick and samples `cells` every tick for
+        `ticks` ticks: their states in the same tick and every change after
+        it; `sample_every` asks the summary for snapshots at that period."""
+        label = self.mark(step)
+        before = self.cells(cells)
+        origin = self.tick
+        succeeded = [self.ctx.cmd(command) for command in commands]
+        same_tick = self.cells(cells)
+        changes = [[0, k, same_tick[k]] for k in cells if same_tick[k] != before[k]]
+        more, final = yield from self.watch(cells, ticks, origin)
+        row = {'step': label, 'action': 'command_watch', 'commands': commands, 'succeeded': succeeded,
+               'cells': {k: list(v) for k, v in cells.items()}, 'trigger': trigger, 'origin_tick': origin,
+               'ticks': ticks, 'before': before, 'changes': changes + more, 'after': final}
+        if sample_every:
+            row['sample_every'] = sample_every
+        return row
+
+    def palette(self, states: list[dict]) -> dict:
+        """Runtime id -> block state of each `{name, states}` entry: sounds
+        carry a block state's runtime id as their data."""
+        found = {}
+        for entry in states:
+            data = self.ctx.server.create_block_data(entry['name'], entry['states'])
+            found[str(data.runtime_id)] = {'name': data.type, 'states': {
+                k: _json_value(v) for k, v in sorted(data.block_states.items())}}
+        return found
+
 
 def blocks(ctx: Context, job: dict):
-    """Block behaviour scenarios (doors, torches, crops) on a flat stone
-    arena, played by the survival sweep player through `bds-sweep:use` and
-    `bds-sweep:mine`; one result row per scenario with the full block states
-    of the watched cells after every step."""
+    """Block behaviour scenarios (doors, torches, crops; redstone and fire)
+    on a flat stone arena, played by the survival sweep player through
+    `bds-sweep:use` and `bds-sweep:mine`; one result row per scenario with
+    the full block states of the watched cells after every step (per tick
+    for the redstone and fire scenarios)."""
     b = Blocks(ctx, job)
     ctx.must(f'gamemode survival "{job["player"]}"')
     for item in job['items']:
@@ -591,7 +655,10 @@ def blocks(ctx: Context, job: dict):
             continue
         b.scenario = item['key']
         steps = yield from SCENARIOS[item['key']](b, item)
-        ctx.record({'key': item['key'], 'steps': steps})
+        row = {'key': item['key'], 'steps': steps}
+        if item['key'] in REDSTONE_SCENARIOS:
+            row['palette'] = b.palette(job.get('palette_states', []))
+        ctx.record(row)
     ctx.player.inventory.clear()
     ctx.must(f'gamemode creative "{job["player"]}"')
 
@@ -779,7 +846,378 @@ def crops(b: Blocks, item: dict):
     return steps
 
 
-SCENARIOS = {'doors': doors, 'torches': torches, 'crops': crops}
+# Redstone and fire scenarios: components are clicked into place by the
+# player when they have an orientation (levers, repeaters, comparators,
+# buttons, torches, doors), everything else is `/setblock`; toggles are the
+# player's empty-hand clicks and the watched cells are sampled every tick.
+
+def _set(ctx: Context, blocks) -> None:
+    """`/setblock` each (pos, block); `setblock` fails when the block is
+    already there, so the result is checked by reading the cell back."""
+    for (x, y, z), block in blocks:
+        ctx.cmd(f'setblock {x} {y} {z} {block}')
+        if ctx.block((x, y, z)).type != f'minecraft:{block}':
+            raise RuntimeError(f'setblock {x} {y} {z} {block} left {ctx.block((x, y, z)).type}')
+
+
+def _lever_on_top(b: Blocks, support, stand, step: str = 'lever_place'):
+    """Lever clicked onto the top of `support`; returns the step and the
+    lever cell."""
+    placed = yield from b.place(step, 'minecraft:lever', support, 'up', stand)
+    return placed, (support[0], support[1] + 1, support[2])
+
+
+def redstone_dust(b: Blocks, item: dict):
+    """Lever on a stone block, a dust line along +x starting next to it and
+    a lamp after the line: 15 dust (the lamp gets signal 1), then 16."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    ticks = int(item.get('watch_ticks', 40))
+    steps = []
+    for length in (15, 16):
+        yield from b.reset()
+        support = (0, y, 0)
+        _set(ctx, [(support, 'stone')] + [((x, y, 0), 'redstone_wire') for x in range(1, length + 1)]
+             + [((length + 1, y, 0), 'redstone_lamp')])
+        yield 2
+        stand = (0.5, y, -2.5)
+        placed, lever = yield from _lever_on_top(b, support, stand, f'line_{length}_lever_place')
+        steps.append(placed)
+        yield from b.hold(None)
+        cells = {'lever': lever, **{f'dust_{x:02}': (x, y, 0) for x in range(1, length + 1)},
+                 'lamp': (length + 1, y, 0)}
+        for cycle in range(1, 3 if length == 15 else 2):
+            for state in ('on', 'off'):
+                steps.append((yield from b.use_watch(f'line_{length}_lever_{state}_{cycle}', lever, 'up', stand,
+                                                     cells, ticks, trigger='lever')))
+    return steps
+
+
+def _repeater_line(b: Blocks, prefix: str):
+    """Stone with a lever on top at x=0, a repeater clicked onto the floor
+    at x=1 while looking east (input from the stone), a lamp at x=2."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    support, repeater, lamp = (0, y, 0), (1, y, 0), (2, y, 0)
+    _set(ctx, [(support, 'stone')])
+    yield 2
+    stand = (0.5, y, -2.5)
+    steps = []
+    placed, lever = yield from _lever_on_top(b, support, stand, f'{prefix}_lever_place')
+    steps.append(placed)
+    steps.append((yield from b.place(f'{prefix}_repeater_place', 'minecraft:repeater', (1, y - 1, 0), 'up',
+                                     (1.5, y, -2.5), yaw=270)))
+    _set(ctx, [(lamp, 'redstone_lamp')])
+    yield 2
+    return steps, {'lever': lever, 'repeater': repeater, 'lamp': lamp}, stand
+
+
+def repeaters(b: Blocks, item: dict):
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    ticks = int(item.get('watch_ticks', 40))
+    steps = []
+    for delay in (1, 2, 3, 4):
+        yield from b.reset()
+        prefix = f'delay_{delay}'
+        placed, cells, stand = yield from _repeater_line(b, prefix)
+        steps += placed
+        yield from b.hold(None)
+        for click in range(1, delay):
+            steps.append((yield from b.click(f'{prefix}_click_{click}', cells['repeater'], 'up', (1.5, y, -2.5),
+                                             {'repeater': cells['repeater']})))
+        for state in ('on', 'off'):
+            steps.append((yield from b.use_watch(f'{prefix}_lever_{state}', cells['lever'], 'up', stand, cells,
+                                                 ticks, trigger='lever')))
+
+    # Locking: a second repeater (input from a stone with its own lever)
+    # points north into the side of the first one.
+    yield from b.reset()
+    placed, cells, stand = yield from _repeater_line(b, 'lock')
+    steps += placed
+    side_support = (1, y, 2)
+    _set(ctx, [(side_support, 'stone')])
+    yield 2
+    side_stand = (1.5, y, 4.5)
+    steps.append((yield from b.place('lock_side_repeater_place', 'minecraft:repeater', (1, y - 1, 1), 'up',
+                                     (3.5, y, 1.5), yaw=180)))
+    placed, side_lever = yield from _lever_on_top(b, side_support, side_stand, 'lock_side_lever_place')
+    steps.append(placed)
+    yield from b.hold(None)
+    cells = {**cells, 'side_repeater': (1, y, 1), 'side_lever': side_lever}
+    sequence = [('main_on', 'lever', stand), ('side_on_lock', 'side_lever', side_stand),
+                ('main_off_while_locked', 'lever', stand), ('side_off_unlock', 'side_lever', side_stand),
+                ('side_on_lock_unpowered', 'side_lever', side_stand),
+                ('main_on_while_locked', 'lever', stand), ('side_off_unlock_2', 'side_lever', side_stand)]
+    for step, lever, where in sequence:
+        steps.append((yield from b.use_watch(f'lock_{step}', cells[lever], 'up', where, cells, ticks,
+                                             trigger=lever)))
+    return steps
+
+
+def redstone_torch(b: Blocks, item: dict):
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    ticks = int(item.get('watch_ticks', 40))
+    steps = []
+    # Torch on the east face of a stone block with a lever on top; a lamp
+    # south of the torch shows its output.
+    yield from b.reset()
+    support = (0, y, 0)
+    _set(ctx, [(support, 'stone')])
+    yield 2
+    stand = (0.5, y, -2.5)
+    steps.append((yield from b.place('torch_place', 'minecraft:redstone_torch', support, 'east', (1.5, y, -2.5))))
+    _set(ctx, [((1, y, 1), 'redstone_lamp')])
+    placed, lever = yield from _lever_on_top(b, support, stand)
+    steps.append(placed)
+    yield from b.hold(None)
+    cells = {'lever': lever, 'torch': (1, y, 0), 'lamp': (1, y, 1)}
+    for cycle in (1, 2):
+        for state in ('on', 'off'):
+            steps.append((yield from b.use_watch(f'lever_{state}_{cycle}', lever, 'up', stand, cells, ticks,
+                                                 trigger='lever')))
+
+    # Burnout: the torch's own output runs back through dust into the block
+    # it hangs on (torch -> 6 dust -> the stone's south side).
+    yield from b.reset()
+    _set(ctx, [(support, 'stone')])
+    yield 2
+    steps.append((yield from b.place('clock_torch_place', 'minecraft:redstone_torch', support, 'east',
+                                     (1.5, y, -2.5))))
+    path = [(2, y, 0), (2, y, 1), (2, y, 2), (1, y, 2), (0, y, 2)]
+    _set(ctx, [(pos, 'redstone_wire') for pos in path])
+    yield 10
+    closing = (0, y, 1)
+    cells = {'torch': (1, y, 0), **{f'dust_{i + 1}': pos for i, pos in enumerate(path + [closing])}}
+    steps.append((yield from b.command_watch(
+        'clock_closed', [f'setblock {closing[0]} {closing[1]} {closing[2]} redstone_wire'], cells,
+        int(item.get('clock_ticks', 400)))))
+    return steps
+
+
+# (rear, side) input signals of the comparator configurations.
+COMPARATOR_INPUTS = [(15, 0), (12, 5), (12, 12), (12, 14), (5, 10), (8, 7)]
+
+
+def comparators(b: Blocks, item: dict):
+    """Comparator at (8, y, 0) clicked into place looking east; rear dust
+    along -x fed by a redstone block (signal at the comparator = 16 - dust
+    count), side dust along +z the same way, two output dust along +x."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    ticks = int(item.get('watch_ticks', 30))
+    cx = 8
+    stand = (cx + 0.5, y, -2.5)
+    steps = []
+    for rear, side in COMPARATOR_INPUTS:
+        prefix = f'rear_{rear}_side_{side}'
+        yield from b.reset()
+        steps.append((yield from b.place(f'{prefix}_place', 'minecraft:comparator', (cx, y - 1, 0), 'up', stand,
+                                         yaw=270)))
+        yield from b.hold(None)
+        rear_dust = 16 - rear
+        wires = [((x, y, 0), 'redstone_wire') for x in range(cx - rear_dust, cx)]
+        wires += [((cx + 1, y, 0), 'redstone_wire'), ((cx + 2, y, 0), 'redstone_wire')]
+        sources = [(cx - rear_dust - 1, y, 0)]
+        if side:
+            side_dust = 16 - side
+            wires += [((cx, y, z), 'redstone_wire') for z in range(1, side_dust + 1)]
+            sources.append((cx, y, side_dust + 1))
+        _set(ctx, wires)
+        yield 4
+        cells = {'comparator': (cx, y, 0), 'rear_dust': (cx - 1, y, 0), 'out_1': (cx + 1, y, 0),
+                 'out_2': (cx + 2, y, 0)}
+        if side:
+            cells['side_dust'] = (cx, y, 1)
+        steps.append((yield from b.command_watch(
+            f'{prefix}_compare', [f'setblock {x} {y_} {z} redstone_block' for x, y_, z in sources], cells, ticks)))
+        steps.append((yield from b.use_watch(f'{prefix}_subtract', (cx, y, 0), 'up', stand, cells, ticks,
+                                             trigger='comparator')))
+        steps.append((yield from b.use_watch(f'{prefix}_compare_again', (cx, y, 0), 'up', stand, cells, ticks,
+                                             trigger='comparator')))
+    return steps
+
+
+def buttons(b: Blocks, item: dict):
+    """A button clicked onto the east face of a stone block, a lamp on the
+    stone's west side; one press each."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    ticks = int(item.get('button_ticks', 60))
+    steps = []
+    stand = (1.5, y, -2.5)
+    for button in ('stone_button', 'wooden_button'):
+        yield from b.reset()
+        support = (0, y, 0)
+        _set(ctx, [(support, 'stone'), ((-1, y, 0), 'redstone_lamp')])
+        yield 2
+        steps.append((yield from b.place(f'{button}_place', f'minecraft:{button}', support, 'east', stand)))
+        yield from b.hold(None)
+        cells = {'button': (1, y, 0), 'lamp': (-1, y, 0)}
+        steps.append((yield from b.use_watch(f'{button}_press', (1, y, 0), 'east', stand, cells, ticks,
+                                             trigger='button', click=(0.125, 0.5, 0.5))))
+    return steps
+
+
+def pressure_plates(b: Blocks, item: dict):
+    """Stone and oak plates on the floor, each with a lamp east of it; an
+    item (`/loot spawn` of a mined dirt block, left to settle elsewhere)
+    teleported onto each plate and removed with `/kill`, then the player
+    teleported onto and off each plate (two dwell times)."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    ticks = int(item.get('watch_ticks', 60))
+    name = b.name
+    steps = []
+    yield from b.reset()
+    plates = {'stone': (0, y, 0), 'oak': (0, y, 4)}
+    _set(ctx, [(plates['stone'], 'stone_pressure_plate'), ((1, y, 0), 'redstone_lamp'),
+               (plates['oak'], 'wooden_pressure_plate'), ((1, y, 4), 'redstone_lamp'), ((6, y, 8), 'dirt')])
+    yield 2
+    cells = {'stone_plate': plates['stone'], 'stone_lamp': (1, y, 0), 'oak_plate': plates['oak'],
+             'oak_lamp': (1, y, 4)}
+    away = (4.5, y, 2.5)
+    yield from b.hold(None)
+    yield from b.stand(away, (0.5, y, 2.5))
+    for plate in ('oak', 'stone'):
+        x, _, z = plates[plate]
+        ctx.must(f'execute as @a[name="{name}"] run loot spawn 10.5 {y + 0.1} 10.5 mine 6 {y} 8 mainhand')
+        yield 40
+        steps.append((yield from b.command_watch(
+            f'{plate}_item_on', [f'tp @e[type=item] {x + 0.5} {y + 0.05} {z + 0.5}'], cells, ticks,
+            trigger=f'{plate}_plate')))
+        steps[-1]['items'] = b.items(remove=False)
+        steps.append((yield from b.command_watch(f'{plate}_item_killed', ['kill @e[type=item]'], cells, ticks)))
+    for plate in ('stone', 'oak'):
+        x, _, z = plates[plate]
+        for trial, dwell in enumerate((ticks, ticks - 13), start=1):
+            steps.append((yield from b.command_watch(
+                f'{plate}_player_on_{trial}', [f'tp "{name}" {x + 0.5} {y} {z + 0.5}'], cells, dwell,
+                trigger=f'{plate}_plate')))
+            steps.append((yield from b.command_watch(
+                f'{plate}_player_off_{trial}', [f'tp "{name}" {away[0]} {away[1]} {away[2]}'], cells, ticks)))
+    return steps
+
+
+def iron_door_lever(b: Blocks, item: dict):
+    """Iron door (placed looking north) with a stone block east of its lower
+    half and a lever on that stone's east face."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    ticks = int(item.get('watch_ticks', 30))
+    steps = []
+    yield from b.reset()
+    cell = (0, y, 0)
+    steps.append((yield from _place_door(b, 'door_place', cell, 'north', item='minecraft:iron_door')))
+    support = (1, y, 0)
+    _set(ctx, [(support, 'stone')])
+    yield 2
+    stand = (3.5, y, 2.5)
+    steps.append((yield from b.place('lever_place', 'minecraft:lever', support, 'east', stand)))
+    yield from b.hold(None)
+    cells = {'lever': (2, y, 0), **_door_cells(cell)}
+    for cycle in (1, 2):
+        for state in ('on', 'off'):
+            steps.append((yield from b.use_watch(f'lever_{state}_{cycle}', (2, y, 0), 'east', stand, cells, ticks,
+                                                 trigger='lever', click=(0.25, 0.5, 0.5))))
+    return steps
+
+
+def note_blocks(b: Blocks, item: dict):
+    """Note block on dirt / on the stone floor, powered through a stone block
+    east of it by a lever on that stone's east face."""
+    ctx = b.ctx
+    floor = b.arena['floor']
+    y = floor + 1
+    ticks = int(item.get('watch_ticks', 20))
+    steps = []
+    stand = (3.5, y, 2.5)
+    for under in ('dirt', 'stone'):
+        yield from b.reset()
+        _set(ctx, [((0, floor, 0), under), ((0, y, 0), 'noteblock'), ((1, y, 0), 'stone')])
+        yield 2
+        steps.append((yield from b.place(f'on_{under}_lever_place', 'minecraft:lever', (1, y, 0), 'east', stand)))
+        yield from b.hold(None)
+        cells = {'lever': (2, y, 0), 'note_block': (0, y, 0), 'under': (0, floor, 0)}
+        for state in ('on', 'off'):
+            steps.append((yield from b.use_watch(f'on_{under}_lever_{state}', (2, y, 0), 'east', stand, cells,
+                                                 ticks, trigger='lever', click=(0.25, 0.5, 0.5))))
+    return steps
+
+
+def fire(b: Blocks, item: dict):
+    """`/setblock` fires with doFireTick on at randomtickspeed 1: one on
+    netherrack, eight on the bare stone floor and one beside a 4-high oak
+    planks column (every cell around the column watched); the planks
+    column again on normal difficulty; then the player punches (starts
+    breaking, then stops) the block under a fire on netherrack and on
+    stone."""
+    ctx = b.ctx
+    floor = b.arena['floor']
+    y = floor + 1
+    ticks = int(item.get('fire_ticks', 1200))
+    steps = []
+    ctx.must('gamerule dofiretick true')
+    ctx.must(f'gamerule randomtickspeed {int(item.get("randomtickspeed", 1))}')
+    netherrack = (-8, floor, 0)
+    stones = [(x, y, -6) for x in (-8, -4, 0, 4, 8, 16, 20, 24)]
+    column = [(12, y + i, 0) for i in range(4)]
+    around = {}
+    for x in (11, 12, 13):
+        for z in (-1, 0, 1):
+            for dy in range(6):
+                around[f'{x},{y + dy},{z}'] = (x, y + dy, z)
+    for difficulty in ('peaceful', 'normal'):
+        yield from b.reset()
+        first = difficulty == 'peaceful'
+        _set(ctx, ([(netherrack, 'netherrack')] if first else []) + [(pos, 'oak_planks') for pos in column])
+        yield 2
+        yield from b.stand((4.5, y, 6.5), (4.5, y, 0.5))
+        cells = dict(around)
+        fires = [(13, y, 0)]
+        if first:
+            cells = {'netherrack_fire': (-8, y, 0), **{f'stone_fire_{i + 1}': pos for i, pos in enumerate(stones)},
+                     **cells}
+            fires += [(-8, y, 0)] + stones
+        ctx.cmd(f'difficulty {difficulty}')
+        steps.append((yield from b.command_watch(
+            'fires_set' if first else 'planks_fire_normal_difficulty',
+            [f'setblock {x} {y_} {z} fire' for x, y_, z in fires], cells, ticks, sample_every=20)))
+        steps[-1]['difficulty'] = difficulty
+    ctx.cmd('difficulty peaceful')
+
+    # Punching: start breaking the block under a fire (face up), stop after
+    # a few ticks.
+    yield from b.hold(None)
+    for under, pos in (('netherrack', netherrack), ('stone', (0, floor, 6))):
+        yield from b.reset()
+        _set(ctx, [(pos, under), ((pos[0], y, pos[2]), 'fire')])
+        yield 2
+        watched = {'fire': (pos[0], y, pos[2]), 'under': pos}
+        look = yield from b.stand((pos[0] + 0.5, y, pos[2] + 2.5), (pos[0] + 0.5, y, pos[2] + 0.5))
+        label = b.mark(f'punch_{under}')
+        before = b.cells(watched)
+        ctx.plugin.events.clear()
+        origin = b.tick
+        ctx.player.send_message(f'bds-sweep:mine {pos[0]} {pos[1]} {pos[2]} {FACES["up"][0]} 0')
+        changes, _ = yield from b.watch(watched, 5, origin)
+        ctx.player.send_message('bds-sweep:stop')
+        more, final = yield from b.watch(watched, 20, origin)
+        steps.append({'step': label, 'action': 'mine_watch', 'block': list(pos), 'face': 'up', 'look': look,
+                      'stopped_after': 5, 'ticks': 25, 'cells': {k: list(v) for k, v in watched.items()},
+                      'trigger': None,
+                      'origin_tick': origin, 'before': before, 'changes': changes + more, 'after': final,
+                      'interactions': [[t - origin, k, list(w)] for t, k, w in ctx.plugin.events]})
+    ctx.must('gamerule randomtickspeed 0')
+    return steps
+
+
+REDSTONE_SCENARIOS = {'redstone_dust': redstone_dust, 'repeaters': repeaters, 'redstone_torch': redstone_torch,
+                      'comparators': comparators, 'buttons': buttons, 'pressure_plates': pressure_plates,
+                      'iron_door_lever': iron_door_lever, 'note_blocks': note_blocks, 'fire': fire}
+
+SCENARIOS = {'doors': doors, 'torches': torches, 'crops': crops, **REDSTONE_SCENARIOS}
 
 JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'attack': attack,
         'fuel': fuel, 'mining': mining, 'blocks': blocks}
