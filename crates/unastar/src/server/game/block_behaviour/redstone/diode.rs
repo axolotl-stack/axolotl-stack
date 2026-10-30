@@ -260,6 +260,9 @@ fn actor_compound(world: &World, pos: IVec3) -> Option<zuri_nbt::tag::Compound> 
 /// count over its stack limit (both halves of a double chest). `None`
 /// when the block is not a container with contents.
 pub fn container_level(world: &World, pos: IVec3) -> Option<u8> {
+    if let Some(level) = utility_level(world, pos) {
+        return Some(level);
+    }
     let kind = ContainerKind::from_block(name_at(world, pos)?)?;
     if kind == ContainerKind::EnderChest {
         return None;
@@ -282,6 +285,23 @@ pub fn container_level(world: &World, pos: IVec3) -> Option<u8> {
         }
     }
     Some(fullness(fill, slots))
+}
+
+/// What a comparator reads from a utility block behind it: a cauldron's,
+/// composter's or beehive's fill, a cake's bites, a lectern's page, a
+/// jukebox's disc. `None` for other blocks.
+fn utility_level(world: &World, pos: IVec3) -> Option<u8> {
+    use super::super::utility::{Utility, beehive, cake, cauldron, composter, jukebox, lectern};
+    let (entry, state) = power::at(world, pos)?;
+    Some(match Utility::of(entry)? {
+        Utility::Cauldron => cauldron::comparator_signal(entry, state),
+        Utility::Composter => composter::comparator_signal(entry, state),
+        Utility::Beehive => beehive::comparator_signal(entry, state),
+        Utility::Cake => cake::comparator_signal(entry, state),
+        Utility::Lectern => lectern::comparator_signal(world, pos),
+        Utility::Jukebox => jukebox::comparator_signal(world, pos),
+        _ => return None,
+    })
 }
 
 /// `1 + ⌊fill / slots × 14⌋` when anything is stored, else 0.

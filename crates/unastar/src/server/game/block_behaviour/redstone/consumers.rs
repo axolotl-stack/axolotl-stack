@@ -339,13 +339,15 @@ mod tests {
             ),
         );
         s.set(hopper + IVec3::X, state("minecraft:redstone_block", &[]));
+        // The lock arrives on the circuit grid (a hopper holding items
+        // before then may still move one); fill it once locked.
+        s.tick(3);
+        assert_eq!(s.value(hopper, "toggle_bit"), Some(StateValue::Byte(1)));
         let world = s.world();
         let mut slots = containers::contents(world, hopper).unwrap();
         let dirt = crate::server::game::world_stack(world, "minecraft:dirt", 5).unwrap();
         slots.set_item(0, dirt).unwrap();
         containers::set_contents(world, hopper, &slots);
-        s.tick(2);
-        assert_eq!(s.value(hopper, "toggle_bit"), Some(StateValue::Byte(1)));
         s.tick(30);
         let chest_items = |s: &mut Server| {
             containers::contents(s.world(), chest)
@@ -357,7 +359,7 @@ mod tests {
         };
         assert_eq!(chest_items(&mut s), 0, "locked: nothing moved");
         s.set(hopper + IVec3::X, state("minecraft:air", &[]));
-        s.tick(2);
+        s.tick(3);
         assert_eq!(s.value(hopper, "toggle_bit"), Some(StateValue::Byte(0)));
         s.tick(30);
         assert!(chest_items(&mut s) > 0, "unlocked: items move again");

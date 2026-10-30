@@ -95,6 +95,8 @@ fn store_book(world: &mut World, pos: IVec3, book: Option<&Book>) {
             .insert("totalPages".into(), NBTTag::Int(tag::Int(book.total_pages)));
     }
     actors::store(world, pos, actor);
+    // Comparators around read the page.
+    super::super::block_changed(world, pos);
 }
 
 fn is_book(item: &str) -> bool {

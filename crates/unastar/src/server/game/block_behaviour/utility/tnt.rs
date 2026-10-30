@@ -10,6 +10,12 @@
 //!   per tick horizontally in a random direction and 0.2 upwards. Its own
 //!   `minecraft:explode` (80-tick fuse, power 4) counts down and explodes
 //!   through the shared explosion 81 ticks after priming.
+//! - The fuse burns from the actor's first tick: a player's action is
+//!   handled before the tick's actors, so TNT it primes burns in that
+//!   tick; TNT primed by the world's own tick (power, explosions,
+//!   dispensers, fire) starts burning on the next one, so a lever's TNT
+//!   explodes 81 ticks after it disappears and a chain-primed TNT one tick
+//!   after its short fuse ran out.
 //! - A player's use holding flint and steel or a fire charge lights it;
 //!   flint and steel takes 1 durability, a fire charge is used up (neither
 //!   in creative).
@@ -33,6 +39,7 @@ use rand::Rng;
 
 use super::super::{Place, bit};
 use crate::entity::components::{GameMode, Velocity};
+use crate::entity::mob::components::explode::Fuse;
 use crate::entity::mob::{SpawnCause, spawn_mob, spawn_mob_with_event};
 use crate::entity::systems::BlockSource;
 use crate::registry::block::BlockEntry;
@@ -68,8 +75,15 @@ pub fn tnt_explodes(world: &World) -> bool {
 }
 
 /// Spawn a primed TNT with its feet at `feet`, moving off in a random
-/// direction; `event` replaces the spawn event.
-fn spawn_primed(world: &mut World, feet: DVec3, event: Option<&str>) -> Option<Entity> {
+/// direction; `event` replaces the spawn event. `by_player`: primed by a
+/// player's action, whose fuse burns this tick; otherwise it starts on the
+/// next.
+fn spawn_primed(
+    world: &mut World,
+    feet: DVec3,
+    event: Option<&str>,
+    by_player: bool,
+) -> Option<Entity> {
     let spawned = match event {
         Some(event) => spawn_mob_with_event(world, PRIMED_TNT, feet, 0.0, event),
         None => spawn_mob(world, PRIMED_TNT, feet, 0.0, SpawnCause::Spawned),
@@ -81,6 +95,9 @@ fn spawn_primed(world: &mut World, feet: DVec3, event: Option<&str>) -> Option<E
             return None;
         }
     };
+    if !by_player && let Some(mut fuse) = world.get_mut::<Fuse>(tnt) {
+        fuse.explode_at += 1;
+    }
     let angle = super::super::random(world).r#gen::<f64>() * std::f64::consts::TAU;
     let motion = DVec3::new(
         -angle.sin() * PRIME_HORIZONTAL_SPEED,
@@ -100,10 +117,15 @@ fn feet(pos: IVec3) -> DVec3 {
     )
 }
 
-/// Light the TNT block at `pos` (a use, power, fire): it becomes air and a
-/// primed TNT with the fuse sound takes its place. Returns whether it was
-/// lit.
+/// Light the TNT block at `pos` from the world's tick (power, fire, a
+/// dispenser's flint and steel): it becomes air and a primed TNT with the
+/// fuse sound takes its place. Returns whether it was lit.
 pub fn ignite(world: &mut World, pos: IVec3) -> bool {
+    light(world, pos, false)
+}
+
+/// [`ignite`], `by_player` when a player's use lights it.
+fn light(world: &mut World, pos: IVec3, by_player: bool) -> bool {
     if !tnt_explodes(world) {
         return false;
     }
@@ -119,7 +141,7 @@ pub fn ignite(world: &mut World, pos: IVec3) -> bool {
     }
     let air = super::super::air(world.registry());
     crate::server::game::blocks::set_block(world, pos, air, false);
-    if spawn_primed(world, feet(pos), None).is_some() {
+    if spawn_primed(world, feet(pos), None, by_player).is_some() {
         crate::entity::mob::net::sound::level_event(world, feet(pos), LEVEL_EVENT_FUSE, 0);
     }
     true
@@ -129,7 +151,7 @@ pub fn ignite(world: &mut World, pos: IVec3) -> bool {
 /// chain-reaction fuse takes its place, silently.
 pub fn prime_from_explosion(world: &mut World, pos: IVec3) {
     if tnt_explodes(world) {
-        spawn_primed(world, feet(pos), Some(FROM_EXPLOSION));
+        spawn_primed(world, feet(pos), Some(FROM_EXPLOSION), false);
     }
 }
 
@@ -140,7 +162,7 @@ pub fn dispense(world: &mut World, at: DVec3) -> bool {
         return false;
     }
     let cell = at.floor() + DVec3::splat(0.5);
-    if spawn_primed(world, cell, None).is_none() {
+    if spawn_primed(world, cell, None, false).is_none() {
         return false;
     }
     crate::entity::mob::net::sound::play_level_sound(world, None, at, "block.click", -1);
@@ -167,7 +189,7 @@ pub fn use_block(world: &mut World, player: Entity, pos: IVec3, _state: u32) -> 
         "minecraft:fire_charge" => false,
         _ => return false,
     };
-    if !ignite(world, pos) {
+    if !light(world, pos, true) {
         return false;
     }
     if flint {
@@ -218,7 +240,7 @@ pub fn breaking(world: &mut World, pos: IVec3, state: u32) {
         .registry()
         .get_by_runtime_id(state)
         .is_some_and(|entry| bit(entry, state, "explode_bit"));
-    if unstable && tnt_explodes(world) && spawn_primed(world, feet(pos), None).is_some() {
+    if unstable && tnt_explodes(world) && spawn_primed(world, feet(pos), None, true).is_some() {
         crate::entity::mob::net::sound::level_event(world, feet(pos), LEVEL_EVENT_FUSE, 0);
     }
 }
@@ -458,7 +480,9 @@ pub(crate) mod tests {
         let lever = AT + IVec3::X;
         s.lever(lever);
         s.flip(lever);
-        s.tick(2);
+        // A change between server ticks reaches the circuit on its second
+        // tick boundary: three server ticks.
+        s.tick(3);
         assert_eq!(s.name(AT), "minecraft:air");
         assert_eq!(s.actors(PRIMED_TNT).len(), 1);
         burns_and_explodes(&mut s, 78);
@@ -469,7 +493,7 @@ pub(crate) mod tests {
         let mut s = Server::new();
         s.set(AT + IVec3::X, state("minecraft:redstone_block", &[]));
         s.set(AT, tnt());
-        s.tick(2);
+        s.tick(3);
         assert_eq!(s.actors(PRIMED_TNT).len(), 1);
     }
 

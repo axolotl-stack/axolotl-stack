@@ -159,6 +159,8 @@ fn store_record(
         .0
         .insert("TicksPlaying".into(), NBTTag::Int(tag::Int(ticks)));
     actors::store(world, pos, actor);
+    // Redstone and comparators around read the disc.
+    super::super::block_changed(world, pos);
 }
 
 /// Redstone power of the jukebox at `pos`: 15 while a disc plays.

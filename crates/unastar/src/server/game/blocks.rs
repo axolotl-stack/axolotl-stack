@@ -50,6 +50,22 @@ pub fn apply_block_actions(world: &mut World) {
             BlockAction::BlockClick(use_item) => {
                 handle_block_click(world, entity, &use_item);
             }
+            BlockAction::LecternPage(page) => {
+                let pos = (
+                    page.positionof_lecterntoupdate.x,
+                    page.positionof_lecterntoupdate.y,
+                    page.positionof_lecterntoupdate.z,
+                );
+                // Only a reader within reach turns the page.
+                if can_interact(world, entity, pos) {
+                    super::block_behaviour::utility::lectern::turn_page(
+                        world,
+                        IVec3::new(pos.0, pos.1, pos.2),
+                        i32::from(page.newpagetoshow),
+                        i32::from(page.total_pages),
+                    );
+                }
+            }
         }
     }
 }

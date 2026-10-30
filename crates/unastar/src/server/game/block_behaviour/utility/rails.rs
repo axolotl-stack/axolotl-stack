@@ -32,6 +32,12 @@
 //!   the matching minecart actor, unmoving, with its feet 0.15 above the
 //!   rail's cell at its centre.
 //!
+//! Not available yet: minecart actors cannot be spawned (their definitions
+//! use components the entity runtime does not implement), so
+//! [`place_minecart`] reports failure, a minecart item used on a rail does
+//! nothing, a dispenser ejects minecart items instead, and no minecart moves
+//! onto a detector rail ([`entity_inside`] has no caller yet).
+//!
 //! Provisional (Minecraft Wiki): a plain rail where three neighbour rails
 //! meet re-picks its shape with the powered preference whenever power is
 //! re-evaluated; a minecart on a sloped rail stands 0.5 higher; sloped
@@ -420,25 +426,27 @@ fn update_power(world: &mut World, pos: IVec3) {
     }
 }
 
+/// Whether an actor box `width` wide and `height` tall with its feet at
+/// `feet` meets the detecting box of the detector rail at `pos`.
+fn meets_detector(pos: IVec3, feet: DVec3, width: f64, height: f64) -> bool {
+    let min = pos.as_dvec3() + DVec3::new(0.2, 0.0, 0.2);
+    let max = pos.as_dvec3() + DVec3::new(0.8, 0.8, 0.8);
+    let half = width / 2.0;
+    feet.x - half < max.x
+        && feet.x + half > min.x
+        && feet.y < max.y
+        && feet.y + height > min.y
+        && feet.z - half < max.z
+        && feet.z + half > min.z
+}
+
 /// Whether a minecart's box meets the detecting box of the detector rail at
 /// `pos`.
 fn minecart_on(world: &mut World, pos: IVec3) -> bool {
-    let min = pos.as_dvec3() + DVec3::new(0.2, 0.0, 0.2);
-    let max = pos.as_dvec3() + DVec3::new(0.8, 0.8, 0.8);
     let mut carts = world.query::<(&MobKind, &Position, Option<&PhysicsBody>)>();
     carts.iter(world).any(|(kind, position, body)| {
-        if !kind.0.identifier.ends_with("minecart") {
-            return false;
-        }
         let (width, height) = body.map_or((0.98, 0.7), |b| (b.width, b.height));
-        let feet = position.0;
-        let half = width / 2.0;
-        feet.x - half < max.x
-            && feet.x + half > min.x
-            && feet.y < max.y
-            && feet.y + height > min.y
-            && feet.z - half < max.z
-            && feet.z + half > min.z
+        kind.0.identifier.ends_with("minecart") && meets_detector(pos, position.0, width, height)
     })
 }
 
@@ -639,9 +647,10 @@ mod tests {
         assert_eq!(placed.len(), 1, "{item} placed at {pos}");
     }
 
+    /// The player stands within reach of the rails at the origin.
     fn harness() -> Harness {
         let mut h = Harness::new();
-        h.stand(DVec3::new(4.5, 65.62, 4.5), 0.0, 30.0);
+        h.stand(DVec3::new(2.5, 65.62, 2.5), 0.0, 30.0);
         h
     }
 
@@ -726,18 +735,61 @@ mod tests {
     }
 
     #[test]
-    fn a_minecart_presses_a_detector_rail_until_it_leaves() {
+    fn a_placed_minecart_would_meet_the_detecting_box() {
+        let at = IVec3::new(2, Y, 2);
+        let (width, height) = (0.98, 0.7);
+        let placed = at.as_dvec3() + DVec3::new(0.5, MINECART_LIFT, 0.5);
+        assert!(meets_detector(at, placed, width, height));
+        assert!(
+            !meets_detector(at, placed + DVec3::X * 1.2, width, height),
+            "on the next rail"
+        );
+        assert!(
+            !meets_detector(at, placed + DVec3::Y * 0.7, width, height),
+            "above the box"
+        );
+    }
+
+    #[test]
+    fn a_pressed_detector_rail_without_a_minecart_releases_at_its_recheck() {
         let mut s = Server::new();
         let at = IVec3::new(2, Y, 2);
         s.set(at, state("minecraft:detector_rail", &[]));
-        assert!(place_minecart(s.world(), at, "minecraft:minecart"));
-        let carts = s.actors("minecraft:minecart");
-        assert_eq!(carts.len(), 1);
-        assert!((carts[0].1 - DVec3::new(2.5, 64.15, 2.5)).length() < 1e-9);
         entity_inside(s.world(), at);
+        assert_eq!(
+            s.value(at, RAIL_DATA),
+            Some(StateValue::Byte(0)),
+            "nothing on it"
+        );
+        s.set(
+            at,
+            state(
+                "minecraft:detector_rail",
+                &[(RAIL_DATA, StateValue::Byte(1))],
+            ),
+        );
+        schedule_tick(s.world(), at, DETECTOR_RECHECK);
+        s.tick(DETECTOR_RECHECK - 1);
         assert_eq!(s.value(at, RAIL_DATA), Some(StateValue::Byte(1)));
-        s.world().despawn(carts[0].0);
-        s.tick(DETECTOR_RECHECK + 1);
+        s.tick(2);
+        assert_eq!(s.value(at, RAIL_DATA), Some(StateValue::Byte(0)));
+    }
+
+    /// Minecart actors cannot be spawned yet: placing one reports failure
+    /// and leaves nothing behind.
+    #[test]
+    fn minecarts_cannot_be_placed_yet() {
+        let mut s = Server::new();
+        let at = IVec3::new(2, Y, 2);
+        s.set(at, state("minecraft:detector_rail", &[]));
+        assert!(
+            s.world()
+                .resource::<crate::entity::mob::MobRegistry>()
+                .unsupported("minecraft:minecart")
+                .is_some()
+        );
+        assert!(!place_minecart(s.world(), at, "minecraft:minecart"));
+        assert!(s.actors("minecraft:minecart").is_empty());
         assert_eq!(s.value(at, RAIL_DATA), Some(StateValue::Byte(0)));
     }
 }
