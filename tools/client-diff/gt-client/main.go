@@ -59,31 +59,53 @@ type step struct {
 	Stale bool `json:"stale"`
 	// ToContainer addresses the destination of move_item/place_cursor in
 	// "armor" or "offhand", the inventory crafting grid ("crafting", slots
-	// 28-31), or in the open block window ("chest", "barrel", "ingredient",
-	// "fuel", "result", "anvil_input", "anvil_material", "smithing_input",
-	// "smithing_material", "smithing_template", "grindstone_input",
-	// "grindstone_additional"), instead of the player inventory (slot = To).
+	// 28-31), or in the open block window (see containerIDs for the names
+	// and their UI slots), instead of the player inventory (slot = To). For
+	// craft it places the crafted stack into that window slot (enchanting).
 	ToContainer string `json:"to_container"`
 	// FromContainer addresses the source of move_item in the open block
 	// window (same names as ToContainer, slot = Slot).
 	FromContainer string `json:"from_container"`
 	// Consume makes craft consume one item from each listed slot (the
-	// crafting grid, or the input slots of the open anvil, smithing table or
-	// grindstone) instead of inventory slot Slot.
+	// crafting grid, or the input slots of the open block window) instead
+	// of inventory slot Slot.
 	Consume []slotRef `json:"consume"`
 	// Action selects the craft action: "" sends CraftRecipe, "optional"
 	// CraftRecipeOptional with Text as the request's filter string (anvil),
-	// "grindstone" CraftGrindstoneRecipe with Cost. RecipeNetworkID is used
-	// when Recipe is empty: the anvil uses 0, the grindstone defaults to the
-	// stack network ID of the first consumed input.
+	// "grindstone" CraftGrindstoneRecipe with Cost, "enchant" CraftRecipe
+	// with the recipe network ID of enchanting option Option of the last
+	// PlayerEnchantOptions, "loom" CraftLoomRecipe with Pattern.
+	// RecipeNetworkID is used when Recipe is empty: the anvil uses 0, the
+	// grindstone defaults to the stack network ID of the first consumed
+	// input. For book, Action is the edit: "replace", "add", "delete",
+	// "swap" or "sign".
 	Action          string `json:"action"`
 	RecipeNetworkID uint32 `json:"recipe_network_id"`
 	Cost            int32  `json:"cost"`
+	Option          int    `json:"option"`
+	Pattern         string `json:"pattern"`
 	// Result makes craft also send the client's predicted output
 	// (CraftResultsDeprecated): one item with this identifier and ResultNBT
 	// as its tag (JSON integers become TAG_Int, e.g. {"Damage": 9}).
 	Result    string         `json:"result"`
 	ResultNBT map[string]any `json:"result_nbt"`
+	// Flags are PlayerAuthInput input flags (see inputFlags) set on every
+	// tick of a move step.
+	Flags []string `json:"flags"`
+	// Event and TimeoutMS: wait_event blocks until the server sends an
+	// ActorEvent of type Event, or TimeoutMS passes (logged, not fatal).
+	Event     int32 `json:"event"`
+	TimeoutMS int64 `json:"timeout_ms"`
+	// Page, Title and Author are BookEdit fields (book; Text is the page
+	// text and To the second page of "swap").
+	Page   int32  `json:"page"`
+	Title  string `json:"title"`
+	Author string `json:"author"`
+	// Disabled is the requested state of toggle_crafter.
+	Disabled bool `json:"disabled"`
+	// Lenient logs and skips an interaction step the bot cannot build (an
+	// empty source slot, no map in hand) instead of failing the scenario.
+	Lenient bool `json:"lenient"`
 }
 
 // slotRef is a container slot named like step.ToContainer; Count (default
@@ -129,6 +151,11 @@ func (s scenario) validate() error {
 			if step.Ticks <= 0 {
 				return fmt.Errorf("step %d: move needs positive ticks", i)
 			}
+			for _, name := range step.Flags {
+				if _, ok := inputFlags[name]; !ok {
+					return fmt.Errorf("step %d: unknown input flag %q", i, name)
+				}
+			}
 		case "move_item", "drop", "craft", "take_cursor", "place_cursor", "swap", "drop_cursor", "destroy":
 			if step.Count <= 0 || step.Count > 64 || step.Slot < 0 || step.Slot >= blockSlots || step.To < 0 || step.To >= blockSlots {
 				return fmt.Errorf("step %d: %s needs count 1..64 and slots 0..53", i, step.Kind)
@@ -147,8 +174,17 @@ func (s scenario) validate() error {
 			if step.Kind == "craft" && step.Recipe == "" && step.Action == "" {
 				return fmt.Errorf("step %d: craft needs a recipe", i)
 			}
-			if step.Action != "" && step.Action != "optional" && step.Action != "grindstone" {
+			switch step.Action {
+			case "", "optional", "grindstone", "enchant":
+			case "loom":
+				if step.Pattern == "" {
+					return fmt.Errorf("step %d: loom needs a pattern", i)
+				}
+			default:
 				return fmt.Errorf("step %d: unknown craft action %q", i, step.Action)
+			}
+			if step.Kind == "craft" && (step.ToContainer == "armor" || step.ToContainer == "offhand" || step.ToContainer == "crafting") {
+				return fmt.Errorf("step %d: craft places into the inventory or the open block window", i)
 			}
 			for _, ref := range step.Consume {
 				if _, ok := containerIDs[ref.Container]; step.Kind != "craft" || !ok || ref.Container == "armor" || ref.Container == "offhand" {
@@ -164,7 +200,22 @@ func (s scenario) validate() error {
 			if step.Stale && step.Kind == "craft" {
 				return fmt.Errorf("step %d: craft cannot use a stale stack ID", i)
 			}
-		case "open_inventory", "close_inventory", "close_container":
+		case "open_inventory", "close_inventory", "close_container", "map_info":
+		case "wait_event":
+			if step.TimeoutMS <= 0 || !validDelay(step.TimeoutMS) {
+				return fmt.Errorf("step %d: wait_event needs a positive timeout_ms", i)
+			}
+		case "book":
+			if step.Slot < 0 || step.Slot >= inventorySize {
+				return fmt.Errorf("step %d: book needs an inventory slot 0..35", i)
+			}
+			if _, ok := bookActions[step.Action]; !ok {
+				return fmt.Errorf("step %d: unknown book action %q", i, step.Action)
+			}
+		case "toggle_crafter":
+			if step.Slot < 0 || step.Slot > 8 {
+				return fmt.Errorf("step %d: toggle_crafter needs a crafter slot 0..8", i)
+			}
 		case "select":
 			if step.Slot < 0 || step.Slot > 8 {
 				return fmt.Errorf("step %d: select needs a hotbar slot 0..8", i)
@@ -173,7 +224,11 @@ func (s scenario) validate() error {
 			if step.Entity == "" {
 				return fmt.Errorf("step %d: %s needs an entity type", i, step.Kind)
 			}
-		case "break", "click", "use", "release", "consume":
+		case "break":
+			if step.Ticks < 0 {
+				return fmt.Errorf("step %d: break ticks must not be negative", i)
+			}
+		case "click", "use", "release", "consume":
 		default:
 			return fmt.Errorf("step %d: unsupported kind %q", i, step.Kind)
 		}
@@ -462,9 +517,19 @@ func run(ctx context.Context, address, scenarioName, scenariosPath, output strin
 			pks = []packet.Packet{&packet.Text{TextType: packet.TextTypeChat, SourceName: id.DisplayName, Message: sess.expand(step.Text)}}
 		case "command":
 			pks = []packet.Packet{&packet.CommandRequest{CommandLine: sess.expand(step.Text), CommandOrigin: protocol.CommandOrigin{Origin: protocol.CommandOriginPlayer, UUID: uuid.MustParse(id.UUID)}, Version: "latest"}}
+		case "wait_event":
+			if err := sess.waitEvent(ctx, step.Event, time.Duration(step.TimeoutMS)*time.Millisecond); err != nil {
+				return fmt.Errorf("step %d: %w", i, err)
+			}
 		default:
 			var specs []inputSpec
 			pks, specs, err = sess.interaction(step)
+			if err != nil && step.Lenient {
+				// The step depends on an earlier server decision (e.g. a
+				// craft whose inputs an accepted candidate already used).
+				fmt.Fprintf(os.Stderr, "step %d (%s) skipped: %v\n", i, step.Kind, err)
+				continue
+			}
 			if err != nil {
 				return fmt.Errorf("step %d (%s): %w", i, step.Kind, err)
 			}
