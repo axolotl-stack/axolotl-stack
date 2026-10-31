@@ -564,6 +564,12 @@ pub(crate) fn authorize_block_operation(
     kind: BlockInteractionKind,
     positions: &[(i32, i32, i32)],
 ) -> bool {
+    if positions
+        .iter()
+        .any(|&(x, y, z)| super::containers::mutation_locked(world, IVec3::new(x, y, z)))
+    {
+        return false;
+    }
     let states: Option<Vec<_>> = positions
         .iter()
         .map(|position| block_at(world, *position))
@@ -589,6 +595,9 @@ pub(crate) fn authorize_block_operation(
             .collect(),
     );
     allowed
+        && positions
+            .iter()
+            .all(|&(x, y, z)| !super::containers::mutation_locked(world, IVec3::new(x, y, z)))
         && world.get_entity(player).is_ok()
         && world
             .get::<crate::entity::components::GameMode>(player)
@@ -650,6 +659,9 @@ fn break_block(world: &mut World, player: Entity, x: i32, y: i32, z: i32) {
 
 /// Apply an already approved break; never called before cancellable dispatch.
 fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32, z: i32) {
+    if super::containers::mutation_locked(world, IVec3::new(x, y, z)) {
+        return;
+    }
     debug!(pos = ?(x, y, z), "Committing block break");
 
     let (cx, cz) = world_to_chunk_coords(x, z);
@@ -1149,6 +1161,9 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 /// viewers (with the place sound when `place_sound`) and schedule gravity
 /// checks for the block and the one above it.
 pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    if super::containers::mutation_locked(world, pos) {
+        return;
+    }
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
@@ -1242,6 +1257,9 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
 /// air, and its tool-less drops and any container contents fall as items
 /// (BDS's order: `LevelEvent` 2001, `UpdateBlock`, `AddItemActor`).
 pub(crate) fn destroy_block(world: &mut World, pos: IVec3) {
+    if super::containers::mutation_locked(world, pos) {
+        return;
+    }
     let Some(original) = block_at(world, (pos.x, pos.y, pos.z)) else {
         return;
     };
@@ -1350,6 +1368,61 @@ mod tests {
         world
             .resource_mut::<BlockInteractionHooks>()
             .register(handler);
+    }
+
+    /// Install a reservation from the last native authorization stage.
+    struct ReservePlacement;
+    impl BlockInteractionHandler for ReservePlacement {
+        fn on_interaction(&self, world: &mut World, event: &mut BlockInteraction) {
+            if event.kind() == BlockInteractionKind::Place {
+                world.init_resource::<super::super::ContainerMutationLocks>();
+                assert!(
+                    world
+                        .resource_mut::<super::super::ContainerMutationLocks>()
+                        .acquire("operation", event.positions().iter().copied())
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn late_native_reservation_rejects_placement_before_world_or_item_cost() {
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.0, 64.0, 1.0));
+        let data = placement(&mut world);
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
+            .unwrap();
+        hook(&mut world, ReservePlacement);
+        handle_block_click(&mut world, player, &data);
+        let event = world.resource_mut::<EventBuffer>().drain().pop().unwrap();
+        commit_block_event(&mut world, &event);
+        assert!(
+            world
+                .resource::<super::super::ContainerMutationLocks>()
+                .is_locked(IVec3::new(1, 65, 1))
+        );
+        assert_eq!(
+            world
+                .get::<ChunkData>(chunk)
+                .unwrap()
+                .inner
+                .get_block(1, 65, 1),
+            *blocks::AIR
+        );
+        assert_eq!(
+            world
+                .get::<MainInventory>(player)
+                .unwrap()
+                .0
+                .item(0)
+                .unwrap()
+                .count,
+            2
+        );
     }
 
     fn block_world(mode: GameMode, position: DVec3) -> (World, Entity, Entity) {

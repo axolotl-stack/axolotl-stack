@@ -163,6 +163,9 @@ pub(super) fn load(world: &mut World, pos: IVec3) -> Option<ContainerKind> {
 
 /// Write the cached actor at `pos` back into its chunk.
 fn save(world: &mut World, pos: IVec3) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let Some(compound) = world
         .resource::<BlockContainers>()
         .live
@@ -194,6 +197,9 @@ fn container(world: &World, pos: IVec3) -> Option<&BlockContainer> {
 }
 
 fn container_mut(world: &mut World, pos: IVec3) -> Option<Mut<'_, BlockContainer>> {
+    if mutation_locked(world, pos) {
+        return None;
+    }
     let containers = world.resource_mut::<BlockContainers>();
     if !containers.live.contains_key(&pos) {
         return None;
@@ -252,9 +258,121 @@ pub(super) fn placement_authorization_positions(
     positions
 }
 
+/// Read pair coordinates without loading, unpacking loot or repairing the actor.
+fn stored_pair(world: &World, pos: IVec3) -> Option<IVec3> {
+    if !kind_at(world, pos)?.0.pairs() {
+        return None;
+    }
+    let chunk = world.get::<ChunkData>(chunk_entity(world, pos)?)?;
+    let actor = chunk
+        .inner
+        .block_entities()
+        .iter()
+        .find(|actor| actor.position() == pos.to_array())?;
+    let compound = actor.bedrock_compound()?.ok()?;
+    let integer = |key: &str| match compound.0.get(key) {
+        Some(zuri_nbt::NBTTag::Int(value)) => Some(value.0),
+        Some(zuri_nbt::NBTTag::Short(value)) => Some(i32::from(value.0)),
+        Some(zuri_nbt::NBTTag::Byte(value)) => Some(i32::from(value.0)),
+        _ => None,
+    };
+    if integer("forceunpair") == Some(1) {
+        return None;
+    }
+    Some(IVec3::new(integer("pairx")?, pos.y, integer("pairz")?))
+}
+
+/// A native operation on either half must respect a reservation on the other.
+pub(crate) fn mutation_locked(world: &World, pos: IVec3) -> bool {
+    let Some(locks) = world.get_resource::<super::ContainerMutationLocks>() else {
+        return false;
+    };
+    if locks.is_empty() {
+        return false;
+    }
+    if locks.is_locked(pos) {
+        return true;
+    }
+    let cached = world
+        .get_resource::<BlockContainers>()
+        .and_then(|containers| containers.live.get(&pos));
+    let other = match cached {
+        Some(container) => pair_pos(container),
+        None => stored_pair(world, pos),
+    };
+    other.is_some_and(|other| locks.is_locked(other))
+}
+
+/// Replace obsolete runtime windows/cache after a trusted acknowledged edit batch.
+pub(super) fn invalidate_after_mutation(world: &mut World, positions: &[IVec3]) {
+    if !world.contains_resource::<BlockContainers>() {
+        return;
+    }
+    let mut affected = positions
+        .iter()
+        .copied()
+        .collect::<std::collections::HashSet<_>>();
+    for &pos in positions {
+        affected.extend(
+            world
+                .get_resource::<BlockContainers>()
+                .and_then(|containers| containers.live.get(&pos))
+                .and_then(pair_pos),
+        );
+        affected.extend(stored_pair(world, pos));
+    }
+    let closing = world
+        .query::<(Entity, &ContainerWindows)>()
+        .iter(world)
+        .filter_map(|(player, windows)| match windows.screen() {
+            ScreenKind::Block(screen) if affected.contains(&screen.at) => {
+                Some((player, windows.open_id()?, screen.kind))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    for &(player, window, kind) in &closing {
+        if let Some(mut windows) = world.get_mut::<ContainerWindows>(player) {
+            windows.close();
+        }
+        send(
+            world,
+            player,
+            ContainerClosePacket {
+                container_id: window,
+                container_type: kind.wire_type() as u8,
+                server_initiated_close: true,
+            },
+        );
+    }
+    {
+        let mut containers = world.resource_mut::<BlockContainers>();
+        for pos in &affected {
+            containers.live.remove(pos);
+            containers.ticking.remove(&pos.to_array());
+        }
+        containers.viewers.retain(|pos, viewers| {
+            viewers.retain(|viewer| {
+                !closing
+                    .iter()
+                    .any(|(player, _, _)| *player == viewer.player)
+            });
+            !affected.contains(pos) && !viewers.is_empty()
+        });
+    }
+    for pos in affected {
+        if !mutation_locked(world, pos) && load(world, pos).is_some() {
+            send_client_state(world, pos);
+        }
+    }
+}
+
 /// A double chest's halves as (lead, other), after dropping a pair whose
 /// partner no longer pairs back.
 fn halves(world: &mut World, pos: IVec3) -> Option<(IVec3, Option<IVec3>)> {
+    if mutation_locked(world, pos) {
+        return None;
+    }
     let kind = load(world, pos)?;
     let Some(other) = container(world, pos).and_then(pair_pos) else {
         return Some((pos, None));
@@ -323,6 +441,9 @@ fn store_view(world: &mut World, pos: IVec3, slots: &Inventory) {
 /// while slots remain (the Java `LootTable.fill` algorithm; BDS's random
 /// sequence is not reproduced, so the same seed gives different contents).
 fn unpack_loot(world: &mut World, pos: IVec3) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let Some((path, seed)) = container_mut(world, pos).and_then(|mut c| c.take_loot_table()) else {
         return;
     };
@@ -439,6 +560,9 @@ fn window_content(
 
 /// `BlockActorData` with the client-side state BDS sends after pair changes.
 fn send_client_state(world: &World, pos: IVec3) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let Some(container) = container(world, pos) else {
         return;
     };
@@ -532,6 +656,9 @@ pub(super) fn open(world: &mut World, player: Entity, clicked: IVec3) -> bool {
     let Some((kind, _)) = kind_at(world, clicked) else {
         return false;
     };
+    if mutation_locked(world, clicked) {
+        return true;
+    }
     if world
         .get::<ContainerWindows>(player)
         .is_none_or(|windows| windows.open_id().is_some())
@@ -638,6 +765,9 @@ pub(super) fn window_slots(
     player: Entity,
     screen: BlockScreen,
 ) -> Option<Inventory> {
+    if mutation_locked(world, screen.at) {
+        return None;
+    }
     let slots = if screen.kind == ContainerKind::EnderChest {
         world.get::<EnderChestInventory>(player)?.0.clone()
     } else {
@@ -664,6 +794,9 @@ pub(super) fn commit_window(
     before: &Inventory,
     after: Inventory,
 ) {
+    if mutation_locked(world, screen.at) {
+        return;
+    }
     if before
         .slots()
         .iter()
@@ -902,6 +1035,9 @@ fn pair_candidates(pos: IVec3, direction: &str) -> [IVec3; 2] {
 
 /// A block was placed at `pos`: create its container actor and pair chests.
 pub(super) fn placed(world: &mut World, pos: IVec3) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let Some((kind, _)) = kind_at(world, pos) else {
         return;
     };
@@ -932,7 +1068,8 @@ fn pair_target(
     direction: &'static str,
 ) -> Option<IVec3> {
     for other in pair_candidates(pos, direction) {
-        if kind_at(world, other).map(|(k, _)| k) != Some(kind)
+        if mutation_locked(world, other)
+            || kind_at(world, other).map(|(k, _)| k) != Some(kind)
             || state_value(world, other, "minecraft:cardinal_direction")
                 != Some(StateValue::Str(direction))
             || load(world, other).is_none()
@@ -987,6 +1124,9 @@ pub(super) struct BrokenContainer {
 /// Before the block at `pos` is removed: close its windows, unpair a double
 /// chest and take its contents out.
 pub(super) fn breaking(world: &mut World, pos: IVec3) -> Option<BrokenContainer> {
+    if mutation_locked(world, pos) {
+        return None;
+    }
     let kind = load(world, pos)?;
     unpack_loot(world, pos);
     close_viewers(world, pos, kind);
@@ -1089,6 +1229,9 @@ pub fn tick_block_containers(world: &mut World) {
         .map(|&pos| IVec3::from_array(pos))
         .collect();
     for pos in ticking {
+        if mutation_locked(world, pos) {
+            continue;
+        }
         match load(world, pos) {
             Some(kind) if kind.smelter().is_some() => tick_furnace(world, pos, kind),
             Some(ContainerKind::Hopper) => tick_hopper(world, pos),
@@ -1115,6 +1258,9 @@ fn upkeep_viewers(world: &mut World, tick: u64) {
         .copied()
         .collect();
     for lid in lids {
+        if mutation_locked(world, lid) {
+            continue;
+        }
         let viewers = world.resource::<BlockContainers>().viewers[&lid].clone();
         let kind = container(world, lid).map(|c| c.kind);
         let mut kept = Vec::with_capacity(viewers.len());
@@ -1231,6 +1377,9 @@ fn can_burn(world: &World, container: &BlockContainer) -> bool {
 }
 
 fn tick_furnace(world: &mut World, pos: IVec3, kind: ContainerKind) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let smelter = kind.smelter().expect("furnace kinds smelt");
     let cook = i32::from(smelter.cook_ticks);
     let Some(snapshot) = container(world, pos).cloned() else {
@@ -1399,6 +1548,9 @@ fn extract_slots(kind: ContainerKind, slots: &Inventory) -> Vec<usize> {
 }
 
 fn tick_hopper(world: &mut World, pos: IVec3) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let disabled = matches!(
         state_value(world, pos, "toggle_bit"),
         Some(StateValue::Byte(1))
@@ -1434,6 +1586,9 @@ fn tick_hopper(world: &mut World, pos: IVec3) {
 
 fn hopper_push(world: &mut World, pos: IVec3) -> bool {
     let target = hopper_target(world, pos);
+    if mutation_locked(world, pos) || mutation_locked(world, target) {
+        return false;
+    }
     let Some((target_kind, mut target_slots)) =
         load(world, target).and_then(|_| view(world, target))
     else {
@@ -1466,6 +1621,9 @@ fn hopper_push(world: &mut World, pos: IVec3) -> bool {
 
 fn hopper_pull(world: &mut World, pos: IVec3) -> bool {
     let above = pos + IVec3::Y;
+    if mutation_locked(world, pos) || mutation_locked(world, above) {
+        return false;
+    }
     let Some(mut hopper) = container(world, pos).map(|c| c.items.clone()) else {
         return false;
     };
