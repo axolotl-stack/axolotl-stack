@@ -28,8 +28,8 @@ use super::death;
 use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
 use crate::entity::components::{
-    ActorViewers, GameMode, Health, PhysicsBody, Player, PlayerSession, Position, RuntimeId,
-    Velocity,
+    ActorViewers, GameMode, Health, HeldSlot, PhysicsBody, Player, PlayerSession, Position,
+    RuntimeId, Velocity,
 };
 use crate::entity::mob::components::{
     HurtCondition, HurtOnConditionConfig, KnockbackPower, KnockbackRules,
@@ -75,46 +75,58 @@ pub fn knockback_power_of(world: &World, attacker: Entity) -> KnockbackPower {
 /// transaction are not trusted.
 ///
 /// Spectators, dead players and players whose eye is farther than
-/// [`constants::MELEE_REACH`] from the mob's box cannot hit. Creative
-/// players deal normal melee damage.
+/// [`constants::MELEE_REACH`] from the target's box cannot hit. The reported
+/// slot must match the server-selected hotbar slot. Creative players deal
+/// normal melee damage, but creative and spectator targets are immune.
 pub fn player_attack(
     world: &mut World,
     player: Entity,
     target: Entity,
-    _transaction: &ItemUseOnActorInventoryTransaction,
+    transaction: &ItemUseOnActorInventoryTransaction,
 ) {
+    if player == target
+        || world
+            .get::<HeldSlot>(player)
+            .is_none_or(|slot| slot.0 >= 9 || transaction.slot != i32::from(slot.0))
+    {
+        return;
+    }
     let Some(eye) = attacker_eye(world, player) else {
         return;
     };
-    let (Some(feet), Some(body)) = (
-        world.get::<Position>(target).map(|p| p.0),
-        world.get::<PhysicsBody>(target),
-    ) else {
+    let Some(target_box) = melee_target_box(world, target) else {
         return;
     };
-    let mob_box = Aabb::from_feet(feet, body.width, body.height);
-    if eye.distance_squared(eye.clamp(mob_box.min, mob_box.max))
+    if eye.distance_squared(eye.clamp(target_box.min, target_box.max))
         > constants::MELEE_REACH * constants::MELEE_REACH
     {
         return;
     }
+    let selected_slot = world.get::<HeldSlot>(player).map(|slot| slot.0);
     let held = held_item(world, player).cloned();
     let damage = unastar_data::melee::attack_damage(held.as_ref().map(|stack| stack.item_id()));
-    let applied = hurt_mob(
-        world,
-        target,
-        Hit {
-            damage,
-            cause: ActorDamageCause::EntityAttack,
-            attacker: Some(player),
-            by_player: true,
-            knockback_from: Some(eye),
-            knockback_power: KnockbackPower::DEFAULT,
-        },
-    );
+    let hit = Hit {
+        damage,
+        cause: ActorDamageCause::EntityAttack,
+        attacker: Some(player),
+        by_player: true,
+        knockback_from: Some(eye),
+        knockback_power: KnockbackPower::DEFAULT,
+    };
+    let applied = if world.get::<Player>(target).is_some() {
+        let applied = crate::entity::player_life::hurt_player(world, target, &hit);
+        if applied <= 0.0 {
+            return;
+        }
+        applied
+    } else {
+        hurt_mob(world, target, hit)
+    };
     // The attacker pays food and, for a hit that landed, weapon durability.
     crate::server::game::hunger::exhaust_player(world, player, |values| values.attack);
     if applied > 0.0
+        && world.get::<HeldSlot>(player).map(|slot| slot.0) == selected_slot
+        && held_item(world, player) == held.as_ref()
         && let Some(entry) = held.as_ref().and_then(|stack| stack.item())
     {
         let wear = crate::server::game::durability::attack_wear(entry);
@@ -126,12 +138,50 @@ pub fn player_attack(
 fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
     world.get::<Player>(player)?;
     if *world.get::<GameMode>(player)? == GameMode::Spectator
-        || world.get::<Health>(player).is_some_and(Health::is_dead)
+        || world.get::<Dead>(player).is_some()
+        || world.get::<Health>(player).is_none_or(|health| {
+            !health.current.is_finite() || !health.max.is_finite() || health.is_dead()
+        })
     {
         return None;
     }
     let eye = world.get::<Position>(player)?.0;
     eye.is_finite().then_some(eye)
+}
+
+/// The server-owned collision box of a living melee target. Player
+/// positions are eyes; mob positions are feet.
+fn melee_target_box(world: &World, target: Entity) -> Option<Aabb> {
+    if world.get::<Dead>(target).is_some()
+        || world.get::<Health>(target).is_none_or(|health| {
+            !health.current.is_finite() || !health.max.is_finite() || health.is_dead()
+        })
+    {
+        return None;
+    }
+    let position = world.get::<Position>(target)?.0;
+    if !position.is_finite() {
+        return None;
+    }
+    let (feet, width, height) = if world.get::<Player>(target).is_some() {
+        if !world.get::<GameMode>(target)?.allows_damage() {
+            return None;
+        }
+        let rules = world.get_resource::<crate::entity::player_life::PlayerRules>()?;
+        (
+            position - DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT,
+            rules.width,
+            rules.height,
+        )
+    } else {
+        world.get::<MobKind>(target)?;
+        let body = world.get::<PhysicsBody>(target)?;
+        (position, body.width, body.height)
+    };
+    if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+        return None;
+    }
+    Some(Aabb::from_feet(feet, width, height))
 }
 
 /// Apply `hit` to `target` under the damage sensor and the hurt rules;
