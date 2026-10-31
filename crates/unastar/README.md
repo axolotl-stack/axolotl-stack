@@ -1570,3 +1570,17 @@ acknowledgement terminally fences the account for recovery. Loading and outbound
 pressure retry within a bounded queue without invoking the final predicate.
 Same-world movement retains the actor and its world-local components; dimension
 migration continues to use the separate transfer callbacks.
+
+## Independent flight permission
+
+`server::game::flight::set_override(world, player, Some(true))` grants native
+flight permission without changing the effective or durable game mode. Use
+`Some(false)` to deny it explicitly or `None` to follow the current mode.
+`override_value` reads the overlay and `allowed` returns the effective permission.
+The overlay grants neither creative inventory, instant build nor invulnerability.
+
+Raw snapshots and native world migration retain the overlay; ordinary account
+records retain their base mode. Initial and late viewer snapshots include the
+current permission. Deferred joins withhold it, excluded audiences do not receive
+it, and full transport queues retry against the original connection. Authoritative
+movement rejects unauthorized flight flags before updating fall or movement costs.

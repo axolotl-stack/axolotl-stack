@@ -7,7 +7,7 @@
 use crate::command::prelude::*;
 use crate::entity::components::{GameMode, Player, PlayerSession, RuntimeEntityId};
 use crate::server::game::ServerConfigResource;
-use crate::server::game::join::{abilities_packet, game_type};
+use crate::server::game::join::game_type;
 use jolyne::valentine::UpdatePlayerGameTypePacket;
 use jolyne::valentine::types::ActorUniqueId;
 
@@ -181,6 +181,7 @@ pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
 /// Change the engine's effective mode and send its ordinary authoritative packets.
 fn apply_game_mode(world: &mut World, player: Entity, mode: GameMode) {
     world.entity_mut(player).insert(mode);
+    crate::server::game::flight::refresh(world, player);
     if crate::server::game::player_events::initial_state_pending(world, player) {
         return;
     }
@@ -194,7 +195,8 @@ fn apply_game_mode(world: &mut World, player: Entity, mode: GameMode) {
         },
         tick: crate::entity::components::input_tick_of(world, player),
     };
-    let abilities = abilities_packet(runtime_id, mode, operator);
+    let abilities =
+        crate::server::game::flight::packet_for(world, player, runtime_id, mode, operator);
     let mut sessions = world.query::<(Entity, &PlayerSession)>();
     for (viewer, session) in sessions.iter(world) {
         if crate::server::broadcast::player_views::can_receive_actor(world, player, viewer) {

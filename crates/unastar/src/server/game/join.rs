@@ -165,8 +165,8 @@ impl GameServer {
         let _ = session.send(McpePacket::from(SetCommandsEnabledPacket {
             commands_enabled: true,
         }));
-        let _ = session.send(McpePacket::from(abilities_packet(
-            runtime_id, game_mode, operator,
+        let _ = session.send(McpePacket::from(super::flight::packet_for(
+            world, entity, runtime_id, game_mode, operator,
         )));
         let _ = session.send(McpePacket::from(GameRulesChangedPacket {
             rule_data: world.resource::<GameRules>().packet_data(),

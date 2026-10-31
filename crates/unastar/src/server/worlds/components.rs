@@ -154,6 +154,7 @@ pub(super) fn native_components() -> TransferComponents {
         Experience,
         Effects,
         PlayerNetworkMetrics,
+        game::flight::FlightOverride,
         PlayerEquipmentProjection,
         game::inventory_effects::InventoryPersistence,
         game::hunger::FoodTimer,
