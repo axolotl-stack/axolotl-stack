@@ -481,17 +481,22 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
         if let Some(cached) = self.scratch.blocks.get(&pos) {
             return *cached;
         }
+        // Each block is classified as it collides: with its neighbour-derived
+        // connections, and a door half as the whole door (the lower half
+        // holds the open bit, the upper half the hinge).
         let state = self
             .blocks
             .block_at(pos)
-            .filter(|id| self.blocks.registry().get_by_runtime_id(*id).is_some());
+            .filter(|id| self.blocks.registry().get_by_runtime_id(*id).is_some())
+            .map(|state| {
+                connected_state(self.blocks.registry(), pos, state, |p| {
+                    self.blocks.block_at(p)
+                })
+            });
         self.scratch.local_boxes.clear();
         match state {
             Some(state) if (self.permitted)(state, WalkBlockRole::Collides) => {
-                let resolved = connected_state(self.blocks.registry(), pos, state, |p| {
-                    self.blocks.block_at(p)
-                });
-                block_collision_boxes(resolved, &mut self.scratch.local_boxes);
+                block_collision_boxes(state, &mut self.scratch.local_boxes);
             }
             Some(_) => {}
             None => self

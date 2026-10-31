@@ -57,7 +57,7 @@ use crate::entity::mob::net::sound::level_event;
 use crate::entity::mob::state::AttackTarget;
 use crate::entity::navigation::WalkWaypoint;
 use crate::entity::systems::BlockSource;
-use crate::registry::collision::{Aabb, block_collision_boxes};
+use crate::registry::collision::{Aabb, block_collision_boxes, connected_state};
 use crate::world::rules::{Difficulty, GameRules};
 
 /// Sides of a block cell, as door panels and path entries name them.
@@ -171,6 +171,12 @@ fn cell_box(cell: IVec3) -> Aabb {
     Aabb::new(cell.as_dvec3(), cell.as_dvec3() + DVec3::ONE)
 }
 
+/// The door half `state` at `cell` as the whole door collides: its open bit
+/// from the lower half and its hinge from the upper half.
+fn whole_door(world: &World, cell: IVec3, state: u32) -> u32 {
+    connected_state(world.registry(), cell, state, |p| world.block_at(p))
+}
+
 /// The side of its cell a door state's panel lies on, from its collision
 /// shape.
 fn panel_side(state: u32, boxes: &mut Vec<Aabb>) -> Option<Side> {
@@ -247,6 +253,7 @@ pub(super) fn held_by_breakable_door(
     let Some(door) = world
         .block_at(cell)
         .filter(|&block| table.is_door(block) && !table.is_iron_door(block))
+        .map(|block| whole_door(world, cell, block))
     else {
         return false;
     };
@@ -276,7 +283,9 @@ fn check(
     let block = world.block_at(cell);
     let table = world.resource::<PathBlockTable>();
     let iron = block.is_some_and(|block| table.is_iron_door(block));
-    let door = block.filter(|&block| table.is_door(block));
+    let door = block
+        .filter(|&block| table.is_door(block))
+        .map(|block| whole_door(world, cell, block));
     if *world.resource::<Difficulty>() < config.min_difficulty
         || !world.resource::<GameRules>().mob_griefing
         || iron

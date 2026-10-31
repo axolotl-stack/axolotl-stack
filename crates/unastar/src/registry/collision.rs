@@ -341,6 +341,22 @@ struct ConnectionState {
     gate_spans_x: Option<bool>,
     wall_post: WallPost,
     transition: usize,
+    door: Option<DoorHalf>,
+}
+
+/// A door half's stored bits and its variants. The lower half stores the
+/// open state and the upper half the hinge (a player's use flips only the
+/// lower half's `open_bit`), but each half collides as the whole door: the
+/// shape is looked up with the lower half's open bit and the upper half's
+/// hinge.
+#[derive(Debug, Clone, Copy)]
+struct DoorHalf {
+    family: u32,
+    upper: bool,
+    open: bool,
+    hinge: bool,
+    /// This half with `[open][hinge]` applied, everything else kept.
+    variants: [[u32; 2]; 2],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -390,6 +406,9 @@ impl ConnectionCache {
         for entry in registry.iter() {
             let kind = connectable(entry);
             let gate = has_property(entry, "in_wall_bit");
+            let door = ["upper_block_bit", "open_bit", "door_hinge_bit"]
+                .iter()
+                .all(|property| has_property(entry, property));
             for state in entry.min_state_id..=entry.max_state_id {
                 let transition = if let Some(kind) = kind {
                     let set = |property, value| {
@@ -440,6 +459,7 @@ impl ConnectionCache {
                     }),
                     wall_post: wall_post_rule(entry, state, kind),
                     transition,
+                    door: door.then(|| door_half(entry, state)),
                 });
             }
         }
@@ -452,6 +472,32 @@ impl ConnectionCache {
 
     fn transitions(&self, state: u32) -> &ConnectionTransitions {
         &self.transitions[self.states[state as usize].as_ref().unwrap().transition]
+    }
+
+    /// The state the door half `state` at `pos` collides as: its own
+    /// direction with the lower half's open bit and the upper half's hinge.
+    /// A half without its other half keeps its own bits.
+    fn door_state(
+        &self,
+        half: DoorHalf,
+        pos: IVec3,
+        block_at: impl Fn(IVec3) -> Option<u32>,
+    ) -> u32 {
+        let partner_pos = if half.upper {
+            pos - IVec3::Y
+        } else {
+            pos + IVec3::Y
+        };
+        let partner = block_at(partner_pos)
+            .and_then(|state| self.state(state))
+            .and_then(|state| state.door)
+            .filter(|other| other.family == half.family && other.upper != half.upper);
+        let (open, hinge) = match partner {
+            Some(other) if half.upper => (other.open, half.hinge),
+            Some(other) => (half.open, other.hinge),
+            None => (half.open, half.hinge),
+        };
+        half.variants[usize::from(open)][usize::from(hinge)]
     }
 
     fn connects(&self, kind: Connectable, side: Side, neighbour: Option<u32>) -> bool {
@@ -486,8 +532,10 @@ impl ConnectionCache {
     }
 }
 
-/// The state of `state` at `pos`, with neighbour-derived fence/wall/pane/bar
-/// connections. All query-time work uses numeric immutable registry data.
+/// The state of `state` at `pos` as it collides: fence/wall/pane/bar
+/// connections derived from the neighbours, and a door half combined with
+/// its other half (see [`DoorHalf`]). All query-time work uses numeric
+/// immutable registry data.
 pub fn connected_state(
     registry: &BlockRegistry,
     pos: IVec3,
@@ -495,7 +543,13 @@ pub fn connected_state(
     block_at: impl Fn(IVec3) -> Option<u32>,
 ) -> u32 {
     let cache = &registry.connections;
-    let Some(kind) = cache.state(state).and_then(|state| state.kind) else {
+    let Some(facts) = cache.state(state) else {
+        return state;
+    };
+    if let Some(half) = facts.door {
+        return cache.door_state(half, pos, block_at);
+    }
+    let Some(kind) = facts.kind else {
         return state;
     };
     let connected = Side::ALL.map(|side| cache.connects(kind, side, block_at(pos + side.offset())));
@@ -517,6 +571,27 @@ pub fn connected_state(
         resolved = cache.transitions(resolved).post[usize::from(post)];
     }
     resolved
+}
+
+/// The stored bits and open/hinge variants of the door half `state`.
+fn door_half(entry: &BlockEntry, state: u32) -> DoorHalf {
+    let bit = |property| entry.state_value(state, property) == Some(StateValue::Byte(1));
+    let variant = |open: u8, hinge: u8| {
+        entry
+            .with_state_value(state, "open_bit", StateValue::Byte(open))
+            .and_then(|s| entry.with_state_value(s, "door_hinge_bit", StateValue::Byte(hinge)))
+            .unwrap_or_else(|| panic!("{} has open_bit and door_hinge_bit", entry.string_id))
+    };
+    DoorHalf {
+        family: entry.min_state_id,
+        upper: bit("upper_block_bit"),
+        open: bit("open_bit"),
+        hinge: bit("door_hinge_bit"),
+        variants: [
+            [variant(0, 0), variant(0, 1)],
+            [variant(1, 0), variant(1, 1)],
+        ],
+    }
 }
 
 /// Resolve post-forcing categories at registry load, preserving the original
@@ -955,6 +1030,57 @@ mod tests {
         assert_eq!(
             trapdoor(3, 1, 1),
             vec![local([0.0, 0.0, f(0.817499)], [1.0, 1.0, 1.0])]
+        );
+    }
+
+    /// A player's use flips only the lower half's `open_bit`; the hinge is
+    /// stored on the upper half only. Each half collides as the whole door,
+    /// so both halves of an opened door take the open panel on the hinge's
+    /// side, and a closed door ignores the hinge.
+    #[test]
+    fn door_halves_collide_as_the_whole_door() {
+        let half = |upper: u8, open: u8, hinge: u8| {
+            state(
+                "minecraft:wooden_door",
+                &[
+                    ("minecraft:cardinal_direction", StateValue::Str("north")),
+                    ("upper_block_bit", StateValue::Byte(upper)),
+                    ("open_bit", StateValue::Byte(open)),
+                    ("door_hinge_bit", StateValue::Byte(hinge)),
+                ],
+            )
+        };
+        for hinge in [0, 1] {
+            for open in [0, 1] {
+                let (lower, upper) = (half(0, open, 0), half(1, 0, hinge));
+                let at = |pos: IVec3| match pos.y {
+                    0 => Some(lower),
+                    1 => Some(upper),
+                    _ => None,
+                };
+                let resolved_lower = connected_state(registry(), IVec3::ZERO, lower, at);
+                let resolved_upper = connected_state(registry(), IVec3::Y, upper, at);
+                assert_eq!(
+                    boxes_of(resolved_lower),
+                    boxes_of(half(0, open, hinge)),
+                    "lower, open {open} hinge {hinge}"
+                );
+                assert_eq!(
+                    boxes_of(resolved_upper),
+                    boxes_of(half(1, open, hinge)),
+                    "upper, open {open} hinge {hinge}"
+                );
+            }
+        }
+        // The open panel moves with the hinge; the closed one does not.
+        assert_ne!(boxes_of(half(1, 1, 0)), boxes_of(half(1, 1, 1)));
+        assert_eq!(boxes_of(half(1, 0, 0)), boxes_of(half(1, 0, 1)));
+        assert_ne!(boxes_of(half(1, 0, 0)), boxes_of(half(1, 1, 0)));
+        // A half without its other half keeps its own bits.
+        let alone = half(1, 0, 1);
+        assert_eq!(
+            connected_state(registry(), IVec3::Y, alone, |_| None),
+            alone
         );
     }
 

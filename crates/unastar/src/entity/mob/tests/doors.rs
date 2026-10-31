@@ -798,52 +798,71 @@ fn door_facing(name: &str, direction: &'static str, open: bool, upper: bool) -> 
 /// z -2..=2, floor y 63, roof y 66) whose east wall holds an open oak door
 /// at (1, 64, 0); the player stands inside at (-0.5, 64, 0.5) and a zombie
 /// that turned on it starts outside at (6.5, 64, 0.5). On BDS the zombie walks
-/// through the doorway and reaches x = -0.98, hurting the player 4 s after it
-/// started.
+/// through the doorway and hurts the player about 4 s after it started.
+///
+/// The door is stored as a player's use leaves it: only the lower half has
+/// `open_bit` set and only the upper half the hinge, for both hinges. The
+/// upper half used to collide as a closed door, sealing the doorway at head
+/// height, so the zombie stopped against it. (On BDS the zombie then follows
+/// the player, knocked back west by the hits, to x -0.98; this harness's
+/// player is not moved by knockback.)
 #[test]
-#[ignore = "reproduces the open-doorway stop measured against BDS (zombie halts at x 0.27, BDS reaches -0.98); fix pending"]
 fn zombie_walks_through_an_open_doorway_to_the_player() {
     let planks = BlockRegistry::vanilla()
         .default_state_id_by_name("minecraft:oak_planks")
         .unwrap();
-    let (lower, upper) = (
-        door_facing("minecraft:wooden_door", "north", true, false),
-        door_facing("minecraft:wooden_door", "north", true, true),
-    );
-    let mut h = built(3, Difficulty::Hard, move |pos| {
-        let inside =
-            (-3..=1).contains(&pos.x) && (-2..=2).contains(&pos.z) && (63..=66).contains(&pos.y);
-        if !inside {
-            return None;
+    let entry = BlockRegistry::vanilla()
+        .get_by_name("minecraft:wooden_door")
+        .unwrap();
+    for hinge in [0u8, 1] {
+        let lower = door_facing("minecraft:wooden_door", "north", true, false);
+        let upper = entry
+            .with_state_value(
+                door_facing("minecraft:wooden_door", "north", false, true),
+                "door_hinge_bit",
+                StateValue::Byte(hinge),
+            )
+            .unwrap();
+        let mut h = built(3, Difficulty::Hard, move |pos| {
+            let inside = (-3..=1).contains(&pos.x)
+                && (-2..=2).contains(&pos.z)
+                && (63..=66).contains(&pos.y);
+            if !inside {
+                return None;
+            }
+            if pos == IVec3::new(1, 64, 0) {
+                return Some(lower);
+            }
+            if pos == IVec3::new(1, 65, 0) {
+                return Some(upper);
+            }
+            let shell = pos.x == -3 || pos.x == 1 || pos.z.abs() == 2 || pos.y == 63 || pos.y == 66;
+            Some(if shell { planks } else { air() })
+        });
+        let zombie = h.zombie_at(DVec3::new(6.5, 64.0, 0.5), false);
+        h.provoke(zombie);
+        let player = h.player;
+        h.world().get_mut::<Position>(player).unwrap().0 =
+            DVec3::new(-0.5, 64.0 + crate::entity::PLAYER_EYE_HEIGHT, 0.5);
+        let mut west = f64::MAX;
+        let mut hurt = None;
+        let mut events = Vec::new();
+        for tick in 0..400u64 {
+            h.server.tick();
+            h.door_events(tick, &mut events);
+            let feet = h.world().get::<Position>(zombie).unwrap().0;
+            west = west.min(feet.x);
+            if hurt.is_none() && h.world().get::<Health>(player).unwrap().current < 20.0 {
+                hurt = Some(tick);
+            }
         }
-        if pos == IVec3::new(1, 64, 0) {
-            return Some(lower);
-        }
-        if pos == IVec3::new(1, 65, 0) {
-            return Some(upper);
-        }
-        let shell = pos.x == -3 || pos.x == 1 || pos.z.abs() == 2 || pos.y == 63 || pos.y == 66;
-        Some(if shell { planks } else { air() })
-    });
-    let zombie = h.zombie_at(DVec3::new(6.5, 64.0, 0.5), false);
-    h.provoke(zombie);
-    let player = h.player;
-    h.world().get_mut::<Position>(player).unwrap().0 =
-        DVec3::new(-0.5, 64.0 + crate::entity::PLAYER_EYE_HEIGHT, 0.5);
-    let mut west = f64::MAX;
-    let mut hurt = None;
-    let mut events = Vec::new();
-    for tick in 0..400u64 {
-        h.server.tick();
-        h.door_events(tick, &mut events);
-        let feet = h.world().get::<Position>(zombie).unwrap().0;
-        west = west.min(feet.x);
-        if hurt.is_none() && h.world().get::<Health>(player).unwrap().current < 20.0 {
-            hurt = Some(tick);
-        }
+        // Its whole body passed the door cell (x 1..2) into the room.
+        assert!(
+            west + 0.3 < 1.0,
+            "hinge {hinge}: the zombie comes into the room: {west}"
+        );
+        assert!(hurt.is_some(), "hinge {hinge}: and hurts the player");
     }
-    assert!(west < 0.0, "the zombie comes into the room: {west}");
-    assert!(hurt.is_some(), "and hurts the player");
 }
 
 fn air() -> u32 {
