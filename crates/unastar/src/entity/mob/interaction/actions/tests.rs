@@ -265,8 +265,7 @@ fn melee_reach_uses_player_feet_and_rejects_non_finite_positions() {
                     .resource::<crate::entity::player_life::PlayerRules>()
                     .height;
                 h.world().get_mut::<Position>(attacker).unwrap().0 = target_eyes
-                    + DVec3::Y
-                        * (height + crate::entity::mob::constants::MELEE_REACH - 0.5);
+                    + DVec3::Y * (height + crate::entity::mob::constants::MELEE_REACH - 0.5);
             }
             1 => h.world().get_mut::<Position>(target).unwrap().0.x += 20.0,
             2 => h.world().get_mut::<Position>(target).unwrap().0.x = f64::NAN,
