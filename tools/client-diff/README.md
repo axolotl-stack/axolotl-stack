@@ -190,8 +190,9 @@ step the bot cannot build. Scenarios: `items3-dry`, `enchanting`,
 `itemuses-misc`, `fishing`, `lead-nametag`, `lead-nametag-2`. Map
 zoom/clone/lock requests sent as `CraftRecipe` with the multi recipe IDs
 crash BDS 1.26.51 (Endstone 0.11.12) or return status 9.
-Jolyne runs only chat/command scenarios and rejects interaction steps before
-connecting.
+The Rust driver (`client-diff jolyne`, `crates/client-diff/src/driver`) runs
+every step kind with the same client packets; its few necessary differences
+are listed in [crates/client-diff/README.md](../../crates/client-diff/README.md#driver-differences-rust-driver-vs-gophertunnel-bot).
 
 ## Capture and normalization contract
 
@@ -201,7 +202,9 @@ Normalization decodes/encodes using `valentine::bedrock::version::v1_26_51`. `ma
 
 ## Add a scenario
 
-Edit `scenarios.json`, shared by both clients. Each scenario has `steps`, `idle_ms` and optionally `auth_input` (see [Codec conformance](#codec-conformance)). Each step has `after_ms` (delay since the preceding step, or since spawn for the first step), `kind` (`chat` or `command` with `text`, or a gophertunnel-only interaction kind), and the kind's fields. Both clients wait for completed spawn/local-player initialization, execute the steps in order, then idle for `idle_ms` and disconnect. Keep fixed identity values in the shared `identity` object; private keys and signatures remain per connection.
+Edit `scenarios.json`, shared by both clients (step types and validation: `gt-client/main.go` and `crates/client-diff/src/scenario.rs`, kept identical). Each scenario has `steps`, `idle_ms` and optionally `auth_input` (see [Codec conformance](#codec-conformance)). Each step has `after_ms` (delay since the preceding step, or since spawn for the first step), `kind`, and the kind's fields. Both clients wait for completed spawn/local-player initialization, execute the steps in order, then idle for `idle_ms` and disconnect. Keep fixed identity values in the shared `identity` object; private keys and signatures remain per connection.
+
+To make a recorded scenario a permanent BDS parity test against unastar, follow the recipe in [crates/client-diff/README.md](../../crates/client-diff/README.md#recipe-add-a-scenario).
 
 ## Later: real Minecraft
 

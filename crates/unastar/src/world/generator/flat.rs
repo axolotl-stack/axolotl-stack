@@ -44,6 +44,60 @@ impl Generator for FlatGenerator {
     }
 }
 
+/// The default Bedrock superflat preset (the world BDS 1.26.51 creates):
+/// bedrock at y=-64, dirt at y=-63..-62, grass block at y=-61, plains
+/// everywhere; the spawn is the origin column on the grass.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct VanillaFlatGenerator;
+
+impl VanillaFlatGenerator {
+    /// The filled layers, bottom up.
+    fn layers() -> [(i16, u32); 4] {
+        [
+            (-64, *blocks::BEDROCK),
+            (-63, *blocks::DIRT),
+            (-62, *blocks::DIRT),
+            (-61, *blocks::GRASS_BLOCK),
+        ]
+    }
+}
+
+impl Generator for VanillaFlatGenerator {
+    fn seed(&self) -> i64 {
+        0
+    }
+
+    fn generate_proto(&self, pos: ChunkPos) -> ProtoChunk {
+        let mut proto = ProtoChunk::empty(pos, DEFAULT_BIOME_ID as NativeBiome);
+        for (y, block) in Self::layers() {
+            for z in 0..16 {
+                for x in 0..16 {
+                    proto.chunk.set_block(x, y, z, block);
+                }
+            }
+        }
+        proto
+    }
+
+    fn decorates(&self) -> bool {
+        false
+    }
+
+    fn decorate(&self, _region: &mut DecorationRegion<'_>) {}
+
+    fn block_classes(&self) -> &'static [u8] {
+        &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES
+    }
+
+    fn bedrock_biome(&self, biome: NativeBiome) -> u32 {
+        biome as u32
+    }
+
+    fn find_spawn(&self, _chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
+        SpawnPoint { x: 0, y: -60, z: 0 }
+    }
+}
+
 /// A stone platform (sub-chunk y=0..16) within `platform_radius_chunks` of the origin
 /// chunk; air elsewhere.
 #[derive(Debug, Clone, Copy)]

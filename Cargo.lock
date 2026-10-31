@@ -1055,6 +1055,7 @@ dependencies = [
  "toml 0.8.23",
  "uuid",
  "valentine",
+ "zuri_nbt",
 ]
 
 [[package]]
@@ -5322,6 +5323,7 @@ dependencies = [
  "bitflags 2.10.0",
  "bleveldb",
  "bytes",
+ "client-diff",
  "crc32c",
  "crc32fast",
  "flate2",

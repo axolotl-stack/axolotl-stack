@@ -300,10 +300,16 @@ impl GameServer {
         world_template.jigsaw_structures = Arc::new(join_data::jigsaw_structures());
         world_template.voxel_shapes = Arc::new(join_data::voxel_shapes());
 
-        // Difficulty from the config, Bedrock's default game rules and a
-        // fresh clock (there is no level-data store to restore them from).
+        // Difficulty and game rules from the config over Bedrock's defaults,
+        // and a fresh clock (there is no level-data store to restore them from).
         let difficulty = config.difficulty;
-        let game_rules = crate::world::rules::GameRules::default();
+        let mut game_rules = crate::world::rules::GameRules::default();
+        for (name, value) in &config.game_rules {
+            assert!(
+                game_rules.set_value(name, *value).is_some(),
+                "configured game rule {name} = {value} is unknown or has the wrong type"
+            );
+        }
         let world_time = crate::world::rules::WorldTime::default();
         let start_game_state = crate::world::rules::StartGameWorldState::default();
         start_game_state.publish(world_time, difficulty, &game_rules);

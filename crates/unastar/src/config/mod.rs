@@ -101,6 +101,12 @@ impl UnastarConfig {
             difficulty: self.server.difficulty,
             block_network_ids: self.server.block_network_ids,
             operators: self.server.operators.clone(),
+            game_rules: self
+                .server
+                .game_rules
+                .iter()
+                .map(|(name, value)| (name.clone(), value.value()))
+                .collect(),
             // Use defaults for new fields not in config file yet
             simulation_distance: defaults.simulation_distance,
             chunk_unload_ticks: defaults.chunk_unload_ticks,
@@ -115,6 +121,15 @@ impl UnastarConfig {
             crate::world::WorldGenerator::Bedrock { .. }
         ) {
             return Err(crate::world::BEDROCK_BUILD_REQUIREMENT.to_owned());
+        }
+        let mut rules = crate::world::rules::GameRules::default();
+        for (name, value) in &self.server.game_rules {
+            if rules.set_value(name, value.value()).is_none() {
+                return Err(format!(
+                    "`server.game_rules.{name}`: not a game rule, or not a {} rule",
+                    value.kind()
+                ));
+            }
         }
         if self.spawn_rules.is_empty() {
             return Err("config requires at least one `[[spawn_rules]]` rule".into());
@@ -175,6 +190,38 @@ pub struct ServerConfigFile {
     /// join, by display name (case-insensitive) or XUID. Without
     /// `online_mode` names and XUIDs are not verified.
     pub operators: Vec<String>,
+    /// Game rules that differ from BDS's defaults at startup, by rule name
+    /// (as `/gamerule` names them), e.g. `doMobSpawning = false`,
+    /// `randomTickSpeed = 0`. `/gamerule` changes them while the server runs.
+    pub game_rules: std::collections::BTreeMap<String, GameRuleSetting>,
+}
+
+/// A configured game rule value: a bool, an integer or a float rule.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum GameRuleSetting {
+    Bool(bool),
+    Int(i32),
+    Float(f32),
+}
+
+impl GameRuleSetting {
+    pub fn value(self) -> unastar_data::game_rules::GameRuleValue {
+        use unastar_data::game_rules::GameRuleValue;
+        match self {
+            Self::Bool(value) => GameRuleValue::Bool(value),
+            Self::Int(value) => GameRuleValue::Int(value),
+            Self::Float(value) => GameRuleValue::Float(value),
+        }
+    }
+
+    fn kind(self) -> &'static str {
+        match self {
+            Self::Bool(_) => "bool",
+            Self::Int(_) => "int",
+            Self::Float(_) => "float",
+        }
+    }
 }
 
 impl Default for ServerConfigFile {
@@ -193,6 +240,7 @@ impl Default for ServerConfigFile {
             require_resource_packs: false,
             block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
             operators: Vec::new(),
+            game_rules: std::collections::BTreeMap::new(),
         }
     }
 }
