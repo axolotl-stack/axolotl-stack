@@ -263,7 +263,7 @@ enum NetherNetSignaling {
     #[cfg(feature = "endpoint")]
     Endpoint {
         handler: Arc<tokio_nethernet::endpoint::Handler>,
-        config: tokio_nethernet::NetherNetListenerConfig,
+        config: Box<tokio_nethernet::NetherNetListenerConfig>,
     },
     #[cfg(feature = "xbox-signaling")]
     Xbox {
@@ -291,7 +291,10 @@ impl NetherNetBuilder {
         handler: Arc<tokio_nethernet::endpoint::Handler>,
         config: tokio_nethernet::NetherNetListenerConfig,
     ) -> Self {
-        self.signaling = NetherNetSignaling::Endpoint { handler, config };
+        self.signaling = NetherNetSignaling::Endpoint {
+            handler,
+            config: Box::new(config),
+        };
         self
     }
 
@@ -384,7 +387,7 @@ impl NetherNetBuilder {
                     config.signal_monitor = Some(SignalMonitor::new_with_cleanup(monitor));
                 }
                 endpoint = Some(Arc::clone(&handler));
-                NetherNetListener::bind_with_signaling(handler, config)
+                NetherNetListener::bind_with_signaling(handler, *config)
             }
             #[cfg(feature = "xbox-signaling")]
             NetherNetSignaling::Xbox {
