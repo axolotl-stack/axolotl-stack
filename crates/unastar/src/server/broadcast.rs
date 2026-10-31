@@ -219,7 +219,7 @@ pub fn broadcast_spawn_system(
             &Position,
             &Rotation,
             &GameMode,
-            &PlayerSession,
+            Option<&PlayerSession>,
         ),
         With<Player>,
     >,
@@ -252,7 +252,9 @@ pub fn broadcast_spawn_system(
             if other_entity == new_entity {
                 continue;
             }
-            let _ = other_session.send(McpePacket::from(new_packet.clone()));
+            if let Some(other_session) = other_session {
+                let _ = other_session.send(McpePacket::from(new_packet.clone()));
+            }
         }
 
         // Send all existing players to the new player

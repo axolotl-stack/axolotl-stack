@@ -10,6 +10,8 @@ mod chunks;
 #[cfg(test)]
 mod command_tests;
 mod commands;
+pub mod container_mutation;
+mod container_mutations;
 mod containers;
 pub mod durability;
 pub mod effects;
@@ -27,6 +29,8 @@ mod packet_domains;
 mod packet_queues;
 mod packets;
 mod placement;
+pub mod player_events;
+pub mod player_state;
 mod plugins;
 pub mod types;
 
@@ -34,6 +38,9 @@ use bevy_ecs::prelude::*;
 pub(crate) use block_drops::{drop_block_items, loot_stacks};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use commands::ConsoleCommands;
+pub(crate) use container_mutations::area_locked as container_area_locked;
+pub use container_mutations::{ContainerMutationLocks, complete_container_mutations};
+pub(crate) use containers::mutation_locked as container_cell_locked;
 pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
@@ -42,6 +49,7 @@ use jolyne::WorldTemplate;
 use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};
 pub(crate) use loot::{LootContext, LootLevel};
+pub use placement::is_replaceable;
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -103,11 +111,25 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 /// will respawn (respawn position, full health, fresh hunger), so it never
 /// reloads with zero health.
 fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
+    if world.get::<player_events::DetachedPlayer>(entity).is_some() {
+        return None;
+    }
+    capture_player_record(world, entity, true)
+}
+
+/// Capture authoritative gameplay state, optionally normalizing a dead player's
+/// ordinary persisted record to the state used at its next respawn.
+pub(super) fn capture_player_record(
+    world: &World,
+    entity: Entity,
+    normalize_dead: bool,
+) -> Option<(uuid::Uuid, PlayerData)> {
     use crate::entity::components::{Experience, Health, Hunger};
     let uuid = world.get::<PlayerUuid>(entity)?.0;
-    let dead = world
-        .get::<crate::entity::player_life::Dead>(entity)
-        .is_some();
+    let dead = normalize_dead
+        && world
+            .get::<crate::entity::player_life::Dead>(entity)
+            .is_some();
     let position = if dead {
         crate::entity::player_life::respawn::respawn_position(world, entity)
     } else {
@@ -309,6 +331,8 @@ impl GameServer {
         let world_template = Arc::new(world_template);
         let world_config = config.world;
         let mut ecs = UnastarEcs::new();
+        ecs.world_mut()
+            .init_resource::<player_events::PlayerEventHooks>();
 
         // Insert all game state as ECS Resources
         ecs.world_mut().insert_resource(definitions);
@@ -922,7 +946,14 @@ impl GameServer {
             position: data.position,
             runtime_id,
         });
-        self.send_join_packets(entity);
+        player_events::joined(self.ecs.world_mut(), entity);
+        if self.ecs.world().get::<PlayerSession>(entity).is_some() {
+            self.send_join_packets(entity);
+        } else if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>()
+            && map.get(data.session_id) == Some(entity)
+        {
+            map.remove(data.session_id);
+        }
         info!(session_id = data.session_id, "Player spawned as ECS entity");
         Ok(entity)
     }
@@ -936,8 +967,39 @@ impl GameServer {
             }
         };
         if let Some(entity) = entity {
-            self.ecs.world_mut().despawn(entity);
-            info!(session_id, "Player despawned");
+            let world = self.ecs.world_mut();
+            if world
+                .get::<PlayerSession>(entity)
+                .is_none_or(|session| session.session_id != session_id)
+            {
+                return;
+            }
+            let disposition = player_events::quit(world, entity);
+            player_events::discard_input(world, entity);
+            match disposition {
+                Some(player_events::DisconnectDisposition::RetainEntity) => {
+                    player_state::remember_identity(world, entity);
+                    // Remove transport ownership and chunk views; the actor keeps
+                    // its gameplay state and remains visible to other sessions.
+                    if let Ok(mut actor) = world.get_entity_mut(entity) {
+                        actor.remove::<(
+                            PlayerSession,
+                            crate::command::Operator,
+                            PlayerInput,
+                            ChunkLoader,
+                            BreakingState,
+                            item_use::ItemUsing,
+                        )>();
+                        actor.insert((player_events::DetachedPlayer, PlayerState::default()));
+                    }
+                }
+                Some(player_events::DisconnectDisposition::Despawn) => {
+                    player_events::remove_actor(world, entity);
+                    world.despawn(entity);
+                }
+                None => {} // A callback removed or replaced the original connection.
+            }
+            info!(session_id, "Player session removed");
         }
     }
 

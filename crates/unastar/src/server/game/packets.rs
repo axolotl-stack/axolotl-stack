@@ -57,6 +57,32 @@ impl GameServer {
         let world = self.ecs.world_mut();
 
         match packet {
+            BorrowedMcpePacket {
+                data: BorrowedMcpePacketData::ModalFormResponsePacket(response),
+                ..
+            } => {
+                // Bound borrowed bytes before allocating application-owned text.
+                if response
+                    .json_response
+                    .as_ref()
+                    .is_some_and(|data| data.as_bytes().len() > 65536)
+                {
+                    return;
+                }
+                let cancelled =
+                    response.form_cancel_reason.is_some() || response.json_response.is_none();
+                let data = response
+                    .json_response
+                    .map(|data| data.to_string_lossy().into_owned());
+                super::player_events::form_response(
+                    world,
+                    entity,
+                    session_id,
+                    response.form_id,
+                    data,
+                    cancelled,
+                );
+            }
             // ── Movement ──────────────────────────────────────────────────
             BorrowedMcpePacket {
                 data: BorrowedMcpePacketData::PlayerActionPacket(pk),

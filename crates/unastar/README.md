@@ -1042,3 +1042,91 @@ of the native writer, reads all three codecs, and independently inflates/checksu
 the provider's actual compacted tables. This catches failures hidden by successful
 reads from an uncompressed write-ahead log. After changing native build flags,
 use `cargo clean -p bleveldb-sys` before the acceptance run.
+
+Native `PlayerEventHooks` handlers and Bevy observers can authorize or redirect
+movement before position, input, hunger and fall state changes, and observe
+`PlayerMoved` after accepted movement commits. Final chat can be rewritten or
+cancelled before broadcast, with identity and bounded text revalidation.
+`PlayerChat::handle(action)` replaces default broadcast with an extension-owned
+accepted action. `PlayerChatted` is notified only after all proposal handlers,
+observers and validation accept it; ordinary chat notifies after broadcast.
+Extensions route or account for custom chat from that committed notification,
+so a later veto never publishes effects from an unaccepted message.
+
+`PlayerJoined` runs before initial packets. `PlayerQuit` runs while the departing
+actor is present; `retain_entity()` detaches transport/input/permission/chunk
+ownership and retains the actor as `DetachedPlayer`. Detached actors remain
+visible to other sessions and are excluded from ordinary player autosaves.
+Embedding applications own their lifetime and persistence.
+
+`player_state::capture` and `restore` round-trip a versioned player snapshot,
+including complete inventory/UI slots, health, hunger, effects and motion.
+Restore validates identity, world and item data before mutating state, preserves
+the connection/runtime identity, assigns fresh item network IDs and sends
+authoritative updates. Captured death state is raw state, without applying a
+second death or dropping items again.
+Snapshots can also create a new detached actor with a fresh runtime identity,
+without synthesizing a network connection or join event.
+
+Native `PlayerFormResponse` reports actual bounded `ModalFormResponse` packets
+with immutable connection identity, request ID, optional raw response text and
+cancellation status. The host limits payloads to 65536 bytes and revalidates the
+source session before callbacks. Applications own outstanding request IDs, JSON
+interpretation and menu actions; the host performs no default form action.
+
+## Staged container edits
+
+`server::game::ContainerMutationLocks` reserves absolute block cells with opaque
+operation-owner tokens. `acquire(owner, cells)` is atomic and idempotent for the
+same owner; conflicting owners and empty tokens change nothing. `release` requires
+exact ownership of the whole batch. Locks are runtime state; applications restore
+pending reservations before exposing their world. With no reservations, ordinary
+container behavior is unchanged.
+
+Native access checks both halves of a paired chest, including saved actors not
+yet decoded. Reserved cells reject opening and retained-window stack moves, pause
+furnace/hopper mutations and loot unpacking, and prevent native placement, breaking,
+pair changes and block-writing commands. Unavailable windows receive ordinary
+failed inventory responses; request-ID validation remains active.
+
+After trusted chunk/block-actor writes and the application's persistence
+acknowledgement, call `complete_container_mutations(world, owner, cells)`. It
+releases an exactly owned batch, closes obsolete windows, invalidates decoded
+container contents, reloads authoritative NBT and registers new native tickers.
+Failed ownership checks change nothing. The resource's raw `release` only changes
+ownership and is suitable for aborts without committed edits. Direct trusted
+chunk writes remain application-owned. `server::game::is_replaceable` exposes
+the same block-state placement predicate used by native placement.
+
+## Native container mutations
+
+`server::game::container_mutation::ContainerMutationHooks` registers ordered
+`ContainerMutationHandler` callbacks. `on_mutation` and Bevy `ContainerMutation`
+observers authorize complete authoritative slot images before an ordinary player
+request, hopper transfer, item collection or furnace mutation publishes costs.
+The cause is an immutable authenticated `Player` identity, a `Hopper` position
+(with an optional collected item entity), or a `Furnace` position. Each
+`ContainerInventoryChange` includes its kind, canonical physical positions, and
+complete `before`/`after` item vectors. Double chests list lead then partner and
+all 54 slots. Consumers can distinguish item additions, extraction and internal
+reordering from the images, independently of client action names. Furnace timer
+changes can have identical slot images.
+
+Player requests stage complete inventories and request-ID assignments on owned
+copies. After callbacks, the host revalidates the exact connection, every player
+store and request alias, the open window, raw actors, decoded slots, pairing,
+automation state and reservations. A veto or stale baseline discards the entire
+frame, including drops, equipment updates and successful response data. Invalid
+request IDs retain their native terminating-warning path, and unavailable retained
+windows return an ordinary error without staging against missing storage.
+Generated automation loot and pair repairs are also prepared on owned copies;
+rejection leaves their saved data untouched.
+
+`on_committed` and Bevy `ContainerMutationCommitted` notify only after actual
+engine inventory, alias, item-entity, cooldown, persistence-image and ordinary
+side effects have completed. The notification owns the exact accepted images
+and cannot veto. Handlers and observers run outside ECS component and callback
+registry borrows; registry changes affect subsequent dispatches, including nested
+operations. Nested accepted operations invalidate stale outer previews. Without
+handlers, ordinary validated transfers, furnace timing and request responses use
+the same engine rules.
