@@ -649,3 +649,5 @@ fn checked_public_teleport_rejects_a_late_rewrite_into_solid_geometry() {
     ));
     assert_eq!(world.get::<Position>(owner).unwrap().0, before);
 }
+
+mod attribution;

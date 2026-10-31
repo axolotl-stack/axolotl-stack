@@ -33,7 +33,7 @@ use jolyne::valentine::McpePacket;
 
 pub use crate::entity::mob::state::Dead;
 pub use death::kill_player;
-pub use hurt::hurt_player;
+pub use hurt::{hurt_player, hurt_player_attributed};
 pub use rules::{PlayerRules, PlayerRulesError};
 
 use crate::entity::components::{PlayerSession, Position};

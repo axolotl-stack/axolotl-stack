@@ -61,6 +61,7 @@ impl PlayerDeathInventory {
 #[derive(Event, Debug, Clone)]
 pub struct PlayerDamage {
     player: Entity,
+    attribution: crate::entity::damage::DamageAttribution,
     /// Incoming hit; extensions may change its damage and knockback. Modified
     /// values are validated before the ordinary damage rules are applied.
     pub hit: Hit,
@@ -83,6 +84,11 @@ impl PlayerDamage {
         self.player
     }
 
+    /// Immutable source/owner facts captured before native authorization.
+    pub fn attribution(&self) -> &crate::entity::damage::DamageAttribution {
+        &self.attribution
+    }
+
     /// Prevent the hit and its normal side effects. Later handlers cannot
     /// restore an operation that has been cancelled.
     pub fn cancel(&mut self) {
@@ -95,9 +101,14 @@ impl PlayerDamage {
     }
 
     /// Construct the decision for an incoming hit.
-    pub(super) fn new(player: Entity, hit: Hit) -> Self {
+    pub(super) fn new(
+        player: Entity,
+        hit: Hit,
+        attribution: crate::entity::damage::DamageAttribution,
+    ) -> Self {
         Self {
             player,
+            attribution,
             hit,
             hurt_ticks: crate::entity::mob::constants::HURT_TICKS,
             bypass_armour: false,
@@ -118,6 +129,15 @@ pub struct PlayerDamaged {
     pub hit: Hit,
     /// Actual health removed, after difficulty, armour and the hurt timer.
     pub damage: f32,
+    /// Immutable origin retained from the proposed hit through committed loss.
+    pub(super) attribution: crate::entity::damage::DamageAttribution,
+}
+
+impl PlayerDamaged {
+    /// Read immutable source/owner facts after positive health loss.
+    pub fn attribution(&self) -> &crate::entity::damage::DamageAttribution {
+        &self.attribution
+    }
 }
 
 /// A committed player death, after the dead marker and ordinary drops are

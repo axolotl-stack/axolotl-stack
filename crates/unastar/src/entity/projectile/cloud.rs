@@ -41,6 +41,7 @@ impl AreaEffectCloud {
 /// Spawn a real replicated cloud without living physics, health or a brain.
 pub(super) fn spawn(
     world: &mut World,
+    source: Entity,
     owner: Option<Entity>,
     at: DVec3,
     potion: ProjectilePotion,
@@ -63,6 +64,8 @@ pub(super) fn spawn(
         }
     };
     let now = world.resource::<TickCounter>().current;
+    let attribution = crate::entity::damage::DamageAttribution::for_source(world, Some(source))
+        .with_source(world, entity);
     let mut entity = world.entity_mut(entity);
     let mut metadata = entity.get_mut::<EntityMetadata>().expect("cloud metadata");
     metadata.set_float(ids::DATA_RADIUS, rules.radius as f32);
@@ -75,6 +78,7 @@ pub(super) fn spawn(
     metadata.set_short(ids::AUX_VALUE_DATA, potion.aux);
     entity.insert((
         Velocity(DVec3::ZERO),
+        attribution,
         AreaEffectCloud {
             owner,
             profile: potion.profile,

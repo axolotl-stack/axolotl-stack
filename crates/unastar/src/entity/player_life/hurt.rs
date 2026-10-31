@@ -51,6 +51,17 @@ pub fn hurt_player(world: &mut World, player: Entity, hit: &Hit) -> f32 {
     apply_hit(world, player, hit, None)
 }
 
+/// Apply a hit with a captured projectile/effect origin, while the Hit attacker
+/// remains only a real actor in this current world.
+pub fn hurt_player_attributed(
+    world: &mut World,
+    player: Entity,
+    hit: &Hit,
+    attribution: crate::entity::damage::DamageAttribution,
+) -> f32 {
+    apply_hit_result_attributed(world, player, hit, None, attribution).0
+}
+
 /// [`hurt_player`] for a landing after falling `fall_distance` blocks (the
 /// death message tells short falls from long ones).
 pub(super) fn apply_hit(
@@ -69,10 +80,23 @@ pub(super) fn apply_hit_result(
     hit: &Hit,
     fall_distance: Option<f64>,
 ) -> (f32, bool) {
+    let attribution =
+        crate::entity::damage::DamageAttribution::capture(world, hit.attacker, hit.attacker);
+    apply_hit_result_attributed(world, player, hit, fall_distance, attribution)
+}
+
+/// Preserve immutable origin across native pre-damage callbacks and committed loss.
+fn apply_hit_result_attributed(
+    world: &mut World,
+    player: Entity,
+    hit: &Hit,
+    fall_distance: Option<f64>,
+    attribution: crate::entity::damage::DamageAttribution,
+) -> (f32, bool) {
     if !eligible_hit(world, player, hit) {
         return (0.0, false);
     }
-    let mut event = hooks::PlayerDamage::new(player, *hit);
+    let mut event = hooks::PlayerDamage::new(player, *hit, attribution);
     hooks::damage(world, &mut event);
     if event.is_cancelled()
         || !eligible_hit(world, player, &event.hit)
@@ -161,6 +185,7 @@ pub(super) fn apply_hit_result(
                 player,
                 hit: *hit,
                 damage: applied,
+                attribution,
             },
         );
     }

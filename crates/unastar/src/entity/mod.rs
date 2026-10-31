@@ -13,6 +13,7 @@
 pub mod bundles;
 pub mod components;
 pub mod conditions;
+pub mod damage;
 pub mod definition;
 pub mod freezing;
 pub mod geometry;
