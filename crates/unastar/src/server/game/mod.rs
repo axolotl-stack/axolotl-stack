@@ -16,6 +16,7 @@ pub mod effects;
 mod falling;
 pub mod hunger;
 mod inventory;
+pub mod inventory_effects;
 pub mod item_use;
 mod items;
 pub(crate) mod join;
@@ -27,6 +28,8 @@ mod packet_domains;
 mod packet_queues;
 mod packets;
 mod placement;
+pub mod player_events;
+pub mod player_state;
 mod plugins;
 pub mod types;
 
@@ -103,11 +106,28 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 /// will respawn (respawn position, full health, fresh hunger), so it never
 /// reloads with zero health.
 fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
+    if world.get::<player_events::DetachedPlayer>(entity).is_some() {
+        return None;
+    }
+    capture_player_record(world, entity, true)
+}
+
+/// Capture authoritative gameplay state, optionally normalizing a dead player's
+/// ordinary persisted record to the state used at its next respawn.
+pub(super) fn capture_player_record(
+    world: &World,
+    entity: Entity,
+    normalize_dead: bool,
+) -> Option<(uuid::Uuid, PlayerData)> {
+    if inventory_effects::is_quarantined(world, entity) {
+        return None;
+    }
     use crate::entity::components::{Experience, Health, Hunger};
     let uuid = world.get::<PlayerUuid>(entity)?.0;
-    let dead = world
-        .get::<crate::entity::player_life::Dead>(entity)
-        .is_some();
+    let dead = normalize_dead
+        && world
+            .get::<crate::entity::player_life::Dead>(entity)
+            .is_some();
     let position = if dead {
         crate::entity::player_life::respawn::respawn_position(world, entity)
     } else {
@@ -156,6 +176,17 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
             cursor: world
                 .get::<PlayerUi>(entity)
                 .map(|ui| ui.cursor().into())
+                .unwrap_or_default(),
+            ui: world
+                .get::<PlayerUi>(entity)
+                .map(|ui| ui.0.slots().iter().map(Into::into).collect())
+                .unwrap_or_default(),
+            inventory_revision: world
+                .get::<inventory_effects::InventoryPersistence>(entity)
+                .map_or(0, |state| state.revision()),
+            inventory_effects: world
+                .get::<inventory_effects::InventoryPersistence>(entity)
+                .map(|state| state.receipts().clone())
                 .unwrap_or_default(),
             held_slot: world
                 .get::<HeldSlot>(entity)
@@ -218,8 +249,17 @@ fn restore_items(
             .expect("four saved armour slots");
     }
     let offhand = OffhandSlot(offhand.into_slot());
-    let mut ui = PlayerUi::default();
-    ui.set_cursor(cursor);
+    let ui = if saved.ui.is_empty() {
+        let mut ui = PlayerUi::default();
+        ui.set_cursor(cursor);
+        ui
+    } else {
+        let slots = std::mem::take(&mut saved.ui)
+            .into_iter()
+            .map(|item| item.restore(items))
+            .collect::<crate::storage::StorageResult<Vec<_>>>()?;
+        PlayerUi(Inventory::from_slots(slots))
+    };
     Ok((
         main,
         armour,
@@ -309,6 +349,8 @@ impl GameServer {
         let world_template = Arc::new(world_template);
         let world_config = config.world;
         let mut ecs = UnastarEcs::new();
+        ecs.world_mut()
+            .init_resource::<player_events::PlayerEventHooks>();
 
         // Insert all game state as ECS Resources
         ecs.world_mut().insert_resource(definitions);
@@ -784,6 +826,14 @@ impl GameServer {
             .as_ref()
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(uuid::Uuid::new_v4);
+        inventory_effects::allow_spawn(self.ecs.world(), player_uuid)?;
+        if inventory_effects::recovery_account_fenced(
+            self.ecs.world(),
+            player_uuid,
+            data.xuid.as_deref(),
+        ) {
+            return Err(crate::storage::StorageError::PlayerRecoveryRequired);
+        }
         let player_name = data.display_name.clone();
         let position = Position(data.position);
         let runtime_id = data.runtime_id;
@@ -812,6 +862,8 @@ impl GameServer {
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;
         let mut saved_data = data.saved_data;
+        let inventory_persistence =
+            inventory_effects::InventoryPersistence::from_record(saved_data.as_ref());
         let (main_inventory, armour, offhand, ui, ender_chest) = match saved_data.as_mut() {
             Some(saved) => {
                 saved.validate(player_uuid)?;
@@ -895,6 +947,7 @@ impl GameServer {
         // systems send it after the player's first view and chunks.
         let (health_sent, hunger_sent) = (health.clone(), hunger.clone());
         self.ecs.world_mut().entity_mut(entity).insert((
+            inventory_persistence,
             health,
             hunger,
             experience,
@@ -917,12 +970,25 @@ impl GameServer {
             session_map.insert(data.session_id, entity);
         }
 
-        self.ecs.world_mut().write_message(PlayerSpawnedEvent {
-            entity,
-            position: data.position,
-            runtime_id,
-        });
-        self.send_join_packets(entity);
+        player_events::joined(self.ecs.world_mut(), entity);
+        if self.ecs.world().get::<PlayerSession>(entity).is_some() {
+            if !player_events::initial_state_pending(self.ecs.world(), entity) {
+                self.ecs.world_mut().write_message(PlayerSpawnedEvent {
+                    entity,
+                    position: data.position,
+                    runtime_id,
+                });
+                self.send_join_packets(entity);
+                self.ecs
+                    .world_mut()
+                    .entity_mut(entity)
+                    .insert(player_events::InitialStatePublished);
+            }
+        } else if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>()
+            && map.get(data.session_id) == Some(entity)
+        {
+            map.remove(data.session_id);
+        }
         info!(session_id = data.session_id, "Player spawned as ECS entity");
         Ok(entity)
     }
@@ -936,13 +1002,65 @@ impl GameServer {
             }
         };
         if let Some(entity) = entity {
-            self.ecs.world_mut().despawn(entity);
-            info!(session_id, "Player despawned");
+            let world = self.ecs.world_mut();
+            if world
+                .get::<PlayerSession>(entity)
+                .is_none_or(|session| session.session_id != session_id)
+            {
+                return;
+            }
+            let disposition = player_events::quit(world, entity);
+            player_events::discard_input(world, entity);
+            match disposition {
+                Some(player_events::DisconnectDisposition::RetainEntity) => {
+                    player_state::remember_identity(world, entity);
+                    // Remove transport ownership and chunk views; the actor keeps
+                    // its gameplay state and remains visible to other sessions.
+                    if let Ok(mut actor) = world.get_entity_mut(entity) {
+                        actor.remove::<(
+                            PlayerSession,
+                            crate::command::Operator,
+                            PlayerInput,
+                            ChunkLoader,
+                            BreakingState,
+                            item_use::ItemUsing,
+                        )>();
+                        actor.insert((player_events::DetachedPlayer, PlayerState::default()));
+                    }
+                }
+                Some(player_events::DisconnectDisposition::Despawn) => {
+                    player_events::remove_actor(world, entity);
+                    world.despawn(entity);
+                }
+                None => {} // A callback removed or replaced the original connection.
+            }
+            info!(session_id, "Player session removed");
         }
     }
 
     pub fn tick(&mut self) {
         self.ecs.tick();
+        for entity in player_events::ready_initial_states(self.ecs.world_mut()) {
+            let Some(position) = self.ecs.world().get::<Position>(entity).copied() else {
+                continue;
+            };
+            let Some(runtime) = self.ecs.world().get::<RuntimeEntityId>(entity).copied() else {
+                continue;
+            };
+            self.ecs.world_mut().write_message(PlayerSpawnedEvent {
+                entity,
+                position: position.0,
+                runtime_id: runtime.0,
+            });
+            if self.ecs.world().get::<PlayerSession>(entity).is_some() {
+                self.send_join_packets(entity);
+                player_state::publish_deferred_state(self.ecs.world_mut(), entity);
+            }
+            self.ecs
+                .world_mut()
+                .entity_mut(entity)
+                .insert(player_events::InitialStatePublished);
+        }
     }
 
     fn build_creative_content(

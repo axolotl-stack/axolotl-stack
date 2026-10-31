@@ -1042,3 +1042,88 @@ of the native writer, reads all three codecs, and independently inflates/checksu
 the provider's actual compacted tables. This catches failures hidden by successful
 reads from an uncompressed write-ahead log. After changing native build flags,
 use `cargo clean -p bleveldb-sys` before the acceptance run.
+
+Native applications can install `server::game::inventory_effects` before the
+network loop to submit complete durable inventory replacements. Each request
+binds a stable effect ID to expected and replacement inventory images. A worker
+writes the replacement and its receipt together, and the ECS publishes fresh
+stack IDs only after acknowledgement. Full player UI inventories are persisted.
+
+The source actor's inventory, health and input components are withheld during
+quarantine; extensions should check `is_quarantined` before reading gameplay
+state. Packet input, queued commands, block access and ordinary saves stop for
+that actor. A retained actor may lose its session while waiting and still receive
+the acknowledged inventory, while a replaced connection cannot. Native committed
+and failed events report the result. A failed event distinguishes proven
+non-application from a result requiring recovery; ambiguous writes stay
+quarantined and reject further admission until recovery.
+
+All connection loads, ordinary saves and effect writes use the installed
+serialized provider. Inventory epochs reject stale autosave/disconnect records,
+and receipt IDs survive restarts so callers can acknowledge a repeated request
+without granting its items again. LevelDB player writes request synchronous
+persistence. Other providers must explicitly advertise `atomic_durable_records`,
+honor that contract and avoid separate unwrapped access. Unsupported providers
+are rejected before installation. Receipt history is bounded at 65,536 effects
+per account; exhaustion rejects new effects before writing.
+
+An extension coordinating another persistence boundary can capture a
+`inventory_effects::RecoverySource` before that operation. An uncertain result
+can call `fence_for_recovery` with that exact source: account, runtime identity
+and outbound transport must still match. The terminal fence physically withholds
+mutable player state, excludes ordinary saves and snapshots, and rejects further
+account admission. Worker completion, snapshot restoration, disconnect and
+session ID reuse never release it. `recovery_account_fenced` also lets a router
+check UUID and authenticated account identity across several worlds.
+
+This helper performs no storage writes and does not acknowledge the external
+operation. Recovery requires reconstructing coherent durable state and restarting
+the runtime; there is no automatic release path. Other accounts remain available.
+
+Native `PlayerEventHooks` handlers and Bevy observers can authorize or redirect
+movement before position, input, hunger and fall state changes, and observe
+`PlayerMoved` after accepted movement commits. Final chat can be rewritten or
+cancelled before broadcast, with identity and bounded text revalidation.
+`PlayerChat::handle(action)` replaces default broadcast with an extension-owned
+accepted action. `PlayerChatted` is notified only after all proposal handlers,
+observers and validation accept it; ordinary chat notifies after broadcast.
+Extensions route or account for custom chat from that committed notification,
+so a later veto never publishes effects from an unaccepted message.
+
+`PlayerJoined` runs before initial packets. `PlayerQuit` runs while the departing
+actor is present; `retain_entity()` detaches transport/input/permission/chunk
+ownership and retains the actor as `DetachedPlayer`. Detached actors remain
+visible to other sessions and are excluded from ordinary player autosaves.
+Embedding applications own their lifetime and persistence.
+
+`player_state::capture` and `restore` round-trip a versioned player snapshot,
+including complete inventory/UI slots, health, hunger, effects and motion.
+Restore validates identity, world and item data before mutating state, preserves
+the connection/runtime identity, assigns fresh item network IDs and sends
+authoritative updates. Captured death state is raw state, without applying a
+second death or dropping items again.
+Snapshots can also create a new detached actor with a fresh runtime identity,
+without synthesizing a network connection or join event.
+
+Native `PlayerFormResponse` reports actual bounded `ModalFormResponse` packets
+with immutable connection identity, request ID, optional raw response text and
+cancellation status. The host limits payloads to 65536 bytes and revalidates the
+source session before callbacks. Applications own outstanding request IDs, JSON
+interpretation and menu actions; the host performs no default form action.
+
+Native `PlayerJoined` handlers may call `player_events::defer_initial_state`
+before asynchronous initialization. This withholds initial player-state packets
+and actor publication, and discards incoming packets except disconnects. Call
+`release_initial_state` when the original actor's complete state is ready; the
+host validates its identity and publishes the initial batch once after the ECS
+tick. Released retained actors can become visible without an attached transport.
+A published actor cannot be deferred again. These hooks coordinate publication;
+extensions remain responsible for completing or rejecting their initialization.
+
+Deferred native snapshot restoration also withholds direct mode, teleport,
+attribute, effect, life and motion packets. Tick replication keeps pending state
+out of each client's sent-state cache. After release, the initial batch is
+followed by the current validated snapshot presentation, including final position,
+velocity, life state and effect particle/ambient flags; ordinary tick replication
+then resumes without replaying that effect set. Pending viewers receive no
+mob or item actor snapshots.

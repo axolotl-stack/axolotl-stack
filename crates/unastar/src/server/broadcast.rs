@@ -205,9 +205,12 @@ pub fn broadcast_spawn_system(
             &Position,
             &Rotation,
             &GameMode,
-            &PlayerSession,
+            Option<&PlayerSession>,
         ),
-        With<Player>,
+        (
+            With<Player>,
+            Without<crate::server::game::player_events::PendingInitialState>,
+        ),
     >,
     // Query for all existing players (to send to new player and to broadcast new player to them)
     existing_players: Query<
@@ -219,9 +222,12 @@ pub fn broadcast_spawn_system(
             &Position,
             &Rotation,
             &GameMode,
-            &PlayerSession,
+            Option<&PlayerSession>,
         ),
-        With<Player>,
+        (
+            With<Player>,
+            Without<crate::server::game::player_events::PendingInitialState>,
+        ),
     >,
 ) {
     for event in events.read() {
@@ -252,7 +258,9 @@ pub fn broadcast_spawn_system(
             if other_entity == new_entity {
                 continue;
             }
-            let _ = other_session.send(McpePacket::from(new_packet.clone()));
+            if let Some(other_session) = other_session {
+                let _ = other_session.send(McpePacket::from(new_packet.clone()));
+            }
         }
 
         // Send all existing players to the new player
@@ -278,7 +286,9 @@ pub fn broadcast_spawn_system(
                 other_rot,
                 *other_mode,
             );
-            let _ = new_session.send(McpePacket::from(other_packet));
+            if let Some(new_session) = new_session {
+                let _ = new_session.send(McpePacket::from(other_packet));
+            }
         }
 
         // LastBroadcastPosition is now included in PlayerBundle at spawn time,
@@ -331,9 +341,15 @@ pub fn broadcast_movement_system(
             &mut LastBroadcastPosition,
             Option<&crate::entity::components::PlayerInput>,
         ),
-        With<Player>,
+        (
+            With<Player>,
+            Without<crate::server::game::player_events::PendingInitialState>,
+        ),
     >,
-    sessions: Query<(Entity, &PlayerSession)>,
+    sessions: Query<
+        (Entity, &PlayerSession),
+        Without<crate::server::game::player_events::PendingInitialState>,
+    >,
 ) {
     // Collect movement updates to avoid borrow conflicts
     let mut updates: Vec<(Entity, i64, Position, Rotation, PlayerInputTick)> = Vec::new();
@@ -773,7 +789,10 @@ fn actor_spawn_packet(
 pub fn sync_actor_viewers(
     chunk_manager: Res<ChunkManager>,
     chunk_viewers: Query<&ChunkViewers>,
-    sessions: Query<&PlayerSession>,
+    sessions: Query<
+        &PlayerSession,
+        Without<crate::server::game::player_events::PendingInitialState>,
+    >,
     items: Res<ItemRegistryResource>,
     config: Res<crate::server::game::types::ServerConfigResource>,
     mut actors: Query<
