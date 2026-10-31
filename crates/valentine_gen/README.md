@@ -230,23 +230,16 @@ cargo run -p valentine_gen -- --latest --log debug
 When behavior must survive regeneration, change the parser, IR analysis, or
 emitter rather than generated Rust.
 
+## Score entry variants
 
-## Score packet correction
+Protocol 2193 `SetScorePacket` contains a counted list of entry variants, without
+an outer action byte. Each row carries a varuint variant and action string.
+Removal rows have an optional objective and no score; other rows carry their
+score and player, entity or fake-player identity. The standard schema generator
+emits these owned and borrowed types directly.
 
-`SetScorePacket` exposes a packet-level `SetScoreAction` and common `ScoreEntry`
-rows. Change rows carry a byte-tagged `ScoreIdentity`; Remove rows omit that
-suffix. The checked encoder rejects inconsistent action/identity pairs before
-writing bytes. Scores retain their raw 32-bit little-endian value, including the
-two's-complement bits of signed scores.
-
-The generator's `scoreboard` module owns the typed owned/borrowed codec templates
-and rejects changes to the known malformed input shape until it is reviewed.
-Score-only JSON row helpers are removed while shared types remain available.
-Independent literal byte fixtures cover both actions, all identity kinds, strict
-byte tags, malformed input and real packet dispatch. A regeneration regression
-checks that the corrected boundary survives a normal generation run.
-
-The wire layout follows [Gophertunnel v1.56.2 SetScore](https://github.com/Sandertv/gophertunnel/blob/v1.56.2/minecraft/protocol/packet/set_score.go)
-and [scoreboard entries](https://github.com/Sandertv/gophertunnel/blob/v1.56.2/minecraft/protocol/scoreboard.go).
-Its [MIT notice](licenses/gophertunnel-MIT.txt) is retained. These fixtures specify
-the public format and do not claim a live client interoperability measurement.
+The literal fixtures in `valentine/tests/scoreboard_wire.rs` cover mixed variants,
+optional removal objectives, negative scores, truncation and packet dispatch.
+They follow the version-matched [Gophertunnel v1.62.0 codec](https://github.com/Sandertv/gophertunnel/blob/v1.62.0/minecraft/protocol/scoreboard.go)
+and [Mojang protocol 2193 schema](https://mojang.github.io/bedrock-protocol-docs/1.26.51/packets/set-score-packet/).
+The [Gophertunnel MIT notice](licenses/gophertunnel-MIT.txt) is retained.
