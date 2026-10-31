@@ -81,6 +81,9 @@ pub(super) fn apply_hit(
     if !allowed_by_rules(world.resource::<GameRules>(), hit.cause) {
         return 0.0;
     }
+    if crate::entity::conditions::rejects_fire_damage(world, player, hit.cause) {
+        return 0.0;
+    }
     let damage = if hit.attacker.is_some() && !hit.by_player {
         let scaled = scale_for_difficulty(*world.resource::<Difficulty>(), hit.damage);
         if scaled <= 0.0 {
