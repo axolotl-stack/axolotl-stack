@@ -1073,3 +1073,12 @@ with immutable connection identity, request ID, optional raw response text and
 cancellation status. The host limits payloads to 65536 bytes and revalidates the
 source session before callbacks. Applications own outstanding request IDs, JSON
 interpretation and menu actions; the host performs no default form action.
+
+Native applications may register `BlockInteractionHooks` handlers (or Bevy
+observers) to synchronously authorize player block breaking, placement,
+container access and block item use before effects and item costs. A
+`BlockInteraction` exposes the immutable actor, operation kind and affected
+positions, including adjacent targets and multi-block placements. Cancellation
+is sticky, and operations revalidate world and held-item state after callbacks.
+Open container windows are reauthorized on each inventory request before items
+move; a veto closes the window and sends authoritative inventory corrections.
