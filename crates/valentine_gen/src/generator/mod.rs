@@ -7,6 +7,7 @@ pub mod emitter;
 pub mod packet;
 pub mod primitives;
 pub mod resolver;
+mod scoreboard;
 pub mod structs;
 mod symbols;
 pub mod utils;
@@ -94,6 +95,7 @@ pub fn generate_protocol_module(
         argful_types: HashSet::new(),
     };
 
+    let legacy_score_types = scoreboard::legacy_types(parse_result);
     // 1. Emit named types
     let mut type_names: Vec<_> = parse_result.types.keys().collect();
     type_names.sort();
@@ -107,6 +109,9 @@ pub fn generate_protocol_module(
         .collect();
 
     for name in type_names {
+        if legacy_score_types.contains(name) {
+            continue;
+        }
         // Skip generated mcpe meta types; we emit a custom frame-aware mcpe module instead.
         let clean = name.to_ascii_lowercase();
         if clean == "mcpe_packet" || clean == "mcpepacket" || clean == "mcpe_packet_name" {
@@ -125,6 +130,13 @@ pub fn generate_protocol_module(
     // 2. Emit Packets (top-level)
     for packet in &parse_result.packets {
         let naming = packet_naming(&packet.name);
+        if scoreboard::applies(packet, &parse_result.types)? {
+            ctx.definitions_by_group
+                .entry("proto".into())
+                .or_default()
+                .push(scoreboard::owned_tokens());
+            continue;
+        }
         let struct_name = naming.payload_name;
         let signature = resolver::compute_packet_signature(&struct_name, &packet.body, &ctx);
         define_container(&struct_name, &packet.body, &signature, &mut ctx)?;
