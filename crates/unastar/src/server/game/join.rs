@@ -227,6 +227,9 @@ impl GameServer {
 /// Initial item state matches BDS: main 36, armour 5, UI 54, offhand 1,
 /// then the selected hotbar slot. The fifth armour slot is empty for players.
 pub(crate) fn send_inventory_contents(world: &World, entity: Entity) {
+    if super::player_events::initial_state_pending(world, entity) {
+        return;
+    }
     use super::inventory::{
         ARMOR_WINDOW, INVENTORY_WINDOW, OFFHAND_WINDOW, UI_WINDOW, UNNAMED_CONTAINER, wire_item,
     };

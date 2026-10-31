@@ -54,6 +54,9 @@ pub fn player_attributes(
 
 /// Send `attributes` of `player` to its own client.
 pub fn send_attributes(world: &World, player: Entity, attributes: Vec<AttributeData>) {
+    if crate::server::game::player_events::initial_state_pending(world, player) {
+        return;
+    }
     let (Some(session), Some(runtime_id)) = (
         world.get::<PlayerSession>(player),
         world.get::<RuntimeEntityId>(player),
