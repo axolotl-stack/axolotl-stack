@@ -37,6 +37,7 @@ use crate::entity::mob::components::{
 use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::state::{Dead, LastHurt};
 use crate::entity::mob::{MobKind, constants};
+use crate::registry::collision::Aabb;
 
 /// The hurt timer of a mob: the server tick it runs out at and the damage
 /// of the hit that started it.

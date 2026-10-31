@@ -182,7 +182,8 @@ fn fire_projectile_direct_hit_damages_and_ignites_but_immunity_prevents_ignition
         None,
         &config,
         DVec3::new(8.2, 64.5, 8.5),
-        flight::Target::Actor(cow)
+        flight::Target::Actor(cow),
+        DVec3::new(8.2, 64.5, 8.5),
     ));
     assert_eq!(world.get::<Health>(cow).unwrap().current, before - 5.0);
     assert!(
@@ -206,6 +207,7 @@ fn fire_projectile_direct_hit_damages_and_ignites_but_immunity_prevents_ignition
         &config,
         DVec3::new(8.2, 64.5, 8.5),
         flight::Target::Actor(cow),
+        DVec3::new(8.2, 64.5, 8.5),
     );
     assert!(
         world
@@ -400,6 +402,7 @@ fn rejected_damage_does_not_ignite_an_invulnerable_target() {
         &rules,
         DVec3::new(2.5, 65.0, 2.5),
         flight::Target::Actor(player),
+        DVec3::new(2.5, 65.0, 2.5),
     );
     assert_eq!(world.get::<Health>(player).unwrap().current, before);
     assert!(
@@ -428,6 +431,7 @@ fn rejected_damage_does_not_ignite_an_invulnerable_target() {
         &rules,
         DVec3::new(8.5, 64.5, 8.5),
         flight::Target::Actor(cow),
+        DVec3::new(8.5, 64.5, 8.5),
     );
     assert!(
         world
