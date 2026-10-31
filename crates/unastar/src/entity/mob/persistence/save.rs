@@ -106,6 +106,21 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
         put("Color", NBTTag::Byte(colour.into()));
     }
     let now = current_tick(world);
+    if let Some(anger) = world.get::<crate::entity::mob::components::reactive::Angry>(mob) {
+        let remaining = if anger.calmed {
+            0
+        } else {
+            anger.until_tick.saturating_sub(now)
+        };
+        put(
+            "UnastarAngerTicks",
+            NBTTag::Long(i64::try_from(remaining).unwrap_or(i64::MAX).into()),
+        );
+        put(
+            "UnastarAngerCalmed",
+            NBTTag::Byte(u8::from(anger.calmed).into()),
+        );
+    }
     if let Some(love) = world.get::<InLove>(mob)
         && love.until_tick > now
     {

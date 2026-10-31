@@ -440,6 +440,21 @@ filters read the actual actor flag for either supported subject. This does not
 add a mount controller. See the [published step-height contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_variable_max_auto_step?view=minecraft-bedrock-stable).
 
 
+`minecraft:looked_at` detects continuous views using actor rotations, distance-scaled
+view cones, collision line of sight and real equipment filters, including player
+head slots. Detection and loss events run after AI commits; target assignment uses
+normal hostile-target eligibility. Player-only searches select the nearest matching
+player. Collision obstruction mode, body-relative points, cooldowns and current or
+legacy target choices are supported; other obstruction modes fail compilation.
+See the [published gaze contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_looked_at?view=minecraft-bedrock-stable).
+
+`minecraft:angry` sets the replicated angry flag, expires once, clears the combat
+target and fires its optional calm event. Authored duration variation, target
+filters and periodic sounds are supported. Remaining time and the completed state
+survive actor saves using server-owned extension tags. Broadcast options fail
+compilation until group anger propagation is implemented. See the
+[published anger contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_angry?view=minecraft-bedrock-stable).
+
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
 by identifier, replacing the whole definition rather than merging components.
 `freeze()` consumes the builder and shares immutable definitions through `Arc`.

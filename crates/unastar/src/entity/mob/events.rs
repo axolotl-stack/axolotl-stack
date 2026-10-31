@@ -237,13 +237,27 @@ impl FilterContext for MobFacts<'_> {
                         self.world, entity, slots, &want,
                     )));
                 }
-                if !matches!(domain, "hand" | "any") {
-                    return None;
-                }
-                let stack = held_item(self.world, entity);
-                Fact::Matches(
-                    stack.is_some_and(|stack| want.matches(stack.item_id(), stack.damage)),
-                )
+                let slots = super::gear::domain_slots(domain)?;
+                let armour = self
+                    .world
+                    .get::<crate::entity::components::ArmourInventory>(entity);
+                Fact::Matches(slots.iter().any(|slot| {
+                    use super::gear::GearSlot;
+                    let stack = match slot {
+                        GearSlot::Mainhand => held_item(self.world, entity),
+                        GearSlot::Offhand => self
+                            .world
+                            .get::<crate::entity::components::OffhandSlot>(entity)
+                            .map(|slot| &slot.0),
+                        GearSlot::Head => armour.map(|slots| slots.helmet()),
+                        GearSlot::Chest => armour.map(|slots| slots.chestplate()),
+                        GearSlot::Legs => armour.map(|slots| slots.leggings()),
+                        GearSlot::Feet => armour.map(|slots| slots.boots()),
+                    };
+                    stack.is_some_and(|stack| {
+                        !stack.is_empty() && want.matches(stack.item_id(), stack.damage)
+                    })
+                }))
             }
             _ => return None,
         })

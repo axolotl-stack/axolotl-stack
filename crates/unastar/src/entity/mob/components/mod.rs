@@ -28,6 +28,7 @@ pub mod interact;
 pub mod knockback;
 pub mod loot;
 pub mod movement;
+pub mod reactive;
 pub mod sensors;
 pub mod shearing;
 pub mod spawn_entity;
@@ -151,6 +152,7 @@ pub fn register_component_kinds(
 ) -> Result<(), DefinitionError> {
     goals::register_component_kinds(builder)?;
     movement::register_component_kinds(builder)?;
+    reactive::register_component_kinds(builder)?;
     body::register_component_kinds(builder)?;
     hurt_on_condition::register_component_kinds(builder)?;
     despawn::register_component_kinds(builder)?;

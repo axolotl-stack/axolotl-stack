@@ -8,6 +8,7 @@ mod chicken;
 mod doors;
 mod interaction;
 mod passive;
+mod reactive;
 mod sensors;
 mod spawn;
 mod step;
