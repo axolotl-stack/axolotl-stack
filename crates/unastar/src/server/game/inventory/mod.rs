@@ -148,6 +148,12 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
         if world.get::<FatalInventoryRequest>(entity).is_some() {
             continue;
         }
+        if let InventoryAction::ItemStackRequest(packet) = &action
+            && !authorize_container_request(world, entity)
+        {
+            reject_container_requests(world, entity, packet);
+            continue;
+        }
         let can_drop = world
             .get::<crate::entity::components::Rotation>(entity)
             .is_some()
@@ -247,6 +253,116 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
         if fatal {
             world.entity_mut(entity).insert(FatalInventoryRequest);
         }
+    }
+}
+
+/// Reauthorize retained block windows before copying slots or borrowing inventory
+/// state. This prevents a permission change from leaving old windows writable.
+fn authorize_container_request(world: &mut World, player: Entity) -> bool {
+    let Some((window, ScreenKind::Block(screen))) = world
+        .get::<ContainerWindows>(player)
+        .and_then(|windows| Some((windows.open_id()?, windows.screen())))
+    else {
+        return true;
+    };
+    let positions = super::containers::authorization_positions(world, screen.at);
+    let coordinates: Vec<_> = positions.iter().map(|pos| (pos.x, pos.y, pos.z)).collect();
+    let allowed = super::blocks::authorize_block_operation(
+        world,
+        player,
+        super::block_interaction::BlockInteractionKind::Use,
+        &coordinates,
+    ) && world
+        .get::<ContainerWindows>(player)
+        .is_some_and(|windows| {
+            windows.open_id() == Some(window) && windows.screen() == ScreenKind::Block(screen)
+        })
+        && super::containers::authorization_positions(world, screen.at) == positions;
+    if !allowed {
+        close_denied_window(world, player, screen);
+    }
+    allowed
+}
+
+/// Close a rejected window without moving cursor stacks or changing inventory.
+/// Missing source components are expected when a callback despawned its player.
+fn close_denied_window(
+    world: &mut World,
+    player: Entity,
+    previous: crate::entity::components::BlockScreen,
+) {
+    let current = world
+        .get::<ContainerWindows>(player)
+        .map(|windows| (windows.open_id(), windows.screen()));
+    if let Some((Some(window), screen)) = current {
+        if let Some(mut windows) = world.get_mut::<ContainerWindows>(player) {
+            windows.close();
+        }
+        let kind = match screen {
+            ScreenKind::Block(block) => block.kind.wire_type() as u8,
+            _ => WireContainerType::None.byte(),
+        };
+        if let Some(session) = world.get::<PlayerSession>(player) {
+            session.send(
+                ContainerClosePacket {
+                    container_id: window,
+                    container_type: kind,
+                    server_initiated_close: true,
+                }
+                .into(),
+            );
+        }
+        if let ScreenKind::Block(block) = screen
+            && block != previous
+        {
+            super::containers::stop_viewing(world, player, block);
+        }
+    }
+    super::containers::stop_viewing(world, player, previous);
+}
+
+/// Reject every frame without passing its actions into the mutation engine, then
+/// send authoritative player/UI slots so predicted transfers cannot remain shown.
+fn reject_container_requests(
+    world: &mut World,
+    player: Entity,
+    packet: &jolyne::valentine::ItemStackRequestPacket,
+) {
+    let Some(session) = world.get::<PlayerSession>(player) else {
+        return;
+    };
+    let mut responses = Vec::new();
+    let mut fatal = false;
+    for request in &packet.requests {
+        let id = request.client_request_id.id;
+        if id >= 0 || id % 2 == 0 {
+            fatal = true;
+            break;
+        }
+        responses.push(jolyne::valentine::ItemStackResponseInfo {
+            result: jolyne::valentine::EnumsItemStackNetResult::Error,
+            client_request_id:
+                jolyne::valentine::TypedClientNetIdstructItemStackRequestIdTagint32T0 { id },
+            containers: None,
+        });
+    }
+    if !responses.is_empty() {
+        session.send(jolyne::valentine::ItemStackResponsePacket { responses }.into());
+    }
+    if fatal {
+        session.send(invalid_request_warning().into());
+    }
+    resync_inventory(world, player);
+    if let Some(ui) = world.get::<PlayerUi>(player) {
+        send_window(
+            UI_WINDOW,
+            &ui.0,
+            session,
+            super::types::block_network_ids(world),
+        );
+    }
+    if fatal && let Ok(mut entity) = world.get_entity_mut(player) {
+        entity.insert(FatalInventoryRequest);
     }
 }
 

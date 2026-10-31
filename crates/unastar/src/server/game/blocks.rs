@@ -8,6 +8,7 @@ use bevy_ecs::prelude::*;
 use glam::IVec3;
 use tracing::{debug, trace, warn};
 
+use super::block_interaction::{self, BlockInteractionKind};
 use super::packet_queues::{BlockAction, BlockPacketQueue};
 use crate::ecs::events::{EventBuffer, ServerEvent};
 use crate::entity::components::{BreakingState, PlayerSession, PlayerUuid};
@@ -281,7 +282,7 @@ pub(crate) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> 
 
 /// Reach is measured from server-tracked position to the target block's box.
 /// Missing/non-finite player state and non-building modes fail closed.
-fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> bool {
+pub(crate) fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> bool {
     use crate::entity::components::{GameMode, Position};
     let Some(mode) = world.get::<GameMode>(entity) else {
         return false;
@@ -311,6 +312,47 @@ fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> boo
 enum BlockUse {
     Workbench,
     Container,
+}
+
+/// Resolve reciprocal container halves without requiring container resources in
+/// small worlds that only contain ordinary blocks.
+fn container_positions(world: &mut World, position: (i32, i32, i32)) -> Vec<(i32, i32, i32)> {
+    if world.contains_resource::<super::containers::BlockContainers>() {
+        super::containers::authorization_positions(
+            world,
+            IVec3::new(position.0, position.1, position.2),
+        )
+        .into_iter()
+        .map(|pos| (pos.x, pos.y, pos.z))
+        .collect()
+    } else {
+        vec![position]
+    }
+}
+
+/// Add any neighbour whose container metadata would change with this placement.
+fn placement_positions(
+    world: &mut World,
+    position: (i32, i32, i32),
+    state: u32,
+    upper: Option<(IVec3, u32)>,
+) -> Vec<(i32, i32, i32)> {
+    let mut positions = if world.contains_resource::<super::containers::BlockContainers>() {
+        super::containers::placement_authorization_positions(
+            world,
+            IVec3::new(position.0, position.1, position.2),
+            state,
+        )
+        .into_iter()
+        .map(|pos| (pos.x, pos.y, pos.z))
+        .collect()
+    } else {
+        vec![position]
+    };
+    if let Some((above, _)) = upper {
+        positions.push((above.x, above.y, above.z));
+    }
+    positions
 }
 
 /// An interactive block's `use` (crafting table, container) runs before item
@@ -365,7 +407,7 @@ fn held_block(world: &World, entity: Entity) -> Option<(u32, &crate::item::ItemS
     Some((block.default_state_id, stack, item.network_id()))
 }
 
-fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
+pub(crate) fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
     let Some(block_runtime_id) = block_at(world, position) else {
         return;
     };
@@ -393,8 +435,18 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             block_id,
             ..
         } => {
+            let positions = container_positions(world, *position);
             if can_interact(world, *entity, *position)
                 && block_at(world, *position) == Some(*block_id)
+                && authorize_block_operation(
+                    world,
+                    *entity,
+                    BlockInteractionKind::Break,
+                    &positions,
+                )
+                && can_interact(world, *entity, *position)
+                && block_at(world, *position) == Some(*block_id)
+                && container_positions(world, *position) == positions
             {
                 apply_break_block(world, *entity, position.0, position.1, position.2);
             } else {
@@ -416,6 +468,18 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                 reject_block_event(world, event);
                 return;
             };
+            let positions = placement_positions(world, *position, *block_id, upper);
+            if !authorize_block_operation(world, *entity, BlockInteractionKind::Place, &positions)
+                || !can_interact(world, *entity, *position)
+                || placement_upper(world, *entity, *position, *block_id) != Some(upper)
+                || placement_positions(world, *position, *block_id, upper) != positions
+            {
+                for position in positions {
+                    correct_block(world, *entity, position);
+                }
+                super::inventory::resync_inventory(world, *entity);
+                return;
+            }
             place_block(world, position.0, position.1, position.2, *block_id);
             if let Some((above, upper_state)) = upper {
                 place_block(world, above.x, above.y, above.z, upper_state);
@@ -456,6 +520,85 @@ pub(crate) fn reject_block_event(world: &World, event: &ServerEvent) {
         }
         _ => {}
     }
+}
+
+/// Session identity retained across callbacks without holding its ECS borrow.
+struct InteractionSession {
+    session_id: u64,
+    xuid: Option<String>,
+    uuid: Option<String>,
+    outbound: tokio::sync::mpsc::Sender<McpePacket>,
+}
+
+impl InteractionSession {
+    /// Capture the authenticated session and connection used by this operation.
+    fn capture(session: &PlayerSession) -> Self {
+        Self {
+            session_id: session.session_id,
+            xuid: session.xuid.clone(),
+            uuid: session.uuid.clone(),
+            outbound: session.outbound_tx.clone(),
+        }
+    }
+
+    /// Require the same account and connection after extension callbacks.
+    fn matches(&self, session: &PlayerSession) -> bool {
+        self.session_id == session.session_id
+            && self.xuid == session.xuid
+            && self.uuid == session.uuid
+            && self.outbound.same_channel(&session.outbound_tx)
+    }
+}
+
+/// Authorize immutable target snapshots and reject callback changes to ownership,
+/// selected inventory, game mode or any affected block before committing effects.
+pub(crate) fn authorize_block_operation(
+    world: &mut World,
+    player: Entity,
+    kind: BlockInteractionKind,
+    positions: &[(i32, i32, i32)],
+) -> bool {
+    let states: Option<Vec<_>> = positions
+        .iter()
+        .map(|position| block_at(world, *position))
+        .collect();
+    let Some(states) = states else {
+        return false;
+    };
+    let mode = world
+        .get::<crate::entity::components::GameMode>(player)
+        .copied();
+    let held = super::item_use::held(world, player);
+    let player_uuid = world.get::<PlayerUuid>(player).map(|uuid| uuid.0);
+    let session = world
+        .get::<PlayerSession>(player)
+        .map(InteractionSession::capture);
+    let allowed = block_interaction::authorize(
+        world,
+        player,
+        kind,
+        positions
+            .iter()
+            .map(|&(x, y, z)| IVec3::new(x, y, z))
+            .collect(),
+    );
+    allowed
+        && world.get_entity(player).is_ok()
+        && world
+            .get::<crate::entity::components::GameMode>(player)
+            .copied()
+            == mode
+        && super::item_use::held(world, player) == held
+        && world.get::<PlayerUuid>(player).map(|uuid| uuid.0) == player_uuid
+        && match (session.as_ref(), world.get::<PlayerSession>(player)) {
+            (Some(expected), Some(current)) => expected.matches(current),
+            (None, None) => true,
+            _ => false,
+        }
+        && positions
+            .iter()
+            .zip(states)
+            .all(|(position, state)| block_at(world, *position) == Some(state))
 }
 
 /// Validate and queue a break intent. Plugin dispatch owns the commit boundary.
@@ -765,6 +908,23 @@ fn handle_block_click(
         super::inventory::resync_inventory(world, entity);
         return;
     }
+    let use_kind = block_use(world, entity, clicked);
+    let use_positions = if use_kind == Some(BlockUse::Container) {
+        container_positions(world, clicked)
+    } else {
+        vec![clicked]
+    };
+    if use_kind.is_some()
+        && (!authorize_block_operation(world, entity, BlockInteractionKind::Use, &use_positions)
+            || !can_interact(world, entity, clicked)
+            || block_use(world, entity, clicked) != use_kind
+            || (use_kind == Some(BlockUse::Container)
+                && container_positions(world, clicked) != use_positions))
+    {
+        correct_block(world, entity, clicked);
+        super::inventory::resync_inventory(world, entity);
+        return;
+    }
     // A valid placement follows this interaction immediately in EventBuffer.
     // PluginManager carries interaction cancellation to the paired placement.
     if let Some(mut events) = world.get_resource_mut::<EventBuffer>() {
@@ -774,7 +934,7 @@ fn handle_block_click(
             face: data.face,
         });
     }
-    match block_use(world, entity, clicked) {
+    match use_kind {
         Some(BlockUse::Workbench) => {
             super::inventory::open_workbench(world, entity, clicked);
             return;
@@ -802,8 +962,25 @@ fn handle_block_click(
     {
         return;
     }
-    if main_hand_selected
-        && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR)
+    let spawn_egg = main_hand_selected
+        && super::item_use::held(world, entity).is_some_and(|(_, stack)| {
+            crate::entity::mob::interaction::interact::spawn_egg_actor(stack.item_id()).is_some()
+        })
+        && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR);
+    if spawn_egg
+        && (!authorize_block_operation(
+            world,
+            entity,
+            BlockInteractionKind::Use,
+            &[clicked, position],
+        ) || !can_interact(world, entity, clicked))
+    {
+        correct_block(world, entity, clicked);
+        correct_block(world, entity, position);
+        super::inventory::resync_inventory(world, entity);
+        return;
+    }
+    if spawn_egg
         && crate::entity::mob::interaction::interact::use_spawn_egg_on_block(
             world,
             entity,
@@ -1100,6 +1277,75 @@ mod tests {
     use crate::world::ecs::{ChunkData, ChunkPosition};
     use glam::DVec3;
 
+    use super::super::block_interaction::{
+        BlockInteraction, BlockInteractionHandler, BlockInteractionHooks,
+    };
+
+    /// Veto one kind of operation, optionally only when it affects a target.
+    struct Veto {
+        kind: BlockInteractionKind,
+        position: Option<IVec3>,
+    }
+
+    impl BlockInteractionHandler for Veto {
+        fn on_interaction(&self, _world: &mut World, event: &mut BlockInteraction) {
+            if event.kind() == self.kind
+                && self
+                    .position
+                    .is_none_or(|position| event.positions().contains(&position))
+            {
+                event.cancel();
+            }
+        }
+    }
+
+    /// Remove the source during a callback to exercise post-callback validation.
+    struct DespawnSource;
+
+    impl BlockInteractionHandler for DespawnSource {
+        fn on_interaction(&self, world: &mut World, event: &mut BlockInteraction) {
+            world.despawn(event.player());
+        }
+    }
+
+    /// Alter a target during a callback so the original operation becomes stale.
+    struct ReplaceTarget(Entity);
+
+    impl BlockInteractionHandler for ReplaceTarget {
+        fn on_interaction(&self, world: &mut World, _event: &mut BlockInteraction) {
+            world
+                .get_mut::<ChunkData>(self.0)
+                .unwrap()
+                .inner
+                .set_block(1, 64, 1, *blocks::DIRT);
+        }
+    }
+
+    /// Swap authenticated account components without changing reach or inventory.
+    struct ChangeIdentity {
+        change_uuid: bool,
+    }
+
+    impl BlockInteractionHandler for ChangeIdentity {
+        fn on_interaction(&self, world: &mut World, event: &mut BlockInteraction) {
+            if self.change_uuid {
+                world
+                    .entity_mut(event.player())
+                    .insert(PlayerUuid(uuid::Uuid::from_u128(2)));
+            } else if let Some(mut session) = world.get_mut::<PlayerSession>(event.player()) {
+                session.xuid = Some("replacement-account".into());
+            }
+        }
+    }
+
+    /// Install a native callback without requiring the complete runtime fixture.
+    fn hook(world: &mut World, handler: impl BlockInteractionHandler) {
+        world.init_resource::<BlockInteractionHooks>();
+        world
+            .resource_mut::<BlockInteractionHooks>()
+            .register(handler);
+    }
+
     fn block_world(mode: GameMode, position: DVec3) -> (World, Entity, Entity) {
         let mut world = World::new();
         world.insert_resource(ChunkManager::new(
@@ -1185,6 +1431,178 @@ mod tests {
                 .get_block(1, 64, 1),
             *blocks::STONE
         );
+    }
+
+    #[test]
+    fn native_break_veto_preserves_block_tool_and_inventory() {
+        let (mut world, player, _) = block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(
+                0,
+                crate::item::test_support::stack("minecraft:iron_pickaxe", 1),
+            )
+            .unwrap();
+        hook(
+            &mut world,
+            Veto {
+                kind: BlockInteractionKind::Break,
+                position: None,
+            },
+        );
+        let before = super::super::item_use::held(&world, player);
+        commit_block_event(
+            &mut world,
+            &ServerEvent::BlockBreak {
+                entity: player,
+                player_id: String::new(),
+                position: (1, 64, 1),
+                block_id: *blocks::STONE,
+            },
+        );
+        assert_eq!(block_at(&world, (1, 64, 1)), Some(*blocks::STONE));
+        assert_eq!(super::super::item_use::held(&world, player), before);
+        assert_eq!(world.entities().len(), 2);
+    }
+
+    #[test]
+    fn native_placement_veto_authorizes_both_door_halves_without_consuming() {
+        let (mut world, player, _) = block_world(GameMode::Survival, DVec3::new(3.5, 64.0, 1.5));
+        let door = crate::registry::BlockRegistry::vanilla()
+            .get_by_name("minecraft:wooden_door")
+            .unwrap();
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(
+                0,
+                crate::item::test_support::stack("minecraft:wooden_door", 1)
+                    .with_runtime_id(door.default_state_id as i32),
+            )
+            .unwrap();
+        hook(
+            &mut world,
+            Veto {
+                kind: BlockInteractionKind::Place,
+                position: Some(IVec3::new(1, 66, 1)),
+            },
+        );
+        let before = super::super::item_use::held(&world, player);
+        commit_block_event(
+            &mut world,
+            &ServerEvent::BlockPlace {
+                entity: player,
+                player_id: String::new(),
+                position: (1, 65, 1),
+                block_id: door.default_state_id,
+            },
+        );
+        assert_eq!(block_at(&world, (1, 65, 1)), Some(*blocks::AIR));
+        assert_eq!(block_at(&world, (1, 66, 1)), Some(*blocks::AIR));
+        assert_eq!(super::super::item_use::held(&world, player), before);
+    }
+
+    #[test]
+    fn native_use_veto_prevents_early_workbench_open_and_queued_interaction() {
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        let data = placement(&mut world);
+        let table = crate::registry::BlockRegistry::vanilla()
+            .default_state_id_by_name("minecraft:crafting_table")
+            .unwrap();
+        world
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block(1, 64, 1, table);
+        hook(
+            &mut world,
+            Veto {
+                kind: BlockInteractionKind::Use,
+                position: None,
+            },
+        );
+        handle_block_click(&mut world, player, &data);
+        assert_eq!(block_at(&world, (1, 64, 1)), Some(table));
+        assert!(world.resource_mut::<EventBuffer>().drain().is_empty());
+        assert!(
+            world
+                .get::<crate::entity::components::PlayerUi>(player)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn native_callback_despawn_cannot_commit_a_stale_placement() {
+        let (mut world, player, _) = block_world(GameMode::Survival, DVec3::new(3.5, 64.0, 1.5));
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
+            .unwrap();
+        hook(&mut world, DespawnSource);
+        commit_block_event(
+            &mut world,
+            &ServerEvent::BlockPlace {
+                entity: player,
+                player_id: String::new(),
+                position: (1, 65, 1),
+                block_id: *blocks::STONE,
+            },
+        );
+        assert!(world.get_entity(player).is_err());
+        assert_eq!(block_at(&world, (1, 65, 1)), Some(*blocks::AIR));
+    }
+
+    #[test]
+    fn native_callback_block_change_cannot_break_the_replacement() {
+        let (mut world, player, chunk) =
+            block_world(GameMode::Creative, DVec3::new(1.5, 65.62, 1.5));
+        hook(&mut world, ReplaceTarget(chunk));
+        commit_block_event(
+            &mut world,
+            &ServerEvent::BlockBreak {
+                entity: player,
+                player_id: String::new(),
+                position: (1, 64, 1),
+                block_id: *blocks::STONE,
+            },
+        );
+        assert_eq!(block_at(&world, (1, 64, 1)), Some(*blocks::DIRT));
+    }
+
+    #[test]
+    fn native_callback_account_swap_cannot_commit_under_stale_authorization() {
+        for change_uuid in [true, false] {
+            let (mut world, player, _) =
+                block_world(GameMode::Creative, DVec3::new(1.5, 65.62, 1.5));
+            let (tx, _rx) = tokio::sync::mpsc::channel(8);
+            world.entity_mut(player).insert((
+                PlayerUuid(uuid::Uuid::from_u128(1)),
+                PlayerSession::new(
+                    1,
+                    "player".into(),
+                    Some("original-account".into()),
+                    None,
+                    tx,
+                ),
+            ));
+            hook(&mut world, ChangeIdentity { change_uuid });
+            commit_block_event(
+                &mut world,
+                &ServerEvent::BlockBreak {
+                    entity: player,
+                    player_id: String::new(),
+                    position: (1, 64, 1),
+                    block_id: *blocks::STONE,
+                },
+            );
+            assert_eq!(block_at(&world, (1, 64, 1)), Some(*blocks::STONE));
+        }
     }
 
     #[test]
