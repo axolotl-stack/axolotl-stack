@@ -71,6 +71,13 @@ pub struct ProjectileRules {
     pub particle: Option<ParticleOnHit>,
     pub remove_on_hit: bool,
     pub spawn_chance: Option<SpawnChance>,
+    /// Teleport the owner to a collision-free impact destination.
+    pub teleport_owner: bool,
+    /// Extinguish water-bottle targets before ordinary potion effects.
+    pub douse_fire: bool,
+    /// Authored aux override; -1 uses the projectile's captured contents.
+    pub thrown_potion: Option<i32>,
+    pub cloud: Option<CloudRules>,
     /// `on_hit.stick_in_ground`: stays where it hit a block, shaking for
     /// this many ticks.
     pub stick_in_ground: Option<u32>,
@@ -79,6 +86,18 @@ pub struct ProjectileRules {
     pub bounce_without_damage: bool,
     /// `stop_on_hurt`: it drops away from an actor it hurt.
     pub stop_on_hurt: bool,
+}
+
+/// Authored area-effect-cloud lifetime and per-recipient reuse parameters.
+#[derive(Clone, Debug)]
+pub struct CloudRules {
+    pub duration_ticks: u32,
+    pub radius: f64,
+    pub radius_on_use: f64,
+    pub reapplication_delay: u32,
+    pub affect_owner: bool,
+    /// -1 uses the projectile's captured potion contents.
+    pub potion: i32,
 }
 
 /// `on_hit.impact_damage`.
@@ -214,6 +233,10 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         particle: None,
         remove_on_hit: false,
         spawn_chance: None,
+        teleport_owner: false,
+        douse_fire: false,
+        thrown_potion: None,
+        cloud: None,
         stick_in_ground: None,
         bounce_without_damage: b.should_bounce == ShouldBounce::IfNoDamageDealt,
         stop_on_hurt: b.stop_on_hurt,
@@ -224,24 +247,21 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
     for (present, name) in [
         (on_hit.catch_fire.is_some(), "catch_fire"),
         (on_hit.definition_event.is_some(), "definition_event"),
-        (on_hit.douse_fire.is_some(), "douse_fire"),
         (on_hit.freeze_on_hit.is_some(), "freeze_on_hit"),
         (on_hit.grant_xp.is_some(), "grant_xp"),
         (on_hit.hurt_owner.is_some(), "hurt_owner"),
         (on_hit.ignite.is_some(), "ignite"),
         (on_hit.mob_effect.is_some(), "mob_effect"),
-        (on_hit.spawn_aoe_cloud.is_some(), "spawn_aoe_cloud"),
-        (on_hit.teleport_owner.is_some(), "teleport_owner"),
-        (
-            on_hit.thrown_potion_effect.is_some(),
-            "thrown_potion_effect",
-        ),
         (on_hit.wind_burst_on_hit.is_some(), "wind_burst_on_hit"),
     ] {
         if present {
             return Err(ProjectileError::OnHit(name));
         }
     }
+    rules.teleport_owner = on_hit.teleport_owner.is_some();
+    rules.douse_fire = on_hit.douse_fire.is_some();
+    rules.thrown_potion = on_hit.thrown_potion_effect.map(|value| value.effect);
+    rules.cloud = on_hit.spawn_aoe_cloud.map(compile_cloud).transpose()?;
     rules.impact_damage = on_hit.impact_damage.map(compile_impact).transpose()?;
     rules.particle = on_hit
         .particle_on_hit
@@ -255,6 +275,47 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         .map(|stick| (stick.shake_time * 20.0).round().max(0.0) as u32);
     rules.spawn_chance = on_hit.spawn_chance.map(compile_spawn_chance).transpose()?;
     Ok(rules)
+}
+
+/// Compile finite, bounded cloud values without silently accepting unsupported particles.
+fn compile_cloud(
+    value: body::SpawnAoECloudSubcomponentDefinition,
+) -> Result<CloudRules, ProjectileError> {
+    reject(
+        value.particle != ParticleType::Mobspellambient,
+        "cloud particle",
+    )?;
+    let seconds = match value.duration {
+        body::EffectDuration::Int(value) => f64::from(value),
+        body::EffectDuration::String(value) => value
+            .parse::<f64>()
+            .map_err(|_| ProjectileError::Unsupported("cloud duration"))?,
+    };
+    reject(
+        !seconds.is_finite() || seconds < 0.0 || seconds > f64::from(i32::MAX) / 20.0,
+        "cloud duration",
+    )?;
+    reject(
+        !value.radius.is_finite() || value.radius < 0.0 || value.radius > 128.0,
+        "cloud radius",
+    )?;
+    reject(
+        !value.radius_on_use.is_finite() || value.radius_on_use.abs() > 128.0,
+        "cloud radius_on_use",
+    )?;
+    reject(value.reapplication_delay < 0, "cloud reapplication_delay")?;
+    Ok(CloudRules {
+        duration_ticks: (seconds * 20.0).round() as u32,
+        radius: f64::from(value.radius),
+        radius_on_use: if value.radius_on_use == -1.0 {
+            0.0
+        } else {
+            f64::from(value.radius_on_use)
+        },
+        reapplication_delay: value.reapplication_delay as u32,
+        affect_owner: value.affect_owner,
+        potion: value.potion,
+    })
 }
 
 fn compile_impact(
@@ -355,7 +416,8 @@ fn compile_spawn_chance(
 }
 
 /// Startup check, once every archetype is compiled: what a projectile's
-/// `spawn_chance` spawns must be spawnable and define its `on_spawn` events.
+/// `spawn_chance` targets that are available must define their `on_spawn` events.
+/// An unavailable optional actor fails only that runtime spawn attempt.
 pub(crate) fn check_spawns(
     archetype: &MobArchetype,
     items: &ItemRegistry,
@@ -375,7 +437,9 @@ pub(crate) fn check_spawns(
         return Ok(());
     };
     let name = spawn.definition.name();
-    let target = get(name).ok_or(ProjectileError::SpawnDefinition(name))?;
+    let Some(target) = get(name) else {
+        return Ok(());
+    };
     for trigger in spawn.on_spawn.iter() {
         if target.events.event(&trigger.event).is_none() {
             return Err(ProjectileError::SpawnEvent(

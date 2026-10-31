@@ -10,9 +10,7 @@ use tracing::warn;
 use unastar_data::actor_identifiers::ActorType;
 
 use super::{ProjectileConfig, ProjectileFlight, ThrowQueue};
-use crate::entity::components::{
-    GameMode, Health, HeldSlot, MainInventory, Position, Rotation, Velocity,
-};
+use crate::entity::components::{GameMode, Position, Rotation, Velocity};
 use crate::entity::definition::components::{PhysicsConfig, RawCollisionBox, ScaleConfig};
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
@@ -25,7 +23,6 @@ use crate::entity::mob::net::sound::play_level_sound;
 use crate::entity::mob::{MobSpawnError, SpawnCause, spawn_mob};
 use crate::entity::systems::physics::move_aabb;
 use crate::registry::collision::Aabb;
-use crate::server::game::send_slot;
 
 /// Why a throw produced no projectile.
 #[derive(Debug, Error)]
@@ -43,6 +40,12 @@ pub enum LaunchError {
 /// The projectile actor and its climate variant label an item throws when
 /// used, if it is a throwable item.
 pub fn thrown_by(item: &str) -> Option<(ActorType, Option<&'static str>)> {
+    match item {
+        "minecraft:ender_pearl" => return Some((ActorType::EnderPearl, None)),
+        "minecraft:splash_potion" => return Some((ActorType::SplashPotion, None)),
+        "minecraft:lingering_potion" => return Some((ActorType::LingeringPotion, None)),
+        _ => {}
+    }
     if item == "minecraft:snowball" {
         return Some((ActorType::Snowball, None));
     }
@@ -100,31 +103,75 @@ pub fn apply_throws(world: &mut World) {
 }
 
 fn throw_held(world: &mut World, player: Entity) {
-    let Some((actor, climate)) = held_item(world, player).and_then(|s| thrown_by(s.item_id()))
+    let Some((actor, climate)) =
+        held_item(world, player).and_then(|stack| thrown_by(stack.item_id()))
     else {
         return;
     };
+    let Some((slot, stack)) = crate::server::game::item_use::held(world, player) else {
+        return;
+    };
+    let Some(permit) = crate::server::game::item_actions::authorize(
+        world,
+        player,
+        crate::server::game::item_actions::ItemActionKind::Launch,
+    ) else {
+        return;
+    };
+    let potion = if matches!(actor, ActorType::SplashPotion | ActorType::LingeringPotion) {
+        let Some(potion) =
+            crate::server::game::potions::ProjectilePotion::from_stack(world, &stack)
+        else {
+            return;
+        };
+        Some(potion)
+    } else {
+        None
+    };
     let mode = world.get::<GameMode>(player).copied().unwrap_or_default();
-    if mode == GameMode::Spectator || world.get::<Health>(player).is_some_and(Health::is_dead) {
+    let projectile = match launch_with(
+        world,
+        player,
+        actor,
+        climate,
+        LaunchSpec {
+            throw_sound: false,
+            ..LaunchSpec::default()
+        },
+    ) {
+        Ok(projectile) => projectile,
+        Err(error) => {
+            warn!(%error,actor=actor.name(),"Throwing a projectile failed");
+            return;
+        }
+    };
+    if !permit.is_current(world) {
+        world.despawn(projectile);
         return;
     }
-    if mode != GameMode::Creative
-        && let Some(slot) = world.get::<HeldSlot>(player).map(|s| usize::from(s.0))
-    {
-        let used = world
-            .get_mut::<MainInventory>(player)
-            .and_then(|mut inventory| {
-                let held = inventory.0.item_mut(slot)?;
-                *held = held.grow(-1);
-                Some(held.clone())
-            });
-        if let Some(stack) = used {
-            send_slot(world, player, slot, &stack);
-        }
+    if let Some(potion) = potion {
+        world
+            .get_mut::<EntityMetadata>(projectile)
+            .expect("spawned projectile metadata")
+            .set_short(ids::AUX_VALUE_DATA, potion.aux);
+        world.entity_mut(projectile).insert(potion);
     }
-    if let Err(error) = launch(world, player, actor, climate) {
-        warn!(%error, actor = actor.name(), "Throwing a projectile failed");
+    if mode != GameMode::Creative {
+        crate::server::game::item_use::set_slot(world, player, slot, stack.grow(-1));
     }
+    if let Some(eye) = world.get::<Position>(player).map(|position| position.0) {
+        play_level_sound(
+            world,
+            Some(player),
+            eye - DVec3::Y * THROW_SOUND_EYE_DROP,
+            THROW_SOUND,
+            -1,
+        );
+    }
+    permit.commit(
+        world,
+        crate::server::game::item_actions::ItemActionOutcome::Launched { projectile },
+    );
 }
 
 /// The unit view vector of a rotation (degrees; Bedrock yaw/pitch).

@@ -232,7 +232,12 @@ pub fn start_using(world: &mut World, player: Entity, slot: u8, item: u32) {
 
 /// Stop using whatever the player uses.
 pub fn stop_using(world: &mut World, player: Entity) {
-    if world.entity_mut(player).take::<ItemUsing>().is_some() {
+    let removed = world
+        .get_entity_mut(player)
+        .ok()
+        .and_then(|mut entity| entity.take::<ItemUsing>())
+        .is_some();
+    if removed {
         broadcast_using(world, player, false);
     }
 }
@@ -249,6 +254,7 @@ pub fn used_ticks(world: &World, using: &ItemUsing) -> u64 {
 pub enum UseMethod {
     None = -1,
     Eat = 1,
+    Drink = 2,
 }
 
 /// Tell the player's client the item use finished.
@@ -272,11 +278,6 @@ pub fn apply_item_use(world: &mut World) {
             stop_using(world, player);
             continue;
         }
-        if let Some(mut events) = world.get_resource_mut::<EventBuffer>()
-            && request == UseRequest::UseAir
-        {
-            events.push(ServerEvent::PlayerItemUse { entity: player });
-        }
         handle(world, player, request);
     }
 }
@@ -289,6 +290,28 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
     let Some(item) = stack.item().map(|entry| entry.id) else {
         return;
     };
+    let ordinary_consume = request == UseRequest::Consume
+        && matches!(use_kind(&stack), Some(UseKind::Consume(_)))
+        && world.get::<ItemUsing>(player).is_some();
+    let permit = if ordinary_consume {
+        None
+    } else {
+        let kind = match request {
+            UseRequest::UseAir => super::item_actions::ItemActionKind::Use,
+            UseRequest::Release => super::item_actions::ItemActionKind::Release,
+            UseRequest::Consume => super::item_actions::ItemActionKind::Consume,
+        };
+        let Some(permit) = super::item_actions::authorize(world, player, kind) else {
+            return;
+        };
+        if let Some(mut events) = world.get_resource_mut::<EventBuffer>()
+            && request == UseRequest::UseAir
+        {
+            events.push(ServerEvent::PlayerItemUse { entity: player });
+        }
+        Some(permit)
+    };
+    let before_using = world.get::<ItemUsing>(player).copied();
     // Switching items abandons what was being used.
     let using = world
         .get::<ItemUsing>(player)
@@ -317,6 +340,13 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
         (_, UseRequest::Release | UseRequest::Consume, _) => stop_using(world, player),
         (None, UseRequest::UseAir, _) => {}
     }
+    if let Some(permit) = permit
+        && world
+            .get::<ItemUsing>(player)
+            .is_some_and(|using| Some(*using) != before_using)
+    {
+        permit.commit(world, super::item_actions::ItemActionOutcome::Started);
+    }
 }
 
 /// `MovePlayer` teleport causes (protocol constants).
@@ -329,19 +359,58 @@ pub enum TeleportCause {
 
 /// Move a player to `feet` and tell its client (teleport mode).
 pub fn teleport(world: &mut World, player: Entity, feet: glam::DVec3, cause: TeleportCause) {
+    teleport_from(world, player, None, feet, cause);
+}
+
+/// Teleport from an identified source after native destination authorization.
+/// Coordinates are feet positions; no state or packets change when vetoed.
+pub fn teleport_from(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    feet: glam::DVec3,
+    cause: TeleportCause,
+) -> bool {
+    teleport_checked_from(world, player, source, feet, cause, |_, _| true)
+}
+
+/// Apply an immutable world predicate to the final destination after all native
+/// handlers, observers and source checks. Rejection changes no position, sends
+/// no teleport packet and emits no accepted notification. The predicate receives
+/// feet coordinates and can enforce loaded terrain, collision or application rules.
+pub fn teleport_checked_from(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    feet: glam::DVec3,
+    cause: TeleportCause,
+    valid: impl FnOnce(&World, glam::DVec3) -> bool,
+) -> bool {
+    teleport_checked_destination(world, player, source, feet, cause, valid).is_some()
+}
+
+/// Return the actual accepted feet coordinates for subsequent source effects.
+pub(crate) fn teleport_checked_destination(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    feet: glam::DVec3,
+    cause: TeleportCause,
+    valid: impl FnOnce(&World, glam::DVec3) -> bool,
+) -> Option<glam::DVec3> {
     use jolyne::valentine::types::{
         EnumsPlayerPositionModeComponentPositionMode, MovePlayerTeleportData, Vec2, Vec3,
     };
+    let permit = crate::entity::projectile::hooks::teleport(world, player, source, cause, feet)?;
+    let feet = permit.destination;
+    if !valid(world, feet) {
+        return None;
+    }
     let eye = feet + glam::DVec3::new(0.0, crate::entity::item_drop::PLAYER_EYE_HEIGHT, 0.0);
-    let Some(rotation) = world
+    let rotation = world
         .get::<crate::entity::components::Rotation>(player)
-        .copied()
-    else {
-        return;
-    };
-    let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
-        return;
-    };
+        .copied()?;
+    let runtime_id = world.get::<RuntimeEntityId>(player).map(|r| r.0)?;
     if let Some(mut position) = world.get_mut::<Position>(player) {
         position.0 = eye;
     }
@@ -373,6 +442,8 @@ pub fn teleport(world: &mut World, player: Entity, feet: glam::DVec3, cause: Tel
     });
     // Other players follow through the regular position broadcast.
     send_to(world, &[player], &packet);
+    permit.commit(world);
+    Some(feet)
 }
 
 /// System (exclusive): finish eating and drinking whose use duration has

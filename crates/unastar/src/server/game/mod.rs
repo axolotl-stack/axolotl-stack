@@ -16,6 +16,7 @@ pub mod effects;
 mod falling;
 pub mod hunger;
 mod inventory;
+pub mod item_actions;
 pub mod item_use;
 mod items;
 pub(crate) mod join;
@@ -28,6 +29,7 @@ mod packet_queues;
 mod packets;
 mod placement;
 mod plugins;
+pub mod potions;
 pub mod types;
 
 use bevy_ecs::prelude::*;
@@ -474,7 +476,11 @@ impl GameServer {
         );
         // Projectiles fly after the living bodies moved.
         ecs.schedule_mut().add_systems(
-            crate::entity::projectile::tick_projectiles
+            (
+                crate::entity::projectile::tick_projectiles,
+                crate::entity::projectile::cloud::tick_clouds,
+            )
+                .chain()
                 .in_set(PhysicsSet)
                 .after(tick_physics),
         );
