@@ -927,6 +927,29 @@ impl GameServer {
         Ok(entity)
     }
 
+    /// Attach only observations owned by the current session's actual transport.
+    pub(crate) fn attach_network_metrics(
+        &mut self,
+        session_id: SessionId,
+        metrics: crate::entity::components::PlayerNetworkMetrics,
+    ) -> bool {
+        let world = self.ecs.world_mut();
+        let Some(entity) = world
+            .get_resource::<SessionEntityMap>()
+            .and_then(|map| map.get(session_id))
+        else {
+            return false;
+        };
+        if !world
+            .get::<PlayerSession>(entity)
+            .is_some_and(|session| metrics.matches(session))
+        {
+            return false;
+        }
+        world.entity_mut(entity).insert(metrics);
+        true
+    }
+
     pub fn despawn_player(&mut self, session_id: SessionId) {
         let entity = {
             if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {

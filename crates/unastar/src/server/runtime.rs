@@ -16,7 +16,7 @@ use tokio_raknet::RaknetListener;
 use tracing::{error, info, trace, warn};
 
 use crate::config::{PlayerDataStore, UnastarConfig};
-use crate::network::{NetworkEvent, run_network_loop};
+use crate::network::{NetworkEvent, run_network_loop_with_metrics};
 use crate::plugin::PluginManager;
 use crate::server::connect::{accept_join_sequence, spawn_to_dvec3};
 use crate::server::{GameServer, PlayerSpawnData};
@@ -378,6 +378,9 @@ impl UnastarServer {
                                 }
                                 self.server.route_packet(session_id, packet_args, *packet);
                             }
+                            NetworkEvent::MetricsReady { session_id, metrics } => {
+                                self.server.attach_network_metrics(session_id, metrics);
+                            }
                             NetworkEvent::Disconnected { session_id } => {
                                 if self.config.players.save_on_disconnect {
                                     let saved = self.server.save_player(session_id).await;
@@ -564,12 +567,28 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                     return; // Server shutting down
                                 }
 
-                                run_network_loop(
+                                let (metrics, publisher) =
+                                    crate::entity::components::PlayerNetworkMetrics::bind(
+                                        session_id,
+                                        &outbound_tx,
+                                    );
+                                if event_tx
+                                    .send(NetworkEvent::MetricsReady {
+                                        session_id,
+                                        metrics,
+                                    })
+                                    .await
+                                    .is_err()
+                                {
+                                    return;
+                                }
+                                run_network_loop_with_metrics(
                                     play_stream,
                                     session_id,
                                     event_tx,
                                     outbound_rx,
                                     tick_rx,
+                                    Some(publisher),
                                 )
                                 .await;
                             }
