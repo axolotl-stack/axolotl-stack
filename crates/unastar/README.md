@@ -82,6 +82,14 @@ Java-style chunks are generated on a bounded pool of `world.generation_threads`
 workers (0 = half the cores, 1..=8), off the ECS tick thread. Chunk biomes are 3D
 (4x4x4 quarts) on the wire and in storage (`Data3D`).
 
+Native applications may construct `world::ecs::ChunkManager::with_generator`
+with an owned `Arc<dyn Generator>` before loading chunks or accepting players.
+The supplied generator uses the ordinary pipeline, optional worker pool and
+load-before-generate storage path. World dimension, bounds and worker count
+still come from `WorldConfig`; the explicit generator replaces its generator
+selection. Background mode requires a Tokio runtime. Install the manager and
+its provider before world loading begins.
+
 Generation runs through `world::generator::ChunkPipeline`: per-chunk terrain stages
 write a flat block buffer that is packed into paletted sub-chunks once; a 3x3
 decoration stage (features and structures) runs only for generators that decorate.
