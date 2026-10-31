@@ -34,6 +34,11 @@ use crate::storage::{
     InventoryEffectRecord, PlayerData, StorageError, StoredItemStack, valid_inventory_effect_id,
 };
 
+mod recovery;
+pub use recovery::{
+    RecoveryFence, RecoverySource, fence_for_recovery, is_recovery_fenced, recovery_account_fenced,
+};
+
 /// A complete portable inventory image; network stack IDs are deliberately absent.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -333,7 +338,7 @@ pub fn install(server: &mut GameServer) -> Result<(), EffectError> {
 
 /// Whether packet-driven gameplay and ordinary saves must stop for this actor.
 pub fn is_quarantined(world: &World, player: Entity) -> bool {
-    world.get::<Quarantined>(player).is_some()
+    world.get::<Quarantined>(player).is_some() || is_recovery_fenced(world, player)
 }
 
 /// Query the durable receipt loaded or acknowledged with the actor's current inventory.
@@ -347,6 +352,9 @@ pub fn receipt<'a>(
 
 /// Reject admission while an account has an outstanding or ambiguous durable write.
 pub(super) fn allow_spawn(world: &World, uuid: Uuid) -> Result<(), StorageError> {
+    if recovery::account_fenced(world, uuid) {
+        return Err(StorageError::PlayerRecoveryRequired);
+    }
     if let Some(coordinator) = world.get_resource::<Coordinator>() {
         if coordinator.writer.recovery_required(uuid) {
             return Err(StorageError::PlayerRecoveryRequired);
@@ -814,6 +822,7 @@ fn kick(world: &World, player: Entity, message: &str) {
 
 #[cfg(test)]
 mod tests {
+    mod recovery;
     use super::*;
     use crate::item::test_support::stack;
     use crate::server::game::{PlayerSpawnData, ServerConfig};

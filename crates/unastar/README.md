@@ -1178,6 +1178,19 @@ honor that contract and avoid separate unwrapped access. Unsupported providers
 are rejected before installation. Receipt history is bounded at 65,536 effects
 per account; exhaustion rejects new effects before writing.
 
+An extension coordinating another persistence boundary can capture a
+`inventory_effects::RecoverySource` before that operation. An uncertain result
+can call `fence_for_recovery` with that exact source: account, runtime identity
+and outbound transport must still match. The terminal fence physically withholds
+mutable player state, excludes ordinary saves and snapshots, and rejects further
+account admission. Worker completion, snapshot restoration, disconnect and
+session ID reuse never release it. `recovery_account_fenced` also lets a router
+check UUID and authenticated account identity across several worlds.
+
+This helper performs no storage writes and does not acknowledge the external
+operation. Recovery requires reconstructing coherent durable state and restarting
+the runtime; there is no automatic release path. Other accounts remain available.
+
 Native damage proposals may independently bypass armour reduction and apply a
 finite nonnegative multiplier after armour. Both preserve the hit cause, hurt
 timer, attribution and ordinary durability effects. Invalid modifiers reject
