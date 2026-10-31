@@ -228,21 +228,34 @@ impl ChunkManager {
     /// was loaded from disk (true, with its stored actors) or newly generated
     /// (false).
     pub fn load_or_generate_chunk(&self, x: i32, z: i32) -> (ChunkColumn, bool) {
+        self.try_load_or_generate_chunk(x, z)
+            .expect("chunk storage read failed; refusing to generate replacement terrain")
+    }
+
+    /// Load authoritative storage before generation, preserving read failures.
+    /// Callers coordinating a cross-world operation can reject it safely rather
+    /// than replacing unavailable saved terrain or panicking the runtime.
+    pub fn try_load_or_generate_chunk(
+        &self,
+        x: i32,
+        z: i32,
+    ) -> crate::storage::StorageResult<(ChunkColumn, bool)> {
         let pos = ChunkPos::new(x, z);
         let dim = self.world_config.dimension;
-
-        // Try to load from provider if available
         if let Some(provider) = &self.provider {
             let provider = provider.clone();
-            let column = block_on_storage(async move { provider.load_column(pos, dim).await })
-                .expect("chunk storage read failed; refusing to generate replacement terrain");
-            if let Some(column) = column {
-                return (column, true);
+            if let Some(mut column) =
+                block_on_storage(async move { provider.load_column(pos, dim).await })?
+            {
+                column
+                    .chunk
+                    .set_block_bounds(crate::world::dimension_block_bounds(dim));
+                return Ok((column, true));
             }
         }
-
-        // Fall through to generation
-        (ChunkColumn::new(self.generate_chunk(x, z)), false)
+        let mut chunk = self.generate_chunk(x, z);
+        chunk.set_block_bounds(crate::world::dimension_block_bounds(dim));
+        Ok((ChunkColumn::new(chunk), false))
     }
 
     /// Get or create a chunk entity using deferred Commands.
@@ -276,8 +289,10 @@ impl ChunkManager {
 
         // Encode BEFORE spawning to avoid clone (Phase 3 optimization)
         // This saves ~200KB allocation per new chunk
-        let encoded_biomes = column.chunk.encode_biomes();
-        let highest_subchunk = column.chunk.highest_subchunk();
+        let encoded_biomes = column.chunk.encode_biomes_for_dimension(self.dimension());
+        let highest_subchunk = column
+            .chunk
+            .highest_subchunk_for_dimension(self.dimension());
 
         // Newly generated (not loaded from disk) chunks are dirty for
         // persistence; stored actors are restored by the chunk systems.
@@ -369,24 +384,30 @@ pub trait ChunkManagerWorldExt {
     /// Unlike get_or_create(), this spawns immediately without deferral and
     /// restores the chunk's stored actors before returning.
     fn get_or_create_chunk(&mut self, x: i32, z: i32) -> Entity;
+    /// Fallible authoritative load; storage errors create no replacement entity.
+    fn try_get_or_create_chunk(&mut self, x: i32, z: i32) -> crate::storage::StorageResult<Entity>;
 }
 
 impl ChunkManagerWorldExt for bevy_ecs::world::World {
     fn get_or_create_chunk(&mut self, x: i32, z: i32) -> Entity {
+        self.try_get_or_create_chunk(x, z)
+            .expect("chunk storage read failed; refusing to generate replacement terrain")
+    }
+    fn try_get_or_create_chunk(&mut self, x: i32, z: i32) -> crate::storage::StorageResult<Entity> {
         // Check if entity already exists
         {
             let chunk_manager = self
                 .get_resource::<ChunkManager>()
                 .expect("ChunkManager must exist");
             if let Some(entity) = chunk_manager.get_by_coords(x, z) {
-                return entity;
+                return Ok(entity);
             }
         }
 
         let (column, was_loaded) = self
             .get_resource::<ChunkManager>()
             .expect("ChunkManager must exist")
-            .load_or_generate_chunk(x, z);
+            .try_load_or_generate_chunk(x, z)?;
         let pos = ChunkPosition::new(x, z);
         let (components, actors) = chunk_entity_components(pos, column, was_loaded);
         let mut spawned = self.spawn(components);
@@ -402,7 +423,7 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
         chunk_manager.insert(pos, entity);
 
         crate::entity::mob::persistence::restore_actors_of_chunk(self, entity);
-        entity
+        Ok(entity)
     }
 }
 

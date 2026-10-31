@@ -80,6 +80,40 @@ struct PlayerView {
     selected: u8,
 }
 
+/// Remove only representations known to the exact source-world connections.
+/// The departing viewer's own view cache is cleared without sending stale actor
+/// updates after its dimension change.
+pub(crate) fn forget_world_player(world: &mut World, player: Entity) {
+    let Some(mut cache) = world.remove_resource::<PlayerViewCache>() else {
+        return;
+    };
+    let keys: Vec<_> = cache
+        .known
+        .keys()
+        .filter(|(viewer, actor)| *viewer == player || *actor == player)
+        .copied()
+        .collect();
+    for key in keys {
+        let known = cache.known.remove(&key).expect("captured known view");
+        if key.1 == player
+            && key.0 != player
+            && let Some(session) = world.get::<PlayerSession>(key.0)
+            && known.connection.matches(session)
+            && !session.send(McpePacket::from(jolyne::valentine::RemoveActorPacket {
+                target_actor_id: jolyne::valentine::ActorUniqueId {
+                    actor_unique_id: known.runtime_id,
+                },
+            }))
+        {
+            // Keep failed removal knowledge for ordinary reconciliation's
+            // retry, even after the actor leaves this world's entity set.
+            cache.known.insert(key, known);
+        }
+    }
+    cache.ready.remove(&player);
+    world.insert_resource(cache);
+}
+
 /// Apply the actor's explicit audience without requiring a spawned client view.
 pub fn audience_allows(world: &World, actor: Entity, viewer: Entity) -> bool {
     if crate::server::game::player_events::initial_state_pending(world, actor)
@@ -166,6 +200,12 @@ pub(crate) fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
     {
         flags |= 1u64 << actor_flags::ONFIRE;
     }
+    if world
+        .get::<crate::entity::freezing::FreezingState>(player)
+        .is_some_and(|cold| cold.is_frozen())
+    {
+        flags |= 1u64 << actor_flags::SHAKING;
+    }
     flags as i64
 }
 
@@ -216,6 +256,22 @@ fn metadata(world: &World, actor: Entity) -> Vec<DataItemEntry> {
             (packed << 7) | (u64::from(id) << 1) | u64::from(ambient)
         });
     put(ids::VISIBLE_MOB_EFFECTS, packed as i64);
+    let cold = DataItemEntry {
+        id: ids::FREEZING_EFFECT_STRENGTH,
+        payload: DataItemEntryPayload::DataItemFloatPayload(
+            jolyne::valentine::types::DataItemFloatPayload {
+                type_: EnumsDataItemType::Float,
+                value: world
+                    .get::<crate::entity::freezing::FreezingState>(actor)
+                    .map_or(0.0, |cold| cold.strength()),
+            },
+        ),
+    };
+    if let Some(existing) = data.iter_mut().find(|entry| entry.id == cold.id) {
+        *existing = cold;
+    } else {
+        data.push(cold);
+    }
     data.sort_by_key(|entry| entry.id);
     data
 }

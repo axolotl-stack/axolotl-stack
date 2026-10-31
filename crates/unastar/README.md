@@ -1397,3 +1397,47 @@ registry borrows; registry changes affect subsequent dispatches, including neste
 operations. Nested accepted operations invalidate stale outer previews. Without
 handlers, ordinary validated transfers, furnace timing and request responses use
 the same engine rules.
+
+
+## Multiple dimension worlds
+
+`UnastarServer::worlds_mut()` exposes a `DimensionRouter` before the listener
+starts. Use `create_world(ServerConfig)` to inherit the shared account provider,
+configure that world's terrain provider and native resources, then `add(world)`.
+Dimensions 0, 1 and 2 have separate ECS instances, terrain, simulation, clocks,
+container windows and viewers. Compatible frozen protocol registries are required.
+All registered worlds tick, autosave and shut down together; reconnect selects the
+saved dimension before StartGame. Terrain generation remains an explicit world
+configuration: this API does not add vanilla Nether or End generators.
+
+`DimensionRouter::prepare_destination` can load and validate collision geometry
+before an application reserves a command or delayed action; it produces no player
+movement. Background generation returns pending, and temporary pins expire.
+
+Native code queues `worlds::request_transfer_checked` from the source world.
+The router loads destination chunks, finds a supported collision-free feet
+position within the supplied vertical radius, dispatches cancellable source
+`WorldTransferHooks`, and reruns geometry and the caller's final predicate after
+all destination rewrites. Rejected, stale or unsupported sources keep their
+entity and inventory. Native storage acknowledges the destination record before
+ownership or dimension packets change. An uncertain save terminally fences the
+source for explicit recovery rather than allowing autosave to obscure it.
+
+`TransferComponents` moves registered components by ownership, without requiring
+Clone or serializing application data. Native player inventory, health, effects,
+permissions, network metrics and transient mode overrides survive. World-local
+views, requests, movement inputs, windows and publication caches reset. Unknown
+components reject a transfer; applications explicitly preserve account/context
+components or reset local projections. Source `on_committed` receives both worlds
+and scoped entity IDs while target publication is deferred, so it can durably
+acknowledge its decision and rebuild restricted audiences before visibility.
+The actual transport/runtime identity stays unchanged, and dimension loading
+blocks gameplay until that connection acknowledges the matching loading screen.
+
+`WorldDirectory` supplies owned native snapshots and exact transport-bound,
+world-scoped handles. Revalidate a handle with `router.resolve` before applying
+an effect in `world_mut`. Local callbacks may `queue_router_request` with owned
+work; it runs after local ECS borrows finish, with a fresh directory. Queueing
+acknowledges no application success. `RouterTickHandler` runs once per aggregate
+tick, separately from every world's simulation. This boundary supports actual
+cross-world native effects without reentrant world borrowing or raw pointers.

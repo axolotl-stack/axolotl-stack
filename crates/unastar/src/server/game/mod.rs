@@ -113,7 +113,7 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 /// The stored state of a player. A player saved while dead is stored as it
 /// will respawn (respawn position, full health, fresh hunger), so it never
 /// reloads with zero health.
-fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
+pub(super) fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
     if world.get::<player_events::DetachedPlayer>(entity).is_some() {
         return None;
     }
@@ -218,6 +218,20 @@ pub(super) fn capture_player_record(
                 .unwrap_or_default(),
         },
     ))
+}
+
+/// Close source-world container ownership and discard queued local inputs after
+/// an accepted migration, without invoking a disconnect or another join.
+pub(crate) fn prepare_world_departure(world: &mut World, player: Entity) {
+    if let Some(crate::entity::components::ScreenKind::Block(screen)) = world
+        .get::<ContainerWindows>(player)
+        .map(|windows| windows.screen())
+    {
+        containers::stop_viewing(world, player, screen);
+    }
+    player_events::discard_input(world, player);
+    crate::server::worlds::loading::detach_chunk_viewer(world, player);
+    crate::server::broadcast::player_views::forget_world_player(world, player);
 }
 
 /// Resolve every saved slot before assigning identities or publishing player state.
@@ -808,7 +822,8 @@ impl GameServer {
         self.save_player_record(uuid, &data).await
     }
 
-    async fn save_player_record(&self, uuid: uuid::Uuid, data: &PlayerData) -> bool {
+    /// Acknowledge all configured account/last-position stores before publication.
+    pub(crate) async fn save_player_record(&self, uuid: uuid::Uuid, data: &PlayerData) -> bool {
         let provider = self
             .ecs
             .world()
@@ -1095,6 +1110,11 @@ impl GameServer {
 
     pub fn tick(&mut self) {
         self.ecs.tick();
+        self.publish_initial_states();
+    }
+
+    /// Publish explicitly released state once, including native world arrivals.
+    pub(crate) fn publish_initial_states(&mut self) {
         for entity in player_events::ready_initial_states(self.ecs.world_mut()) {
             let Some(position) = self.ecs.world().get::<Position>(entity).copied() else {
                 continue;

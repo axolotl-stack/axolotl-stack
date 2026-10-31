@@ -17,6 +17,11 @@ struct ModeOverride {
     base: GameMode,
 }
 
+/// Carry the durable base of an effective transient mode across native worlds.
+pub(crate) fn register_transfer_components(rules: &mut crate::server::worlds::TransferComponents) {
+    rules.preserve::<ModeOverride>();
+}
+
 /// The mode ordinary player persistence should retain after temporary overrides.
 pub fn base_game_mode(world: &World, player: Entity) -> Option<GameMode> {
     world.get::<Player>(player)?;

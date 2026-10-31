@@ -8,6 +8,7 @@ pub mod runtime;
 pub mod timer;
 #[cfg(test)]
 pub(crate) mod wire_audit;
+pub mod worlds;
 
 pub use config::ServerConfig;
 pub use connect::{JoinWorld, accept_join_sequence, resolve_spawn_location};

@@ -47,7 +47,7 @@ impl ConnectionIdentity {
         self.uuid.as_deref()
     }
     /// Snapshot identity without retaining an ECS component borrow.
-    pub(crate) fn capture(world: &World, player: Entity) -> Option<Self> {
+    pub fn capture(world: &World, player: Entity) -> Option<Self> {
         let session = world.get::<PlayerSession>(player)?;
         Some(Self {
             session_id: session.session_id,
@@ -59,7 +59,7 @@ impl ConnectionIdentity {
         })
     }
     /// Require the same account and transport after extension callbacks.
-    pub(crate) fn matches(&self, world: &World, player: Entity) -> bool {
+    pub fn matches(&self, world: &World, player: Entity) -> bool {
         world.get::<PlayerSession>(player).is_some_and(|session| {
             session.session_id == self.session_id
                 && session.display_name == self.name
