@@ -207,6 +207,8 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     }
     if dead {
         death::begin_death(world, target);
+    } else if hit.cause == ActorDamageCause::Drowning {
+        crate::entity::mob::teleport::escape_water(world, target);
     }
     applied
 }

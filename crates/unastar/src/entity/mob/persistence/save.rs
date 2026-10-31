@@ -106,6 +106,16 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
         put("Color", NBTTag::Byte(colour.into()));
     }
     let now = current_tick(world);
+    if let Some(teleport) = world.get::<crate::entity::mob::components::teleport::Teleport>(mob) {
+        put(
+            "UnastarTeleportWaits",
+            list(
+                [teleport.earliest_random_tick, teleport.next_random_tick].map(|deadline| {
+                    tag::Long(i64::try_from(deadline.saturating_sub(now)).unwrap_or(i64::MAX))
+                }),
+            ),
+        );
+    }
     if let Some(anger) = world.get::<crate::entity::mob::components::reactive::Angry>(mob) {
         let remaining = if anger.calmed {
             0
@@ -152,6 +162,9 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
     }
     for (name, value) in crate::entity::mob::gear::persist::save(world, mob) {
         put(name, value);
+    }
+    if let Some(carried) = crate::entity::mob::carry::save(world, mob) {
+        put("UnastarCarriedBlock", carried);
     }
 
     let mut out = Vec::new();

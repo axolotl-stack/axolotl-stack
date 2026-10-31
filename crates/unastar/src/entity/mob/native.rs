@@ -11,6 +11,11 @@ use super::constants::{
 /// The native traits of one actor class.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NativeTraits {
+    /// This native class exposes a carried block-state display, initially air.
+    pub carried_block_display: bool,
+    /// This class attempts to leave actual body contact with water after
+    /// an accepted water hit, when its authored teleport component is active.
+    pub water_escape: bool,
     /// Wing-flap vertical drag of the living physics step (the chicken
     /// glides down instead of falling); see `PhysicsBody::wing_flap_drag`.
     /// The flap animation is client-side: no actor data carries it.
@@ -50,6 +55,8 @@ impl NativeTraits {
         let immune_to_wither = matches!(actor_type, ActorType::WitherSkeleton);
         let ambient_sound_interval = ambient_sound_interval(actor_type);
         let aux_value = zombie_kind(actor_type);
+        let water_escape = matches!(actor_type, ActorType::Enderman);
+        let carried_block_display = matches!(actor_type, ActorType::Enderman);
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -58,6 +65,8 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                water_escape,
+                carried_block_display,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -66,6 +75,8 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                water_escape,
+                carried_block_display,
             },
         }
     }

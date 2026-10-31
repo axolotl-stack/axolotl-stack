@@ -455,6 +455,35 @@ survive actor saves using server-owned extension tags. Broadcast options fail
 compilation until group anger propagation is implemented. See the
 [published anger contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_angry?view=minecraft-bedrock-stable).
 
+`minecraft:teleport` runs bounded random and target-directed attempts against
+loaded support, actual collision boxes and body-fluid contact. Failed attempts
+leave the actor unchanged. Successful hops reset navigation, velocity and fall
+state, emit portal effects/sounds and force native movement completion. Authored
+waits survive actor saves. Projectile-reactive hops that succeed are misses and
+skip the hit effects; failed hops preserve ordinary projectile damage. Native
+Endermen also try to leave water after an accepted water hit. See the
+[published teleport contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_teleport?view=minecraft-bedrock-stable).
+
+`minecraft:behavior.take_block` and `minecraft:behavior.place_block` run real
+one-shot selector goals with chance, priority, controls, state descriptors,
+conditions and grief-rule support. Take moves one eligible block into carried
+ownership; place consumes that carried state or uses an explicitly configured
+weighted generated block. Staged work rechecks current policy, terrain, locks,
+block actors and live actor occupancy before applying it. Existing blocks and
+foreign actor payloads are preserved. Carried blocks project native main-hand
+equipment while preserving physical gear, with named-state persistence and a
+single death drop. Tag expressions and block-target callbacks currently fail
+compilation. See the published
+[take](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitygoals/minecraftbehavior_take_block?view=minecraft-bedrock-stable)
+and [place](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitygoals/minecraftbehavior_place_block?view=minecraft-bedrock-stable)
+contracts.
+
+The vanilla Enderman now spawns through the ordinary registry and supports gaze
+with pumpkin exclusion, timed anger, navigation/melee, safe teleports, water escape,
+block carrying and pearl loot. Tests exercise these through real server frames and
+native inventories/packets. Riding, ladder climbing and rain/splash exposure remain
+outside the implemented actor paths; the parity catalog records these limits.
+
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
 by identifier, replacing the whole definition rather than merging components.
 `freeze()` consumes the builder and shares immutable definitions through `Arc`.

@@ -37,6 +37,10 @@ use crate::world::ecs::ChunkViewers;
 /// receives every update while it is a viewer).
 #[derive(Component, Debug, Default)]
 pub struct MobNetState {
+    /// Last projected carried state, separate from physical main-hand gear.
+    pub carried_state: Option<u32>,
+    /// A completed server teleport must bypass ordinary movement interpolation.
+    pub teleport_pending: bool,
     pub position: DVec3,
     /// Rotation bytes: pitch, yaw, head yaw.
     pub rotation: [u8; 3],
@@ -123,6 +127,7 @@ pub fn sync_mob_viewers(
         &mut ActorViewers,
         &mut MobNetState,
         Option<&mut MobEquipment>,
+        Option<&crate::entity::mob::carry::CarriedBlock>,
     )>,
 ) {
     let block_ids = config
@@ -141,6 +146,7 @@ pub fn sync_mob_viewers(
         mut viewers,
         mut net,
         mut gear,
+        carried,
     ) in &mut mobs
     {
         let (cx, cz) = crate::world::ecs::world_to_chunk_coords(
@@ -231,8 +237,10 @@ pub fn sync_mob_viewers(
             || moved_sq > constants::NET_POSITION_THRESHOLD_SQ
             || settling
             || on_ground.0 != net.on_ground
+            || net.teleport_pending
         {
-            let axis = |now: f64, then: f64| (now != then).then_some(now as f32);
+            let axis =
+                |now: f64, then: f64| (net.teleport_pending || now != then).then_some(now as f32);
             let turned = |i: usize| (bytes[i] != net.rotation[i]).then_some(bytes[i] as i8);
             updates.push(McpePacket::from(MoveActorDeltaPacket {
                 move_data: MoveActorDeltaData {
@@ -244,12 +252,15 @@ pub fn sync_mob_viewers(
                     rotation_y: turned(1),
                     rotation_y_head: turned(2),
                     is_on_ground: on_ground.0,
+                    force_move: net.teleport_pending,
+                    force_completion: net.teleport_pending,
                     ..Default::default()
                 },
             }));
             net.position = position.0;
             net.rotation = bytes;
             net.on_ground = on_ground.0;
+            net.teleport_pending = false;
         }
         let stopped = velocity.0 == DVec3::ZERO && net.velocity != DVec3::ZERO;
         if velocity.0.distance_squared(net.velocity) > constants::NET_VELOCITY_THRESHOLD_SQ
@@ -262,10 +273,40 @@ pub fn sync_mob_viewers(
             }));
             net.velocity = velocity.0;
         }
+        let carried_stack = carried.zip(items.as_ref()).and_then(|(carried, items)| {
+            crate::entity::mob::carry::display_stack(carried.0, &items.0)
+        });
+        let carried_state = carried.map(|carried| carried.0);
         if let (Some(gear), Some(items)) = (gear.as_mut(), items.as_ref())
             && gear.is_dirty()
         {
-            replicate::changed_packets(runtime_id.0, gear, &items.0, block_ids, &mut updates);
+            replicate::changed_packets_projected(
+                runtime_id.0,
+                gear,
+                &items.0,
+                block_ids,
+                &mut updates,
+                carried_stack.as_ref(),
+            );
+        }
+        if net.carried_state != carried_state
+            && let Some(items) = items.as_ref()
+        {
+            let empty = crate::item::ItemStack::empty();
+            let stack = carried_stack
+                .as_ref()
+                .or_else(|| {
+                    gear.as_deref()
+                        .map(|gear| gear.get(crate::entity::mob::gear::GearSlot::Mainhand))
+                })
+                .unwrap_or(&empty);
+            updates.push(replicate::mainhand_packet(
+                runtime_id.0,
+                stack,
+                &items.0,
+                block_ids,
+            ));
+            net.carried_state = carried_state;
         }
         for viewer in &viewers.viewers {
             if let Ok(session) = sessions.get(*viewer) {
@@ -292,19 +333,37 @@ pub fn sync_mob_viewers(
                 properties,
                 &attributes,
             ));
-            let equipment = gear
+            let mut equipment = gear
                 .as_deref()
                 .filter(|gear| gear.count() > 0)
                 .zip(items.as_ref())
                 .map(|(gear, items)| {
-                    replicate::inventory_packets(runtime_id.0, gear, &items.0, block_ids)
-                });
+                    replicate::inventory_packets_projected(
+                        runtime_id.0,
+                        gear,
+                        &items.0,
+                        block_ids,
+                        carried_stack.as_ref(),
+                    )
+                })
+                .map(Vec::from)
+                .unwrap_or_default();
+            if equipment.is_empty()
+                && let (Some(stack), Some(items)) = (carried_stack.as_ref(), items.as_ref())
+            {
+                equipment.push(replicate::mainhand_packet(
+                    runtime_id.0,
+                    stack,
+                    &items.0,
+                    block_ids,
+                ));
+            }
             for viewer in fresh {
                 if let Ok(session) = sessions.get(viewer)
                     && session.send(spawn.clone())
                 {
                     viewers.viewers.push(viewer);
-                    for packet in equipment.iter().flatten() {
+                    for packet in &equipment {
                         let _ = session.send(packet.clone());
                     }
                 }

@@ -474,6 +474,7 @@ impl GameServer {
                 crate::entity::mob::derive_mob_state,
                 crate::entity::mob::step::update_step_heights,
                 crate::entity::mob::life::anger::tick_anger,
+                crate::entity::mob::teleport::tick_teleports,
                 tick_physics,
             )
                 .chain()
@@ -494,7 +495,7 @@ impl GameServer {
             )
                 .chain()
                 .in_set(PhysicsSet)
-                .after(crate::entity::mob::life::anger::tick_anger)
+                .after(crate::entity::mob::teleport::tick_teleports)
                 .before(tick_physics),
         );
 

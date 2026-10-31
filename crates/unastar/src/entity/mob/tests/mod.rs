@@ -6,6 +6,7 @@
 
 mod chicken;
 mod doors;
+mod enderman;
 mod interaction;
 mod passive;
 mod reactive;
