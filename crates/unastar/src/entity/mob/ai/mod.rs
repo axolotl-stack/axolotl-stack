@@ -12,6 +12,7 @@
 mod break_door;
 mod control;
 mod eat_block;
+mod gaze;
 mod goals;
 mod melee;
 mod nearby;
@@ -25,6 +26,7 @@ mod tests;
 
 pub(crate) use self::break_door::stop_breaking_doors;
 pub use self::path::PathBlockTable;
+pub(crate) use self::targeting::combat_candidate;
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -69,6 +71,11 @@ pub struct MobBrain {
 }
 
 impl MobBrain {
+    /// Drop a target at an authoritative lifecycle transition, including
+    /// anger expiry, before the selector can run a melee goal again.
+    pub(crate) fn clear_combat_target(&mut self) {
+        self.states.targets.target = None;
+    }
     /// Whether the mob currently follows a path.
     pub fn is_navigating(&self) -> bool {
         !self.nav.is_done()
@@ -87,6 +94,12 @@ enum Turn {
 /// Reused per-tick buffers of [`tick_mob_ai`].
 #[derive(Default)]
 pub struct AiScratch {
+    /// Gaze events deferred beyond the AI's random-resource scope.
+    gaze: Vec<(
+        Entity,
+        super::components::triggers::ActorTrigger,
+        Option<Entity>,
+    )>,
     mobs: Vec<(Entity, Turn)>,
     nearby: Nearby,
     /// Mobs whose eat timer ran out this tick; they eat once the AI's
@@ -98,6 +111,8 @@ pub struct AiScratch {
     /// Item pickups, equips and pickup events of this tick; made once the
     /// AI's resource scopes end (they spawn items and fire events).
     gear: Vec<(Entity, pickup::GearWork)>,
+    /// New targets whose lifecycle events run after the AI's RNG scope ends.
+    acquired: Vec<(Entity, Entity)>,
     /// Door collision boxes for [`break_door`].
     boxes: Vec<Aabb>,
 }
@@ -185,7 +200,14 @@ pub fn tick_mob_ai(
                         .get_mut::<MobBrain>(entity)
                         .expect("queried with a brain") = brain;
                 }
-                if let Some(output) = output {
+                if let Some(mut output) = output {
+                    scratch.gaze.extend(
+                        output
+                            .effects
+                            .gaze_events
+                            .drain(..)
+                            .map(|(event, other)| (entity, event, other)),
+                    );
                     apply(
                         world,
                         entity,
@@ -193,11 +215,18 @@ pub fn tick_mob_ai(
                         &mut scratch.eaten,
                         &mut scratch.attacks,
                         &mut scratch.gear,
+                        &mut scratch.acquired,
                     );
                 }
             }
         });
     });
+    for (entity, target) in scratch.acquired.drain(..) {
+        super::life::triggers::target_acquired(world, entity, target);
+    }
+    for (entity, event, other) in scratch.gaze.drain(..) {
+        super::life::triggers::fire(world, entity, &event, other);
+    }
     for entity in scratch.eaten.drain(..) {
         eat_block::finish_eating(world, entity);
     }
@@ -326,6 +355,7 @@ fn think(
         Turn::Think(false) => {}
     }
     selector.tick(&mut ctx);
+    ctx.scan_gaze();
     let goal_jump = ctx.jump;
 
     let door_hold = nav.current().is_some_and(|(index, path)| {
@@ -367,6 +397,7 @@ fn apply(
     eaten: &mut Vec<Entity>,
     attacks: &mut Vec<(Entity, Entity)>,
     gear: &mut Vec<(Entity, pickup::GearWork)>,
+    acquired_events: &mut Vec<(Entity, Entity)>,
 ) {
     let Output {
         yaw,
@@ -389,17 +420,25 @@ fn apply(
     if effects.persistent && !mob.contains::<Persistent>() {
         mob.insert(Persistent);
     }
-    match effects.target {
+    let acquired = match effects.target {
         Some(Some(target)) => {
+            let changed = mob
+                .get::<AttackTarget>()
+                .is_none_or(|before| before.0 != target);
             mob.insert(AttackTarget(target));
+            changed.then_some(target)
         }
         Some(None) => {
             mob.remove::<AttackTarget>();
+            None
         }
-        None => {}
-    }
+        None => None,
+    };
     if let Some(tempted) = effects.tempted {
         set_flag(&mut mob, actor_flags::TEMPTED, tempted);
+    }
+    if let Some(target) = acquired {
+        acquired_events.push((entity, target));
     }
     if let Some(request) = effects.mate
         && let Some(mut messages) = world.get_resource_mut::<Messages<MateRequest>>()

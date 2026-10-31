@@ -17,6 +17,9 @@ use super::generated::body::{
 use super::provisional as p;
 use super::{ActorComponent, ComponentBody, FilterJson, decode};
 
+mod reactive;
+pub use reactive::*;
+
 /// An event reference: a bare event name or a trigger object.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -39,6 +42,33 @@ pub struct RandomRange<T> {
 pub enum ValueOrRange<T> {
     Value(T),
     Range(RandomRange<T>),
+}
+
+/// `minecraft:follow_range`: authored pursuit distance and optional bound.
+/// The published component has no implicit starting value.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FollowRange {
+    pub value: ValueOrRange<f32>,
+    pub max: Option<f32>,
+}
+
+/// `minecraft:variable_max_auto_step`: maximum ledge height for the
+/// actor's ordinary, player-controlled and jump-prevented movement.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VariableMaxAutoStep {
+    #[serde(default = "default_auto_step")]
+    pub base_value: f32,
+    #[serde(default = "default_auto_step")]
+    pub controlled_value: f32,
+    #[serde(default = "default_auto_step")]
+    pub jump_prevented_value: f32,
+}
+
+/// The published default for all three automatic step heights.
+fn default_auto_step() -> f32 {
+    0.5625
 }
 
 /// A variant mutation interval: a single value or an inclusive `[min, max]`.
@@ -1313,6 +1343,7 @@ macro_rules! dynamic_bodies {
 }
 
 dynamic_bodies!(
+    Angry,
     Ageable,
     AnnotationBreakDoor,
     AmbientSoundInterval,
@@ -1330,6 +1361,7 @@ dynamic_bodies!(
     EnvironmentSensor,
     EquipItem,
     Equipment,
+    FollowRange,
     Health,
     HurtOnCondition,
     IsDyeable,
@@ -1337,6 +1369,7 @@ dynamic_bodies!(
     Leashable,
     LeashableTo,
     Loot,
+    LookedAt,
     Movement,
     MovementBasic,
     Nameable,
@@ -1351,4 +1384,5 @@ dynamic_bodies!(
     Transformation,
     Timer,
     TypeFamily,
+    VariableMaxAutoStep,
 );
