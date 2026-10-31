@@ -25,7 +25,7 @@ use crate::entity::components::{
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::item_drop::PLAYER_EYE_HEIGHT;
 use crate::entity::mob::MobKind;
-use crate::entity::mob::components::hostile::{TargetEntry, TargetGoalBase};
+use crate::entity::mob::components::hostile::{FollowRangeConfig, TargetEntry, TargetGoalBase};
 use crate::entity::mob::components::{HurtByTargetGoal, NearestAttackableTargetGoal};
 use crate::entity::mob::constants::{
     DEFAULT_FOLLOW_RANGE, DISGUISED_PLAYER_RANGE_FACTOR, HURT_BY_TARGET_MEMORY_TICKS,
@@ -167,9 +167,12 @@ impl GoalContext<'_> {
         ) || self.difficulty() == Difficulty::Peaceful
     }
 
-    /// The follow range: the nearest-attackable-target goal's
-    /// `within_radius`, else the native default.
+    /// An authored follow range takes precedence over the target goal's
+    /// legacy `within_radius`; absent both, use the ordinary mob default.
     fn follow_range(&self) -> f64 {
+        if let Some(config) = self.config::<FollowRangeConfig>() {
+            return f64::from(config.value);
+        }
         f64::from(
             self.config::<NearestAttackableTargetGoal>()
                 .map_or(DEFAULT_FOLLOW_RANGE, |goal| goal.follow_range),
@@ -228,6 +231,10 @@ impl GoalContext<'_> {
         current: bool,
     ) -> Option<usize> {
         if target.entity == self.entity {
+            return None;
+        }
+        let range = self.follow_range();
+        if self.body.feet.distance_squared(target.pos) > range * range {
             return None;
         }
         if target.player && self.untargetable_player(target.entity) {

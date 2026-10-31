@@ -1,7 +1,7 @@
 # Unastar Plugin Architecture
 
 Unastar loads WebAssembly components with Wasmtime. Plugins implement the
-[`unastar:plugin@0.2.0` WIT world](crates/unastar-api/wit/world.wit); Rust compiler
+[`unastar:plugin@0.3.0` WIT world](crates/unastar-api/wit/world.wit); Rust compiler
 layout and native dynamic-library ABIs do not cross the host boundary.
 
 ## API and Registration
@@ -46,13 +46,16 @@ Install each plugin in its own directory beneath the server working directory's
 `crates/example-plugin/plugin.toml` and
 `target/wasm32-wasip2/debug/example_plugin.wasm`. Its manifest subscriptions select
 which exported callbacks receive server events. The current WIT package version
-is `0.2.0`; the manifest's `api_version` should match it.
+is `0.3.0`; the manifest's `api_version` must match it. Older manifests are
+rejected before the component is compiled or instantiated. Rebuild components
+against the updated `unastar_api` crate to provide the new exports.
 
 ## Loading and Host Access
 
-Startup discovery reads manifests and compiles components. The first game tick
-instantiates pending components and invokes `on-load`, with the live ECS World
-attached for both operations: component start functions can invoke hosts too.
+Startup discovery reads manifests and compiles components. Before the first
+simulation tick, the runtime instantiates pending components and invokes `on-load`,
+with the live ECS World attached for both operations: component start functions
+can invoke hosts too.
 A failed instantiation or `on-load` rejects that plugin.
 
 `HostContext` scopes its raw World attachment to the synchronous Wasmtime call.
@@ -64,6 +67,50 @@ action system rather than exposing mutable ECS references to guests.
 Player handles and their host entity mappings are scoped to a host invocation;
 plugins should obtain and use handles during the current callback, not retain
 them for subsequent callbacks.
+
+## Player Lifecycle Callbacks
+
+Subscribe to `player_damage`, `player_death`, `player_respawn` and
+`player_respawned` in `plugin.toml` to receive synchronous lifecycle callbacks.
+They use the same native hooks available to embedding applications.
+
+- `on-player-damage` receives the incoming damage before difficulty, armour and
+  the hurt timer. Return `some(amount)` to adjust it or `none` to cancel the hit
+  before health, inventory, timers, food or packets change.
+- `on-player-death` observes a committed death after ordinary drops and before an
+  optional immediate respawn. Prevent lethal damage in `on-player-damage` when
+  the death should not happen.
+- `on-player-respawn` receives the proposed eye-height position. Return
+  `some(position)` to choose the destination or `none` to keep the player dead
+  without acknowledging the respawn request.
+- `on-player-respawned` observes the committed position after the player is alive
+  and its client updates have been sent.
+
+Damage and death include a typed `damage-cause` and an optional borrowed attacker
+handle. The handle is present only for a player attacker; other actors and
+unattributed damage have no player handle. These handles have the same per-call
+lifetime as other player resources.
+
+The generated Rust `Plugin` defaults preserve the incoming damage and destination.
+Invalid damage or positions and trapped decision callbacks cancel the operation.
+Subscribers run in plugin-ID order; each receives the previous allowed decision,
+and cancellation stops further component callbacks for that operation.
+Committed notifications cannot undo the operation. Actions from a trapped
+callback are discarded.
+
+The runtime shares the manager with the native bridge through a mutex and never
+holds it while running the simulation. Reentrant or contended access cancels a
+pending damage or respawn decision immediately. It does not wait on its own lock.
+
+Custom runtimes share their manager through `Arc<Mutex<PluginManager>>` and call
+`PluginManager::attach_to_world(manager.clone(), world)` once to install the
+lifecycle bridge. They call `PluginManager::begin_tick(world)` before simulation and
+`PluginManager::tick(world)` afterward. The first call initializes pending
+components and starts the instruction budget; lifecycle callbacks and buffered
+callbacks consume that same budget. Repeating `begin_tick` before `tick` finishes
+does not replenish it. Initialization has its own separate budget.
+Renewing fuel does not recreate an instance invalidated by a component trap;
+that instance continues to fail closed until it is reloaded.
 
 ## Resource Limits
 

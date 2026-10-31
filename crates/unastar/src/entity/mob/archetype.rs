@@ -111,6 +111,7 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::InLava
         | BuiltinTest::IsBaby
         | BuiltinTest::IsDifficulty
+        | BuiltinTest::IsGameRule
         | BuiltinTest::BoolProperty
         | BuiltinTest::IntProperty
         | BuiltinTest::RiderCount => subject == Subject::Self_,
@@ -118,6 +119,7 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         BuiltinTest::IsFamily
         | BuiltinTest::HasEquipment
         | BuiltinTest::EnumProperty
+        | BuiltinTest::InContactWithWater
         | BuiltinTest::InWater
         | BuiltinTest::IsUnderwater
         | BuiltinTest::IsVehicleFamily => {
@@ -251,7 +253,10 @@ impl MobArchetype {
             QueryRegistry::vanilla(),
             &mut bindings,
         )?;
-        let (attributes, attribute_seed) = attribute_seed(identifier)?;
+        let (attributes, attribute_seed) = attribute_seed(
+            identifier,
+            projectile || actor_type == ActorType::AreaEffectCloud,
+        )?;
         let attributes = Arc::new(attributes);
         Ok(Self {
             identifier: Arc::from(identifier),
@@ -283,7 +288,13 @@ impl MobArchetype {
 /// (absorption 0, luck 0, modifiers 1, bounciness 0).
 fn attribute_seed(
     identifier: &str,
+    nonliving: bool,
 ) -> Result<(AttributeLayout, Box<[AttributeValue]>), ArchetypeError> {
+    // Nonliving projectiles/clouds expose no living attributes. An empty
+    // layout is explicit protocol state, not an invented sampled default.
+    if nonliving && unastar_data::actor_wire::get(identifier).is_none() {
+        return Ok((AttributeLayout::new([])?, Box::new([])));
+    }
     let observed = unastar_data::actor_wire::get(identifier)
         .ok_or_else(|| ArchetypeError::NoAttributeObservation(identifier.to_owned()))?;
     let layout = AttributeLayout::new(

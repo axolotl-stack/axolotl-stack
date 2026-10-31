@@ -49,6 +49,41 @@ directory. The old sample's `[world.storage]` table and its `data_dir`,
 a configuration error: remove that table and use the supported `[world]` keys.
 Player storage remains configured separately under `[players]`.
 
+## Embedding the runtime
+
+Native Rust applications can configure the initialized game server through
+`UnastarServer::game_server_mut()` before calling `run()`. Insert resources and
+observers into its ECS world, or add systems to its existing tick schedule using
+the public system sets. `game_server()` provides read access to the same state.
+The runtime retains this game server when it starts listening and ticking.
+
+```rust,no_run
+use bevy_ecs::prelude::*;
+use std::sync::Arc;
+use unastar::ecs::EntityLogicSet;
+use unastar::{UnastarConfig, UnastarServer};
+
+#[derive(Resource, Default)]
+struct CompletedTicks(u64);
+
+/// Count ticks in this application's resource.
+fn count_tick(mut completed: ResMut<CompletedTicks>) {
+    completed.0 += 1;
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = Arc::new(UnastarConfig::load_or_create("unastar.toml")?);
+    let mut runtime = UnastarServer::new(config).await?;
+    let game = runtime.game_server_mut();
+    game.ecs.world_mut().insert_resource(CompletedTicks::default());
+    game.ecs
+        .schedule_mut()
+        .add_systems(count_tick.in_set(EntityLogicSet));
+    runtime.run().await
+}
+```
+
 ## Joining
 
 Players join through jolyne's streamed spawn (`start_game_streamed`, BDS order):
@@ -402,6 +437,42 @@ This packet-content gate does not claim whole join-sequence or crafting-executio
 parity.
 
 ## Actor registries and data
+
+Living definitions support `minecraft:fire_immune` and
+`minecraft:renders_when_invisible`, including component-group removal. Fire
+immunity prevents ignition and heat damage in both the player and mob damage
+paths, and puts out an existing fire when the component becomes active. The
+rendering marker is replicated in actor flags. The `in_contact_with_water`
+filter checks fluid overlap with the actor's body, including water beside its
+feet; `in_water` continues to check the feet cell.
+Rain exposure and splash-water-bottle contact are not yet supplied to this
+filter; the current implementation covers world fluid contact.
+
+See the published component contracts for
+[fire immunity](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_fire_immune?view=minecraft-bedrock-stable)
+and
+[rendering while invisible](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_renders_when_invisible?view=minecraft-bedrock-stable).
+Mob definitions can provide `minecraft:follow_range` to override a targeting
+goal's legacy `within_radius` for both acquisition and retention. Fixed,
+nonnegative values are supported; invalid bounds and randomized values fail
+definition compilation. See the
+[published follow-range contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_follow_range?view=minecraft-bedrock-stable).
+
+`minecraft:on_hurt`, `minecraft:on_hurt_by_player` and
+`minecraft:on_target_acquired` compile optional filters and self/other event
+receivers. Hit triggers run after an accepted hit commits its hurt timer and
+health; cancelled and timer-rejected hits do not fire them. Target triggers run
+after a different nonempty target is committed, once rather than every tick the
+same target is retained. AI-triggered events run outside the AI's resource
+scopes so their event handlers can use the normal random-state resource.
+Living actors accumulate cold while their body overlaps powder snow and thaw
+twice as quickly after leaving it. Full exposure slows movement, updates player
+cold rendering and actor shaking, and deals freezing damage every 40 actor
+ticks through the normal damage paths. Equipped leather armour and
+`minecraft:freezing_immune` prevent accumulation; `minecraft:freezing_vulnerable`
+raises periodic damage from 1 to 5. A carried armour item grants no protection.
+Respawn clears cold exposure and restores ordinary movement. The components
+follow the [Bedrock freezing component contract](https://learn.microsoft.com/en-us/minecraft/creator/documents/update1.26.50?view=minecraft-bedrock-stable#powder-snow-freezing).
 
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
 by identifier, replacing the whole definition rather than merging components.
@@ -1042,3 +1113,331 @@ of the native writer, reads all three codecs, and independently inflates/checksu
 the provider's actual compacted tables. This catches failures hidden by successful
 reads from an uncompressed write-ahead log. After changing native build flags,
 use `cargo clean -p bleveldb-sys` before the acceptance run.
+
+Native lifecycle handlers also receive `PlayerDamaged` after positive health
+loss, with the actual removed health and validated hit, before a possible death
+notification. Cancelled, invalid and hurt-timer-suppressed hits do not emit it.
+Use `PlayerDamage` to authorize attempts and `PlayerDamaged` to account for
+committed hits.
+
+Native applications may register `BlockInteractionHooks` handlers (or Bevy
+observers) to synchronously authorize player block breaking, placement,
+container access and block item use before effects and item costs. A
+`BlockInteraction` exposes the immutable actor, operation kind and affected
+positions, including adjacent targets and multi-block placements. Cancellation
+is sticky, and operations revalidate world and held-item state after callbacks.
+Open container windows are reauthorized on each inventory request before items
+move; a veto closes the window and sends authoritative inventory corrections.
+
+Native `PlayerEventHooks` handlers and Bevy observers can authorize or redirect
+movement before position, input, hunger and fall state changes, and observe
+`PlayerMoved` after accepted movement commits. Final chat can be rewritten or
+cancelled before broadcast, with identity and bounded text revalidation.
+`PlayerChat::handle(action)` replaces default broadcast with an extension-owned
+accepted action. `PlayerChatted` is notified only after all proposal handlers,
+observers and validation accept it; ordinary chat notifies after broadcast.
+Extensions route or account for custom chat from that committed notification,
+so a later veto never publishes effects from an unaccepted message.
+
+`PlayerJoined` runs before initial packets. `PlayerQuit` runs while the departing
+actor is present; `retain_entity()` detaches transport/input/permission/chunk
+ownership and retains the actor as `DetachedPlayer`. Detached actors remain
+visible to other sessions and are excluded from ordinary player autosaves.
+Embedding applications own their lifetime and persistence.
+
+`player_state::capture` and `restore` round-trip a versioned player snapshot,
+including complete inventory/UI slots, health, hunger, effects and motion.
+Restore validates identity, world and item data before mutating state, preserves
+the connection/runtime identity, assigns fresh item network IDs and sends
+authoritative updates. Captured death state is raw state, without applying a
+second death or dropping items again.
+Snapshots can also create a new detached actor with a fresh runtime identity,
+without synthesizing a network connection or join event.
+
+Native `PlayerFormResponse` reports actual bounded `ModalFormResponse` packets
+with immutable connection identity, request ID, optional raw response text and
+cancellation status. The host limits payloads to 65536 bytes and revalidates the
+source session before callbacks. Applications own outstanding request IDs, JSON
+interpretation and menu actions; the host performs no default form action.
+
+Native `ItemActionHooks` authorize held-item Use, Release, Consume and Launch
+stages before ordinary costs. `PlayerItemAction::handle(HandledItemAction)`
+requests bounded, validated engine-owned consumption for a custom action; late
+vetoes prevent its cost and notification. Committed notifications distinguish
+started use, actual consumption, actual projectile spawn and custom handling.
+Automatic food completion also authorizes Consume, and failed throws preserve
+the held item instead of charging for an unsuccessful launch.
+
+`PlayerFoodPolicy` independently controls per-actor exhaustion, exhaustion-based
+food drain, natural healing and starvation. Missing policy preserves ordinary
+behavior. `ProjectileHooks` authorize actual impact targets, item teleport
+destinations and individual effect recipients. Vetoed impacts discard the
+projectile without normal impact effects; teleports and effect changes validate
+modified data and live actor identity before applying them.
+
+Native applications can install `server::game::inventory_effects` before the
+network loop to submit complete durable inventory replacements. Each request
+binds a stable effect ID to expected and replacement inventory images. A worker
+writes the replacement and its receipt together, and the ECS publishes fresh
+stack IDs only after acknowledgement. Full player UI inventories are persisted.
+
+The source actor's inventory, health and input components are withheld during
+quarantine; extensions should check `is_quarantined` before reading gameplay
+state. Packet input, queued commands, block access and ordinary saves stop for
+that actor. A retained actor may lose its session while waiting and still receive
+the acknowledged inventory, while a replaced connection cannot. Native committed
+and failed events report the result. A failed event distinguishes proven
+non-application from a result requiring recovery; ambiguous writes stay
+quarantined and reject further admission until recovery.
+
+All connection loads, ordinary saves and effect writes use the installed
+serialized provider. Inventory epochs reject stale autosave/disconnect records,
+and receipt IDs survive restarts so callers can acknowledge a repeated request
+without granting its items again. LevelDB player writes request synchronous
+persistence. Other providers must explicitly advertise `atomic_durable_records`,
+honor that contract and avoid separate unwrapped access. Unsupported providers
+are rejected before installation. Receipt history is bounded at 65,536 effects
+per account; exhaustion rejects new effects before writing.
+
+An extension coordinating another persistence boundary can capture a
+`inventory_effects::RecoverySource` before that operation. An uncertain result
+can call `fence_for_recovery` with that exact source: account, runtime identity
+and outbound transport must still match. The terminal fence physically withholds
+mutable player state, excludes ordinary saves and snapshots, and rejects further
+account admission. Worker completion, snapshot restoration, disconnect and
+session ID reuse never release it. `recovery_account_fenced` also lets a router
+check UUID and authenticated account identity across several worlds.
+
+This helper performs no storage writes and does not acknowledge the external
+operation. Recovery requires reconstructing coherent durable state and restarting
+the runtime; there is no automatic release path. Other accounts remain available.
+
+Native damage proposals may independently bypass armour reduction and apply a
+finite nonnegative multiplier after armour. Both preserve the hit cause, hurt
+timer, attribution and ordinary durability effects. Invalid modifiers reject
+the operation before effects. Deferred observer commands are applied before
+subject identity is revalidated for damage and respawning.
+
+
+Potion drinking, ender pearls, splash bottles and lingering bottles now use the
+ordinary item-use and projectile paths. `PotionCatalog` configures aux-valued
+profiles; an airborne bottle captures immutable contents at launch. A drink
+returns a glass bottle outside creative mode. Actual impacts apply radial
+instantaneous potency and lasting durations through the recipient hooks.
+Water impacts authorize each extinguished actor and changed fire/campfire block.
+Pearls authorize their final rewritten destination, require loaded collision-free
+space, and apply owner fall damage only after a successful teleport. The immutable
+`PlayerTeleported` notification exposes final feet coordinates only after commit.
+
+Lingering bottles create replicated, nonliving area-effect-cloud actors with a
+warm-up, finite lifetime, shrinking radius and per-recipient reapplication delay.
+Clouds expire in memory and are excluded from chunk actor saves. Optional impact
+spawns that the actor registry cannot run fail that spawn attempt without
+preventing the primary projectile's other behavior.
+
+Default potion profiles (aux 0–42), splash scaling and cloud behavior use the
+Dragonfly v0.10.13 reference; the MIT notice is in
+[licenses/dragonfly-MIT.txt](licenses/dragonfly-MIT.txt). They have deterministic
+host regressions and are not a claim of complete vanilla parity. Newer aux values
+need an explicitly configured profile. Existing limitations of individual lasting
+effect behaviors still apply; endermite actors and dimension travel remain
+unsupported.
+
+Native `PlayerJoined` handlers may call `player_events::defer_initial_state`
+before asynchronous initialization. This withholds initial player-state packets
+and actor publication, and discards incoming packets except disconnects. Call
+`release_initial_state` when the original actor's complete state is ready; the
+host validates its identity and publishes the initial batch once after the ECS
+tick. Released retained actors can become visible without an attached transport.
+A published actor cannot be deferred again. These hooks coordinate publication;
+extensions remain responsible for completing or rejecting their initialization.
+
+## Actor presentation
+
+`entity::components::ActorAudience::only(viewers)` restricts an actor's native
+replication to explicit ECS viewer identities. Absence or `all()` preserves the
+ordinary audience, and an actor always receives its own updates. Player, mob
+and item visibility reconciles at runtime: removing a viewer queues `RemoveActor`,
+and adding one sends a fresh current snapshot. Native actor events, attributed
+sounds and death announcements respect the audience. Item collection still
+removes the item for viewers unable to see its collector, without naming that
+collector. Child actors have their own audiences; applications explicitly assign
+them when needed. Unattributed world events remain world events.
+
+`PlayerEquipmentProjection` overrides the main hand, offhand and four armour
+slots displayed to other clients. `None` uses the actual inventory slot; an
+empty stack hides the displayed slot. Inventories and combat equipment remain
+authoritative. New viewers receive current equipment, metadata and effects with
+the spawn, and existing viewers receive changes even while the player is still.
+Per-viewer caches track successful queues and connection identity; a replacement
+connection receives a fresh snapshot, and backpressure retries each equipment
+packet independently. Players become eligible after `PlayerSpawnedEvent`.
+
+`server::broadcast::player_views::{audience_allows, can_receive_actor}` and
+`entity::mob::net::sound::{send_from_to_viewers, level_event_from}` let embedding
+applications apply the same recipient rules to their own attributed events.
+These APIs cover actor representation; player-list and skin support is outside
+this capability. The visible-effect metadata packing follows
+[Dragonfly v0.10.13](https://github.com/df-mc/dragonfly/blob/v0.10.13/server/session/entity_metadata.go),
+under the [MIT license](licenses/dragonfly-MIT.txt).
+
+`command::exec::set_mode_override(world, player, Some(mode))` applies a temporary
+engine game mode with its ordinary mode/abilities packets. The `GameMode`
+component remains the effective mode read by inventory, damage, mining and other
+systems; authoritative inventory contents do not change. Replacing the override
+keeps the original base, and passing `None` restores it. Native `/gamemode` and
+`set_game_mode` update the durable base while an override is active.
+`base_game_mode` and `mode_override` expose those two facts without mutable access.
+
+Ordinary player saves retain the base mode, so reconnecting does not persist a
+temporary override. Raw `PlayerSnapshot` captures the effective mode in
+`data.game_mode` and, when overridden, its base in optional `base_game_mode`.
+Restoration validates both mode IDs before any mutation, then reinstalls the
+explicit pair in one mode/abilities transition. A missing base field clears any
+current override and restores the snapshot's ordinary mode; older snapshots
+remain readable. Captured equal base/effective modes retain the explicit override
+so later base changes still wait until its removal.
+
+Deferred native snapshot restoration also withholds direct mode, teleport,
+attribute, effect, life and motion packets. Tick replication keeps pending state
+out of each client's sent-state cache. After release, the initial batch is
+followed by the current validated snapshot presentation, including final position,
+velocity, life state and effect particle/ambient flags; ordinary tick replication
+then resumes without replaying that effect set. Pending viewers receive no
+mob or item actor snapshots.
+
+## Staged container edits
+
+`server::game::ContainerMutationLocks` reserves absolute block cells with opaque
+operation-owner tokens. `acquire(owner, cells)` is atomic and idempotent for the
+same owner; conflicting owners and empty tokens change nothing. `release` requires
+exact ownership of the whole batch. Locks are runtime state; applications restore
+pending reservations before exposing their world. With no reservations, ordinary
+container behavior is unchanged.
+
+Native access checks both halves of a paired chest, including saved actors not
+yet decoded. Reserved cells reject opening and retained-window stack moves, pause
+furnace/hopper mutations and loot unpacking, and prevent native placement, breaking,
+pair changes and block-writing commands. Unavailable windows receive ordinary
+failed inventory responses; request-ID validation remains active.
+
+After trusted chunk/block-actor writes and the application's persistence
+acknowledgement, call `complete_container_mutations(world, owner, cells)`. It
+releases an exactly owned batch, closes obsolete windows, invalidates decoded
+container contents, reloads authoritative NBT and registers new native tickers.
+Failed ownership checks change nothing. The resource's raw `release` only changes
+ownership and is suitable for aborts without committed edits. Direct trusted
+chunk writes remain application-owned. `server::game::is_replaceable` exposes
+the same block-state placement predicate used by native placement.
+
+## Native network metrics
+
+Runtime-created player sessions receive `entity::components::PlayerNetworkMetrics`
+with transport RTT observations from the actual play pump. Read
+`sample(&PlayerSession, max_age)` or use `sample_at` with an explicit monotonic
+time. A `NetworkRttSample` contains `round_trip_time: Duration` and
+`observed_at: Instant`. Freshness refers to when the transport's measured estimate
+was observed; the underlying probe timestamp is not supplied by the transport API.
+
+Unmeasured/unsupported RTT, expired observations and replaced sessions return
+`None`. Observations bind both session ID and the original outbound channel, so
+reusing a number cannot transfer metrics to a different connection. The pump
+refreshes observations at its normal flush ticks and clears them on exit or task
+cancellation. Weak channel references allow departed transports to close normally.
+These facts are runtime state and are excluded from player persistence.
+
+`BlockInteractionHandler::on_committed` and Bevy `PlayerBlockCommitted` observers
+receive owned facts after an accepted native break, placement or use has applied
+its normal block writes, item costs, tool wear, drops and effects. Vetoed, stale
+and merely handled clicks emit no notification. Uses include newly opened block
+windows, tools, buckets, bone meal, fire starters and successfully spawned eggs;
+window inventory transfers remain separate operations.
+
+The event retains the originating `ConnectionIdentity`, semantic kind, affected
+cell snapshots, and the original hotbar slot and item even when the final item is
+consumed. `HeldItemSnapshot` includes an empty hand when its inventory exists;
+`held_after` reads the same original cell and is absent if that account or
+inventory is gone. Costs never transfer to a different selection or replacement
+account during callbacks. Cell snapshots use server runtime IDs and exact rooted
+Bedrock NetworkLittleEndian actor bytes; an absent actor or unconverted Java
+recipe has no Bedrock bytes. A missing after-snapshot explicitly reports a cell
+unloaded by a synchronous callback. Unchanged affected cells are retained, such
+as a crafting table used to open its screen. Committed notifications cannot veto
+completed actions, hold no registry borrow across callbacks, and permit nested
+operations; callbacks must account for their own reentrancy.
+## Native container mutations
+
+`server::game::container_mutation::ContainerMutationHooks` registers ordered
+`ContainerMutationHandler` callbacks. `on_mutation` and Bevy `ContainerMutation`
+observers authorize complete authoritative slot images before an ordinary player
+request, hopper transfer, item collection or furnace mutation publishes costs.
+The cause is an immutable authenticated `Player` identity, a `Hopper` position
+(with an optional collected item entity), or a `Furnace` position. Each
+`ContainerInventoryChange` includes its kind, canonical physical positions, and
+complete `before`/`after` item vectors. Double chests list lead then partner and
+all 54 slots. Consumers can distinguish item additions, extraction and internal
+reordering from the images, independently of client action names. Furnace timer
+changes can have identical slot images.
+
+Player requests stage complete inventories and request-ID assignments on owned
+copies. After callbacks, the host revalidates the exact connection, every player
+store and request alias, the open window, raw actors, decoded slots, pairing,
+automation state and reservations. A veto or stale baseline discards the entire
+frame, including drops, equipment updates and successful response data. Invalid
+request IDs retain their native terminating-warning path, and unavailable retained
+windows return an ordinary error without staging against missing storage.
+Generated automation loot and pair repairs are also prepared on owned copies;
+rejection leaves their saved data untouched.
+
+`on_committed` and Bevy `ContainerMutationCommitted` notify only after actual
+engine inventory, alias, item-entity, cooldown, persistence-image and ordinary
+side effects have completed. The notification owns the exact accepted images
+and cannot veto. Handlers and observers run outside ECS component and callback
+registry borrows; registry changes affect subsequent dispatches, including nested
+operations. Nested accepted operations invalidate stale outer previews. Without
+handlers, ordinary validated transfers, furnace timing and request responses use
+the same engine rules.
+
+
+## Multiple dimension worlds
+
+`UnastarServer::worlds_mut()` exposes a `DimensionRouter` before the listener
+starts. Use `create_world(ServerConfig)` to inherit the shared account provider,
+configure that world's terrain provider and native resources, then `add(world)`.
+Dimensions 0, 1 and 2 have separate ECS instances, terrain, simulation, clocks,
+container windows and viewers. Compatible frozen protocol registries are required.
+All registered worlds tick, autosave and shut down together; reconnect selects the
+saved dimension before StartGame. Terrain generation remains an explicit world
+configuration: this API does not add vanilla Nether or End generators.
+
+`DimensionRouter::prepare_destination` can load and validate collision geometry
+before an application reserves a command or delayed action; it produces no player
+movement. Background generation returns pending, and temporary pins expire.
+
+Native code queues `worlds::request_transfer_checked` from the source world.
+The router loads destination chunks, finds a supported collision-free feet
+position within the supplied vertical radius, dispatches cancellable source
+`WorldTransferHooks`, and reruns geometry and the caller's final predicate after
+all destination rewrites. Rejected, stale or unsupported sources keep their
+entity and inventory. Native storage acknowledges the destination record before
+ownership or dimension packets change. An uncertain save terminally fences the
+source for explicit recovery rather than allowing autosave to obscure it.
+
+`TransferComponents` moves registered components by ownership, without requiring
+Clone or serializing application data. Native player inventory, health, effects,
+permissions, network metrics and transient mode overrides survive. World-local
+views, requests, movement inputs, windows and publication caches reset. Unknown
+components reject a transfer; applications explicitly preserve account/context
+components or reset local projections. Source `on_committed` receives both worlds
+and scoped entity IDs while target publication is deferred, so it can durably
+acknowledge its decision and rebuild restricted audiences before visibility.
+The actual transport/runtime identity stays unchanged, and dimension loading
+blocks gameplay until that connection acknowledges the matching loading screen.
+
+`WorldDirectory` supplies owned native snapshots and exact transport-bound,
+world-scoped handles. Revalidate a handle with `router.resolve` before applying
+an effect in `world_mut`. Local callbacks may `queue_router_request` with owned
+work; it runs after local ECS borrows finish, with a fresh directory. Queueing
+acknowledges no application success. `RouterTickHandler` runs once per aggregate
+tick, separately from every world's simulation. This boundary supports actual
+cross-world native effects without reentrant world borrowing or raw pointers.

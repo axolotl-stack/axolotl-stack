@@ -110,7 +110,7 @@ impl WorldProvider for LevelDBWorldProvider {
                                 )
                             })
                         } else {
-                            chunk.decode_biomes_disk(&data)
+                            chunk.decode_biomes_disk_for_dimension(&data, dim)
                         };
                         decoded.map_err(|e| {
                             StorageError::Deserialization(format!(
@@ -190,7 +190,7 @@ impl WorldProvider for LevelDBWorldProvider {
         let finalisation_key = keys::finalisation_key(pos, dim);
 
         // Encode chunk data
-        let biome_data = col.chunk.encode_biomes_disk();
+        let biome_data = col.chunk.encode_biomes_disk_for_dimension(dim);
         let biome_key = keys::biome_key(pos, dim);
         let block_entities_key = keys::block_entities_key(pos, dim);
         let actor_digest_key = keys::entity_ids_key(pos, dim);

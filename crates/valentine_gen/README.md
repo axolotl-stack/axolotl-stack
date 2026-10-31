@@ -229,3 +229,17 @@ cargo run -p valentine_gen -- --latest --log debug
 
 When behavior must survive regeneration, change the parser, IR analysis, or
 emitter rather than generated Rust.
+
+## Score entry variants
+
+Protocol 2193 `SetScorePacket` contains a counted list of entry variants, without
+an outer action byte. Each row carries a varuint variant and action string.
+Removal rows have an optional objective and no score; other rows carry their
+score and player, entity or fake-player identity. The standard schema generator
+emits these owned and borrowed types directly.
+
+The literal fixtures in `valentine/tests/scoreboard_wire.rs` cover mixed variants,
+optional removal objectives, negative scores, truncation and packet dispatch.
+They follow the version-matched [Gophertunnel v1.62.0 codec](https://github.com/Sandertv/gophertunnel/blob/v1.62.0/minecraft/protocol/scoreboard.go)
+and [Mojang protocol 2193 schema](https://mojang.github.io/bedrock-protocol-docs/1.26.51/packets/set-score-packet/).
+The [Gophertunnel MIT notice](licenses/gophertunnel-MIT.txt) is retained.

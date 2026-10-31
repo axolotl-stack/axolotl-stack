@@ -122,8 +122,29 @@ pub fn wear_held(world: &mut World, player: Entity, points: i32) -> bool {
     else {
         return false;
     };
+    wear_slot(world, player, slot, &stack, points)
+}
+
+/// Wear the captured original slot only while it still contains that stack.
+/// A changed selection never transfers a completed operation's cost to another
+/// item. The caller additionally validates its originating actor identity.
+pub(super) fn wear_slot(
+    world: &mut World,
+    player: Entity,
+    slot: usize,
+    stack: &ItemStack,
+    points: i32,
+) -> bool {
+    if world.get::<GameMode>(player) == Some(&GameMode::Creative)
+        || world
+            .get::<MainInventory>(player)
+            .and_then(|inv| inv.0.item(slot))
+            != Some(stack)
+    {
+        return false;
+    }
     let Some(worn) = wear(
-        &stack,
+        stack,
         points,
         WearKind::Tool,
         &mut world

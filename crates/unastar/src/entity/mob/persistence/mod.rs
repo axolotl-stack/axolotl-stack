@@ -193,10 +193,12 @@ pub fn snapshot_chunks(
     let mut live = HashSet::new();
     // Projectiles in flight are not stored or unloaded with the chunk:
     // their flight state (owner, ticks in flight) has no saved form here, so
-    // they stay in memory, frozen until their chunk loads again.
+    // they stay in memory, frozen until their chunk loads again. Clouds are
+    // also transient; their bounded lifetime continues in memory.
     let mut mobs = world.query_filtered::<(Entity, &Position, Has<Dead>, Option<&MobUniqueId>), (
         With<MobKind>,
         Without<crate::entity::components::Projectile>,
+        Without<crate::entity::projectile::cloud::AreaEffectCloud>,
     )>();
     for (mob, position, dead, id) in mobs.iter(world) {
         if !dead && let Some(id) = id {

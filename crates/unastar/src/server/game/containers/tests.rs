@@ -6,6 +6,9 @@ use super::*;
 use crate::entity::components::{GameMode, MainInventory, PlayerUi};
 use crate::item::test_support::stack;
 use crate::registry::BlockRegistry;
+use crate::server::game::block_interaction::{
+    BlockInteraction, BlockInteractionHandler, BlockInteractionHooks, BlockInteractionKind,
+};
 use crate::server::game::packet_queues::{InventoryAction, InventoryPacketQueue};
 use crate::world::chunk::Chunk;
 use crate::world::ecs::ChunkPosition;
@@ -17,7 +20,37 @@ use jolyne::valentine::{
     ItemStackRequestPacketDataRequestDataActionsItem as Action, McpePacketData,
     TypedClientNetIdstructItemStackRequestIdTagint32T0,
 };
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use tokio::sync::mpsc::Receiver;
+
+/// A policy that can revoke one block after a window has already been opened.
+struct ContainerPermission {
+    denied: Arc<AtomicBool>,
+    position: IVec3,
+}
+
+impl BlockInteractionHandler for ContainerPermission {
+    fn on_interaction(&self, _world: &mut World, event: &mut BlockInteraction) {
+        if self.denied.load(Ordering::SeqCst)
+            && event.kind() == BlockInteractionKind::Use
+            && event.positions().contains(&self.position)
+        {
+            event.cancel();
+        }
+    }
+}
+
+/// Despawn during authorization to exercise cleanup without borrowed player data.
+struct DespawnContainerUser;
+
+impl BlockInteractionHandler for DespawnContainerUser {
+    fn on_interaction(&self, world: &mut World, event: &mut BlockInteraction) {
+        world.despawn(event.player());
+    }
+}
 
 struct Harness {
     server: crate::GameServer,
@@ -171,8 +204,13 @@ impl Harness {
         ));
     }
 
-    /// Take `amount` from `from` to `to`; returns the response status.
-    fn take(&mut self, amount: u8, from: (Name, u8, i32), to: (Name, u8, i32)) -> Status {
+    /// Build a real transfer packet without consuming the resulting corrections.
+    fn transfer(
+        &mut self,
+        amount: u8,
+        from: (Name, u8, i32),
+        to: (Name, u8, i32),
+    ) -> InventoryAction {
         let id = self.next_request;
         self.next_request -= 2;
         let slot = |(name, slot, net): (Name, u8, i32)| ItemStackRequestCerealSlotInfoData {
@@ -183,7 +221,7 @@ impl Harness {
             slot,
             net_id_variant: net,
         };
-        self.run_inventory(InventoryAction::ItemStackRequest(ItemStackRequestPacket {
+        InventoryAction::ItemStackRequest(ItemStackRequestPacket {
             requests: vec![ItemStackRequestPacketDataRequestData {
                 client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 { id },
                 actions: vec![Action::TakeActionData(
@@ -196,7 +234,13 @@ impl Harness {
                 )],
                 ..Default::default()
             }],
-        }));
+        })
+    }
+
+    /// Take `amount` from `from` to `to`; returns the response status.
+    fn take(&mut self, amount: u8, from: (Name, u8, i32), to: (Name, u8, i32)) -> Status {
+        let action = self.transfer(amount, from, to);
+        self.run_inventory(action);
         self.packets()
             .into_iter()
             .find_map(|packet| match packet {
@@ -250,6 +294,437 @@ impl Harness {
 
 fn north() -> (&'static str, StateValue) {
     ("minecraft:cardinal_direction", StateValue::Str("north"))
+}
+
+/// Reserve a batch before exercising actual native writers.
+fn reserve(h: &mut Harness, cells: impl IntoIterator<Item = IVec3>) {
+    h.world()
+        .init_resource::<super::super::ContainerMutationLocks>();
+    assert!(
+        h.world()
+            .resource_mut::<super::super::ContainerMutationLocks>()
+            .acquire("operation", cells)
+    );
+}
+
+#[test]
+fn reserved_pair_blocks_both_opening_and_native_structural_mutations_before_cache_load() {
+    with_world(GameMode::Survival, |h| {
+        let first = IVec3::new(2, 64, 2);
+        let second = first + IVec3::X;
+        h.place(first, "minecraft:chest", &[north()]);
+        h.place(second, "minecraft:chest", &[north()]);
+        h.place(IVec3::new(5, 64, 2), "minecraft:stone", &[]);
+        let before = h.saved(first).encode();
+        h.world().resource_mut::<BlockContainers>().live.clear();
+        reserve(h, [second]);
+        let player = h.player;
+        assert!(open(h.world(), player, first));
+        assert!(
+            h.world()
+                .get::<ContainerWindows>(player)
+                .unwrap()
+                .open_id()
+                .is_none()
+        );
+        assert!(mutation_locked(h.world(), first));
+        super::super::blocks::destroy_block(h.world(), first);
+        assert_eq!(h.block_name(first), "minecraft:chest");
+        assert_eq!(h.saved(first).encode(), before);
+        let output = crate::command::execute(
+            h.world(),
+            crate::command::CommandSource::server(),
+            "/fill 2 64 2 3 64 2 stone",
+        );
+        assert!(!output.is_success());
+        assert_eq!(h.block_name(second), "minecraft:chest");
+        for (line, key) in [
+            ("/setblock 2 64 2 air", "commands.setblock.noChange"),
+            (
+                "/clone 5 64 2 5 64 2 2 64 2 replace move",
+                "commands.clone.failed",
+            ),
+        ] {
+            let output =
+                crate::command::execute(h.world(), crate::command::CommandSource::server(), line);
+            assert!(!output.is_success());
+            assert_eq!(output.messages[0].key, key);
+        }
+        assert_eq!(h.block_name(IVec3::new(5, 64, 2)), "minecraft:stone");
+    });
+}
+
+#[test]
+fn retained_window_cannot_move_items_and_completion_discards_stale_decoded_contents() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(2, 64, 2);
+        h.place(pos, "minecraft:chest", &[north()]);
+        h.open(pos);
+        let net = h.give(0, "minecraft:cobblestone", 20);
+        h.packets();
+        reserve(h, [pos]);
+        assert_ne!(
+            h.take(
+                12,
+                (Name::Hotbarcontainer, 0, net),
+                (Name::Levelentitycontainer, 3, 0)
+            ),
+            Status::Success
+        );
+        assert_eq!(h.main_slot(0).count, 20);
+        assert!(h.saved(pos).items.item(3).unwrap().is_empty());
+        let mut replacement = BlockContainer::new(ContainerKind::Chest, pos);
+        replacement
+            .items
+            .set_item(0, stack("minecraft:diamond", 5).into_slot())
+            .unwrap();
+        let chunk = h.chunk;
+        h.world()
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block_entity(BlockEntity::from_bedrock_compound(replacement.encode()).unwrap());
+        let player = h.player;
+        let before_wrong_owner = h.world().get::<ContainerWindows>(player).unwrap().open_id();
+        assert!(!super::super::complete_container_mutations(
+            h.world(),
+            "different",
+            [pos]
+        ));
+        assert_eq!(
+            h.world().get::<ContainerWindows>(player).unwrap().open_id(),
+            before_wrong_owner
+        );
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [pos]
+        ));
+        let player = h.player;
+        assert!(
+            h.world()
+                .get::<ContainerWindows>(player)
+                .unwrap()
+                .open_id()
+                .is_none()
+        );
+        assert_eq!(
+            container(h.world(), pos)
+                .unwrap()
+                .items
+                .item(0)
+                .unwrap()
+                .item_id(),
+            "minecraft:diamond"
+        );
+        let completion_packets = h.packets();
+        if before_wrong_owner.is_some() {
+            assert!(completion_packets.iter().any(|packet| matches!(packet,McpePacketData::ContainerClosePacket(close) if close.server_initiated_close)));
+        }
+        h.open(pos);
+        let net = container(h.world(), pos)
+            .unwrap()
+            .items
+            .item(0)
+            .unwrap()
+            .net_id;
+        assert_eq!(
+            h.take(
+                5,
+                (Name::Levelentitycontainer, 0, net),
+                (Name::Hotbarcontainer, 1, 0)
+            ),
+            Status::Success
+        );
+        assert_eq!(h.main_slot(1).count, 5);
+        assert!(h.saved(pos).items.item(0).unwrap().is_empty());
+    });
+}
+
+#[test]
+fn reserved_furnace_keeps_fuel_progress_inventory_and_actor_unchanged_until_completion() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(6, 64, 6);
+        h.place(pos, "minecraft:furnace", &[north()]);
+        {
+            let mut furnace = container_mut(h.world(), pos).unwrap();
+            furnace
+                .items
+                .set_item(0, stack("minecraft:raw_iron", 2).into_slot())
+                .unwrap();
+            furnace
+                .items
+                .set_item(1, stack("minecraft:coal", 1).into_slot())
+                .unwrap();
+        }
+        save(h.world(), pos);
+        h.tick(1);
+        let before = h.saved(pos);
+        reserve(h, [pos]);
+        h.tick(50);
+        assert_eq!(h.saved(pos).encode(), before.encode());
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [pos]
+        ));
+        h.tick(1);
+        let after = h.saved(pos);
+        assert_eq!(after.furnace.cook_time, before.furnace.cook_time + 1);
+        assert_eq!(after.furnace.lit_time, before.furnace.lit_time - 1);
+    });
+}
+
+#[test]
+fn hopper_respects_reserved_source_and_destination_cells() {
+    with_world(GameMode::Survival, |h| {
+        let source = IVec3::new(8, 66, 8);
+        let hopper = source - IVec3::Y;
+        let target = hopper - IVec3::Y;
+        h.place(source, "minecraft:chest", &[north()]);
+        h.place(
+            hopper,
+            "minecraft:hopper",
+            &[("facing_direction", StateValue::Int(0))],
+        );
+        h.place(target, "minecraft:furnace", &[north()]);
+        container_mut(h.world(), source)
+            .unwrap()
+            .items
+            .set_item(4, stack("minecraft:raw_iron", 3).into_slot())
+            .unwrap();
+        save(h.world(), source);
+        reserve(h, [source]);
+        h.tick(10);
+        assert_eq!(h.saved(source).items.item(4).unwrap().count, 3);
+        assert!(h.saved(hopper).items.item(0).unwrap().is_empty());
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [source]
+        ));
+        h.tick(1);
+        assert_eq!(h.saved(hopper).items.item(0).unwrap().count, 1);
+        reserve(h, [target]);
+        h.tick(8);
+        assert!(h.saved(target).items.item(0).unwrap().is_empty());
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [target]
+        ));
+        h.tick(8);
+        assert_eq!(
+            h.saved(target).items.item(0).unwrap().item_id(),
+            "minecraft:raw_iron"
+        );
+    });
+}
+
+#[test]
+fn reserved_generated_loot_is_not_consumed_until_the_container_is_released_and_opened() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(12, 64, 12);
+        let state = h.state("minecraft:chest", &[north()]);
+        let chunk = h.chunk;
+        super::super::blocks::set_block(h.world(), pos, state, false);
+        h.world()
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block_entity(BlockEntity::generated(
+                pos.to_array(),
+                "Chest",
+                &[],
+                Some(crate::world::block_entity::LootTable::Bedrock(
+                    "loot_tables/chests/simple_dungeon.json",
+                    4242,
+                )),
+                None,
+            ));
+        reserve(h, [pos]);
+        let player = h.player;
+        assert!(open(h.world(), player, pos));
+        assert!(h.saved(pos).encode().0.contains_key("LootTable"));
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [pos]
+        ));
+        assert!(
+            h.saved(pos).encode().0.contains_key("LootTable"),
+            "completion loads but does not open/unpack a container"
+        );
+        h.open(pos);
+        assert!(!h.saved(pos).encode().0.contains_key("LootTable"));
+    });
+}
+
+#[test]
+fn completion_registers_new_authoritative_furnace_for_ordinary_ticking() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(11, 64, 11);
+        reserve(h, [pos]);
+        let state = h.state("minecraft:furnace", &[north()]);
+        let mut furnace = BlockContainer::new(ContainerKind::Furnace, pos);
+        furnace
+            .items
+            .set_item(0, stack("minecraft:raw_gold", 1).into_slot())
+            .unwrap();
+        furnace
+            .items
+            .set_item(1, stack("minecraft:coal", 1).into_slot())
+            .unwrap();
+        let chunk = h.chunk;
+        {
+            let mut data = h.world().get_mut::<ChunkData>(chunk).unwrap();
+            data.inner
+                .set_block(pos.x as u8, pos.y as i16, pos.z as u8, state);
+            data.inner
+                .set_block_entity(BlockEntity::from_bedrock_compound(furnace.encode()).unwrap());
+        }
+        h.tick(5);
+        assert_eq!(h.saved(pos).furnace.cook_time, 0);
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [pos]
+        ));
+        h.tick(1);
+        assert_eq!(h.saved(pos).furnace.cook_time, 1);
+        assert!(h.saved(pos).furnace.lit_time > 0);
+    });
+}
+
+#[test]
+fn reserved_window_still_rejects_fatal_request_ids_without_mutation() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(2, 64, 2);
+        h.place(pos, "minecraft:chest", &[north()]);
+        h.open(pos);
+        reserve(h, [pos]);
+        h.packets();
+        h.run_inventory(InventoryAction::ItemStackRequest(ItemStackRequestPacket {
+            requests: vec![ItemStackRequestPacketDataRequestData {
+                client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 { id: 2 },
+                ..Default::default()
+            }],
+        }));
+        assert!(
+            h.packets()
+                .iter()
+                .any(|packet| matches!(packet, McpePacketData::PacketViolationWarningPacket(_)))
+        );
+        assert!(h.saved(pos).items.slots().iter().all(ItemStack::is_empty));
+    });
+}
+
+#[test]
+fn native_retained_container_permission_is_checked_before_stack_request_mutation() {
+    with_world(GameMode::Survival, |h| {
+        let chest = IVec3::new(2, 64, 2);
+        h.place(chest, "minecraft:chest", &[north()]);
+        let denied = Arc::new(AtomicBool::new(false));
+        h.world()
+            .resource_mut::<BlockInteractionHooks>()
+            .register(ContainerPermission {
+                denied: denied.clone(),
+                position: chest,
+            });
+        let net = h.give(0, "minecraft:stone", 10);
+        let window = h.open(chest);
+        h.packets();
+        assert_eq!(
+            h.take(
+                4,
+                (Name::Hotbarcontainer, 0, net),
+                (Name::Levelentitycontainer, 0, 0)
+            ),
+            Status::Success
+        );
+        let source = h.saved(chest).items.item(0).unwrap().clone();
+        let before = h.main_slot(0);
+        let player = h.player;
+        h.world()
+            .get_mut::<PlayerUi>(player)
+            .unwrap()
+            .set_cursor(stack("minecraft:stick", 2));
+        denied.store(true, Ordering::SeqCst);
+        let action = h.transfer(
+            2,
+            (Name::Levelentitycontainer, 0, source.net_id),
+            (Name::Hotbarcontainer, 1, 0),
+        );
+        h.run_inventory(action);
+        assert_eq!(h.saved(chest).items.item(0).unwrap(), &source);
+        assert_eq!(h.main_slot(0), before);
+        assert!(h.main_slot(1).is_empty());
+        assert_eq!(
+            h.world().get::<PlayerUi>(player).unwrap().cursor(),
+            &stack("minecraft:stick", 2)
+        );
+        assert_eq!(
+            h.world().get::<ContainerWindows>(player).unwrap().screen(),
+            ScreenKind::None
+        );
+        let packets = h.packets();
+        assert!(packets.iter().any(|packet| matches!(packet,McpePacketData::ItemStackResponsePacket(response) if response.responses.len()==1 && response.responses[0].result == Status::Error)));
+        assert!(packets.iter().any(|packet| matches!(packet,McpePacketData::ContainerClosePacket(close) if close.container_id==window && close.server_initiated_close)));
+        assert!(packets.iter().any(|packet| matches!(packet,McpePacketData::InventoryContentPacket(content) if content.container_id == 0)));
+    });
+}
+
+#[test]
+fn native_retained_container_permission_covers_the_other_double_chest_half() {
+    with_world(GameMode::Survival, |h| {
+        let lead = IVec3::new(2, 64, 2);
+        let other = IVec3::new(3, 64, 2);
+        h.place(lead, "minecraft:chest", &[north()]);
+        h.place(other, "minecraft:chest", &[north()]);
+        let net = h.give(0, "minecraft:stone", 5);
+        h.open(other);
+        h.packets();
+        h.world()
+            .resource_mut::<BlockInteractionHooks>()
+            .register(ContainerPermission {
+                denied: Arc::new(AtomicBool::new(true)),
+                position: lead,
+            });
+        assert_eq!(
+            h.take(
+                5,
+                (Name::Hotbarcontainer, 0, net),
+                (Name::Levelentitycontainer, 30, 0)
+            ),
+            Status::Error
+        );
+        assert_eq!(h.main_slot(0).count, 5);
+        assert!(h.saved(lead).items.item(3).unwrap().is_empty());
+        assert!(h.saved(other).items.item(3).unwrap().is_empty());
+    });
+}
+
+#[test]
+fn native_retained_container_callback_despawn_preserves_stored_items() {
+    with_world(GameMode::Survival, |h| {
+        let chest = IVec3::new(2, 64, 2);
+        h.place(chest, "minecraft:chest", &[north()]);
+        let net = h.give(0, "minecraft:stone", 5);
+        h.open(chest);
+        h.packets();
+        h.world()
+            .resource_mut::<BlockInteractionHooks>()
+            .register(DespawnContainerUser);
+        let action = h.transfer(
+            5,
+            (Name::Hotbarcontainer, 0, net),
+            (Name::Levelentitycontainer, 0, 0),
+        );
+        h.run_inventory(action);
+        let player = h.player;
+        assert!(h.world().get_entity(player).is_err());
+        assert!(h.saved(chest).items.item(0).unwrap().is_empty());
+    });
 }
 
 #[test]
@@ -956,4 +1431,644 @@ fn placing_a_container_announces_the_same_client_state_as_bds() {
             compound(bds.actor_data_tags)
         );
     });
+}
+
+use crate::server::game::container_mutation::{
+    ContainerMutation, ContainerMutationCause, ContainerMutationCommitted,
+    ContainerMutationHandler, ContainerMutationHooks,
+};
+use std::sync::Mutex;
+
+/// Register one native container callback in the actual game world.
+fn mutation_hook(h: &mut Harness, handler: impl ContainerMutationHandler) {
+    h.world().init_resource::<ContainerMutationHooks>();
+    h.world()
+        .resource_mut::<ContainerMutationHooks>()
+        .register(handler);
+}
+
+/// Record only completed operations; all payloads remain owned after dispatch.
+struct MutationRecords(Arc<Mutex<Vec<ContainerMutationCommitted>>>);
+impl ContainerMutationHandler for MutationRecords {
+    fn on_committed(&self, _world: &mut World, event: &ContainerMutationCommitted) {
+        self.0.lock().unwrap().push(event.clone());
+    }
+}
+
+/// Install an owned completed-event recorder.
+fn mutation_records(h: &mut Harness) -> Arc<Mutex<Vec<ContainerMutationCommitted>>> {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    mutation_hook(h, MutationRecords(events.clone()));
+    events
+}
+
+/// Example reusable extraction policy: preserve each comparable item's total
+/// count while permitting arbitrary internal rearrangement or removal.
+struct ExtractionOnly(IVec3);
+impl ContainerMutationHandler for ExtractionOnly {
+    fn on_mutation(&self, _world: &mut World, event: &mut ContainerMutation) {
+        let denied = event
+            .changes()
+            .iter()
+            .filter(|change| change.positions.contains(&self.0))
+            .any(|change| {
+                change
+                    .after
+                    .iter()
+                    .filter(|stack| !stack.is_empty())
+                    .any(|stack| {
+                        let count = |slots: &[ItemStack]| {
+                            slots
+                                .iter()
+                                .filter(|item| item.comparable(stack))
+                                .map(|item| u32::from(item.count))
+                                .sum::<u32>()
+                        };
+                        count(&change.after) > count(&change.before)
+                    })
+            });
+        if denied {
+            event.cancel();
+        }
+    }
+}
+
+/// Name one exact slot in a real ItemStackRequest frame.
+fn mutation_slot(name: Name, slot: u8, net: i32) -> ItemStackRequestCerealSlotInfoData {
+    ItemStackRequestCerealSlotInfoData {
+        fullcontainername: FullContainerName {
+            container_name: name,
+            dynamic_id: None,
+        },
+        slot,
+        net_id_variant: net,
+    }
+}
+
+/// Queue one real multi-action request and read its response status.
+fn mutation_request(h: &mut Harness, id: i32, actions: Vec<Action>) -> Status {
+    h.run_inventory(InventoryAction::ItemStackRequest(ItemStackRequestPacket {
+        requests: vec![ItemStackRequestPacketDataRequestData {
+            client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 { id },
+            actions,
+            ..Default::default()
+        }],
+    }));
+    h.packets()
+        .into_iter()
+        .find_map(|packet| match packet {
+            McpePacketData::ItemStackResponsePacket(response) => Some(response.responses[0].result),
+            _ => None,
+        })
+        .expect("one original-session response")
+}
+
+#[test]
+fn mutation_hooks_distinguish_reorder_extraction_and_insert_over_complete_pair() {
+    with_world(GameMode::Survival, |h| {
+        let lead = IVec3::new(2, 64, 2);
+        let other = lead + IVec3::X;
+        h.place(lead, "minecraft:chest", &[north()]);
+        h.place(other, "minecraft:chest", &[north()]);
+        container_mut(h.world(), lead)
+            .unwrap()
+            .items
+            .set_item(0, stack("minecraft:stone", 4).into_slot())
+            .unwrap();
+        save(h.world(), lead);
+        h.open(other);
+        mutation_hook(h, ExtractionOnly(lead));
+        let records = mutation_records(h);
+        let source = container(h.world(), lead)
+            .unwrap()
+            .items
+            .item(0)
+            .unwrap()
+            .net_id;
+        assert_eq!(
+            h.take(
+                4,
+                (Name::Levelentitycontainer, 0, source),
+                (Name::Levelentitycontainer, 30, 0)
+            ),
+            Status::Success
+        );
+        let moved = container(h.world(), other)
+            .unwrap()
+            .items
+            .item(3)
+            .unwrap()
+            .net_id;
+        assert_eq!(
+            h.take(
+                2,
+                (Name::Levelentitycontainer, 30, moved),
+                (Name::Hotbarcontainer, 0, 0)
+            ),
+            Status::Success
+        );
+        let insert = h.give(1, "minecraft:diamond", 1);
+        assert_eq!(
+            h.take(
+                1,
+                (Name::Hotbarcontainer, 1, insert),
+                (Name::Levelentitycontainer, 0, 0)
+            ),
+            Status::Error
+        );
+        assert_eq!(h.main_slot(1).count, 1);
+        let records = records.lock().unwrap();
+        assert_eq!(records.len(), 2);
+        for event in records.iter() {
+            let change = &event.changes()[0];
+            assert_eq!(change.positions, [lead, other]);
+            assert_eq!(change.before.len(), 54);
+            assert_eq!(change.after.len(), 54);
+            let ContainerMutationCause::Player { player, identity } = event.cause() else {
+                panic!("player cause");
+            };
+            assert_eq!(*player, h.player);
+            assert_eq!(identity.session_id(), 7);
+        }
+        assert_eq!(records[1].changes()[0].after[30].count, 2);
+    });
+}
+
+#[test]
+fn late_mutation_veto_preserves_entire_player_container_aliases_and_world_drops() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(2, 64, 2);
+        h.place(pos, "minecraft:chest", &[north()]);
+        container_mut(h.world(), pos)
+            .unwrap()
+            .items
+            .set_item(0, stack("minecraft:stone", 1).into_slot())
+            .unwrap();
+        save(h.world(), pos);
+        let net = container(h.world(), pos)
+            .unwrap()
+            .items
+            .item(0)
+            .unwrap()
+            .net_id;
+        h.open(pos);
+        let records = mutation_records(h);
+        let player = h.player;
+        let before = h
+            .world()
+            .get::<super::super::inventory::RequestIdAssignments>(player)
+            .unwrap()
+            .clone();
+        h.world()
+            .add_observer(|mut event: On<ContainerMutation>| event.cancel());
+        let status = mutation_request(
+            h,
+            -1,
+            vec![
+                Action::TakeActionData(ItemStackRequestCerealTakeActionData {
+                    amount: 1,
+                    source: mutation_slot(Name::Levelentitycontainer, 0, net),
+                    destination: mutation_slot(Name::Hotbarcontainer, 0, 0),
+                    ..Default::default()
+                }),
+                Action::DropActionData(jolyne::valentine::ItemStackRequestCerealDropActionData {
+                    amount: 1,
+                    source: mutation_slot(Name::Hotbarcontainer, 0, -1),
+                    ..Default::default()
+                }),
+            ],
+        );
+        assert_eq!(status, Status::Error);
+        assert!(h.main_slot(0).is_empty());
+        assert_eq!(h.saved(pos).items.item(0).unwrap().count, 1);
+        assert_eq!(
+            h.world()
+                .get::<super::super::inventory::RequestIdAssignments>(player),
+            Some(&before)
+        );
+        assert_eq!(
+            h.world()
+                .query_filtered::<Entity, With<DroppedItem>>()
+                .iter(h.world())
+                .count(),
+            0
+        );
+        assert!(records.lock().unwrap().is_empty());
+    });
+}
+
+/// Replace the connection while preserving its public numeric/session fields.
+struct ReplaceMutationSession(Arc<Mutex<Option<Receiver<McpePacket>>>>);
+impl ContainerMutationHandler for ReplaceMutationSession {
+    fn on_mutation(&self, world: &mut World, event: &mut ContainerMutation) {
+        let ContainerMutationCause::Player { player, .. } = event.cause() else {
+            return;
+        };
+        let (tx, rx) = tokio::sync::mpsc::channel(32);
+        world.get_mut::<PlayerSession>(*player).unwrap().outbound_tx = tx;
+        *self.0.lock().unwrap() = Some(rx);
+    }
+}
+
+#[test]
+fn mutation_revalidates_exact_connection_without_sending_to_replacement_session() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(2, 64, 2);
+        h.place(pos, "minecraft:chest", &[north()]);
+        h.open(pos);
+        let net = h.give(0, "minecraft:stone", 2);
+        let new_rx = Arc::new(Mutex::new(None));
+        mutation_hook(h, ReplaceMutationSession(new_rx.clone()));
+        let records = mutation_records(h);
+        assert_eq!(
+            h.take(
+                1,
+                (Name::Hotbarcontainer, 0, net),
+                (Name::Levelentitycontainer, 0, 0)
+            ),
+            Status::Error
+        );
+        assert_eq!(h.main_slot(0).count, 2);
+        assert!(h.saved(pos).items.item(0).unwrap().is_empty());
+        assert!(new_rx.lock().unwrap().as_mut().unwrap().try_recv().is_err());
+        assert!(records.lock().unwrap().is_empty());
+    });
+}
+
+/// Change one authoritative input after a fully valid preview was prepared.
+struct InvalidateMutation {
+    position: IVec3,
+    which: u8,
+}
+impl ContainerMutationHandler for InvalidateMutation {
+    fn on_mutation(&self, world: &mut World, event: &mut ContainerMutation) {
+        let ContainerMutationCause::Player { player, .. } = event.cause() else {
+            return;
+        };
+        match self.which {
+            0 => {
+                world
+                    .get_mut::<MainInventory>(*player)
+                    .unwrap()
+                    .0
+                    .set_item(8, stack("minecraft:diamond", 1))
+                    .unwrap();
+            }
+            1 => {
+                container_mut(world, self.position)
+                    .unwrap()
+                    .items
+                    .set_item(8, stack("minecraft:diamond", 1))
+                    .unwrap();
+            }
+            2 => {
+                let chunk = chunk_entity(world, self.position).unwrap();
+                let actor = BlockEntity::from_bedrock_compound(
+                    zuri_nbt::tag::Compound::builder()
+                        .with_string("id", "Chest")
+                        .with_int("x", self.position.x)
+                        .with_int("y", self.position.y)
+                        .with_int("z", self.position.z)
+                        .with_string("CustomName", "changed")
+                        .build(),
+                )
+                .unwrap();
+                world
+                    .get_mut::<ChunkData>(chunk)
+                    .unwrap()
+                    .inner
+                    .set_block_entity(actor);
+            }
+            3 => {
+                world.init_resource::<super::super::ContainerMutationLocks>();
+                assert!(
+                    world
+                        .resource_mut::<super::super::ContainerMutationLocks>()
+                        .acquire("callback", [self.position])
+                );
+            }
+            4 => {
+                world
+                    .entity_mut(*player)
+                    .insert(super::super::inventory::RequestIdAssignments::default());
+            }
+            _ => {
+                world
+                    .get_mut::<MainInventory>(*player)
+                    .unwrap()
+                    .0
+                    .item_mut(0)
+                    .unwrap()
+                    .net_id += 1000;
+            }
+        }
+    }
+}
+
+#[test]
+fn mutation_revalidates_untouched_player_slots_cached_raw_actor_and_late_reservation() {
+    for which in 0..6 {
+        with_world(GameMode::Survival, move |h| {
+            let pos = IVec3::new(2, 64, 2);
+            h.place(pos, "minecraft:chest", &[north()]);
+            h.open(pos);
+            let earlier = h.give(1, "minecraft:dirt", 1);
+            assert_eq!(
+                h.take(
+                    1,
+                    (Name::Hotbarcontainer, 1, earlier),
+                    (Name::Hotbarcontainer, 2, 0)
+                ),
+                Status::Success
+            );
+            let net = h.give(0, "minecraft:stone", 2);
+            mutation_hook(
+                h,
+                InvalidateMutation {
+                    position: pos,
+                    which,
+                },
+            );
+            let records = mutation_records(h);
+            assert_eq!(
+                h.take(
+                    1,
+                    (Name::Hotbarcontainer, 0, net),
+                    (Name::Levelentitycontainer, 0, 0)
+                ),
+                Status::Error
+            );
+            assert_eq!(h.main_slot(0).count, 2);
+            assert!(
+                container(h.world(), pos)
+                    .unwrap()
+                    .items
+                    .item(0)
+                    .unwrap()
+                    .is_empty()
+            );
+            if which == 0 {
+                assert_eq!(h.main_slot(8).item_id(), "minecraft:diamond");
+            }
+            if which == 1 {
+                assert_eq!(
+                    container(h.world(), pos)
+                        .unwrap()
+                        .items
+                        .item(8)
+                        .unwrap()
+                        .item_id(),
+                    "minecraft:diamond"
+                );
+            }
+            assert!(records.lock().unwrap().is_empty());
+        });
+    }
+}
+
+#[test]
+fn mutation_hopper_policy_covers_source_destination_and_item_entity_costs() {
+    with_world(GameMode::Survival, |h| {
+        let hopper = IVec3::new(8, 65, 8);
+        let target = hopper - IVec3::Y;
+        let source = hopper + IVec3::Y;
+        h.place(
+            hopper,
+            "minecraft:hopper",
+            &[("facing_direction", StateValue::Int(0))],
+        );
+        h.place(target, "minecraft:chest", &[north()]);
+        h.place(source, "minecraft:chest", &[north()]);
+        container_mut(h.world(), source)
+            .unwrap()
+            .items
+            .set_item(0, stack("minecraft:stone", 2).into_slot())
+            .unwrap();
+        save(h.world(), source);
+        mutation_hook(h, ExtractionOnly(target));
+        let records = mutation_records(h);
+        assert!(hopper_pull(h.world(), hopper));
+        assert_eq!(h.saved(source).items.item(0).unwrap().count, 1);
+        assert!(!hopper_push(h.world(), hopper));
+        assert_eq!(h.saved(hopper).items.item(0).unwrap().count, 1);
+        assert!(h.saved(target).items.item(0).unwrap().is_empty());
+        let records = records.lock().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].changes().len(), 2);
+        assert!(matches!(
+            records[0].cause(),
+            ContainerMutationCause::Hopper {
+                item_entity: None,
+                ..
+            }
+        ));
+    });
+    with_world(GameMode::Survival, |h| {
+        let hopper = IVec3::new(8, 65, 8);
+        h.place(hopper, "minecraft:hopper", &[]);
+        let item = crate::entity::spawn_item_drop(
+            h.world(),
+            hopper.as_dvec3() + DVec3::new(0.5, 1.0, 0.5),
+            stack("minecraft:diamond", 3),
+            None,
+        )
+        .unwrap();
+        mutation_hook(h, ExtractionOnly(hopper));
+        let records = mutation_records(h);
+        assert!(!hopper_pull(h.world(), hopper));
+        assert_eq!(h.world().get::<ItemEntityStack>(item).unwrap().0.count, 3);
+        assert!(container(h.world(), hopper).unwrap().items.is_empty());
+        assert!(records.lock().unwrap().is_empty());
+    });
+}
+
+#[test]
+fn mutation_furnace_veto_preserves_fuel_progress_slots_and_saved_actor() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(6, 64, 6);
+        h.place(pos, "minecraft:furnace", &[north()]);
+        {
+            let mut live = container_mut(h.world(), pos).unwrap();
+            live.items
+                .set_item(0, stack("minecraft:raw_iron", 1))
+                .unwrap();
+            live.items.set_item(1, stack("minecraft:coal", 1)).unwrap();
+        }
+        save(h.world(), pos);
+        let before = h.saved(pos).encode();
+        let records = mutation_records(h);
+        h.world().add_observer(|mut event: On<ContainerMutation>| {
+            if matches!(event.cause(), ContainerMutationCause::Furnace { .. }) {
+                event.cancel();
+            }
+        });
+        h.tick(4);
+        assert_eq!(h.saved(pos).encode(), before);
+        assert_eq!(h.block_name(pos), "minecraft:furnace");
+        assert!(records.lock().unwrap().is_empty());
+    });
+}
+
+#[test]
+fn mutation_automation_veto_does_not_unpack_generated_source_loot() {
+    with_world(GameMode::Survival, |h| {
+        let hopper = IVec3::new(8, 65, 8);
+        let source = hopper + IVec3::Y;
+        h.place(hopper, "minecraft:hopper", &[]);
+        h.place(source, "minecraft:chest", &[north()]);
+        let chunk = h.chunk;
+        h.world()
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block_entity(BlockEntity::generated(
+                source.to_array(),
+                "Chest",
+                &[],
+                Some(crate::world::block_entity::LootTable::Bedrock(
+                    "loot_tables/chests/simple_dungeon.json",
+                    4242,
+                )),
+                None,
+            ));
+        h.world()
+            .resource_mut::<BlockContainers>()
+            .live
+            .remove(&source);
+        h.world()
+            .add_observer(|mut event: On<ContainerMutation>| event.cancel());
+        assert!(!hopper_pull(h.world(), hopper));
+        assert!(h.saved(source).encode().0.contains_key("LootTable"));
+        assert!(h.saved(source).items.is_empty());
+        assert!(container(h.world(), hopper).unwrap().items.is_empty());
+    });
+}
+
+/// Run one nested real request and register a handler during native dispatch.
+struct NestedMutation {
+    entered: std::sync::atomic::AtomicBool,
+    net: i32,
+    events: Arc<Mutex<Vec<ContainerMutationCommitted>>>,
+}
+impl ContainerMutationHandler for NestedMutation {
+    fn on_mutation(&self, world: &mut World, event: &mut ContainerMutation) {
+        if self.entered.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
+        let ContainerMutationCause::Player { player, .. } = event.cause() else {
+            return;
+        };
+        world
+            .resource_mut::<ContainerMutationHooks>()
+            .register(MutationRecords(self.events.clone()));
+        world.resource_mut::<InventoryPacketQueue>().0.push((
+            *player,
+            InventoryAction::ItemStackRequest(ItemStackRequestPacket {
+                requests: vec![ItemStackRequestPacketDataRequestData {
+                    client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 {
+                        id: -101,
+                    },
+                    actions: vec![Action::TakeActionData(
+                        ItemStackRequestCerealTakeActionData {
+                            amount: 1,
+                            source: mutation_slot(Name::Levelentitycontainer, 0, self.net),
+                            destination: mutation_slot(Name::Hotbarcontainer, 1, 0),
+                            ..Default::default()
+                        },
+                    )],
+                    ..Default::default()
+                }],
+            }),
+        ));
+        let mut schedule = Schedule::default();
+        schedule.add_systems(super::super::inventory::apply_inventory);
+        schedule.run(world);
+    }
+}
+
+#[test]
+fn mutation_nested_request_and_registry_update_do_not_overwrite_accepted_inner_frame() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(2, 64, 2);
+        h.place(pos, "minecraft:chest", &[north()]);
+        container_mut(h.world(), pos)
+            .unwrap()
+            .items
+            .set_item(0, stack("minecraft:stone", 3).into_slot())
+            .unwrap();
+        save(h.world(), pos);
+        let net = container(h.world(), pos)
+            .unwrap()
+            .items
+            .item(0)
+            .unwrap()
+            .net_id;
+        h.open(pos);
+        let events = Arc::new(Mutex::new(Vec::new()));
+        mutation_hook(
+            h,
+            NestedMutation {
+                entered: std::sync::atomic::AtomicBool::new(false),
+                net,
+                events: events.clone(),
+            },
+        );
+        let _ = h.take(
+            1,
+            (Name::Levelentitycontainer, 0, net),
+            (Name::Hotbarcontainer, 0, 0),
+        );
+        assert!(h.main_slot(0).is_empty());
+        assert_eq!(h.main_slot(1).count, 1);
+        assert_eq!(h.saved(pos).items.item(0).unwrap().count, 2);
+        let events = events.lock().unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].changes()[0].after[0].count, 2);
+    });
+}
+
+/// Replace a candidate's quantity or only its transport stack identity in a
+/// callback; neither may be overwritten by the pending hopper collection.
+struct ReplaceCollectedItem(bool);
+impl ContainerMutationHandler for ReplaceCollectedItem {
+    fn on_mutation(&self, world: &mut World, event: &mut ContainerMutation) {
+        if let ContainerMutationCause::Hopper {
+            item_entity: Some(entity),
+            ..
+        } = event.cause()
+        {
+            let mut item = world.get_mut::<ItemEntityStack>(*entity).unwrap();
+            if self.0 {
+                item.0.net_id += 500;
+            } else {
+                item.0.count = 2;
+            }
+        }
+    }
+}
+
+#[test]
+fn mutation_item_collection_revalidates_owned_quantity_and_network_identity() {
+    for id_only in [false, true] {
+        with_world(GameMode::Survival, move |h| {
+            let hopper = IVec3::new(8, 65, 8);
+            h.place(hopper, "minecraft:hopper", &[]);
+            let item = crate::entity::spawn_item_drop(
+                h.world(),
+                hopper.as_dvec3() + DVec3::new(0.5, 1.0, 0.5),
+                stack("minecraft:diamond", 3),
+                None,
+            )
+            .unwrap();
+            mutation_hook(h, ReplaceCollectedItem(id_only));
+            let events = mutation_records(h);
+            assert!(!hopper_pull(h.world(), hopper));
+            assert_eq!(
+                h.world().get::<ItemEntityStack>(item).unwrap().0.count,
+                if id_only { 3 } else { 2 }
+            );
+            assert!(container(h.world(), hopper).unwrap().items.is_empty());
+            assert!(events.lock().unwrap().is_empty());
+        });
+    }
 }

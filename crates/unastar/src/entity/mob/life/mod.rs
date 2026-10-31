@@ -7,3 +7,4 @@ pub mod breeding;
 pub mod despawn;
 pub mod sensors;
 pub mod spawn_entity;
+pub mod triggers;

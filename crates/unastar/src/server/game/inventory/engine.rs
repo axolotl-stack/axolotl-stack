@@ -126,7 +126,7 @@ pub const REQUEST_ID_LIFETIME: Duration = Duration::from_secs(5);
 /// Stack IDs that successful requests left in the slots they touched, so a
 /// later request can address a stack by the earlier request's (negative) ID
 /// before the client has seen the response.
-#[derive(bevy_ecs::component::Component, Debug, Default)]
+#[derive(bevy_ecs::component::Component, Debug, Default, Clone, PartialEq, Eq)]
 pub struct RequestIdAssignments {
     entries: VecDeque<(Instant, i32, SlotIds)>,
 }

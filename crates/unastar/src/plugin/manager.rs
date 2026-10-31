@@ -7,6 +7,12 @@ use wasmtime::{Engine, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
 use crate::ecs::events::{PluginAction, ServerEvent};
+
+#[path = "lifecycle.rs"]
+mod lifecycle;
+
+/// Component API version supported by this host.
+pub const PLUGIN_API_VERSION: &str = "0.3.0";
 use crate::plugin::manifest::{PluginId, PluginLimits, PluginManifest};
 
 // ============================================================================
@@ -313,6 +319,8 @@ pub struct PluginManager {
     engine: Engine,
     plugins: HashMap<PluginId, LoadedPlugin>,
     pending: Vec<PendingPlugin>,
+    tick_prepared: bool,
+    tick_budget_valid: bool,
 }
 
 struct LoadedPlugin {
@@ -433,6 +441,8 @@ impl PluginManager {
             engine,
             plugins: HashMap::new(),
             pending: Vec::new(),
+            tick_prepared: false,
+            tick_budget_valid: true,
         })
     }
 
@@ -477,6 +487,13 @@ impl PluginManager {
         }
         let manifest_content = std::fs::read_to_string(&manifest_path)?;
         let manifest: PluginManifest = toml_edit::de::from_str(&manifest_content)?;
+        if manifest.api_version != PLUGIN_API_VERSION {
+            anyhow::bail!(
+                "Plugin API {} is unsupported; rebuild against {}",
+                manifest.api_version,
+                PLUGIN_API_VERSION
+            );
+        }
         let plugin_id = manifest.id.clone();
 
         if self.plugins.contains_key(&plugin_id)
@@ -562,7 +579,7 @@ impl PluginManager {
 
     /// Run the tick loop for all plugins.
     pub fn tick(&mut self, ecs_world: &mut bevy_ecs::world::World) {
-        self.initialize_pending(ecs_world);
+        let budget_valid = self.begin_tick(ecs_world);
         // Drain events from ECS
         let all_events = {
             let mut event_buffer = ecs_world
@@ -586,11 +603,6 @@ impl PluginManager {
 
         for plugin in self.plugins.values_mut() {
             plugin.store.data_mut().pending_actions.clear();
-            if let Err(error) = begin_fuel_budget(&mut plugin.store, &plugin.manifest.limits) {
-                error!(plugin = %plugin.manifest.id, %error, "Failed to set tick fuel budget");
-                continue;
-            }
-
             for (index, event) in all_events.iter().enumerate() {
                 if index > 0
                     && cancelled_indices.contains(&(index - 1))
@@ -606,7 +618,7 @@ impl PluginManager {
                     continue;
                 }
 
-                let cancelled = Self::dispatch_event(plugin, event, ecs_world);
+                let cancelled = !budget_valid || Self::dispatch_event(plugin, event, ecs_world);
 
                 // Drain pending actions after each call
                 let actions: Vec<PluginAction> =
@@ -634,6 +646,7 @@ impl PluginManager {
                 crate::server::game::reject_block_event(ecs_world, &event);
             }
         }
+        self.tick_prepared = false;
     }
 
     /// Dispatch a single ServerEvent to a plugin's typed export.
@@ -833,6 +846,7 @@ impl PluginManager {
         match result {
             Ok(cancelled) => cancelled,
             Err(e) => {
+                plugin.store.data_mut().pending_actions.clear();
                 error!(plugin = %plugin.manifest.id, error = %e, "Event dispatch failed");
                 matches!(
                     event,
@@ -860,16 +874,22 @@ impl PluginManager {
             message,
         } = event
         {
-            use crate::entity::components::{PlayerName, PlayerSession};
+            use crate::entity::components::PlayerSession;
             use jolyne::valentine::{
                 McpePacket, TextPacket, TextPacketBody, TextPacketPayloadAuthorAndMessage,
                 TextPacketPayloadAuthorAndMessageMessageType,
             };
 
-            let sender_name = world
-                .get::<PlayerName>(entity)
-                .map(|n| n.0.clone())
-                .unwrap_or_else(|| "Unknown".to_string());
+            let Some(chat) = crate::server::game::player_events::chat(world, entity, message)
+            else {
+                return;
+            };
+            if chat.handled().is_some() {
+                crate::server::game::player_events::chatted(world, chat);
+                return;
+            }
+            let sender_name = &chat.display_name;
+            let message = &chat.message;
 
             let packet = TextPacket {
                 localize: false,
@@ -895,6 +915,7 @@ impl PluginManager {
                     let _ = other_session.send(McpePacket::from(packet.clone()));
                 }
             }
+            crate::server::game::player_events::chatted(world, chat);
         }
     }
 }
@@ -913,7 +934,7 @@ mod tests {
     use crate::plugin::manifest::PluginLimits;
     use wit_bindings::unastar::plugin::host::Host;
 
-    fn engine() -> Engine {
+    pub(super) fn engine() -> Engine {
         let mut config = wasmtime::Config::new();
         config.consume_fuel(true).epoch_interruption(true);
         Engine::new(&config).unwrap()
@@ -932,6 +953,40 @@ mod tests {
     /// Real component exports, with canonical ABI lifting and host imports.
     /// Keeping the fixture as WAT avoids needing a wasm32 target in host tests.
     fn component(engine: &Engine, allow: bool) -> Component {
+        component_with_lifecycle(
+            engine,
+            allow,
+            if allow {
+                "i32.const 32 i32.const 1 i32.store i32.const 36 local.get 4 f32.store i32.const 32"
+            } else {
+                "i32.const 32 i32.const 0 i32.store i32.const 32"
+            },
+            if allow {
+                "i32.const 64 i32.const 1 i32.store i32.const 72 local.get 1 f64.store i32.const 80 local.get 2 f64.store i32.const 88 local.get 3 f64.store i32.const 64"
+            } else {
+                "i32.const 64 i32.const 0 i32.store i32.const 64"
+            },
+        )
+    }
+
+    /// Build a real component with independently controlled lifecycle decisions.
+    pub(super) fn component_with_lifecycle(
+        engine: &Engine,
+        allow: bool,
+        damage_body: &str,
+        respawn_body: &str,
+    ) -> Component {
+        component_with_tick(engine, allow, damage_body, respawn_body, "")
+    }
+
+    /// Build a real component whose buffered tick may call hosts and trap.
+    pub(super) fn component_with_tick(
+        engine: &Engine,
+        allow: bool,
+        damage_body: &str,
+        respawn_body: &str,
+        tick_body: &str,
+    ) -> Component {
         let exports = [
             ("on-load", "", "", false),
             ("on-unload", "", "", false),
@@ -1024,24 +1079,32 @@ mod tests {
         ];
         let mut wat = String::from(
             r#"(component
-            (import "unastar:plugin/types@0.2.0" (instance $types
+            (import "unastar:plugin/types@0.3.0" (instance $types
                 (export "player" (type (sub resource)))
                 (type $pos (record (field "x" s32) (field "y" s32) (field "z" s32)))
                 (export "block-pos" (type (eq $pos)))
                 (type $vec (record (field "x" f64) (field "y" f64) (field "z" f64)))
-                (export "vec3" (type (eq $vec)))))
+                (export "vec3" (type (eq $vec)))
+                (type $cause (enum "none" "override" "contact" "entity-attack" "projectile" "suffocation" "fall" "fire" "fire-tick" "lava" "drowning" "block-explosion" "entity-explosion" "void" "self-destruct" "magic" "wither" "starve" "anvil" "thorns" "falling-block" "piston" "fly-into-wall" "magma" "fireworks" "lightning" "charging" "temperature" "freezing" "stalactite" "stalagmite" "ram-attack" "sonic-boom" "campfire" "soul-campfire" "mace-smash" "all"))
+                (export "damage-cause" (type (eq $cause)))))
             (alias export $types "player" (type $player))
             (alias export $types "block-pos" (type $pos))
             (alias export $types "vec3" (type $vec))
+            (alias export $types "damage-cause" (type $cause))
             (core func $player-drop (canon resource.drop $player))
-            (import "unastar:plugin/host@0.2.0" (instance $host
-                (export "get-tick-id" (func (result u64)))))
+            (import "unastar:plugin/host@0.3.0" (instance $host
+                (export "get-tick-id" (func (result u64)))
+                (export "set-block" (func (param "pos" $pos) (param "block-id" u32)))))
             (alias export $host "get-tick-id" (func $tick))
+            (alias export $host "set-block" (func $set-block))
             (core func $tick-lowered (canon lower (func $tick)))
+            (core func $set-block-lowered (canon lower (func $set-block)))
             (core module $module
                 (import "host" "tick" (func $tick (result i64)))
+                (import "host" "set-block" (func $set-block (param i32 i32 i32 i32)))
                 (import "host" "drop-player" (func $drop-player (param i32)))
                 (memory (export "memory") 1)
+                (global $damage-calls (mut i32) (i32.const 0))
                 (func (export "realloc") (param i32 i32 i32 i32) (result i32) i32.const 0)
         "#,
         );
@@ -1053,6 +1116,8 @@ mod tests {
             };
             let body = if name == "on-load" {
                 "call $tick i64.const 42 i64.ne if unreachable end".to_string()
+            } else if name == "on-tick" {
+                tick_body.to_owned()
             } else if returns_bool {
                 format!("i32.const {}", u8::from(allow))
             } else {
@@ -1068,10 +1133,28 @@ mod tests {
                 }
             ));
         }
+        wat.push_str(&format!(
+            r#"
+                (func (export "on-player-damage") (param i32 i32 i32 i32 f32) (result i32)
+                    global.get $damage-calls i32.const 1 i32.add global.set $damage-calls
+                    local.get 0 call $drop-player
+                    local.get 1 if local.get 2 call $drop-player end
+                    {damage_body})
+                (func (export "on-player-death") (param i32 i32 i32 i32)
+                    local.get 0 call $drop-player
+                    local.get 1 if local.get 2 call $drop-player end)
+                (func (export "on-player-respawn") (param i32 f64 f64 f64) (result i32)
+                    local.get 0 call $drop-player
+                    {respawn_body})
+                (func (export "on-player-respawned") (param i32 f64 f64 f64)
+                    local.get 0 call $drop-player)
+            "#
+        ));
         wat.push_str(
             r#")
             (core instance $host-core
                 (export "tick" (func $tick-lowered))
+                (export "set-block" (func $set-block-lowered))
                 (export "drop-player" (func $player-drop)))
             (core instance $instance (instantiate $module (with "host" (instance $host-core))))
         "#,
@@ -1084,6 +1167,22 @@ mod tests {
                         (memory $instance \"memory\") (realloc (func $instance \"realloc\"))))"
             ));
         }
+        wat.push_str(r#"
+            (func (export "on-player-damage")
+                (param "player" (borrow $player)) (param "attacker" (option (borrow $player)))
+                (param "cause" $cause) (param "damage" f32) (result (option f32))
+                (canon lift (core func $instance "on-player-damage") (memory $instance "memory")))
+            (func (export "on-player-death")
+                (param "player" (borrow $player)) (param "attacker" (option (borrow $player)))
+                (param "cause" $cause)
+                (canon lift (core func $instance "on-player-death") (memory $instance "memory")))
+            (func (export "on-player-respawn")
+                (param "player" (borrow $player)) (param "position" $vec) (result (option $vec))
+                (canon lift (core func $instance "on-player-respawn") (memory $instance "memory")))
+            (func (export "on-player-respawned")
+                (param "player" (borrow $player)) (param "position" $vec)
+                (canon lift (core func $instance "on-player-respawned") (memory $instance "memory")))
+        "#);
         wat.push(')');
         Component::new(engine, wat).unwrap()
     }
@@ -1096,7 +1195,7 @@ mod tests {
                 id: PluginId("test".into()),
                 name: "test".into(),
                 version: "1".into(),
-                api_version: "0.2.0".into(),
+                api_version: PLUGIN_API_VERSION.into(),
                 capabilities: Default::default(),
                 subscriptions: [crate::ecs::events::EventKind::PlayerChat].into(),
                 limits: PluginLimits::default(),
@@ -1110,6 +1209,8 @@ mod tests {
                 engine,
                 plugins: HashMap::new(),
                 pending: vec![pending],
+                tick_prepared: false,
+                tick_budget_valid: true,
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1199,7 +1300,7 @@ mod tests {
                 id: PluginId("test".into()),
                 name: "test".into(),
                 version: "1".into(),
-                api_version: "0.2.0".into(),
+                api_version: PLUGIN_API_VERSION.into(),
                 capabilities: Default::default(),
                 subscriptions: [subscription].into(),
                 limits: PluginLimits::default(),
@@ -1213,6 +1314,8 @@ mod tests {
                 engine,
                 plugins: HashMap::new(),
                 pending: vec![pending],
+                tick_prepared: false,
+                tick_budget_valid: true,
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1286,6 +1389,8 @@ mod tests {
             engine: engine(),
             plugins: HashMap::new(),
             pending: Vec::new(),
+            tick_prepared: false,
+            tick_budget_valid: true,
         };
         let mut world = bevy_ecs::world::World::new();
         world.insert_resource(crate::ecs::resources::TickCounter::default());
@@ -1441,5 +1546,163 @@ mod tests {
         begin_fuel_budget(&mut store, &limits).unwrap();
         prepare_invocation(&mut store);
         assert_eq!(ok.call(&mut store, ()).unwrap(), 7);
+    }
+}
+
+#[cfg(test)]
+mod native_chat_acceptance_tests {
+    use super::PluginManager;
+    use crate::ecs::events::ServerEvent;
+    use crate::entity::components::PlayerSession;
+    use crate::server::game::player_events::{
+        PlayerChat, PlayerChatted, PlayerEventHandler, PlayerEventHooks,
+    };
+    use bevy_ecs::prelude::*;
+    use jolyne::valentine::{McpePacket, McpePacketData};
+    use tokio::sync::mpsc;
+
+    /// Accepted messages recorded only at the committed native boundary.
+    #[derive(Resource, Default)]
+    struct Accepted(Vec<(String, Option<String>)>);
+
+    /// A generic custom route that publishes its effect only after acceptance.
+    struct RouteChat(bool);
+    impl PlayerEventHandler for RouteChat {
+        fn on_chat(&self, _world: &mut World, event: &mut PlayerChat) {
+            if self.0 {
+                event.handle("custom.route".into());
+            }
+        }
+        fn on_chatted(&self, world: &mut World, event: &PlayerChatted) {
+            world
+                .resource_mut::<Accepted>()
+                .0
+                .push((event.message.clone(), event.handled.clone()));
+            if event.handled.is_some() {
+                world
+                    .get::<PlayerSession>(event.player())
+                    .unwrap()
+                    .send(crate::server::game::types::system_text("Custom route accepted").into());
+            }
+        }
+    }
+
+    /// Connected source and viewer with the same final broadcast path as runtime.
+    fn world(
+        route: bool,
+    ) -> (
+        World,
+        Entity,
+        mpsc::Receiver<McpePacket>,
+        mpsc::Receiver<McpePacket>,
+    ) {
+        let mut world = World::new();
+        world.init_resource::<Accepted>();
+        world.init_resource::<PlayerEventHooks>();
+        world
+            .resource_mut::<PlayerEventHooks>()
+            .register(RouteChat(route));
+        world.init_resource::<crate::server::game::SessionEntityMap>();
+        let (source_tx, source_rx) = mpsc::channel(64);
+        let (viewer_tx, viewer_rx) = mpsc::channel(64);
+        let source = world
+            .spawn(PlayerSession::new(
+                1,
+                "Source".into(),
+                Some("123".into()),
+                None,
+                source_tx,
+            ))
+            .id();
+        let viewer = world
+            .spawn(PlayerSession::new(
+                2,
+                "Viewer".into(),
+                Some("456".into()),
+                None,
+                viewer_tx,
+            ))
+            .id();
+        world
+            .resource_mut::<crate::server::game::SessionEntityMap>()
+            .insert(1, source);
+        world
+            .resource_mut::<crate::server::game::SessionEntityMap>()
+            .insert(2, viewer);
+        (world, source, source_rx, viewer_rx)
+    }
+
+    /// Dispatch the final plugin-accepted chat behavior without opening sockets.
+    fn deliver(world: &mut World, source: Entity) {
+        PluginManager::execute_default_behavior(
+            ServerEvent::PlayerChat {
+                entity: source,
+                player_id: "123".into(),
+                message: "Hello".into(),
+            },
+            world,
+        );
+    }
+
+    #[test]
+    fn accepted_handled_chat_routes_once_without_default_broadcast() {
+        let (mut world, source, mut source_rx, mut viewer_rx) = world(true);
+        deliver(&mut world, source);
+        assert_eq!(
+            world.resource::<Accepted>().0,
+            vec![("Hello".into(), Some("custom.route".into()))]
+        );
+        assert!(matches!(
+            source_rx.try_recv().unwrap().data,
+            McpePacketData::TextPacket(_)
+        ));
+        assert!(source_rx.try_recv().is_err());
+        assert!(viewer_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn ordinary_chat_broadcasts_then_notifies_acceptance_once() {
+        let (mut world, source, mut source_rx, mut viewer_rx) = world(false);
+        deliver(&mut world, source);
+        assert_eq!(world.resource::<Accepted>().0, vec![("Hello".into(), None)]);
+        assert!(matches!(
+            source_rx.try_recv().unwrap().data,
+            McpePacketData::TextPacket(_)
+        ));
+        assert!(matches!(
+            viewer_rx.try_recv().unwrap().data,
+            McpePacketData::TextPacket(_)
+        ));
+        assert!(source_rx.try_recv().is_err());
+        assert!(viewer_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn late_observer_veto_suppresses_custom_and_ordinary_acceptance_and_delivery() {
+        for route in [false, true] {
+            let (mut world, source, mut source_rx, mut viewer_rx) = world(route);
+            world.add_observer(|mut event: On<PlayerChat>| event.cancel());
+            deliver(&mut world, source);
+            assert!(world.resource::<Accepted>().0.is_empty());
+            assert!(source_rx.try_recv().is_err());
+            assert!(viewer_rx.try_recv().is_err());
+        }
+    }
+
+    #[test]
+    fn invalid_or_conflicting_handled_actions_never_publish_acceptance() {
+        for (route, action) in [
+            (false, "".to_owned()),
+            (false, "x".repeat(129)),
+            (false, "line\nbreak".to_owned()),
+            (true, "other.route".to_owned()),
+        ] {
+            let (mut world, source, mut source_rx, mut viewer_rx) = world(route);
+            world.add_observer(move |mut event: On<PlayerChat>| event.handle(action.clone()));
+            deliver(&mut world, source);
+            assert!(world.resource::<Accepted>().0.is_empty());
+            assert!(source_rx.try_recv().is_err());
+            assert!(viewer_rx.try_recv().is_err());
+        }
     }
 }

@@ -78,14 +78,105 @@ pub fn add_effect(
     amplifier: u8,
     duration_ticks: u32,
 ) {
+    add_effect_from(world, player, None, effect, amplifier, duration_ticks);
+}
+
+/// Give an actor an effect after authorizing its actual source and recipient.
+/// Returns false when a native handler, observer or stale actor rejects it.
+pub fn add_effect_from(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    effect: EffectType,
+    amplifier: u8,
+    duration_ticks: u32,
+) -> bool {
+    add_effect_scaled_from(
+        world,
+        player,
+        source,
+        effect,
+        amplifier,
+        duration_ticks,
+        1.0,
+    )
+}
+
+/// Apply a finite instantaneous potency after authorizing the actual recipient.
+/// Lasting durations are supplied by the caller, independently of potency.
+pub fn add_effect_scaled_from(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    effect: EffectType,
+    amplifier: u8,
+    duration_ticks: u32,
+    potency: f32,
+) -> bool {
+    if !potency.is_finite() || !(0.0..=1.0).contains(&potency) {
+        return false;
+    }
+    let Some((amplifier, duration_ticks)) = crate::entity::projectile::hooks::effect(
+        world,
+        player,
+        source,
+        effect,
+        amplifier,
+        duration_ticks,
+    ) else {
+        return false;
+    };
     match effect {
         EffectType::INSTANT_HEALTH => {
-            heal(world, player, (4u32 << amplifier.min(30)) as f32);
-            return;
+            heal(world, player, (4u32 << amplifier.min(28)) as f32 * potency);
+            return true;
+        }
+        EffectType::INSTANT_DAMAGE => {
+            let attacker = source
+                .and_then(|source| {
+                    if let Some(flight) =
+                        world.get::<crate::entity::projectile::ProjectileFlight>(source)
+                    {
+                        flight.owner
+                    } else if let Some(cloud) =
+                        world.get::<crate::entity::projectile::cloud::AreaEffectCloud>(source)
+                    {
+                        cloud.owner()
+                    } else {
+                        Some(source)
+                    }
+                })
+                .filter(|actor| {
+                    world
+                        .get::<crate::entity::components::Player>(*actor)
+                        .is_some()
+                        || world.get::<crate::entity::mob::MobKind>(*actor).is_some()
+                });
+            let hit = crate::entity::mob::combat::Hit {
+                damage: (6u32 << amplifier.min(28)) as f32 * potency,
+                cause: unastar_data::actor_components::body::ActorDamageCause::Magic,
+                attacker,
+                by_player: attacker.is_some_and(|actor| {
+                    world
+                        .get::<crate::entity::components::Player>(actor)
+                        .is_some()
+                }),
+                knockback_from: None,
+                knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+            };
+            if world
+                .get::<crate::entity::components::Player>(player)
+                .is_some()
+            {
+                crate::entity::player_life::hurt_player(world, player, &hit);
+            } else if world.get::<crate::entity::mob::MobKind>(player).is_some() {
+                crate::entity::mob::combat::hurt_mob(world, player, hit);
+            }
+            return true;
         }
         EffectType::SATURATION if duration_ticks <= 1 => {
             saturate(world, player, amplifier);
-            return;
+            return true;
         }
         _ => {}
     }
@@ -107,6 +198,7 @@ pub fn add_effect(
             }
         }
     }
+    true
 }
 
 /// Remove one effect from `player`.
@@ -124,7 +216,9 @@ pub fn clear_effects(world: &mut World, player: Entity) {
 }
 
 fn heal(world: &mut World, player: Entity, amount: f32) {
-    if let Some(mut health) = world.get_mut::<Health>(player) {
+    if let Some(mut health) = world.get_mut::<Health>(player)
+        && !health.is_dead()
+    {
         health.heal(amount);
     }
 }
@@ -155,10 +249,11 @@ pub fn apply_player_effects(
         &mut Hunger,
         &GameMode,
         Option<&mut Absorption>,
+        Option<&super::hunger::PlayerFoodPolicy>,
     )>,
     mut absent: Query<&mut Absorption, Without<Effects>>,
 ) {
-    for (player, effects, mut health, mut hunger, mode, absorption) in &mut players {
+    for (player, effects, mut health, mut hunger, mode, absorption, food_policy) in &mut players {
         if health.is_dead() {
             continue;
         }
@@ -196,7 +291,10 @@ pub fn apply_player_effects(
                 );
             });
         }
-        if survival && let Some(e) = effects.get(EffectType::HUNGER) {
+        if survival
+            && food_policy.is_none_or(|policy| policy.exhaustion)
+            && let Some(e) = effects.get(EffectType::HUNGER)
+        {
             hunger.exhaust(0.005 * (f32::from(e.level) + 1.0));
         }
         if let Some(e) = effects.get(EffectType::SATURATION) {
@@ -223,38 +321,60 @@ pub fn apply_player_effects(
 #[derive(Component, Debug, Clone, Default, PartialEq)]
 pub struct SentEffects(HashMap<EffectType, (u8, u32)>);
 
+impl SentEffects {
+    /// Record an explicitly synchronized effect set after authoritative restoration.
+    pub(super) fn sent(effects: &Effects) -> Self {
+        Self(
+            effects
+                .active
+                .iter()
+                .map(|(kind, effect)| (*kind, (effect.level, effect.duration_ticks)))
+                .collect(),
+        )
+    }
+
+    /// Read the effect identifiers the client may still have before replacement.
+    pub(super) fn effect_types(&self) -> impl Iterator<Item = EffectType> + '_ {
+        self.0.keys().copied()
+    }
+}
+
 /// System: send each player `MobEffect` add, modify and remove packets for
 /// the changes since the last tick.
 #[allow(clippy::type_complexity)]
 pub fn sync_player_effects(
-    mut players: Query<(
-        &RuntimeEntityId,
-        &PlayerSession,
-        Option<&Effects>,
-        &mut SentEffects,
-        Option<&PlayerInput>,
-    )>,
+    mut players: Query<
+        (
+            &RuntimeEntityId,
+            &PlayerSession,
+            Option<&Effects>,
+            &mut SentEffects,
+            Option<&PlayerInput>,
+        ),
+        Without<super::player_events::PendingInitialState>,
+    >,
 ) {
     for (runtime_id, session, effects, mut sent, input) in &mut players {
         let tick = input.map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick);
-        let send = |event, effect: EffectType, amplifier: u8, duration: u32| {
-            let _ = session.send(McpePacket::from(MobEffectPacket {
-                target_runtime_id: ActorRuntimeId {
-                    actor_runtime_id: runtime_id.0 as u64,
-                },
-                event_id: event,
-                effect_id: i32::from(effect.0),
-                effect_amplifier: i32::from(amplifier),
-                show_particles: true,
-                effect_duration_ticks: duration as i32,
-                tick: if effect.affects_movement() {
-                    tick.clone()
-                } else {
-                    PlayerInputTick { inputtick: 0 }
-                },
-                ambient: false,
-            }));
-        };
+        let send =
+            |event, effect: EffectType, amplifier: u8, duration: u32, show_particles, ambient| {
+                let _ = session.send(McpePacket::from(MobEffectPacket {
+                    target_runtime_id: ActorRuntimeId {
+                        actor_runtime_id: runtime_id.0 as u64,
+                    },
+                    event_id: event,
+                    effect_id: i32::from(effect.0),
+                    effect_amplifier: i32::from(amplifier),
+                    show_particles,
+                    effect_duration_ticks: duration as i32,
+                    tick: if effect.affects_movement() {
+                        tick.clone()
+                    } else {
+                        PlayerInputTick { inputtick: 0 }
+                    },
+                    ambient,
+                }));
+            };
         let active = effects.map(|e| &e.active);
         let removed: Vec<_> = sent
             .0
@@ -264,7 +384,14 @@ pub fn sync_player_effects(
             .collect();
         for effect in removed {
             sent.0.remove(&effect);
-            send(EnumsMobEffectPacketPayloadEvent::Remove, effect, 0, 0);
+            send(
+                EnumsMobEffectPacketPayloadEvent::Remove,
+                effect,
+                0,
+                0,
+                false,
+                false,
+            );
         }
         for (effect, state) in active.into_iter().flatten() {
             // A duration that only counted down is not a change.
@@ -277,7 +404,14 @@ pub fn sync_player_effects(
             };
             sent.0.insert(*effect, (state.level, state.duration_ticks));
             if let Some(event) = event {
-                send(event, *effect, state.level, state.duration_ticks);
+                send(
+                    event,
+                    *effect,
+                    state.level,
+                    state.duration_ticks,
+                    state.show_particles,
+                    state.ambient,
+                );
             }
         }
     }

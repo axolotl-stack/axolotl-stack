@@ -21,6 +21,7 @@ pub mod attributes;
 pub mod constants;
 pub mod death;
 pub mod environment;
+pub mod hooks;
 pub mod hurt;
 pub mod respawn;
 pub mod rules;
@@ -43,6 +44,7 @@ use crate::server::broadcast::EntityGrid;
 /// players' `Position` convention, eye height above the feet).
 pub fn install(world: &mut World, spawn: glam::DVec3) -> Result<(), PlayerRulesError> {
     world.insert_resource(PlayerRules::vanilla()?);
+    world.init_resource::<hooks::PlayerLifecycleHooks>();
     world.init_resource::<respawn::RespawnQueue>();
     world.insert_resource(respawn::WorldSpawn(spawn));
     Ok(())
@@ -51,6 +53,9 @@ pub fn install(world: &mut World, spawn: glam::DVec3) -> Result<(), PlayerRulesE
 /// Send `packet` to `player` and to the players that can see it (the
 /// players within one chunk of its chunk, as arm swings are relayed).
 pub(crate) fn send_to_player_and_viewers(world: &World, player: Entity, packet: &McpePacket) {
+    if crate::server::game::player_events::initial_state_pending(world, player) {
+        return;
+    }
     if let Some(session) = world.get::<PlayerSession>(player) {
         let _ = session.send(packet.clone());
     }
@@ -65,10 +70,14 @@ pub(crate) fn send_to_player_and_viewers(world: &World, player: Entity, packet: 
         (position.0.z.floor() as i32) >> 4,
     );
     for viewer in grid.get_neighbors(chunk, 1) {
-        if viewer == player {
+        if viewer == player
+            || crate::server::game::player_events::initial_state_pending(world, viewer)
+        {
             continue;
         }
-        if let Some(session) = world.get::<PlayerSession>(viewer) {
+        if crate::server::broadcast::player_views::can_receive_actor(world, player, viewer)
+            && let Some(session) = world.get::<PlayerSession>(viewer)
+        {
             let _ = session.send(packet.clone());
         }
     }

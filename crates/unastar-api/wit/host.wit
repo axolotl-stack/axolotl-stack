@@ -1,4 +1,4 @@
-package unastar:plugin@0.2.0;
+package unastar:plugin@0.3.0;
 
 interface host {
     use types.{vec3, block-pos, log-level};

@@ -1,10 +1,10 @@
-package unastar:plugin@0.2.0;
+package unastar:plugin@0.3.0;
 
 world unastar-plugin {
     import types;
     import host;
 
-    use types.{player, vec3, block-pos};
+    use types.{player, vec3, block-pos, damage-cause};
 
     export on-load: func();
     export on-unload: func();
@@ -24,4 +24,10 @@ world unastar-plugin {
     export on-player-item-use: func(player: borrow<player>);
     export on-player-swing: func(player: borrow<player>);
     export on-timer: func(timer-id: u64);
+    /// Return none to cancel, or the incoming damage to apply before armour and immunity.
+    export on-player-damage: func(player: borrow<player>, attacker: option<borrow<player>>, cause: damage-cause, damage: f32) -> option<f32>;
+    export on-player-death: func(player: borrow<player>, attacker: option<borrow<player>>, cause: damage-cause);
+    /// Return none to remain dead, or an eye-height destination to respawn at.
+    export on-player-respawn: func(player: borrow<player>, position: vec3) -> option<vec3>;
+    export on-player-respawned: func(player: borrow<player>, position: vec3);
 }
