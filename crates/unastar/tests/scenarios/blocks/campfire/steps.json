@@ -1,0 +1,443 @@
+{
+ "scenario": "campfire",
+ "covers": "A campfire placed looking north; raw beef put on it (watched until the cooked item pops out); extinguished with a wooden shovel.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:34:11Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin campfire",
+  "end": "bds-sweep:scenario end campfire"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin campfire"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "campfire/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "effect \"BDSSweep\" resistance 99999 4 true",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:campfire 64",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 14,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 14,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 20,
+   "op": "mark",
+   "label": "campfire/place"
+  },
+  {
+   "tick": 20,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:campfire",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 20,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 30,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 30,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:beef 4",
+   "ok": true
+  },
+  {
+   "tick": 30,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 40,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 17.22",
+   "ok": true
+  },
+  {
+   "tick": 40,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 46,
+   "op": "mark",
+   "label": "campfire/raw_beef"
+  },
+  {
+   "tick": 46,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:campfire",
+   "block_runtime_id": 2608271407,
+   "held": [
+    "minecraft:beef",
+    4,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 17.22
+   }
+  },
+  {
+   "tick": 46,
+   "op": "wait",
+   "ticks": 613
+  },
+  {
+   "tick": 659,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 659,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_shovel 1",
+   "ok": true
+  },
+  {
+   "tick": 659,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 669,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 17.22",
+   "ok": true
+  },
+  {
+   "tick": 669,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 675,
+   "op": "mark",
+   "label": "campfire/wooden_shovel"
+  },
+  {
+   "tick": 675,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:campfire",
+   "block_runtime_id": 2608271407,
+   "held": [
+    "minecraft:wooden_shovel",
+    1,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 17.22
+   }
+  },
+  {
+   "tick": 675,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 705,
+   "op": "marker",
+   "text": "bds-sweep:scenario end campfire"
+  }
+ ],
+ "duration_ticks": 705,
+ "error": null
+}

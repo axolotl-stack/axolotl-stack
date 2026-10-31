@@ -1,0 +1,391 @@
+{
+ "scenario": "beehive",
+ "covers": "Full beehives (honey level 5) used with shears and with a glass bottle.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:34:16Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin beehive",
+  "end": "bds-sweep:scenario end beehive"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin beehive"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "beehive/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "effect \"BDSSweep\" resistance 99999 4 true",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "setblock 0 -60 0 beehive [\"direction\"=0,\"honey_level\"=5]",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "setblock 3 -60 0 beehive [\"direction\"=0,\"honey_level\"=5]",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 6,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 6,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:shears 1",
+   "ok": true
+  },
+  {
+   "tick": 6,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 16,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 16,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 22,
+   "op": "mark",
+   "label": "beehive/shears"
+  },
+  {
+   "tick": 22,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:beehive",
+   "block_runtime_id": 757707170,
+   "held": [
+    "minecraft:shears",
+    1,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 22,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 32,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 32,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:glass_bottle 1",
+   "ok": true
+  },
+  {
+   "tick": 32,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 42,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 42,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 48,
+   "op": "mark",
+   "label": "beehive/glass_bottle"
+  },
+  {
+   "tick": 48,
+   "op": "use",
+   "pos": [
+    3,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:beehive",
+   "block_runtime_id": 757707170,
+   "held": [
+    "minecraft:glass_bottle",
+    1,
+    0
+   ],
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 48,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 78,
+   "op": "marker",
+   "text": "bds-sweep:scenario end beehive"
+  }
+ ],
+ "duration_ticks": 78,
+ "error": null
+}

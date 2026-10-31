@@ -1,0 +1,495 @@
+{
+ "scenario": "weighted_plates",
+ "covers": "Light and heavy weighted pressure plates on the floor, each with a lamp east of it, the same steps as `pressure_plates`: an item teleported onto each plate and killed, then the player teleported onto and off each plate (two dwell times).",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:20:22Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin weighted_plates",
+  "end": "bds-sweep:scenario end weighted_plates"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin weighted_plates"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "weighted_plates/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 0 -60 0 light_weighted_pressure_plate",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 1 -60 0 redstone_lamp",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 0 -60 4 heavy_weighted_pressure_plate",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 1 -60 4 redstone_lamp",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 6 -60 8 dirt",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 14,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 2.5 90.0 22.05",
+   "ok": true
+  },
+  {
+   "tick": 14,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 20,
+   "op": "command",
+   "command": "execute as @a[name=\"BDSSweep\"] run loot spawn 10.5 -59.9 10.5 mine 6 -60 8 mainhand",
+   "ok": true
+  },
+  {
+   "tick": 20,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 60,
+   "op": "mark",
+   "label": "weighted_plates/light_item_on"
+  },
+  {
+   "tick": 60,
+   "op": "command",
+   "command": "tp @e[type=item] 0.5 -59.95 0.5",
+   "ok": true
+  },
+  {
+   "tick": 60,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 120,
+   "op": "mark",
+   "label": "weighted_plates/light_item_killed"
+  },
+  {
+   "tick": 120,
+   "op": "command",
+   "command": "kill @e[type=item]",
+   "ok": true
+  },
+  {
+   "tick": 120,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 180,
+   "op": "command",
+   "command": "execute as @a[name=\"BDSSweep\"] run loot spawn 10.5 -59.9 10.5 mine 6 -60 8 mainhand",
+   "ok": true
+  },
+  {
+   "tick": 180,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 220,
+   "op": "mark",
+   "label": "weighted_plates/heavy_item_on"
+  },
+  {
+   "tick": 220,
+   "op": "command",
+   "command": "tp @e[type=item] 0.5 -59.95 4.5",
+   "ok": true
+  },
+  {
+   "tick": 220,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 280,
+   "op": "mark",
+   "label": "weighted_plates/heavy_item_killed"
+  },
+  {
+   "tick": 280,
+   "op": "command",
+   "command": "kill @e[type=item]",
+   "ok": true
+  },
+  {
+   "tick": 280,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 340,
+   "op": "mark",
+   "label": "weighted_plates/light_player_on_1"
+  },
+  {
+   "tick": 340,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5",
+   "ok": true
+  },
+  {
+   "tick": 340,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 400,
+   "op": "mark",
+   "label": "weighted_plates/light_player_off_1"
+  },
+  {
+   "tick": 400,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 2.5",
+   "ok": true
+  },
+  {
+   "tick": 400,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 460,
+   "op": "mark",
+   "label": "weighted_plates/light_player_on_2"
+  },
+  {
+   "tick": 460,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5",
+   "ok": true
+  },
+  {
+   "tick": 460,
+   "op": "wait",
+   "ticks": 47
+  },
+  {
+   "tick": 507,
+   "op": "mark",
+   "label": "weighted_plates/light_player_off_2"
+  },
+  {
+   "tick": 507,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 2.5",
+   "ok": true
+  },
+  {
+   "tick": 507,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 567,
+   "op": "mark",
+   "label": "weighted_plates/heavy_player_on_1"
+  },
+  {
+   "tick": 567,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 4.5",
+   "ok": true
+  },
+  {
+   "tick": 567,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 627,
+   "op": "mark",
+   "label": "weighted_plates/heavy_player_off_1"
+  },
+  {
+   "tick": 627,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 2.5",
+   "ok": true
+  },
+  {
+   "tick": 627,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 687,
+   "op": "mark",
+   "label": "weighted_plates/heavy_player_on_2"
+  },
+  {
+   "tick": 687,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 4.5",
+   "ok": true
+  },
+  {
+   "tick": 687,
+   "op": "wait",
+   "ticks": 47
+  },
+  {
+   "tick": 734,
+   "op": "mark",
+   "label": "weighted_plates/heavy_player_off_2"
+  },
+  {
+   "tick": 734,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 2.5",
+   "ok": true
+  },
+  {
+   "tick": 734,
+   "op": "wait",
+   "ticks": 80
+  },
+  {
+   "tick": 814,
+   "op": "marker",
+   "text": "bds-sweep:scenario end weighted_plates"
+  }
+ ],
+ "duration_ticks": 814,
+ "error": null
+}

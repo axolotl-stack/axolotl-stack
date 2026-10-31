@@ -1,0 +1,414 @@
+{
+ "scenario": "falling_blocks",
+ "covers": "Sand clicked onto the north face of a stone block two blocks above the floor (falls onto the floor); sand set in the air with `/setblock`; gravel set above a torch (breaks on it, drops as an item); white concrete powder set above a water source in the floor (falls into it) and set beside a second water source in the floor.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:35:42Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin falling_blocks",
+  "end": "bds-sweep:scenario end falling_blocks"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin falling_blocks"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "falling_blocks/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "effect \"BDSSweep\" resistance 99999 4 true",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "setblock 0 -58 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "setblock 12 -61 0 water",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "setblock 16 -61 0 water",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "setblock 8 -60 0 torch [\"torch_facing_direction\"=\"top\"]",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 6,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 6,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:sand 64",
+   "ok": true
+  },
+  {
+   "tick": 6,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 16,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -19.39",
+   "ok": true
+  },
+  {
+   "tick": 16,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 22,
+   "op": "mark",
+   "label": "falling_blocks/sand_placed_on_wall"
+  },
+  {
+   "tick": 22,
+   "op": "use",
+   "pos": [
+    0,
+    -58,
+    0
+   ],
+   "face": "north",
+   "face_id": 2,
+   "click": [
+    0.5,
+    0.5,
+    0.0
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:sand",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -19.39
+   }
+  },
+  {
+   "tick": 22,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 82,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 82,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 82,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 92,
+   "op": "mark",
+   "label": "falling_blocks/sand_set_in_air"
+  },
+  {
+   "tick": 92,
+   "op": "command",
+   "command": "setblock 4 -56 0 sand",
+   "ok": true
+  },
+  {
+   "tick": 92,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 152,
+   "op": "mark",
+   "label": "falling_blocks/gravel_onto_torch"
+  },
+  {
+   "tick": 152,
+   "op": "command",
+   "command": "setblock 8 -56 0 gravel",
+   "ok": true
+  },
+  {
+   "tick": 152,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 212,
+   "op": "mark",
+   "label": "falling_blocks/powder_into_water"
+  },
+  {
+   "tick": 212,
+   "op": "command",
+   "command": "setblock 12 -56 0 white_concrete_powder",
+   "ok": true
+  },
+  {
+   "tick": 212,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 272,
+   "op": "mark",
+   "label": "falling_blocks/powder_beside_water"
+  },
+  {
+   "tick": 272,
+   "op": "command",
+   "command": "setblock 17 -61 0 white_concrete_powder",
+   "ok": true
+  },
+  {
+   "tick": 272,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 302,
+   "op": "marker",
+   "text": "bds-sweep:scenario end falling_blocks"
+  }
+ ],
+ "duration_ticks": 302,
+ "error": null
+}

@@ -1,0 +1,999 @@
+{
+ "scenario": "connections",
+ "covers": "Oak fences, cobblestone walls and glass panes clicked onto the floor one after another along +x; a stone set north of the first; a fourth piece south of the second (a junction); the second removed: the connection states of every piece after each step.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-30T16:50:19Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin connections",
+  "end": "bds-sweep:scenario end connections"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin connections"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "connections/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:oak_fence 64",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 12,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 3.5 180.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 12,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 18,
+   "op": "mark",
+   "label": "connections/oak_fence_first"
+  },
+  {
+   "tick": 18,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:oak_fence",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 18,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 28,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 3.5 180.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 28,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 34,
+   "op": "mark",
+   "label": "connections/oak_fence_second"
+  },
+  {
+   "tick": 34,
+   "op": "use",
+   "pos": [
+    1,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:oak_fence",
+    63,
+    0
+   ],
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 34,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 44,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 2.5 -60 3.5 180.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 44,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 50,
+   "op": "mark",
+   "label": "connections/oak_fence_third"
+  },
+  {
+   "tick": 50,
+   "op": "use",
+   "pos": [
+    2,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:oak_fence",
+    62,
+    0
+   ],
+   "player": {
+    "position": [
+     2.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 50,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 60,
+   "op": "mark",
+   "label": "connections/oak_fence_stone_north_of_first"
+  },
+  {
+   "tick": 60,
+   "op": "command",
+   "command": "setblock 0 -60 -1 stone",
+   "ok": true
+  },
+  {
+   "tick": 60,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 70,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 3.5 180.0 39.01",
+   "ok": true
+  },
+  {
+   "tick": 70,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 76,
+   "op": "mark",
+   "label": "connections/oak_fence_junction"
+  },
+  {
+   "tick": 76,
+   "op": "use",
+   "pos": [
+    1,
+    -61,
+    1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:oak_fence",
+    61,
+    0
+   ],
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 76,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 86,
+   "op": "mark",
+   "label": "connections/oak_fence_second_removed"
+  },
+  {
+   "tick": 86,
+   "op": "command",
+   "command": "setblock 1 -60 0 air",
+   "ok": true
+  },
+  {
+   "tick": 86,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 106,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 106,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:cobblestone_wall 64",
+   "ok": true
+  },
+  {
+   "tick": 106,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 116,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 6.5 -60 3.5 180.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 116,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 122,
+   "op": "mark",
+   "label": "connections/cobblestone_wall_first"
+  },
+  {
+   "tick": 122,
+   "op": "use",
+   "pos": [
+    6,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:cobblestone_wall",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     6.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 122,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 132,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 7.5 -60 3.5 180.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 132,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 138,
+   "op": "mark",
+   "label": "connections/cobblestone_wall_second"
+  },
+  {
+   "tick": 138,
+   "op": "use",
+   "pos": [
+    7,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:cobblestone_wall",
+    63,
+    0
+   ],
+   "player": {
+    "position": [
+     7.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 138,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 148,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 3.5 180.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 148,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 154,
+   "op": "mark",
+   "label": "connections/cobblestone_wall_third"
+  },
+  {
+   "tick": 154,
+   "op": "use",
+   "pos": [
+    8,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:cobblestone_wall",
+    62,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 154,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 164,
+   "op": "mark",
+   "label": "connections/cobblestone_wall_stone_north_of_first"
+  },
+  {
+   "tick": 164,
+   "op": "command",
+   "command": "setblock 6 -60 -1 stone",
+   "ok": true
+  },
+  {
+   "tick": 164,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 174,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 7.5 -60 3.5 180.0 39.01",
+   "ok": true
+  },
+  {
+   "tick": 174,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 180,
+   "op": "mark",
+   "label": "connections/cobblestone_wall_junction"
+  },
+  {
+   "tick": 180,
+   "op": "use",
+   "pos": [
+    7,
+    -61,
+    1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:cobblestone_wall",
+    61,
+    0
+   ],
+   "player": {
+    "position": [
+     7.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 180,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 190,
+   "op": "mark",
+   "label": "connections/cobblestone_wall_second_removed"
+  },
+  {
+   "tick": 190,
+   "op": "command",
+   "command": "setblock 7 -60 0 air",
+   "ok": true
+  },
+  {
+   "tick": 190,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 210,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 210,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:glass_pane 64",
+   "ok": true
+  },
+  {
+   "tick": 210,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 220,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 12.5 -60 3.5 180.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 220,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 226,
+   "op": "mark",
+   "label": "connections/glass_pane_first"
+  },
+  {
+   "tick": 226,
+   "op": "use",
+   "pos": [
+    12,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:glass_pane",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     12.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 226,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 13.5 -60 3.5 180.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 242,
+   "op": "mark",
+   "label": "connections/glass_pane_second"
+  },
+  {
+   "tick": 242,
+   "op": "use",
+   "pos": [
+    13,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:glass_pane",
+    63,
+    0
+   ],
+   "player": {
+    "position": [
+     13.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 242,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 252,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 14.5 -60 3.5 180.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 252,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 258,
+   "op": "mark",
+   "label": "connections/glass_pane_third"
+  },
+  {
+   "tick": 258,
+   "op": "use",
+   "pos": [
+    14,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:glass_pane",
+    62,
+    0
+   ],
+   "player": {
+    "position": [
+     14.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 258,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 268,
+   "op": "mark",
+   "label": "connections/glass_pane_stone_north_of_first"
+  },
+  {
+   "tick": 268,
+   "op": "command",
+   "command": "setblock 12 -60 -1 stone",
+   "ok": true
+  },
+  {
+   "tick": 268,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 278,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 13.5 -60 3.5 180.0 39.01",
+   "ok": true
+  },
+  {
+   "tick": 278,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 284,
+   "op": "mark",
+   "label": "connections/glass_pane_junction"
+  },
+  {
+   "tick": 284,
+   "op": "use",
+   "pos": [
+    13,
+    -61,
+    1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:glass_pane",
+    61,
+    0
+   ],
+   "player": {
+    "position": [
+     13.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 284,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 294,
+   "op": "mark",
+   "label": "connections/glass_pane_second_removed"
+  },
+  {
+   "tick": 294,
+   "op": "command",
+   "command": "setblock 13 -60 0 air",
+   "ok": true
+  },
+  {
+   "tick": 294,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 334,
+   "op": "marker",
+   "text": "bds-sweep:scenario end connections"
+  }
+ ],
+ "duration_ticks": 334,
+ "error": null
+}

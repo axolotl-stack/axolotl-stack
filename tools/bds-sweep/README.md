@@ -16,6 +16,7 @@ the impl workers first. Never launches the Minecraft client.
 | `sweep.py` | T2: one sweep job under Endstone with `bds-sweep-client` as the player; output in `<runtime>/sweeps/1.26.51/<kind>-<UTC>/` |
 | `endstone-sweep/` | The Endstone Python plugin that runs jobs server-side (inert unless `BDS_SWEEP_JOB` is set) |
 | `summarize.py` | Raw sweep results to `crates/unastar-data/data/measured/` + `manifest.json` |
+| `scenarios.py` | `split`: a `blocks` sweep's session capture to one `scenarios/<name>/packets.jsonl` per scenario (run by `sweep.py` after every `blocks` run); `commit`: those captures (gzipped) and `steps.json` into `crates/unastar/tests/scenarios/blocks/` plus its `README.md` |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
 
@@ -40,6 +41,7 @@ The plugin sends these chat orders to `bds-sweep-client`:
 | `bds-sweep:drop inventory SLOT COUNT` | Open the inventory, wait for its server-allocated window ID, then Drop from native inventory index 0..35 |
 | `bds-sweep:close-inventory` | Close the tracked native inventory window |
 | `bds-sweep:use X Y Z FACE CX CY CZ [BLOCK_RUNTIME_ID]` | Right-click FACE (0 down, 1 up, 2 north, 3 south, 4 west, 5 east) of the block at X Y Z at click position CX CY CZ (relative to the block): an `InventoryTransaction` use-item click-block from the eye position with the selected hotbar slot and its synchronized stack, so BDS runs its real use/placement logic; the look is the rotation the server last set (`/tp … yaw pitch`), which the client echoes in `PlayerAuthInput` |
+| `bds-sweep:fall DISTANCE` | Fall DISTANCE blocks straight down from the current position under vanilla gravity (0.08/tick, drag 0.98), each tick's movement in `PlayerAuthInput` (`pos_delta`), then land with `VerticalCollision` |
 
 `--trace NAMES` (comma-separated packet names, e.g. `LevelSoundEventPacket`)
 logs those server packets decoded to stdout, together with every non-order
@@ -67,9 +69,21 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `armor-values` | health lost per `/damage <player> D entity_attack` wearing one item | max health 2000, hits repeated for sub-point precision; needs the full `armor-slots` result for slot assignment |
 | `attack` | melee damage per held item, warm-up + 3 trials | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value |
 | `fuel` | furnace burn ticks per item | pool of 32 furnaces, 1 cobblestone input + the item as fuel |
-| `blocks` | one row per scenario (`doors`, `torches`, `crops`): full block states (name, states, runtime id) of the watched cells before/after every step, per-tick changes after `/setblock` removals and hand breaks, item actors spawned | flat stone arena x -10..24, z -12..24 at y -61; survival player clicks with `bds-sweep:use` / breaks with `bds-sweep:mine`; item pickup is cancelled; the client runs with `--capture-dir <out>/capture --trace …` (sounds, level events, block updates, item actors, logged in `client.log` after each step mark); `summarize.py blocks <dir>` writes the observed-results fixture |
-| `blocks` (redstone) | `--scenarios redstone` (or any of `redstone_dust`, `repeaters`, `redstone_torch`, `comparators`, `buttons`, `pressure_plates`, `iron_door_lever`, `note_blocks`, `fire`): the watched cells' states every tick after each lever/button/comparator click, command or punch, plus the runtime ids of every palette state of the blocks involved (to name sound data) | same arena; oriented components are clicked into place by the player, the rest is `/setblock`; fire runs at randomtickspeed 1 with doFireTick on; `summarize.py redstone <dir>` writes `bds_1_26_51_redstone.json` next to the blocks fixture |
+| `blocks` | one row per scenario (`--scenarios blocks`: `doors`, `trapdoors`, `fence_gates`, `torches`, `attachables`, `signs`, `beds`, `stairs`, `slabs`, `connections`, `crops`, `crop_care`, `plant_survival`, `falling_blocks`; `all` runs every group): full block states (name, states, runtime id) of the watched cells before/after every step, per-tick changes after `/setblock` removals and hand breaks, item actors spawned | flat stone arena x -10..24, z -12..24 at y -61; survival player clicks with `bds-sweep:use` / breaks with `bds-sweep:mine`; item pickup is cancelled; the client runs with `--capture-dir <out>/capture --trace …` (sounds, level events, block updates, item actors, logged in `client.log` after each step mark); `summarize.py blocks <dir>` writes the observed-results fixture (doors, torches, crops) |
+| `blocks` (redstone) | `--scenarios redstone` (or any of `redstone_dust`, `repeaters`, `redstone_torch`, `comparators`, `comparator_container`, `buttons`, `pressure_plates`, `weighted_plates`, `iron_door_lever`, `note_blocks`, `pistons`, `fire`): the watched cells' states every tick after each lever/button/comparator click, command or punch, plus the runtime ids of every palette state of the blocks involved (to name sound data) | same arena; oriented components are clicked into place by the player, the rest is `/setblock`; fire runs at randomtickspeed 1 with doFireTick on; `summarize.py redstone <dir>` writes `bds_1_26_51_redstone.json` next to the blocks fixture |
 | `blocks` (utility) | `--scenarios utility` (or any of `observer`, `dispensers`, `tnt`, `note_block_use`, `rails`, `composter`, `cauldron`, `campfire`, `beehive`, `bell`, `jukebox`, `flower_pot`, `cake`, `end_portal`, `nether_portal`, `respawn_anchor`, `bed`): per step the watched cells every tick from the click or command, the non-player actors that appeared (position, velocity, item stack) or went away, the held item after the step; the client also traces actor, block actor data, text, spawn position and attribute packets | same arena, player with resistance V; a failing scenario is recorded with its error and the job moves on; `summarize.py utility <dir> [<rerun dir> ...]` writes `bds_1_26_51_utility.json` (a later dir's error-free scenario replaces the earlier one) |
+
+Every `blocks` scenario runs after a prelude (stop any order, kill actors,
+clear effects, the setup game rules, survival, peaceful, the dirt under the
+floor repaired, the arena reset, the player at the arena start) and between
+two chat lines, `bds-sweep:scenario begin NAME` and `bds-sweep:scenario end
+NAME` (sent 20 settle ticks after its last step). The plugin writes
+`<out>/scenarios/NAME/steps.json` (world, prelude, every command, client
+order, step mark, direct server change and wait with its tick offset from
+the begin marker, the error if it failed); after the run `sweep.py` cuts
+`<out>/capture/packets.jsonl` at the markers into
+`<out>/scenarios/NAME/packets.jsonl`. A failing scenario of any group is
+recorded with its error and the next one runs.
 
 ```powershell
 & $py tools/bds-sweep/sweep.py drops --blocks all --samples 400   # first palette state of every block
@@ -84,6 +98,9 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 & $py tools/bds-sweep/summarize.py redstone <dir>
 & $py tools/bds-sweep/sweep.py blocks --scenarios utility
 & $py tools/bds-sweep/summarize.py utility <dir>
+& $py tools/bds-sweep/sweep.py blocks --scenarios all               # every scenario, one capture each
+& $py tools/bds-sweep/scenarios.py split <dir>                      # again, e.g. after a killed run
+& $py tools/bds-sweep/scenarios.py commit <dir> [<later dir> ...]   # into crates/unastar/tests/scenarios/blocks/
 & $py tools/bds-sweep/summarize.py drops <dir> [<repeat dir> ...]
 ```
 
@@ -117,3 +134,6 @@ tool and moves on, so rerunning `sweep.py` with the same `--out` until
 | `fuel --items all` (lava bucket burns 20,000 ticks) | 2,075 | 19 min |
 | `mining --blocks slice` (10 blocks, 3 trials per variant) | 176 | ~20 min in two parts |
 | `drops --blocks all --states all --samples 64` | 287,231 cells | ~50 min over 7 attempts (5 crashing states skipped, 3 handovers) |
+| `blocks --scenarios blocks` (2026-10-30, per-scenario captures) | 14 scenarios | 6.5 min |
+| `blocks --scenarios redstone` (2026-10-30) | 12 scenarios | 8 min |
+| `blocks --scenarios utility,falling_blocks` (2026-10-30) | 18 scenarios | 4.5 min |

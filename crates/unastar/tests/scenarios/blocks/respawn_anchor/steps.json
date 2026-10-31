@@ -1,0 +1,392 @@
+{
+ "scenario": "respawn_anchor",
+ "covers": "Overworld respawn anchor: charged with glowstone, then used with an empty hand; the 7x3x7 cells around it are watched.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:35:07Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin respawn_anchor",
+  "end": "bds-sweep:scenario end respawn_anchor"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin respawn_anchor"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "respawn_anchor/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "effect \"BDSSweep\" resistance 99999 4 true",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "setblock 0 -60 0 respawn_anchor",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 6,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 6,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:glowstone 4",
+   "ok": true
+  },
+  {
+   "tick": 6,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 16,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 3.5 180.0 24.13",
+   "ok": true
+  },
+  {
+   "tick": 16,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 22,
+   "op": "mark",
+   "label": "respawn_anchor/glowstone"
+  },
+  {
+   "tick": 22,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:respawn_anchor",
+   "block_runtime_id": 1763447706,
+   "held": [
+    "minecraft:glowstone",
+    4,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 24.13
+   }
+  },
+  {
+   "tick": 22,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 28,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 28,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 28,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 38,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 3.5 180.0 24.13",
+   "ok": true
+  },
+  {
+   "tick": 38,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 44,
+   "op": "mark",
+   "label": "respawn_anchor/empty_hand"
+  },
+  {
+   "tick": 44,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:respawn_anchor",
+   "block_runtime_id": 1701972883,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 24.13
+   }
+  },
+  {
+   "tick": 44,
+   "op": "wait",
+   "ticks": 5
+  },
+  {
+   "tick": 49,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 18.5",
+   "ok": true
+  },
+  {
+   "tick": 49,
+   "op": "wait",
+   "ticks": 55
+  },
+  {
+   "tick": 104,
+   "op": "marker",
+   "text": "bds-sweep:scenario end respawn_anchor"
+  }
+ ],
+ "duration_ticks": 104,
+ "error": null
+}

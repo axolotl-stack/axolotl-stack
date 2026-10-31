@@ -7,6 +7,7 @@
     python tools/bds-sweep/sweep.py blocks --scenarios doors,torches,crops --out DIR
     python tools/bds-sweep/sweep.py blocks --scenarios redstone --out DIR
     python tools/bds-sweep/sweep.py blocks --scenarios utility --out DIR
+    python tools/bds-sweep/sweep.py blocks --scenarios all --out DIR
 
 Starts BDS 1.26.51 under Endstone on a fresh superflat creative world
 (`bds-sweep-1.26.51`, peaceful, operators by default) on UDP `--port`
@@ -36,6 +37,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import native  # noqa: E402
+import scenarios  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-sweep-1.26.51'
@@ -49,18 +51,23 @@ STOP_REQUEST = 'stop.request'
 ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 6],
          'miner': [0.5, -60, 0.5, -90, 0], 'mine_block': [1, -59, 0], 'mine_face': 4,
          'target': [2.0, -60, 0.5], 'blocks': {'min': [-10, -12], 'max': [24, 24], 'floor': -61}}
-BLOCK_SCENARIOS = ('doors', 'torches', 'crops')
+# Placement and survival scenarios (`--scenarios blocks` runs them all).
+BLOCK_SCENARIOS = ('doors', 'trapdoors', 'fence_gates', 'torches', 'attachables', 'signs', 'beds', 'stairs', 'slabs',
+                   'connections', 'crops', 'crop_care', 'plant_survival', 'falling_blocks')
 # Redstone and fire scenarios (`--scenarios redstone` runs them all); their
 # summary is `summarize.py redstone`.
-REDSTONE_SCENARIOS = ('redstone_dust', 'repeaters', 'redstone_torch', 'comparators', 'buttons', 'pressure_plates',
-                      'iron_door_lever', 'note_blocks', 'fire')
+REDSTONE_SCENARIOS = ('redstone_dust', 'repeaters', 'redstone_torch', 'comparators', 'comparator_container',
+                      'buttons', 'pressure_plates', 'weighted_plates', 'iron_door_lever', 'note_blocks', 'pistons',
+                      'fire')
 # Blocks whose every palette state the redstone scenarios map to a runtime
 # id, so the summary can name the block states that sounds carry as data.
 PALETTE_BLOCKS = ('air', 'stone', 'dirt', 'lever', 'redstone_wire', 'redstone_lamp', 'lit_redstone_lamp',
                   'unpowered_repeater', 'powered_repeater', 'unpowered_comparator', 'powered_comparator',
                   'redstone_torch', 'unlit_redstone_torch', 'stone_button', 'wooden_button', 'stone_pressure_plate',
                   'wooden_pressure_plate', 'iron_door', 'noteblock', 'fire', 'netherrack', 'oak_planks',
-                  'redstone_block')
+                  'redstone_block', 'piston', 'sticky_piston', 'piston_arm_collision',
+                  'sticky_piston_arm_collision', 'obsidian', 'chest', 'torch', 'light_weighted_pressure_plate',
+                  'heavy_weighted_pressure_plate')
 # Interactive-block scenarios (`--scenarios utility` runs them all); their
 # summary is `summarize.py utility`.
 UTILITY_SCENARIOS = ('observer', 'dispensers', 'tnt', 'note_block_use', 'rails', 'composter', 'cauldron', 'campfire',
@@ -274,12 +281,12 @@ def build_job(args, out: Path) -> dict:
                    max_ticks=args.max_ticks,
                    items=[{'key': name, 'item': name} for name in item_names(args.items, SLICE_FUELS)])
     elif args.kind == 'blocks':
-        groups = {'redstone': REDSTONE_SCENARIOS, 'utility': UTILITY_SCENARIOS}
-        names = [n for name in args.scenarios.split(',') for n in groups.get(name, (name,))]
+        names = scenario_names(args.scenarios)
         known = BLOCK_SCENARIOS + REDSTONE_SCENARIOS + UTILITY_SCENARIOS
         unknown = sorted(set(names) - set(known))
         if unknown:
-            raise SystemExit(f'unknown blocks scenarios: {unknown}; choose from {known}, redstone or utility')
+            raise SystemExit(f'unknown blocks scenarios: {unknown}; choose from {known}, blocks, redstone, utility '
+                             'or all')
         runs = [[int(speed), float(seconds)] for speed, seconds in
                 (run.split(':') for run in args.growth_runs.split(','))]
         job['items'] = [{'key': name, **({'growth_runs': runs} if name == 'crops' else {})} for name in names]
@@ -294,10 +301,18 @@ def build_job(args, out: Path) -> dict:
     return job
 
 
+def scenario_names(spec: str) -> list[str]:
+    """Comma-separated scenario names and groups (`blocks`, `redstone`,
+    `utility`, `all`), expanded in order."""
+    groups = {'blocks': BLOCK_SCENARIOS, 'redstone': REDSTONE_SCENARIOS, 'utility': UTILITY_SCENARIOS,
+              'all': BLOCK_SCENARIOS + REDSTONE_SCENARIOS + UTILITY_SCENARIOS}
+    return [n for name in spec.split(',') for n in groups.get(name, (name,))]
+
+
 def client_command(args, out: Path) -> list[str]:
     command = [str(args.client), '--name', PLAYER, '--addr', f'127.0.0.1:{args.port}']
     if args.kind == 'blocks':
-        trace = BLOCK_TRACE + (UTILITY_TRACE if set(args.scenarios.split(',')) & {'utility', *UTILITY_SCENARIOS}
+        trace = BLOCK_TRACE + (UTILITY_TRACE if set(scenario_names(args.scenarios)) & set(UTILITY_SCENARIOS)
                                else ())
         command += ['--capture-dir', str(out / 'capture'), '--trace', ','.join(trace)]
     return command
@@ -402,6 +417,10 @@ def main() -> int:
         runs.write(json.dumps({'started': stamp, 'status': status, 'seconds': round(elapsed, 1),
                                'items': len(job['items'])}) + '\n')
     print(f'{status} after {elapsed:.0f}s')
+    capture = out / 'capture' / 'packets.jsonl'
+    if args.kind == 'blocks' and capture.exists():
+        written = scenarios.split(capture, out / 'scenarios')
+        print(f'scenario captures: {", ".join(f"{k} ({v})" for k, v in written.items()) or "none"}')
     if status == 'error':
         print((out / 'error.txt').read_text(encoding='utf-8'))
     return 0 if status == 'done' else 1

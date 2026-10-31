@@ -1,0 +1,644 @@
+{
+ "scenario": "tnt",
+ "covers": "TNT on the floor at the origin: lit with flint and steel; lit by a lever on a stone block next to it; primed by the explosion of a summoned primed TNT two blocks away. The player walks off after the click; the 7x3x7 cells around the TNT are watched (floor-1 .. floor+1).",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:32:53Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin tnt",
+  "end": "bds-sweep:scenario end tnt"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin tnt"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "tnt/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "effect \"BDSSweep\" resistance 99999 4 true",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "setblock 0 -60 0 tnt",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 6,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 6,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:flint_and_steel 1",
+   "ok": true
+  },
+  {
+   "tick": 6,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 16,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 3.5 180.0 24.13",
+   "ok": true
+  },
+  {
+   "tick": 16,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 22,
+   "op": "mark",
+   "label": "tnt/flint_and_steel"
+  },
+  {
+   "tick": 22,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:tnt",
+   "block_runtime_id": 622850821,
+   "held": [
+    "minecraft:flint_and_steel",
+    1,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 24.13
+   }
+  },
+  {
+   "tick": 22,
+   "op": "wait",
+   "ticks": 5
+  },
+  {
+   "tick": 27,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 18.5",
+   "ok": true
+  },
+  {
+   "tick": 27,
+   "op": "wait",
+   "ticks": 88
+  },
+  {
+   "tick": 115,
+   "op": "mark",
+   "label": "tnt/reset"
+  },
+  {
+   "tick": 115,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": true
+  },
+  {
+   "tick": 115,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 115,
+   "op": "remove_item_actors",
+   "items": [
+    [
+     "minecraft:cobblestone",
+     0,
+     11
+    ]
+   ]
+  },
+  {
+   "tick": 115,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 115,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 117,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 117,
+   "op": "command",
+   "command": "effect \"BDSSweep\" resistance 99999 4 true",
+   "ok": true
+  },
+  {
+   "tick": 117,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 119,
+   "op": "command",
+   "command": "setblock 0 -60 0 tnt",
+   "ok": true
+  },
+  {
+   "tick": 119,
+   "op": "command",
+   "command": "setblock -1 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 119,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 121,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 121,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 121,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 131,
+   "op": "command",
+   "command": "tp \"BDSSweep\" -0.5 -60 3.5 180.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 131,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 137,
+   "op": "mark",
+   "label": "tnt/lever_place"
+  },
+  {
+   "tick": 137,
+   "op": "use",
+   "pos": [
+    -1,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     -0.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 137,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 147,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 147,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 147,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 157,
+   "op": "command",
+   "command": "tp \"BDSSweep\" -0.5 -60 3.5 180.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 157,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 163,
+   "op": "mark",
+   "label": "tnt/lever_on"
+  },
+  {
+   "tick": 163,
+   "op": "use",
+   "pos": [
+    -1,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     -0.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 163,
+   "op": "wait",
+   "ticks": 5
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 18.5",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "wait",
+   "ticks": 89
+  },
+  {
+   "tick": 257,
+   "op": "mark",
+   "label": "tnt/reset"
+  },
+  {
+   "tick": 257,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": true
+  },
+  {
+   "tick": 257,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 257,
+   "op": "remove_item_actors",
+   "items": [
+    [
+     "minecraft:cobblestone",
+     0,
+     10
+    ],
+    [
+     "minecraft:lever",
+     0,
+     1
+    ]
+   ]
+  },
+  {
+   "tick": 257,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 257,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 259,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 259,
+   "op": "command",
+   "command": "effect \"BDSSweep\" resistance 99999 4 true",
+   "ok": true
+  },
+  {
+   "tick": 259,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 261,
+   "op": "command",
+   "command": "setblock 2 -60 0 tnt",
+   "ok": true
+  },
+  {
+   "tick": 261,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 263,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 18.5 180.0 5.14",
+   "ok": true
+  },
+  {
+   "tick": 263,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 269,
+   "op": "mark",
+   "label": "tnt/primed_by_explosion"
+  },
+  {
+   "tick": 269,
+   "op": "command",
+   "command": "summon tnt 0.5 -60 0.5",
+   "ok": true
+  },
+  {
+   "tick": 269,
+   "op": "wait",
+   "ticks": 136
+  },
+  {
+   "tick": 405,
+   "op": "marker",
+   "text": "bds-sweep:scenario end tnt"
+  }
+ ],
+ "duration_ticks": 405,
+ "error": null
+}

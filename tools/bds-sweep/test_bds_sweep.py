@@ -12,7 +12,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import native  # noqa: E402
 import summarize  # noqa: E402
+import scenarios  # noqa: E402
 import sweep  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / 'endstone-sweep' / 'src'))
+from endstone_bds_sweep import jobs  # noqa: E402
 
 
 class LootTableFit(unittest.TestCase):
@@ -228,6 +232,93 @@ class UtilitySteps(unittest.TestCase):
                                           'position': [0.5, 0, 0.5], 'velocity': [0, 0.2, 0]}])
         self.assertEqual(out['add_actor'], [{'actor': 'minecraft:tnt'}])
 
+
+class ScenarioCaptures(unittest.TestCase):
+    @staticmethod
+    def record(seq: int, name: str, payload: bytes, direction: str = 's2c') -> str:
+        return json.dumps({'seq': seq, 't_ms': seq * 10, 'dir': direction, 'id': 9, 'name': name,
+                           'hex': payload.hex()}) + '\n'
+
+    def capture(self, root: Path) -> Path:
+        text = lambda body: b'\t\x00\x00\x00' + bytes([len(body)]) + body + b'\x00'  # noqa: E731
+        lines = [
+            self.record(0, 'PlayerAuthInputPacket', b'\x90\x01', 'c2s'),
+            self.record(1, 'TextPacket', text(b'bds-sweep:scenario begin doors')),
+            self.record(2, 'UpdateBlockPacket', b'\x15\x00'),
+            self.record(3, 'TextPacket', text(b'bds-sweep:mark doors/place')),
+            self.record(4, 'TextPacket', text(b'bds-sweep:scenario end doors')),
+            self.record(5, 'UpdateBlockPacket', b'\x15\x01'),
+            self.record(6, 'TextPacket', text(b'bds-sweep:scenario begin torches')),
+            self.record(7, 'UpdateBlockPacket', b'\x15\x02'),
+        ]
+        path = root / 'capture' / 'packets.jsonl'
+        path.parent.mkdir(parents=True)
+        path.write_text(''.join(lines), encoding='utf-8')
+        return path
+
+    def test_split_keeps_marker_to_marker_records_and_drops_unfinished_scenarios(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            written = scenarios.split(self.capture(root), root / 'scenarios')
+            self.assertEqual(written, {'doors': 4})
+            seqs = [json.loads(line)['seq'] for line in
+                    (root / 'scenarios' / 'doors' / 'packets.jsonl').read_text(encoding='utf-8').splitlines()]
+            self.assertEqual(seqs, [1, 2, 3, 4])
+            self.assertFalse((root / 'scenarios' / 'torches').exists())
+
+    def test_commit_gzips_deterministically_and_lists_scenarios(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sweep_dir = root / 'sweep'
+            scenarios.split(self.capture(sweep_dir), sweep_dir / 'scenarios')
+            steps = {'scenario': 'doors', 'covers': 'Oak doors.', 'recorded_utc': '2026-10-30T00:00:00Z',
+                     'steps': [{'tick': 0, 'op': 'use'}, {'tick': 1, 'op': 'wait', 'ticks': 5}],
+                     'error': 'RuntimeError: boom'}
+            (sweep_dir / 'scenarios' / 'doors' / 'steps.json').write_text(json.dumps(steps), encoding='utf-8')
+            fixtures = root / 'fixtures'
+            self.assertEqual(scenarios.commit([sweep_dir], fixtures), ['doors'])
+            first = (fixtures / 'doors' / 'packets.jsonl.gz').read_bytes()
+            scenarios.commit([sweep_dir], fixtures)
+            self.assertEqual((fixtures / 'doors' / 'packets.jsonl.gz').read_bytes(), first)
+            readme = (fixtures / 'README.md').read_text(encoding='utf-8')
+            self.assertIn('| `doors` | Oak doors. | 2026-10-30T00:00:00Z | 1 | 4 |', readme)
+            self.assertIn('failed: RuntimeError: boom', readme)
+
+    def test_scenario_groups_expand_in_order(self):
+        self.assertEqual(sweep.scenario_names('blocks')[:2], ['doors', 'trapdoors'])
+        self.assertEqual(sweep.scenario_names('all'), list(sweep.BLOCK_SCENARIOS + sweep.REDSTONE_SCENARIOS
+                                                            + sweep.UTILITY_SCENARIOS))
+        self.assertEqual(set(sweep.scenario_names('all')), set(jobs.SCENARIOS))
+
+    def test_every_scenario_says_what_it_covers(self):
+        for key in jobs.SCENARIOS:
+            self.assertTrue(jobs.scenario_summary(key), key)
+
+    def test_step_log_merges_consecutive_waits_and_keeps_the_result(self):
+        class Plugin:
+            ticks = 100
+
+        plugin = Plugin()
+        log = jobs.StepLog(plugin)
+
+        def scenario():
+            yield 2
+            yield 3
+            log.add('command', command='setblock 0 0 0 stone')
+            yield None
+            yield 4
+            return 'done'
+
+        runner = jobs.logged(scenario(), log)
+        try:
+            while True:
+                wait = next(runner)
+                plugin.ticks += wait or 0
+        except StopIteration as stop:
+            self.assertEqual(stop.value, 'done')
+        self.assertEqual(log.entries, [{'tick': 0, 'op': 'wait', 'ticks': 5},
+                                       {'tick': 5, 'op': 'command', 'command': 'setblock 0 0 0 stone'},
+                                       {'tick': 5, 'op': 'wait', 'ticks': 4}])
 
 
 if __name__ == '__main__':
