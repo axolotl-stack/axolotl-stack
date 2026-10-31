@@ -12,6 +12,7 @@
 
 pub mod bundles;
 pub mod components;
+pub mod conditions;
 pub mod definition;
 pub mod geometry;
 pub(crate) mod goal_selector;

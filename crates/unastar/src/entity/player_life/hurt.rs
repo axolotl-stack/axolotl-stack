@@ -178,6 +178,9 @@ pub(super) fn apply_hit_result(
 /// Validate an incoming or extension-adjusted hit against current player state.
 /// This is repeated after callbacks, which may change or remove that state.
 fn eligible_hit(world: &World, player: Entity, hit: &Hit) -> bool {
+    if crate::entity::conditions::rejects_fire_damage(world, player, hit.cause) {
+        return false;
+    }
     let power = hit.knockback_power;
     if !hit.damage.is_finite()
         || hit.damage < 0.0

@@ -438,6 +438,21 @@ parity.
 
 ## Actor registries and data
 
+Living definitions support `minecraft:fire_immune` and
+`minecraft:renders_when_invisible`, including component-group removal. Fire
+immunity prevents ignition and heat damage in both the player and mob damage
+paths, and puts out an existing fire when the component becomes active. The
+rendering marker is replicated in actor flags. The `in_contact_with_water`
+filter checks fluid overlap with the actor's body, including water beside its
+feet; `in_water` continues to check the feet cell.
+Rain exposure and splash-water-bottle contact are not yet supplied to this
+filter; the current implementation covers world fluid contact.
+
+See the published component contracts for
+[fire immunity](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_fire_immune?view=minecraft-bedrock-stable)
+and
+[rendering while invisible](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_renders_when_invisible?view=minecraft-bedrock-stable).
+
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
 by identifier, replacing the whole definition rather than merging components.
 `freeze()` consumes the builder and shares immutable definitions through `Arc`.
