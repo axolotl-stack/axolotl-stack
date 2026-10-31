@@ -207,6 +207,51 @@ fn pair_pos(container: &BlockContainer) -> Option<IVec3> {
         .map(|pair| IVec3::new(pair.x, container.position.y, pair.z))
 }
 
+/// Resolve container halves for authorization without opening windows,
+/// unpacking loot, repairing pair metadata or changing stored inventory.
+pub(super) fn authorization_positions(world: &mut World, pos: IVec3) -> Vec<IVec3> {
+    let mut positions = vec![pos];
+    let Some(kind) = load(world, pos) else {
+        return positions;
+    };
+    if kind.pairs()
+        && let Some(other) = container(world, pos).and_then(pair_pos)
+        && load(world, other) == Some(kind)
+        && container(world, other).and_then(pair_pos) == Some(pos)
+    {
+        positions.push(other);
+    }
+    positions
+}
+
+/// Include the existing chest whose pairing metadata a placement would change.
+pub(super) fn placement_authorization_positions(
+    world: &mut World,
+    pos: IVec3,
+    state: u32,
+) -> Vec<IVec3> {
+    let mut positions = vec![pos];
+    let Some((kind, direction)) = world
+        .get_resource::<BlockRegistryResource>()
+        .and_then(|registry| registry.0.get_by_runtime_id(state))
+        .and_then(|block| {
+            Some((
+                ContainerKind::from_block(&block.string_id)?,
+                block.state_value(state, "minecraft:cardinal_direction"),
+            ))
+        })
+    else {
+        return positions;
+    };
+    if kind.pairs()
+        && let Some(StateValue::Str(direction)) = direction
+        && let Some(other) = pair_target(world, pos, kind, direction)
+    {
+        positions.push(other);
+    }
+    positions
+}
+
 /// A double chest's halves as (lead, other), after dropping a pair whose
 /// partner no longer pairs back.
 fn halves(world: &mut World, pos: IVec3) -> Option<(IVec3, Option<IVec3>)> {
@@ -879,20 +924,36 @@ pub(super) fn placed(world: &mut World, pos: IVec3) {
     save(world, pos);
 }
 
-fn try_pair(world: &mut World, pos: IVec3, kind: ContainerKind) {
-    let Some(StateValue::Str(direction)) = state_value(world, pos, "minecraft:cardinal_direction")
-    else {
-        return;
-    };
+/// Find the same eligible neighbour for both authorization and committed pairing.
+fn pair_target(
+    world: &mut World,
+    pos: IVec3,
+    kind: ContainerKind,
+    direction: &'static str,
+) -> Option<IVec3> {
     for other in pair_candidates(pos, direction) {
         if kind_at(world, other).map(|(k, _)| k) != Some(kind)
             || state_value(world, other, "minecraft:cardinal_direction")
                 != Some(StateValue::Str(direction))
             || load(world, other).is_none()
-            || halves(world, other).is_none_or(|(_, paired)| paired.is_some())
+            || authorization_positions(world, other).len() != 1
         {
             continue;
         }
+        return Some(other);
+    }
+    None
+}
+
+/// Pair an approved fresh chest with the same eligible neighbour resolved above.
+fn try_pair(world: &mut World, pos: IVec3, kind: ContainerKind) {
+    let Some(StateValue::Str(direction)) = state_value(world, pos, "minecraft:cardinal_direction")
+    else {
+        return;
+    };
+    if let Some(other) = pair_target(world, pos, kind, direction) {
+        // Repair stale metadata before installing the new reciprocal pair.
+        let _ = halves(world, other);
         // The other chest's window grows from 27 to 54 slots.
         close_viewers(world, other, kind);
         if let Some(mut existing) = container_mut(world, other) {
@@ -913,7 +974,6 @@ fn try_pair(world: &mut World, pos: IVec3, kind: ContainerKind) {
         save(world, pos);
         send_client_state(world, other);
         send_client_state(world, pos);
-        return;
     }
 }
 

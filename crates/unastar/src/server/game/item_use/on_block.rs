@@ -11,26 +11,31 @@
 //! and are recorded in `bds-quirks.md` until a BDS capture of block clicks
 //! confirms them.
 
+use std::cell::{Cell, RefCell};
+
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
 use rand::Rng;
 
-use super::{give_or_drop, held, set_slot};
+use super::{give_or_drop, held};
 use crate::entity::EntityRandom;
 use crate::entity::components::GameMode;
 use crate::item::ItemStack;
 use crate::registry::BlockRegistry;
 use crate::registry::block::{BlockEntry, LiquidKind, StateValue};
-use crate::server::game::blocks::{block_at, set_block};
-use crate::server::game::durability::wear_held;
+use crate::server::game::block_interaction::{BlockCommit, BlockInteractionKind};
+use crate::server::game::blocks::{
+    authorize_block_operation, block_at, can_interact, correct_block, set_block,
+};
 use crate::server::game::types::BlockRegistryResource;
 
 /// Faces of a block click, in protocol order.
 const DOWN: u8 = 0;
 const UP: u8 = 1;
 
-/// Use the held item on the clicked block. Returns whether the item did
-/// something (then nothing is placed).
+/// Use the held item on the clicked block. Returns whether the click was
+/// handled, including authorization vetoes, so it must not fall through to
+/// placement. Only accepted effects emit a committed block notification.
 pub fn use_on_block(world: &mut World, player: Entity, clicked: IVec3, face: u8) -> bool {
     let Some((slot, stack)) = held(world, player) else {
         return false;
@@ -59,27 +64,34 @@ pub fn use_on_block(world: &mut World, player: Entity, clicked: IVec3, face: u8)
         face,
         state,
         block: &block,
+        committed: RefCell::new(None),
+        applied: Cell::new(false),
     };
     let id = entry.identifier();
-    if entry.has_tag("minecraft:is_hoe") {
-        return till(world, &ctx);
-    }
-    if entry.has_tag("minecraft:is_shovel") {
-        return flatten(world, &ctx);
-    }
-    if entry.has_tag("minecraft:is_axe") {
-        return strip_or_scrape(world, &ctx);
-    }
-    match id {
-        "minecraft:shears" => carve(world, &ctx),
-        "minecraft:flint_and_steel" | "minecraft:fire_charge" => ignite(world, &ctx),
-        "minecraft:bone_meal" => fertilize(world, &ctx),
-        "minecraft:bucket" => fill_bucket(world, &ctx),
-        "minecraft:water_bucket" | "minecraft:lava_bucket" | "minecraft:powder_snow_bucket" => {
-            empty_bucket(world, &ctx)
+    let handled = if entry.has_tag("minecraft:is_hoe") {
+        till(world, &ctx)
+    } else if entry.has_tag("minecraft:is_shovel") {
+        flatten(world, &ctx)
+    } else if entry.has_tag("minecraft:is_axe") {
+        strip_or_scrape(world, &ctx)
+    } else {
+        match id {
+            "minecraft:shears" => carve(world, &ctx),
+            "minecraft:flint_and_steel" | "minecraft:fire_charge" => ignite(world, &ctx),
+            "minecraft:bone_meal" => fertilize(world, &ctx),
+            "minecraft:bucket" => fill_bucket(world, &ctx),
+            "minecraft:water_bucket" | "minecraft:lava_bucket" | "minecraft:powder_snow_bucket" => {
+                empty_bucket(world, &ctx)
+            }
+            _ => false,
         }
-        _ => false,
+    };
+    if ctx.applied.get()
+        && let Some(committed) = ctx.committed.into_inner()
+    {
+        committed.finish(world);
     }
+    handled
 }
 
 struct Use<'a> {
@@ -91,9 +103,80 @@ struct Use<'a> {
     face: u8,
     state: u32,
     block: &'a BlockEntry,
+    committed: RefCell<Option<BlockCommit>>,
+    applied: Cell<bool>,
 }
 
 impl Use<'_> {
+    /// Authorize exact mutation targets while preserving the selected item and
+    /// clicked block snapshot across callbacks. A veto is a handled interaction.
+    fn authorize(&self, world: &mut World, targets: &[IVec3]) -> bool {
+        let clicked = (self.clicked.x, self.clicked.y, self.clicked.z);
+        let mut positions = vec![clicked];
+        for target in targets {
+            let target = (target.x, target.y, target.z);
+            if !positions.contains(&target) {
+                positions.push(target);
+            }
+        }
+        let dependencies: Vec<_> = positions
+            .iter()
+            .flat_map(|&(x, y, z)| {
+                [y.checked_sub(1), y.checked_add(1)]
+                    .into_iter()
+                    .flatten()
+                    .map(move |y| (x, y, z))
+            })
+            .map(|pos| (pos, block_at(world, pos)))
+            .collect();
+        let valid = held(world, self.player)
+            .is_some_and(|(slot, stack)| slot == self.slot && stack == *self.stack)
+            && block_at(world, clicked) == Some(self.state)
+            && can_interact(world, self.player, clicked)
+            && authorize_block_operation(world, self.player, BlockInteractionKind::Use, &positions)
+            && can_interact(world, self.player, clicked)
+            && dependencies
+                .iter()
+                .all(|(pos, state)| block_at(world, *pos) == *state);
+        if valid {
+            *self.committed.borrow_mut() = Some(BlockCommit::capture(
+                world,
+                self.player,
+                BlockInteractionKind::Use,
+                positions.iter().map(|&(x, y, z)| IVec3::new(x, y, z)),
+            ));
+        } else {
+            for position in positions {
+                correct_block(world, self.player, position);
+            }
+            crate::server::game::inventory::resync_inventory(world, self.player);
+        }
+        valid
+    }
+
+    /// Record an actual block write separately from a handled native veto.
+    fn set_block(&self, world: &mut World, position: IVec3, state: u32) {
+        if block_at(world, (position.x, position.y, position.z)).is_some() {
+            self.applied.set(true);
+            set_block(world, position, state, false);
+        }
+    }
+
+    /// Charge only the captured original actor and source cell.
+    fn replace_source(&self, world: &mut World, stack: ItemStack) -> bool {
+        self.committed
+            .borrow()
+            .as_ref()
+            .is_some_and(|commit| commit.replace_source(world, stack))
+    }
+
+    /// Apply tool wear to the captured slot even after a selection change.
+    fn wear_source(&self, world: &mut World) {
+        if let Some(commit) = self.committed.borrow().as_ref() {
+            commit.wear_source(world, 1);
+        }
+    }
+
     fn block_name(&self) -> &str {
         &self.block.string_id
     }
@@ -130,8 +213,11 @@ fn centre(pos: IVec3) -> DVec3 {
 
 /// Replace the clicked block and play the item-use-on sound with the new
 /// block, as tilling, flattening and stripping do.
-fn convert(world: &mut World, ctx: &Use, new_state: u32) {
-    set_block(world, ctx.clicked, new_state, false);
+fn convert(world: &mut World, ctx: &Use, new_state: u32) -> bool {
+    if !ctx.authorize(world, &[ctx.clicked]) {
+        return false;
+    }
+    ctx.set_block(world, ctx.clicked, new_state);
     let wire = crate::server::game::types::block_network_ids(world).to_wire(new_state);
     sound(
         world,
@@ -140,6 +226,7 @@ fn convert(world: &mut World, ctx: &Use, new_state: u32) {
         "item.use.on",
         wire as i32,
     );
+    true
 }
 
 fn sound(world: &World, player: Entity, at: DVec3, name: &str, data: i32) {
@@ -148,8 +235,10 @@ fn sound(world: &World, player: Entity, at: DVec3, name: &str, data: i32) {
 
 /// Use up one of the held item outside creative.
 fn use_one(world: &mut World, ctx: &Use) {
-    if world.get::<GameMode>(ctx.player) != Some(&GameMode::Creative) {
-        set_slot(world, ctx.player, ctx.slot, ctx.stack.grow(-1));
+    if world.get::<GameMode>(ctx.player) != Some(&GameMode::Creative)
+        && ctx.replace_source(world, ctx.stack.grow(-1))
+    {
+        ctx.applied.set(true);
     }
 }
 
@@ -192,11 +281,13 @@ fn till(world: &mut World, ctx: &Use) -> bool {
     let Some(state) = ctx.default_state(into) else {
         return false;
     };
-    convert(world, ctx, state);
+    if !convert(world, ctx, state) {
+        return true;
+    }
     if let Some(drop) = drop.and_then(|name| crate::server::game::world_stack(world, name, 1)) {
         crate::server::game::block_drops::pop_resource(world, ctx.clicked + IVec3::Y, drop);
     }
-    wear_held(world, ctx.player, 1);
+    ctx.wear_source(world);
     true
 }
 
@@ -215,7 +306,10 @@ fn flatten(world: &mut World, ctx: &Use) -> bool {
         else {
             return false;
         };
-        set_block(world, ctx.clicked, out, false);
+        if !ctx.authorize(world, &[ctx.clicked]) {
+            return true;
+        }
+        ctx.set_block(world, ctx.clicked, out);
         sound(
             world,
             ctx.player,
@@ -223,7 +317,7 @@ fn flatten(world: &mut World, ctx: &Use) -> bool {
             "extinguish.fire",
             -1,
         );
-        wear_held(world, ctx.player, 1);
+        ctx.wear_source(world);
         return true;
     }
     if ctx.face == DOWN
@@ -243,8 +337,10 @@ fn flatten(world: &mut World, ctx: &Use) -> bool {
     let Some(state) = ctx.default_state("minecraft:grass_path") else {
         return false;
     };
-    convert(world, ctx, state);
-    wear_held(world, ctx.player, 1);
+    if !convert(world, ctx, state) {
+        return true;
+    }
+    ctx.wear_source(world);
     true
 }
 
@@ -273,8 +369,10 @@ fn strip_or_scrape(world: &mut World, ctx: &Use) -> bool {
         let Some(state) = carry_states(ctx.registry, ctx.block, ctx.state, &stripped) else {
             return false;
         };
-        convert(world, ctx, state);
-        wear_held(world, ctx.player, 1);
+        if !convert(world, ctx, state) {
+            return true;
+        }
+        ctx.wear_source(world);
         return true;
     }
     let (into, sound_name) = if let Some(unwaxed) = name
@@ -293,9 +391,12 @@ fn strip_or_scrape(world: &mut World, ctx: &Use) -> bool {
     let Some(state) = carry_states(ctx.registry, ctx.block, ctx.state, &into) else {
         return false;
     };
-    set_block(world, ctx.clicked, state, false);
+    if !ctx.authorize(world, &[ctx.clicked]) {
+        return true;
+    }
+    ctx.set_block(world, ctx.clicked, state);
     sound(world, ctx.player, centre(ctx.clicked), sound_name, -1);
-    wear_held(world, ctx.player, 1);
+    ctx.wear_source(world);
     true
 }
 
@@ -324,12 +425,15 @@ fn carve(world: &mut World, ctx: &Use) -> bool {
     else {
         return false;
     };
-    set_block(world, ctx.clicked, carved, false);
+    if !ctx.authorize(world, &[ctx.clicked]) {
+        return true;
+    }
+    ctx.set_block(world, ctx.clicked, carved);
     if let Some(seeds) = crate::server::game::world_stack(world, "minecraft:pumpkin_seeds", 4) {
         crate::server::game::block_drops::pop_resource(world, ctx.target(), seeds);
     }
     sound(world, ctx.player, centre(ctx.clicked), "pumpkin.carve", -1);
-    wear_held(world, ctx.player, 1);
+    ctx.wear_source(world);
     true
 }
 
@@ -370,7 +474,10 @@ fn ignite(world: &mut World, ctx: &Use) -> bool {
             (target, state)
         }
     };
-    set_block(world, pos, state, false);
+    if !ctx.authorize(world, &[pos]) {
+        return true;
+    }
+    ctx.set_block(world, pos, state);
     let sound_name = if flint {
         "ignite"
     } else {
@@ -378,7 +485,7 @@ fn ignite(world: &mut World, ctx: &Use) -> bool {
     };
     sound(world, ctx.player, centre(pos), sound_name, -1);
     if flint {
-        wear_held(world, ctx.player, 1);
+        ctx.wear_source(world);
     } else {
         use_one(world, ctx);
     }
@@ -412,7 +519,10 @@ fn fertilize(world: &mut World, ctx: &Use) -> bool {
         else {
             return false;
         };
-        set_block(world, ctx.clicked, state, false);
+        if !ctx.authorize(world, &[ctx.clicked]) {
+            return true;
+        }
+        ctx.set_block(world, ctx.clicked, state);
         true
     } else if ctx.block_name() == "minecraft:sweet_berry_bush" {
         let Some(StateValue::Int(age)) = ctx.block.state_value(ctx.state, "growth") else {
@@ -427,12 +537,17 @@ fn fertilize(world: &mut World, ctx: &Use) -> bool {
         else {
             return false;
         };
-        set_block(world, ctx.clicked, state, false);
+        if !ctx.authorize(world, &[ctx.clicked]) {
+            return true;
+        }
+        ctx.set_block(world, ctx.clicked, state);
         true
     } else if ctx.block_name() == "minecraft:grass_block"
         && ctx.is_air(world, ctx.clicked + IVec3::Y)
     {
-        grow_grass(world, ctx);
+        if !grow_grass(world, ctx) {
+            return true;
+        }
         true
     } else {
         false
@@ -446,16 +561,17 @@ fn fertilize(world: &mut World, ctx: &Use) -> bool {
 /// Grass block bone meal: 128 random walks from the block above, each up
 /// to `i / 16` steps over grass, planting short grass (one in eight a
 /// dandelion or poppy) on air above grass.
-fn grow_grass(world: &mut World, ctx: &Use) {
+fn grow_grass(world: &mut World, ctx: &Use) -> bool {
     let (Some(grass), Some(short), Some(dandelion), Some(poppy)) = (
         ctx.default_state("minecraft:grass_block"),
         ctx.default_state("minecraft:short_grass"),
         ctx.default_state("minecraft:dandelion"),
         ctx.default_state("minecraft:poppy"),
     ) else {
-        return;
+        return true;
     };
     let start = ctx.clicked + IVec3::Y;
+    let mut plants = Vec::new();
     'walks: for i in 0..128 {
         let mut pos = start;
         for _ in 0..i / 16 {
@@ -472,7 +588,10 @@ fn grow_grass(world: &mut World, ctx: &Use) {
                 continue 'walks;
             }
         }
-        if !ctx.is_air(world, pos) || block_at(world, (pos.x, pos.y - 1, pos.z)) != Some(grass) {
+        if !ctx.is_air(world, pos)
+            || plants.iter().any(|(planned, _)| *planned == pos)
+            || block_at(world, (pos.x, pos.y - 1, pos.z)) != Some(grass)
+        {
             continue;
         }
         let plant = {
@@ -483,8 +602,21 @@ fn grow_grass(world: &mut World, ctx: &Use) {
                 _ => short,
             }
         };
-        set_block(world, pos, plant, false);
+        plants.push((pos, plant));
     }
+    let targets: Vec<_> = plants.iter().map(|(pos, _)| *pos).collect();
+    if !ctx.authorize(world, &targets)
+        || targets
+            .iter()
+            .any(|pos| block_at(world, (pos.x, pos.y - 1, pos.z)) != Some(grass))
+    {
+        return false;
+    }
+    ctx.applied.set(true);
+    for (pos, plant) in plants {
+        ctx.set_block(world, pos, plant);
+    }
+    true
 }
 
 /// An empty bucket on a still water or lava source, or on powder snow,
@@ -507,14 +639,16 @@ fn fill_bucket(world: &mut World, ctx: &Use) -> bool {
     let Some(bucket) = crate::server::game::world_stack(world, filled.0, 1) else {
         return false;
     };
-    set_block(world, ctx.clicked, air, false);
+    if !ctx.authorize(world, &[ctx.clicked]) {
+        return true;
+    }
+    ctx.set_block(world, ctx.clicked, air);
     sound(world, ctx.player, centre(ctx.clicked), filled.1, -1);
     if world.get::<GameMode>(ctx.player) != Some(&GameMode::Creative) {
         let rest = ctx.stack.grow(-1);
         if rest.is_empty() {
-            set_slot(world, ctx.player, ctx.slot, bucket);
-        } else {
-            set_slot(world, ctx.player, ctx.slot, rest);
+            ctx.replace_source(world, bucket);
+        } else if ctx.replace_source(world, rest) {
             give_or_drop(world, ctx.player, bucket);
         }
     }
@@ -550,10 +684,13 @@ fn empty_bucket(world: &mut World, ctx: &Use) -> bool {
     let Some(empty) = crate::server::game::world_stack(world, "minecraft:bucket", 1) else {
         return false;
     };
-    set_block(world, pos, state, false);
+    if !ctx.authorize(world, &[pos]) {
+        return true;
+    }
+    ctx.set_block(world, pos, state);
     sound(world, ctx.player, centre(pos), sound_name, -1);
     if world.get::<GameMode>(ctx.player) != Some(&GameMode::Creative) {
-        set_slot(world, ctx.player, ctx.slot, empty);
+        ctx.replace_source(world, empty);
     }
     true
 }
@@ -566,8 +703,58 @@ mod tests {
     use crate::entity::components::{HeldSlot, MainInventory, Position};
     use crate::item::enchant::durability_damage;
     use crate::item::test_support::stack;
+    use crate::server::game::block_interaction::{
+        BlockInteraction, BlockInteractionHandler, BlockInteractionHooks,
+    };
     use crate::world::ChunkManager;
     use crate::world::ecs::{ChunkData, ChunkPosition};
+
+    /// Refuse a use only if its advertised targets include the protected block.
+    struct Protect(IVec3);
+
+    impl BlockInteractionHandler for Protect {
+        fn on_interaction(&self, _world: &mut World, event: &mut BlockInteraction) {
+            if event.kind() == BlockInteractionKind::Use && event.positions().contains(&self.0) {
+                event.cancel();
+            }
+        }
+    }
+
+    /// Replace the held tool while a callback is running to invalidate its use.
+    struct ReplaceHeld;
+
+    impl BlockInteractionHandler for ReplaceHeld {
+        fn on_interaction(&self, world: &mut World, event: &mut BlockInteraction) {
+            world
+                .get_mut::<MainInventory>(event.player())
+                .unwrap()
+                .0
+                .set_item(0, stack("minecraft:stone", 2))
+                .unwrap();
+        }
+    }
+
+    /// Block the air above the clicked block while the callback is running.
+    struct ObstructAbove(Entity);
+
+    impl BlockInteractionHandler for ObstructAbove {
+        fn on_interaction(&self, world: &mut World, _event: &mut BlockInteraction) {
+            world.get_mut::<ChunkData>(self.0).unwrap().inner.set_block(
+                1,
+                65,
+                1,
+                state("minecraft:stone"),
+            );
+        }
+    }
+
+    /// Install one callback in a small item-use test world.
+    fn hook(world: &mut World, handler: impl BlockInteractionHandler) {
+        world.init_resource::<BlockInteractionHooks>();
+        world
+            .resource_mut::<BlockInteractionHooks>()
+            .register(handler);
+    }
 
     /// A chunk with `block` at (1, 64, 1) and air above, and a survival
     /// player holding `item`.
@@ -652,6 +839,85 @@ mod tests {
         assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
         assert_eq!(block(&world, chunk, 64), "minecraft:farmland");
         assert_eq!(durability_damage(&held_stack(&world, player)), 1);
+    }
+
+    #[test]
+    fn native_use_veto_preserves_tool_targets_and_durability() {
+        for (block_name, item, face) in [
+            ("minecraft:grass_block", "minecraft:iron_hoe", UP),
+            ("minecraft:grass_block", "minecraft:iron_shovel", UP),
+            ("minecraft:oak_log", "minecraft:iron_axe", UP),
+            ("minecraft:pumpkin", "minecraft:shears", 2),
+        ] {
+            let (mut world, player, chunk) = world_with(block_name, item, 1);
+            hook(&mut world, Protect(IVec3::new(1, 64, 1)));
+            let before = held_stack(&world, player);
+            assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), face));
+            assert_eq!(block(&world, chunk, 64), block_name);
+            assert_eq!(held_stack(&world, player), before);
+        }
+    }
+
+    #[test]
+    fn native_use_veto_checks_adjacent_fire_and_bucket_targets_without_cost() {
+        for item in [
+            "minecraft:flint_and_steel",
+            "minecraft:fire_charge",
+            "minecraft:water_bucket",
+            "minecraft:lava_bucket",
+            "minecraft:powder_snow_bucket",
+        ] {
+            let (mut world, player, chunk) = world_with("minecraft:stone", item, 1);
+            hook(&mut world, Protect(IVec3::new(1, 65, 1)));
+            let before = held_stack(&world, player);
+            assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
+            assert_eq!(block(&world, chunk, 64), "minecraft:stone");
+            assert_eq!(block(&world, chunk, 65), "minecraft:air");
+            assert_eq!(held_stack(&world, player), before);
+        }
+        let (mut world, player, chunk) = world_with("minecraft:water", "minecraft:bucket", 1);
+        hook(&mut world, Protect(IVec3::new(1, 64, 1)));
+        let before = held_stack(&world, player);
+        assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
+        assert_eq!(block(&world, chunk, 64), "minecraft:water");
+        assert_eq!(held_stack(&world, player), before);
+    }
+
+    #[test]
+    fn native_growth_veto_prevents_partial_plants_and_item_consumption() {
+        let (mut world, player, chunk) =
+            world_with("minecraft:grass_block", "minecraft:bone_meal", 2);
+        hook(&mut world, Protect(IVec3::new(1, 65, 1)));
+        let before = held_stack(&world, player);
+        assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
+        assert_eq!(block(&world, chunk, 65), "minecraft:air");
+        assert_eq!(held_stack(&world, player), before);
+        assert!(
+            world
+                .resource::<bevy_ecs::message::Messages<crate::world::ecs::BlockBroadcastEvent>>()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn native_callback_cannot_commit_tool_use_from_a_stale_held_stack() {
+        let (mut world, player, chunk) =
+            world_with("minecraft:grass_block", "minecraft:iron_hoe", 1);
+        hook(&mut world, ReplaceHeld);
+        assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
+        assert_eq!(block(&world, chunk, 64), "minecraft:grass_block");
+        assert_eq!(held_stack(&world, player), stack("minecraft:stone", 2));
+    }
+
+    #[test]
+    fn native_callback_must_preserve_tool_preconditions_above_the_target() {
+        let (mut world, player, chunk) =
+            world_with("minecraft:grass_block", "minecraft:iron_hoe", 1);
+        hook(&mut world, ObstructAbove(chunk));
+        let before = held_stack(&world, player);
+        assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
+        assert_eq!(block(&world, chunk, 64), "minecraft:grass_block");
+        assert_eq!(held_stack(&world, player), before);
     }
 
     #[test]
@@ -792,6 +1058,127 @@ mod tests {
         assert_eq!(
             entry.state_value(stripped, "pillar_axis"),
             Some(StateValue::Str("x"))
+        );
+    }
+
+    /// Capture real accepted use notifications without retaining ECS borrows.
+    struct RecordUse(
+        Arc<std::sync::Mutex<Vec<crate::server::game::block_interaction::PlayerBlockCommitted>>>,
+    );
+    impl BlockInteractionHandler for RecordUse {
+        fn on_committed(
+            &self,
+            _world: &mut World,
+            event: &crate::server::game::block_interaction::PlayerBlockCommitted,
+        ) {
+            self.0.lock().unwrap().push(event.clone());
+        }
+    }
+
+    /// Authenticate the small fixture and install a committed-use recorder.
+    fn use_records(
+        world: &mut World,
+        player: Entity,
+    ) -> Arc<std::sync::Mutex<Vec<crate::server::game::block_interaction::PlayerBlockCommitted>>>
+    {
+        let (tx, _rx) = tokio::sync::mpsc::channel(64);
+        world
+            .entity_mut(player)
+            .insert(crate::entity::components::PlayerSession::new(
+                71,
+                "actor".into(),
+                Some("account".into()),
+                None,
+                tx,
+            ));
+        let records = Arc::new(std::sync::Mutex::new(Vec::new()));
+        hook(world, RecordUse(records.clone()));
+        records
+    }
+
+    #[test]
+    fn committed_item_uses_preserve_source_and_final_bucket_or_consumption() {
+        for item in ["minecraft:fire_charge", "minecraft:water_bucket"] {
+            let (mut world, player, _) = world_with("minecraft:stone", item, 1);
+            let records = use_records(&mut world, player);
+            assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
+            let records = records.lock().unwrap();
+            assert_eq!(records.len(), 1);
+            let event = &records[0];
+            assert_eq!(event.kind(), BlockInteractionKind::Use);
+            assert_eq!(event.held_before().unwrap().stack.item_id(), item);
+            assert_eq!(event.held_before().unwrap().stack.count, 1);
+            assert_eq!(event.changes().len(), 2);
+            assert_eq!(event.changes()[1].position, IVec3::new(1, 65, 1));
+            assert_eq!(event.changes()[1].before.runtime_id, state("minecraft:air"));
+            assert_eq!(
+                event.changes()[1].after.as_ref().unwrap().runtime_id,
+                state(if item == "minecraft:fire_charge" {
+                    "minecraft:fire"
+                } else {
+                    "minecraft:water"
+                })
+            );
+            if item == "minecraft:fire_charge" {
+                assert!(event.held_after().unwrap().stack.is_empty());
+            } else {
+                assert_eq!(
+                    event.held_after().unwrap().stack.item_id(),
+                    "minecraft:bucket"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn committed_item_use_excludes_handled_veto_and_postcallback_invalid_support() {
+        for support in [false, true] {
+            let (mut world, player, chunk) =
+                world_with("minecraft:grass_block", "minecraft:wooden_hoe", 1);
+            let before = held(&world, player);
+            let records = use_records(&mut world, player);
+            if support {
+                hook(&mut world, ObstructAbove(chunk));
+            } else {
+                world.add_observer(|mut event: On<BlockInteraction>| event.cancel());
+            }
+            assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
+            assert!(records.lock().unwrap().is_empty());
+            assert_eq!(held(&world, player), before);
+            assert_eq!(
+                block_at(&world, (1, 64, 1)),
+                Some(state("minecraft:grass_block"))
+            );
+        }
+    }
+
+    #[test]
+    fn committed_tool_wear_uses_original_cell_after_selection_callback() {
+        let (mut world, player, _) = world_with("minecraft:grass_block", "minecraft:wooden_hoe", 1);
+        let other = stack("minecraft:diamond_hoe", 1);
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(1, other.clone())
+            .unwrap();
+        let records = use_records(&mut world, player);
+        world.add_observer(
+            move |_: On<crate::world::ecs::BlockChanged>, mut held: Query<&mut HeldSlot>| {
+                held.get_mut(player).unwrap().0 = 1;
+            },
+        );
+        assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
+        assert_eq!(
+            world.get::<MainInventory>(player).unwrap().0.item(1),
+            Some(&other)
+        );
+        let records = records.lock().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].held_after().unwrap().slot, 0);
+        assert_eq!(
+            durability_damage(&records[0].held_after().unwrap().stack),
+            1
         );
     }
 }

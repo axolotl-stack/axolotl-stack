@@ -6,6 +6,9 @@ use super::*;
 use crate::entity::components::{GameMode, MainInventory, PlayerUi};
 use crate::item::test_support::stack;
 use crate::registry::BlockRegistry;
+use crate::server::game::block_interaction::{
+    BlockInteraction, BlockInteractionHandler, BlockInteractionHooks, BlockInteractionKind,
+};
 use crate::server::game::packet_queues::{InventoryAction, InventoryPacketQueue};
 use crate::world::chunk::Chunk;
 use crate::world::ecs::ChunkPosition;
@@ -17,7 +20,37 @@ use jolyne::valentine::{
     ItemStackRequestPacketDataRequestDataActionsItem as Action, McpePacketData,
     TypedClientNetIdstructItemStackRequestIdTagint32T0,
 };
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use tokio::sync::mpsc::Receiver;
+
+/// A policy that can revoke one block after a window has already been opened.
+struct ContainerPermission {
+    denied: Arc<AtomicBool>,
+    position: IVec3,
+}
+
+impl BlockInteractionHandler for ContainerPermission {
+    fn on_interaction(&self, _world: &mut World, event: &mut BlockInteraction) {
+        if self.denied.load(Ordering::SeqCst)
+            && event.kind() == BlockInteractionKind::Use
+            && event.positions().contains(&self.position)
+        {
+            event.cancel();
+        }
+    }
+}
+
+/// Despawn during authorization to exercise cleanup without borrowed player data.
+struct DespawnContainerUser;
+
+impl BlockInteractionHandler for DespawnContainerUser {
+    fn on_interaction(&self, world: &mut World, event: &mut BlockInteraction) {
+        world.despawn(event.player());
+    }
+}
 
 struct Harness {
     server: crate::GameServer,
@@ -171,8 +204,13 @@ impl Harness {
         ));
     }
 
-    /// Take `amount` from `from` to `to`; returns the response status.
-    fn take(&mut self, amount: u8, from: (Name, u8, i32), to: (Name, u8, i32)) -> Status {
+    /// Build a real transfer packet without consuming the resulting corrections.
+    fn transfer(
+        &mut self,
+        amount: u8,
+        from: (Name, u8, i32),
+        to: (Name, u8, i32),
+    ) -> InventoryAction {
         let id = self.next_request;
         self.next_request -= 2;
         let slot = |(name, slot, net): (Name, u8, i32)| ItemStackRequestCerealSlotInfoData {
@@ -183,7 +221,7 @@ impl Harness {
             slot,
             net_id_variant: net,
         };
-        self.run_inventory(InventoryAction::ItemStackRequest(ItemStackRequestPacket {
+        InventoryAction::ItemStackRequest(ItemStackRequestPacket {
             requests: vec![ItemStackRequestPacketDataRequestData {
                 client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 { id },
                 actions: vec![Action::TakeActionData(
@@ -196,7 +234,13 @@ impl Harness {
                 )],
                 ..Default::default()
             }],
-        }));
+        })
+    }
+
+    /// Take `amount` from `from` to `to`; returns the response status.
+    fn take(&mut self, amount: u8, from: (Name, u8, i32), to: (Name, u8, i32)) -> Status {
+        let action = self.transfer(amount, from, to);
+        self.run_inventory(action);
         self.packets()
             .into_iter()
             .find_map(|packet| match packet {
@@ -250,6 +294,114 @@ impl Harness {
 
 fn north() -> (&'static str, StateValue) {
     ("minecraft:cardinal_direction", StateValue::Str("north"))
+}
+
+#[test]
+fn native_retained_container_permission_is_checked_before_stack_request_mutation() {
+    with_world(GameMode::Survival, |h| {
+        let chest = IVec3::new(2, 64, 2);
+        h.place(chest, "minecraft:chest", &[north()]);
+        let denied = Arc::new(AtomicBool::new(false));
+        h.world()
+            .resource_mut::<BlockInteractionHooks>()
+            .register(ContainerPermission {
+                denied: denied.clone(),
+                position: chest,
+            });
+        let net = h.give(0, "minecraft:stone", 10);
+        let window = h.open(chest);
+        h.packets();
+        assert_eq!(
+            h.take(
+                4,
+                (Name::Hotbarcontainer, 0, net),
+                (Name::Levelentitycontainer, 0, 0)
+            ),
+            Status::Success
+        );
+        let source = h.saved(chest).items.item(0).unwrap().clone();
+        let before = h.main_slot(0);
+        let player = h.player;
+        h.world()
+            .get_mut::<PlayerUi>(player)
+            .unwrap()
+            .set_cursor(stack("minecraft:stick", 2));
+        denied.store(true, Ordering::SeqCst);
+        let action = h.transfer(
+            2,
+            (Name::Levelentitycontainer, 0, source.net_id),
+            (Name::Hotbarcontainer, 1, 0),
+        );
+        h.run_inventory(action);
+        assert_eq!(h.saved(chest).items.item(0).unwrap(), &source);
+        assert_eq!(h.main_slot(0), before);
+        assert!(h.main_slot(1).is_empty());
+        assert_eq!(
+            h.world().get::<PlayerUi>(player).unwrap().cursor(),
+            &stack("minecraft:stick", 2)
+        );
+        assert_eq!(
+            h.world().get::<ContainerWindows>(player).unwrap().screen(),
+            ScreenKind::None
+        );
+        let packets = h.packets();
+        assert!(packets.iter().any(|packet| matches!(packet,McpePacketData::ItemStackResponsePacket(response) if response.responses.len()==1 && response.responses[0].result == Status::Error)));
+        assert!(packets.iter().any(|packet| matches!(packet,McpePacketData::ContainerClosePacket(close) if close.container_id==window && close.server_initiated_close)));
+        assert!(packets.iter().any(|packet| matches!(packet,McpePacketData::InventoryContentPacket(content) if content.container_id == 0)));
+    });
+}
+
+#[test]
+fn native_retained_container_permission_covers_the_other_double_chest_half() {
+    with_world(GameMode::Survival, |h| {
+        let lead = IVec3::new(2, 64, 2);
+        let other = IVec3::new(3, 64, 2);
+        h.place(lead, "minecraft:chest", &[north()]);
+        h.place(other, "minecraft:chest", &[north()]);
+        let net = h.give(0, "minecraft:stone", 5);
+        h.open(other);
+        h.packets();
+        h.world()
+            .resource_mut::<BlockInteractionHooks>()
+            .register(ContainerPermission {
+                denied: Arc::new(AtomicBool::new(true)),
+                position: lead,
+            });
+        assert_eq!(
+            h.take(
+                5,
+                (Name::Hotbarcontainer, 0, net),
+                (Name::Levelentitycontainer, 30, 0)
+            ),
+            Status::Error
+        );
+        assert_eq!(h.main_slot(0).count, 5);
+        assert!(h.saved(lead).items.item(3).unwrap().is_empty());
+        assert!(h.saved(other).items.item(3).unwrap().is_empty());
+    });
+}
+
+#[test]
+fn native_retained_container_callback_despawn_preserves_stored_items() {
+    with_world(GameMode::Survival, |h| {
+        let chest = IVec3::new(2, 64, 2);
+        h.place(chest, "minecraft:chest", &[north()]);
+        let net = h.give(0, "minecraft:stone", 5);
+        h.open(chest);
+        h.packets();
+        h.world()
+            .resource_mut::<BlockInteractionHooks>()
+            .register(DespawnContainerUser);
+        let action = h.transfer(
+            5,
+            (Name::Hotbarcontainer, 0, net),
+            (Name::Levelentitycontainer, 0, 0),
+        );
+        h.run_inventory(action);
+        let player = h.player;
+        assert!(h.world().get_entity(player).is_err());
+        assert!(h.saved(chest).items.item(0).unwrap().is_empty());
+    });
 }
 
 #[test]
