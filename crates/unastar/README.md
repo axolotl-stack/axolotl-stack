@@ -1042,3 +1042,27 @@ of the native writer, reads all three codecs, and independently inflates/checksu
 the provider's actual compacted tables. This catches failures hidden by successful
 reads from an uncompressed write-ahead log. After changing native build flags,
 use `cargo clean -p bleveldb-sys` before the acceptance run.
+
+Native applications can install `server::game::inventory_effects` before the
+network loop to submit complete durable inventory replacements. Each request
+binds a stable effect ID to expected and replacement inventory images. A worker
+writes the replacement and its receipt together, and the ECS publishes fresh
+stack IDs only after acknowledgement. Full player UI inventories are persisted.
+
+The source actor's inventory, health and input components are withheld during
+quarantine; extensions should check `is_quarantined` before reading gameplay
+state. Packet input, queued commands, block access and ordinary saves stop for
+that actor. A retained actor may lose its session while waiting and still receive
+the acknowledged inventory, while a replaced connection cannot. Native committed
+and failed events report the result. A failed event distinguishes proven
+non-application from a result requiring recovery; ambiguous writes stay
+quarantined and reject further admission until recovery.
+
+All connection loads, ordinary saves and effect writes use the installed
+serialized provider. Inventory epochs reject stale autosave/disconnect records,
+and receipt IDs survive restarts so callers can acknowledge a repeated request
+without granting its items again. LevelDB player writes request synchronous
+persistence. Other providers must explicitly advertise `atomic_durable_records`,
+honor that contract and avoid separate unwrapped access. Unsupported providers
+are rejected before installation. Receipt history is bounded at 65,536 effects
+per account; exhaustion rejects new effects before writing.
