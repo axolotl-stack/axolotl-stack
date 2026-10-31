@@ -403,6 +403,20 @@ parity.
 
 ## Actor registries and data
 
+Mob definitions can provide `minecraft:follow_range` to override a targeting
+goal's legacy `within_radius` for both acquisition and retention. Fixed,
+nonnegative values are supported; invalid bounds and randomized values fail
+definition compilation. See the
+[published follow-range contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_follow_range?view=minecraft-bedrock-stable).
+
+`minecraft:on_hurt`, `minecraft:on_hurt_by_player` and
+`minecraft:on_target_acquired` compile optional filters and self/other event
+receivers. Hit triggers run after an accepted hit commits its hurt timer and
+health; cancelled and timer-rejected hits do not fire them. Target triggers run
+after a different nonempty target is committed, once rather than every tick the
+same target is retained. AI-triggered events run outside the AI's resource
+scopes so their event handlers can use the normal random-state resource.
+
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
 by identifier, replacing the whole definition rather than merging components.
 `freeze()` consumes the builder and shares immutable definitions through `Arc`.
