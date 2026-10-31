@@ -1073,3 +1073,27 @@ with immutable connection identity, request ID, optional raw response text and
 cancellation status. The host limits payloads to 65536 bytes and revalidates the
 source session before callbacks. Applications own outstanding request IDs, JSON
 interpretation and menu actions; the host performs no default form action.
+
+## Staged container edits
+
+`server::game::ContainerMutationLocks` reserves absolute block cells with opaque
+operation-owner tokens. `acquire(owner, cells)` is atomic and idempotent for the
+same owner; conflicting owners and empty tokens change nothing. `release` requires
+exact ownership of the whole batch. Locks are runtime state; applications restore
+pending reservations before exposing their world. With no reservations, ordinary
+container behavior is unchanged.
+
+Native access checks both halves of a paired chest, including saved actors not
+yet decoded. Reserved cells reject opening and retained-window stack moves, pause
+furnace/hopper mutations and loot unpacking, and prevent native placement, breaking,
+pair changes and block-writing commands. Unavailable windows receive ordinary
+failed inventory responses; request-ID validation remains active.
+
+After trusted chunk/block-actor writes and the application's persistence
+acknowledgement, call `complete_container_mutations(world, owner, cells)`. It
+releases an exactly owned batch, closes obsolete windows, invalidates decoded
+container contents, reloads authoritative NBT and registers new native tickers.
+Failed ownership checks change nothing. The resource's raw `release` only changes
+ownership and is suitable for aborts without committed edits. Direct trusted
+chunk writes remain application-owned. `server::game::is_replaceable` exposes
+the same block-state placement predicate used by native placement.
