@@ -227,8 +227,22 @@ fn shoot_bow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, tic
         item: returned,
         throw_sound: false,
     };
-    if let Err(error) = launch_with(world, player, ActorType::Arrow, None, spec) {
-        tracing::warn!(%error, "Shooting an arrow failed");
+    let Some(permit) = crate::server::game::item_actions::authorize(
+        world,
+        player,
+        crate::server::game::item_actions::ItemActionKind::Launch,
+    ) else {
+        return;
+    };
+    let projectile = match launch_with(world, player, ActorType::Arrow, None, spec) {
+        Ok(projectile) => projectile,
+        Err(error) => {
+            tracing::warn!(%error, "Shooting an arrow failed");
+            return;
+        }
+    };
+    if !permit.is_current(world) {
+        world.despawn(projectile);
         return;
     }
     if let (Some(ammo), false, false) = (ammo, creative, infinity) {
@@ -237,6 +251,10 @@ fn shoot_bow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, tic
     let _ = slot;
     wear_held(world, player, 1);
     sound(world, player, "bow");
+    permit.commit(
+        world,
+        crate::server::game::item_actions::ItemActionOutcome::Launched { projectile },
+    );
 }
 
 /// System step (from `tick_using`): crossbow loading sounds and, at 25
@@ -291,13 +309,31 @@ fn fire_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack)
         item: returned,
         throw_sound: false,
     };
-    if let Err(error) = launch_with(world, player, ActorType::Arrow, None, spec) {
-        tracing::warn!(%error, "Firing a crossbow failed");
+    let Some(permit) = crate::server::game::item_actions::authorize(
+        world,
+        player,
+        crate::server::game::item_actions::ItemActionKind::Launch,
+    ) else {
+        return;
+    };
+    let projectile = match launch_with(world, player, ActorType::Arrow, None, spec) {
+        Ok(projectile) => projectile,
+        Err(error) => {
+            tracing::warn!(%error, "Firing a crossbow failed");
+            return;
+        }
+    };
+    if !permit.is_current(world) {
+        world.despawn(projectile);
         return;
     }
     set_slot(world, player, slot, with_charge(stack, false));
     wear_held(world, player, 1);
     sound(world, player, "crossbow.shoot");
+    permit.commit(
+        world,
+        crate::server::game::item_actions::ItemActionOutcome::Launched { projectile },
+    );
 }
 
 /// What `tick_using` does for a drawn item each tick.

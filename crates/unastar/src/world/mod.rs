@@ -190,3 +190,13 @@ impl WorldConfig {
         }
     }
 }
+
+/// Vanilla protocol dimension block bounds, with an exclusive upper limit.
+/// The physical chunk storage accommodates the union of these ranges.
+pub fn dimension_block_bounds(dimension: i32) -> std::ops::Range<i32> {
+    match dimension {
+        1 => 0..128,
+        2 => 0..256,
+        _ => -64..320,
+    }
+}

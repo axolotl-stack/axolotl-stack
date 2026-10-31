@@ -65,6 +65,7 @@ use crate::world::ecs::{
     world_to_local_coords,
 };
 
+use super::container_mutation::{self, ContainerMutationCause};
 use super::types::{BlockRegistryResource, ItemRegistryResource, RecipeRegistryResource};
 
 /// Ticks between hopper transfers.
@@ -163,6 +164,9 @@ pub(super) fn load(world: &mut World, pos: IVec3) -> Option<ContainerKind> {
 
 /// Write the cached actor at `pos` back into its chunk.
 fn save(world: &mut World, pos: IVec3) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let Some(compound) = world
         .resource::<BlockContainers>()
         .live
@@ -194,6 +198,9 @@ fn container(world: &World, pos: IVec3) -> Option<&BlockContainer> {
 }
 
 fn container_mut(world: &mut World, pos: IVec3) -> Option<Mut<'_, BlockContainer>> {
+    if mutation_locked(world, pos) {
+        return None;
+    }
     let containers = world.resource_mut::<BlockContainers>();
     if !containers.live.contains_key(&pos) {
         return None;
@@ -207,9 +214,166 @@ fn pair_pos(container: &BlockContainer) -> Option<IVec3> {
         .map(|pair| IVec3::new(pair.x, container.position.y, pair.z))
 }
 
+/// Resolve container halves for authorization without opening windows,
+/// unpacking loot, repairing pair metadata or changing stored inventory.
+pub(super) fn authorization_positions(world: &mut World, pos: IVec3) -> Vec<IVec3> {
+    let mut positions = vec![pos];
+    let Some(kind) = load(world, pos) else {
+        return positions;
+    };
+    if kind.pairs()
+        && let Some(other) = container(world, pos).and_then(pair_pos)
+        && load(world, other) == Some(kind)
+        && container(world, other).and_then(pair_pos) == Some(pos)
+    {
+        positions.push(other);
+    }
+    positions
+}
+
+/// Include the existing chest whose pairing metadata a placement would change.
+pub(super) fn placement_authorization_positions(
+    world: &mut World,
+    pos: IVec3,
+    state: u32,
+) -> Vec<IVec3> {
+    let mut positions = vec![pos];
+    let Some((kind, direction)) = world
+        .get_resource::<BlockRegistryResource>()
+        .and_then(|registry| registry.0.get_by_runtime_id(state))
+        .and_then(|block| {
+            Some((
+                ContainerKind::from_block(&block.string_id)?,
+                block.state_value(state, "minecraft:cardinal_direction"),
+            ))
+        })
+    else {
+        return positions;
+    };
+    if kind.pairs()
+        && let Some(StateValue::Str(direction)) = direction
+        && let Some(other) = pair_target(world, pos, kind, direction)
+    {
+        positions.push(other);
+    }
+    positions
+}
+
+/// Read pair coordinates without loading, unpacking loot or repairing the actor.
+fn stored_pair(world: &World, pos: IVec3) -> Option<IVec3> {
+    if !kind_at(world, pos)?.0.pairs() {
+        return None;
+    }
+    let chunk = world.get::<ChunkData>(chunk_entity(world, pos)?)?;
+    let actor = chunk
+        .inner
+        .block_entities()
+        .iter()
+        .find(|actor| actor.position() == pos.to_array())?;
+    let compound = actor.bedrock_compound()?.ok()?;
+    let integer = |key: &str| match compound.0.get(key) {
+        Some(zuri_nbt::NBTTag::Int(value)) => Some(value.0),
+        Some(zuri_nbt::NBTTag::Short(value)) => Some(i32::from(value.0)),
+        Some(zuri_nbt::NBTTag::Byte(value)) => Some(i32::from(value.0)),
+        _ => None,
+    };
+    if integer("forceunpair") == Some(1) {
+        return None;
+    }
+    Some(IVec3::new(integer("pairx")?, pos.y, integer("pairz")?))
+}
+
+/// A native operation on either half must respect a reservation on the other.
+pub(crate) fn mutation_locked(world: &World, pos: IVec3) -> bool {
+    let Some(locks) = world.get_resource::<super::ContainerMutationLocks>() else {
+        return false;
+    };
+    if locks.is_empty() {
+        return false;
+    }
+    if locks.is_locked(pos) {
+        return true;
+    }
+    let cached = world
+        .get_resource::<BlockContainers>()
+        .and_then(|containers| containers.live.get(&pos));
+    let other = match cached {
+        Some(container) => pair_pos(container),
+        None => stored_pair(world, pos),
+    };
+    other.is_some_and(|other| locks.is_locked(other))
+}
+
+/// Replace obsolete runtime windows/cache after a trusted acknowledged edit batch.
+pub(super) fn invalidate_after_mutation(world: &mut World, positions: &[IVec3]) {
+    if !world.contains_resource::<BlockContainers>() {
+        return;
+    }
+    let mut affected = positions
+        .iter()
+        .copied()
+        .collect::<std::collections::HashSet<_>>();
+    for &pos in positions {
+        affected.extend(
+            world
+                .get_resource::<BlockContainers>()
+                .and_then(|containers| containers.live.get(&pos))
+                .and_then(pair_pos),
+        );
+        affected.extend(stored_pair(world, pos));
+    }
+    let closing = world
+        .query::<(Entity, &ContainerWindows)>()
+        .iter(world)
+        .filter_map(|(player, windows)| match windows.screen() {
+            ScreenKind::Block(screen) if affected.contains(&screen.at) => {
+                Some((player, windows.open_id()?, screen.kind))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    for &(player, window, kind) in &closing {
+        if let Some(mut windows) = world.get_mut::<ContainerWindows>(player) {
+            windows.close();
+        }
+        send(
+            world,
+            player,
+            ContainerClosePacket {
+                container_id: window,
+                container_type: kind.wire_type() as u8,
+                server_initiated_close: true,
+            },
+        );
+    }
+    {
+        let mut containers = world.resource_mut::<BlockContainers>();
+        for pos in &affected {
+            containers.live.remove(pos);
+            containers.ticking.remove(&pos.to_array());
+        }
+        containers.viewers.retain(|pos, viewers| {
+            viewers.retain(|viewer| {
+                !closing
+                    .iter()
+                    .any(|(player, _, _)| *player == viewer.player)
+            });
+            !affected.contains(pos) && !viewers.is_empty()
+        });
+    }
+    for pos in affected {
+        if !mutation_locked(world, pos) && load(world, pos).is_some() {
+            send_client_state(world, pos);
+        }
+    }
+}
+
 /// A double chest's halves as (lead, other), after dropping a pair whose
 /// partner no longer pairs back.
 fn halves(world: &mut World, pos: IVec3) -> Option<(IVec3, Option<IVec3>)> {
+    if mutation_locked(world, pos) {
+        return None;
+    }
     let kind = load(world, pos)?;
     let Some(other) = container(world, pos).and_then(pair_pos) else {
         return Some((pos, None));
@@ -278,8 +442,23 @@ fn store_view(world: &mut World, pos: IVec3, slots: &Inventory) {
 /// while slots remain (the Java `LootTable.fill` algorithm; BDS's random
 /// sequence is not reproduced, so the same seed gives different contents).
 fn unpack_loot(world: &mut World, pos: IVec3) {
-    let Some((path, seed)) = container_mut(world, pos).and_then(|mut c| c.take_loot_table()) else {
+    let Some(mut prepared) = container(world, pos).cloned() else {
         return;
+    };
+    if !prepare_loot(world, &mut prepared) {
+        return;
+    }
+    if let Some(mut live) = container_mut(world, pos) {
+        *live = prepared;
+    }
+    save(world, pos);
+}
+
+/// Materialize generated contents on an owned preview. Rejected automation must
+/// not consume the saved loot recipe or publish its items before authorization.
+fn prepare_loot(world: &World, container: &mut BlockContainer) -> bool {
+    let Some((path, seed)) = container.take_loot_table() else {
+        return false;
     };
     let name = path.strip_prefix("loot_tables/").unwrap_or(&path);
     let name = name.strip_suffix(".json").unwrap_or(name);
@@ -293,19 +472,17 @@ fn unpack_loot(world: &mut World, pos: IVec3) {
         ) {
             Ok(drops) => super::block_drops::loot_stacks(world, drops),
             Err(error) => {
-                warn!(table = name, %error, "container loot table cannot be evaluated");
+                warn!(table=name,%error,"container loot table cannot be evaluated");
                 Vec::new()
             }
         },
         None => {
-            warn!(table = name, ?pos, "container names an unknown loot table");
+            warn!(table=name,position=?container.position,"container names an unknown loot table");
             Vec::new()
         }
     };
-    if let Some(mut container) = container_mut(world, pos) {
-        fill(&mut container.items, stacks, &mut rng);
-    }
-    save(world, pos);
+    fill(&mut container.items, stacks, &mut rng);
+    true
 }
 
 /// Spread `items` over random empty slots of `slots`, splitting stacks in
@@ -394,6 +571,9 @@ fn window_content(
 
 /// `BlockActorData` with the client-side state BDS sends after pair changes.
 fn send_client_state(world: &World, pos: IVec3) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let Some(container) = container(world, pos) else {
         return;
     };
@@ -487,6 +667,9 @@ pub(super) fn open(world: &mut World, player: Entity, clicked: IVec3) -> bool {
     let Some((kind, _)) = kind_at(world, clicked) else {
         return false;
     };
+    if mutation_locked(world, clicked) {
+        return true;
+    }
     if world
         .get::<ContainerWindows>(player)
         .is_none_or(|windows| windows.open_id().is_some())
@@ -592,14 +775,216 @@ pub(super) fn window_slots(
     world: &mut World,
     player: Entity,
     screen: BlockScreen,
-) -> Option<Inventory> {
-    let slots = if screen.kind == ContainerKind::EnderChest {
-        world.get::<EnderChestInventory>(player)?.0.clone()
-    } else {
-        let (kind, slots) = view(world, screen.at)?;
-        (kind == screen.kind).then_some(slots)?
-    };
-    (slots.size() == usize::from(screen.size)).then_some(slots)
+) -> Option<MutationView> {
+    MutationView::capture(world, screen.at, Some(player))
+        .filter(|view| view.kind == screen.kind && view.slots.size() == usize::from(screen.size))
+}
+
+/// Physical state read when preparing a logical inventory.
+type PhysicalBaseline = (IVec3, u32, Option<BlockEntity>, Option<BlockContainer>);
+
+/// Owned logical view and every physical/cache baseline participating in it.
+/// No container/world borrow survives native authorization callbacks.
+#[derive(Clone)]
+pub(super) struct MutationView {
+    pub(super) kind: ContainerKind,
+    pub(super) positions: Vec<IVec3>,
+    pub(super) slots: Inventory,
+    before_slots: Inventory,
+    cells: Vec<PhysicalBaseline>,
+    pair_dependency: Option<(IVec3, Option<PhysicalBaseline>)>,
+    prepared: Vec<BlockContainer>,
+    ender: Option<Entity>,
+}
+
+impl MutationView {
+    /// Copy a canonical view without repairing pairs, unpacking loot or saving
+    /// actors. Lazy materialization is part of the owned accepted replacement.
+    pub(super) fn capture(world: &mut World, pos: IVec3, player: Option<Entity>) -> Option<Self> {
+        if mutation_locked(world, pos) {
+            return None;
+        }
+        let kind = kind_at(world, pos)?.0;
+        if kind == ContainerKind::EnderChest {
+            let player = player?;
+            let slots = world.get::<EnderChestInventory>(player)?.0.clone();
+            return Some(Self {
+                kind,
+                positions: vec![pos],
+                before_slots: slots.clone(),
+                slots,
+                cells: vec![cell_baseline(world, pos)?],
+                pair_dependency: None,
+                prepared: Vec::new(),
+                ender: Some(player),
+            });
+        }
+        load(world, pos)?;
+        let mut first = container(world, pos)?.clone();
+        let mut prepared = vec![first.clone()];
+        let partner = pair_pos(&first);
+        if let Some(other) = partner {
+            let valid = kind.pairs()
+                && load(world, other) == Some(kind)
+                && container(world, other).and_then(pair_pos) == Some(pos);
+            if valid {
+                let partner = container(world, other)?.clone();
+                if first.pair?.lead {
+                    prepared.push(partner);
+                } else {
+                    prepared.insert(0, partner);
+                }
+            } else {
+                first.pair = None;
+                prepared[0] = first;
+            }
+        }
+        let positions = prepared
+            .iter()
+            .map(|cell| cell.position)
+            .collect::<Vec<_>>();
+        let pair_dependency = partner
+            .filter(|other| !positions.contains(other))
+            .map(|other| (other, cell_baseline(world, other)));
+        let cells = positions
+            .iter()
+            .map(|&pos| cell_baseline(world, pos))
+            .collect::<Option<Vec<_>>>()?;
+        let before_slots = Inventory::from_slots(
+            prepared
+                .iter()
+                .flat_map(|cell| cell.items.slots().iter().cloned())
+                .collect(),
+        );
+        for cell in &mut prepared {
+            prepare_loot(world, cell);
+        }
+        let slots = Inventory::from_slots(
+            prepared
+                .iter()
+                .flat_map(|cell| cell.items.slots().iter().cloned())
+                .collect(),
+        );
+        Some(Self {
+            kind,
+            positions,
+            slots,
+            before_slots,
+            cells,
+            pair_dependency,
+            prepared,
+            ender: None,
+        })
+    }
+
+    /// Reject changed blocks, raw actor data, decoded metadata, pair topology,
+    /// slots, timers, reservations and player-owned ender contents.
+    pub(super) fn matches(&self, world: &World) -> bool {
+        if let Some(player) = self.ender
+            && world
+                .get::<EnderChestInventory>(player)
+                .map(|ender| &ender.0)
+                != Some(&self.before_slots)
+        {
+            return false;
+        }
+        if self
+            .pair_dependency
+            .as_ref()
+            .is_some_and(|(pos, expected)| cell_baseline(world, *pos) != *expected)
+        {
+            return false;
+        }
+        self.cells.iter().all(|(pos, state, actor, cached)| {
+            !mutation_locked(world, *pos)
+                && cell_baseline(world, *pos).is_some_and(|current| {
+                    current.1 == *state
+                        && current.2.as_ref() == actor.as_ref()
+                        && current.3.as_ref() == cached.as_ref()
+                })
+        })
+    }
+
+    /// Whether lazily generated contents or pair repair still require publication.
+    fn needs_preparation(&self) -> bool {
+        self.prepared
+            .iter()
+            .zip(&self.cells)
+            .any(|(prepared, (_, _, _, cached))| Some(prepared) != cached.as_ref())
+    }
+
+    /// Apply lazy metadata/contents only inside an already accepted exclusive
+    /// frame, before ordinary window commit pays XP and writes final slot data.
+    pub(super) fn prepare(&self, world: &mut World) {
+        for (prepared, (_, _, _, cached)) in self.prepared.iter().zip(&self.cells) {
+            if Some(prepared) != cached.as_ref() {
+                *container_mut(world, prepared.position).expect("revalidated preparation") =
+                    prepared.clone();
+                save(world, prepared.position);
+            }
+        }
+    }
+
+    /// Publish prepared metadata and the final complete slots after revalidation.
+    fn install(&self, world: &mut World, slots: &Inventory) {
+        if let Some(player) = self.ender {
+            world
+                .get_mut::<EnderChestInventory>(player)
+                .expect("revalidated ender inventory")
+                .0 = slots.clone();
+            return;
+        }
+        let mut offset = 0;
+        for cell in &self.prepared {
+            let mut prepared = cell.clone();
+            for index in 0..prepared.items.size() {
+                prepared
+                    .items
+                    .set_item(
+                        index,
+                        slots
+                            .item(offset + index)
+                            .expect("complete canonical view")
+                            .clone(),
+                    )
+                    .unwrap();
+            }
+            offset += prepared.items.size();
+            *container_mut(world, cell.position).expect("revalidated container") = prepared;
+            save(world, cell.position);
+        }
+    }
+
+    /// Describe actual before slots, including materialization only in `after`.
+    pub(super) fn change(
+        &self,
+        after: &Inventory,
+    ) -> super::container_mutation::ContainerInventoryChange {
+        super::container_mutation::ContainerInventoryChange {
+            positions: self.positions.clone(),
+            kind: self.kind,
+            before: self.before_slots.slots().to_vec(),
+            after: after.slots().to_vec(),
+        }
+    }
+}
+
+/// Capture a loaded physical cell without creating, decoding or repairing it.
+fn cell_baseline(world: &World, pos: IVec3) -> Option<PhysicalBaseline> {
+    let state = super::blocks::block_at(world, (pos.x, pos.y, pos.z))?;
+    let chunk = chunk_entity(world, pos)?;
+    let actor = world
+        .get::<ChunkData>(chunk)?
+        .inner
+        .block_entities()
+        .iter()
+        .find(|actor| actor.position() == pos.to_array())
+        .cloned();
+    let cached = world
+        .get_resource::<BlockContainers>()
+        .and_then(|all| all.live.get(&pos))
+        .cloned();
+    Some((pos, state, actor, cached))
 }
 
 fn same_stack(a: &ItemStack, b: &ItemStack) -> bool {
@@ -619,6 +1004,9 @@ pub(super) fn commit_window(
     before: &Inventory,
     after: Inventory,
 ) {
+    if mutation_locked(world, screen.at) {
+        return;
+    }
     if before
         .slots()
         .iter()
@@ -857,6 +1245,9 @@ fn pair_candidates(pos: IVec3, direction: &str) -> [IVec3; 2] {
 
 /// A block was placed at `pos`: create its container actor and pair chests.
 pub(super) fn placed(world: &mut World, pos: IVec3) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let Some((kind, _)) = kind_at(world, pos) else {
         return;
     };
@@ -879,20 +1270,37 @@ pub(super) fn placed(world: &mut World, pos: IVec3) {
     save(world, pos);
 }
 
+/// Find the same eligible neighbour for both authorization and committed pairing.
+fn pair_target(
+    world: &mut World,
+    pos: IVec3,
+    kind: ContainerKind,
+    direction: &'static str,
+) -> Option<IVec3> {
+    for other in pair_candidates(pos, direction) {
+        if mutation_locked(world, other)
+            || kind_at(world, other).map(|(k, _)| k) != Some(kind)
+            || state_value(world, other, "minecraft:cardinal_direction")
+                != Some(StateValue::Str(direction))
+            || load(world, other).is_none()
+            || authorization_positions(world, other).len() != 1
+        {
+            continue;
+        }
+        return Some(other);
+    }
+    None
+}
+
+/// Pair an approved fresh chest with the same eligible neighbour resolved above.
 fn try_pair(world: &mut World, pos: IVec3, kind: ContainerKind) {
     let Some(StateValue::Str(direction)) = state_value(world, pos, "minecraft:cardinal_direction")
     else {
         return;
     };
-    for other in pair_candidates(pos, direction) {
-        if kind_at(world, other).map(|(k, _)| k) != Some(kind)
-            || state_value(world, other, "minecraft:cardinal_direction")
-                != Some(StateValue::Str(direction))
-            || load(world, other).is_none()
-            || halves(world, other).is_none_or(|(_, paired)| paired.is_some())
-        {
-            continue;
-        }
+    if let Some(other) = pair_target(world, pos, kind, direction) {
+        // Repair stale metadata before installing the new reciprocal pair.
+        let _ = halves(world, other);
         // The other chest's window grows from 27 to 54 slots.
         close_viewers(world, other, kind);
         if let Some(mut existing) = container_mut(world, other) {
@@ -913,7 +1321,6 @@ fn try_pair(world: &mut World, pos: IVec3, kind: ContainerKind) {
         save(world, pos);
         send_client_state(world, other);
         send_client_state(world, pos);
-        return;
     }
 }
 
@@ -927,6 +1334,9 @@ pub(super) struct BrokenContainer {
 /// Before the block at `pos` is removed: close its windows, unpair a double
 /// chest and take its contents out.
 pub(super) fn breaking(world: &mut World, pos: IVec3) -> Option<BrokenContainer> {
+    if mutation_locked(world, pos) {
+        return None;
+    }
     let kind = load(world, pos)?;
     unpack_loot(world, pos);
     close_viewers(world, pos, kind);
@@ -1029,6 +1439,9 @@ pub fn tick_block_containers(world: &mut World) {
         .map(|&pos| IVec3::from_array(pos))
         .collect();
     for pos in ticking {
+        if mutation_locked(world, pos) {
+            continue;
+        }
         match load(world, pos) {
             Some(kind) if kind.smelter().is_some() => tick_furnace(world, pos, kind),
             Some(ContainerKind::Hopper) => tick_hopper(world, pos),
@@ -1055,6 +1468,9 @@ fn upkeep_viewers(world: &mut World, tick: u64) {
         .copied()
         .collect();
     for lid in lids {
+        if mutation_locked(world, lid) {
+            continue;
+        }
         let viewers = world.resource::<BlockContainers>().viewers[&lid].clone();
         let kind = container(world, lid).map(|c| c.kind);
         let mut kept = Vec::with_capacity(viewers.len());
@@ -1171,9 +1587,15 @@ fn can_burn(world: &World, container: &BlockContainer) -> bool {
 }
 
 fn tick_furnace(world: &mut World, pos: IVec3, kind: ContainerKind) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let smelter = kind.smelter().expect("furnace kinds smelt");
     let cook = i32::from(smelter.cook_ticks);
-    let Some(snapshot) = container(world, pos).cloned() else {
+    let Some(baseline) = MutationView::capture(world, pos, None) else {
+        return;
+    };
+    let Some(snapshot) = baseline.prepared.first().cloned() else {
         return;
     };
     let mut furnace = snapshot.clone();
@@ -1236,6 +1658,16 @@ fn tick_furnace(world: &mut World, pos: IVec3, kind: ContainerKind) {
     if furnace.furnace == snapshot.furnace && !slots_changed && was_lit == lit {
         return;
     }
+    let Some(accepted) = container_mutation::authorize(
+        world,
+        ContainerMutationCause::Furnace { position: pos },
+        vec![baseline.change(&furnace.items)],
+    ) else {
+        return;
+    };
+    if !baseline.matches(world) {
+        return;
+    }
     if let Some(mut live) = container_mut(world, pos) {
         *live = furnace;
     }
@@ -1246,6 +1678,7 @@ fn tick_furnace(world: &mut World, pos: IVec3, kind: ContainerKind) {
     if slots_changed {
         refresh_viewers(world, pos, None);
     }
+    container_mutation::committed(world, accepted);
 }
 
 /// Swap between the lit and unlit block, keeping the facing.
@@ -1339,6 +1772,9 @@ fn extract_slots(kind: ContainerKind, slots: &Inventory) -> Vec<usize> {
 }
 
 fn tick_hopper(world: &mut World, pos: IVec3) {
+    if mutation_locked(world, pos) {
+        return;
+    }
     let disabled = matches!(
         state_value(world, pos, "toggle_bit"),
         Some(StateValue::Byte(1))
@@ -1361,108 +1797,209 @@ fn tick_hopper(world: &mut World, pos: IVec3) {
     if disabled {
         return;
     }
-    let pushed = hopper_push(world, pos);
-    let pulled = hopper_pull(world, pos);
-    if pushed || pulled {
-        if let Some(mut hopper) = container_mut(world, pos) {
-            hopper.transfer_cooldown = HOPPER_COOLDOWN;
-        }
-        save(world, pos);
-        refresh_viewers(world, pos, None);
-    }
+    hopper_push(world, pos);
+    hopper_pull(world, pos);
 }
 
+/// Finish one transfer before notifying callbacks; a nested operation cannot be
+/// overwritten by a caller's later cooldown or persistence update.
+fn finish_hopper_transfer(world: &mut World, pos: IVec3) {
+    if let Some(mut hopper) = container_mut(world, pos) {
+        hopper.transfer_cooldown = HOPPER_COOLDOWN;
+    }
+    save(world, pos);
+    refresh_viewers(world, pos, None);
+}
+
+/// Preserve ordinary lazy preparation on an automation reach even when no item
+/// fits, but authorize its complete owned result before any recipe is consumed.
+fn commit_preparation(world: &mut World, position: IVec3, views: &[&MutationView]) {
+    if !views.iter().any(|view| view.needs_preparation()) {
+        return;
+    }
+    let Some(accepted) = container_mutation::authorize(
+        world,
+        ContainerMutationCause::Hopper {
+            position,
+            item_entity: None,
+        },
+        views.iter().map(|view| view.change(&view.slots)).collect(),
+    ) else {
+        return;
+    };
+    if views.iter().any(|view| !view.matches(world)) {
+        return;
+    }
+    for view in views {
+        view.prepare(world);
+        refresh_viewers(world, view.positions[0], None);
+    }
+    container_mutation::committed(world, accepted);
+}
+
+/// Stage a hopper output transfer across both authoritative logical views.
 fn hopper_push(world: &mut World, pos: IVec3) -> bool {
     let target = hopper_target(world, pos);
-    let Some((target_kind, mut target_slots)) =
-        load(world, target).and_then(|_| view(world, target))
+    if mutation_locked(world, pos) || mutation_locked(world, target) {
+        return false;
+    }
+    let Some(source) =
+        MutationView::capture(world, pos, None).filter(|view| view.kind == ContainerKind::Hopper)
     else {
         return false;
     };
-    let Some(mut hopper) = container(world, pos).map(|c| c.items.clone()) else {
+    let Some(destination) = MutationView::capture(world, target, None) else {
         return false;
     };
+    let mut hopper = source.slots.clone();
+    let mut target_slots = destination.slots.clone();
     let from_above = target == pos + IVec3::NEG_Y;
     for slot in 0..hopper.size() {
         let stack = hopper.item(slot).unwrap().clone();
         if stack.is_empty() {
             continue;
         }
-        let Some(range) = insert_range(target_kind, target_slots.size(), &stack, from_above) else {
+        let Some(range) = insert_range(destination.kind, target_slots.size(), &stack, from_above)
+        else {
             continue;
         };
-        if insert_one(&mut target_slots, range, &stack) {
-            let _ = hopper.set_item(slot, stack.grow(-1));
-            if let Some(mut live) = container_mut(world, pos) {
-                live.items = hopper;
-            }
-            store_view(world, target, &target_slots);
-            refresh_viewers(world, target, None);
-            return true;
+        if !insert_one(&mut target_slots, range, &stack) {
+            continue;
         }
+        let _ = hopper.set_item(slot, stack.grow(-1));
+        let Some(accepted) = container_mutation::authorize(
+            world,
+            ContainerMutationCause::Hopper {
+                position: pos,
+                item_entity: None,
+            },
+            vec![source.change(&hopper), destination.change(&target_slots)],
+        ) else {
+            return false;
+        };
+        if !source.matches(world) || !destination.matches(world) {
+            return false;
+        }
+        source.install(world, &hopper);
+        destination.install(world, &target_slots);
+        refresh_viewers(world, target, None);
+        finish_hopper_transfer(world, pos);
+        container_mutation::committed(world, accepted);
+        return true;
     }
+    commit_preparation(world, pos, &[&source, &destination]);
     false
 }
 
+/// Stage pulling from another complete logical view before either side changes.
 fn hopper_pull(world: &mut World, pos: IVec3) -> bool {
     let above = pos + IVec3::Y;
-    let Some(mut hopper) = container(world, pos).map(|c| c.items.clone()) else {
+    if mutation_locked(world, pos) || mutation_locked(world, above) {
+        return false;
+    }
+    let Some(destination) =
+        MutationView::capture(world, pos, None).filter(|view| view.kind == ContainerKind::Hopper)
+    else {
         return false;
     };
+    let mut hopper = destination.slots.clone();
     let size = hopper.size();
-    if let Some((source_kind, mut source)) = load(world, above).and_then(|_| view(world, above)) {
-        for slot in extract_slots(source_kind, &source) {
-            let stack = source.item(slot).unwrap().clone();
+    if let Some(mut source) = MutationView::capture(world, above, None) {
+        let mut slots = source.slots.clone();
+        for slot in extract_slots(source.kind, &slots) {
+            let stack = slots.item(slot).unwrap().clone();
             if stack.is_empty() || !insert_one(&mut hopper, 0..size, &stack) {
                 continue;
             }
-            let _ = source.set_item(slot, stack.grow(-1));
-            if source_kind.smelter().is_some() && slot == 2 {
+            let _ = slots.set_item(slot, stack.grow(-1));
+            let Some(accepted) = container_mutation::authorize(
+                world,
+                ContainerMutationCause::Hopper {
+                    position: pos,
+                    item_entity: None,
+                },
+                vec![source.change(&slots), destination.change(&hopper)],
+            ) else {
+                return false;
+            };
+            if !source.matches(world) || !destination.matches(world) {
+                return false;
+            }
+            if source.kind.smelter().is_some() && slot == 2 {
                 let reward = (xp_multiplier(&stack) * 100.0) as i32;
-                if let Some(mut furnace) = container_mut(world, above) {
-                    furnace.furnace.stored_xp += reward;
-                }
+                source.prepared[0].furnace.stored_xp += reward;
             }
-            if let Some(mut live) = container_mut(world, pos) {
-                live.items = hopper;
-            }
-            store_view(world, above, &source);
+            destination.install(world, &hopper);
+            source.install(world, &slots);
             refresh_viewers(world, above, None);
+            finish_hopper_transfer(world, pos);
+            container_mutation::committed(world, accepted);
             return true;
         }
+        commit_preparation(world, pos, &[&source, &destination]);
         return false;
     }
-    pull_item_entities(world, pos, hopper)
+    pull_item_entities(world, pos)
 }
 
-/// Collect dropped items resting in the block space above the hopper.
-fn pull_item_entities(world: &mut World, pos: IVec3, mut hopper: Inventory) -> bool {
+/// Collect each item entity as its own atomic frame; a veto or stale entity
+/// preserves both that entity and the hopper, without losing earlier frames.
+fn pull_item_entities(world: &mut World, pos: IVec3) -> bool {
     let min = pos.as_dvec3() + DVec3::new(0.0, 0.5, 0.0);
     let max = pos.as_dvec3() + DVec3::new(1.0, 2.0, 1.0);
     let mut query =
         world.query_filtered::<(Entity, &Position, &ItemEntityStack), With<DroppedItem>>();
-    let candidates: Vec<(Entity, ItemStack)> = query
+    let candidates: Vec<_> = query
         .iter(world)
         .filter(|(_, position, stack)| {
             !stack.0.is_empty() && position.0.cmpge(min).all() && position.0.cmplt(max).all()
         })
-        .map(|(entity, _, stack)| (entity, stack.0.clone()))
+        .map(|(entity, position, stack)| (entity, position.0, stack.0.clone()))
         .collect();
     let mut changed = false;
-    for (entity, stack) in candidates {
-        let (added, leftover) = hopper.add_item(stack);
+    for (entity, position, stack) in candidates {
+        let Some(destination) = MutationView::capture(world, pos, None)
+            .filter(|view| view.kind == ContainerKind::Hopper)
+        else {
+            break;
+        };
+        let mut hopper = destination.slots.clone();
+        let (added, leftover) = hopper.add_item(stack.clone());
         if added == 0 {
             continue;
         }
-        changed = true;
+        let Some(accepted) = container_mutation::authorize(
+            world,
+            ContainerMutationCause::Hopper {
+                position: pos,
+                item_entity: Some(entity),
+            },
+            vec![destination.change(&hopper)],
+        ) else {
+            continue;
+        };
+        if !destination.matches(world)
+            || world.get::<DroppedItem>(entity).is_none()
+            || world.get::<Position>(entity).map(|pos| pos.0) != Some(position)
+            || world
+                .get::<ItemEntityStack>(entity)
+                .map(|item| (&item.0, item.0.net_id))
+                != Some((&stack, stack.net_id))
+        {
+            continue;
+        }
         if leftover.is_empty() {
             world.despawn(entity);
-        } else if let Some(mut item) = world.get_mut::<ItemEntityStack>(entity) {
-            item.0 = leftover;
+        } else {
+            world
+                .get_mut::<ItemEntityStack>(entity)
+                .expect("revalidated item")
+                .0 = leftover;
         }
-    }
-    if changed && let Some(mut live) = container_mut(world, pos) {
-        live.items = hopper;
+        destination.install(world, &hopper);
+        finish_hopper_transfer(world, pos);
+        container_mutation::committed(world, accepted);
+        changed = true;
     }
     changed
 }

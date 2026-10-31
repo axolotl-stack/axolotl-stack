@@ -11,6 +11,85 @@ use crate::server::game::join::{abilities_packet, game_type};
 use jolyne::valentine::UpdatePlayerGameTypePacket;
 use jolyne::valentine::types::ActorUniqueId;
 
+/// The durable base mode while `GameMode` carries a temporary effective mode.
+#[derive(bevy_ecs::prelude::Component)]
+struct ModeOverride {
+    base: GameMode,
+}
+
+/// Carry the durable base of an effective transient mode across native worlds.
+pub(crate) fn register_transfer_components(rules: &mut crate::server::worlds::TransferComponents) {
+    rules.preserve::<ModeOverride>();
+}
+
+/// The mode ordinary player persistence should retain after temporary overrides.
+pub fn base_game_mode(world: &World, player: Entity) -> Option<GameMode> {
+    world.get::<Player>(player)?;
+    world
+        .get::<ModeOverride>(player)
+        .map(|overlay| overlay.base)
+        .or_else(|| world.get::<GameMode>(player).copied())
+}
+
+/// The temporary effective mode, or `None` when ordinary base mode is active.
+pub fn mode_override(world: &World, player: Entity) -> Option<GameMode> {
+    world.get::<Player>(player)?;
+    world.get::<ModeOverride>(player)?;
+    world.get::<GameMode>(player).copied()
+}
+
+/// Apply or remove a temporary engine mode while preserving the durable base.
+/// Every game system reads the effective `GameMode`; ordinary saves use the base.
+/// Repeated requests are accepted without redundant mode packets. Returns false
+/// for entities missing the player marker or current mode. No inventories change.
+pub fn set_mode_override(world: &mut World, player: Entity, mode: Option<GameMode>) -> bool {
+    if world.get::<Player>(player).is_none() {
+        return false;
+    }
+    let Some(current) = world.get::<GameMode>(player).copied() else {
+        return false;
+    };
+    let effective = match mode {
+        Some(effective) => {
+            if world.get::<ModeOverride>(player).is_none() {
+                world
+                    .entity_mut(player)
+                    .insert(ModeOverride { base: current });
+            }
+            effective
+        }
+        None => {
+            let Some(base) = world
+                .get::<ModeOverride>(player)
+                .map(|overlay| overlay.base)
+            else {
+                return true;
+            };
+            world.entity_mut(player).remove::<ModeOverride>();
+            base
+        }
+    };
+    if current != effective {
+        apply_game_mode(world, player, effective);
+    }
+    true
+}
+
+/// Install a validated snapshot's base/effective pair in one packet transition.
+pub(crate) fn restore_game_mode(
+    world: &mut World,
+    player: Entity,
+    effective: GameMode,
+    base: Option<GameMode>,
+) {
+    if let Some(base) = base {
+        world.entity_mut(player).insert(ModeOverride { base });
+    } else {
+        world.entity_mut(player).remove::<ModeOverride>();
+    }
+    apply_game_mode(world, player, effective);
+}
+
 arg_enum! {
     /// The captured `GameMode` enum.
     pub enum GameModeName in "GameMode" {
@@ -86,11 +165,25 @@ fn mode_key(mode: GameMode) -> &'static str {
 /// BDS does), and the new mode's abilities. BDS sends no abilities update, but
 /// unastar's join abilities depend on the game mode (flight, instant build),
 /// so they are resent rather than left stale.
+/// An active temporary override remains effective; this operation updates only
+/// the durable base restored when the override is removed.
 pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
     if world.get::<Player>(player).is_none() {
         return;
     }
+    if let Some(mut overlay) = world.get_mut::<ModeOverride>(player) {
+        overlay.base = mode;
+        return;
+    }
+    apply_game_mode(world, player, mode);
+}
+
+/// Change the engine's effective mode and send its ordinary authoritative packets.
+fn apply_game_mode(world: &mut World, player: Entity, mode: GameMode) {
     world.entity_mut(player).insert(mode);
+    if crate::server::game::player_events::initial_state_pending(world, player) {
+        return;
+    }
     let runtime_id = world.get::<RuntimeEntityId>(player).map_or(0, |id| id.0);
     let operator = world.get::<crate::command::Operator>(player).is_some();
     let game_type = UpdatePlayerGameTypePacket {
@@ -102,10 +195,12 @@ pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
         tick: crate::entity::components::input_tick_of(world, player),
     };
     let abilities = abilities_packet(runtime_id, mode, operator);
-    let mut sessions = world.query::<&PlayerSession>();
-    for session in sessions.iter(world) {
-        let _ = session.send(game_type.clone().into());
-        let _ = session.send(abilities.clone().into());
+    let mut sessions = world.query::<(Entity, &PlayerSession)>();
+    for (viewer, session) in sessions.iter(world) {
+        if crate::server::broadcast::player_views::can_receive_actor(world, player, viewer) {
+            let _ = session.send(game_type.clone().into());
+            let _ = session.send(abilities.clone().into());
+        }
     }
 }
 
@@ -115,6 +210,93 @@ mod tests {
     use crate::command::exec::test_support::Harness;
     use jolyne::valentine::McpePacketData;
     use jolyne::valentine::types::EnumsGameType;
+
+    #[test]
+    fn temporary_mode_applies_engine_packets_while_commands_update_the_durable_base() {
+        use crate::entity::components::MainInventory;
+        let mut h = Harness::new();
+        let alice = h.player("Alice", true);
+        let item = crate::item::test_support::stack("minecraft:diamond", 3);
+        h.world()
+            .get_mut::<MainInventory>(alice)
+            .unwrap()
+            .0
+            .set_item(4, item.clone())
+            .unwrap();
+        assert!(set_mode_override(
+            h.world(),
+            alice,
+            Some(GameMode::Creative)
+        ));
+        assert_eq!(h.world().get::<GameMode>(alice), Some(&GameMode::Creative));
+        assert_eq!(base_game_mode(h.world(), alice), Some(GameMode::Survival));
+        let sent = h.sent(alice);
+        assert!(sent.iter().any(|packet| matches!(packet, McpePacketData::UpdatePlayerGameTypePacket(p) if p.player_game_type == EnumsGameType::Creative)));
+        assert!(
+            sent.iter()
+                .any(|packet| matches!(packet, McpePacketData::UpdateAbilitiesPacket(_)))
+        );
+        assert!(h.run(alice, "/gamemode adventure").is_success());
+        assert_eq!(base_game_mode(h.world(), alice), Some(GameMode::Adventure));
+        assert_eq!(h.world().get::<GameMode>(alice), Some(&GameMode::Creative));
+        assert!(
+            !h.sent(alice).iter().any(|packet| matches!(
+                packet,
+                McpePacketData::UpdatePlayerGameTypePacket(_)
+                    | McpePacketData::UpdateAbilitiesPacket(_)
+            )),
+            "changing only the base does not replace effective abilities"
+        );
+        assert!(set_mode_override(
+            h.world(),
+            alice,
+            Some(GameMode::Creative)
+        ));
+        assert!(
+            h.sent(alice).is_empty(),
+            "idempotent override does not resend"
+        );
+        assert!(set_mode_override(h.world(), alice, None));
+        assert_eq!(h.world().get::<GameMode>(alice), Some(&GameMode::Adventure));
+        assert_eq!(mode_override(h.world(), alice), None);
+        assert!(h.sent(alice).iter().any(|packet| matches!(packet, McpePacketData::UpdatePlayerGameTypePacket(p) if p.player_game_type == EnumsGameType::Adventure)));
+        assert_eq!(
+            h.world().get::<MainInventory>(alice).unwrap().0.item(4),
+            Some(&item)
+        );
+    }
+
+    #[test]
+    fn temporary_mode_rejects_nonplayers_and_handles_equal_base_and_effective_modes() {
+        let mut world = World::new();
+        let other = world.spawn(GameMode::Survival).id();
+        assert!(!set_mode_override(
+            &mut world,
+            other,
+            Some(GameMode::Creative)
+        ));
+        let incomplete = world.spawn(Player).id();
+        assert!(!set_mode_override(
+            &mut world,
+            incomplete,
+            Some(GameMode::Creative)
+        ));
+        assert_eq!(world.get::<GameMode>(other), Some(&GameMode::Survival));
+        let mut h = Harness::new();
+        let alice = h.player("Alice", false);
+        assert!(set_mode_override(
+            h.world(),
+            alice,
+            Some(GameMode::Survival)
+        ));
+        set_game_mode(h.world(), alice, GameMode::Adventure);
+        assert_eq!(h.world().get::<GameMode>(alice), Some(&GameMode::Survival));
+        assert!(set_mode_override(h.world(), alice, None));
+        assert_eq!(h.world().get::<GameMode>(alice), Some(&GameMode::Adventure));
+        h.sent(alice);
+        assert!(set_mode_override(h.world(), alice, None));
+        assert!(h.sent(alice).is_empty());
+    }
 
     #[test]
     fn game_mode_enum_covers_the_captured_values() {

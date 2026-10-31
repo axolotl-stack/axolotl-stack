@@ -50,6 +50,19 @@ pub struct Inventory {
     slots: Vec<ItemStack>,
 }
 
+/// Authoritative inventory equality includes slot network identities as well as
+/// item values; a semantically identical replacement is still a new baseline.
+impl PartialEq for Inventory {
+    fn eq(&self, other: &Self) -> bool {
+        self.slots.len() == other.slots.len()
+            && self
+                .slots
+                .iter()
+                .zip(&other.slots)
+                .all(|(left, right)| left == right && left.net_id == right.net_id)
+    }
+}
+
 impl Inventory {
     /// Create a new inventory with the given size.
     ///
@@ -282,7 +295,7 @@ pub mod armor_slots {
 /// Specialized armor inventory (4 slots).
 ///
 /// Provides type-safe accessors for each armor slot.
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, PartialEq)]
 pub struct ArmourInventory {
     inner: Inventory,
 }
@@ -403,7 +416,7 @@ impl ArmourInventory {
 // ============================================================================
 
 /// Main player inventory (36 slots: 9 hotbar + 27 main).
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, PartialEq)]
 pub struct MainInventory(pub Inventory);
 
 impl Default for MainInventory {
@@ -455,7 +468,7 @@ impl HeldSlot {
 
 /// The player UI container (window 124): cursor in slot 0, crafting grid in
 /// 28-40, created output in 50; 54 slots as BDS sends it at join.
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, PartialEq)]
 pub struct PlayerUi(pub Inventory);
 
 impl Default for PlayerUi {
@@ -513,7 +526,7 @@ pub struct BlockScreen {
 /// BDS numbers windows per player with a counter that wraps from 99 to 1;
 /// on a fresh connection the first window it opens (the player's own
 /// inventory) is 2, the next 3 (captured, `bds-quirks.md`).
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct ContainerWindows {
     last_id: u8,
     open: Option<(u8, ScreenKind)>,
@@ -558,7 +571,7 @@ impl ContainerWindows {
 
 /// The player's ender chest contents. Every ender chest shows the opener's
 /// own 27 slots; they are saved with the player, not the block.
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, PartialEq)]
 pub struct EnderChestInventory(pub Inventory);
 
 /// Slots of [`EnderChestInventory`].

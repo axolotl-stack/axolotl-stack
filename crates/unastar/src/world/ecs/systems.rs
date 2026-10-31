@@ -322,8 +322,12 @@ pub fn process_chunk_load_queues(
                     // Existing chunk - read from ChunkData component
                     chunks.get(chunk_entity).ok().map(|(_, chunk_data)| {
                         (
-                            chunk_data.inner.encode_biomes(),
-                            chunk_data.inner.highest_subchunk(),
+                            chunk_data
+                                .inner
+                                .encode_biomes_for_dimension(config.dimension),
+                            chunk_data
+                                .inner
+                                .highest_subchunk_for_dimension(config.dimension),
                         )
                     })
                 };
@@ -476,8 +480,12 @@ pub fn request_chunk_generation(
             if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) {
                 // Chunk exists - send it immediately
                 if let Ok(chunk_data) = chunks.get(chunk_entity) {
-                    let payload = chunk_data.inner.encode_biomes();
-                    let highest_subchunk = chunk_data.inner.highest_subchunk();
+                    let payload = chunk_data
+                        .inner
+                        .encode_biomes_for_dimension(config.dimension);
+                    let highest_subchunk = chunk_data
+                        .inner
+                        .highest_subchunk_for_dimension(config.dimension);
 
                     let packet = LevelChunkPacket {
                         chunk_position: ChunkPos { x: cx, z: cz },
@@ -590,8 +598,10 @@ pub fn process_completed_generations(
         let viewers = chunk_manager.complete_generation(x, z).unwrap_or_default();
 
         // Encode BEFORE spawning to avoid clone
-        let biome_data = column.chunk.encode_biomes();
-        let highest_subchunk = column.chunk.highest_subchunk();
+        let biome_data = column.chunk.encode_biomes_for_dimension(config.dimension);
+        let highest_subchunk = column
+            .chunk
+            .highest_subchunk_for_dimension(config.dimension);
 
         // Spawn chunk entity; stored actors are restored by `restore_chunk_actors`.
         let pos = ChunkPosition::new(x, z);

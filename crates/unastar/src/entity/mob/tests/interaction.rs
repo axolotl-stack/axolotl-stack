@@ -220,6 +220,79 @@ fn feed_data(world: &World, item: &str) -> i32 {
 }
 
 #[test]
+fn pending_viewer_receives_no_mob_snapshot_or_attributed_sound() {
+    let mut h = harness(GameMode::Survival);
+    let viewer = h.player;
+    assert!(crate::server::game::player_events::defer_initial_state(
+        h.world(),
+        viewer
+    ));
+    let cow = h.adult_cow(4.5, 4.5);
+    let mut network = Schedule::default();
+    network.add_systems(crate::entity::mob::net::network::sync_mob_viewers);
+    network.run(h.world());
+    crate::entity::mob::net::sound::play_level_sound(
+        h.world(),
+        Some(cow),
+        DVec3::new(4.5, 64.0, 4.5),
+        "Hurt",
+        -1,
+    );
+    assert!(h.packets().is_empty());
+    h.world()
+        .entity_mut(viewer)
+        .remove::<crate::server::game::player_events::PendingInitialState>();
+    network.run(h.world());
+    assert!(
+        h.packets()
+            .iter()
+            .any(|packet| matches!(packet, McpePacketData::AddActorPacket(_)))
+    );
+}
+
+#[test]
+fn mob_audience_reconciles_spawn_removal_sounds_and_current_reveal() {
+    use crate::entity::components::ActorAudience;
+    use crate::entity::mob::net::{network::sync_mob_viewers, sound};
+    let mut h = harness(GameMode::Survival);
+    let cow = h.adult_cow(4.5, 4.5);
+    let mut network = Schedule::default();
+    network.add_systems(sync_mob_viewers);
+    network.run(h.world());
+    assert!(
+        h.packets()
+            .iter()
+            .any(|packet| matches!(packet, McpePacketData::AddActorPacket(_)))
+    );
+    h.world().entity_mut(cow).insert(ActorAudience::only([]));
+    network.run(h.world());
+    assert!(matches!(
+        h.packets().as_slice(),
+        [McpePacketData::RemoveActorPacket(_)]
+    ));
+    h.world().get_mut::<Position>(cow).unwrap().0.x = 6.0;
+    network.run(h.world());
+    sound::play_level_sound(h.world(), Some(cow), DVec3::new(6.0, 64.0, 4.5), "Hurt", -1);
+    assert!(
+        h.packets().is_empty(),
+        "hidden mob has no movement or attributed sound"
+    );
+    let viewer = h.player;
+    h.world()
+        .entity_mut(cow)
+        .insert(ActorAudience::only([viewer]));
+    network.run(h.world());
+    assert!(h.packets().iter().any(
+        |packet| matches!(packet, McpePacketData::AddActorPacket(add) if add.position.x == 6.0)
+    ));
+    sound::play_level_sound(h.world(), Some(cow), DVec3::new(6.0, 64.0, 4.5), "Hurt", -1);
+    assert!(matches!(
+        h.packets().as_slice(),
+        [McpePacketData::LevelSoundEventPacket(_)]
+    ));
+}
+
+#[test]
 fn wheat_puts_adult_cows_in_love_and_mating_breeds_a_baby() {
     let mut h = harness(GameMode::Survival);
     let a = h.adult_cow(6.5, 8.5);

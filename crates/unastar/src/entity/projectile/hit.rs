@@ -16,7 +16,7 @@ use crate::entity::definition::apply_pending_definitions;
 use crate::entity::mob::combat::{Hit, hurt_mob, knockback_power_of};
 use crate::entity::mob::constants::{ICONCRACK_ITEM_SHIFT, PROJECTILE_PARTICLE_LEVEL_EVENT};
 use crate::entity::mob::events::{MobFacts, fire_event};
-use crate::entity::mob::net::sound::{level_event, play_level_sound};
+use crate::entity::mob::net::sound::{level_event_from, play_level_sound};
 use crate::entity::mob::{MobKind, MobRegistry, SpawnCause, derive_entity, spawn_mob};
 use crate::entity::systems::physics::collect_block_boxes;
 use crate::registry::collision::Aabb;
@@ -31,7 +31,78 @@ pub(super) fn on_hit(
     rules: &ProjectileRules,
     at: DVec3,
     target: Target,
+    collision_at: DVec3,
 ) -> bool {
+    let target_kind = match target {
+        Target::Block => super::hooks::ProjectileImpactTarget::Block,
+        Target::Actor(actor) => super::hooks::ProjectileImpactTarget::Entity(actor),
+    };
+    if !super::hooks::impact(world, projectile, owner, target_kind, collision_at) {
+        return true;
+    }
+    if rules.teleport_owner {
+        super::pearl::teleport_owner(world, projectile, owner, collision_at);
+    }
+    if world.get_entity(projectile).is_err() {
+        return true;
+    }
+    let potion = world
+        .get::<crate::server::game::potions::ProjectilePotion>(projectile)
+        .cloned();
+    if rules.douse_fire && potion.as_ref().is_some_and(|potion| potion.aux == 0) {
+        super::potions::douse(world, projectile, collision_at);
+        super::potions::douse_actors(world, projectile, collision_at);
+    }
+    if world.get_entity(projectile).is_err() {
+        return true;
+    }
+    if let Some(aux) = rules.thrown_potion {
+        let potion = if aux == -1 {
+            potion.clone()
+        } else {
+            i16::try_from(aux).ok().and_then(|aux| {
+                crate::server::game::potions::ProjectilePotion::from_aux(world, aux)
+            })
+        };
+        if let Some(potion) = potion {
+            let direct = match target {
+                Target::Actor(actor) => Some(actor),
+                Target::Block => None,
+            };
+            super::potions::splash(world, projectile, &potion, collision_at, direct, 1.0);
+        }
+    }
+    if world.get_entity(projectile).is_err() {
+        return true;
+    }
+    if let Some(cloud) = &rules.cloud {
+        let potion = if cloud.potion == -1 {
+            potion
+        } else {
+            i16::try_from(cloud.potion).ok().and_then(|aux| {
+                crate::server::game::potions::ProjectilePotion::from_aux(world, aux)
+            })
+        };
+        if let Some(potion) = potion {
+            let direct = match target {
+                Target::Actor(actor) => Some(actor),
+                Target::Block => None,
+            };
+            super::potions::splash(world, projectile, &potion, collision_at, direct, 0.25);
+            if world.get_entity(projectile).is_ok() {
+                super::cloud::spawn(world, owner, collision_at, potion, cloud);
+            }
+        }
+    }
+    if let Some(potion) = world.get::<crate::server::game::potions::ProjectilePotion>(projectile) {
+        level_event_from(
+            world,
+            Some(projectile),
+            collision_at,
+            2002,
+            (potion.profile.color | 0xff000000) as i32,
+        );
+    }
     let mut removed = false;
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
         let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);
@@ -213,7 +284,13 @@ fn emit_particles(
         particle.particle
     };
     for _ in 0..particle.count {
-        level_event(world, at, PROJECTILE_PARTICLE_LEVEL_EVENT, data);
+        level_event_from(
+            world,
+            Some(projectile),
+            at,
+            PROJECTILE_PARTICLE_LEVEL_EVENT,
+            data,
+        );
     }
 }
 

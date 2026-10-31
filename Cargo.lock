@@ -1746,7 +1746,7 @@ dependencies = [
 
 [[package]]
 name = "example_plugin"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "unastar_api",
  "unastar_api_macros",
@@ -5448,7 +5448,7 @@ dependencies = [
 
 [[package]]
 name = "unastar_api"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "wit-bindgen 0.53.0",

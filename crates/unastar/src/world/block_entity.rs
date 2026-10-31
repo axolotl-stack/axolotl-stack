@@ -49,6 +49,15 @@ impl BlockEntity {
         self.position
     }
 
+    /// Borrow rooted Bedrock network NBT without converting a Java recipe or
+    /// panicking when conversion has not happened yet.
+    pub fn bedrock_nbt(&self) -> Option<&Nbt> {
+        match &self.data {
+            ActorData::Bedrock(nbt) => Some(nbt),
+            ActorData::Java(_) | ActorData::JavaPending(_) => None,
+        }
+    }
+
     pub fn network_nbt(&self) -> &Nbt {
         match &self.data {
             ActorData::Bedrock(nbt) => nbt,

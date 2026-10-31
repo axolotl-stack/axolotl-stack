@@ -9,6 +9,7 @@
 //! - BlazeDB - high-performance with spatial indexing
 
 mod keys;
+pub mod player_writer;
 mod provider;
 
 // LevelDB implementations

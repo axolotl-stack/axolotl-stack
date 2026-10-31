@@ -6,7 +6,7 @@
 //! capture.
 
 use bevy_ecs::prelude::*;
-use jolyne::valentine::types::{ActorRuntimeId, AttributeData};
+use jolyne::valentine::types::{ActorRuntimeId, AttributeData, AttributeModifier};
 use jolyne::valentine::{McpePacket, UpdateAttributesPacket};
 
 use crate::entity::components::{Experience, Health, Hunger, PlayerSession, RuntimeEntityId};
@@ -26,6 +26,23 @@ fn movement() -> AttributeData {
     }
 }
 
+/// The ordinary player movement attribute after applying its cold exposure.
+pub(crate) fn movement_with_cold(cold: crate::entity::freezing::FreezingState) -> AttributeData {
+    let mut attribute = movement();
+    attribute.current_value = cold.movement(attribute.current_value);
+    if cold.strength() > f32::EPSILON {
+        attribute.modifiers.push(AttributeModifier {
+            id: "f1800c58-22ab-11eb-adc1-0242ac120002".into(),
+            name: "Freeze effect".into(),
+            amount: cold.movement_adjustment(),
+            operation: 0,
+            operand: 2,
+            is_serializable: true,
+        });
+    }
+    attribute
+}
+
 /// `minecraft:player.hunger`, `player.saturation` and `player.exhaustion`.
 pub fn hunger_attributes(hunger: &Hunger) -> [AttributeData; 3] {
     [
@@ -42,10 +59,27 @@ pub fn player_attributes(
     absorption: f32,
     experience: &Experience,
 ) -> Vec<AttributeData> {
+    player_attributes_with_cold(
+        health,
+        hunger,
+        absorption,
+        experience,
+        crate::entity::freezing::FreezingState::default(),
+    )
+}
+
+/// Joining attributes preserve a restored actor's cold movement contribution.
+pub fn player_attributes_with_cold(
+    health: &Health,
+    hunger: &Hunger,
+    absorption: f32,
+    experience: &Experience,
+    cold: crate::entity::freezing::FreezingState,
+) -> Vec<AttributeData> {
     let mut attributes = vec![
         wire::health(health),
         wire::absorption(absorption),
-        movement(),
+        movement_with_cold(cold),
     ];
     attributes.extend(hunger_attributes(hunger));
     attributes.extend(crate::entity::xp_orb::experience_attributes(experience));
@@ -54,6 +88,9 @@ pub fn player_attributes(
 
 /// Send `attributes` of `player` to its own client.
 pub fn send_attributes(world: &World, player: Entity, attributes: Vec<AttributeData>) {
+    if crate::server::game::player_events::initial_state_pending(world, player) {
+        return;
+    }
     let (Some(session), Some(runtime_id)) = (
         world.get::<PlayerSession>(player),
         world.get::<RuntimeEntityId>(player),

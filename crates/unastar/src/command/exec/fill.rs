@@ -150,6 +150,9 @@ pub fn run(ctx: &mut CommandContext<'_>, args: FillArgs) -> CommandResult {
     if !box_loaded(ctx.world, min, max) {
         return failure!("commands.fill.outOfWorld");
     }
+    if crate::server::game::container_area_locked(ctx.world, min, max) {
+        return failure!("commands.fill.failed");
+    }
 
     let mut changed = 0usize;
     for x in min.x..=max.x {
