@@ -98,6 +98,8 @@ pub struct AiScratch {
     /// Item pickups, equips and pickup events of this tick; made once the
     /// AI's resource scopes end (they spawn items and fire events).
     gear: Vec<(Entity, pickup::GearWork)>,
+    /// New targets whose lifecycle events run after the AI's RNG scope ends.
+    acquired: Vec<(Entity, Entity)>,
     /// Door collision boxes for [`break_door`].
     boxes: Vec<Aabb>,
 }
@@ -193,11 +195,15 @@ pub fn tick_mob_ai(
                         &mut scratch.eaten,
                         &mut scratch.attacks,
                         &mut scratch.gear,
+                        &mut scratch.acquired,
                     );
                 }
             }
         });
     });
+    for (entity, target) in scratch.acquired.drain(..) {
+        super::life::triggers::target_acquired(world, entity, target);
+    }
     for entity in scratch.eaten.drain(..) {
         eat_block::finish_eating(world, entity);
     }
@@ -367,6 +373,7 @@ fn apply(
     eaten: &mut Vec<Entity>,
     attacks: &mut Vec<(Entity, Entity)>,
     gear: &mut Vec<(Entity, pickup::GearWork)>,
+    acquired_events: &mut Vec<(Entity, Entity)>,
 ) {
     let Output {
         yaw,
@@ -389,17 +396,25 @@ fn apply(
     if effects.persistent && !mob.contains::<Persistent>() {
         mob.insert(Persistent);
     }
-    match effects.target {
+    let acquired = match effects.target {
         Some(Some(target)) => {
+            let changed = mob
+                .get::<AttackTarget>()
+                .is_none_or(|before| before.0 != target);
             mob.insert(AttackTarget(target));
+            changed.then_some(target)
         }
         Some(None) => {
             mob.remove::<AttackTarget>();
+            None
         }
-        None => {}
-    }
+        None => None,
+    };
     if let Some(tempted) = effects.tempted {
         set_flag(&mut mob, actor_flags::TEMPTED, tempted);
+    }
+    if let Some(target) = acquired {
+        acquired_events.push((entity, target));
     }
     if let Some(request) = effects.mate
         && let Some(mut messages) = world.get_resource_mut::<Messages<MateRequest>>()

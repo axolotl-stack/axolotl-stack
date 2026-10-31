@@ -7,7 +7,7 @@ use std::sync::Arc;
 use bevy_ecs::prelude::*;
 use thiserror::Error;
 use unastar_data::actor_components::body::{
-    self, AttackDamage, EntityTypes, EquipmentSlot, EventTrigger, MobDescriptor,
+    self, AttackDamage, EntityTypes, EquipmentSlot, EventTrigger, MobDescriptor, ValueOrRange,
 };
 use unastar_rules::filter::Filter;
 
@@ -27,6 +27,10 @@ pub enum HostileError {
     AttackTypes(String),
     #[error("burns_in_daylight protection slot {0:?} is not a head, chest, legs or feet slot")]
     ProtectionSlot(EquipmentSlot),
+    #[error(
+        "follow_range requires a finite nonnegative fixed value and an optional maximum at least that value"
+    )]
+    FollowRange,
     #[error(transparent)]
     Filter(#[from] FilterError),
     #[error(transparent)]
@@ -134,6 +138,14 @@ pub struct HurtByTargetGoal {
     pub base: TargetGoalBase,
 }
 
+/// `minecraft:follow_range`: explicit pursuit distance overrides a target
+/// goal's legacy `within_radius` field. Both acquisition and retention use it.
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct FollowRangeConfig {
+    pub value: f32,
+    pub max: Option<f32>,
+}
+
 /// `minecraft:burns_in_daylight`: an item in `protection_slot` keeps the
 /// mob from catching fire in daylight.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
@@ -148,6 +160,7 @@ pub fn register_component_kinds(
     insert(builder, compile_attack)?;
     insert(builder, compile_melee_box_attack)?;
     insert(builder, compile_nearest_attackable_target)?;
+    insert(builder, compile_follow_range)?;
     insert(builder, |b: body::BehaviorHurtByTarget| {
         Ok::<_, HostileError>(HurtByTargetGoal {
             base: TargetGoalBase {
@@ -167,6 +180,24 @@ pub fn register_component_kinds(
                 .filter(|slot| !slot.is_hand())
                 .ok_or(HostileError::ProtectionSlot(b.protection_slot))?,
         })
+    })
+}
+
+/// Reject unsupported randomized attributes and invalid pursuit bounds at
+/// startup instead of letting nonfinite or contradictory data reach AI.
+fn compile_follow_range(body: body::FollowRange) -> Result<FollowRangeConfig, HostileError> {
+    let ValueOrRange::Value(value) = body.value else {
+        return Err(HostileError::FollowRange);
+    };
+    if !value.is_finite()
+        || value < 0.0
+        || body.max.is_some_and(|max| !max.is_finite() || max < value)
+    {
+        return Err(HostileError::FollowRange);
+    }
+    Ok(FollowRangeConfig {
+        value,
+        max: body.max,
     })
 }
 
@@ -340,4 +371,26 @@ fn compile_nearest_attackable_target(
         target_search_height: b.target_search_height,
         target_sneak_visibility_multiplier: b.target_sneak_visibility_multiplier,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use unastar_data::actor_components::decode;
+
+    #[test]
+    fn follow_range_rejects_invalid_and_randomized_bounds_at_compile_time() {
+        for json in [
+            serde_json::json!({"value":-1}),
+            serde_json::json!({"value":8,"max":4}),
+            serde_json::json!({"value":{"range_min":4,"range_max":8}}),
+        ] {
+            assert!(compile_follow_range(decode(&json).unwrap()).is_err());
+        }
+        let config =
+            compile_follow_range(decode(&serde_json::json!({"value":64,"max":64})).unwrap())
+                .unwrap();
+        assert_eq!(config.value, 64.0);
+        assert_eq!(config.max, Some(64.0));
+    }
 }

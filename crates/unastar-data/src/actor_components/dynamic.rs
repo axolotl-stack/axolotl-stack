@@ -41,6 +41,15 @@ pub enum ValueOrRange<T> {
     Range(RandomRange<T>),
 }
 
+/// `minecraft:follow_range`: authored pursuit distance and optional bound.
+/// The published component has no implicit starting value.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FollowRange {
+    pub value: ValueOrRange<f32>,
+    pub max: Option<f32>,
+}
+
 /// A variant mutation interval: a single value or an inclusive `[min, max]`.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -1330,6 +1339,7 @@ dynamic_bodies!(
     EnvironmentSensor,
     EquipItem,
     Equipment,
+    FollowRange,
     Health,
     HurtOnCondition,
     IsDyeable,
