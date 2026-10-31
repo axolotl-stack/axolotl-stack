@@ -1082,3 +1082,11 @@ host validates its identity and publishes the initial batch once after the ECS
 tick. Released retained actors can become visible without an attached transport.
 A published actor cannot be deferred again. These hooks coordinate publication;
 extensions remain responsible for completing or rejecting their initialization.
+
+Deferred native snapshot restoration also withholds direct mode, teleport,
+attribute, effect, life and motion packets. Tick replication keeps pending state
+out of each client's sent-state cache. After release, the initial batch is
+followed by the current validated snapshot presentation, including final position,
+velocity, life state and effect particle/ambient flags; ordinary tick replication
+then resumes without replaying that effect set. Pending viewers receive no
+mob or item actor snapshots.

@@ -789,7 +789,10 @@ fn actor_spawn_packet(
 pub fn sync_actor_viewers(
     chunk_manager: Res<ChunkManager>,
     chunk_viewers: Query<&ChunkViewers>,
-    sessions: Query<&PlayerSession>,
+    sessions: Query<
+        &PlayerSession,
+        Without<crate::server::game::player_events::PendingInitialState>,
+    >,
     items: Res<ItemRegistryResource>,
     config: Res<crate::server::game::types::ServerConfigResource>,
     mut actors: Query<
