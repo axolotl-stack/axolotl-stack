@@ -1042,3 +1042,9 @@ of the native writer, reads all three codecs, and independently inflates/checksu
 the provider's actual compacted tables. This catches failures hidden by successful
 reads from an uncompressed write-ahead log. After changing native build flags,
 use `cargo clean -p bleveldb-sys` before the acceptance run.
+
+Native lifecycle handlers also receive `PlayerDamaged` after positive health
+loss, with the actual removed health and validated hit, before a possible death
+notification. Cancelled, invalid and hurt-timer-suppressed hits do not emit it.
+Use `PlayerDamage` to authorize attempts and `PlayerDamaged` to account for
+committed hits.

@@ -2,7 +2,9 @@
 //!
 //! Register a [`PlayerLifecycleHandler`] in [`PlayerLifecycleHooks`], or install
 //! Bevy observers for the event types in this module. Handlers run first, then
-//! observers; both finish before the operation commits. Cancellation is sticky.
+//! observers; cancellable hooks finish before the operation commits.
+//! Committed notifications run after the corresponding state change.
+//! Cancellation is sticky.
 //! Damage is the incoming amount, before difficulty, armour and the hurt timer.
 //!
 //! Handlers run without any engine lock or borrowed registry. They may access
@@ -54,6 +56,19 @@ impl PlayerDamage {
             cancelled: false,
         }
     }
+}
+
+/// A native notification of positive health loss, after ordinary hit effects
+/// and before a possible death. Cancelled, invalid and hurt-timer-suppressed
+/// hits do not emit this event. This notification cannot cancel committed loss.
+#[derive(Event, Debug, Clone, Copy)]
+pub struct PlayerDamaged {
+    /// Player whose health changed.
+    pub player: Entity,
+    /// The validated incoming hit after pre-damage hooks.
+    pub hit: Hit,
+    /// Actual health removed, after difficulty, armour and the hurt timer.
+    pub damage: f32,
 }
 
 /// A committed player death, after the dead marker and ordinary drops are
@@ -123,6 +138,9 @@ pub trait PlayerLifecycleHandler: Send + Sync + 'static {
     /// Inspect, adjust or cancel a proposed hit before it commits.
     fn on_damage(&self, _world: &mut World, _event: &mut PlayerDamage) {}
 
+    /// Observe positive health loss before a possible death notification.
+    fn on_damaged(&self, _world: &mut World, _event: &PlayerDamaged) {}
+
     /// Observe a death that has committed exactly once.
     fn on_death(&self, _world: &mut World, _event: &PlayerDeath) {}
 
@@ -162,6 +180,14 @@ pub(super) fn damage(world: &mut World, event: &mut PlayerDamage) {
         handler.on_damage(world, event);
     }
     world.trigger_ref(event);
+}
+
+/// Report actual positive health loss without exposing an uncommitted attempt.
+pub(super) fn damaged(world: &mut World, event: PlayerDamaged) {
+    for handler in handlers(world) {
+        handler.on_damaged(world, &event);
+    }
+    world.trigger(event);
 }
 
 /// Report a committed death to handlers and immediate observers.

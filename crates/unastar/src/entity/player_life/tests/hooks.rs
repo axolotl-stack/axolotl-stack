@@ -350,3 +350,77 @@ fn kill_reports_false_when_damage_is_cancelled_or_reduced_to_nonlethal() {
     assert!(!crate::entity::player_life::kill_player(h.world(), player));
     assert_eq!(h.health(), 19.0);
 }
+
+/// Preserve notification order and the state visible after health loss.
+#[derive(Resource, Default)]
+struct DamageNotifications(Vec<(&'static str, f32, f32)>);
+
+/// Record actual damage separately from attempts and eventual death.
+struct RecordDamage;
+
+impl PlayerLifecycleHandler for RecordDamage {
+    fn on_damaged(
+        &self,
+        world: &mut World,
+        event: &crate::entity::player_life::hooks::PlayerDamaged,
+    ) {
+        let health = world.get::<Health>(event.player).unwrap().current;
+        assert!(
+            world
+                .get::<crate::entity::player_life::Dead>(event.player)
+                .is_none()
+        );
+        world
+            .resource_mut::<DamageNotifications>()
+            .0
+            .push(("damage", event.damage, health));
+    }
+
+    fn on_death(&self, world: &mut World, event: &PlayerDeath) {
+        assert!(
+            world
+                .get::<crate::entity::player_life::Dead>(event.player)
+                .is_some()
+        );
+        world
+            .resource_mut::<DamageNotifications>()
+            .0
+            .push(("death", 0.0, 0.0));
+    }
+}
+
+#[test]
+fn committed_damage_notifications_exclude_cancelled_and_suppressed_hits_and_precede_death() {
+    let mut h = harness(Difficulty::Normal);
+    h.world().init_resource::<DamageNotifications>();
+    h.world()
+        .resource_mut::<PlayerLifecycleHooks>()
+        .register(RecordDamage);
+    let cow = h.cow();
+    assert_eq!(h.hit_from(cow, 4.0), 4.0);
+    assert_eq!(h.hit_from(cow, 4.0), 0.0);
+    assert_eq!(
+        h.world().resource::<DamageNotifications>().0,
+        vec![("damage", 4.0, 16.0)]
+    );
+    assert_eq!(h.hit_from(cow, 100.0), 16.0);
+    assert_eq!(
+        h.world().resource::<DamageNotifications>().0,
+        vec![
+            ("damage", 4.0, 16.0),
+            ("damage", 16.0, 0.0),
+            ("death", 0.0, 0.0)
+        ]
+    );
+
+    let mut h = harness(Difficulty::Normal);
+    h.world().init_resource::<DamageNotifications>();
+    h.world()
+        .resource_mut::<PlayerLifecycleHooks>()
+        .register(RecordDamage);
+    h.world()
+        .add_observer(|mut event: On<PlayerDamage>| event.cancel());
+    let cow = h.cow();
+    assert_eq!(h.hit_from(cow, 100.0), 0.0);
+    assert!(h.world().resource::<DamageNotifications>().0.is_empty());
+}
