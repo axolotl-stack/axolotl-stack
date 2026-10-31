@@ -1231,3 +1231,20 @@ These APIs cover actor representation; player-list and skin support is outside
 this capability. The visible-effect metadata packing follows
 [Dragonfly v0.10.13](https://github.com/df-mc/dragonfly/blob/v0.10.13/server/session/entity_metadata.go),
 under the [MIT license](licenses/dragonfly-MIT.txt).
+
+`command::exec::set_mode_override(world, player, Some(mode))` applies a temporary
+engine game mode with its ordinary mode/abilities packets. The `GameMode`
+component remains the effective mode read by inventory, damage, mining and other
+systems; authoritative inventory contents do not change. Replacing the override
+keeps the original base, and passing `None` restores it. Native `/gamemode` and
+`set_game_mode` update the durable base while an override is active.
+`base_game_mode` and `mode_override` expose those two facts without mutable access.
+
+Ordinary player saves retain the base mode, so reconnecting does not persist a
+temporary override. Raw `PlayerSnapshot` captures the effective mode in
+`data.game_mode` and, when overridden, its base in optional `base_game_mode`.
+Restoration validates both mode IDs before any mutation, then reinstalls the
+explicit pair in one mode/abilities transition. A missing base field clears any
+current override and restores the snapshot's ordinary mode; older snapshots
+remain readable. Captured equal base/effective modes retain the explicit override
+so later base changes still wait until its removal.
