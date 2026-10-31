@@ -12,6 +12,12 @@ use glam::DVec3;
 
 use crate::entity::components::{PlayerSession, PlayerUuid};
 
+mod initial_state;
+pub(crate) use initial_state::{InitialStatePublished, ready_initial_states};
+pub use initial_state::{
+    PendingInitialState, defer_initial_state, initial_state_pending, release_initial_state,
+};
+
 /// Immutable identity of the connection that produced an event.
 #[derive(Clone, Debug)]
 pub struct ConnectionIdentity {
