@@ -467,6 +467,7 @@ impl GameServer {
             (
                 crate::entity::definition::apply_pending_definitions,
                 crate::entity::mob::derive_mob_state,
+                crate::entity::mob::step::update_step_heights,
                 tick_physics,
             )
                 .chain()
@@ -487,7 +488,7 @@ impl GameServer {
             )
                 .chain()
                 .in_set(PhysicsSet)
-                .after(crate::entity::mob::derive_mob_state)
+                .after(crate::entity::mob::step::update_step_heights)
                 .before(tick_physics),
         );
 

@@ -532,7 +532,7 @@
 "minecraft:creaking/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
 "minecraft:creaking/renders_when_invisible" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/definition/compiled/tests.rs::condition_marker_groups_update_and_remove_both_flag_words"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:creaking/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
-"minecraft:creaking/variable_max_auto_step" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:creaking/variable_max_auto_step" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/step.rs::actual_collision_steps_one_block_only_with_the_authored_base_height", "crates/unastar/src/entity/mob/tests/step.rs::current_ground_and_component_removal_refresh_without_health_changes"], gaps = "tested with authored component controls; actor not covered by a spawn regression" }
 "minecraft:creeper" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.melee_attack, behavior.swell, explode, is_charged, on_target_escape (+1 more)" }
 "minecraft:creeper/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creeper cannot spawn yet" }
 "minecraft:creeper/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
@@ -690,7 +690,7 @@
 "minecraft:enderman/spawn_rules" = { status = "partial", gaps = "enderman cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:enderman/teleport" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:enderman/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but enderman cannot spawn yet" }
-"minecraft:enderman/variable_max_auto_step" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:enderman/variable_max_auto_step" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/step.rs::actual_collision_steps_one_block_only_with_the_authored_base_height", "crates/unastar/src/entity/mob/tests/step.rs::current_ground_and_component_removal_refresh_without_health_changes"], gaps = "tested with authored component controls; actor not covered by a spawn regression" }
 "minecraft:endermite" = { status = "missing", gaps = "not spawnable: needs block_climber, can_stand_on_powder_snow" }
 "minecraft:endermite/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but endermite cannot spawn yet" }
 "minecraft:endermite/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but endermite cannot spawn yet" }
@@ -2278,7 +2278,7 @@
 "minecraft:camel/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but camel cannot spawn yet" }
 "minecraft:camel/spawn_rules" = { status = "partial", gaps = "camel cannot spawn yet, so drawn entries spawn nothing; the native spawn check of camel's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:camel/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but camel cannot spawn yet" }
-"minecraft:camel/variable_max_auto_step" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:camel/variable_max_auto_step" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/step.rs::actual_collision_steps_one_block_only_with_the_authored_base_height", "crates/unastar/src/entity/mob/tests/step.rs::current_ground_and_component_removal_refresh_without_health_changes"], gaps = "tested with authored component controls; actor not covered by a spawn regression" }
 "minecraft:camel_husk" = { status = "missing", gaps = "not spawnable: needs addrider, behavior.player_ride_tamed, behavior.random_look_around_and_sit, dash_action, equippable, healable (+4 more)" }
 "minecraft:camel_husk/addrider" = { status = "missing", gaps = "not implemented: needs riding" }
 "minecraft:camel_husk/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
@@ -2323,7 +2323,7 @@
 "minecraft:camel_husk/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:camel_husk/spawn_rules" = { status = "partial", gaps = "camel_husk cannot spawn yet, so drawn entries spawn nothing; the native spawn check of camel_husk's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:camel_husk/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but camel_husk cannot spawn yet" }
-"minecraft:camel_husk/variable_max_auto_step" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:camel_husk/variable_max_auto_step" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/step.rs::actual_collision_steps_one_block_only_with_the_authored_base_height", "crates/unastar/src/entity/mob/tests/step.rs::current_ground_and_component_removal_refresh_without_health_changes"], gaps = "tested with authored component controls; actor not covered by a spawn regression" }
 "minecraft:cat" = { status = "missing", gaps = "not spawnable: needs attack_damage, behavior.avoid_mob_type, behavior.drop_item_for, behavior.follow_owner, behavior.leap_at_target, behavior.move_towards_dwelling_restriction (+12 more)" }
 "minecraft:cat/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cat cannot spawn yet" }
 "minecraft:cat/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cat cannot spawn yet" }
@@ -3643,7 +3643,7 @@
 "minecraft:sulfur_cube/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/uses_uniform_air_drag" = { status = "partial", owner = "entities", gaps = "the flag is replicated; no test, and no spawnable actor uses it; sulfur_cube cannot spawn yet" }
-"minecraft:sulfur_cube/variable_max_auto_step" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:sulfur_cube/variable_max_auto_step" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/step.rs::actual_collision_steps_one_block_only_with_the_authored_base_height", "crates/unastar/src/entity/mob/tests/step.rs::current_ground_and_component_removal_refresh_without_health_changes"], gaps = "tested with authored component controls; actor not covered by a spawn regression" }
 "minecraft:sulfur_cube/variant" = { status = "missing", gaps = "not implemented: needs variants" }
 "minecraft:trader_llama" = { status = "missing", gaps = "not spawnable: needs angry, behavior.follow_caravan, behavior.ranged_attack, behavior.run_around_like_crazy, equippable, follow_range (+13 more)" }
 "minecraft:trader_llama/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }

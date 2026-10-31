@@ -116,6 +116,7 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::RiderCount => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
         BuiltinTest::IsFamily
+        | BuiltinTest::IsRiding
         | BuiltinTest::HasEquipment
         | BuiltinTest::EnumProperty
         | BuiltinTest::InContactWithWater

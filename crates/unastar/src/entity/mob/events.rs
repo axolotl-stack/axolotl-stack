@@ -179,6 +179,9 @@ impl FilterContext for MobFacts<'_> {
                 )
             }
             BuiltinTest::IsUnderwater => Fact::Bool(self.under_water(entity)?),
+            BuiltinTest::IsRiding => {
+                Fact::Bool(crate::entity::conditions::is_riding(self.world, entity))
+            }
             // Riding is not implemented: no actor ever has a vehicle.
             BuiltinTest::IsVehicleFamily => Fact::Matches(false),
             BuiltinTest::IsBaby => Fact::Bool(
