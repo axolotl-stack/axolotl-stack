@@ -231,6 +231,36 @@ struct Coordinator {
     pending: BTreeMap<Uuid, String>,
 }
 
+/// The account writer is shared by worlds; completion queues remain world-local.
+#[derive(Resource, Clone)]
+pub(crate) struct SharedPlayerWriter(Arc<SerializedPlayerProvider>);
+
+/// Wrap account storage once before a dimension router distributes its provider.
+pub(crate) fn prepare_shared_writer(
+    world: &mut World,
+) -> Result<Arc<SerializedPlayerProvider>, EffectError> {
+    let provider = world
+        .get_resource::<PlayerProviderResource>()
+        .ok_or(EffectError::MissingProvider)?
+        .0
+        .clone();
+    if let Some(shared) = world.get_resource::<SharedPlayerWriter>() {
+        let expected: Arc<dyn crate::storage::PlayerProvider> = shared.0.clone();
+        return if Arc::ptr_eq(&provider, &expected) {
+            Ok(shared.0.clone())
+        } else {
+            Err(EffectError::Conflict)
+        };
+    }
+    if !provider.atomic_durable_records() {
+        return Err(EffectError::UnsupportedProvider);
+    }
+    let writer = Arc::new(SerializedPlayerProvider::new(provider));
+    world.insert_resource(PlayerProviderResource(writer.clone()));
+    world.insert_resource(SharedPlayerWriter(writer.clone()));
+    Ok(writer)
+}
+
 /// Prepared inventory components are not visible before provider acknowledgement.
 struct Slots {
     main: MainInventory,
@@ -312,16 +342,7 @@ pub fn install(server: &mut GameServer) -> Result<(), EffectError> {
     if world.contains_resource::<Coordinator>() {
         return Ok(());
     }
-    let provider = world
-        .get_resource::<PlayerProviderResource>()
-        .ok_or(EffectError::MissingProvider)?
-        .0
-        .clone();
-    if !provider.atomic_durable_records() {
-        return Err(EffectError::UnsupportedProvider);
-    }
-    let writer = Arc::new(SerializedPlayerProvider::new(provider));
-    world.insert_resource(PlayerProviderResource(writer.clone()));
+    let writer = prepare_shared_writer(world)?;
     let (tx, rx) = mpsc::channel();
     world.insert_resource(Coordinator {
         writer,

@@ -1489,6 +1489,9 @@ container windows and viewers. Compatible frozen protocol registries are require
 All registered worlds tick, autosave and shut down together; reconnect selects the
 saved dimension before StartGame. Terrain generation remains an explicit world
 configuration: this API does not add vanilla Nether or End generators.
+Durable account providers share one serialized writer across worlds, including
+inventory effect revision checks. Installing inventory effects in each world
+creates local completion queues without wrapping the shared writer again.
 
 `DimensionRouter::prepare_destination` can load and validate collision geometry
 before an application reserves a command or delayed action; it produces no player

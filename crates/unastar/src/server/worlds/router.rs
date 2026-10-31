@@ -33,6 +33,10 @@ pub struct DimensionRouter {
 impl DimensionRouter {
     /// Wrap the primary initialized server without recreating its ECS/resources.
     pub fn new(mut primary: GameServer) -> Self {
+        // Durable providers share one account serialization boundary before any
+        // world installs its local inventory effect coordinator.
+        let _ =
+            crate::server::game::inventory_effects::prepare_shared_writer(primary.ecs.world_mut());
         let dimension = primary.ecs.world().resource::<ChunkManager>().dimension();
         primary
             .ecs
@@ -188,6 +192,13 @@ impl DimensionRouter {
             }
             (None, Some(_)) => return Err(TransferError::IncompatibleRegistries),
             _ => {}
+        }
+        if let Some(writer) = primary
+            .ecs
+            .world()
+            .get_resource::<crate::server::game::inventory_effects::SharedPlayerWriter>(
+        ) {
+            world.ecs.world_mut().insert_resource(writer.clone());
         }
         if let Some(store) = primary
             .ecs

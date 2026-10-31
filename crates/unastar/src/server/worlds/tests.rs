@@ -1183,3 +1183,130 @@ async fn shutdown_flushes_each_realm_and_nonprimary_stop_and_flush_errors_are_ob
         .set_provider(Arc::new(FlushProvider { calls, fail: true }));
     assert!(router.flush_worlds().await.is_err());
 }
+
+/// Real inventory records advance the same account epoch in every dimension.
+#[tokio::test]
+async fn per_world_inventory_effects_share_one_writer_without_nested_revision_guards() {
+    use crate::server::game::inventory_effects::{
+        self as inventory, InventoryEffect, InventoryState,
+    };
+    use crate::storage::PlayerProvider;
+    for install_primary_first in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let provider =
+            Arc::new(crate::storage::LevelDBPlayerProvider::open(directory.path()).unwrap());
+        let mut primary = server(0);
+        primary
+            .ecs
+            .world_mut()
+            .insert_resource(types::PlayerProviderResource(provider.clone()));
+        if install_primary_first {
+            inventory::install(&mut primary).unwrap();
+        }
+        let mut router = DimensionRouter::new(primary);
+        for dimension in [1, 2] {
+            let target = router
+                .create_world(crate::ServerConfig {
+                    world: crate::world::WorldConfig {
+                        dimension,
+                        ..crate::world::WorldConfig::void_spawn_platform(1)
+                    },
+                    ..Default::default()
+                })
+                .unwrap();
+            router.add(target).unwrap();
+        }
+        for (_, server) in router.iter_mut() {
+            inventory::install(server).unwrap();
+        }
+        let first = router
+            .world(0)
+            .unwrap()
+            .ecs
+            .world()
+            .resource::<types::PlayerProviderResource>()
+            .0
+            .clone();
+        for (_, server) in router.iter() {
+            assert!(Arc::ptr_eq(
+                &first,
+                &server
+                    .ecs
+                    .world()
+                    .resource::<types::PlayerProviderResource>()
+                    .0
+            ));
+        }
+        let (player, _rx) = spawn(&mut router, 2, 41);
+        let world = router.world_mut(2).unwrap().ecs.world_mut();
+        let expected = InventoryState::capture(world, player).unwrap();
+        let mut replacement = expected.clone();
+        replacement.main[0] = crate::storage::StoredItemStack {
+            item_id: "minecraft:emerald".into(),
+            count: 6,
+            ..Default::default()
+        };
+        assert!(matches!(
+            inventory::submit(
+                world,
+                player,
+                InventoryEffect {
+                    id: "native-effect".into(),
+                    expected,
+                    replacement
+                }
+            ),
+            Ok(inventory::Submission::Queued)
+        ));
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                router.tick().await.unwrap();
+                if !inventory::is_quarantined(router.world(2).unwrap().ecs.world(), player) {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            router
+                .world(2)
+                .unwrap()
+                .ecs
+                .world()
+                .get::<MainInventory>(player)
+                .unwrap()
+                .0
+                .item(0)
+                .unwrap()
+                .count,
+            6
+        );
+        let saved = provider
+            .load(uuid::Uuid::from_u128(41))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(saved.inventory_revision, 1);
+        assert_eq!(saved.inventory[0].count, 6);
+        assert!(
+            inventory::receipt(
+                router.world(2).unwrap().ecs.world(),
+                player,
+                "native-effect"
+            )
+            .is_some()
+        );
+        assert!(router.save_player(41).await);
+        assert_eq!(
+            provider
+                .load(uuid::Uuid::from_u128(41))
+                .await
+                .unwrap()
+                .unwrap()
+                .inventory_revision,
+            1
+        );
+    }
+}
