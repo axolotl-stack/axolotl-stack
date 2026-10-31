@@ -173,7 +173,7 @@ pub struct Pair {
 }
 
 /// Live state of one container block actor.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BlockContainer {
     pub kind: ContainerKind,
     pub position: IVec3,

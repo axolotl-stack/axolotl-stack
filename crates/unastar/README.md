@@ -1097,3 +1097,36 @@ Failed ownership checks change nothing. The resource's raw `release` only change
 ownership and is suitable for aborts without committed edits. Direct trusted
 chunk writes remain application-owned. `server::game::is_replaceable` exposes
 the same block-state placement predicate used by native placement.
+
+## Native container mutations
+
+`server::game::container_mutation::ContainerMutationHooks` registers ordered
+`ContainerMutationHandler` callbacks. `on_mutation` and Bevy `ContainerMutation`
+observers authorize complete authoritative slot images before an ordinary player
+request, hopper transfer, item collection or furnace mutation publishes costs.
+The cause is an immutable authenticated `Player` identity, a `Hopper` position
+(with an optional collected item entity), or a `Furnace` position. Each
+`ContainerInventoryChange` includes its kind, canonical physical positions, and
+complete `before`/`after` item vectors. Double chests list lead then partner and
+all 54 slots. Consumers can distinguish item additions, extraction and internal
+reordering from the images, independently of client action names. Furnace timer
+changes can have identical slot images.
+
+Player requests stage complete inventories and request-ID assignments on owned
+copies. After callbacks, the host revalidates the exact connection, every player
+store and request alias, the open window, raw actors, decoded slots, pairing,
+automation state and reservations. A veto or stale baseline discards the entire
+frame, including drops, equipment updates and successful response data. Invalid
+request IDs retain their native terminating-warning path, and unavailable retained
+windows return an ordinary error without staging against missing storage.
+Generated automation loot and pair repairs are also prepared on owned copies;
+rejection leaves their saved data untouched.
+
+`on_committed` and Bevy `ContainerMutationCommitted` notify only after actual
+engine inventory, alias, item-entity, cooldown, persistence-image and ordinary
+side effects have completed. The notification owns the exact accepted images
+and cannot veto. Handlers and observers run outside ECS component and callback
+registry borrows; registry changes affect subsequent dispatches, including nested
+operations. Nested accepted operations invalidate stale outer previews. Without
+handlers, ordinary validated transfers, furnace timing and request responses use
+the same engine rules.

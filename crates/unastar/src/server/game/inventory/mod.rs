@@ -9,6 +9,7 @@ pub mod containers;
 mod creative_tests;
 pub mod engine;
 mod pick;
+mod staged;
 
 use crate::registry::block::BlockNetworkIds;
 
@@ -84,8 +85,6 @@ pub(crate) mod test_support {
     }
 }
 
-use std::time::Instant;
-
 use bevy_ecs::prelude::*;
 use bevy_ecs::query::QueryData;
 use bevy_ecs::system::SystemState;
@@ -148,6 +147,10 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
         if world.get::<FatalInventoryRequest>(entity).is_some() {
             continue;
         }
+        if let InventoryAction::ItemStackRequest(packet) = &action {
+            staged::apply(world, entity, packet);
+            continue;
+        }
         let can_drop = world
             .get::<crate::entity::components::Rotation>(entity)
             .is_some()
@@ -163,34 +166,15 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
             Some(ScreenKind::Block(screen)) => Some(screen),
             _ => None,
         };
-        let mut block_window = match (&action, block_screen) {
-            (InventoryAction::ItemStackRequest(_), Some(screen)) => {
-                super::containers::window_slots(world, entity, screen)
-                    .map(|slots| (screen, slots.clone(), slots))
-            }
-            _ => None,
-        };
         let closing = matches!(action, InventoryAction::ContainerClose(_));
         let mut drops = Vec::new();
-        let mut fatal = false;
         {
-            let (items, crafting, world_template, config, mut players, mut events) =
+            let (items, _crafting, _world_template, config, mut players, mut events) =
                 state.get_mut(world);
             let block_ids = config.0.block_network_ids;
             match action {
-                InventoryAction::ItemStackRequest(pk) => {
-                    if let Ok(mut player) = players.get_mut(entity) {
-                        (drops, fatal) = handle_item_stack_request(
-                            &pk,
-                            &items.0,
-                            &crafting.0,
-                            &world_template,
-                            block_ids,
-                            &mut player,
-                            can_drop,
-                            block_window.as_mut().map(|(_, _, slots)| slots),
-                        );
-                    }
+                InventoryAction::ItemStackRequest(_) => {
+                    unreachable!("stack requests use the owned staging path")
                 }
                 InventoryAction::ContainerClose(pk) => {
                     if let Ok(mut player) = players.get_mut(entity) {
@@ -226,9 +210,6 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                 }
             }
         }
-        if let Some((screen, before, after)) = block_window {
-            super::containers::commit_window(world, entity, screen, &before, after);
-        }
         if closing && let Some(screen) = block_screen {
             super::containers::stop_viewing(world, entity, screen);
         }
@@ -244,84 +225,7 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                 "exclusive drop commit preserves validated thrower components"
             );
         }
-        if fatal {
-            world.entity_mut(entity).insert(FatalInventoryRequest);
-        }
     }
-}
-
-/// One response packet per incoming packet, in request order. The returned
-/// drops belong only to committed frames and are spawned by the exclusive
-/// caller before the next input packet can mutate the thrower.
-#[allow(clippy::too_many_arguments)]
-fn handle_item_stack_request(
-    pk: &jolyne::valentine::ItemStackRequestPacket,
-    items: &ItemRegistry,
-    crafting: &crate::crafting::execution::CraftingExecutor,
-    world_template: &super::types::ServerWorldTemplate,
-    block_ids: BlockNetworkIds,
-    player: &mut PlayerInventoryItem<'_, '_>,
-    can_drop: bool,
-    mut block: Option<&mut Inventory>,
-) -> (Vec<ItemStack>, bool) {
-    let creative_item = |net_id: u32| creative_stack(items, world_template, net_id, block_ids);
-    let ctx = engine::Context {
-        screen: player.windows.screen(),
-        creative: *player.mode == GameMode::Creative,
-        can_drop,
-        now: Instant::now(),
-        creative_item: &creative_item,
-        crafting,
-    };
-    let mut responses = Vec::with_capacity(pk.requests.len());
-    let mut drops = Vec::new();
-    let mut fatal = false;
-    let unavailable_window = matches!(ctx.screen, ScreenKind::Block(_)) && block.is_none();
-    for request in &pk.requests {
-        // Keep the engine's request-ID validation and ordinary error response,
-        // without staging moves against an unavailable or reserved block view.
-        let unavailable = jolyne::valentine::ItemStackRequestPacketDataRequestData {
-            client_request_id: request.client_request_id.clone(),
-            ..Default::default()
-        };
-        let request = if unavailable_window {
-            &unavailable
-        } else {
-            request
-        };
-        let mut stores = engine::Stores {
-            main: &mut player.main.0,
-            armor: &mut player.armor,
-            offhand: &mut player.offhand.0,
-            ui: &mut player.ui.0,
-            block: block.as_deref_mut(),
-        };
-        let outcome = engine::process(request, &mut stores, &mut player.request_ids, &ctx);
-        if outcome.fatal_invalid_id {
-            fatal = true;
-            break;
-        }
-        send_equipment_updates(
-            &outcome.equipment,
-            &player.armor,
-            &player.offhand.0,
-            player.session,
-            block_ids,
-        );
-        drops.extend(outcome.drops);
-        responses.extend(outcome.response);
-    }
-    if !responses.is_empty() {
-        let _ = player.session.send(McpePacket::from(
-            jolyne::valentine::ItemStackResponsePacket { responses },
-        ));
-    }
-    if fatal {
-        let _ = player
-            .session
-            .send(McpePacket::from(invalid_request_warning()));
-    }
-    (drops, fatal)
 }
 
 /// BDS 1.26.51, entity-player-drop-20261026-v4 seq 468/471: positive ID 1
