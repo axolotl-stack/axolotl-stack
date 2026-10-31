@@ -200,6 +200,11 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
 /// World writes the goals request; applied after the mob's tick.
 #[derive(Debug, Default)]
 pub struct Effects {
+    /// Gaze transition events run after the AI's resource scopes end.
+    pub gaze_events: Vec<(
+        crate::entity::mob::components::triggers::ActorTrigger,
+        Option<Entity>,
+    )>,
     pub persistent: bool,
     pub tempted: Option<bool>,
     pub mate: Option<MateRequest>,
@@ -233,6 +238,7 @@ struct BreedState {
 /// Runtime state of every goal kind plus reusable search buffers.
 #[derive(Debug, Default)]
 pub struct GoalStates {
+    pub(super) gaze: super::gaze::GazeState,
     panic_target: DVec3,
     panic_repath: u32,
     tempt: TemptState,

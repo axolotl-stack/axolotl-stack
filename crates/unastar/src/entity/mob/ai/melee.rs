@@ -43,7 +43,10 @@ impl MeleeState {
 
 impl GoalContext<'_> {
     fn melee_target(&self) -> Option<Candidate> {
-        Candidate::of(self.world, self.states.targets.target?)
+        let target = self.states.targets.target?;
+        super::targeting::combat_candidate(self.world, self.entity, target)
+            .then(|| Candidate::of(self.world, target))
+            .flatten()
     }
 
     /// The ground under the target's box centre.

@@ -12,6 +12,7 @@
 mod break_door;
 mod control;
 mod eat_block;
+mod gaze;
 mod goals;
 mod melee;
 mod nearby;
@@ -25,6 +26,7 @@ mod tests;
 
 pub(crate) use self::break_door::stop_breaking_doors;
 pub use self::path::PathBlockTable;
+pub(crate) use self::targeting::combat_candidate;
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -69,6 +71,11 @@ pub struct MobBrain {
 }
 
 impl MobBrain {
+    /// Drop a target at an authoritative lifecycle transition, including
+    /// anger expiry, before the selector can run a melee goal again.
+    pub(crate) fn clear_combat_target(&mut self) {
+        self.states.targets.target = None;
+    }
     /// Whether the mob currently follows a path.
     pub fn is_navigating(&self) -> bool {
         !self.nav.is_done()
@@ -87,6 +94,12 @@ enum Turn {
 /// Reused per-tick buffers of [`tick_mob_ai`].
 #[derive(Default)]
 pub struct AiScratch {
+    /// Gaze events deferred beyond the AI's random-resource scope.
+    gaze: Vec<(
+        Entity,
+        super::components::triggers::ActorTrigger,
+        Option<Entity>,
+    )>,
     mobs: Vec<(Entity, Turn)>,
     nearby: Nearby,
     /// Mobs whose eat timer ran out this tick; they eat once the AI's
@@ -187,7 +200,14 @@ pub fn tick_mob_ai(
                         .get_mut::<MobBrain>(entity)
                         .expect("queried with a brain") = brain;
                 }
-                if let Some(output) = output {
+                if let Some(mut output) = output {
+                    scratch.gaze.extend(
+                        output
+                            .effects
+                            .gaze_events
+                            .drain(..)
+                            .map(|(event, other)| (entity, event, other)),
+                    );
                     apply(
                         world,
                         entity,
@@ -203,6 +223,9 @@ pub fn tick_mob_ai(
     });
     for (entity, target) in scratch.acquired.drain(..) {
         super::life::triggers::target_acquired(world, entity, target);
+    }
+    for (entity, event, other) in scratch.gaze.drain(..) {
+        super::life::triggers::fire(world, entity, &event, other);
     }
     for entity in scratch.eaten.drain(..) {
         eat_block::finish_eating(world, entity);
@@ -332,6 +355,7 @@ fn think(
         Turn::Think(false) => {}
     }
     selector.tick(&mut ctx);
+    ctx.scan_gaze();
     let goal_jump = ctx.jump;
 
     let door_hold = nav.current().is_some_and(|(index, path)| {

@@ -3,6 +3,7 @@
 //! timers ([`sensors`]) and natural despawning ([`despawn`]).
 
 pub mod ageing;
+pub mod anger;
 pub mod breeding;
 pub mod despawn;
 pub mod sensors;
