@@ -10,6 +10,7 @@
 //! then integrates. [`push_mobs`] then pushes nearby pushable mobs apart.
 
 mod break_door;
+mod carry;
 mod control;
 mod eat_block;
 mod gaze;
@@ -71,6 +72,13 @@ pub struct MobBrain {
 }
 
 impl MobBrain {
+    /// A committed teleport invalidates navigation and the old move/look
+    /// control targets without changing the attack cooldown or combat target.
+    pub(crate) fn teleported(&mut self) {
+        self.nav = PathFollower::default();
+        self.movement = MoveControl::default();
+        self.look = LookControl::default();
+    }
     /// Drop a target at an authoritative lifecycle transition, including
     /// anger expiry, before the selector can run a melee goal again.
     pub(crate) fn clear_combat_target(&mut self) {
@@ -94,6 +102,8 @@ enum Turn {
 /// Reused per-tick buffers of [`tick_mob_ai`].
 #[derive(Default)]
 pub struct AiScratch {
+    /// Block goal proposals revalidated after every earlier AI event.
+    carry: Vec<(Entity, carry::CarryWork)>,
     /// Gaze events deferred beyond the AI's random-resource scope.
     gaze: Vec<(
         Entity,
@@ -201,6 +211,9 @@ pub fn tick_mob_ai(
                         .expect("queried with a brain") = brain;
                 }
                 if let Some(mut output) = output {
+                    scratch
+                        .carry
+                        .extend(output.effects.carry.drain(..).map(|work| (entity, work)));
                     scratch.gaze.extend(
                         output
                             .effects
@@ -235,6 +248,9 @@ pub fn tick_mob_ai(
     }
     for (entity, work) in scratch.gear.drain(..) {
         pickup::finish(world, entity, work);
+    }
+    for (entity, work) in scratch.carry.drain(..) {
+        carry::finish(world, entity, work);
     }
     break_door::tick_door_breakers(
         world,

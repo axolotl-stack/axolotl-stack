@@ -19,6 +19,8 @@ use super::{ActorComponent, ComponentBody, FilterJson, decode};
 
 mod reactive;
 pub use reactive::*;
+mod teleport;
+pub use teleport::*;
 
 /// An event reference: a bare event name or a trigger object.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -1383,6 +1385,7 @@ dynamic_bodies!(
     SpawnEntity,
     Transformation,
     Timer,
+    Teleport,
     TypeFamily,
     VariableMaxAutoStep,
 );

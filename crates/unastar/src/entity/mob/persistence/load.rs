@@ -52,6 +52,8 @@ pub enum ActorDecodeError {
     Property(#[from] PropertyError),
     #[error(transparent)]
     Gear(#[from] crate::entity::mob::gear::persist::GearDecodeError),
+    #[error(transparent)]
+    Carried(#[from] crate::entity::mob::carry::CarryStateError),
     #[error("cannot spawn the actor: {0}")]
     Spawn(#[source] MobSpawnError),
 }
@@ -289,6 +291,29 @@ fn restore_state(
     };
 
     let now = current_tick(world);
+    let teleport_waits = match fields.0.get("UnastarTeleportWaits") {
+        None => None,
+        Some(NBTTag::List(values)) if values.0.len() == 2 => {
+            let [NBTTag::Long(earliest), NBTTag::Long(next)] = values.0.as_slice() else {
+                return Err(ActorDecodeError::InvalidField("UnastarTeleportWaits"));
+            };
+            if earliest.0 < 0
+                || next.0 < earliest.0
+                || world
+                    .get::<crate::entity::mob::components::teleport::Teleport>(mob)
+                    .is_none()
+            {
+                return Err(ActorDecodeError::InvalidField("UnastarTeleportWaits"));
+            }
+            Some((
+                now.checked_add(earliest.0 as u64)
+                    .ok_or(ActorDecodeError::InvalidField("UnastarTeleportWaits"))?,
+                now.checked_add(next.0 as u64)
+                    .ok_or(ActorDecodeError::InvalidField("UnastarTeleportWaits"))?,
+            ))
+        }
+        Some(_) => return Err(ActorDecodeError::InvalidField("UnastarTeleportWaits")),
+    };
     let anger_calmed = fields.flag("UnastarAngerCalmed")?;
     let anger_deadline = match fields.0.get("UnastarAngerTicks") {
         None => None,
@@ -315,6 +340,13 @@ fn restore_state(
         return Err(ActorDecodeError::InvalidField("UnastarAngerCalmed"));
     }
     let mut entity = world.entity_mut(mob);
+    if let Some((earliest, next)) = teleport_waits {
+        let mut teleport = entity
+            .get_mut::<crate::entity::mob::components::teleport::Teleport>()
+            .expect("validated teleport state");
+        teleport.earliest_random_tick = earliest;
+        teleport.next_random_tick = next;
+    }
     if let Some(deadline) = anger_deadline {
         let mut anger = entity
             .get_mut::<crate::entity::mob::components::reactive::Angry>()
@@ -400,6 +432,7 @@ fn restore_state(
         timers.restore(fields.0.get("entries"), legacy, now);
     }
     crate::entity::mob::gear::persist::restore(world, mob, fields.0)?;
+    crate::entity::mob::carry::restore(world, mob, fields.0.get("UnastarCarriedBlock"))?;
     derive_entity(world, mob);
     Ok(())
 }

@@ -15,6 +15,7 @@
 pub mod ambient;
 pub mod body;
 pub mod breeding;
+pub mod carry;
 pub mod color;
 pub mod common;
 pub mod damage_sensor;
@@ -32,6 +33,7 @@ pub mod reactive;
 pub mod sensors;
 pub mod shearing;
 pub mod spawn_entity;
+pub mod teleport;
 pub mod triggers;
 
 use std::sync::Arc;
@@ -153,6 +155,8 @@ pub fn register_component_kinds(
     goals::register_component_kinds(builder)?;
     movement::register_component_kinds(builder)?;
     reactive::register_component_kinds(builder)?;
+    carry::register_component_kinds(builder)?;
+    teleport::register_component_kinds(builder)?;
     body::register_component_kinds(builder)?;
     hurt_on_condition::register_component_kinds(builder)?;
     despawn::register_component_kinds(builder)?;

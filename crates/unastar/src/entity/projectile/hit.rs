@@ -33,6 +33,11 @@ pub(super) fn on_hit(
     target: Target,
     collision_at: DVec3,
 ) -> bool {
+    if let Target::Actor(actor) = target
+        && crate::entity::mob::teleport::projectile_escape(world, actor, projectile)
+    {
+        return false;
+    }
     let target_kind = match target {
         Target::Block(_) => super::hooks::ProjectileImpactTarget::Block,
         Target::Actor(actor) => super::hooks::ProjectileImpactTarget::Entity(actor),

@@ -63,6 +63,7 @@ pub fn begin_death(world: &mut World, mob: Entity) {
     ));
     send_actor_event(world, mob, EnumsActorEvent::Death, 0);
     drop_loot(world, mob);
+    crate::entity::mob::carry::drop_on_death(world, mob);
     let killed_by_player = last_hit_by_player(world, mob);
     crate::entity::mob::gear::drops::drop_equipment(world, mob, killed_by_player);
 }
