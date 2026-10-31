@@ -43,6 +43,10 @@ impl LevelDBPlayerProvider {
 
 #[async_trait]
 impl PlayerProvider for LevelDBPlayerProvider {
+    fn atomic_durable_records(&self) -> bool {
+        true
+    }
+
     async fn load(&self, uuid: Uuid) -> StorageResult<Option<PlayerData>> {
         let db = self.db.clone();
         let key = uuid.as_bytes().to_vec();
@@ -71,6 +75,7 @@ impl PlayerProvider for LevelDBPlayerProvider {
 
         task::spawn_blocking(move || {
             let write_opts = WriteOptions::new();
+            write_opts.sync(true);
             db.put(&key, &value, &write_opts)
                 .map_err(|e| StorageError::Database(e.to_string()))?;
             Ok(())

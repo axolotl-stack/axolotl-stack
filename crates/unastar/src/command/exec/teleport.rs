@@ -341,6 +341,9 @@ pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32,
             (position.z / 16.0).floor() as i32,
         );
     }
+    if crate::server::game::player_events::initial_state_pending(world, entity) {
+        return;
+    }
     let runtime_id = world.get::<RuntimeEntityId>(entity).map_or(0, |r| r.0);
     let packet = MovePlayerPacket {
         player_runtime_id: ActorRuntimeId {

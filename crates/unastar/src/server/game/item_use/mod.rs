@@ -20,13 +20,12 @@ use jolyne::valentine::types::{
     PropertySyncData, SynchedActorDataCopyableDataList,
 };
 use jolyne::valentine::{
-    CompletedUsingItemPacket, McpePacket, SetActorDataPacket, actor_data_i_ds, actor_flags,
+    CompletedUsingItemPacket, McpePacket, SetActorDataPacket, actor_data_i_ds,
 };
 
 use crate::ecs::events::{EventBuffer, ServerEvent};
 use crate::entity::components::{
-    GameMode, Health, HeldSlot, MainInventory, PlayerSession, PlayerState, Position,
-    RuntimeEntityId,
+    GameMode, Health, HeldSlot, MainInventory, PlayerSession, Position, RuntimeEntityId,
 };
 use crate::item::ItemStack;
 use crate::server::broadcast::EntityGrid;
@@ -173,27 +172,8 @@ fn can_use(world: &World, player: Entity) -> bool {
 /// The flag word BDS sends for a player using an item: CANCLIMB,
 /// BREATHING, HAS_COLLISION and HAS_GRAVITY plus the movement state and
 /// USINGITEM (capture `item-use-20261029`).
-fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
-    let mut flags = (1u64 << actor_flags::CANCLIMB)
-        | (1u64 << actor_flags::BREATHING)
-        | (1u64 << actor_flags::HAS_COLLISION)
-        | (1u64 << actor_flags::HAS_GRAVITY);
-    if let Some(state) = world.get::<PlayerState>(player) {
-        for (on, flag) in [
-            (state.sneaking, actor_flags::SNEAKING),
-            (state.sprinting, actor_flags::SPRINTING),
-            (state.swimming, actor_flags::SWIMMING),
-            (state.gliding, actor_flags::GLIDING),
-        ] {
-            if on {
-                flags |= 1u64 << flag;
-            }
-        }
-    }
-    if using {
-        flags |= 1u64 << actor_flags::USINGITEM;
-    }
-    flags as i64
+pub(crate) fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
+    crate::server::broadcast::player_views::player_flags(world, player, using)
 }
 
 /// Tell the player and the players near it that it started or stopped
@@ -218,7 +198,13 @@ fn broadcast_using(world: &World, player: Entity, using: bool) {
         synched_properties: PropertySyncData::default(),
         tick: crate::entity::components::input_tick_of(world, player),
     });
-    send_to(world, &nearby_players(world, player), &packet);
+    let viewers = nearby_players(world, player)
+        .into_iter()
+        .filter(|viewer| {
+            crate::server::broadcast::player_views::can_receive_actor(world, player, *viewer)
+        })
+        .collect::<Vec<_>>();
+    send_to(world, &viewers, &packet);
 }
 
 /// Start using the held item.
@@ -427,7 +413,10 @@ fn feed(world: &World, player: Entity, stack: &ItemStack) {
     });
     let viewers: Vec<_> = nearby_players(world, player)
         .into_iter()
-        .filter(|viewer| *viewer != player)
+        .filter(|viewer| {
+            *viewer != player
+                && crate::server::broadcast::player_views::can_receive_actor(world, player, *viewer)
+        })
         .collect();
     send_to(world, &viewers, &packet);
 }

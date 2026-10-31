@@ -1,6 +1,7 @@
 //! Provider traits for world and player persistence.
 
 use async_trait::async_trait;
+use std::collections::BTreeMap;
 use std::io;
 use uuid::Uuid;
 
@@ -26,6 +27,12 @@ pub enum StorageError {
 
     #[error("Not found")]
     NotFound,
+
+    #[error("player inventory revision conflicts with durable state")]
+    PlayerRevisionConflict,
+
+    #[error("player state requires recovery before further persistence")]
+    PlayerRecoveryRequired,
 }
 
 /// One saved actor: its unique ID and its Bedrock actor NBT (a rooted,
@@ -82,7 +89,7 @@ pub trait WorldProvider: Send + Sync + 'static {
 }
 
 /// Player data for persistence.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PlayerData {
     /// Player UUID.
     pub uuid: String,
@@ -109,6 +116,9 @@ pub struct PlayerData {
     pub offhand: StoredItemStack,
     #[serde(default)]
     pub cursor: StoredItemStack,
+    /// Full UI inventory, including crafting inputs. Empty on older records.
+    #[serde(default)]
+    pub ui: Vec<StoredItemStack>,
     #[serde(default)]
     pub held_slot: u8,
     /// Ender chest slots in order. Missing on records saved before ender chests.
@@ -122,6 +132,18 @@ pub struct PlayerData {
     pub exhaustion: f32,
     #[serde(default)]
     pub experience_progress: f32,
+    /// Inventory-effect epoch; ordinary saves must retain the loaded value.
+    #[serde(default)]
+    pub inventory_revision: u64,
+    /// Effects atomically committed with this record's inventory.
+    #[serde(default)]
+    pub inventory_effects: BTreeMap<String, InventoryEffectRecord>,
+    /// Cold exposure carried across saves and raw actor snapshots.
+    #[serde(default)]
+    pub cold_exposure: f32,
+    /// Lifetime tick phase used by periodic actor conditions.
+    #[serde(default)]
+    pub age_ticks: u64,
 }
 
 impl Default for PlayerData {
@@ -139,12 +161,17 @@ impl Default for PlayerData {
             armour: Default::default(),
             offhand: Default::default(),
             cursor: Default::default(),
+            ui: Vec::new(),
             held_slot: 0,
             ender_chest: Vec::new(),
             max_health: default_max_health(),
             saturation: default_saturation(),
             exhaustion: 0.0,
             experience_progress: 0.0,
+            inventory_revision: 0,
+            inventory_effects: BTreeMap::new(),
+            cold_exposure: 0.0,
+            age_ticks: 0,
         }
     }
 }
@@ -157,13 +184,29 @@ fn default_saturation() -> f32 {
 }
 
 /// Stable persistence representation, independent of ECS inventory internals.
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StoredItemStack {
     pub item_id: String,
     pub runtime_id: i32,
     pub count: u8,
     pub damage: i16,
     pub nbt: Option<Vec<u8>>,
+}
+
+/// Durable proof that one inventory effect committed with a particular payload.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct InventoryEffectRecord {
+    pub revision: u64,
+    pub request_hash: [u8; 32],
+}
+
+/// Bound stable effect identifiers accepted by native persistence APIs.
+pub fn valid_inventory_effect_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'_' | b'-' | b'.'))
 }
 
 impl From<&crate::item::ItemStack> for StoredItemStack {
@@ -216,6 +259,23 @@ impl PlayerData {
             || !matches!(self.game_mode, 0 | 1 | 2 | 6)
             || self.inventory.len() > 36
             || self.ender_chest.len() > crate::entity::components::ENDER_CHEST_SIZE
+            || (!self.ui.is_empty()
+                && (self.ui.len() != crate::entity::components::PLAYER_UI_SIZE
+                    || self.ui.first() != Some(&self.cursor)))
+            || self.inventory_effects.len() > 65_536
+            || self.inventory_revision != self.inventory_effects.len() as u64
+            || self.inventory_effects.iter().any(|(id, record)| {
+                !valid_inventory_effect_id(id)
+                    || record.revision == 0
+                    || record.revision > self.inventory_revision
+            })
+            || self
+                .inventory_effects
+                .values()
+                .map(|record| record.revision)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                != self.inventory_effects.len()
             || self.held_slot > 8
             || !self.health.is_finite()
             || !self.max_health.is_finite()
@@ -226,6 +286,7 @@ impl PlayerData {
             || !self.saturation.is_finite()
             || !self.exhaustion.is_finite()
             || !(0.0..=1.0).contains(&self.experience_progress)
+            || crate::entity::freezing::FreezingState::from_strength(self.cold_exposure).is_err()
         {
             return Err(StorageError::Deserialization("invalid player state".into()));
         }
@@ -238,6 +299,13 @@ impl PlayerData {
 /// Shared across all worlds (player data is global).
 #[async_trait]
 pub trait PlayerProvider: Send + Sync + 'static {
+    /// Whether successful saves atomically replace one complete record durably.
+    /// Durable inventory effects require this explicit contract. Errors may still
+    /// be ambiguous and are handled conservatively by the serialized writer.
+    fn atomic_durable_records(&self) -> bool {
+        false
+    }
+
     /// Load player data.
     ///
     /// Returns `Ok(None)` if the player doesn't exist.
