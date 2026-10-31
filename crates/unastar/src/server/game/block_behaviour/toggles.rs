@@ -30,6 +30,11 @@
 //! `fence_gate.open`/`fence_gate.close`, `button.click_on` when a button
 //! or lever turns on, `button.click_off` when it turns off).
 //!
+//! Every switch is also a game event at the block's centre for sculk
+//! sensors ([`super::utility::sculk`]): opening and closing trapdoors and
+//! fence gates, levers and buttons turning on and off, caused by the
+//! player who used the block (none when power or a release switched it).
+//!
 //! Power ([`super::redstone`]): a lever that is on and a pressed button
 //! power the block they are attached to strongly and their other
 //! neighbours weakly with 15. Trapdoors (iron ones too) and fence gates
@@ -40,7 +45,8 @@
 use bevy_ecs::prelude::*;
 use glam::IVec3;
 
-use super::{Place, bit, with};
+use super::utility::sculk::{GameEvent, game_event};
+use super::{Place, bit, centre, with};
 use crate::entity::components::Rotation;
 use crate::entity::systems::BlockSource;
 use crate::registry::block::{BlockEntry, StateValue};
@@ -148,17 +154,31 @@ pub fn fence_gate_neighbour_changed(world: &mut World, pos: IVec3, state: u32) {
     }
 }
 
-/// Open or close the trapdoor at `pos`.
-pub fn toggle_trapdoor(world: &mut World, pos: IVec3, state: u32) -> bool {
+/// Open or close the trapdoor at `pos`; `source` is the player who used
+/// it.
+pub fn toggle_trapdoor(world: &mut World, pos: IVec3, state: u32, source: Option<Entity>) -> bool {
     let Some((next, open)) = flipped(world, state, OPEN) else {
         return false;
     };
-    let sound = if open {
-        "trapdoor.open"
+    if open {
+        switch(
+            world,
+            pos,
+            next,
+            "trapdoor.open",
+            GameEvent::BlockOpen,
+            source,
+        );
     } else {
-        "trapdoor.close"
-    };
-    switch(world, pos, next, sound);
+        switch(
+            world,
+            pos,
+            next,
+            "trapdoor.close",
+            GameEvent::BlockClose,
+            source,
+        );
+    }
     true
 }
 
@@ -187,12 +207,25 @@ pub fn toggle_fence_gate(world: &mut World, player: Entity, pos: IVec3, state: u
         }
         (next, open)
     };
-    let sound = if open {
-        "fence_gate.open"
+    if open {
+        switch(
+            world,
+            pos,
+            next,
+            "fence_gate.open",
+            GameEvent::BlockOpen,
+            Some(player),
+        );
     } else {
-        "fence_gate.close"
-    };
-    switch(world, pos, next, sound);
+        switch(
+            world,
+            pos,
+            next,
+            "fence_gate.close",
+            GameEvent::BlockClose,
+            Some(player),
+        );
+    }
     true
 }
 
@@ -204,7 +237,7 @@ pub fn power_trapdoor(world: &mut World, pos: IVec3, state: u32, open: bool) {
         .get_by_runtime_id(state)
         .is_some_and(|entry| bit(entry, state, OPEN));
     if is_open != open {
-        toggle_trapdoor(world, pos, state);
+        toggle_trapdoor(world, pos, state, None);
     }
 }
 
@@ -217,24 +250,50 @@ pub fn power_fence_gate(world: &mut World, pos: IVec3, state: u32, open: bool) {
     if now_open != open {
         return;
     }
-    let sound = if open {
-        "fence_gate.open"
+    if open {
+        switch(
+            world,
+            pos,
+            next,
+            "fence_gate.open",
+            GameEvent::BlockOpen,
+            None,
+        );
     } else {
-        "fence_gate.close"
-    };
-    switch(world, pos, next, sound);
+        switch(
+            world,
+            pos,
+            next,
+            "fence_gate.close",
+            GameEvent::BlockClose,
+            None,
+        );
+    }
 }
 
-/// Press the button at `pos` and schedule its release. A pressed button
-/// consumes the click without change.
-pub fn press_button(world: &mut World, pos: IVec3, state: u32, wooden: bool) -> bool {
+/// Press the button at `pos` (`source` the player who used it) and schedule
+/// its release. A pressed button consumes the click without change.
+pub fn press_button(
+    world: &mut World,
+    pos: IVec3,
+    state: u32,
+    wooden: bool,
+    source: Option<Entity>,
+) -> bool {
     let Some((next, pressed)) = flipped(world, state, PRESSED) else {
         return false;
     };
     if !pressed {
         return true;
     }
-    switch(world, pos, next, "button.click_on");
+    switch(
+        world,
+        pos,
+        next,
+        "button.click_on",
+        GameEvent::BlockActivate,
+        source,
+    );
     let ticks = if wooden {
         WOODEN_BUTTON_TICKS
     } else {
@@ -244,17 +303,30 @@ pub fn press_button(world: &mut World, pos: IVec3, state: u32, wooden: bool) -> 
     true
 }
 
-/// Flip the lever at `pos`.
-pub fn toggle_lever(world: &mut World, pos: IVec3, state: u32) -> bool {
+/// Flip the lever at `pos`; `source` is the player who used it.
+pub fn toggle_lever(world: &mut World, pos: IVec3, state: u32, source: Option<Entity>) -> bool {
     let Some((next, on)) = flipped(world, state, OPEN) else {
         return false;
     };
-    let sound = if on {
-        "button.click_on"
+    if on {
+        switch(
+            world,
+            pos,
+            next,
+            "button.click_on",
+            GameEvent::BlockActivate,
+            source,
+        );
     } else {
-        "button.click_off"
-    };
-    switch(world, pos, next, sound);
+        switch(
+            world,
+            pos,
+            next,
+            "button.click_off",
+            GameEvent::BlockDeactivate,
+            source,
+        );
+    }
     true
 }
 
@@ -266,7 +338,14 @@ pub fn release_button(world: &mut World, pos: IVec3, state: u32) {
     if pressed {
         return;
     }
-    switch(world, pos, next, "button.click_off");
+    switch(
+        world,
+        pos,
+        next,
+        "button.click_off",
+        GameEvent::BlockDeactivate,
+        None,
+    );
 }
 
 /// `state` with the bit `property` inverted, and the new value.
@@ -279,18 +358,21 @@ fn flipped(world: &World, state: u32, property: &str) -> Option<(u32, bool)> {
     ))
 }
 
-/// Change the block at `pos` to `next` and play `sound` at its centre for
-/// the viewers, carrying the new state's wire id.
-fn switch(world: &mut World, pos: IVec3, next: u32, sound: &str) {
+/// Change the block at `pos` to `next`, play `sound` at its centre for the
+/// viewers (carrying the new state's wire id) and post the game `event`
+/// caused by `source`.
+fn switch(
+    world: &mut World,
+    pos: IVec3,
+    next: u32,
+    sound: &str,
+    event: GameEvent,
+    source: Option<Entity>,
+) {
     crate::server::game::blocks::set_block(world, pos, next, false);
     let wire = crate::server::game::types::block_network_ids(world).to_wire(next);
-    crate::entity::mob::net::sound::play_level_sound(
-        world,
-        None,
-        super::centre(pos),
-        sound,
-        wire as i32,
-    );
+    crate::entity::mob::net::sound::play_level_sound(world, None, centre(pos), sound, wire as i32);
+    game_event(world, centre(pos), event, source, None);
 }
 
 #[cfg(test)]

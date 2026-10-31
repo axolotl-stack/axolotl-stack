@@ -21,27 +21,29 @@
 //!      (the head's centre alone when the foot is missing) with power 5,
 //!      setting fire and breaking blocks of any resistance; with the rule
 //!      off nothing happens;
-//!   2. an `occupied_bit` head is cleared (nobody is ever asleep in a bed);
+//!   2. a bed a player sleeps in gets the user `tile.bed.occupied`; an
+//!      `occupied_bit` head nobody sleeps in is cleared;
 //!   3. a player whose position is more than 3 blocks from the head's
 //!      corner along x or z, or more than 4 along y, gets
 //!      `tile.bed.tooFar`;
-//!   4. the head becomes the player's respawn block
+//!   4. a bed without a spot to get up at ([`super::sleep::wake_spot`])
+//!      gets the player `tile.bed.obstructed`;
+//!   5. the head becomes the player's respawn block
 //!      ([`super::utility::respawn_anchor::set_spawn_block`]:
 //!      `SetSpawnPosition` with the player's cell and the head), so the
 //!      spawn is set even when sleeping then fails; when it changed, the
 //!      player gets `tile.bed.respawnSet`;
-//!   5. during the day (sky darkened by less than 4) the player gets
-//!      `tile.bed.noSleep`;
-//!   6. outside creative and peaceful, a monster within ±8 (x, z) and ±5
-//!      (y) of the head's corner gets the player `tile.bed.notSafe`.
+//!   6. during the day (sky darkened by less than 4) the player gets
+//!      `tile.bed.noSleep`; a thunderstorm counts as night (provisional:
+//!      Minecraft Wiki);
+//!   7. outside creative and peaceful, a monster within ±8 (x, z) and ±5
+//!      (y) of the head's corner gets the player `tile.bed.notSafe`;
+//!   8. otherwise the player falls asleep ([`super::sleep`]).
 //!
 //! Messages are grey rawtext translations (the BDS 1.26.51 capture of a
 //! noon use: SetSpawnPosition, `tile.bed.respawnSet`, `tile.bed.noSleep`).
-//! Not modelled: sleeping (a night use that passes every check does
-//! nothing more: no `occupied_bit`, no sleeping-players event, no night
-//! skip), the water-breathing check of a waterlogged bed,
-//! `tile.bed.obstructed` (no free spot next to the bed), monsters counted
-//! by their box rather than their feet.
+//! Not modelled: the water-breathing check of a waterlogged bed, monsters
+//! counted by their box rather than their feet.
 //!
 //! The bed's colour lives in its block entity, which the server does not
 //! keep yet: placed beds show the default colour and drop a plain bed.
@@ -174,6 +176,10 @@ pub fn use_bed(world: &mut World, player: Entity, pos: IVec3, state: u32) -> boo
         return true;
     }
     if bit(entry, head_state, OCCUPIED) {
+        if super::sleep::sleeper_in(world, head).is_some() {
+            tell(world, player, "tile.bed.occupied");
+            return true;
+        }
         head_state = with(entry, head_state, OCCUPIED, StateValue::Byte(0));
         set_block(world, head, head_state, false);
     }
@@ -185,10 +191,18 @@ pub fn use_bed(world: &mut World, player: Entity, pos: IVec3, state: u32) -> boo
         tell(world, player, "tile.bed.tooFar");
         return true;
     }
+    let direction = int(entry, head_state, DIRECTION).unwrap_or(0);
+    if super::sleep::wake_spot(world, head, direction, None).is_none() {
+        tell(world, player, "tile.bed.obstructed");
+        return true;
+    }
     if set_spawn_block(world, player, head) {
         tell(world, player, "tile.bed.respawnSet");
     }
-    if crate::world::clock::is_daytime(world) {
+    let thunder = world
+        .get_resource::<crate::world::weather::Weather>()
+        .is_some_and(|weather| weather.state == crate::world::weather::WeatherState::Thunder);
+    if crate::world::clock::is_daytime(world) && !thunder {
         tell(world, player, "tile.bed.noSleep");
         return true;
     }
@@ -198,6 +212,10 @@ pub fn use_bed(world: &mut World, player: Entity, pos: IVec3, state: u32) -> boo
         .is_some_and(|difficulty| *difficulty == crate::world::rules::Difficulty::Peaceful);
     if !creative && !peaceful && monsters_near(world, head) {
         tell(world, player, "tile.bed.notSafe");
+        return true;
+    }
+    if world.get::<super::sleep::Sleeping>(player).is_none() {
+        super::sleep::start(world, player, head, head_state);
     }
     true
 }
@@ -426,12 +444,13 @@ mod tests {
     }
 
     #[test]
-    fn using_a_bed_at_night_sets_the_spawn_without_complaint() {
+    fn using_a_bed_at_night_sets_the_spawn_and_sleeps() {
         let mut h = Harness::new();
         h.world
             .resource_mut::<crate::world::rules::WorldTime>()
             .ticks = 18000;
         let head = put_bed(&mut h);
+        // A stale occupied bit nobody sleeps under is cleared first.
         h.put(
             head,
             with(bed(), h.state(head), OCCUPIED, StateValue::Byte(1)),
@@ -439,8 +458,46 @@ mod tests {
         h.packets();
         assert!(use_at(&mut h, head));
         assert!(spawn_block(&h, head));
-        assert_eq!(h.state(head), bed_state(Horizontal::South, true));
+        assert!(
+            h.world
+                .get::<super::super::sleep::Sleeping>(h.player)
+                .is_some()
+        );
+        let occupied = with(
+            bed(),
+            bed_state(Horizontal::South, true),
+            OCCUPIED,
+            StateValue::Byte(1),
+        );
+        assert_eq!(h.state(head), occupied);
         assert_eq!(messages(&mut h), ["tile.bed.respawnSet"]);
+        // Someone sleeps in it now.
+        assert!(use_at(&mut h, FOOT));
+        assert_eq!(messages(&mut h), ["tile.bed.occupied"]);
+    }
+
+    #[test]
+    fn a_bed_walled_in_is_obstructed() {
+        let mut h = Harness::new();
+        h.world
+            .resource_mut::<crate::world::rules::WorldTime>()
+            .ticks = 18000;
+        let head = put_bed(&mut h);
+        let stone = state("minecraft:stone", &[]);
+        for x in -1..=1 {
+            for z in -1..=2 {
+                for y in 0..=2 {
+                    let cell = FOOT + IVec3::new(x, y, z);
+                    if cell != FOOT && cell != head {
+                        h.put(cell, stone);
+                    }
+                }
+            }
+        }
+        h.packets();
+        assert!(use_at(&mut h, FOOT));
+        assert_eq!(messages(&mut h), ["tile.bed.obstructed"]);
+        assert!(!spawn_block(&h, head));
     }
 
     #[test]

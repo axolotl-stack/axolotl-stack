@@ -263,7 +263,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **beds**
 
-- `minecraft:bed`: no recorded BDS scenario compared packet for packet yet (waiting for the shared client-diff scenario harness); no sleeping or skipping the night (system); no colour block actor
+- `minecraft:bed`: no chat.type.sleeping message, peaceful heal on waking, waterlogged-bed breath check or bed block actor (colour); no recorded BDS scenario compared packet for packet yet (waiting for the shared client-diff scenario harness)
 - `minecraft:straw_bed`: cannot be placed: the two-block bed rules read a numeric direction state this bed does not have (it stores a cardinal direction); no sleeping, spawn point or explosion outside the Overworld; no colour block actor
 
 **building_blocks**
@@ -401,8 +401,8 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 - `minecraft:lever`, `minecraft:lit_redstone_lamp`, `minecraft:powered_repeater`, `minecraft:redstone_lamp`, `minecraft:redstone_torch`, `minecraft:redstone_wire`, `minecraft:unlit_redstone_torch`, `minecraft:unpowered_repeater`: no recorded BDS scenario compared packet for packet yet (waiting for the shared client-diff scenario harness)
 - `minecraft:waxed_copper_bulb`, `minecraft:waxed_exposed_copper_bulb`, `minecraft:waxed_oxidized_copper_bulb`, `minecraft:waxed_weathered_copper_bulb`: does not toggle on redstone pulses
 - `minecraft:copper_bulb`, `minecraft:exposed_copper_bulb`, `minecraft:weathered_copper_bulb`: does not toggle on redstone pulses; no oxidation over time; no honeycomb waxing
-- `minecraft:calibrated_sculk_sensor`, `minecraft:sculk_sensor`: no recorded BDS scenario compared packet for packet yet (waiting for the shared client-diff scenario harness); does not detect vibrations or emit power
 - `minecraft:piston`, `minecraft:sticky_piston`: not measured on BDS; entities are not pushed; blocks with block actors do not move; moves in progress are not saved
+- `minecraft:piston_arm_collision`, `minecraft:sticky_piston_arm_collision`: not measured on BDS
 - 20 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **saplings**

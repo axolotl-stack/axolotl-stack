@@ -38,6 +38,9 @@
 //! `randomTickSpeed` ([`random_tick_speed`]) random positions per game tick, `top` being its
 //! highest sub-chunk with a non-air block; crops, stems, nether wart,
 //! farmland, sugar cane and cacti grow or change there.
+//!
+//! [`tick_blocks`] also carries vibrations to sculk listeners
+//! ([`utility::sculk`]) and counts down sleeping players ([`sleep`]).
 
 pub mod actors;
 pub mod attached;
@@ -50,6 +53,7 @@ pub mod gravity;
 pub mod plants;
 pub mod redstone;
 pub mod signs;
+pub mod sleep;
 mod support;
 pub mod toggles;
 pub mod utility;
@@ -759,10 +763,12 @@ pub fn use_block(world: &mut World, player: Entity, pos: IVec3) -> bool {
     };
     match family(world, state) {
         Family::Door { iron: false } => doors::toggle(world, pos, state, Some(player)),
-        Family::Trapdoor { iron: false } => toggles::toggle_trapdoor(world, pos, state),
+        Family::Trapdoor { iron: false } => {
+            toggles::toggle_trapdoor(world, pos, state, Some(player))
+        }
         Family::FenceGate => toggles::toggle_fence_gate(world, player, pos, state),
-        Family::Button { wooden } => toggles::press_button(world, pos, state, wooden),
-        Family::Lever => toggles::toggle_lever(world, pos, state),
+        Family::Button { wooden } => toggles::press_button(world, pos, state, wooden, Some(player)),
+        Family::Lever => toggles::toggle_lever(world, pos, state, Some(player)),
         Family::Redstone => redstone::use_block(world, player, pos, state),
         Family::Utility(kind) => utility::use_block(world, kind, player, pos, state),
         Family::Bed => beds::use_bed(world, player, pos, state),
@@ -877,6 +883,22 @@ pub fn particles(world: &World, pos: IVec3, state: u32, event: i32) {
     crate::entity::mob::net::sound::level_event(world, centre(pos), event, wire as i32);
 }
 
+/// A `LevelEventGeneric` packet of `event_id` carrying `fields` as its
+/// compound.
+pub fn generic_event(
+    event_id: i32,
+    fields: &std::collections::BTreeMap<String, unastar_packs::nbt::Tag>,
+) -> jolyne::valentine::McpePacket {
+    let mut nbt =
+        unastar_packs::nbt::encode_network_fields(fields).expect("number and string tags encode");
+    // The compound's end tag.
+    nbt.push(0);
+    jolyne::valentine::McpePacket::from(jolyne::valentine::LevelEventGenericPacket {
+        event_id,
+        __ctd__: valentine::bedrock::codec::NbtCompoundBody(nbt.into()),
+    })
+}
+
 /// The centre of the block at `pos`.
 pub fn centre(pos: IVec3) -> DVec3 {
     pos.as_dvec3() + DVec3::splat(0.5)
@@ -974,8 +996,9 @@ pub fn deferred<T>(world: &mut World, change: impl FnOnce(&mut World) -> T) -> T
     result
 }
 
-/// Exclusive system: run due scheduled ticks, then the redstone changes due
-/// on this circuit tick, then random ticks.
+/// Exclusive system: run due scheduled ticks, vibrations on their way to
+/// sculk listeners, the redstone changes due on this circuit tick, random
+/// ticks, then sleeping players.
 pub fn tick_blocks(world: &mut World) {
     let now = world.get_resource::<TickCounter>().map_or(0, |t| t.current);
     let due: Vec<(IVec3, u32)> = match world.get_resource_mut::<ScheduledTicks>() {
@@ -1008,9 +1031,12 @@ pub fn tick_blocks(world: &mut World) {
             scheduled_tick(world, pos, state);
         }
     }
+    // Vibrations travelling to sculk sensors and shriekers.
+    utility::sculk::tick(world);
     // Redstone changes due on this circuit tick.
     redstone::circuit::tick(world);
     random_ticks(world);
+    sleep::tick(world);
 }
 
 /// A due scheduled tick: a block that can no longer stay breaks with its

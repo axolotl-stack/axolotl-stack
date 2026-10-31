@@ -62,7 +62,8 @@ impl GameServer {
                 data: BorrowedMcpePacketData::PlayerActionPacket(pk),
                 ..
             } => {
-                if pk.action == jolyne::valentine::types::EnumsPlayerActionType::Respawn {
+                use jolyne::valentine::types::EnumsPlayerActionType;
+                if pk.action == EnumsPlayerActionType::Respawn {
                     if let Some(mut q) = world
                         .get_resource_mut::<crate::entity::player_life::respawn::RespawnQueue>()
                     {
@@ -70,6 +71,10 @@ impl GameServer {
                             entity,
                             crate::entity::player_life::respawn::RespawnRequest::Action,
                         ));
+                    }
+                } else if pk.action == EnumsPlayerActionType::Stopsleeping {
+                    if let Some(mut q) = world.get_resource_mut::<BlockPacketQueue>() {
+                        q.0.push((entity, BlockAction::StopSleeping));
                     }
                 } else if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
                     q.0.push((entity, MovementInput::PlayerAction(pk.into())));

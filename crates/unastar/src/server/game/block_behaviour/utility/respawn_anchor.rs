@@ -531,4 +531,113 @@ mod tests {
             .collect();
         assert_eq!(spawns, captured, "spawn positions");
     }
+
+    /// Using the capture's bed at midnight with the daylight cycle off:
+    /// the head turns occupied with the click, the player gets one
+    /// sleeping-players event (able to sleep, one needed, one asleep) and
+    /// the spawn, and the head is free again 100 ticks later with the time
+    /// unchanged.
+    #[test]
+    fn bed_use_at_night_matches_the_bds_capture() {
+        use super::super::portals::capture::*;
+        use crate::server::game::block_behaviour::sleep::LEVEL_EVENT_SLEEPING_PLAYERS;
+        use crate::world::rules::{GameRules, WorldTime};
+        let fixture = fixture();
+        let night = step(&fixture, "bed", "use_night");
+        let mut h = Harness::new();
+        h.world.resource_mut::<WorldTime>().ticks = night["level_time_before"].as_u64().unwrap();
+        h.world.resource_mut::<GameRules>().do_daylight_cycle = false;
+        put_before(&mut h, night);
+        let packets = click(&mut h, night, None);
+        let head = cell_pos(night, "head");
+        let changes = night["changes"].as_array().unwrap();
+        let [lay_down, get_up] = &changes[..] else {
+            panic!("the capture shows two changes");
+        };
+        assert_eq!(
+            notation(h.state(head)),
+            lay_down["cells"]["head"].as_str().unwrap(),
+            "occupied with the click"
+        );
+        let events: Vec<Vec<u8>> = packets
+            .iter()
+            .filter_map(|packet| match packet {
+                McpePacketData::LevelEventGenericPacket(event) => {
+                    assert_eq!(event.event_id, LEVEL_EVENT_SLEEPING_PLAYERS);
+                    Some(event.__ctd__.0.to_vec())
+                }
+                _ => None,
+            })
+            .collect();
+        let captured: Vec<Vec<u8>> = night["level_events_generic"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|event| {
+                assert_eq!(event["event"], LEVEL_EVENT_SLEEPING_PLAYERS);
+                let fields =
+                    ["ableToSleep", "overworldPlayerCount", "sleepingPlayerCount"].map(|name| {
+                        (
+                            name.to_owned(),
+                            unastar_packs::nbt::Tag::Int(event[name].as_i64().unwrap() as i32),
+                        )
+                    });
+                let packet = crate::server::game::block_behaviour::generic_event(
+                    LEVEL_EVENT_SLEEPING_PLAYERS,
+                    &std::collections::BTreeMap::from(fields),
+                );
+                match packet.data {
+                    McpePacketData::LevelEventGenericPacket(event) => event.__ctd__.0.to_vec(),
+                    _ => unreachable!(),
+                }
+            })
+            .collect();
+        assert_eq!(events, captured, "sleeping-players events");
+        let spawns: Vec<(IVec3, IVec3)> = packets
+            .iter()
+            .filter_map(|packet| match packet {
+                McpePacketData::SetSpawnPositionPacket(spawn) => {
+                    let at = |pos: &BlockPos| IVec3::new(pos.x, pos.y, pos.z);
+                    Some((at(&spawn.block_position), at(&spawn.spawn_block_pos)))
+                }
+                _ => None,
+            })
+            .collect();
+        let captured: Vec<(IVec3, IVec3)> = night["spawn_position"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|spawn| {
+                (
+                    shift(&spawn["block_position"]),
+                    shift(&spawn["spawn_block_pos"]),
+                )
+            })
+            .collect();
+        assert_eq!(spawns, captured, "spawn positions");
+        let asleep = get_up["tick"].as_u64().unwrap() - lay_down["tick"].as_u64().unwrap();
+        h.tick(asleep - 1);
+        assert_eq!(
+            notation(h.state(head)),
+            lay_down["cells"]["head"].as_str().unwrap(),
+            "still asleep a tick early"
+        );
+        h.tick(1);
+        assert_eq!(
+            notation(h.state(head)),
+            get_up["cells"]["head"].as_str().unwrap(),
+            "up after {asleep} ticks"
+        );
+        for (label, cell) in night["after"].as_object().unwrap() {
+            assert_eq!(
+                notation(h.state(cell_pos(night, label))),
+                cell.as_str().unwrap(),
+                "cell {label} after"
+            );
+        }
+        assert_eq!(
+            h.world.resource::<WorldTime>().ticks,
+            night["level_time_after"].as_u64().unwrap()
+        );
+    }
 }

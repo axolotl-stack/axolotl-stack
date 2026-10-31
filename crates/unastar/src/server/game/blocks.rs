@@ -56,15 +56,18 @@ pub fn apply_block_actions(world: &mut World) {
                     page.positionof_lecterntoupdate.y,
                     page.positionof_lecterntoupdate.z,
                 );
-                // Only a reader within reach turns the page.
+                // Only a reader within reach turns the page; the page count
+                // the client sends is not read.
                 if can_interact(world, entity, pos) {
                     super::block_behaviour::utility::lectern::turn_page(
                         world,
                         IVec3::new(pos.0, pos.1, pos.2),
                         i32::from(page.newpagetoshow),
-                        i32::from(page.total_pages),
                     );
                 }
+            }
+            BlockAction::StopSleeping => {
+                super::block_behaviour::sleep::leave_bed(world, entity);
             }
         }
     }
@@ -89,6 +92,11 @@ fn process_auth_input_block_actions(
         );
 
         trace!(action = ?action_item.player_action_type, pos = ?(x, y, z), "Block action received");
+        // Leaving the bed names no block to reach.
+        if action_item.player_action_type == EnumsPlayerActionType::Stopsleeping {
+            super::block_behaviour::sleep::leave_bed(world, player_entity);
+            continue;
+        }
         if !can_interact(world, player_entity, (x, y, z))
             && !matches!(
                 action_item.player_action_type,
@@ -116,6 +124,11 @@ fn process_auth_input_block_actions(
                     .get::<crate::entity::components::GameMode>(player_entity)
                     .map(|gm| gm.instant_break())
                     .unwrap_or(false);
+                // A survival punch takes the book off a lectern (it drops);
+                // breaking goes on.
+                if !is_creative {
+                    super::block_behaviour::utility::lectern::take_book(world, IVec3::new(x, y, z));
+                }
 
                 let break_time_ticks = if is_creative {
                     0
@@ -475,6 +488,14 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                 }
             });
             super::containers::placed(world, IVec3::new(position.0, position.1, position.2));
+            let placed_at = IVec3::new(position.0, position.1, position.2);
+            super::block_behaviour::utility::sculk::game_event(
+                world,
+                super::block_behaviour::centre(placed_at),
+                super::block_behaviour::utility::sculk::GameEvent::BlockPlace,
+                Some(*entity),
+                Some(*block_id),
+            );
             if world.get::<crate::entity::components::GameMode>(*entity)
                 == Some(&crate::entity::components::GameMode::Survival)
             {
@@ -575,6 +596,16 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         return;
     };
 
+    let instant_break = world
+        .get::<crate::entity::components::GameMode>(breaking_player)
+        .is_some_and(|mode| mode.instant_break());
+    // An instant break of a lectern holding a book only takes the book off
+    // (it drops); the lectern stays.
+    if instant_break && super::block_behaviour::utility::lectern::take_book(world, pos) {
+        correct_block(world, breaking_player, (x, y, z));
+        return;
+    }
+
     // Blocks holding items (campfires, jukeboxes, lecterns, flower pots)
     // drop them, and a container hands its contents over, before the actor
     // goes with the block.
@@ -586,14 +617,19 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         set_block(world, pos, *blocks::AIR, false);
         drop_state
     });
+    if original_block_id != *blocks::AIR {
+        super::block_behaviour::utility::sculk::game_event(
+            world,
+            super::block_behaviour::centre(pos),
+            super::block_behaviour::utility::sculk::GameEvent::BlockDestroy,
+            Some(breaking_player),
+            Some(original_block_id),
+        );
+    }
 
     // Survival breaks drop the block's items as real item entities and wear
     // the tool.
-    if original_block_id != *blocks::AIR
-        && !world
-            .get::<crate::entity::components::GameMode>(breaking_player)
-            .is_some_and(|mode| mode.instant_break())
-    {
+    if original_block_id != *blocks::AIR && !instant_break {
         let tool = held_item(world, breaking_player);
         super::block_drops::drop_block_items(world, pos, drop_state, tool.as_ref());
         wear_held_tool(world, breaking_player, original_block_id);

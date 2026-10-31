@@ -289,9 +289,12 @@ pub fn container_level(world: &World, pos: IVec3) -> Option<u8> {
 
 /// What a comparator reads from a utility block behind it: a cauldron's,
 /// composter's or beehive's fill, a cake's bites, a lectern's page, a
-/// jukebox's disc. `None` for other blocks.
+/// jukebox's disc, a sculk sensor's last frequency. `None` for other
+/// blocks.
 fn utility_level(world: &World, pos: IVec3) -> Option<u8> {
-    use super::super::utility::{Utility, beehive, cake, cauldron, composter, jukebox, lectern};
+    use super::super::utility::{
+        Utility, beehive, cake, cauldron, composter, jukebox, lectern, sculk,
+    };
     let (entry, state) = power::at(world, pos)?;
     Some(match Utility::of(entry)? {
         Utility::Cauldron => cauldron::comparator_signal(entry, state),
@@ -300,6 +303,7 @@ fn utility_level(world: &World, pos: IVec3) -> Option<u8> {
         Utility::Cake => cake::comparator_signal(entry, state),
         Utility::Lectern => lectern::comparator_signal(world, pos),
         Utility::Jukebox => jukebox::comparator_signal(world, pos),
+        Utility::Sculk => sculk::comparator_signal(world, pos)?,
         _ => return None,
     })
 }

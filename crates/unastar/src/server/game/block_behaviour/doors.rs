@@ -165,9 +165,10 @@ pub fn structure(entry: &BlockEntry, pos: IVec3, state: u32) -> (Vec<IVec3>, u32
     )
 }
 
-/// Open or close the door with a half at `pos` and play the door sound.
-/// Returns whether the door toggled.
-pub fn toggle(world: &mut World, pos: IVec3, state: u32, _player: Option<Entity>) -> bool {
+/// Open or close the door with a half at `pos` and play the door sound;
+/// the lower half's centre gets the open or close game event caused by
+/// `player`. Returns whether the door toggled.
+pub fn toggle(world: &mut World, pos: IVec3, state: u32, player: Option<Entity>) -> bool {
     let registry = world
         .resource::<crate::server::game::types::BlockRegistryResource>()
         .0
@@ -200,6 +201,17 @@ pub fn toggle(world: &mut World, pos: IVec3, state: u32, _player: Option<Entity>
         pos,
         if open { SOUND_OPEN } else { SOUND_CLOSE },
         lower_state,
+    );
+    super::utility::sculk::game_event(
+        world,
+        super::centre(lower),
+        if open {
+            super::utility::sculk::GameEvent::BlockOpen
+        } else {
+            super::utility::sculk::GameEvent::BlockClose
+        },
+        player,
+        None,
     );
     true
 }
