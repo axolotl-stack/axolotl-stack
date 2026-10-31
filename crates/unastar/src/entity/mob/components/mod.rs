@@ -180,5 +180,6 @@ pub fn register_component_kinds(
     ambient::register_component_kinds(builder)?;
     spawn_entity::register_component_kinds(builder, items)?;
     equipment::register_component_kinds(builder)?;
-    knockback::register_component_kinds(builder)
+    knockback::register_component_kinds(builder)?;
+    crate::entity::freezing::register_component_kinds(builder)
 }

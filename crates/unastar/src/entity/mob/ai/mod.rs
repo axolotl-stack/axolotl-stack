@@ -261,7 +261,11 @@ fn think(
         step_height: physics.step_height,
         on_ground,
         liquid: living_liquid(world, Aabb::from_feet(feet, physics.width, physics.height)),
-        movement: mob.get::<MovementConfig>().map_or(0.0, |m| m.value),
+        movement: {
+            let base = mob.get::<MovementConfig>().map_or(0.0, |m| m.value);
+            mob.get::<crate::entity::freezing::FreezingState>()
+                .map_or(base, |cold| cold.movement(base))
+        },
     };
     let policy = WalkPolicy::new(
         mob.get::<WalkNavigationConfig>(),

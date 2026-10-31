@@ -122,6 +122,12 @@ pub struct PlayerData {
     pub exhaustion: f32,
     #[serde(default)]
     pub experience_progress: f32,
+    /// Cold exposure carried across saves and raw actor snapshots.
+    #[serde(default)]
+    pub cold_exposure: f32,
+    /// Lifetime tick phase used by periodic actor conditions.
+    #[serde(default)]
+    pub age_ticks: u64,
 }
 
 impl Default for PlayerData {
@@ -145,6 +151,8 @@ impl Default for PlayerData {
             saturation: default_saturation(),
             exhaustion: 0.0,
             experience_progress: 0.0,
+            cold_exposure: 0.0,
+            age_ticks: 0,
         }
     }
 }
@@ -226,6 +234,7 @@ impl PlayerData {
             || !self.saturation.is_finite()
             || !self.exhaustion.is_finite()
             || !(0.0..=1.0).contains(&self.experience_progress)
+            || crate::entity::freezing::FreezingState::from_strength(self.cold_exposure).is_err()
         {
             return Err(StorageError::Deserialization("invalid player state".into()));
         }
