@@ -223,6 +223,24 @@ pub fn apply_player_effects(
 #[derive(Component, Debug, Clone, Default, PartialEq)]
 pub struct SentEffects(HashMap<EffectType, (u8, u32)>);
 
+impl SentEffects {
+    /// Record an explicitly synchronized effect set after authoritative restoration.
+    pub(super) fn sent(effects: &Effects) -> Self {
+        Self(
+            effects
+                .active
+                .iter()
+                .map(|(kind, effect)| (*kind, (effect.level, effect.duration_ticks)))
+                .collect(),
+        )
+    }
+
+    /// Read the effect identifiers the client may still have before replacement.
+    pub(super) fn effect_types(&self) -> impl Iterator<Item = EffectType> + '_ {
+        self.0.keys().copied()
+    }
+}
+
 /// System: send each player `MobEffect` add, modify and remove packets for
 /// the changes since the last tick.
 #[allow(clippy::type_complexity)]
