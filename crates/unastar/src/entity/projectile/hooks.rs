@@ -62,6 +62,7 @@ pub struct PlayerTeleport {
     source: Option<Entity>,
     from: DVec3,
     cause: crate::server::game::item_use::TeleportCause,
+    request_id: Option<String>,
     /// Destination in feet coordinates, matching the public item teleport API.
     pub destination: DVec3,
     cancelled: bool,
@@ -82,6 +83,10 @@ impl PlayerTeleport {
     /// Read the protocol reason for this teleport.
     pub fn cause(&self) -> crate::server::game::item_use::TeleportCause {
         self.cause
+    }
+    /// Read native queued relocation context; ordinary item teleports have none.
+    pub fn request_id(&self) -> Option<&str> {
+        self.request_id.as_deref()
     }
     /// Prevent teleportation and normal teleport packets.
     pub fn cancel(&mut self) {
@@ -123,6 +128,7 @@ pub struct PlayerTeleported {
     from: DVec3,
     destination: DVec3,
     cause: crate::server::game::item_use::TeleportCause,
+    request_id: Option<String>,
     identity: TeleportIdentity,
 }
 impl PlayerTeleported {
@@ -145,6 +151,10 @@ impl PlayerTeleported {
     /// Read the protocol teleport reason.
     pub fn cause(&self) -> crate::server::game::item_use::TeleportCause {
         self.cause
+    }
+    /// Read the original native queued relocation context, when present.
+    pub fn request_id(&self) -> Option<&str> {
+        self.request_id.as_deref()
     }
     /// Read immutable account facts even if another notification removed the actor.
     pub fn identity(&self) -> &TeleportIdentity {
@@ -425,6 +435,18 @@ pub(crate) fn teleport(
     cause: crate::server::game::item_use::TeleportCause,
     destination: DVec3,
 ) -> Option<TeleportPermit> {
+    teleport_with_request(world, player, source, cause, destination, None)
+}
+
+/// Run the ordinary native teleport policy with an immutable engine-owned context.
+pub(crate) fn teleport_with_request(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    cause: crate::server::game::item_use::TeleportCause,
+    destination: DVec3,
+    request_id: Option<String>,
+) -> Option<TeleportPermit> {
     let eye = world.get::<Position>(player)?.0;
     let source_identity = source.map(|source| (source, Identity::capture(world, source)));
     let flight = source.map(|source| world.get::<super::ProjectileFlight>(source).copied());
@@ -434,6 +456,7 @@ pub(crate) fn teleport(
         source,
         from: eye - DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT,
         cause,
+        request_id: request_id.clone(),
         destination,
         cancelled: false,
     };
@@ -460,6 +483,7 @@ pub(crate) fn teleport(
                 from: event.from,
                 destination: event.destination,
                 cause,
+                request_id,
                 identity: TeleportIdentity {
                     session_id: identity.session.as_ref().map(|session| session.0),
                     uuid: identity.uuid,

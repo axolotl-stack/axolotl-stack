@@ -1441,3 +1441,20 @@ work; it runs after local ECS borrows finish, with a fresh directory. Queueing
 acknowledges no application success. `RouterTickHandler` runs once per aggregate
 tick, separately from every world's simulation. This boundary supports actual
 cross-world native effects without reentrant world borrowing or raw pointers.
+
+### Durable movement within one world
+
+`server::worlds::request_relocation_checked` queues a same-world teleport through
+`DimensionRouter`. Loaded collision checks and the ordinary `PlayerTeleport`
+handlers and observers run before the caller's final predicate. These proposals
+carry an engine-owned `request_id`; ordinary item teleports carry none. The exact
+rewritten destination is saved in the canonical player record before movement,
+while an outbound packet slot stays reserved through the storage acknowledgement.
+Temporary modes retain their durable base and item state is preserved.
+
+`RelocationHooks` delivers immutable committed or failed events for the original
+account/channel and opaque request. A possible storage write without an
+acknowledgement terminally fences the account for recovery. Loading and outbound
+pressure retry within a bounded queue without invoking the final predicate.
+Same-world movement retains the actor and its world-local components; dimension
+migration continues to use the separate transfer callbacks.

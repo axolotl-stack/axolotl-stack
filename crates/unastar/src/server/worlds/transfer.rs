@@ -29,7 +29,7 @@ use crate::world::ecs::{
 
 /// Exact source gameplay facts across native callbacks. Portable snapshots omit
 /// network slot IDs, so these and request aliases are additionally retained.
-struct SourceBaseline {
+pub(super) struct SourceBaseline {
     snapshot: player_state::PlayerSnapshot,
     ids: Vec<i32>,
     windows: ContainerWindows,
@@ -44,7 +44,7 @@ struct SourceBaseline {
 }
 impl SourceBaseline {
     /// Capture complete initialized inventory/life state before extension calls.
-    fn capture(world: &World, player: Entity) -> Result<Self, TransferError> {
+    pub(super) fn capture(world: &World, player: Entity) -> Result<Self, TransferError> {
         let snapshot =
             player_state::capture(world, player).map_err(|_| TransferError::SourceUnavailable)?;
         if snapshot.dead
@@ -105,7 +105,7 @@ impl SourceBaseline {
         })
     }
     /// Never overwrite a nested accepted operation or a changed session state.
-    fn matches(&self, world: &World, player: Entity) -> bool {
+    pub(super) fn matches(&self, world: &World, player: Entity) -> bool {
         Self::capture(world, player).is_ok_and(|current| {
             current.snapshot == self.snapshot
                 && current.ids == self.ids
