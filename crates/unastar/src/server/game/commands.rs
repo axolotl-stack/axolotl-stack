@@ -106,6 +106,9 @@ pub fn apply_chat_and_commands(
 pub fn run_commands(world: &mut World) {
     let requests = std::mem::take(&mut world.resource_mut::<PendingCommands>().0);
     for (entity, request) in requests {
+        if super::inventory_effects::is_quarantined(world, entity) {
+            continue;
+        }
         let Some(source) = CommandSource::player(world, entity) else {
             continue;
         };

@@ -18,6 +18,7 @@ mod falling;
 pub mod hunger;
 mod inventory;
 pub mod item_actions;
+pub mod inventory_effects;
 pub mod item_use;
 mod items;
 pub(crate) mod join;
@@ -120,6 +121,9 @@ pub(super) fn capture_player_record(
     entity: Entity,
     normalize_dead: bool,
 ) -> Option<(uuid::Uuid, PlayerData)> {
+    if inventory_effects::is_quarantined(world, entity) {
+        return None;
+    }
     use crate::entity::components::{Experience, Health, Hunger};
     let uuid = world.get::<PlayerUuid>(entity)?.0;
     let dead = normalize_dead
@@ -174,6 +178,17 @@ pub(super) fn capture_player_record(
             cursor: world
                 .get::<PlayerUi>(entity)
                 .map(|ui| ui.cursor().into())
+                .unwrap_or_default(),
+            ui: world
+                .get::<PlayerUi>(entity)
+                .map(|ui| ui.0.slots().iter().map(Into::into).collect())
+                .unwrap_or_default(),
+            inventory_revision: world
+                .get::<inventory_effects::InventoryPersistence>(entity)
+                .map_or(0, |state| state.revision()),
+            inventory_effects: world
+                .get::<inventory_effects::InventoryPersistence>(entity)
+                .map(|state| state.receipts().clone())
                 .unwrap_or_default(),
             held_slot: world
                 .get::<HeldSlot>(entity)
@@ -236,8 +251,17 @@ fn restore_items(
             .expect("four saved armour slots");
     }
     let offhand = OffhandSlot(offhand.into_slot());
-    let mut ui = PlayerUi::default();
-    ui.set_cursor(cursor);
+    let ui = if saved.ui.is_empty() {
+        let mut ui = PlayerUi::default();
+        ui.set_cursor(cursor);
+        ui
+    } else {
+        let slots = std::mem::take(&mut saved.ui)
+            .into_iter()
+            .map(|item| item.restore(items))
+            .collect::<crate::storage::StorageResult<Vec<_>>>()?;
+        PlayerUi(Inventory::from_slots(slots))
+    };
     Ok((
         main,
         armour,
@@ -806,6 +830,7 @@ impl GameServer {
             .as_ref()
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(uuid::Uuid::new_v4);
+        inventory_effects::allow_spawn(self.ecs.world(), player_uuid)?;
         let player_name = data.display_name.clone();
         let position = Position(data.position);
         let runtime_id = data.runtime_id;
@@ -834,6 +859,8 @@ impl GameServer {
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;
         let mut saved_data = data.saved_data;
+        let inventory_persistence =
+            inventory_effects::InventoryPersistence::from_record(saved_data.as_ref());
         let (main_inventory, armour, offhand, ui, ender_chest) = match saved_data.as_mut() {
             Some(saved) => {
                 saved.validate(player_uuid)?;
@@ -917,6 +944,7 @@ impl GameServer {
         // systems send it after the player's first view and chunks.
         let (health_sent, hunger_sent) = (health.clone(), hunger.clone());
         self.ecs.world_mut().entity_mut(entity).insert((
+            inventory_persistence,
             health,
             hunger,
             experience,

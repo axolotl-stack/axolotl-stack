@@ -53,6 +53,10 @@ impl GameServer {
             return;
         }
 
+        if super::inventory_effects::is_quarantined(self.ecs.world(), entity) {
+            return;
+        }
+
         // Route by packet type into domain queues
         let world = self.ecs.world_mut();
 

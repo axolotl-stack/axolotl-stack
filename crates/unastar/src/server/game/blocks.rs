@@ -44,6 +44,9 @@ pub fn apply_block_actions(world: &mut World) {
 
     let _span = tracing::info_span!("apply_block_actions", count = actions.len()).entered();
     for (entity, action) in actions {
+        if super::inventory_effects::is_quarantined(world, entity) {
+            continue;
+        }
         match action {
             BlockAction::AuthInputActions(block_actions) => {
                 process_auth_input_block_actions(world, entity, &block_actions);
@@ -283,6 +286,9 @@ pub(crate) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> 
 /// Reach is measured from server-tracked position to the target block's box.
 /// Missing/non-finite player state and non-building modes fail closed.
 pub(crate) fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> bool {
+    if super::inventory_effects::is_quarantined(world, entity) {
+        return false;
+    }
     use crate::entity::components::{GameMode, Position};
     let Some(mode) = world.get::<GameMode>(entity) else {
         return false;
