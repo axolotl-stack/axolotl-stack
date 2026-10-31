@@ -17,7 +17,8 @@
 //!   `q.`/`v.`/`t.`/`c.` aliases resolved at parse time.
 //!
 //! [`math`] also exposes calibrated scalar player-Drop direction math without
-//! bringing ECS or vector-library dependencies into shared consumers.
+//! bringing ECS or vector-library dependencies into shared consumers, and
+//! [`random`] Bedrock's game random (worldgen and the enchanting table).
 //!
 //! Parse rules follow the parser-fidelity requirement of the entities research
 //! (`thoughts/shared/research/2026-10-24-data-driven-entities.md` §4.7): what a
@@ -30,6 +31,7 @@ pub mod filter;
 pub mod loot;
 pub mod math;
 pub mod molang;
+pub mod random;
 
 use std::fmt;
 

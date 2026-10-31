@@ -868,7 +868,7 @@ impl GameServer {
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
         let mut experience = crate::entity::components::Experience {
-            enchantment_seed: rand::random(),
+            enchantment_seed: crate::item::enchanting::new_seed(&mut rand::thread_rng()),
             ..Default::default()
         };
         if let Some(saved) = saved_data {

@@ -97,3 +97,14 @@ the real pack/block tables. Unsupported functions/conditions, tiered equipment
 pools and entry-level nested pools are retained in decoded data and fail
 explicitly when rolled. This is the E0 relocation/data cutover, not a claim
 of I11's complete Bedrock loot semantics or MT19937 draw-order parity.
+
+## Random and enchanting
+
+`random::BedrockRandom` is Bedrock's game random (MT19937; bounded draws are
+one output modulo the bound, floats one output times 2^-32), used by worldgen
+and, through its `rand::RngCore` impl, by `enchanting::select_enchantments`,
+which draws every value from one 32-bit output the same way. Seeded with a
+player's enchanting seed it reproduces all 219 enchanting-table offers of the
+BDS 1.26.51 captures (costs, enchantments and names; the offer stream is in
+`unastar::item::enchanting`). Loot and mob gear call the same selection with
+their own generator.

@@ -9,30 +9,38 @@
 //! material's (leather 15, chainmail 12, copper 8, iron 9, gold 25,
 //! diamond 10, netherite 15, turtle 9, elytra 0); bows, crossbows and
 //! tridents have 1. Data-driven items carry `minecraft:enchantable`.
-//! Books (every enchantment), fishing rods (1) and the mace (15) are
-//! public reference (minecraft.wiki "Enchanting mechanics").
+//! Books (every enchantment), fishing rods and carrots on a stick (1) are
+//! public reference (minecraft.wiki "Enchanting mechanics"). The mace's
+//! offers in the captures fix `enchantability / 4 = 2` (8 to 11 all fit,
+//! 10 is used; the wiki's 15 does not fit).
 //!
-//! The enchanting table, measured on BDS 1.26.51 (client-diff
-//! items3-20261030 `enchanting`, two player seeds): three offers for every
-//! enchantable item without enchantments, also when an offer carries no
-//! enchantment and when an offer costs less than its slot number; books may
-//! carry several enchantments; the applied `ench` list is the offer in
-//! wire-list order (equipped, held, self); the same seed, item and
-//! bookshelf count give the same offers until an enchant replaces the seed.
+//! The enchanting table reproduces the BDS 1.26.51 captures exactly
+//! (client-diff items3-20261030 `enchanting`, `enchanting-seed2`,
+//! `enchanting-slots` and `dry`: four players, 219 offers with their
+//! costs, enchantments and names):
+//! - the player's enchanting seed seeds a 32-bit Mersenne Twister; every
+//!   bounded draw `next(n)` is one output modulo `n`;
+//! - one base cost for all three offers, `base = 1 + next(8) + b / 2 +
+//!   next(b + 1)` for `b` bookshelves (at most 15): top `max(base / 3, 1)`,
+//!   middle `base * 2 / 3 + 1`, bottom `max(base, 2b)`;
+//! - then, offer by offer from the same stream, its enchantments
+//!   ([`select_enchantments`] at the offer's cost, no treasure) and its
+//!   name: `3 + next(2)` words `NAME_WORDS[next(55)]`, each followed by a
+//!   space;
+//! - so the same seed, item and bookshelf count give the same offers, also
+//!   when an offer carries no enchantment or costs less than its slot
+//!   number, until a successful enchant replaces the seed with a new
+//!   non-negative 31-bit value (every seed in the captures is below 2^31;
+//!   consecutive seeds are unrelated).
 //!
-//! Experience cost of each offer (public reference, minecraft.wiki
-//! "Enchanting table mechanics", within the measured cost bounds): `base =
-//! 1 + randInt(7) + b / 2 + randInt(b)` for `b` bookshelves (at most 15),
-//! top `max(base / 3, 1)`, middle `base * 2 / 3 + 1`, bottom `max(base, 2b)`.
-//!
-//! The random generator is ours (seeded per offer from the player's seed),
-//! so the same seed gives the same offers here but not the ones BDS makes.
+//! Books may carry several enchantments; the applied `ench` list is the
+//! offer in wire-list order (equipped, held, self).
 
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::RngCore;
 use unastar_data::armour::{ArmourSlot, armour_slot};
 use unastar_data::enchantments::{self, Category};
 use unastar_rules::enchanting::{ItemEnchanting, select_enchantments, slot};
+use unastar_rules::random::BedrockRandom;
 
 use super::ItemStack;
 use super::enchant::{
@@ -61,21 +69,21 @@ const ARMOUR_MATERIALS: [(&str, i32); 7] = [
 const TURTLE_HELMET: &str = "minecraft:turtle_helmet";
 const TURTLE_ENCHANTABILITY: i32 = 9;
 /// Items classified by identifier: their slots and enchantability.
-const BY_IDENTIFIER: [(&str, u32, i32); 7] = [
+const BY_IDENTIFIER: [(&str, u32, i32); 8] = [
     ("minecraft:bow", slot::BOW, 1),
     ("minecraft:crossbow", slot::CROSSBOW, 1),
     ("minecraft:trident", slot::TRIDENT, 1),
     ("minecraft:fishing_rod", slot::FISHING_ROD, 1),
-    ("minecraft:mace", slot::MACE, 15),
+    ("minecraft:carrot_on_a_stick", slot::CARROT_ON_A_STICK, 1),
+    ("minecraft:mace", slot::MACE, 10),
     ("minecraft:elytra", slot::ELYTRA, 0),
     (BOOK, slot::ALL, 1),
 ];
 
-/// Words of an offer's display name, which the client renders in the
-/// Standard Galactic Alphabet (public reference: minecraft.wiki
-/// "Enchanting Table"; gophertunnel documents BDS names such as
-/// `"bless inside creature shrink "`).
-const NAME_WORDS: &[&str] = &[
+/// The words of offer names, which the client renders in the Standard
+/// Galactic Alphabet, in draw order: fitted to the BDS 1.26.51 captures,
+/// whose every offer name they reproduce.
+const NAME_WORDS: [&str; 55] = [
     "the",
     "elder",
     "scrolls",
@@ -131,13 +139,6 @@ const NAME_WORDS: &[&str] = &[
     "undead",
     "fresh",
     "stale",
-    "phnglui",
-    "mglwnafh",
-    "cthulhu",
-    "rlyeh",
-    "wgahnagl",
-    "fhtagn",
-    "baguette",
 ];
 
 fn tier_enchantability(tier: ToolTier) -> i32 {
@@ -250,19 +251,6 @@ pub fn can_enchant(stack: &ItemStack) -> bool {
         && enchantment_list(stack).is_empty()
 }
 
-/// The experience cost of the three offers for `bookshelves`.
-pub fn offer_costs(bookshelves: u8, rng: &mut impl Rng) -> [i32; 3] {
-    let shelves = i32::from(bookshelves.min(MAX_BOOKSHELVES));
-    std::array::from_fn(|slot| {
-        let base = 1 + rng.gen_range(0..=7) + shelves / 2 + rng.gen_range(0..=shelves);
-        match slot {
-            0 => (base / 3).max(1),
-            1 => base * 2 / 3 + 1,
-            _ => base.max(shelves * 2),
-        }
-    })
-}
-
 /// One enchanting-table offer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Offer {
@@ -271,11 +259,8 @@ pub struct Offer {
     /// `(id, level)` the enchant applies, in wire-list order (equipped,
     /// held, self; pick order within a list). May be empty.
     pub enchantments: Vec<(i16, i16)>,
-}
-
-/// The generator of offer `slot` for `seed` (slot 3: the costs).
-fn offer_rng(seed: u32, slot: u64) -> StdRng {
-    StdRng::seed_from_u64(u64::from(seed) << 2 | slot)
+    /// The display name: three or four words, each followed by a space.
+    pub name: String,
 }
 
 /// The enchanting table's three offers for `stack` with `bookshelves`
@@ -286,15 +271,21 @@ pub fn offers(stack: &ItemStack, bookshelves: u8, seed: u32) -> Option<[Offer; 3
         return None;
     }
     let facts = stack_enchanting(stack)?;
-    let costs = offer_costs(bookshelves, &mut offer_rng(seed, 3));
-    Some(std::array::from_fn(|slot| {
-        let cost = costs[slot];
-        let enchantments =
-            select_enchantments(facts, cost, false, &mut offer_rng(seed, slot as u64))
-                .into_iter()
-                .map(|e| (i16::from(e.id), i16::from(e.level)))
-                .collect();
-        Offer { cost, enchantments }
+    let mut random = BedrockRandom::new(seed);
+    let shelves = i32::from(bookshelves.min(MAX_BOOKSHELVES));
+    let base = 1 + random.next_int(8) + shelves / 2 + random.next_int(shelves + 1);
+    let costs = [(base / 3).max(1), base * 2 / 3 + 1, base.max(shelves * 2)];
+    Some(costs.map(|cost| {
+        let enchantments = select_enchantments(facts, cost, false, &mut random)
+            .into_iter()
+            .map(|e| (i16::from(e.id), i16::from(e.level)))
+            .collect();
+        let name = offer_name(&mut random);
+        Offer {
+            cost,
+            enchantments,
+            name,
+        }
     }))
 }
 
@@ -304,17 +295,22 @@ pub fn enchant_slot(stack: &ItemStack) -> i32 {
     stack_enchanting(stack).map_or(0, |facts| facts.slots as i32)
 }
 
-/// A display name for an offer: three or four words, each followed by a
-/// space.
-pub fn offer_name(rng: &mut impl Rng) -> String {
-    let words = rng.gen_range(3..=4);
+/// An offer's display name: three or four words, each followed by a space.
+fn offer_name(random: &mut BedrockRandom) -> String {
+    let words = 3 + random.next_int(2);
     (0..words)
-        .map(|_| NAME_WORDS[rng.gen_range(0..NAME_WORDS.len())])
+        .map(|_| NAME_WORDS[random.next_int(NAME_WORDS.len() as i32) as usize])
         .fold(String::new(), |mut name, word| {
             name.push_str(word);
             name.push(' ');
             name
         })
+}
+
+/// A new enchanting seed after an enchant (or for a new player): a
+/// non-negative 31-bit value.
+pub fn new_seed(rng: &mut impl RngCore) -> u32 {
+    rng.next_u32() >> 1
 }
 
 /// `stack` carrying `levels` after its own enchantments; a book becomes an
@@ -379,25 +375,107 @@ mod tests {
         assert_eq!(item_enchanting(entry("minecraft:rotten_flesh")), None);
     }
 
+    /// One captured table state: the player's enchanting seed, the
+    /// bookshelves, the item, the enchant-slot bits BDS sent and its three
+    /// offers (cost, enchantments in wire-list order, name).
+    type Captured = (
+        u32,
+        u8,
+        &'static str,
+        i32,
+        [(i32, &'static [(i16, i16)], &'static str); 3],
+    );
+
+    /// Every distinct offer state in the BDS 1.26.51 captures (client-diff
+    /// items3-20261030 `enchanting`, `enchanting-seed2`, `enchanting-slots`,
+    /// `dry`). A player's first seed is the enchantment seed of its
+    /// StartGame; the seeds after enchants were recovered from the offers by
+    /// a search over all 2^32 seeds (each the only seed giving that packet).
+    #[rustfmt::skip]
+    const BDS_OFFERS: &[Captured] = &[
+        (600484243, 0, "iron_sword", 16, [(2, &[(9, 1)], "klaatu snuff the scrolls "), (5, &[(10, 1)], "towards humanoid earth "), (7, &[(9, 1)], "mental range other cold ")]),
+        (600484243, 0, "diamond_pickaxe", 1024, [(2, &[(15, 1)], "klaatu snuff the scrolls "), (5, &[(17, 1)], "towards humanoid earth "), (7, &[(17, 1)], "mental range other cold ")]),
+        (600484243, 0, "book", -1, [(2, &[(0, 1)], "klaatu snuff the scrolls "), (5, &[(4, 1)], "towards humanoid earth "), (7, &[(19, 1)], "mental range other cold ")]),
+        (600484243, 0, "bow", 32, [(2, &[(19, 1)], "klaatu snuff the scrolls "), (5, &[(19, 1)], "towards humanoid earth "), (7, &[(19, 1)], "mental range other cold ")]),
+        (600484243, 0, "mace", 4194304, [(2, &[(17, 1)], "klaatu snuff the scrolls "), (5, &[(10, 1)], "towards humanoid earth "), (7, &[(17, 1)], "mental range other cold ")]),
+        (600484243, 0, "iron_spear", 8388608, [(2, &[(9, 1)], "klaatu snuff the scrolls "), (5, &[(11, 1)], "towards humanoid earth "), (7, &[(17, 1)], "mental range other cold ")]),
+        (600484243, 15, "iron_sword", 16, [(9, &[(9, 2)], "klaatu snuff the scrolls "), (19, &[(9, 3)], "towards humanoid earth "), (30, &[(13, 2), (9, 4), (17, 3), (12, 2)], "destroy other inside ")]),
+        (600484243, 15, "diamond_pickaxe", 1024, [(9, &[(15, 2)], "klaatu snuff the scrolls "), (19, &[(15, 2)], "towards humanoid earth "), (30, &[(17, 3), (18, 3), (15, 4)], "destroy other inside ")]),
+        (600484243, 15, "book", -1, [(9, &[(0, 1)], "klaatu snuff the scrolls "), (19, &[(39, 2)], "towards humanoid earth "), (30, &[(9, 4), (34, 4), (19, 4), (12, 2)], "destroy other inside ")]),
+        (600484243, 15, "bow", 32, [(9, &[(17, 1)], "klaatu snuff the scrolls "), (19, &[(17, 2)], "towards humanoid earth "), (30, &[(17, 3), (21, 1), (19, 4), (20, 2)], "destroy other inside ")]),
+        (600484243, 15, "mace", 4194304, [(9, &[(10, 2)], "klaatu snuff the scrolls "), (19, &[(11, 2)], "towards humanoid earth "), (30, &[(39, 5), (17, 3)], "destroy other inside ")]),
+        (600484243, 15, "iron_spear", 8388608, [(9, &[(9, 2)], "klaatu snuff the scrolls "), (19, &[(11, 3)], "towards humanoid earth "), (30, &[(9, 4), (41, 3), (12, 2)], "destroy other inside ")]),
+        (1589289030, 15, "diamond_pickaxe", 1024, [(7, &[(17, 1), (15, 1)], "beast klaatu humanoid shrink "), (16, &[(18, 1)], "animal free shorten "), (30, &[(17, 3), (15, 3)], "bless cube fiddle ")]),
+        (1589289030, 15, "book", -1, [(7, &[(29, 1), (17, 1)], "beast klaatu humanoid shrink "), (16, &[(8, 1)], "animal free shorten "), (30, &[(9, 3), (19, 3)], "bless cube fiddle ")]),
+        (1578384666, 15, "diamond_pickaxe", 1024, [(6, &[(17, 1)], "snuff water niktu "), (13, &[(15, 2)], "air the dry "), (30, &[(18, 3), (17, 3), (15, 4)], "fire berata self scrolls ")]),
+        (1578384666, 7, "diamond_pickaxe", 1024, [(4, &[(17, 1)], "snuff water niktu "), (10, &[(15, 2)], "air the dry "), (14, &[(18, 1), (17, 2), (15, 2)], "ignite wet fire berata ")]),
+        (1578384666, 7, "bow", 32, [(4, &[(19, 1)], "snuff water niktu "), (10, &[(19, 1)], "air the dry "), (14, &[(17, 2), (19, 2)], "light enchant ignite ")]),
+        (1578384666, 6, "diamond_pickaxe", 1024, [(3, &[(17, 1)], "snuff water niktu "), (8, &[(15, 1)], "air the dry "), (12, &[(18, 1), (15, 2)], "light enchant ignite ")]),
+        (1578384666, 6, "bow", 32, [(3, &[(19, 1)], "snuff water niktu "), (8, &[(19, 1)], "air the dry "), (12, &[(17, 2), (19, 2)], "light enchant ignite ")]),
+        (1135045863, 0, "iron_sword", 16, [(1, &[(9, 1), (17, 1), (12, 1)], "other imbue curse "), (2, &[(9, 1)], "enchant range animal the "), (2, &[(11, 1)], "grow earth creature beast ")]),
+        (1135045863, 0, "diamond_pickaxe", 1024, [(1, &[(15, 1)], "physical water humanoid imbue "), (2, &[(15, 1)], "snuff curse free fresh "), (2, &[(17, 1)], "klaatu stale destroy ")]),
+        (1135045863, 0, "book", -1, [(1, &[(29, 1)], "physical water humanoid imbue "), (2, &[(29, 1)], "snuff curse free fresh "), (2, &[(15, 1)], "klaatu stale destroy ")]),
+        (1135045863, 0, "bow", 32, [(1, &[(19, 1)], "physical water humanoid imbue "), (2, &[(19, 1)], "snuff curse free fresh "), (2, &[(19, 1)], "klaatu stale destroy ")]),
+        (1135045863, 0, "mace", 4194304, [(1, &[], "inside curse physical "), (2, &[(17, 1), (10, 1)], "the snuff curse "), (2, &[(11, 1)], "klaatu stale destroy ")]),
+        (1135045863, 0, "iron_spear", 8388608, [(1, &[(10, 1), (17, 1), (41, 1), (12, 1)], "other imbue curse "), (2, &[(10, 1)], "enchant range animal the "), (2, &[(10, 1)], "grow earth creature beast ")]),
+        (1135045863, 15, "iron_sword", 16, [(6, &[(11, 1), (17, 1)], "other imbue curse "), (14, &[(17, 2)], "enchant range animal the "), (30, &[(10, 4), (13, 2), (14, 2), (12, 2)], "fire destroy snuff humanoid ")]),
+        (1135045863, 15, "diamond_pickaxe", 1024, [(6, &[(17, 1), (15, 1)], "humanoid imbue other enchant "), (14, &[(17, 2), (15, 2)], "earth enchant range "), (30, &[(16, 1), (17, 3), (15, 3)], "ball air demon ")]),
+        (1135045863, 15, "book", -1, [(6, &[(0, 1), (39, 1), (34, 1)], "other imbue curse "), (14, &[(35, 1)], "enchant range animal the "), (30, &[(4, 4), (11, 3), (31, 3)], "ball air demon ")]),
+        (1135045863, 15, "bow", 32, [(6, &[(17, 1), (19, 1)], "humanoid imbue other enchant "), (14, &[(17, 2), (19, 2)], "earth enchant range "), (30, &[(21, 1), (17, 3), (19, 3), (20, 1)], "ball air demon ")]),
+        (1135045863, 15, "mace", 4194304, [(6, &[(11, 1), (17, 1)], "other imbue curse "), (14, &[(13, 1)], "enchant range animal the "), (30, &[(13, 1), (17, 3), (10, 3)], "fire destroy snuff humanoid ")]),
+        (1135045863, 15, "iron_spear", 8388608, [(6, &[(9, 2), (17, 1), (12, 1)], "other imbue curse "), (14, &[(10, 2)], "enchant range animal the "), (30, &[(41, 3), (9, 3), (17, 3), (12, 2)], "fire destroy snuff humanoid ")]),
+        (1106337166, 15, "diamond_pickaxe", 1024, [(5, &[(15, 1)], "shorten ball free stretch "), (12, &[(17, 2), (15, 2)], "animal imbue water air "), (30, &[(17, 3), (18, 3), (15, 4)], "niktu cold cube ")]),
+        (1106337166, 15, "book", -1, [(5, &[(11, 1)], "shorten ball free stretch "), (12, &[(39, 1), (34, 2)], "animal imbue water air "), (30, &[(0, 4), (8, 1), (41, 3), (15, 4), (35, 2), (12, 2)], "cold cube physical inside ")]),
+        (1541535686, 15, "diamond_pickaxe", 1024, [(4, &[(17, 1)], "grow bless light "), (9, &[(15, 2)], "berata other air "), (30, &[(17, 3), (15, 4)], "embiggen ignite light of ")]),
+        (1541535686, 7, "diamond_pickaxe", 1024, [(2, &[(17, 1)], "grow bless light "), (6, &[(15, 1)], "berata other air "), (14, &[(17, 2), (15, 2)], "embiggen ignite light of ")]),
+        (1541535686, 7, "bow", 32, [(2, &[(19, 1)], "grow bless light "), (6, &[(19, 1)], "berata other air "), (14, &[(17, 2), (19, 2)], "embiggen ignite light of ")]),
+        (1541535686, 6, "diamond_pickaxe", 1024, [(2, &[(17, 1)], "grow bless light "), (6, &[(15, 1)], "berata other air "), (12, &[(17, 2), (15, 2)], "embiggen ignite light of ")]),
+        (1541535686, 6, "bow", 32, [(2, &[(19, 1)], "grow bless light "), (6, &[(19, 1)], "berata other air "), (12, &[(17, 2), (19, 2)], "embiggen ignite light of ")]),
+        (2114989965, 0, "iron_helmet", 1, [(1, &[(0, 1)], "limited earth limited beast "), (2, &[(8, 1)], "twist xyzzy ball of "), (2, &[(0, 1)], "destroy bless other ")]),
+        (2114989965, 0, "iron_chestplate", 2, [(1, &[(4, 1)], "limited earth limited beast "), (2, &[(4, 1)], "twist xyzzy ball of "), (2, &[(0, 1)], "destroy bless other ")]),
+        (2114989965, 0, "iron_leggings", 8, [(1, &[(4, 1)], "limited earth limited beast "), (2, &[(4, 1)], "twist xyzzy ball of "), (2, &[(0, 1)], "destroy bless other ")]),
+        (2114989965, 0, "iron_boots", 4, [(1, &[(4, 1)], "limited earth limited beast "), (2, &[(4, 1)], "twist xyzzy ball of "), (2, &[(0, 1)], "destroy bless other ")]),
+        (2114989965, 0, "turtle_helmet", 1, [(1, &[(0, 1)], "limited earth limited beast "), (2, &[(8, 1)], "twist xyzzy ball of "), (2, &[(0, 1)], "destroy bless other ")]),
+        (2114989965, 0, "iron_axe", 512, [(1, &[(9, 1)], "limited earth limited beast "), (2, &[(10, 1)], "twist xyzzy ball of "), (2, &[(17, 1)], "destroy bless other ")]),
+        (2114989965, 0, "iron_shovel", 2048, [(1, &[(17, 1)], "limited earth limited beast "), (2, &[(17, 1)], "twist xyzzy ball of "), (2, &[(15, 1)], "destroy bless other ")]),
+        (2114989965, 0, "iron_hoe", 64, [(1, &[(17, 1)], "limited earth limited beast "), (2, &[(17, 1)], "twist xyzzy ball of "), (2, &[(15, 1)], "destroy bless other ")]),
+        (2114989965, 0, "fishing_rod", 4096, [(1, &[], "range berata limited earth "), (2, &[], "towards range spirit "), (2, &[], "of elemental range ")]),
+        (2114989965, 0, "crossbow", 65536, [(1, &[(34, 1)], "limited earth limited beast "), (2, &[(34, 1)], "twist xyzzy ball of "), (2, &[(34, 1)], "destroy bless other ")]),
+        (2114989965, 0, "trident", 32768, [(1, &[(29, 1)], "limited earth limited beast "), (2, &[(29, 1)], "twist xyzzy ball of "), (2, &[(29, 1)], "destroy bless other ")]),
+        (2114989965, 0, "carrot_on_a_stick", 8192, [(1, &[], "range berata limited earth "), (2, &[], "towards range spirit "), (2, &[], "of elemental range ")]),
+        (2114989965, 15, "mace", 4194304, [(6, &[(11, 1)], "limited earth limited beast "), (14, &[(39, 2)], "twist xyzzy ball of "), (30, &[(39, 4), (13, 2)], "dry fresh stretch water ")]),
+        (2114989965, 15, "book", -1, [(6, &[(11, 1)], "limited earth limited beast "), (14, &[(41, 2)], "twist xyzzy ball of "), (30, &[(0, 3), (2, 4), (12, 2)], "dry fresh stretch water ")]),
+        (644406434, 15, "mace", 4194304, [(4, &[], "free klaatu of "), (9, &[(39, 1)], "self twist limited "), (30, &[(40, 3)], "light wet air ")]),
+        (644406434, 15, "book", -1, [(4, &[(19, 1)], "of fire of demon "), (9, &[(34, 2)], "stale physical other "), (30, &[(8, 1), (10, 4), (15, 3)], "humanoid animal of ball ")]),
+        (1577864800, 15, "mace", 4194304, [(7, &[(17, 1)], "enchant self dry ignite "), (16, &[(17, 2)], "fresh fresh hot "), (30, &[(11, 4)], "darkness hot limited ")]),
+        (1577864800, 15, "book", -1, [(7, &[(39, 1)], "enchant self dry ignite "), (16, &[(41, 2)], "fresh fresh hot "), (30, &[(0, 3)], "darkness hot limited ")]),
+        (773073167, 15, "mace", 4194304, [(9, &[(13, 1)], "ball imbue wet ball "), (20, &[(39, 3), (17, 3)], "snuff fresh free the "), (30, &[(11, 4)], "twist bless darkness ")]),
+        (773073167, 15, "book", -1, [(9, &[(41, 1)], "ball imbue wet ball "), (20, &[(9, 2)], "snuff fresh free the "), (30, &[(39, 4)], "twist bless darkness ")]),
+        (1262519264, 15, "mace", 4194304, [(7, &[(11, 1)], "light ignite grow fresh "), (15, &[(39, 3), (17, 3)], "destroy niktu animal "), (30, &[(40, 3)], "the imbue humanoid twist ")]),
+        (1262519264, 15, "iron_axe", 512, [(7, &[(11, 1)], "light ignite grow fresh "), (15, &[(17, 2), (15, 2)], "destroy niktu animal "), (30, &[(10, 4), (15, 4)], "the imbue humanoid twist ")]),
+        (859559743, 0, "iron_sword", 16, [(1, &[(17, 1), (9, 1)], "ball elemental imbue "), (4, &[(9, 1)], "curse shrink enchant "), (5, &[(9, 1)], "ignite water sphere ")]),
+    ];
+
     #[test]
-    fn offer_costs_follow_the_bookshelf_ranges() {
-        // minecraft.wiki ranges: 0 shelves top 1-2, middle 1-6, bottom 1-8
-        // (BDS offered 1/2/2 and 2/5/7); 15 shelves top 2-10, middle 6-21,
-        // bottom exactly 30; 7 shelves bottom 14 and 6 shelves bottom 12
-        // (measured maxima).
-        for seed in 0..2000u64 {
-            let mut rng = StdRng::seed_from_u64(seed);
-            let [top, middle, bottom] = offer_costs(0, &mut rng);
-            assert!((1..=2).contains(&top), "{top}");
-            assert!((1..=6).contains(&middle), "{middle}");
-            assert!((1..=8).contains(&bottom), "{bottom}");
-            let [top, middle, bottom] = offer_costs(15, &mut rng);
-            assert!((2..=10).contains(&top), "{top}");
-            assert!((6..=21).contains(&middle), "{middle}");
-            assert_eq!(bottom, 30);
-            assert_eq!(offer_costs(40, &mut rng)[2], 30);
-            assert!((14..=18).contains(&offer_costs(7, &mut rng)[2]));
-            assert!((12..=17).contains(&offer_costs(6, &mut rng)[2]));
+    fn offers_match_the_bds_captures_exactly() {
+        for &(seed, shelves, item, slot_bits, expected) in BDS_OFFERS {
+            let stack = stack(&format!("minecraft:{item}"), 1);
+            let context = format!("{item}, seed {seed}, {shelves} bookshelves");
+            assert_eq!(enchant_slot(&stack), slot_bits, "{context}");
+            let expected = expected.map(|(cost, enchantments, name)| Offer {
+                cost,
+                enchantments: enchantments.to_vec(),
+                name: name.to_string(),
+            });
+            assert_eq!(offers(&stack, shelves, seed), Some(expected), "{context}");
+        }
+    }
+
+    #[test]
+    fn bookshelves_beyond_fifteen_add_nothing() {
+        let sword = stack("minecraft:iron_sword", 1);
+        for seed in 0..50 {
+            assert_eq!(offers(&sword, 40, seed), offers(&sword, 15, seed));
         }
     }
 
@@ -441,6 +519,9 @@ mod tests {
         assert_eq!(offers(&stack("minecraft:stick", 1), 15, 7), None);
         assert_eq!(offers(&stack("minecraft:shears", 1), 15, 7), None);
         assert_eq!(offers(&stack("minecraft:elytra", 1), 15, 7), None);
+        // Measured: no offers for these either.
+        assert_eq!(offers(&stack("minecraft:flint_and_steel", 1), 15, 7), None);
+        assert_eq!(offers(&stack("minecraft:shield", 1), 15, 7), None);
         let enchanted = with_enchantment_list(&stack("minecraft:iron_sword", 1), &[(9, 1)]);
         assert_eq!(offers(&enchanted, 15, 7), None);
         assert_eq!(offers(&ItemStack::empty(), 15, 7), None);
@@ -506,13 +587,20 @@ mod tests {
 
     #[test]
     fn offer_names_are_words_with_trailing_spaces() {
-        let mut rng = StdRng::seed_from_u64(3);
-        for _ in 0..50 {
-            let name = offer_name(&mut rng);
-            assert!(name.ends_with(' '));
-            let words: Vec<_> = name.split_whitespace().collect();
-            assert!((3..=4).contains(&words.len()));
-            assert!(words.iter().all(|word| NAME_WORDS.contains(word)));
+        let bow = stack("minecraft:bow", 1);
+        for seed in 0..50 {
+            for offer in offers(&bow, 15, seed).unwrap() {
+                assert!(offer.name.ends_with(' '));
+                let words: Vec<_> = offer.name.split_whitespace().collect();
+                assert!((3..=4).contains(&words.len()));
+                assert!(words.iter().all(|word| NAME_WORDS.contains(word)));
+            }
         }
+    }
+
+    #[test]
+    fn new_seeds_are_non_negative() {
+        let mut rng = BedrockRandom::new(1);
+        assert!((0..1000).all(|_| i32::try_from(new_seed(&mut rng)).is_ok()));
     }
 }

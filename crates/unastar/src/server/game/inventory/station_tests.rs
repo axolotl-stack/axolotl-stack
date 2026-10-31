@@ -114,22 +114,39 @@ struct Replayed {
     anvil_events: Vec<i32>,
     /// Inventory stacks whose NBT we compared with BDS's resend.
     compared_stacks: usize,
-    /// Of those, enchanted ones (their `ench` lists come from different
-    /// random draws, so only their presence is compared).
+    /// Of those, enchanted ones.
     enchanted_stacks: usize,
+    /// BDS `PlayerEnchantOptions` with offers that ours matched.
+    compared_offers: usize,
     /// Total XP of the orbs BDS spawned.
     orb_xp: u32,
     /// Every response status, in order.
     statuses: Vec<Status>,
 }
 
-/// An item's NBT without its `ench` list.
-fn without_ench(stack: &ItemStack) -> Option<zuri_nbt::tag::Compound> {
-    item_tag(stack).map(|mut tag| {
-        tag.0.remove("ench");
-        tag
-    })
+/// What an enchanting capture's offers depended on.
+struct EnchantingScript {
+    /// The player's enchanting seed before the first enchant (its StartGame
+    /// enchantment seed) and after each enchant (recovered from the offers
+    /// by a search over all 2^32 seeds).
+    seeds: &'static [u32],
+    /// Bookshelves around the table for each `PlayerEnchantOptions` with
+    /// offers, in order (the scenario's 0, 15, 7, 7 behind a stone = 6 and
+    /// 15 one level up).
+    bookshelves: &'static [u8],
 }
+
+const ENCHANTING_SHELVES: [u8; 25] = [
+    0, 0, 0, 0, 0, 0, 0, 0, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 7, 7, 6, 6, 15, 15,
+];
+const ENCHANTING_SCRIPT: EnchantingScript = EnchantingScript {
+    seeds: &[600_484_243, 1_589_289_030, 1_578_384_666],
+    bookshelves: &ENCHANTING_SHELVES,
+};
+const ENCHANTING_SEED2_SCRIPT: EnchantingScript = EnchantingScript {
+    seeds: &[1_135_045_863, 1_106_337_166, 1_541_535_686],
+    bookshelves: &ENCHANTING_SHELVES,
+};
 
 fn level_of(packet: &jolyne::valentine::UpdateAttributesPacket) -> Option<i32> {
     packet
@@ -143,12 +160,15 @@ fn level_of(packet: &jolyne::valentine::UpdateAttributesPacket) -> Option<i32> {
 /// response compared with BDS's, every anvil and enchant level charge
 /// compared with BDS's level update, and every inventory stack BDS resends
 /// unchanged compared with ours (item, count and NBT).
-///
-/// Enchanting offers come from our own random draw, so an enchant request
-/// names BDS's offer slot (from its last `PlayerEnchantOptions`) and runs
-/// with a seed whose offer in that slot enchants the item; the applied
-/// enchantments themselves are not compared.
 fn replay(capture: &str) -> Replayed {
+    replay_with(capture, None)
+}
+
+/// [`replay`], with the seeds and bookshelves an enchanting capture's
+/// offers depend on: every BDS `PlayerEnchantOptions` with offers is
+/// compared with ours for the item in the table, and enchant requests run
+/// with the player's seed of the moment.
+fn replay_with(capture: &str, enchanting_script: Option<&EnchantingScript>) -> Replayed {
     let mut main = Inventory::new(36);
     let mut armor = ArmourInventory::default();
     let mut offhand = ItemStack::empty();
@@ -165,6 +185,9 @@ fn replay(capture: &str) -> Replayed {
     let mut screen = ScreenKind::None;
     let mut levels = 0;
     let mut bds_first_option = None;
+    let mut offer_packets = 0;
+    let mut table_shelves = 0;
+    let mut enchants = 0;
     let mut expected_level = None;
     let mut pending: Option<(i32, Outcome)> = None;
     let mut seen = Replayed::default();
@@ -205,13 +228,9 @@ fn replay(capture: &str) -> Replayed {
                         let context = format!("seq {seq} slot {slot}");
                         assert_eq!(ours.item_id(), theirs.item_id(), "{context}");
                         assert_eq!(ours.count, theirs.count, "{context}");
-                        assert_eq!(without_ench(ours), without_ench(&theirs), "{context}: NBT");
-                        let (a, b) = (
-                            crate::item::enchant::enchantments(ours),
-                            crate::item::enchant::enchantments(&theirs),
-                        );
-                        assert_eq!(a.is_empty(), b.is_empty(), "{context}: ench");
-                        seen.enchanted_stacks += usize::from(!a.is_empty());
+                        assert_eq!(item_tag(ours), item_tag(&theirs), "{context}: NBT");
+                        seen.enchanted_stacks +=
+                            usize::from(!crate::item::enchant::enchantments(ours).is_empty());
                         seen.compared_stacks += 1;
                     }
                 }
@@ -239,6 +258,19 @@ fn replay(capture: &str) -> Replayed {
                 if let Some(first) = options.options.first() {
                     assert_eq!(options.options.len(), 3, "seq {seq}");
                     bds_first_option = Some(first.enchant_net_id.raw_id);
+                    let script = enchanting_script.expect("enchanting replays have a script");
+                    table_shelves = script.bookshelves[offer_packets];
+                    offer_packets += 1;
+                    let table = super::engine::EnchantingContext {
+                        seed: script.seeds[enchants],
+                        bookshelves: table_shelves,
+                        first_option_id: first.enchant_net_id.raw_id,
+                    };
+                    let input = stores.ui.item(14).unwrap();
+                    let ours = super::stations::enchant_options(input, table)
+                        .unwrap_or_else(|| panic!("seq {seq}: no offers for {input:?}"));
+                    assert_eq!(ours, options, "seq {seq}: offers for {}", input.item_id());
+                    seen.compared_offers += 1;
                 }
             }
             McpePacketData::LevelEventPacket(event)
@@ -272,21 +304,14 @@ fn replay(capture: &str) -> Replayed {
                             ..
                         }) = screen
                         {
-                            let slot = bds - bds_first_option.expect("offers before an enchant");
-                            let input = stores.ui.item(14).unwrap().clone();
-                            let seed = (0..1000)
-                                .find(|seed| {
-                                    crate::item::enchanting::offers(&input, 15, *seed).is_some_and(
-                                        |offers| !offers[slot as usize].enchantments.is_empty(),
-                                    )
-                                })
-                                .expect("a seed whose offer enchants");
+                            let script =
+                                enchanting_script.expect("enchanting replays have a script");
                             enchanting = Some(super::engine::EnchantingContext {
-                                seed,
-                                bookshelves: 15,
-                                first_option_id: OPTION_BASE,
+                                seed: script.seeds[enchants],
+                                bookshelves: table_shelves,
+                                first_option_id: bds_first_option
+                                    .expect("offers before an enchant"),
                             });
-                            craft.recipe_net_id.raw_id = OPTION_BASE + slot;
                         } else {
                             craft.recipe_net_id.raw_id = our_recipe(bds);
                         }
@@ -320,6 +345,7 @@ fn replay(capture: &str) -> Replayed {
                         StationUse::Anvil { cost: spent }
                         | StationUse::Enchant { levels: spent } => {
                             expected_level = Some(levels - spent);
+                            enchants += usize::from(matches!(used, StationUse::Enchant { .. }));
                         }
                         _ => {}
                     }
@@ -417,10 +443,14 @@ fn enchant_levels(seen: &Replayed) -> Vec<i32> {
 
 #[test]
 fn enchanting_table_answers_like_bds() {
-    // Both player seeds: the sword with offer 3 (3 levels, 3 lapis), the
-    // book with offer 1, and a level 2 player refused offer 3 (status 39).
-    for capture in [ENCHANTING, ENCHANTING_SEED2] {
-        let seen = replay(capture);
+    // Both player seeds: every offer packet, the sword with offer 3 (3
+    // levels, 3 lapis), the book with offer 1, and a level 2 player refused
+    // offer 3 (status 39).
+    for (capture, script) in [
+        (ENCHANTING, &ENCHANTING_SCRIPT),
+        (ENCHANTING_SEED2, &ENCHANTING_SEED2_SCRIPT),
+    ] {
+        let seen = replay_with(capture, Some(script));
         assert_eq!(enchant_levels(&seen), [3, 1], "{seen:?}");
         assert!(
             seen.statuses
@@ -428,6 +458,7 @@ fn enchanting_table_answers_like_bds() {
             "{seen:?}"
         );
         assert!(seen.responses > 40, "{seen:?}");
+        assert_eq!(seen.compared_offers, ENCHANTING_SHELVES.len(), "{seen:?}");
         assert!(seen.enchanted_stacks > 0, "{seen:?}");
     }
 }
@@ -1629,7 +1660,7 @@ mod world {
                 .collect();
             assert_eq!(sent, expected);
             let top = options.options[0].clone();
-            assert!(top.enchant_name.ends_with(' '));
+            assert_eq!(&*top.enchant_name, offers[0].name.as_str());
             let listed: usize = top.enchants.item_enchants.iter().map(Vec::len).sum();
             assert_eq!(listed, offers[0].enchantments.len());
 

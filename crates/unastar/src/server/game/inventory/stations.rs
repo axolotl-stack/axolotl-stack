@@ -650,7 +650,9 @@ pub(super) fn after_response(world: &mut World, player: Entity, after: AfterResp
             if levels > 0 {
                 charge_levels(world, player, levels);
             }
-            let seed = world.get_resource_or_init::<EntityRandom>().0.r#gen();
+            let seed = crate::item::enchanting::new_seed(
+                &mut world.get_resource_or_init::<EntityRandom>().0,
+            );
             if let Some(mut experience) = world.get_mut::<Experience>(player) {
                 experience.enchantment_seed = seed;
             }
@@ -762,7 +764,6 @@ pub struct EnchantOptionIds {
 pub fn enchant_options(
     stack: &ItemStack,
     table: super::engine::EnchantingContext,
-    rng: &mut impl Rng,
 ) -> Option<PlayerEnchantOptionsPacket> {
     use jolyne::valentine::bedrock::codec::BedrockCodec;
     let offers = crate::item::enchanting::offers(stack, table.bookshelves, table.seed)?;
@@ -787,7 +788,7 @@ pub fn enchant_options(
                     slot: slot_mask,
                     item_enchants: lists,
                 },
-                enchant_name: crate::item::enchanting::offer_name(rng).into(),
+                enchant_name: offer.name.as_str().into(),
                 enchant_net_id: TypedServerNetIdstructRecipeNetIdTag {
                     raw_id: table.first_option_id + slot as u32,
                 },
@@ -835,12 +836,7 @@ pub(in crate::server::game) fn offer_on_change(
         let Some(table) = enchanting_context(world, player, at) else {
             return;
         };
-        enchant_options(
-            &stack,
-            table,
-            &mut world.get_resource_or_init::<EntityRandom>().0,
-        )
-        .expect("the table enchants the item")
+        enchant_options(&stack, table).expect("the table enchants the item")
     } else {
         PlayerEnchantOptionsPacket::default()
     };

@@ -7,8 +7,13 @@
 //! the item belongs to and its enchantability); this module has no item
 //! registry. Enchantment ids are the Bedrock `Enchant::Type` numbers that item
 //! NBT stores in `ench[].id`.
+//!
+//! Draws follow Bedrock's game random: a bounded integer is one 32-bit
+//! output modulo the bound and a float is one output scaled by 2^-32, so a
+//! 32-bit Mersenne Twister seeded with the player's enchanting seed gives
+//! the enchanting table's offers exactly (see `unastar::item::enchanting`).
 
-use rand::Rng;
+use rand::RngCore;
 
 /// Enchantment slot bits an item belongs to and enchantments apply to.
 pub mod slot {
@@ -24,6 +29,8 @@ pub mod slot {
     pub const PICKAXE: u32 = 0x400;
     pub const SHOVEL: u32 = 0x800;
     pub const FISHING_ROD: u32 = 0x1000;
+    /// Carrot on a stick (BDS 1.26.51 sends this mask for its offers).
+    pub const CARROT_ON_A_STICK: u32 = 0x2000;
     pub const ELYTRA: u32 = 0x4000;
     pub const TRIDENT: u32 = 0x8000;
     pub const CROSSBOW: u32 = 0x10000;
@@ -224,25 +231,26 @@ pub fn add_enchantment(
     true
 }
 
-/// Choose enchantments for an item at enchanting `level` (BDS
-/// `selectEnchantments` with no bonus): the level is spread by the item's
-/// enchantability, every applicable enchantment gets the highest level whose
-/// minimum cost it reaches, then one weighted pick plus further picks while
-/// `nextInt(50) <= cost` (cost decays to `cost * 4 / 5 + 1` each time). Picks
-/// incompatible with earlier ones are dropped.
+/// Choose enchantments for an item at enchanting `level`: the level is
+/// spread by the item's enchantability, every applicable enchantment gets
+/// the highest level whose minimum cost it reaches, then one weighted pick
+/// plus further picks while `nextInt(50) <= cost` (cost decays to
+/// `cost * 4 / 5 + 1` each time). Picks incompatible with earlier ones are
+/// dropped. Reproduces every offer of the BDS 1.26.51 enchanting capture
+/// draw for draw.
 pub fn select_enchantments(
     item: ItemEnchanting,
     level: i32,
     allow_treasure: bool,
-    rng: &mut impl Rng,
+    rng: &mut (impl RngCore + ?Sized),
 ) -> Vec<EnchantmentInstance> {
     let mut chosen = Vec::new();
     if item.slots == 0 || item.value <= 0 {
         return chosen;
     }
     let quarter = item.value / 4 + 1;
-    let spread = rng.gen_range(0..quarter) + rng.gen_range(0..quarter);
-    let factor = rng.r#gen::<f32>() * LEVEL_SPREAD + LEVEL_SPREAD_OFFSET + 1.0;
+    let spread = next_int(rng, quarter) + next_int(rng, quarter);
+    let factor = next_float(rng) * LEVEL_SPREAD + LEVEL_SPREAD_OFFSET + 1.0;
     let mut cost = (((spread + 1 + level) as f32) * factor + 0.5) as i32;
     cost = cost.max(1);
 
@@ -272,7 +280,7 @@ pub fn select_enchantments(
     let first = pick_weighted(&mut candidates, &mut total, rng);
     add_enchantment(&mut chosen, item.slots, first);
     let mut picked = 1;
-    while rng.gen_range(0..EXTRA_ENCHANT_ROLL) <= cost && picked < count {
+    while next_int(rng, EXTRA_ENCHANT_ROLL) <= cost && picked < count {
         let next = pick_weighted(&mut candidates, &mut total, rng);
         add_enchantment(&mut chosen, item.slots, next);
         cost = cost * 4 / 5 + 1;
@@ -282,13 +290,24 @@ pub fn select_enchantments(
     chosen
 }
 
+/// A uniform integer in `[0, bound)` from one 32-bit output (`bound > 0`).
+fn next_int(rng: &mut (impl RngCore + ?Sized), bound: i32) -> i32 {
+    let bound = u32::try_from(bound).expect("positive bound");
+    (rng.next_u32() % bound) as i32
+}
+
+/// A uniform float in `[0, 1)` from one 32-bit output.
+fn next_float(rng: &mut (impl RngCore + ?Sized)) -> f32 {
+    (f64::from(rng.next_u32()) / 4_294_967_296.0) as f32
+}
+
 /// Draw one candidate by weight and remove it from the pool.
 fn pick_weighted(
     candidates: &mut Vec<(EnchantmentInstance, u32)>,
     total: &mut u32,
-    rng: &mut impl Rng,
+    rng: &mut (impl RngCore + ?Sized),
 ) -> EnchantmentInstance {
-    let mut roll = i64::from(rng.gen_range(0..*total));
+    let mut roll = i64::from(rng.next_u32() % *total);
     let index = candidates
         .iter()
         .position(|(_, weight)| {
