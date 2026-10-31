@@ -403,6 +403,87 @@ parity.
 
 ## Actor registries and data
 
+Living definitions support `minecraft:fire_immune` and
+`minecraft:renders_when_invisible`, including component-group removal. Fire
+immunity prevents ignition and heat damage in both the player and mob damage
+paths, and puts out an existing fire when the component becomes active. The
+rendering marker is replicated in actor flags. The `in_contact_with_water`
+filter checks fluid overlap with the actor's body, including water beside its
+feet; `in_water` continues to check the feet cell.
+Rain exposure and splash-water-bottle contact are not yet supplied to this
+filter; the current implementation covers world fluid contact.
+
+See the published component contracts for
+[fire immunity](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_fire_immune?view=minecraft-bedrock-stable)
+and
+[rendering while invisible](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_renders_when_invisible?view=minecraft-bedrock-stable).
+
+Mob definitions can provide `minecraft:follow_range` to override a targeting
+goal's legacy `within_radius` for both acquisition and retention. Fixed,
+nonnegative values are supported; invalid bounds and randomized values fail
+definition compilation. See the
+[published follow-range contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_follow_range?view=minecraft-bedrock-stable).
+
+`minecraft:on_hurt`, `minecraft:on_hurt_by_player` and
+`minecraft:on_target_acquired` compile optional filters and self/other event
+receivers. Hit triggers run after an accepted hit commits its hurt timer and
+health; cancelled and timer-rejected hits do not fire them. Target triggers run
+after a different nonempty target is committed, once rather than every tick the
+same target is retained. AI-triggered events run outside the AI's resource
+scopes so their event handlers can use the normal random-state resource.
+
+Living mobs support `minecraft:variable_max_auto_step`: ordinary, player-controlled
+and jump-prevented heights feed both native collision and path search. The current
+ground block is checked every tick; honey selects the jump-prevented height, and
+removing the component restores the ordinary living height. Authored `is_riding`
+filters read the actual actor flag for either supported subject. This does not
+add a mount controller. See the [published step-height contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_variable_max_auto_step?view=minecraft-bedrock-stable).
+
+
+`minecraft:looked_at` detects continuous views using actor rotations, distance-scaled
+view cones, collision line of sight and real equipment filters, including player
+head slots. Detection and loss events run after AI commits; target assignment uses
+normal hostile-target eligibility. Player-only searches select the nearest matching
+player. Collision obstruction mode, body-relative points, cooldowns and current or
+legacy target choices are supported; other obstruction modes fail compilation.
+See the [published gaze contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_looked_at?view=minecraft-bedrock-stable).
+
+`minecraft:angry` sets the replicated angry flag, expires once, clears the combat
+target and fires its optional calm event. Authored duration variation, target
+filters and periodic sounds are supported. Remaining time and the completed state
+survive actor saves using server-owned extension tags. Broadcast options fail
+compilation until group anger propagation is implemented. See the
+[published anger contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_angry?view=minecraft-bedrock-stable).
+
+`minecraft:teleport` runs bounded random and target-directed attempts against
+loaded support, actual collision boxes and body-fluid contact. Failed attempts
+leave the actor unchanged. Successful hops reset navigation, velocity and fall
+state, emit portal effects/sounds and force native movement completion. Authored
+waits survive actor saves. Projectile-reactive hops that succeed are misses and
+skip the hit effects; failed hops preserve ordinary projectile damage. Native
+Endermen also try to leave water after an accepted water hit. See the
+[published teleport contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_teleport?view=minecraft-bedrock-stable).
+
+`minecraft:behavior.take_block` and `minecraft:behavior.place_block` run real
+one-shot selector goals with chance, priority, controls, state descriptors,
+conditions and grief-rule support. Take moves one eligible block into carried
+ownership; place consumes that carried state or uses an explicitly configured
+weighted generated block. Staged work rechecks current policy, terrain, locks,
+block actors and live actor occupancy before applying it. Existing blocks and
+foreign actor payloads are preserved. Carried blocks project native main-hand
+equipment while preserving physical gear, with named-state persistence and a
+single death drop. Tag expressions and block-target callbacks currently fail
+compilation. See the published
+[take](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitygoals/minecraftbehavior_take_block?view=minecraft-bedrock-stable)
+and [place](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitygoals/minecraftbehavior_place_block?view=minecraft-bedrock-stable)
+contracts.
+
+The vanilla Enderman now spawns through the ordinary registry and supports gaze
+with pumpkin exclusion, timed anger, navigation/melee, safe teleports, water escape,
+block carrying and pearl loot. Tests exercise these through real server frames and
+native inventories/packets. Riding, ladder climbing and rain/splash exposure remain
+outside the implemented actor paths; the parity catalog records these limits.
+
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
 by identifier, replacing the whole definition rather than merging components.
 `freeze()` consumes the builder and shares immutable definitions through `Arc`.
@@ -1042,3 +1123,27 @@ of the native writer, reads all three codecs, and independently inflates/checksu
 the provider's actual compacted tables. This catches failures hidden by successful
 reads from an uncompressed write-ahead log. After changing native build flags,
 use `cargo clean -p bleveldb-sys` before the acceptance run.
+
+## Staged container edits
+
+`server::game::ContainerMutationLocks` reserves absolute block cells with opaque
+operation-owner tokens. `acquire(owner, cells)` is atomic and idempotent for the
+same owner; conflicting owners and empty tokens change nothing. `release` requires
+exact ownership of the whole batch. Locks are runtime state; applications restore
+pending reservations before exposing their world. With no reservations, ordinary
+container behavior is unchanged.
+
+Native access checks both halves of a paired chest, including saved actors not
+yet decoded. Reserved cells reject opening and retained-window stack moves, pause
+furnace/hopper mutations and loot unpacking, and prevent native placement, breaking,
+pair changes and block-writing commands. Unavailable windows receive ordinary
+failed inventory responses; request-ID validation remains active.
+
+After trusted chunk/block-actor writes and the application's persistence
+acknowledgement, call `complete_container_mutations(world, owner, cells)`. It
+releases an exactly owned batch, closes obsolete windows, invalidates decoded
+container contents, reloads authoritative NBT and registers new native tickers.
+Failed ownership checks change nothing. The resource's raw `release` only changes
+ownership and is suitable for aborts without committed edits. Direct trusted
+chunk writes remain application-owned. `server::game::is_replaceable` exposes
+the same block-state placement predicate used by native placement.

@@ -38,6 +38,8 @@ pub enum ActorDecodeError {
         name: &'static str,
         kind: &'static str,
     },
+    #[error("actor {0} is outside its valid runtime bounds")]
+    InvalidField(&'static str),
     #[error("actor {name} is not a list of {len} Floats")]
     WrongFloatList { name: &'static str, len: usize },
     #[error("definition entry {0:?} has no +/- prefix")]
@@ -50,6 +52,8 @@ pub enum ActorDecodeError {
     Property(#[from] PropertyError),
     #[error(transparent)]
     Gear(#[from] crate::entity::mob::gear::persist::GearDecodeError),
+    #[error(transparent)]
+    Carried(#[from] crate::entity::mob::carry::CarryStateError),
     #[error("cannot spawn the actor: {0}")]
     Spawn(#[source] MobSpawnError),
 }
@@ -287,7 +291,70 @@ fn restore_state(
     };
 
     let now = current_tick(world);
+    let teleport_waits = match fields.0.get("UnastarTeleportWaits") {
+        None => None,
+        Some(NBTTag::List(values)) if values.0.len() == 2 => {
+            let [NBTTag::Long(earliest), NBTTag::Long(next)] = values.0.as_slice() else {
+                return Err(ActorDecodeError::InvalidField("UnastarTeleportWaits"));
+            };
+            if earliest.0 < 0
+                || next.0 < earliest.0
+                || world
+                    .get::<crate::entity::mob::components::teleport::Teleport>(mob)
+                    .is_none()
+            {
+                return Err(ActorDecodeError::InvalidField("UnastarTeleportWaits"));
+            }
+            Some((
+                now.checked_add(earliest.0 as u64)
+                    .ok_or(ActorDecodeError::InvalidField("UnastarTeleportWaits"))?,
+                now.checked_add(next.0 as u64)
+                    .ok_or(ActorDecodeError::InvalidField("UnastarTeleportWaits"))?,
+            ))
+        }
+        Some(_) => return Err(ActorDecodeError::InvalidField("UnastarTeleportWaits")),
+    };
+    let anger_calmed = fields.flag("UnastarAngerCalmed")?;
+    let anger_deadline = match fields.0.get("UnastarAngerTicks") {
+        None => None,
+        Some(NBTTag::Long(ticks))
+            if ticks.0 >= 0
+                && world
+                    .get::<crate::entity::mob::components::reactive::Angry>(mob)
+                    .is_some() =>
+        {
+            Some(
+                now.checked_add(ticks.0 as u64)
+                    .ok_or(ActorDecodeError::InvalidField("UnastarAngerTicks"))?,
+            )
+        }
+        Some(NBTTag::Long(_)) => return Err(ActorDecodeError::InvalidField("UnastarAngerTicks")),
+        Some(_) => {
+            return Err(ActorDecodeError::WrongType {
+                name: "UnastarAngerTicks",
+                kind: "a Long",
+            });
+        }
+    };
+    if anger_calmed && anger_deadline != Some(now) {
+        return Err(ActorDecodeError::InvalidField("UnastarAngerCalmed"));
+    }
     let mut entity = world.entity_mut(mob);
+    if let Some((earliest, next)) = teleport_waits {
+        let mut teleport = entity
+            .get_mut::<crate::entity::mob::components::teleport::Teleport>()
+            .expect("validated teleport state");
+        teleport.earliest_random_tick = earliest;
+        teleport.next_random_tick = next;
+    }
+    if let Some(deadline) = anger_deadline {
+        let mut anger = entity
+            .get_mut::<crate::entity::mob::components::reactive::Angry>()
+            .expect("validated anger");
+        anger.until_tick = deadline;
+        anger.calmed = anger_calmed;
+        crate::entity::mob::components::reactive::angry_flag(&mut entity, !anger_calmed);
+    }
     if let Some((current, max)) = health
         && let Some(mut component) = entity.get_mut::<Health>()
     {
@@ -365,6 +432,7 @@ fn restore_state(
         timers.restore(fields.0.get("entries"), legacy, now);
     }
     crate::entity::mob::gear::persist::restore(world, mob, fields.0)?;
+    crate::entity::mob::carry::restore(world, mob, fields.0.get("UnastarCarriedBlock"))?;
     derive_entity(world, mob);
     Ok(())
 }

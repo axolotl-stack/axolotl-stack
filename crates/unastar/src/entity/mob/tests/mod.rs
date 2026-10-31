@@ -6,8 +6,12 @@
 
 mod chicken;
 mod doors;
+mod enderman;
 mod interaction;
 mod passive;
+mod reactive;
 mod sensors;
 mod spawn;
+mod step;
+mod triggers;
 mod zombie;

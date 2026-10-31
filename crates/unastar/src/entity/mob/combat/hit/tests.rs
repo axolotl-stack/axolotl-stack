@@ -23,6 +23,82 @@ struct Harness {
     rx: Receiver<McpePacket>,
 }
 
+#[test]
+fn fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire() {
+    use crate::entity::definition::flags::ActorFlags;
+    use crate::entity::mob::combat::fire;
+    use jolyne::valentine::actor_flags;
+
+    let mut h = harness(80);
+    let cow = h.cow(DVec3::new(6.5, 64.0, 6.5));
+    fire::ignite(h.world(), cow, 100);
+    assert!(fire::is_burning(h.world(), cow));
+    h.world()
+        .get_mut::<ActorFlags>(cow)
+        .unwrap()
+        .update(actor_flags::FIRE_IMMUNE, true)
+        .unwrap();
+    for cause in [
+        ActorDamageCause::Fire,
+        ActorDamageCause::FireTick,
+        ActorDamageCause::Lava,
+        ActorDamageCause::Magma,
+        ActorDamageCause::Campfire,
+        ActorDamageCause::SoulCampfire,
+    ] {
+        assert_eq!(
+            hurt_mob(
+                h.world(),
+                cow,
+                Hit {
+                    damage: 4.0,
+                    cause,
+                    attacker: None,
+                    by_player: false,
+                    knockback_from: None,
+                    knockback_power: KnockbackPower::DEFAULT,
+                }
+            ),
+            0.0
+        );
+    }
+    assert_eq!(h.health(cow), 10.0);
+    assert!(h.world().get::<HurtTimer>(cow).is_none());
+    assert!(h.world().get::<LastHurt>(cow).is_none());
+    h.server.tick();
+    assert!(!fire::is_burning(h.world(), cow));
+    assert!(
+        !h.world()
+            .get::<ActorFlags>(cow)
+            .unwrap()
+            .get(actor_flags::ONFIRE)
+            .unwrap()
+    );
+    fire::ignite(h.world(), cow, 100);
+    assert!(!fire::is_burning(h.world(), cow));
+    h.world()
+        .get_mut::<ActorFlags>(cow)
+        .unwrap()
+        .update(actor_flags::FIRE_IMMUNE, false)
+        .unwrap();
+    assert_eq!(
+        hurt_mob(
+            h.world(),
+            cow,
+            Hit {
+                damage: 4.0,
+                cause: ActorDamageCause::Fire,
+                attacker: None,
+                by_player: false,
+                knockback_from: None,
+                knockback_power: KnockbackPower::DEFAULT,
+            }
+        ),
+        4.0
+    );
+    assert_eq!(h.health(cow), 6.0);
+}
+
 /// A stone floor at y = 63 over chunk (0, 0), viewed by one survival
 /// player standing at (4.5, 64, 8.5).
 fn harness(seed: u64) -> Harness {

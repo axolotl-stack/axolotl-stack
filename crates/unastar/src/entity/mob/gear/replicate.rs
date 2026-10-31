@@ -49,6 +49,16 @@ fn equipment_packet(
     })
 }
 
+/// The native main-hand display update, independent of physical inventory.
+pub(crate) fn mainhand_packet(
+    runtime_id: i64,
+    stack: &ItemStack,
+    items: &ItemRegistry,
+    block_ids: BlockNetworkIds,
+) -> McpePacket {
+    equipment_packet(runtime_id, stack, 0, 0, 0, items, block_ids)
+}
+
 /// The packets a new viewer of the mob receives after its `AddActor`.
 pub fn inventory_packets(
     runtime_id: i64,
@@ -56,11 +66,22 @@ pub fn inventory_packets(
     items: &ItemRegistry,
     block_ids: BlockNetworkIds,
 ) -> [McpePacket; 3] {
+    inventory_packets_projected(runtime_id, equipment, items, block_ids, None)
+}
+
+/// The full equipment view with an optional display-only main-hand stack.
+pub(crate) fn inventory_packets_projected(
+    runtime_id: i64,
+    equipment: &MobEquipment,
+    items: &ItemRegistry,
+    block_ids: BlockNetworkIds,
+    mainhand: Option<&ItemStack>,
+) -> [McpePacket; 3] {
     let armour = |slot| wire(equipment.get(slot), items, block_ids);
     [
         equipment_packet(
             runtime_id,
-            equipment.get(GearSlot::Mainhand),
+            mainhand.unwrap_or_else(|| equipment.get(GearSlot::Mainhand)),
             GearSlot::Mainhand as u8,
             GearSlot::Mainhand as u8,
             0,
@@ -98,8 +119,25 @@ pub fn changed_packets(
     block_ids: BlockNetworkIds,
     out: &mut Vec<McpePacket>,
 ) {
+    changed_packets_projected(runtime_id, equipment, items, block_ids, out, None);
+}
+
+/// Equipment changes preserve an active display projection while physical
+/// hand ownership continues to update independently.
+pub(crate) fn changed_packets_projected(
+    runtime_id: i64,
+    equipment: &mut MobEquipment,
+    items: &ItemRegistry,
+    block_ids: BlockNetworkIds,
+    out: &mut Vec<McpePacket>,
+    mainhand: Option<&ItemStack>,
+) {
     for slot in equipment.take_dirty() {
-        let stack = equipment.get(slot);
+        let stack = if slot == GearSlot::Mainhand {
+            mainhand.unwrap_or_else(|| equipment.get(slot))
+        } else {
+            equipment.get(slot)
+        };
         out.push(if slot.is_hand() {
             equipment_packet(runtime_id, stack, slot as u8, 0, 0, items, block_ids)
         } else {

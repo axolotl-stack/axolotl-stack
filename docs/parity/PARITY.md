@@ -12,8 +12,8 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 120 | 1 | 3 | 9 | 4 | 9.0% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1106 | 2753 | 170 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
@@ -122,7 +122,7 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | aquatic | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
 | boss | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
 | built_in | 9 | 4 | 0 | 0 | 2 | 3 | 33.3% |
-| hostile | 38 | 37 | 0 | 0 | 1 | 0 | 2.6% |
+| hostile | 38 | 36 | 1 | 0 | 1 | 0 | 2.6% |
 | object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
@@ -182,7 +182,8 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **hostile**
 
-- missing: `minecraft:blaze`, `minecraft:bogged`, `minecraft:breeze`, `minecraft:cave_spider`, `minecraft:creaking`, `minecraft:creeper`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:enderman`, `minecraft:endermite`, `minecraft:evocation_illager`, `minecraft:ghast` and 25 more
+- `minecraft:enderman`: riding, ladder climbing and rain/splash exposure are not implemented; full actor wire comparison remains open
+- missing: `minecraft:blaze`, `minecraft:bogged`, `minecraft:breeze`, `minecraft:cave_spider`, `minecraft:creaking`, `minecraft:creeper`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:endermite`, `minecraft:evocation_illager`, `minecraft:ghast`, `minecraft:guardian` and 24 more
 
 **object**
 

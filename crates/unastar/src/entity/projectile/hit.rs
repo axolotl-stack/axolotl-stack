@@ -32,6 +32,11 @@ pub(super) fn on_hit(
     at: DVec3,
     target: Target,
 ) -> bool {
+    if let Target::Actor(actor) = target
+        && crate::entity::mob::teleport::projectile_escape(world, actor, projectile)
+    {
+        return false;
+    }
     let mut removed = false;
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
         let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);

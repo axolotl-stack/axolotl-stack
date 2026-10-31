@@ -23,6 +23,7 @@
 
 pub mod ai;
 pub mod archetype;
+pub mod carry;
 pub mod combat;
 pub mod components;
 pub mod constants;
@@ -35,6 +36,8 @@ pub mod native;
 pub mod net;
 pub mod persistence;
 pub mod state;
+pub mod step;
+pub mod teleport;
 
 #[cfg(test)]
 mod tests;
@@ -182,6 +185,13 @@ fn spawn_unattached(
         EntityMetadata::actor_base()
     } else {
         let mut metadata = EntityMetadata::living_base();
+        if archetype.native.carried_block_display {
+            metadata.set_int(
+                jolyne::valentine::actor_data_i_ds::DEPRECATED_CARRY_BLOCK_RUNTIME_ID,
+                crate::server::game::types::block_network_ids(world)
+                    .to_wire(*crate::world::chunk::blocks::AIR) as i32,
+            );
+        }
         metadata.set_float(
             jolyne::valentine::actor_data_i_ds::AMBIENT_SOUND_INTERVAL,
             archetype.native.ambient_sound_interval,

@@ -54,10 +54,12 @@ pub enum Goal {
     MeleeBoxAttack,
     PickupItems,
     EquipItem,
+    TakeBlock,
+    PlaceBlock,
 }
 
 impl Goal {
-    const ALL: [Goal; 14] = [
+    const ALL: [Goal; 16] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -72,6 +74,8 @@ impl Goal {
         Goal::MeleeBoxAttack,
         Goal::PickupItems,
         Goal::EquipItem,
+        Goal::TakeBlock,
+        Goal::PlaceBlock,
     ];
 
     pub fn id(self) -> GoalId {
@@ -95,7 +99,7 @@ impl Goal {
             Goal::EatBlock => crate::entity::mob::constants::EAT_BLOCK_DEFAULT_CONTROLS,
             Goal::HurtByTarget | Goal::NearestAttackableTarget => GoalControls::TARGET,
             Goal::MeleeBoxAttack | Goal::PickupItems => GoalControls::MOVE | GoalControls::LOOK,
-            Goal::EquipItem => GoalControls::NONE,
+            Goal::EquipItem | Goal::TakeBlock | Goal::PlaceBlock => GoalControls::NONE,
         }
     }
 }
@@ -195,11 +199,41 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls,
         });
     }
+    for (kind, goal) in [
+        (
+            Goal::TakeBlock,
+            entity
+                .get::<crate::entity::mob::components::carry::TakeBlockGoal>()
+                .map(|goal| &goal.base),
+        ),
+        (
+            Goal::PlaceBlock,
+            entity
+                .get::<crate::entity::mob::components::carry::PlaceBlockGoal>()
+                .map(|goal| &goal.base),
+        ),
+    ] {
+        if let Some(goal) = goal {
+            out.push(GoalSpec {
+                id: kind.id(),
+                kind: GoalKind::Normal,
+                priority: goal.priority,
+                controls: goal.controls,
+            });
+        }
+    }
 }
 
 /// World writes the goals request; applied after the mob's tick.
 #[derive(Debug, Default)]
 pub struct Effects {
+    /// Instantaneous block work commits after all AI event scopes finish.
+    pub carry: Vec<super::carry::CarryWork>,
+    /// Gaze transition events run after the AI's resource scopes end.
+    pub gaze_events: Vec<(
+        crate::entity::mob::components::triggers::ActorTrigger,
+        Option<Entity>,
+    )>,
     pub persistent: bool,
     pub tempted: Option<bool>,
     pub mate: Option<MateRequest>,
@@ -233,6 +267,8 @@ struct BreedState {
 /// Runtime state of every goal kind plus reusable search buffers.
 #[derive(Debug, Default)]
 pub struct GoalStates {
+    pub(super) carry: super::carry::CarryState,
+    pub(super) gaze: super::gaze::GazeState,
     panic_target: DVec3,
     panic_repath: u32,
     tempt: TemptState,
@@ -616,6 +652,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_can_start(),
             Goal::PickupItems => self.pickup_can_start(),
             Goal::EquipItem => self.equip_can_start(),
+            Goal::TakeBlock => self.take_block_can_start(),
+            Goal::PlaceBlock => self.place_block_can_start(),
         }
     }
 
@@ -673,6 +711,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_can_continue(),
             Goal::PickupItems => self.pickup_can_continue(),
             Goal::EquipItem => self.equip_can_start(),
+            Goal::TakeBlock | Goal::PlaceBlock => false,
             Goal::Breed => {
                 let Some(partner) = self.mob(self.states.breed.partner) else {
                     return false;
@@ -747,6 +786,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_start(),
             Goal::PickupItems => self.pickup_start(),
             Goal::EquipItem => {}
+            Goal::TakeBlock | Goal::PlaceBlock => {}
         }
     }
 
@@ -779,6 +819,12 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_stop(),
             Goal::PickupItems => self.pickup_stop(),
             Goal::EquipItem => {}
+            Goal::TakeBlock => {
+                self.states.carry.take = None;
+            }
+            Goal::PlaceBlock => {
+                self.states.carry.place = None;
+            }
         }
     }
 
@@ -816,6 +862,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_tick(),
             Goal::PickupItems => self.pickup_tick(),
             Goal::EquipItem => self.equip_tick(),
+            Goal::TakeBlock => self.carry_block_tick(true),
+            Goal::PlaceBlock => self.carry_block_tick(false),
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return;

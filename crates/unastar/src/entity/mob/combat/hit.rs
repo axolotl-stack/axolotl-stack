@@ -145,6 +145,9 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if world.get::<Health>(target).is_none_or(Health::is_dead) {
         return 0.0;
     }
+    if crate::entity::conditions::rejects_fire_damage(world, target, hit.cause) {
+        return 0.0;
+    }
     let (hit, sensor_trigger) = match damage_sensor::sense(world, target, hit) {
         Sensed::Hurt { hit, after } => (hit, after),
         Sensed::Cancelled => return 0.0,
@@ -194,6 +197,7 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if let Some(index) = sensor_trigger {
         damage_sensor::after_hurt(world, target, index, hit.attacker);
     }
+    crate::entity::mob::life::triggers::hurt(world, target, hit.attacker, hit.by_player);
     // A hurt player's armour wears and the player pays food for it.
     if world.get::<Player>(target).is_some() && applied > 0.0 {
         crate::server::game::durability::wear_armour(world, target, hit.damage, hit.cause);
@@ -203,6 +207,8 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     }
     if dead {
         death::begin_death(world, target);
+    } else if hit.cause == ActorDamageCause::Drowning {
+        crate::entity::mob::teleport::escape_water(world, target);
     }
     applied
 }
