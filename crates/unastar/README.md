@@ -49,6 +49,41 @@ directory. The old sample's `[world.storage]` table and its `data_dir`,
 a configuration error: remove that table and use the supported `[world]` keys.
 Player storage remains configured separately under `[players]`.
 
+## Embedding the runtime
+
+Native Rust applications can configure the initialized game server through
+`UnastarServer::game_server_mut()` before calling `run()`. Insert resources and
+observers into its ECS world, or add systems to its existing tick schedule using
+the public system sets. `game_server()` provides read access to the same state.
+The runtime retains this game server when it starts listening and ticking.
+
+```rust,no_run
+use bevy_ecs::prelude::*;
+use std::sync::Arc;
+use unastar::ecs::EntityLogicSet;
+use unastar::{UnastarConfig, UnastarServer};
+
+#[derive(Resource, Default)]
+struct CompletedTicks(u64);
+
+/// Count ticks in this application's resource.
+fn count_tick(mut completed: ResMut<CompletedTicks>) {
+    completed.0 += 1;
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = Arc::new(UnastarConfig::load_or_create("unastar.toml")?);
+    let mut runtime = UnastarServer::new(config).await?;
+    let game = runtime.game_server_mut();
+    game.ecs.world_mut().insert_resource(CompletedTicks::default());
+    game.ecs
+        .schedule_mut()
+        .add_systems(count_tick.in_set(EntityLogicSet));
+    runtime.run().await
+}
+```
+
 ## Joining
 
 Players join through jolyne's streamed spawn (`start_game_streamed`, BDS order):
