@@ -197,6 +197,7 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if let Some(index) = sensor_trigger {
         damage_sensor::after_hurt(world, target, index, hit.attacker);
     }
+    crate::entity::mob::life::triggers::hurt(world, target, hit.attacker, hit.by_player);
     // A hurt player's armour wears and the player pays food for it.
     if world.get::<Player>(target).is_some() && applied > 0.0 {
         crate::server::game::durability::wear_armour(world, target, hit.damage, hit.cause);
