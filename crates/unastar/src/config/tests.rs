@@ -230,6 +230,7 @@ fn nethernet_is_optional_and_has_explicit_bounded_network_defaults() {
     );
     assert_eq!(endpoint.negotiation_timeout_seconds, 15);
     assert_eq!(endpoint.max_pending_connections, 64);
+    assert!(endpoint.signing_key_path.is_none());
     assert!(config.server.online_mode);
     assert!(config.validate_network().is_ok());
     let roundtrip = toml_edit::ser::to_string(&config).unwrap();
@@ -283,4 +284,37 @@ fn ice_configuration_is_bounded_and_secrets_are_not_in_debug_output() {
         .urls
         .clear();
     assert!(config.validate_network().is_err());
+}
+
+#[test]
+fn configured_signing_key_path_roundtrips_and_rejects_empty_paths() {
+    let config: UnastarConfig = toml_edit::de::from_str(&format!(
+        "{VOID_WORLD}[server.nethernet]\nsigning_key_path = \"data/server.der\"\n"
+    ))
+    .unwrap();
+    assert_eq!(
+        config
+            .server
+            .nethernet
+            .as_ref()
+            .unwrap()
+            .signing_key_path
+            .as_deref(),
+        Some(std::path::Path::new("data/server.der"))
+    );
+    assert!(config.validate_network().is_ok());
+    let encoded = toml_edit::ser::to_string(&config).unwrap();
+    let loaded: UnastarConfig = toml_edit::de::from_str(&encoded).unwrap();
+    assert_eq!(
+        loaded.server.nethernet.unwrap().signing_key_path,
+        config.server.nethernet.unwrap().signing_key_path
+    );
+    for path in ["", "/", "."] {
+        let mut config = UnastarConfig::default();
+        config.server.nethernet = Some(NetherNetConfig {
+            signing_key_path: Some(path.into()),
+            ..Default::default()
+        });
+        assert!(config.validate_network().is_err());
+    }
 }

@@ -67,6 +67,7 @@ uuid = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 
 [dev-dependencies]
+tempfile = "3"
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 criterion.workspace = true

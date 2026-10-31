@@ -86,6 +86,13 @@ impl UnastarConfig {
             return Err("`server.handshake_timeout_seconds` must be in 1..=300".into());
         }
         if let Some(endpoint) = &self.server.nethernet {
+            if endpoint
+                .signing_key_path
+                .as_ref()
+                .is_some_and(|path| path.as_os_str().is_empty() || path.file_name().is_none())
+            {
+                return Err("`server.nethernet.signing_key_path` requires a file path".into());
+            }
             if !(1..=120).contains(&endpoint.negotiation_timeout_seconds) {
                 return Err(
                     "`server.nethernet.negotiation_timeout_seconds` must be in 1..=120".into(),
@@ -232,6 +239,9 @@ pub struct ServerConfigFile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct NetherNetConfig {
+    /// Optional PKCS#8 P-384 server key, loaded or created before the listener binds.
+    /// Omission retains one generated key per listener lifetime.
+    pub signing_key_path: Option<std::path::PathBuf>,
     /// HTTP listener address. TLS can be terminated by a reverse proxy.
     pub bind_address: std::net::SocketAddr,
     /// Deadline for an HTTP offer and its WebRTC connection establishment.
@@ -263,6 +273,7 @@ impl std::fmt::Debug for IceServerConfig {
 impl Default for NetherNetConfig {
     fn default() -> Self {
         Self {
+            signing_key_path: None,
             bind_address: std::net::SocketAddr::from(([127, 0, 0, 1], 18086)),
             negotiation_timeout_seconds: 15,
             max_pending_connections: 64,
