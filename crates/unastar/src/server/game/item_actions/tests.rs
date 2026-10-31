@@ -456,3 +456,36 @@ fn effect_callbacks_cannot_clobber_consumption_or_lose_accepted_source_identity(
     );
     assert_eq!(consumed.load(Ordering::SeqCst), 1);
 }
+
+/// Complete automatic consumption using the engine-owned custom action path.
+struct ConsumeCustom;
+impl ItemActionHandler for ConsumeCustom {
+    fn on_item_action(&self, _world: &mut World, event: &mut PlayerItemAction) {
+        if event.kind() == ItemActionKind::Consume {
+            event.handle(HandledItemAction {
+                action: "consume.custom".into(),
+                consume: 1,
+            });
+        }
+    }
+}
+
+#[test]
+fn custom_automatic_consumption_finishes_once_across_repeated_ticks() {
+    let (mut world, player, _) = actor("minecraft:apple", 3);
+    world
+        .resource_mut::<ItemActionHooks>()
+        .register(ConsumeCustom);
+    request(&mut world, player, UseRequest::UseAir);
+    world
+        .resource_mut::<crate::ecs::resources::TickCounter>()
+        .current = 40;
+    world.run_system_once(item_use::tick_using).unwrap();
+    assert!(world.get::<ItemUsing>(player).is_none());
+    assert_eq!(item_use::held(&world, player).unwrap().1.count, 2);
+    world
+        .resource_mut::<crate::ecs::resources::TickCounter>()
+        .current = 80;
+    world.run_system_once(item_use::tick_using).unwrap();
+    assert_eq!(item_use::held(&world, player).unwrap().1.count, 2);
+}

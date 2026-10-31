@@ -301,6 +301,9 @@ pub(crate) fn authorize(
             permit.event.stack.grow(-i16::from(count)),
         );
     }
+    if matches!(kind, ItemActionKind::Consume | ItemActionKind::Release) {
+        super::item_use::stop_using(world, player);
+    }
     permit.commit(
         world,
         ItemActionOutcome::Custom {
