@@ -166,6 +166,12 @@ pub(crate) fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
     {
         flags |= 1u64 << actor_flags::ONFIRE;
     }
+    if world
+        .get::<crate::entity::freezing::FreezingState>(player)
+        .is_some_and(|cold| cold.is_frozen())
+    {
+        flags |= 1u64 << actor_flags::SHAKING;
+    }
     flags as i64
 }
 
