@@ -31,6 +31,46 @@ const RIDING: &str = "minecraft:is_riding_zombie_horse";
 /// Where the zombie stands: inside the water column at (4, 64..=66, 4).
 const FEET: DVec3 = DVec3::new(4.5, 64.0, 4.5);
 
+#[test]
+fn water_contact_uses_the_body_volume_instead_of_only_the_feet_cell() {
+    use crate::entity::mob::components::common;
+    use crate::entity::mob::events::MobFacts;
+    let mut h = harness(20);
+    let zombie = h.zombie();
+    let contact = common::filter(&serde_json::json!({
+        "test": "in_contact_with_water", "subject": "self", "value": true
+    }))
+    .unwrap();
+    let feet = common::filter(&serde_json::json!({
+        "test": "in_water", "subject": "self", "value": true
+    }))
+    .unwrap();
+    h.set_block(IVec3::new(5, 64, 4), "minecraft:water");
+    h.world().get_mut::<Position>(zombie).unwrap().0 = DVec3::new(4.9, 64.0, 4.5);
+    let facts = MobFacts {
+        world: h.world(),
+        entity: zombie,
+        other: None,
+    };
+    assert!(contact.evaluate(&facts));
+    assert!(!feet.evaluate(&facts));
+    h.world().get_mut::<Position>(zombie).unwrap().0 = FEET;
+    let facts = MobFacts {
+        world: h.world(),
+        entity: zombie,
+        other: None,
+    };
+    assert!(!contact.evaluate(&facts));
+    h.set_block(IVec3::new(5, 64, 4), "minecraft:lava");
+    h.world().get_mut::<Position>(zombie).unwrap().0 = DVec3::new(4.9, 64.0, 4.5);
+    let facts = MobFacts {
+        world: h.world(),
+        entity: zombie,
+        other: None,
+    };
+    assert!(!contact.evaluate(&facts), "lava is not water");
+}
+
 struct Harness {
     server: GameServer,
     _rx: mpsc::Receiver<jolyne::valentine::McpePacket>,

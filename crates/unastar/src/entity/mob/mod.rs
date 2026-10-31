@@ -35,6 +35,7 @@ pub mod native;
 pub mod net;
 pub mod persistence;
 pub mod state;
+pub mod step;
 
 #[cfg(test)]
 mod tests;
