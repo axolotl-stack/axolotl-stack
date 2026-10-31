@@ -21,6 +21,7 @@ pub mod attributes;
 pub mod constants;
 pub mod death;
 pub mod environment;
+pub mod hooks;
 pub mod hurt;
 pub mod respawn;
 pub mod rules;
@@ -43,6 +44,7 @@ use crate::server::broadcast::EntityGrid;
 /// players' `Position` convention, eye height above the feet).
 pub fn install(world: &mut World, spawn: glam::DVec3) -> Result<(), PlayerRulesError> {
     world.insert_resource(PlayerRules::vanilla()?);
+    world.init_resource::<hooks::PlayerLifecycleHooks>();
     world.init_resource::<respawn::RespawnQueue>();
     world.insert_resource(respawn::WorldSpawn(spawn));
     Ok(())

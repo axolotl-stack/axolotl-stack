@@ -9,7 +9,7 @@ use jolyne::{BedrockListener, BedrockListenerConfig, FlushMode};
 use p384::SecretKey;
 use rand::thread_rng;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::{Semaphore, broadcast, mpsc};
 use tokio_raknet::RaknetListener;
@@ -42,7 +42,7 @@ pub struct UnastarServer {
     player_data_store: Arc<PlayerDataStore>,
     server: GameServer,
     server_key: SecretKey,
-    plugin_manager: PluginManager,
+    plugin_manager: Arc<Mutex<PluginManager>>,
 }
 
 impl UnastarServer {
@@ -136,6 +136,9 @@ impl UnastarServer {
         if let Err(e) = plugin_manager.load_plugins(&plugins_dir) {
             warn!(error = %e, "Failed to load plugins");
         }
+
+        let plugin_manager = Arc::new(Mutex::new(plugin_manager));
+        PluginManager::attach_to_world(Arc::clone(&plugin_manager), server.ecs.world_mut());
 
         info!("Plugin manager initialized, creating server struct");
         Ok(Self {
@@ -407,10 +410,17 @@ impl UnastarServer {
 
                     // Run game tick (this queues packets to broadcast systems)
                     let tick_logic_start = std::time::Instant::now();
+                    {
+                        let mut manager = self.plugin_manager.lock()
+                            .map_err(|_| "Plugin manager lock poisoned")?;
+                        manager.begin_tick(self.server.ecs.world_mut());
+                    }
                     self.server.tick();
 
-                    // Run plugin tick
-                    self.plugin_manager.tick(self.server.ecs.world_mut());
+                    // Buffered callbacks share the simulation's instruction budget.
+                    self.plugin_manager.lock()
+                        .map_err(|_| "Plugin manager lock poisoned")?
+                        .tick(self.server.ecs.world_mut());
                     let tick_logic_elapsed = tick_logic_start.elapsed();
 
                     // Signal all network tasks to flush their buffers
