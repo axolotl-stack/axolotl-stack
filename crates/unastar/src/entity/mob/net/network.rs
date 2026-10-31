@@ -107,7 +107,10 @@ pub fn add_actor_packet(
 pub fn sync_mob_viewers(
     chunk_manager: Res<ChunkManager>,
     chunk_viewers: Query<&ChunkViewers>,
-    sessions: Query<&PlayerSession>,
+    sessions: Query<
+        &PlayerSession,
+        Without<crate::server::game::player_events::PendingInitialState>,
+    >,
     items: Option<Res<ItemRegistryResource>>,
     config: Option<Res<ServerConfigResource>>,
     mut mobs: Query<(

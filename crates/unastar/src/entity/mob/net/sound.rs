@@ -32,6 +32,9 @@ pub fn send_to_viewers(world: &World, position: DVec3, packet: &McpePacket) {
         return;
     };
     for viewer in viewers.iter() {
+        if crate::server::game::player_events::initial_state_pending(world, viewer) {
+            continue;
+        }
         if let Some(session) = world.get::<PlayerSession>(viewer) {
             let _ = session.send(packet.clone());
         }

@@ -249,7 +249,10 @@ pub fn tick_xp_orbs(
             Option<&PlayerSession>,
             Option<&PlayerInput>,
         ),
-        With<Player>,
+        (
+            With<Player>,
+            Without<crate::server::game::player_events::PendingInitialState>,
+        ),
     >,
 ) {
     let range_sq = constants::XP_ORB_FOLLOW_RANGE * constants::XP_ORB_FOLLOW_RANGE;

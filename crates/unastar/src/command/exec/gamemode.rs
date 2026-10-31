@@ -91,6 +91,9 @@ pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
         return;
     }
     world.entity_mut(player).insert(mode);
+    if crate::server::game::player_events::initial_state_pending(world, player) {
+        return;
+    }
     let runtime_id = world.get::<RuntimeEntityId>(player).map_or(0, |id| id.0);
     let operator = world.get::<crate::command::Operator>(player).is_some();
     let game_type = UpdatePlayerGameTypePacket {
@@ -102,7 +105,7 @@ pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
         tick: crate::entity::components::input_tick_of(world, player),
     };
     let abilities = abilities_packet(runtime_id, mode, operator);
-    let mut sessions = world.query::<&PlayerSession>();
+    let mut sessions = world.query_filtered::<&PlayerSession, bevy_ecs::prelude::Without<crate::server::game::player_events::PendingInitialState>>();
     for session in sessions.iter(world) {
         let _ = session.send(game_type.clone().into());
         let _ = session.send(abilities.clone().into());
