@@ -161,6 +161,9 @@ fn in_powder_snow(world: &World, bounds: Aabb, powder_snow: u32) -> bool {
 /// Publish the cold state using each actor lane's normal wire representation.
 fn publish(world: &mut World, actor: Entity, state: FreezingState) {
     if world.get::<Player>(actor).is_some() {
+        if crate::server::game::player_events::initial_state_pending(world, actor) {
+            return;
+        }
         let Some(runtime_id) = world.get::<RuntimeEntityId>(actor).map(|id| id.0 as u64) else {
             return;
         };
@@ -200,6 +203,46 @@ fn publish(world: &mut World, actor: Entity, state: FreezingState) {
                 .expect("generated shaking flag");
         }
         crate::entity::mob::derive::derive_entity(world, actor);
+    }
+}
+
+/// Overlay cold rendering on a fresh player projection while preserving the
+/// caller's other flags. An explicit zero also clears an older client value.
+pub(crate) fn player_actor_data(
+    world: &World,
+    actor: Entity,
+    data: &mut Vec<jolyne::valentine::types::DataItemEntry>,
+) {
+    use jolyne::valentine::types::{
+        DataItemEntry, DataItemEntryPayload, DataItemFloatPayload, EnumsDataItemType,
+    };
+    let state = world
+        .get::<FreezingState>(actor)
+        .copied()
+        .unwrap_or_default();
+    if state.is_frozen() {
+        for entry in data.iter_mut() {
+            if entry.id == actor_data_i_ds::RESERVED_0
+                && let DataItemEntryPayload::DataItemInt64Payload(flags) = &mut entry.payload
+            {
+                flags.value |= 1i64 << actor_flags::SHAKING;
+            }
+        }
+    }
+    let entry = DataItemEntry {
+        id: actor_data_i_ds::FREEZING_EFFECT_STRENGTH,
+        payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
+            type_: EnumsDataItemType::Float,
+            value: state.strength(),
+        }),
+    };
+    if let Some(existing) = data
+        .iter_mut()
+        .find(|entry| entry.id == actor_data_i_ds::FREEZING_EFFECT_STRENGTH)
+    {
+        *existing = entry;
+    } else {
+        data.push(entry);
     }
 }
 

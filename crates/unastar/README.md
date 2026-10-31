@@ -1178,10 +1178,10 @@ visible to other sessions and are excluded from ordinary player autosaves.
 Embedding applications own their lifetime and persistence.
 
 `player_state::capture` and `restore` round-trip a versioned player snapshot,
-including complete inventory/UI slots, health, hunger, effects and motion.
-Restore validates identity, world and item data before mutating state, preserves
-the connection/runtime identity, assigns fresh item network IDs and sends
-authoritative updates. Captured death state is raw state, without applying a
+including complete inventory/UI slots, health, hunger, effects, motion, cold
+exposure and lifetime tick phase. Restore validates identity, world, item and
+cold data before mutating state, preserves the connection/runtime identity,
+assigns fresh item network IDs and sends authoritative updates. Captured death state is raw state, without applying a
 second death or dropping items again.
 Snapshots can also create a new detached actor with a fresh runtime identity,
 without synthesizing a network connection or join event.
@@ -1334,7 +1334,7 @@ Deferred native snapshot restoration also withholds direct mode, teleport,
 attribute, effect, life and motion packets. Tick replication keeps pending state
 out of each client's sent-state cache. After release, the initial batch is
 followed by the current validated snapshot presentation, including final position,
-velocity, life state and effect particle/ambient flags; ordinary tick replication
+velocity, life state, cold movement/rendering and effect particle/ambient flags; ordinary tick replication
 then resumes without replaying that effect set. Pending viewers receive no
 mob or item actor snapshots.
 

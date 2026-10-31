@@ -196,27 +196,7 @@ impl GameServer {
         }));
 
         let mut actor_data = initial_player_actor_data();
-        if let Some(cold) = world.get::<crate::entity::freezing::FreezingState>(entity)
-            && cold.strength() > 0.0
-        {
-            if cold.is_frozen() {
-                for entry in &mut actor_data {
-                    if entry.id == actor_data_ids::RESERVED_0
-                        && let DataItemEntryPayload::DataItemInt64Payload(flags) =
-                            &mut entry.payload
-                    {
-                        flags.value |= 1i64 << actor_flags::SHAKING;
-                    }
-                }
-            }
-            actor_data.push(DataItemEntry {
-                id: actor_data_ids::FREEZING_EFFECT_STRENGTH,
-                payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
-                    type_: EnumsDataItemType::Float,
-                    value: cold.strength(),
-                }),
-            });
-        }
+        crate::entity::freezing::player_actor_data(world, entity, &mut actor_data);
 
         let _ = session.send(McpePacket::from(SetActorDataPacket {
             target_runtime_id: ActorRuntimeId {

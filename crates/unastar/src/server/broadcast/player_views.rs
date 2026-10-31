@@ -256,22 +256,7 @@ fn metadata(world: &World, actor: Entity) -> Vec<DataItemEntry> {
             (packed << 7) | (u64::from(id) << 1) | u64::from(ambient)
         });
     put(ids::VISIBLE_MOB_EFFECTS, packed as i64);
-    let cold = DataItemEntry {
-        id: ids::FREEZING_EFFECT_STRENGTH,
-        payload: DataItemEntryPayload::DataItemFloatPayload(
-            jolyne::valentine::types::DataItemFloatPayload {
-                type_: EnumsDataItemType::Float,
-                value: world
-                    .get::<crate::entity::freezing::FreezingState>(actor)
-                    .map_or(0.0, |cold| cold.strength()),
-            },
-        ),
-    };
-    if let Some(existing) = data.iter_mut().find(|entry| entry.id == cold.id) {
-        *existing = cold;
-    } else {
-        data.push(cold);
-    }
+    crate::entity::freezing::player_actor_data(world, actor, &mut data);
     data.sort_by_key(|entry| entry.id);
     data
 }
