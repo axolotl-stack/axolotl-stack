@@ -5,6 +5,7 @@
 
 pub mod attributes;
 mod block_drops;
+pub mod block_interaction;
 pub(crate) mod blocks;
 mod chunks;
 #[cfg(test)]
@@ -335,6 +336,8 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<crate::command::CommandRegistry>();
         ecs.world_mut().init_resource::<commands::PendingCommands>();
+        ecs.world_mut()
+            .init_resource::<block_interaction::BlockInteractionHooks>();
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
             .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
