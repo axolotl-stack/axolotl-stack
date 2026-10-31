@@ -73,7 +73,8 @@ generated (8 chunks per player per tick bound the generated case).
 | `kind` | Terrain | Spawn without a configured location |
 |---|---|---|
 | `java` (default, `seed = 12345`) | Java Edition 1.21.11-style: noise router, aquifers, ore veins, 3D biomes, surface rules, cave and canyon carvers | Java's world-spawn search (climate target, 11x11 chunk spiral, first standable column), computed once per server process |
-| `super_flat` | bedrock, two dirt, grass | template spawn |
+| `super_flat` | bedrock, two dirt, grass at y=0..3 | template spawn |
+| `vanilla_flat` | BDS's default superflat: bedrock at y=-64, two dirt, grass at y=-61 (the world of the BDS parity scenarios, `crates/client-diff/README.md`) | (0, -60, 0) |
 | `void_spawn_platform` | stone platform of `platform_radius_chunks` | template spawn |
 
 The default spawn rule keeps returning players at their saved position and otherwise
