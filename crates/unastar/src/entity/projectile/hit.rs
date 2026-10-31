@@ -34,11 +34,16 @@ pub(super) fn on_hit(
     collision_at: DVec3,
 ) -> bool {
     let target_kind = match target {
-        Target::Block => super::hooks::ProjectileImpactTarget::Block,
+        Target::Block(_) => super::hooks::ProjectileImpactTarget::Block,
         Target::Actor(actor) => super::hooks::ProjectileImpactTarget::Entity(actor),
     };
     if !super::hooks::impact(world, projectile, owner, target_kind, collision_at) {
         return true;
+    }
+    if let Target::Actor(actor) = target
+        && super::reflect::from_projectile(world, actor, projectile)
+    {
+        return rules.remove_on_hit;
     }
     if rules.teleport_owner {
         super::pearl::teleport_owner(world, projectile, owner, collision_at);
@@ -67,7 +72,7 @@ pub(super) fn on_hit(
         if let Some(potion) = potion {
             let direct = match target {
                 Target::Actor(actor) => Some(actor),
-                Target::Block => None,
+                Target::Block(_) => None,
             };
             super::potions::splash(world, projectile, &potion, collision_at, direct, 1.0);
         }
@@ -86,7 +91,7 @@ pub(super) fn on_hit(
         if let Some(potion) = potion {
             let direct = match target {
                 Target::Actor(actor) => Some(actor),
-                Target::Block => None,
+                Target::Block(_) => None,
             };
             super::potions::splash(world, projectile, &potion, collision_at, direct, 0.25);
             if world.get_entity(projectile).is_ok() {
@@ -104,15 +109,26 @@ pub(super) fn on_hit(
         );
     }
     let mut removed = false;
+    if let (Target::Block(position), Some(fire)) = (target, rules.block_fire) {
+        super::fire::block(world, owner, position, fire);
+    }
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
         let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);
         removed |= destroyed;
+        if applied > 0.0 {
+            if impact.catch_fire {
+                super::fire::actor(world, actor, rules.fire_ticks);
+            }
+            if let Some(fire) = rules.block_fire {
+                super::fire::actor(world, actor, fire.entity_fire_ticks);
+            }
+        }
         if !destroyed {
             rebound(world, projectile, rules, applied);
         }
     }
-    if let (Target::Block, Some(shake)) = (target, rules.stick_in_ground) {
-        stick(world, projectile, at, shake);
+    if let (Target::Block(_), Some(shake)) = (target, rules.stick_in_ground) {
+        stick(world, projectile, collision_at, shake);
     }
     if let Some(particle) = &rules.particle {
         emit_particles(world, projectile, particle, at, target);
@@ -126,7 +142,7 @@ pub(super) fn on_hit(
             .hit_sound
             .as_ref()
             .filter(|_| world.get::<GameMode>(actor) != Some(&GameMode::Creative)),
-        Target::Block => rules.hit_ground_sound.as_ref().or(rules.hit_sound.as_ref()),
+        Target::Block(_) => rules.hit_ground_sound.as_ref().or(rules.hit_sound.as_ref()),
     };
     if let Some(sound) = sound {
         play_level_sound(world, Some(projectile), at, sound, -1);
@@ -253,7 +269,7 @@ fn emit_particles(
 ) {
     let wanted = match target {
         Target::Actor(_) => particle.on_entity_hit,
-        Target::Block => particle.on_other_hit,
+        Target::Block(_) => particle.on_other_hit,
     };
     if !wanted || particle.count == 0 {
         return;

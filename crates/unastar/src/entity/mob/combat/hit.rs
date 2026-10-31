@@ -37,7 +37,6 @@ use crate::entity::mob::components::{
 use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::state::{Dead, LastHurt};
 use crate::entity::mob::{MobKind, constants};
-use crate::registry::collision::Aabb;
 
 /// The hurt timer of a mob: the server tick it runs out at and the damage
 /// of the hit that started it.
@@ -149,9 +148,15 @@ fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
     eye.is_finite().then_some(eye)
 }
 
-/// The server-owned collision box of a living melee target. Player
+/// The server-owned collision box of a melee target. Player
 /// positions are eyes; mob positions are feet.
 fn melee_target_box(world: &World, target: Entity) -> Option<Aabb> {
+    if world
+        .get::<crate::entity::projectile::ProjectileConfig>(target)
+        .is_some_and(|config| config.0.reflect_on_hurt)
+    {
+        return crate::entity::geometry::collision_box(world, target);
+    }
     if world.get::<Dead>(target).is_some()
         || world.get::<Health>(target).is_none_or(|health| {
             !health.current.is_finite() || !health.max.is_finite() || health.is_dead()
@@ -189,7 +194,10 @@ fn melee_target_box(world: &World, target: Entity) -> Option<Aabb> {
 /// that empties the mob's health starts its death. Zero damage still counts
 /// as a hit (hurt animation, hurt timer, knockback), as BDS hurts with it.
 pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
-    if hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
+    if !hit.damage.is_finite() || hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
+        return 0.0;
+    }
+    if crate::entity::projectile::reflect::from_attack(world, target, hit.attacker) {
         return 0.0;
     }
     if world.get::<Health>(target).is_none_or(Health::is_dead) {

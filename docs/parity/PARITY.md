@@ -138,7 +138,7 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | conditional_bandwidth_optimization | 116 | 105 | 10 | 0 | 0 | 1 | 0.0% |
 | physics | 125 | 0 | 115 | 9 | 0 | 1 | 7.3% |
 | type_family | 124 | 1 | 113 | 9 | 0 | 1 | 7.3% |
-| collision_box | 124 | 0 | 113 | 10 | 0 | 1 | 8.1% |
+| collision_box | 124 | 0 | 112 | 11 | 0 | 1 | 8.9% |
 | pushable_by_entity | 109 | 0 | 104 | 5 | 0 | 0 | 4.6% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
 | health | 94 | 1 | 87 | 5 | 0 | 1 | 5.4% |
