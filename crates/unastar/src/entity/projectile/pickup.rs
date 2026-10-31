@@ -23,7 +23,13 @@ pub const STUCK_LIFETIME: u64 = 1200;
 pub fn pick_up_stuck_projectiles(
     world: &mut World,
     stuck: &mut QueryState<(Entity, &Stuck, &Position, Option<&ProjectileItem>)>,
-    players: &mut QueryState<(Entity, &Position, &GameMode, &Health), With<MainInventory>>,
+    players: &mut QueryState<
+        (Entity, &Position, &GameMode, &Health),
+        (
+            With<MainInventory>,
+            Without<crate::server::game::player_events::PendingInitialState>,
+        ),
+    >,
     mut due: Local<Vec<(Entity, u64, DVec3, Option<ProjectileItem>)>>,
 ) {
     let now = world.resource::<TickCounter>().current;
