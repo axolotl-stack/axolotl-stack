@@ -1083,6 +1083,11 @@ loss, with the actual removed health and validated hit, before a possible death
 notification. Cancelled, invalid and hurt-timer-suppressed hits do not emit it.
 Use `PlayerDamage` to authorize attempts and `PlayerDamaged` to account for
 committed hits.
+Native applications can install `server::game::inventory_effects` before the
+network loop to submit complete durable inventory replacements. Each request
+binds a stable effect ID to expected and replacement inventory images. A worker
+writes the replacement and its receipt together, and the ECS publishes fresh
+stack IDs only after acknowledgement. Full player UI inventories are persisted.
 
 Native applications may register `BlockInteractionHooks` handlers (or Bevy
 observers) to synchronously authorize player block breaking, placement,
@@ -1092,6 +1097,28 @@ positions, including adjacent targets and multi-block placements. Cancellation
 is sticky, and operations revalidate world and held-item state after callbacks.
 Open container windows are reauthorized on each inventory request before items
 move; a veto closes the window and sends authoritative inventory corrections.
+
+All connection loads, ordinary saves and effect writes use the installed
+serialized provider. Inventory epochs reject stale autosave/disconnect records,
+and receipt IDs survive restarts so callers can acknowledge a repeated request
+without granting its items again. LevelDB player writes request synchronous
+persistence. Other providers must explicitly advertise `atomic_durable_records`,
+honor that contract and avoid separate unwrapped access. Unsupported providers
+are rejected before installation. Receipt history is bounded at 65,536 effects
+per account; exhaustion rejects new effects before writing.
+
+An extension coordinating another persistence boundary can capture a
+`inventory_effects::RecoverySource` before that operation. An uncertain result
+can call `fence_for_recovery` with that exact source: account, runtime identity
+and outbound transport must still match. The terminal fence physically withholds
+mutable player state, excludes ordinary saves and snapshots, and rejects further
+account admission. Worker completion, snapshot restoration, disconnect and
+session ID reuse never release it. `recovery_account_fenced` also lets a router
+check UUID and authenticated account identity across several worlds.
+
+This helper performs no storage writes and does not acknowledge the external
+operation. Recovery requires reconstructing coherent durable state and restarting
+the runtime; there is no automatic release path. Other accounts remain available.
 
 Native `PlayerEventHooks` handlers and Bevy observers can authorize or redirect
 movement before position, input, hunger and fall state changes, and observe
