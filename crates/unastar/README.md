@@ -1042,3 +1042,19 @@ of the native writer, reads all three codecs, and independently inflates/checksu
 the provider's actual compacted tables. This catches failures hidden by successful
 reads from an uncompressed write-ahead log. After changing native build flags,
 use `cargo clean -p bleveldb-sys` before the acceptance run.
+
+## Native network metrics
+
+Runtime-created player sessions receive `entity::components::PlayerNetworkMetrics`
+with transport RTT observations from the actual play pump. Read
+`sample(&PlayerSession, max_age)` or use `sample_at` with an explicit monotonic
+time. A `NetworkRttSample` contains `round_trip_time: Duration` and
+`observed_at: Instant`. Freshness refers to when the transport's measured estimate
+was observed; the underlying probe timestamp is not supplied by the transport API.
+
+Unmeasured/unsupported RTT, expired observations and replaced sessions return
+`None`. Observations bind both session ID and the original outbound channel, so
+reusing a number cannot transfer metrics to a different connection. The pump
+refreshes observations at its normal flush ticks and clears them on exit or task
+cancellation. Weak channel references allow departed transports to close normally.
+These facts are runtime state and are excluded from player persistence.

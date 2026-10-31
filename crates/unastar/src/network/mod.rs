@@ -34,10 +34,25 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     stream: BedrockStream<Play, ServerRole, T>,
     session_id: SessionId,
     event_tx: mpsc::Sender<NetworkEvent>,
+    outbound_rx: mpsc::Receiver<McpePacket>,
+    tick_rx: broadcast::Receiver<()>,
+) {
+    run_network_loop_with_metrics(stream, session_id, event_tx, outbound_rx, tick_rx, None).await;
+}
+
+/// Run the same play pump with optional read-only transport observation attached.
+pub(crate) async fn run_network_loop_with_metrics<T: jolyne::stream::Transport>(
+    stream: BedrockStream<Play, ServerRole, T>,
+    session_id: SessionId,
+    event_tx: mpsc::Sender<NetworkEvent>,
     mut outbound_rx: mpsc::Receiver<McpePacket>,
     mut tick_rx: broadcast::Receiver<()>,
+    metrics: Option<crate::entity::components::network_metrics::NetworkMetricsPublisher>,
 ) {
     let mut stream = stream;
+    if let Some(metrics) = &metrics {
+        metrics.observe(stream.latency(), std::time::Instant::now());
+    }
     // An inbound failure the client should be told about (e.g. a streamed
     // spawn's `Timeout(Spawn)` or runtime ID mismatch).
     let mut failure = None;
@@ -64,6 +79,9 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
                         if let Err(e) = stream.flush().await {
                             tracing::error!(session_id, "Flush failed: {:?}", e);
                             break 'network;
+                        }
+                        if let Some(metrics) = &metrics {
+                            metrics.observe(stream.latency(), std::time::Instant::now());
                         }
                     }
                     Err(broadcast::error::RecvError::Lagged(n)) => {
@@ -151,6 +169,9 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
         }
     }
 
+    if let Some(metrics) = &metrics {
+        metrics.clear();
+    }
     // Close drains the terminal packet and earlier buffered output, never
     // packets queued after it. Every failure path also reaches this epilogue,
     // with the failure's reasoned `Disconnect` when it has one.
