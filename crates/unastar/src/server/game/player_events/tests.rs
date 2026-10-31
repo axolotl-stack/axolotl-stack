@@ -649,6 +649,8 @@ fn deferred_initial_state_waits_for_complete_inventory_then_publishes_once() {
     let (alice, mut own) = join(&mut server, 1, "Alice");
     assert!(initial_state_pending(server.ecs.world(), alice));
     assert!(own.try_recv().is_err());
+    crate::server::game::send_inventory_contents(server.ecs.world(), alice);
+    assert!(own.try_recv().is_err());
     server.tick();
     assert!(!std::iter::from_fn(||viewer.try_recv().ok()).any(|packet|matches!(packet.data,McpePacketData::AddPlayerPacket(ref add) if add.target_runtime_id.actor_runtime_id==1)));
     assert!(!release_initial_state(server.ecs.world_mut(), alice));

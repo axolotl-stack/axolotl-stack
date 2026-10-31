@@ -118,7 +118,10 @@ pub fn pickup_items(
             Option<&Health>,
             Option<&crate::entity::components::ActorAudience>,
         ),
-        With<Player>,
+        (
+            With<Player>,
+            Without<crate::server::game::player_events::PendingInitialState>,
+        ),
     >,
     sessions: Query<&PlayerSession>,
     config: Res<super::types::ServerConfigResource>,
@@ -433,5 +436,33 @@ mod tests {
         assert_eq!(pearl.max_stack_size(), 16);
         assert_eq!(pearl.runtime_id, 0);
         assert!(world_stack(&h.world, "minecraft:not_an_item", 1).is_none());
+    }
+
+    #[test]
+    fn deferred_initial_state_cannot_collect_items_before_publication() {
+        use crate::entity::components::{
+            ArmourInventory, Health, HeldSlot, Hunger, OffhandSlot, PlayerUi,
+        };
+        use crate::server::game::player_events;
+        let mut h = harness(GameMode::Survival);
+        h.world.entity_mut(h.player).insert((
+            ArmourInventory::default(),
+            OffhandSlot::default(),
+            PlayerUi::default(),
+            HeldSlot::default(),
+            Hunger::default(),
+            Health::default(),
+        ));
+        assert!(player_events::defer_initial_state(&mut h.world, h.player));
+        let item = drop_at(&mut h, DVec3::new(0.5, 64.0, 0.5), "minecraft:diamond", 3);
+        h.world.get_mut::<PickupDelay>(item).unwrap().0 = 0;
+        h.schedule.run(&mut h.world);
+        assert_eq!(inventory_count(&h, "minecraft:diamond"), 0);
+        assert!(h.world.get_entity(item).is_ok());
+        assert!(player_events::release_initial_state(&mut h.world, h.player));
+        player_events::ready_initial_states(&mut h.world);
+        h.schedule.run(&mut h.world);
+        assert_eq!(inventory_count(&h, "minecraft:diamond"), 3);
+        assert!(h.world.get_entity(item).is_err());
     }
 }
