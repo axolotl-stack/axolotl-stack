@@ -104,11 +104,19 @@ Run with `cargo run -p jolyne --example <name> -- [args]`; addresses default to
 | `06_sans_io` | 3 | `jolyne::proto` phases over an in-memory pipe: no sockets, no runtime |
 | `nethernet_server [ADDR]` | 1 | NetherNet LAN listener (`0.0.0.0:7551` to be visible on the LAN) |
 | `nethernet_client [DISCOVERY_ADDR]` | 1 | NetherNet LAN client (`255.255.255.255:7551` to discover on the LAN) |
+| `nethernet_endpoint_client URL [--token-cache PATH] [--ice-server URL]` | 2 | Authenticated HTTP endpoint client using the same per-key service token for SDP and Login (`--features endpoint`) |
 | `stress_test --addr A --clients N` | 1 | Many concurrent bot clients against one server |
 
 For example, `cargo run -p jolyne --example 01_server` in one terminal and
 `cargo run -p jolyne --example 02_client` in another. `tests/examples_smoke.rs`
 joins `01_server` and `02_client` over RakNet loopback.
+
+`nethernet_endpoint_client` prints HTTP status and confirms actual authenticated
+spawn, then briefly observes play traffic without sending chat. It accepts an
+explicit OAuth cache or uses the user's cache directory. A missing native cache
+starts device-code sign-in. Flat OAuth caches with absolute RFC3339 `expiry` are
+read-only imports: expired imports fail without refreshing under another OAuth
+application or modifying the file. No tokens or packet payloads are printed.
 
 ## No panics
 

@@ -48,6 +48,8 @@ once_cell.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+reqwest = { workspace = true, features = ["rustls-tls"] }
+chrono.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "test-util"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 anyhow.workspace = true
@@ -102,3 +104,8 @@ required-features = ["client", "discovery"]
 name = "stress_test"
 path = "examples/stress_test.rs"
 required-features = ["client", "raknet"]
+
+[[example]]
+name = "nethernet_endpoint_client"
+path = "examples/nethernet_endpoint_client.rs"
+required-features = ["client", "endpoint"]
