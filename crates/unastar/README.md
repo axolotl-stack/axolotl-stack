@@ -561,6 +561,21 @@ have explicit empty attribute profiles for protocol 2193. Unknown identifiers
 still require their own supported layout; this does not enable their other
 unimplemented component or hit behaviors.
 
+Authored `minecraft:shooter`, `minecraft:behavior.ranged_attack` and
+`minecraft:target_nearby_sensor` now run through native mob AI. Ranged goals use
+active-tick charge/burst/reload state, current range, visibility and target
+eligibility. Deferred shots revalidate the actor's composition and target after
+event callbacks, then launch through the ordinary projectile path. Target sensors
+apply inside/outside hysteresis and visibility-loss events without assigning
+special behavior to event names. Every possible shooter projectile is validated
+at startup, including filtered choices and transitive spawn references.
+
+The complete Blaze definition can spawn and fire damaging, igniting bursts.
+Native hovering and slow-fall motion are separate from this ranged support.
+Magic projectiles, auxiliary potion overrides, swing attacks and nonzero
+`charge_charged_trigger` remain explicit unsupported options. Actor-specific
+movement, aiming and timing coverage is recorded in the parity catalog.
+
 `entity::spawn_item_drop(world, position, stack, thrower)` accepts feet positions
 for popped items and the source player's eye position for throws. Hotbar Q,
 open-inventory Q and whole-stack ctrl-drop controls in

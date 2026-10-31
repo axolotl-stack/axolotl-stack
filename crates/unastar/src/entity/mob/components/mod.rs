@@ -28,6 +28,7 @@ pub mod interact;
 pub mod knockback;
 pub mod loot;
 pub mod movement;
+pub mod ranged;
 pub mod reactive;
 pub mod sensors;
 pub mod shearing;
@@ -61,6 +62,7 @@ pub use interact::{InteractConfig, Interaction, SpawnEggInteraction, SpawnItems}
 pub use knockback::{KnockbackPower, KnockbackRules};
 pub use loot::{ExperienceRewardConfig, LootConfig};
 pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
+pub use ranged::{RangedAttackGoal, ShooterConfig, TargetNearbySensor};
 pub use sensors::{EnvironmentSensorConfig, Timer};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
 
@@ -184,6 +186,7 @@ pub fn register_component_kinds(
     spawn_entity::register_component_kinds(builder, items)?;
     equipment::register_component_kinds(builder)?;
     knockback::register_component_kinds(builder)?;
+    ranged::register_component_kinds(builder)?;
     triggers::register_component_kinds(builder)?;
     crate::entity::freezing::register_component_kinds(builder)
 }

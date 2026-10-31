@@ -18,6 +18,7 @@ mod melee;
 mod nearby;
 mod path;
 mod pickup;
+mod ranged;
 pub mod sensing;
 mod targeting;
 
@@ -113,6 +114,7 @@ pub struct AiScratch {
     gear: Vec<(Entity, pickup::GearWork)>,
     /// New targets whose lifecycle events run after the AI's RNG scope ends.
     acquired: Vec<(Entity, Entity)>,
+    shots: Vec<(Entity, ranged::ShotRequest)>,
     /// Door collision boxes for [`break_door`].
     boxes: Vec<Aabb>,
 }
@@ -201,6 +203,9 @@ pub fn tick_mob_ai(
                         .expect("queried with a brain") = brain;
                 }
                 if let Some(mut output) = output {
+                    if let Some(shot) = output.effects.ranged_shot.take() {
+                        scratch.shots.push((entity, shot));
+                    }
                     scratch.gaze.extend(
                         output
                             .effects
@@ -227,6 +232,14 @@ pub fn tick_mob_ai(
     for (entity, event, other) in scratch.gaze.drain(..) {
         super::life::triggers::fire(world, entity, &event, other);
     }
+    for &(actor, turn) in &scratch.mobs {
+        if turn != Turn::Die {
+            ranged::sensor(world, actor);
+        }
+    }
+    for (actor, shot) in scratch.shots.drain(..) {
+        ranged::shoot(world, actor, shot);
+    }
     for entity in scratch.eaten.drain(..) {
         eat_block::finish_eating(world, entity);
     }
@@ -251,6 +264,7 @@ pub fn tick_mob_ai(
 /// The result of one mob's tick.
 struct Output {
     yaw: f32,
+    pitch: f32,
     head_yaw: f32,
     velocity: DVec3,
     effects: Effects,
@@ -345,6 +359,7 @@ fn think(
             ctx.effects.target = Some(None);
             return Some(Output {
                 yaw: rotation.yaw,
+                pitch: rotation.pitch,
                 head_yaw: rotation.head_yaw,
                 velocity,
                 effects,
@@ -361,6 +376,7 @@ fn think(
     selector.tick(&mut ctx);
     ctx.scan_gaze();
     let goal_jump = ctx.jump;
+    let ranged_aim = ctx.effects.ranged_aim;
 
     let door_hold = nav.current().is_some_and(|(index, path)| {
         break_door::held_by_breakable_door(
@@ -374,7 +390,14 @@ fn think(
     });
     nav.tick(&body, movement, door_hold);
     let mut yaw = rotation.yaw;
+    let mut pitch = rotation.pitch;
     let move_jump = movement.tick(&body, &mut yaw, max_turn);
+    if let Some(aim) = ranged_aim {
+        let eye = feet + DVec3::Y * body.height * super::constants::MOB_EYE_HEIGHT_RATIO;
+        let (wanted_yaw, wanted_pitch) = crate::entity::geometry::look_at(eye, aim.point);
+        yaw = control::rotate_towards(yaw, wanted_yaw, aim.y_speed);
+        pitch += (wanted_pitch - pitch).clamp(-aim.x_speed, aim.x_speed);
+    }
     let mut head_yaw = rotation.head_yaw;
     look.tick(feet + DVec3::Y * body.height, yaw, &mut head_yaw);
     let velocity = travel(
@@ -388,6 +411,7 @@ fn think(
     );
     Some(Output {
         yaw,
+        pitch,
         head_yaw,
         velocity,
         effects,
@@ -405,21 +429,26 @@ fn apply(
 ) {
     let Output {
         yaw,
+        pitch,
         head_yaw,
         velocity,
         effects,
     } = output;
     let mut mob = world.entity_mut(entity);
     if let Some(mut rotation) = mob.get_mut::<Rotation>()
-        && (rotation.yaw != yaw || rotation.head_yaw != head_yaw)
+        && (rotation.yaw != yaw || rotation.pitch != pitch || rotation.head_yaw != head_yaw)
     {
         rotation.yaw = yaw;
+        rotation.pitch = pitch;
         rotation.head_yaw = head_yaw;
     }
     if let Some(mut current) = mob.get_mut::<Velocity>()
         && current.0 != velocity
     {
         current.0 = velocity;
+    }
+    if let Some(charged) = effects.ranged_charged {
+        super::components::ranged::charged_flag(&mut mob, charged);
     }
     if effects.persistent && !mob.contains::<Persistent>() {
         mob.insert(Persistent);

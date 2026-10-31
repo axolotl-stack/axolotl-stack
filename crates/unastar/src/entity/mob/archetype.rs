@@ -76,6 +76,8 @@ pub enum ArchetypeError {
     /// What the projectile spawns on hit is not spawnable.
     #[error(transparent)]
     Projectile(#[from] ProjectileError),
+    #[error(transparent)]
+    Ranged(#[from] super::components::ranged::RangedError),
 }
 
 /// Why the mob registry cannot be built at all (as opposed to one
@@ -372,22 +374,32 @@ impl MobRegistry {
                 }
             }
         }
-        // What a projectile spawns on hit must itself be spawnable; checked
-        // once every archetype is compiled.
-        let broken: Vec<(Arc<str>, ArchetypeError)> = archetypes
-            .iter()
-            .filter(|(_, archetype)| archetype.projectile)
-            .filter_map(|(id, archetype)| {
-                projectile::check_spawns(archetype, items, |name| {
-                    archetypes.get(name).map(Arc::clone)
+        // References are validated to a fixed point: removing an unsupported
+        // shooter may also invalidate a projectile that spawns that actor.
+        loop {
+            let broken: Vec<(Arc<str>, ArchetypeError)> = archetypes
+                .iter()
+                .filter_map(|(id, archetype)| {
+                    let result = projectile::check_spawns(archetype, items, |name| {
+                        archetypes.get(name).map(Arc::clone)
+                    })
+                    .map_err(ArchetypeError::from)
+                    .and_then(|()| {
+                        super::components::ranged::check_projectiles(archetype, items, |name| {
+                            archetypes.get(name).map(Arc::clone)
+                        })
+                        .map_err(ArchetypeError::from)
+                    });
+                    result.err().map(|error| (Arc::clone(id), error))
                 })
-                .err()
-                .map(|error| (Arc::clone(id), error.into()))
-            })
-            .collect();
-        for (id, reason) in broken {
-            archetypes.remove(&id);
-            unsupported.insert(id, Arc::new(reason));
+                .collect();
+            if broken.is_empty() {
+                break;
+            }
+            for (id, reason) in broken {
+                archetypes.remove(&id);
+                unsupported.insert(id, Arc::new(reason));
+            }
         }
         Ok(Self {
             archetypes: Arc::new(archetypes),
