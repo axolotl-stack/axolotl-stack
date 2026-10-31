@@ -403,6 +403,15 @@ parity.
 
 ## Actor registries and data
 
+Living actors accumulate cold while their body overlaps powder snow and thaw
+twice as quickly after leaving it. Full exposure slows movement, updates player
+cold rendering and actor shaking, and deals freezing damage every 40 actor
+ticks through the normal damage paths. Equipped leather armour and
+`minecraft:freezing_immune` prevent accumulation; `minecraft:freezing_vulnerable`
+raises periodic damage from 1 to 5. A carried armour item grants no protection.
+Respawn clears cold exposure and restores ordinary movement. The components
+follow the [Bedrock freezing component contract](https://learn.microsoft.com/en-us/minecraft/creator/documents/update1.26.50?view=minecraft-bedrock-stable#powder-snow-freezing).
+
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
 by identifier, replacing the whole definition rather than merging components.
 `freeze()` consumes the builder and shares immutable definitions through `Arc`.

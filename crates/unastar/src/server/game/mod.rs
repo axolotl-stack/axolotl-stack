@@ -163,6 +163,16 @@ pub(super) fn capture_player_record(
             exhaustion: hunger.exhaustion,
             experience: experience.level,
             experience_progress: experience.progress,
+            cold_exposure: if dead {
+                0.0
+            } else {
+                world
+                    .get::<crate::entity::freezing::FreezingState>(entity)
+                    .map_or(0.0, |state| state.strength())
+            },
+            age_ticks: world
+                .get::<crate::entity::components::Age>(entity)
+                .map_or(0, |age| age.0),
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -589,6 +599,7 @@ impl GameServer {
                 crate::entity::mob::combat::hurt_on_condition,
                 crate::entity::mob::combat::fire::burn_in_daylight,
                 crate::entity::mob::combat::fire::burn_mobs,
+                crate::entity::freezing::tick,
                 crate::entity::mob::combat::death::die_at_zero_health,
                 crate::entity::mob::combat::death::tick_dying,
                 crate::entity::xp_orb::tick_xp_orbs,
@@ -884,6 +895,8 @@ impl GameServer {
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
         let mut experience = crate::entity::components::Experience::default();
+        let mut cold = crate::entity::freezing::FreezingState::default();
+        let mut age = crate::entity::components::Age::default();
         if let Some(saved) = saved_data {
             rotation = Rotation::new(saved.rotation[0], saved.rotation[1]);
             game_mode = match saved.game_mode {
@@ -901,6 +914,9 @@ impl GameServer {
             hunger.exhaustion = saved.exhaustion;
             experience.level = saved.experience;
             experience.progress = saved.experience_progress;
+            cold = crate::entity::freezing::FreezingState::from_strength(saved.cold_exposure)
+                .expect("saved cold exposure was validated before spawning");
+            age.0 = saved.age_ticks;
         }
 
         let entity = self
@@ -950,6 +966,8 @@ impl GameServer {
         let (health_sent, hunger_sent) = (health.clone(), hunger.clone());
         self.ecs.world_mut().entity_mut(entity).insert((
             inventory_persistence,
+            age,
+            cold,
             health,
             hunger,
             experience,
