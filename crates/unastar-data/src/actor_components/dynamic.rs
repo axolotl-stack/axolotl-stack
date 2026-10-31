@@ -19,6 +19,8 @@ use super::{ActorComponent, ComponentBody, FilterJson, decode};
 
 mod reactive;
 pub use reactive::*;
+mod ranged;
+pub use ranged::*;
 
 /// An event reference: a bare event name or a trigger object.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -1379,10 +1381,12 @@ dynamic_bodies!(
     Rideable,
     Scale,
     Shareables,
+    Shooter,
     SpawnEggInteraction,
     SpawnEntity,
     Transformation,
     Timer,
+    TargetNearbySensor,
     TypeFamily,
     VariableMaxAutoStep,
 );
