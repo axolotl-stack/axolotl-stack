@@ -728,6 +728,12 @@ pub(crate) fn publish_deferred_state(world: &mut World, player: Entity) {
         snapshot.data.rotation[0],
         snapshot.data.rotation[1],
     );
+    if let Some(mut position) = world.get_mut::<Position>(player) {
+        position.0 = DVec3::from_array(snapshot.data.position);
+    }
+    if let Some(mut rotation) = world.get_mut::<Rotation>(player) {
+        rotation.head_yaw = snapshot.head_yaw;
+    }
     send_effects(world, player, &BTreeSet::new(), &snapshot);
     send_life_and_motion(world, player, &snapshot);
     let sent = world

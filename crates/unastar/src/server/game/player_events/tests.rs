@@ -654,6 +654,8 @@ fn deferred_snapshot_restoration_publishes_final_state_only_after_release() {
     server.ecs.world_mut().entity_mut(alice).insert(inventory);
     let mut snapshot = player_state::capture(server.ecs.world(), alice).unwrap();
     snapshot.data.position[0] += 3.0;
+    snapshot.data.position[1] = 18.123456789;
+    snapshot.head_yaw = 67.0;
     snapshot.velocity = [0.1, 0.2, 0.3];
     snapshot.data.health = 7.0;
     snapshot.data.food = 14;
@@ -689,6 +691,9 @@ fn deferred_snapshot_restoration_publishes_final_state_only_after_release() {
     assert!(release_initial_state(server.ecs.world_mut(), alice));
     server.tick();
     let published = std::iter::from_fn(|| own.try_recv().ok()).collect::<Vec<_>>();
+    let current = player_state::capture(server.ecs.world(), alice).unwrap();
+    assert_eq!(current.data.position, snapshot.data.position);
+    assert_eq!(current.head_yaw, snapshot.head_yaw);
     assert!(published.iter().any(|packet| matches!(&packet.data, McpePacketData::MobEffectPacket(effect) if effect.effect_id==1 && effect.effect_amplifier==1 && !effect.show_particles && effect.ambient)));
     assert!(published.iter().any(|packet| matches!(&packet.data, McpePacketData::MovePlayerPacket(movement) if movement.position.x==snapshot.data.position[0] as f32)));
     assert!(published.iter().any(|packet| matches!(&packet.data, McpePacketData::SetActorMotionPacket(motion) if motion.motion.x==0.1)));
