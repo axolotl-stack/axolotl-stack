@@ -1047,7 +1047,10 @@ Native lifecycle handlers also receive `PlayerDamaged` after positive health
 loss, with the actual removed health and validated hit, before a possible death
 notification. Cancelled, invalid and hurt-timer-suppressed hits do not emit it.
 Use `PlayerDamage` to authorize attempts and `PlayerDamaged` to account for
-committed hits.
+committed hits. Native proposals may also set `PlayerDamage::hurt_ticks` for
+the next full hit's immunity window; zero disables the window. A stronger hit
+during an existing window retains that deadline, and deadline addition saturates
+at the maximum simulation tick. The default remains the engine hurt duration.
 
 Native damage proposals may independently bypass armour reduction and apply a
 finite nonnegative multiplier after armour. Both preserve the hit cause, hurt
