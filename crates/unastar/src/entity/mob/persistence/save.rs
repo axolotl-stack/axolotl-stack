@@ -105,6 +105,13 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
     if let Some(colour) = crate::entity::mob::components::color::color_of(world, mob) {
         put("Color", NBTTag::Byte(colour.into()));
     }
+    if let Some(hover) = world.get::<crate::entity::mob::native::motion::HoverState>(mob) {
+        put("UnastarHoverOffset", NBTTag::Float(hover.offset.into()));
+        put(
+            "UnastarHoverTicks",
+            NBTTag::Int(i32::from(hover.remaining).into()),
+        );
+    }
     let now = current_tick(world);
     if let Some(teleport) = world.get::<crate::entity::mob::components::teleport::Teleport>(mob) {
         put(

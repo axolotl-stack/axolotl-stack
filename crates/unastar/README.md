@@ -671,7 +671,11 @@ special behavior to event names. Every possible shooter projectile is validated
 at startup, including filtered choices and transitive spawn references.
 
 The complete Blaze definition can spawn and fire damaging, igniting bursts.
-Native hovering and slow-fall motion are separate from this ranged support.
+Its class-owned vertical motion adjusts preferred height every 100 active ticks,
+ascends/descends toward eligible targets, and damps idle falling before ordinary
+collision and gravity. The phase persists with the mob and pauses without loaded
+terrain or living-body state. Head positions currently use the same geometry as
+mob sensing; exact per-class attachment offsets remain outside this support.
 Magic projectiles, auxiliary potion overrides, swing attacks and nonzero
 `charge_charged_trigger` remain explicit unsupported options. Actor-specific
 movement, aiming and timing coverage is recorded in the parity catalog.

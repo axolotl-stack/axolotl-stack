@@ -305,3 +305,66 @@ fn unknown_stored_actors_are_kept_and_written_back() {
         [StoredActor { unique_id: 42, nbt }]
     );
 }
+
+#[test]
+fn native_hover_phase_survives_leveldb_restart_and_malformed_phases_are_rejected() {
+    use crate::entity::mob::native::motion::HoverState;
+    let dir = TempDir::new();
+    let expected = HoverState {
+        offset: 2.75,
+        remaining: 29,
+    };
+    {
+        let mut server = stored_server(&dir.0);
+        let world = server.ecs.world_mut();
+        world.get_or_create_chunk(0, 0);
+        let blaze =
+            spawn_mob(world, "minecraft:blaze", COW_FEET, 0.0, SpawnCause::Spawned).unwrap();
+        world.entity_mut(blaze).insert(expected);
+        assert_eq!(save_all_chunks(&mut server), 1);
+    }
+    let mut server = stored_server(&dir.0);
+    let world = server.ecs.world_mut();
+    world.get_or_create_chunk(0, 0);
+    let blaze = world
+        .query_filtered::<Entity, With<HoverState>>()
+        .single(world)
+        .unwrap();
+    assert_eq!(*world.get::<HoverState>(blaze).unwrap(), expected);
+    let bytes = super::encode_for_tests(world, blaze);
+    let NBTTag::Compound(mut saved) = NBTTag::read(&mut bytes.as_slice(), LittleEndian).unwrap()
+    else {
+        panic!("compound")
+    };
+    world.despawn(blaze);
+    for (name, value) in [
+        ("UnastarHoverOffset", NBTTag::Float(f32::NAN.into())),
+        ("UnastarHoverTicks", NBTTag::Int(101.into())),
+    ] {
+        let mut invalid = saved.clone();
+        invalid.0.insert(name.into(), value);
+        let mut encoded = Vec::new();
+        NBTTag::Compound(invalid)
+            .write(&mut encoded, LittleEndian)
+            .unwrap();
+        assert!(restore_mob(world, &encoded).is_err());
+        assert_eq!(
+            world
+                .query_filtered::<Entity, With<HoverState>>()
+                .iter(world)
+                .count(),
+            0
+        );
+    }
+    saved.0.remove("UnastarHoverOffset");
+    saved.0.remove("UnastarHoverTicks");
+    let mut legacy = Vec::new();
+    NBTTag::Compound(saved)
+        .write(&mut legacy, LittleEndian)
+        .unwrap();
+    let restored = restore_mob(world, &legacy).unwrap();
+    assert_eq!(
+        *world.get::<HoverState>(restored).unwrap(),
+        HoverState::default()
+    );
+}

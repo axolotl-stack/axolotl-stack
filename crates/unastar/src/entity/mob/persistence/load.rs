@@ -339,6 +339,24 @@ fn restore_state(
     if anger_calmed && anger_deadline != Some(now) {
         return Err(ActorDecodeError::InvalidField("UnastarAngerCalmed"));
     }
+    let hover = match (
+        fields.0.get("UnastarHoverOffset"),
+        fields.0.get("UnastarHoverTicks"),
+    ) {
+        (None, None) => None,
+        (Some(NBTTag::Float(offset)), Some(NBTTag::Int(remaining))) => {
+            let state = crate::entity::mob::native::motion::HoverState {
+                offset: offset.0,
+                remaining: u16::try_from(remaining.0)
+                    .map_err(|_| ActorDecodeError::InvalidField("UnastarHoverTicks"))?,
+            };
+            if !archetype.native.hover || !state.is_valid() {
+                return Err(ActorDecodeError::InvalidField("UnastarHoverOffset"));
+            }
+            Some(state)
+        }
+        _ => return Err(ActorDecodeError::InvalidField("UnastarHoverOffset")),
+    };
     let mut entity = world.entity_mut(mob);
     if let Some((earliest, next)) = teleport_waits {
         let mut teleport = entity
@@ -346,6 +364,9 @@ fn restore_state(
             .expect("validated teleport state");
         teleport.earliest_random_tick = earliest;
         teleport.next_random_tick = next;
+    }
+    if let Some(hover) = hover {
+        entity.insert(hover);
     }
     if let Some(deadline) = anger_deadline {
         let mut anger = entity
