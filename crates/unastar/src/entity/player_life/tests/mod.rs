@@ -5,6 +5,7 @@
 
 mod death;
 mod environment;
+mod hooks;
 mod hurt;
 mod input_tick;
 mod respawn;
