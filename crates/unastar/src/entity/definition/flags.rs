@@ -113,6 +113,8 @@ pub fn register_component_kinds(
     register_flag::<body::IsSaddled, { actor_flags::SADDLED }>(builder)?;
     register_flag::<body::UsesUniformAirDrag, { actor_flags::USES_UNIFORM_AIR_DRAG }>(builder)?;
     register_flag::<body::IsShaking, { actor_flags::SHAKING }>(builder)?;
+    register_flag::<body::FireImmune, { actor_flags::FIRE_IMMUNE }>(builder)?;
+    register_flag::<body::RendersWhenInvisible, { actor_flags::RENDERS_WHEN_INVISIBLE }>(builder)?;
     // Only acts while riding (not implemented); viewers still see the flag.
     register_flag::<body::RotationLockedToVehicle, { actor_flags::ROTATION_LOCKED_TO_VEHICLE }>(
         builder,
