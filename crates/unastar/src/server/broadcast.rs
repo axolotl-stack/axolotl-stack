@@ -3,7 +3,9 @@
 //! ECS-based systems for broadcasting player spawn, movement, and despawn events
 //! to all connected players. Uses proper batching via the network I/O layer.
 //!
-//! Uses spatial hashing (EntityGrid) for O(N) broadcast lookups instead of O(N²).
+//! Uses spatial hashing for transient nearby events and reconciles per-viewer state.
+
+pub mod player_views;
 
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{
@@ -27,10 +29,10 @@ const ABILITY_COUNT: u32 = 1 << 20;
 const ABILITY_LAYER_BASE: u16 = 1;
 
 use crate::entity::components::{
-    GameMode, LastBroadcastPosition, Player, PlayerName, PlayerSession, PlayerUuid, Position,
-    Rotation, RuntimeEntityId, SpatialChunk,
+    GameMode, LastBroadcastPosition, Player, PlayerSession, Position, Rotation, RuntimeEntityId,
+    SpatialChunk,
 };
-use crate::world::ecs::{PlayerDespawnedEvent, PlayerSpawnedEvent};
+use crate::world::ecs::PlayerDespawnedEvent;
 
 /// Spatial hash grid for efficient neighbor lookups.
 /// Maps chunk coordinates to lists of entities in that chunk.
@@ -185,105 +187,10 @@ const MOVEMENT_THRESHOLD_SQ: f64 = 0.01;
 /// Rotation threshold (degrees)
 const ROTATION_THRESHOLD: f32 = 1.0;
 
-/// System: Broadcast newly spawned players to all existing players,
-/// and send existing players to the new player.
-///
-/// Reads `PlayerSpawnedEvent` events instead of querying for marker components,
-/// eliminating archetype changes when players spawn.
-///
-/// Note: EntityGrid insertion is handled by SpatialChunk's on_insert hook.
-/// Runs in NetworkSendSet after all spawn logic is complete.
-#[allow(clippy::type_complexity)]
-pub fn broadcast_spawn_system(
-    mut events: MessageReader<PlayerSpawnedEvent>,
-    // Query for new players by entity from the event
-    new_players: Query<
-        (
-            &RuntimeEntityId,
-            &PlayerUuid,
-            &PlayerName,
-            &Position,
-            &Rotation,
-            &GameMode,
-            &PlayerSession,
-        ),
-        With<Player>,
-    >,
-    // Query for all existing players (to send to new player and to broadcast new player to them)
-    existing_players: Query<
-        (
-            Entity,
-            &RuntimeEntityId,
-            &PlayerUuid,
-            &PlayerName,
-            &Position,
-            &Rotation,
-            &GameMode,
-            &PlayerSession,
-        ),
-        With<Player>,
-    >,
-) {
-    for event in events.read() {
-        let new_entity = event.entity;
-
-        // Get the new player's data
-        let Ok((new_rid, new_uuid, new_name, new_pos, new_rot, new_mode, new_session)) =
-            new_players.get(new_entity)
-        else {
-            // Entity may have been despawned between event emission and processing
-            tracing::warn!(entity = ?new_entity, "PlayerSpawnedEvent for non-existent entity");
-            continue;
-        };
-
-        // Note: EntityGrid insertion handled by SpatialChunk on_insert hook
-
-        let new_packet = build_add_player_packet(
-            new_rid.0,
-            new_uuid.0,
-            &new_name.0,
-            new_pos,
-            new_rot,
-            *new_mode,
-        );
-
-        // Send new player to all existing players (except themselves)
-        for (other_entity, _, _, _, _, _, _, other_session) in existing_players.iter() {
-            if other_entity == new_entity {
-                continue;
-            }
-            let _ = other_session.send(McpePacket::from(new_packet.clone()));
-        }
-
-        // Send all existing players to the new player
-        for (
-            other_entity,
-            other_rid,
-            other_uuid,
-            other_name,
-            other_pos,
-            other_rot,
-            other_mode,
-            _,
-        ) in existing_players.iter()
-        {
-            if other_entity == new_entity {
-                continue;
-            }
-            let other_packet = build_add_player_packet(
-                other_rid.0,
-                other_uuid.0,
-                &other_name.0,
-                other_pos,
-                other_rot,
-                *other_mode,
-            );
-            let _ = new_session.send(McpePacket::from(other_packet));
-        }
-
-        // LastBroadcastPosition is now included in PlayerBundle at spawn time,
-        // so no need to insert it here. This avoids an archetype change.
-    }
+/// Reconcile player spawns, audiences, current equipment and movement.
+/// Compatibility entry point for the complete player view system.
+pub fn broadcast_spawn_system(world: &mut World) {
+    player_views::sync_player_views(world);
 }
 
 /// System: Updates SpatialChunk when player crosses chunk boundaries.
@@ -315,114 +222,14 @@ pub fn sync_spatial_chunks(
     }
 }
 
-/// System: Broadcast movement updates for players who have moved significantly.
-///
-/// Uses EntityGrid for O(N) spatial lookups instead of O(N²).
-/// Only broadcasts if position changed by more than MOVEMENT_THRESHOLD or rotation changed.
-#[allow(clippy::type_complexity)]
-pub fn broadcast_movement_system(
-    grid: Res<EntityGrid>,
-    mut players: Query<
-        (
-            Entity,
-            &RuntimeEntityId,
-            &Position,
-            &Rotation,
-            &mut LastBroadcastPosition,
-            Option<&crate::entity::components::PlayerInput>,
-        ),
-        With<Player>,
-    >,
-    sessions: Query<(Entity, &PlayerSession)>,
-) {
-    // Collect movement updates to avoid borrow conflicts
-    let mut updates: Vec<(Entity, i64, Position, Rotation, PlayerInputTick)> = Vec::new();
-
-    let player_count = players.iter().count();
-    for (entity, rid, pos, rot, last_pos, input) in players.iter() {
-        let dist_sq = position_distance_sq(last_pos, pos);
-        let yaw_diff = (last_pos.yaw - rot.yaw).abs();
-        let pitch_diff = (last_pos.pitch - rot.pitch).abs();
-
-        if dist_sq > MOVEMENT_THRESHOLD_SQ
-            || yaw_diff > ROTATION_THRESHOLD
-            || pitch_diff > ROTATION_THRESHOLD
-        {
-            let tick = input.map_or(PlayerInputTick { inputtick: 0 }, |i| i.wire_tick());
-            updates.push((entity, rid.0, *pos, *rot, tick));
-        }
-    }
-
-    let update_count = updates.len();
-    let mut packets_sent = 0usize;
-
-    // Apply updates using spatial grid for O(N) lookups
-    for (moving_entity, runtime_id, pos, rot, tick) in updates {
-        let move_packet = build_move_player_packet(runtime_id, &pos, &rot, true, tick);
-        let mover_chunk = ((pos.0.x.floor() as i32) >> 4, (pos.0.z.floor() as i32) >> 4);
-
-        // O(1) neighbor lookup: get entities in 3x3 chunk area
-        let nearby = grid.get_neighbors(mover_chunk, 1);
-
-        for observer_entity in nearby {
-            if observer_entity == moving_entity {
-                continue;
-            }
-            if let Ok((_, session)) = sessions.get(observer_entity) {
-                let _ = session.send(McpePacket::from(move_packet.clone()));
-                packets_sent += 1;
-            }
-        }
-
-        // Update last broadcast position
-        if let Ok((_, _, _, _, mut last_pos, _)) = players.get_mut(moving_entity) {
-            last_pos.x = pos.0.x;
-            last_pos.y = pos.0.y;
-            last_pos.z = pos.0.z;
-            last_pos.yaw = rot.yaw;
-            last_pos.pitch = rot.pitch;
-        }
-    }
-
-    // Log if there were any updates (avoid spam when idle)
-    if update_count > 0 {
-        tracing::trace!(
-            players = player_count,
-            updates = update_count,
-            packets = packets_sent,
-            "Broadcast movement"
-        );
-    }
+/// Reconcile the complete player view after movement or audience changes.
+pub fn broadcast_movement_system(world: &mut World) {
+    player_views::sync_player_views(world);
 }
 
-/// System: Broadcast despawn for players being removed.
-///
-/// Reads `PlayerDespawnedEvent` events instead of querying for marker components,
-/// eliminating archetype changes when players despawn.
-///
-/// Runs in NetworkSendSet before CleanupSet removes the entities.
-/// Note: EntityGrid cleanup is handled by SpatialChunk's on_remove hook.
-/// Note: ChunkViewers cleanup is handled by ChunkLoader's on_remove hook.
-pub fn broadcast_despawn_system(
-    mut events: MessageReader<PlayerDespawnedEvent>,
-    all_sessions: Query<(Entity, &PlayerSession), With<Player>>,
-) {
-    for event in events.read() {
-        let despawn_entity = event.entity;
-        let runtime_id = event.runtime_id;
-
-        // Note: EntityGrid removal handled by SpatialChunk on_remove hook
-        // Note: ChunkViewers removal handled by ChunkLoader on_remove hook
-
-        let remove_packet = build_remove_actor_packet(runtime_id);
-
-        // Send to all OTHER players
-        for (other_entity, other_session) in all_sessions.iter() {
-            if other_entity != despawn_entity {
-                let _ = other_session.send(McpePacket::from(remove_packet.clone()));
-            }
-        }
-    }
+/// Remove vanished/despawned actors from clients that actually knew them.
+pub fn broadcast_despawn_system(world: &mut World) {
+    player_views::sync_player_views(world);
 }
 
 /// System: Despawn entities that emitted PlayerDespawnedEvent.
@@ -778,6 +585,7 @@ pub fn sync_actor_viewers(
     config: Res<crate::server::game::types::ServerConfigResource>,
     mut actors: Query<
         (
+            Entity,
             &RuntimeId,
             &Position,
             &Velocity,
@@ -788,12 +596,14 @@ pub fn sync_actor_viewers(
             Option<&ItemOwner>,
             Option<&FallingBlock>,
             Option<&crate::entity::xp_orb::XpOrb>,
+            Option<&crate::entity::components::ActorAudience>,
         ),
         // Mobs replicate through `entity::mob::net::network::sync_mob_viewers`.
         Without<crate::entity::components::Mob>,
     >,
 ) {
     for (
+        actor,
         runtime_id,
         position,
         velocity,
@@ -804,6 +614,7 @@ pub fn sync_actor_viewers(
         owner,
         falling,
         orb,
+        audience,
     ) in actors.iter_mut()
     {
         let (cx, cz) = crate::world::ecs::world_to_chunk_coords(
@@ -813,7 +624,14 @@ pub fn sync_actor_viewers(
         let desired: Vec<Entity> = chunk_manager
             .get_by_coords(cx, cz)
             .and_then(|chunk| chunk_viewers.get(chunk).ok())
-            .map(|v| v.iter().filter(|e| sessions.contains(*e)).collect())
+            .map(|v| {
+                v.iter()
+                    .filter(|e| {
+                        sessions.contains(*e)
+                            && audience.is_none_or(|audience| audience.allows(actor, *e))
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
         let wire_position = position.0 + glam::DVec3::new(0.0, body.network_y_offset, 0.0);
 
@@ -825,12 +643,12 @@ pub fn sync_actor_viewers(
             .collect();
         if !gone.is_empty() {
             let remove = build_remove_actor_packet(runtime_id.0);
-            for viewer in &gone {
-                if let Ok(session) = sessions.get(*viewer) {
-                    let _ = session.send(McpePacket::from(remove.clone()));
-                }
-            }
-            viewers.viewers.retain(|v| !gone.contains(v));
+            viewers.viewers.retain(|viewer| {
+                !gone.contains(viewer)
+                    || sessions
+                        .get(*viewer)
+                        .is_ok_and(|session| !session.send(McpePacket::from(remove.clone())))
+            });
         }
 
         let moved = position.0.distance_squared(viewers.last_position) > ACTOR_MOVE_EPSILON_SQ;
@@ -868,7 +686,11 @@ pub fn sync_actor_viewers(
                     fire_at_position: None,
                 })
             });
-            for viewer in &viewers.viewers {
+            for viewer in viewers
+                .viewers
+                .iter()
+                .filter(|viewer| desired.contains(viewer))
+            {
                 if let Ok(session) = sessions.get(*viewer) {
                     for packet in [&move_packet, &motion_packet, &size_packet]
                         .into_iter()
@@ -1044,6 +866,39 @@ mod actor_viewer_tests {
     }
 
     #[test]
+    fn actor_audience_hides_and_reveals_existing_item_actors() {
+        let (mut world, _, viewer, mut rx) = setup();
+        let item = spawn_item_drop(
+            &mut world,
+            DVec3::new(4.5, 64.0, 4.5),
+            crate::item::test_support::stack("minecraft:dirt", 1),
+            None,
+        )
+        .unwrap();
+        world
+            .entity_mut(item)
+            .insert(crate::entity::components::ActorAudience::only([]));
+        sync(&mut world);
+        assert!(drain(&mut rx).is_empty());
+        world
+            .entity_mut(item)
+            .insert(crate::entity::components::ActorAudience::only([viewer]));
+        sync(&mut world);
+        assert!(matches!(
+            drain(&mut rx).as_slice(),
+            [McpePacketData::AddItemActorPacket(_)]
+        ));
+        world
+            .entity_mut(item)
+            .insert(crate::entity::components::ActorAudience::only([]));
+        sync(&mut world);
+        assert!(matches!(
+            drain(&mut rx).as_slice(),
+            [McpePacketData::RemoveActorPacket(_)]
+        ));
+    }
+
+    #[test]
     fn items_spawn_move_resize_and_leave_with_their_chunk_viewers() {
         let (mut world, chunk, player, mut rx) = setup();
         let item = spawn_item_drop(
@@ -1151,7 +1006,9 @@ pub fn relay_player_swing(
         if viewer == player {
             continue;
         }
-        if let Some(session) = world.get::<PlayerSession>(viewer) {
+        if player_views::can_receive_actor(world, player, viewer)
+            && let Some(session) = world.get::<PlayerSession>(viewer)
+        {
             let _ = session.send(relay.clone());
         }
     }

@@ -1042,3 +1042,63 @@ of the native writer, reads all three codecs, and independently inflates/checksu
 the provider's actual compacted tables. This catches failures hidden by successful
 reads from an uncompressed write-ahead log. After changing native build flags,
 use `cargo clean -p bleveldb-sys` before the acceptance run.
+
+Native `PlayerEventHooks` handlers and Bevy observers can authorize or redirect
+movement before position, input, hunger and fall state changes, and observe
+`PlayerMoved` after accepted movement commits. Final chat can be rewritten or
+cancelled before broadcast, with identity and bounded text revalidation.
+`PlayerChat::handle(action)` replaces default broadcast with an extension-owned
+accepted action. `PlayerChatted` is notified only after all proposal handlers,
+observers and validation accept it; ordinary chat notifies after broadcast.
+Extensions route or account for custom chat from that committed notification,
+so a later veto never publishes effects from an unaccepted message.
+
+`PlayerJoined` runs before initial packets. `PlayerQuit` runs while the departing
+actor is present; `retain_entity()` detaches transport/input/permission/chunk
+ownership and retains the actor as `DetachedPlayer`. Detached actors remain
+visible to other sessions and are excluded from ordinary player autosaves.
+Embedding applications own their lifetime and persistence.
+
+`player_state::capture` and `restore` round-trip a versioned player snapshot,
+including complete inventory/UI slots, health, hunger, effects and motion.
+Restore validates identity, world and item data before mutating state, preserves
+the connection/runtime identity, assigns fresh item network IDs and sends
+authoritative updates. Captured death state is raw state, without applying a
+second death or dropping items again.
+Snapshots can also create a new detached actor with a fresh runtime identity,
+without synthesizing a network connection or join event.
+
+Native `PlayerFormResponse` reports actual bounded `ModalFormResponse` packets
+with immutable connection identity, request ID, optional raw response text and
+cancellation status. The host limits payloads to 65536 bytes and revalidates the
+source session before callbacks. Applications own outstanding request IDs, JSON
+interpretation and menu actions; the host performs no default form action.
+
+## Actor presentation
+
+`entity::components::ActorAudience::only(viewers)` restricts an actor's native
+replication to explicit ECS viewer identities. Absence or `all()` preserves the
+ordinary audience, and an actor always receives its own updates. Player, mob
+and item visibility reconciles at runtime: removing a viewer queues `RemoveActor`,
+and adding one sends a fresh current snapshot. Native actor events, attributed
+sounds and death announcements respect the audience. Item collection still
+removes the item for viewers unable to see its collector, without naming that
+collector. Child actors have their own audiences; applications explicitly assign
+them when needed. Unattributed world events remain world events.
+
+`PlayerEquipmentProjection` overrides the main hand, offhand and four armour
+slots displayed to other clients. `None` uses the actual inventory slot; an
+empty stack hides the displayed slot. Inventories and combat equipment remain
+authoritative. New viewers receive current equipment, metadata and effects with
+the spawn, and existing viewers receive changes even while the player is still.
+Per-viewer caches track successful queues and connection identity; a replacement
+connection receives a fresh snapshot, and backpressure retries each equipment
+packet independently. Players become eligible after `PlayerSpawnedEvent`.
+
+`server::broadcast::player_views::{audience_allows, can_receive_actor}` and
+`entity::mob::net::sound::{send_from_to_viewers, level_event_from}` let embedding
+applications apply the same recipient rules to their own attributed events.
+These APIs cover actor representation; player-list and skin support is outside
+this capability. The visible-effect metadata packing follows
+[Dragonfly v0.10.13](https://github.com/df-mc/dragonfly/blob/v0.10.13/server/session/entity_metadata.go),
+under the [MIT license](licenses/dragonfly-MIT.txt).
