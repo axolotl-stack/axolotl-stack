@@ -4,8 +4,7 @@
 
 use glam::DVec3;
 use jolyne::auth::ValidatedIdentity;
-use jolyne::stream::raknet_types::{ServerHandshakeStream, ServerPlayStream};
-use jolyne::stream::{Failed, RakNetTransport};
+use jolyne::stream::{BedrockStream, Failed, Handshake, Play, Server, Transport};
 use jolyne::valentine::types::{BlockPos, Vec2, Vec3};
 use jolyne::{JolyneError, WorldTemplate};
 use p384::SecretKey;
@@ -33,17 +32,17 @@ pub struct JoinWorld<'a> {
 ///    (streamed spawn: the client has not initialized yet)
 ///
 /// A failed step sends the client a reasoned disconnect before returning.
-pub async fn accept_join_sequence(
+pub async fn accept_join_sequence<T: Transport>(
     world: JoinWorld<'_>,
     server_key: &SecretKey,
     config: &UnastarConfig,
     player_data_store: &PlayerDataStore,
     player_provider: Option<&dyn PlayerProvider>,
     session_id: u64,
-    handshake_stream: ServerHandshakeStream,
+    handshake_stream: BedrockStream<Handshake, Server, T>,
 ) -> Result<
     (
-        ServerPlayStream,
+        BedrockStream<Play, Server, T>,
         ValidatedIdentity,
         Vec3,
         Option<PlayerData>,
@@ -89,7 +88,7 @@ pub(crate) struct JoinWorldTemplate {
 /// Select the saved world before StartGame, so reconnect never receives a
 /// different dimension's terrain or player restoration context.
 #[allow(clippy::too_many_arguments)]
-pub(crate) async fn accept_join_sequence_in_worlds(
+pub(crate) async fn accept_join_sequence_in_worlds<T: Transport>(
     worlds: &std::collections::BTreeMap<i32, JoinWorldTemplate>,
     primary: i32,
     server_key: &SecretKey,
@@ -97,10 +96,10 @@ pub(crate) async fn accept_join_sequence_in_worlds(
     player_data_store: &PlayerDataStore,
     player_provider: Option<&dyn PlayerProvider>,
     session_id: u64,
-    handshake_stream: ServerHandshakeStream,
+    handshake_stream: BedrockStream<Handshake, Server, T>,
 ) -> Result<
     (
-        ServerPlayStream,
+        BedrockStream<Play, Server, T>,
         ValidatedIdentity,
         Vec3,
         Option<PlayerData>,
@@ -109,9 +108,9 @@ pub(crate) async fn accept_join_sequence_in_worlds(
     JolyneError,
 > {
     /// Tells the client why a join step failed, then surfaces the error.
-    async fn reasoned<T>(
-        step: impl Future<Output = Result<T, Failed<RakNetTransport>>>,
-    ) -> Result<T, JolyneError> {
+    async fn reasoned<V, T: Transport>(
+        step: impl Future<Output = Result<V, Failed<T>>>,
+    ) -> Result<V, JolyneError> {
         match step.await {
             Ok(next) => Ok(next),
             Err(failed) => Err(failed.disconnect().await),
@@ -128,6 +127,16 @@ pub(crate) async fn accept_join_sequence_in_worlds(
     // proved it holds the login's key.
     let packs = reasoned(secure.finish_handshake(server_key)).await?;
     let identity = packs.login().identity.clone();
+    if config.server.online_mode && !identity.is_authenticated() {
+        let error = JolyneError::from(jolyne::error::AuthError::NotAuthenticated);
+        let _ = packs
+            .disconnect(
+                jolyne::valentine::EnumsConnectionDisconnectFailReason::Notauthenticated,
+                error.disconnect_message(),
+            )
+            .await;
+        return Err(error);
+    }
 
     // 4. Resource packs (from the listener config)
     let start_game_state = reasoned(packs.negotiate_packs()).await?;

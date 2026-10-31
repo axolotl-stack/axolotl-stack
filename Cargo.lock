@@ -5339,6 +5339,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
+ "tokio-nethernet",
  "tokio-raknet",
  "toml_edit 0.22.27",
  "tracing",

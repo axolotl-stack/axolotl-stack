@@ -19,13 +19,14 @@ worldgen-coverage = ["unastar_noise/worldgen-coverage"]
 
 [dependencies]
 bytes.workspace = true
-jolyne = { workspace = true, features = ["server", "raknet"] }
+jolyne = { workspace = true, features = ["server", "raknet", "endpoint"] }
 unastar_noise.workspace = true
 unastar-packs = { path = "../unastar-packs" }
 unastar-data.workspace = true
 unastar-rules = { path = "../unastar-rules" }
 tokio = { workspace = true, features = ["full"] }
 tokio-raknet.workspace = true
+tokio-nethernet = { workspace = true, features = ["endpoint"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 p384.workspace = true
