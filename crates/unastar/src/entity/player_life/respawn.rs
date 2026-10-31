@@ -19,9 +19,9 @@ use jolyne::valentine::types::{
 use jolyne::valentine::{ActorEventPacket, McpePacket, MovePlayerPacket, RespawnPacket};
 
 use super::environment::{Burning, PlayerFall};
-use super::{Dead, attributes};
+use super::{Dead, attributes, hooks};
 use crate::entity::components::{
-    Health, Hunger, PlayerSession, Position, Rotation, RuntimeEntityId,
+    Health, Hunger, Player, PlayerSession, Position, Rotation, RuntimeEntityId,
 };
 use crate::entity::mob::combat::HurtTimer;
 use crate::entity::mob::state::LastHurt;
@@ -96,25 +96,44 @@ pub fn apply_respawn_requests(
 ) {
     std::mem::swap(&mut *requests, &mut world.resource_mut::<RespawnQueue>().0);
     for (player, request) in requests.drain(..) {
-        if world.get_entity(player).is_err() || world.get::<Dead>(player).is_none() {
-            continue;
-        }
-        if request == RespawnRequest::ClientReady {
-            let spawn = respawn_position(world, player);
-            if let Some(session) = world.get::<PlayerSession>(player) {
-                let _ = session.send(respawn_packet(spawn, EnumsPlayerRespawnState::Readytospawn));
-            }
-        }
-        respawn(world, player);
+        try_respawn(world, player, request == RespawnRequest::ClientReady);
     }
 }
 
 /// Bring a dead `player` back at its respawn position.
 pub fn respawn(world: &mut World, player: Entity) {
-    if world.get::<Dead>(player).is_none() {
+    try_respawn(world, player, false);
+}
+
+/// Validate a proposed destination before encoding single-precision packets.
+fn valid_destination(position: DVec3) -> bool {
+    position.is_finite() && position.as_vec3().is_finite()
+}
+
+/// Whether the subject is still a dead player with the state needed to respawn.
+fn can_respawn(world: &World, player: Entity) -> bool {
+    world.get::<Dead>(player).is_some()
+        && world.get::<Player>(player).is_some()
+        && world.get::<Position>(player).is_some()
+        && world
+            .get::<Health>(player)
+            .is_some_and(|health| health.max.is_finite() && health.max > 0.0)
+}
+
+/// Run the decision hook once, then acknowledge and commit an allowed respawn.
+fn try_respawn(world: &mut World, player: Entity, acknowledge: bool) {
+    if !can_respawn(world, player) {
         return;
     }
-    let spawn = respawn_position(world, player);
+    let mut event = hooks::PlayerRespawn::new(player, respawn_position(world, player));
+    hooks::respawn(world, &mut event);
+    if event.is_cancelled() || !can_respawn(world, player) || !valid_destination(event.position) {
+        return;
+    }
+    let spawn = event.position;
+    if acknowledge && let Some(session) = world.get::<PlayerSession>(player) {
+        let _ = session.send(respawn_packet(spawn, EnumsPlayerRespawnState::Readytospawn));
+    }
     {
         let mut entity = world.entity_mut(player);
         entity.remove::<(Dead, Burning, HurtTimer, LastHurt)>();
@@ -131,6 +150,18 @@ pub fn respawn(world: &mut World, player: Entity) {
             position.0 = spawn;
         }
     }
+    send_respawn(world, player, spawn);
+    hooks::respawned(
+        world,
+        hooks::PlayerRespawned {
+            player,
+            position: spawn,
+        },
+    );
+}
+
+/// Send the normal client updates for a committed respawn.
+fn send_respawn(world: &mut World, player: Entity, spawn: DVec3) {
     let (Some(session), Some(runtime_id)) = (
         world.get::<PlayerSession>(player),
         world.get::<RuntimeEntityId>(player).map(|id| id.0 as u64),

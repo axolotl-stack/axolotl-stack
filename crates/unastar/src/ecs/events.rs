@@ -47,6 +47,10 @@ pub enum EventKind {
     PlayerInteractBlock,
     PlayerItemUse,
     PlayerSwing,
+    PlayerDamage,
+    PlayerDeath,
+    PlayerRespawn,
+    PlayerRespawned,
 }
 
 /// Internal event representation carrying Entity references.

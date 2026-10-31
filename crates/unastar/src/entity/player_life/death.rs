@@ -40,7 +40,7 @@ use unastar_rules::molang::{BuiltinQuery, QueryId};
 use super::constants::FALL_ACCIDENT_DISTANCE;
 use super::environment::{Burning, PlayerFall};
 use super::rules::PlayerRules;
-use super::{Dead, attributes, respawn};
+use super::{Dead, attributes, hooks, respawn};
 use crate::entity::components::{
     ArmourInventory, Experience, Health, MainInventory, OffhandSlot, Player, PlayerName,
     PlayerSession, PlayerUi, Position,
@@ -70,7 +70,7 @@ pub struct DeathMessage {
 
 /// Kill `player` as `/kill` does: override damage of its whole health that
 /// ignores the hurt timer, armour and game-mode immunity, then the normal
-/// death. Returns whether the player was alive.
+/// death. Returns whether this hit committed a death, including immediate respawn.
 pub fn kill_player(world: &mut World, player: Entity) -> bool {
     let Some(health) = world.get::<Health>(player).map(|health| health.current) else {
         return false;
@@ -78,7 +78,7 @@ pub fn kill_player(world: &mut World, player: Entity) -> bool {
     if health <= 0.0 || world.get::<Dead>(player).is_some() {
         return false;
     }
-    super::hurt_player(
+    super::hurt::apply_hit_result(
         world,
         player,
         &Hit {
@@ -89,8 +89,9 @@ pub fn kill_player(world: &mut World, player: Entity) -> bool {
             knockback_from: None,
             knockback_power: KnockbackPower::DEFAULT,
         },
-    );
-    world.get::<Dead>(player).is_some()
+        None,
+    )
+    .1
 }
 
 /// The death of `player`, whose health just reached zero.
@@ -119,11 +120,24 @@ pub(super) fn die(world: &mut World, player: Entity, cause: DeathCause) {
         }));
     }
     let rules = world.resource::<GameRules>().clone();
+    let inventory = hooks::PlayerDeathInventory::capture(world, player);
     if rules.show_death_messages {
         broadcast_death_message(world, &message);
     }
     if !rules.keep_inventory {
         drop_everything(world, player);
+    }
+    hooks::death(
+        world,
+        hooks::PlayerDeath {
+            player,
+            cause,
+            inventory,
+            keep_inventory: rules.keep_inventory,
+        },
+    );
+    if world.get::<Dead>(player).is_none() || world.get::<Player>(player).is_none() {
+        return;
     }
     respawn::open_respawn_screen(world, player);
     if rules.do_immediate_respawn {
