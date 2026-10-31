@@ -75,7 +75,11 @@ pub(super) fn apply_hit_result(
     }
     let mut event = hooks::PlayerDamage::new(player, *hit);
     hooks::damage(world, &mut event);
-    if event.is_cancelled() || !eligible_hit(world, player, &event.hit) {
+    if event.is_cancelled()
+        || !eligible_hit(world, player, &event.hit)
+        || !event.post_armour_multiplier.is_finite()
+        || event.post_armour_multiplier < 0.0
+    {
         return (0.0, false);
     }
     let hit = &event.hit;
@@ -106,12 +110,16 @@ pub(super) fn apply_hit_result(
         }
         _ => (damage, now + u64::from(HURT_TICKS), true),
     };
-    let dealt = if reduced_by_armour(hit.cause) {
+    let dealt = if !event.bypass_armour && reduced_by_armour(hit.cause) {
         let (defence, toughness) = worn_armour(world, player);
         unastar_data::armour::damage_after_armour(dealt, defence, toughness)
     } else {
         dealt
     };
+    let dealt = dealt * event.post_armour_multiplier;
+    if !dealt.is_finite() {
+        return (0.0, false);
+    }
 
     let (applied, dead) = {
         let mut entity = world.entity_mut(player);

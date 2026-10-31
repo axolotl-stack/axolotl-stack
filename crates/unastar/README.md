@@ -1162,3 +1162,9 @@ persistence. Other providers must explicitly advertise `atomic_durable_records`,
 honor that contract and avoid separate unwrapped access. Unsupported providers
 are rejected before installation. Receipt history is bounded at 65,536 effects
 per account; exhaustion rejects new effects before writing.
+
+Native damage proposals may independently bypass armour reduction and apply a
+finite nonnegative multiplier after armour. Both preserve the hit cause, hurt
+timer, attribution and ordinary durability effects. Invalid modifiers reject
+the operation before effects. Deferred observer commands are applied before
+subject identity is revalidated for damage and respawning.
