@@ -9453,373 +9453,6 @@ impl From<CameraPresetsView> for CameraPresets {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct ScoreboardIdView {
-    pub scoreboard_id: i64,
-}
-impl crate::bedrock::codec::BedrockSized for ScoreboardIdView {
-    fn encoded_size(&self) -> usize {
-        0usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag64(
-                *&self.scoreboard_id,
-            ))
-    }
-}
-impl crate::bedrock::borrowed::BedrockBorrowDecode for ScoreboardIdView {
-    type Args = ();
-    #[inline]
-    fn borrow_decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = &buf;
-        let _ = _args;
-        let scoreboard_id =
-            <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { scoreboard_id })
-    }
-}
-impl ScoreboardIdView {
-    #[inline]
-    pub fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::bedrock::error::DecodeError> {
-        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
-    }
-    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::ZigZag64(*&self.scoreboard_id).encode(buf)?;
-        Ok(())
-    }
-}
-impl From<ScoreboardIdView> for ScoreboardId {
-    fn from(value: ScoreboardIdView) -> Self {
-        let _ = &value;
-        Self {
-            scoreboard_id: value.scoreboard_id,
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct ChangeEntityScorejsonView {
-    pub action: crate::bedrock::borrowed::BorrowedStr,
-    pub scoreboard_id: ScoreboardIdView,
-    pub objective_name: crate::bedrock::borrowed::BorrowedStr,
-    pub score_value: i32,
-    pub actor_id: ActorUniqueIdView,
-}
-impl crate::bedrock::codec::BedrockSized for ChangeEntityScorejsonView {
-    fn encoded_size(&self) -> usize {
-        0usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.action).as_bytes().len()) as u32,
-            ))
-            + (&self.action).as_bytes().len()
-            + crate::bedrock::codec::BedrockSized::encoded_size(&self.scoreboard_id)
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.objective_name).as_bytes().len()) as u32,
-            ))
-            + (&self.objective_name).as_bytes().len()
-            + 4usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_id)
-    }
-}
-impl crate::bedrock::borrowed::BedrockBorrowDecode for ChangeEntityScorejsonView {
-    type Args = ();
-    #[inline]
-    fn borrow_decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = &buf;
-        let _ = _args;
-        let action = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
-        let scoreboard_id =
-            <ScoreboardIdView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                buf,
-                (),
-            )?;
-        let objective_name = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
-        let score_value =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let actor_id =
-            <ActorUniqueIdView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                buf,
-                (),
-            )?;
-        Ok(Self {
-            action,
-            scoreboard_id,
-            objective_name,
-            score_value,
-            actor_id,
-        })
-    }
-}
-impl ChangeEntityScorejsonView {
-    #[inline]
-    pub fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::bedrock::error::DecodeError> {
-        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
-    }
-    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::VarUInt(((&self.action).as_bytes().len()) as u32).encode(buf)?;
-        buf.put_slice((&self.action).as_bytes());
-        (&self.scoreboard_id).encode(buf)?;
-        crate::bedrock::codec::VarUInt(((&self.objective_name).as_bytes().len()) as u32)
-            .encode(buf)?;
-        buf.put_slice((&self.objective_name).as_bytes());
-        crate::bedrock::codec::I32LE(*&self.score_value).encode(buf)?;
-        (&self.actor_id).encode(buf)?;
-        Ok(())
-    }
-}
-impl From<ChangeEntityScorejsonView> for ChangeEntityScorejson {
-    fn from(value: ChangeEntityScorejsonView) -> Self {
-        let _ = &value;
-        Self {
-            action: crate::bedrock::codec::decode_utf8_lossy_bytes((value.action).into_bytes()),
-            scoreboard_id: (value.scoreboard_id).into(),
-            objective_name: crate::bedrock::codec::decode_utf8_lossy_bytes(
-                (value.objective_name).into_bytes(),
-            ),
-            score_value: value.score_value,
-            actor_id: (value.actor_id).into(),
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct ChangeFakePlayerScorejsonView {
-    pub action: crate::bedrock::borrowed::BorrowedStr,
-    pub scoreboard_id: ScoreboardIdView,
-    pub objective_name: crate::bedrock::borrowed::BorrowedStr,
-    pub score_value: i32,
-    pub fake_player_name: crate::bedrock::borrowed::BorrowedStr,
-}
-impl crate::bedrock::codec::BedrockSized for ChangeFakePlayerScorejsonView {
-    fn encoded_size(&self) -> usize {
-        0usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.action).as_bytes().len()) as u32,
-            ))
-            + (&self.action).as_bytes().len()
-            + crate::bedrock::codec::BedrockSized::encoded_size(&self.scoreboard_id)
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.objective_name).as_bytes().len()) as u32,
-            ))
-            + (&self.objective_name).as_bytes().len()
-            + 4usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.fake_player_name).as_bytes().len()) as u32,
-            ))
-            + (&self.fake_player_name).as_bytes().len()
-    }
-}
-impl crate::bedrock::borrowed::BedrockBorrowDecode for ChangeFakePlayerScorejsonView {
-    type Args = ();
-    #[inline]
-    fn borrow_decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = &buf;
-        let _ = _args;
-        let action = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
-        let scoreboard_id =
-            <ScoreboardIdView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                buf,
-                (),
-            )?;
-        let objective_name = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
-        let score_value =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let fake_player_name = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
-        Ok(Self {
-            action,
-            scoreboard_id,
-            objective_name,
-            score_value,
-            fake_player_name,
-        })
-    }
-}
-impl ChangeFakePlayerScorejsonView {
-    #[inline]
-    pub fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::bedrock::error::DecodeError> {
-        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
-    }
-    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::VarUInt(((&self.action).as_bytes().len()) as u32).encode(buf)?;
-        buf.put_slice((&self.action).as_bytes());
-        (&self.scoreboard_id).encode(buf)?;
-        crate::bedrock::codec::VarUInt(((&self.objective_name).as_bytes().len()) as u32)
-            .encode(buf)?;
-        buf.put_slice((&self.objective_name).as_bytes());
-        crate::bedrock::codec::I32LE(*&self.score_value).encode(buf)?;
-        crate::bedrock::codec::VarUInt(((&self.fake_player_name).as_bytes().len()) as u32)
-            .encode(buf)?;
-        buf.put_slice((&self.fake_player_name).as_bytes());
-        Ok(())
-    }
-}
-impl From<ChangeFakePlayerScorejsonView> for ChangeFakePlayerScorejson {
-    fn from(value: ChangeFakePlayerScorejsonView) -> Self {
-        let _ = &value;
-        Self {
-            action: crate::bedrock::codec::decode_utf8_lossy_bytes((value.action).into_bytes()),
-            scoreboard_id: (value.scoreboard_id).into(),
-            objective_name: crate::bedrock::codec::decode_utf8_lossy_bytes(
-                (value.objective_name).into_bytes(),
-            ),
-            score_value: value.score_value,
-            fake_player_name: crate::bedrock::codec::decode_utf8_lossy_bytes(
-                (value.fake_player_name).into_bytes(),
-            ),
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct PlayerScoreboardIdView {
-    pub player_unique_id: i64,
-}
-impl crate::bedrock::codec::BedrockSized for PlayerScoreboardIdView {
-    fn encoded_size(&self) -> usize {
-        0usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag64(
-                *&self.player_unique_id,
-            ))
-    }
-}
-impl crate::bedrock::borrowed::BedrockBorrowDecode for PlayerScoreboardIdView {
-    type Args = ();
-    #[inline]
-    fn borrow_decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = &buf;
-        let _ = _args;
-        let player_unique_id =
-            <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { player_unique_id })
-    }
-}
-impl PlayerScoreboardIdView {
-    #[inline]
-    pub fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::bedrock::error::DecodeError> {
-        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
-    }
-    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::ZigZag64(*&self.player_unique_id).encode(buf)?;
-        Ok(())
-    }
-}
-impl From<PlayerScoreboardIdView> for PlayerScoreboardId {
-    fn from(value: PlayerScoreboardIdView) -> Self {
-        let _ = &value;
-        Self {
-            player_unique_id: value.player_unique_id,
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct ChangePlayerScorejsonView {
-    pub action: crate::bedrock::borrowed::BorrowedStr,
-    pub scoreboard_id: ScoreboardIdView,
-    pub objective_name: crate::bedrock::borrowed::BorrowedStr,
-    pub score_value: i32,
-    pub player_unique_id: PlayerScoreboardIdView,
-}
-impl crate::bedrock::codec::BedrockSized for ChangePlayerScorejsonView {
-    fn encoded_size(&self) -> usize {
-        0usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.action).as_bytes().len()) as u32,
-            ))
-            + (&self.action).as_bytes().len()
-            + crate::bedrock::codec::BedrockSized::encoded_size(&self.scoreboard_id)
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.objective_name).as_bytes().len()) as u32,
-            ))
-            + (&self.objective_name).as_bytes().len()
-            + 4usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&self.player_unique_id)
-    }
-}
-impl crate::bedrock::borrowed::BedrockBorrowDecode for ChangePlayerScorejsonView {
-    type Args = ();
-    #[inline]
-    fn borrow_decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = &buf;
-        let _ = _args;
-        let action = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
-        let scoreboard_id =
-            <ScoreboardIdView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                buf,
-                (),
-            )?;
-        let objective_name = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
-        let score_value =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let player_unique_id = <PlayerScoreboardIdView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-            buf,
-            (),
-        )?;
-        Ok(Self {
-            action,
-            scoreboard_id,
-            objective_name,
-            score_value,
-            player_unique_id,
-        })
-    }
-}
-impl ChangePlayerScorejsonView {
-    #[inline]
-    pub fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::bedrock::error::DecodeError> {
-        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
-    }
-    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::VarUInt(((&self.action).as_bytes().len()) as u32).encode(buf)?;
-        buf.put_slice((&self.action).as_bytes());
-        (&self.scoreboard_id).encode(buf)?;
-        crate::bedrock::codec::VarUInt(((&self.objective_name).as_bytes().len()) as u32)
-            .encode(buf)?;
-        buf.put_slice((&self.objective_name).as_bytes());
-        crate::bedrock::codec::I32LE(*&self.score_value).encode(buf)?;
-        (&self.player_unique_id).encode(buf)?;
-        Ok(())
-    }
-}
-impl From<ChangePlayerScorejsonView> for ChangePlayerScorejson {
-    fn from(value: ChangePlayerScorejsonView) -> Self {
-        let _ = &value;
-        Self {
-            action: crate::bedrock::codec::decode_utf8_lossy_bytes((value.action).into_bytes()),
-            scoreboard_id: (value.scoreboard_id).into(),
-            objective_name: crate::bedrock::codec::decode_utf8_lossy_bytes(
-                (value.objective_name).into_bytes(),
-            ),
-            score_value: value.score_value,
-            player_unique_id: (value.player_unique_id).into(),
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
 pub struct ChunkPosView {
     pub x: i32,
     pub z: i32,
@@ -24226,84 +23859,6 @@ impl From<RemoveOverridejsonView> for RemoveOverridejson {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct RemoveScorejsonView {
-    pub action: crate::bedrock::borrowed::BorrowedStr,
-    pub scoreboard_id: ScoreboardIdView,
-    pub objective_name: Option<crate::bedrock::borrowed::BorrowedStr>,
-}
-impl crate::bedrock::codec::BedrockSized for RemoveScorejsonView {
-    fn encoded_size(&self) -> usize {
-        0usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.action).as_bytes().len()) as u32,
-            ))
-            + (&self.action).as_bytes().len()
-            + crate::bedrock::codec::BedrockSized::encoded_size(&self.scoreboard_id)
-            + 1usize
-            + (&self.objective_name).as_ref().map_or(0usize, |_value| {
-                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                    ((_value).as_bytes().len()) as u32,
-                )) + (_value).as_bytes().len()
-            })
-    }
-}
-impl crate::bedrock::borrowed::BedrockBorrowDecode for RemoveScorejsonView {
-    type Args = ();
-    #[inline]
-    fn borrow_decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = &buf;
-        let _ = _args;
-        let action = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
-        let scoreboard_id =
-            <ScoreboardIdView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                buf,
-                (),
-            )?;
-        let objective_name = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
-            Some(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?)
-        } else {
-            None
-        };
-        Ok(Self {
-            action,
-            scoreboard_id,
-            objective_name,
-        })
-    }
-}
-impl RemoveScorejsonView {
-    #[inline]
-    pub fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::bedrock::error::DecodeError> {
-        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
-    }
-    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::VarUInt(((&self.action).as_bytes().len()) as u32).encode(buf)?;
-        buf.put_slice((&self.action).as_bytes());
-        (&self.scoreboard_id).encode(buf)?;
-        (&self.objective_name).is_some().encode(buf)?;
-        if let Some(value) = &self.objective_name {
-            crate::bedrock::codec::VarUInt(((value).as_bytes().len()) as u32).encode(buf)?;
-            buf.put_slice((value).as_bytes());
-        }
-        Ok(())
-    }
-}
-impl From<RemoveScorejsonView> for RemoveScorejson {
-    fn from(value: RemoveScorejsonView) -> Self {
-        let _ = &value;
-        Self {
-            action: crate::bedrock::codec::decode_utf8_lossy_bytes((value.action).into_bytes()),
-            scoreboard_id: (value.scoreboard_id).into(),
-            objective_name: (value.objective_name)
-                .map(|value| crate::bedrock::codec::decode_utf8_lossy_bytes((value).into_bytes())),
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
 pub struct ResourcePackClientResponseCanceljsonView {
     pub response_type: crate::bedrock::borrowed::BorrowedStr,
 }
@@ -24552,6 +24107,55 @@ impl From<ResourcePackClientResponseResourcePackStackFinishedjsonView>
             response_type: crate::bedrock::codec::decode_utf8_lossy_bytes(
                 (value.response_type).into_bytes(),
             ),
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScoreboardIdView {
+    pub scoreboard_id: i64,
+}
+impl crate::bedrock::codec::BedrockSized for ScoreboardIdView {
+    fn encoded_size(&self) -> usize {
+        0usize
+            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag64(
+                *&self.scoreboard_id,
+            ))
+    }
+}
+impl crate::bedrock::borrowed::BedrockBorrowDecode for ScoreboardIdView {
+    type Args = ();
+    #[inline]
+    fn borrow_decode<B: bytes::Buf>(
+        buf: &mut B,
+        _args: Self::Args,
+    ) -> Result<Self, crate::bedrock::error::DecodeError> {
+        let _ = &buf;
+        let _ = _args;
+        let scoreboard_id =
+            <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        Ok(Self { scoreboard_id })
+    }
+}
+impl ScoreboardIdView {
+    #[inline]
+    pub fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::bedrock::error::DecodeError> {
+        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
+    }
+    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
+        crate::bedrock::codec::ZigZag64(*&self.scoreboard_id).encode(buf)?;
+        Ok(())
+    }
+}
+impl From<ScoreboardIdView> for ScoreboardId {
+    fn from(value: ScoreboardIdView) -> Self {
+        let _ = &value;
+        Self {
+            scoreboard_id: value.scoreboard_id,
         }
     }
 }
@@ -39976,201 +39580,181 @@ impl From<SetDisplayObjectivePacketView> for SetDisplayObjectivePacket {
         }
     }
 }
+/// Borrowed identity suffix for one changed scoreboard row.
 #[derive(Debug, Clone, PartialEq)]
-pub enum SetScorePacketScoreInfoItemView {
-    RemoveScore(RemoveScorejsonView),
-    ChangePlayerScore(ChangePlayerScorejsonView),
-    ChangeEntityScore(ChangeEntityScorejsonView),
-    ChangeFakePlayerScore(ChangeFakePlayerScorejsonView),
+pub enum ScoreIdentityView {
+    Player(i64),
+    Entity(i64),
+    FakePlayer(crate::bedrock::borrowed::BorrowedStr),
 }
-impl SetScorePacketScoreInfoItemView {
-    #[inline]
+/// Borrowed common row fields and optional action-dependent identity suffix.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScoreEntryView {
+    pub scoreboard_id: i64,
+    pub objective_name: crate::bedrock::borrowed::BorrowedStr,
+    pub score: u32,
+    pub identity: Option<ScoreIdentityView>,
+}
+/// Borrowed SetScore body, retaining string bytes until converted to owned values.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetScorePacketView {
+    pub action: SetScoreAction,
+    pub entries: Vec<ScoreEntryView>,
+}
+impl SetScorePacketView {
+    /// Decode one body using the packet action to select each row's suffix.
     pub fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::bedrock::error::DecodeError> {
-        Ok(
-            match (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as i64
-            {
-                0i64 => {
-                    Self::RemoveScore(
-                        <RemoveScorejsonView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                            buf,
-                            (),
-                        )?,
-                    )
-                }
-                1i64 => {
-                    Self::ChangePlayerScore(
-                        <ChangePlayerScorejsonView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                            buf,
-                            (),
-                        )?,
-                    )
-                }
-                2i64 => {
-                    Self::ChangeEntityScore(
-                        <ChangeEntityScorejsonView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                            buf,
-                            (),
-                        )?,
-                    )
-                }
-                3i64 => {
-                    Self::ChangeFakePlayerScore(
-                        <ChangeFakePlayerScorejsonView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                            buf,
-                            (),
-                        )?,
-                    )
-                }
-                value => {
-                    return Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
-                        enum_name: stringify!(SetScorePacketScoreInfoItem),
-                        value,
-                    });
-                }
-            },
-        )
+        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
     }
+    /// Encode checked rows without allocating owned copies of their strings.
     pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        match self {
-            Self::RemoveScore(value) => {
-                crate::bedrock::codec::VarUInt(*&(0i64 as u32)).encode(buf)?;
-                (value).encode(buf)?;
-            }
-            Self::ChangePlayerScore(value) => {
-                crate::bedrock::codec::VarUInt(*&(1i64 as u32)).encode(buf)?;
-                (value).encode(buf)?;
-            }
-            Self::ChangeEntityScore(value) => {
-                crate::bedrock::codec::VarUInt(*&(2i64 as u32)).encode(buf)?;
-                (value).encode(buf)?;
-            }
-            Self::ChangeFakePlayerScore(value) => {
-                crate::bedrock::codec::VarUInt(*&(3i64 as u32)).encode(buf)?;
-                (value).encode(buf)?;
+        if self.entries.len() > u32::MAX as usize
+            || self.entries.iter().any(|row| {
+                row.identity.is_some() != (self.action == SetScoreAction::Change)
+                    || row.objective_name.as_bytes().len() > u32::MAX as usize
+                    || matches!(
+                        & row.identity, Some(ScoreIdentityView::FakePlayer(name)) if
+                        name.as_bytes().len() > u32::MAX as usize
+                    )
+            })
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "score action and row identity must agree and lengths must fit u32",
+            ));
+        }
+        self.action.encode(buf)?;
+        crate::bedrock::codec::VarUInt(self.entries.len() as u32).encode(buf)?;
+        for row in &self.entries {
+            crate::bedrock::codec::ZigZag64(row.scoreboard_id).encode(buf)?;
+            crate::bedrock::codec::VarUInt(row.objective_name.as_bytes().len() as u32)
+                .encode(buf)?;
+            buf.put_slice(row.objective_name.as_bytes());
+            buf.put_u32_le(row.score);
+            match &row.identity {
+                Some(ScoreIdentityView::Player(id)) => {
+                    buf.put_u8(1);
+                    crate::bedrock::codec::ZigZag64(*id).encode(buf)?;
+                }
+                Some(ScoreIdentityView::Entity(id)) => {
+                    buf.put_u8(2);
+                    crate::bedrock::codec::ZigZag64(*id).encode(buf)?;
+                }
+                Some(ScoreIdentityView::FakePlayer(name)) => {
+                    buf.put_u8(3);
+                    crate::bedrock::codec::VarUInt(name.as_bytes().len() as u32).encode(buf)?;
+                    buf.put_slice(name.as_bytes());
+                }
+                None => {}
             }
         }
         Ok(())
     }
 }
-impl crate::bedrock::codec::BedrockSized for SetScorePacketScoreInfoItemView {
-    fn encoded_size(&self) -> usize {
-        match self {
-            Self::RemoveScore(value) => {
-                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                    *&(0i64 as u32),
-                )) + (crate::bedrock::codec::BedrockSized::encoded_size(value))
-            }
-            Self::ChangePlayerScore(value) => {
-                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                    *&(1i64 as u32),
-                )) + (crate::bedrock::codec::BedrockSized::encoded_size(value))
-            }
-            Self::ChangeEntityScore(value) => {
-                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                    *&(2i64 as u32),
-                )) + (crate::bedrock::codec::BedrockSized::encoded_size(value))
-            }
-            Self::ChangeFakePlayerScore(value) => {
-                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                    *&(3i64 as u32),
-                )) + (crate::bedrock::codec::BedrockSized::encoded_size(value))
-            }
-        }
-    }
-}
-impl From<SetScorePacketScoreInfoItemView> for SetScorePacketScoreInfoItem {
-    fn from(value: SetScorePacketScoreInfoItemView) -> Self {
-        match value {
-            SetScorePacketScoreInfoItemView::RemoveScore(value) => {
-                Self::RemoveScore((value).into())
-            }
-            SetScorePacketScoreInfoItemView::ChangePlayerScore(value) => {
-                Self::ChangePlayerScore((value).into())
-            }
-            SetScorePacketScoreInfoItemView::ChangeEntityScore(value) => {
-                Self::ChangeEntityScore((value).into())
-            }
-            SetScorePacketScoreInfoItemView::ChangeFakePlayerScore(value) => {
-                Self::ChangeFakePlayerScore((value).into())
-            }
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct SetScorePacketView {
-    pub score_info: Vec<SetScorePacketScoreInfoItemView>,
-}
 impl crate::bedrock::codec::BedrockSized for SetScorePacketView {
     fn encoded_size(&self) -> usize {
-        0usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.score_info).len()) as u32,
-            ))
-            + (&self.score_info)
+        use crate::bedrock::codec::BedrockSized;
+        1 + crate::bedrock::codec::VarUInt(self.entries.len() as u32).encoded_size()
+            + self
+                .entries
                 .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
+                .map(|row| {
+                    crate::bedrock::codec::ZigZag64(row.scoreboard_id).encoded_size()
+                        + crate::bedrock::codec::VarUInt(row.objective_name.as_bytes().len() as u32)
+                            .encoded_size()
+                        + row.objective_name.as_bytes().len()
+                        + 4
+                        + match &row.identity {
+                            Some(ScoreIdentityView::Player(id) | ScoreIdentityView::Entity(id)) => {
+                                1 + crate::bedrock::codec::ZigZag64(*id).encoded_size()
+                            }
+                            Some(ScoreIdentityView::FakePlayer(name)) => {
+                                1 + crate::bedrock::codec::VarUInt(name.as_bytes().len() as u32)
+                                    .encoded_size()
+                                    + name.as_bytes().len()
+                            }
+                            None => 0,
+                        }
+                })
                 .sum::<usize>()
     }
 }
 impl crate::bedrock::borrowed::BedrockBorrowDecode for SetScorePacketView {
     type Args = ();
-    #[inline]
     fn borrow_decode<B: bytes::Buf>(
         buf: &mut B,
-        _args: Self::Args,
+        _: (),
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = &buf;
-        let _ = _args;
-        let score_info = {
-            let len =
-                <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0 as usize;
-            let mut values = crate::bedrock::codec::prepare_decode_vec(
-                len,
-                bytes::Buf::remaining(&*buf),
-                Some(4usize),
-            )?;
-            for _ in 0..len {
-                let value = SetScorePacketScoreInfoItemView::decode(buf)?;
-                values.push(value);
-            }
-            values
+        let action = SetScoreAction::decode(buf, ())?;
+        let len = crate::bedrock::codec::VarUInt::decode(buf, ())?.0 as usize;
+        let minimum = if action == SetScoreAction::Change {
+            8
+        } else {
+            6
         };
-        Ok(Self { score_info })
-    }
-}
-impl SetScorePacketView {
-    #[inline]
-    pub fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::bedrock::error::DecodeError> {
-        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
-    }
-    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::VarUInt(((&self.score_info).len()) as u32).encode(buf)?;
-        for item in &self.score_info {
-            (item).encode(buf)?;
+        let mut entries =
+            crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(minimum))?;
+        for _ in 0..len {
+            let scoreboard_id = crate::bedrock::codec::ZigZag64::decode(buf, ())?.0;
+            let objective_name = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
+            let score = crate::bedrock::codec::U32LE::decode(buf, ())?.0;
+            let identity = if action == SetScoreAction::Change {
+                Some(
+                    match <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
+                        1 => ScoreIdentityView::Player(
+                            crate::bedrock::codec::ZigZag64::decode(buf, ())?.0,
+                        ),
+                        2 => ScoreIdentityView::Entity(
+                            crate::bedrock::codec::ZigZag64::decode(buf, ())?.0,
+                        ),
+                        3 => ScoreIdentityView::FakePlayer(
+                            crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?,
+                        ),
+                        value => {
+                            return Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
+                                enum_name: "ScoreIdentity",
+                                value: i64::from(value),
+                            });
+                        }
+                    },
+                )
+            } else {
+                None
+            };
+            entries.push(ScoreEntryView {
+                scoreboard_id,
+                objective_name,
+                score,
+                identity,
+            });
         }
-        Ok(())
+        Ok(Self { action, entries })
     }
 }
 impl From<SetScorePacketView> for SetScorePacket {
     fn from(value: SetScorePacketView) -> Self {
-        let _ = &value;
         Self {
-            score_info: (value.score_info)
+            action: value.action,
+            entries: value
+                .entries
                 .into_iter()
-                .map(|item| (item).into())
+                .map(|row| ScoreEntry {
+                    scoreboard_id: row.scoreboard_id,
+                    objective_name: row.objective_name.to_string_lossy().into_owned().into(),
+                    score: row.score,
+                    identity: row.identity.map(|identity| match identity {
+                        ScoreIdentityView::Player(id) => ScoreIdentity::Player(id),
+                        ScoreIdentityView::Entity(id) => ScoreIdentity::Entity(id),
+                        ScoreIdentityView::FakePlayer(name) => {
+                            ScoreIdentity::FakePlayer(name.to_string_lossy().into_owned().into())
+                        }
+                    }),
+                })
                 .collect(),
         }
     }
 }
+pub type BorrowedSetScorePacket = SetScorePacketView;
 #[derive(Debug, Clone, PartialEq)]
 pub struct LabTablePacketView {
     pub type_: EnumsLabTablePacketPayloadType,
@@ -58075,7 +57659,6 @@ pub type BorrowedShowProfilePacket = ShowProfilePacketView;
 pub type BorrowedSetDefaultGameTypePacket = SetDefaultGameTypePacketView;
 pub type BorrowedRemoveObjectivePacket = RemoveObjectivePacketView;
 pub type BorrowedSetDisplayObjectivePacket = SetDisplayObjectivePacketView;
-pub type BorrowedSetScorePacket = SetScorePacketView;
 pub type BorrowedLabTablePacket = LabTablePacketView;
 pub type BorrowedUpdateBlockSyncedPacket = UpdateBlockSyncedPacketView;
 pub type BorrowedMoveActorDeltaPacket = MoveActorDeltaPacketView;

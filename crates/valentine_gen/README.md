@@ -229,3 +229,24 @@ cargo run -p valentine_gen -- --latest --log debug
 
 When behavior must survive regeneration, change the parser, IR analysis, or
 emitter rather than generated Rust.
+
+
+## Score packet correction
+
+`SetScorePacket` exposes a packet-level `SetScoreAction` and common `ScoreEntry`
+rows. Change rows carry a byte-tagged `ScoreIdentity`; Remove rows omit that
+suffix. The checked encoder rejects inconsistent action/identity pairs before
+writing bytes. Scores retain their raw 32-bit little-endian value, including the
+two's-complement bits of signed scores.
+
+The generator's `scoreboard` module owns the typed owned/borrowed codec templates
+and rejects changes to the known malformed input shape until it is reviewed.
+Score-only JSON row helpers are removed while shared types remain available.
+Independent literal byte fixtures cover both actions, all identity kinds, strict
+byte tags, malformed input and real packet dispatch. A regeneration regression
+checks that the corrected boundary survives a normal generation run.
+
+The wire layout follows [Gophertunnel v1.56.2 SetScore](https://github.com/Sandertv/gophertunnel/blob/v1.56.2/minecraft/protocol/packet/set_score.go)
+and [scoreboard entries](https://github.com/Sandertv/gophertunnel/blob/v1.56.2/minecraft/protocol/scoreboard.go).
+Its [MIT notice](licenses/gophertunnel-MIT.txt) is retained. These fixtures specify
+the public format and do not claim a live client interoperability measurement.

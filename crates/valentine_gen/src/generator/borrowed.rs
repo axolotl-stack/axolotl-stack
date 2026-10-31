@@ -43,7 +43,11 @@ pub fn generate_borrowed_module(
 
     let mut type_names: Vec<_> = parse_result.types.keys().collect();
     type_names.sort();
+    let legacy_score_types = super::scoreboard::legacy_types(parse_result);
     for name in type_names {
+        if legacy_score_types.contains(name) {
+            continue;
+        }
         if packet_type_names.contains(name.as_str()) {
             continue;
         }
@@ -61,6 +65,20 @@ pub fn generate_borrowed_module(
     for packet in &parse_result.packets {
         let naming = packet_naming(&packet.name);
         let packet_type = Type::Container(packet.body.clone());
+        if super::scoreboard::applies(packet, &parse_result.types)? {
+            view_gen.items.push(super::scoreboard::borrowed_tokens());
+            packet_metas.push(BorrowedPacketMeta {
+                id: packet.id,
+                variant_ident: naming.variant_ident(),
+                payload_ident: naming.payload_ident(),
+                view_ident: format_ident!("SetScorePacketView"),
+                decode_args: quote! {()},
+                borrowable: true,
+                boxed: false,
+                view_boxed: false,
+            });
+            continue;
+        }
         let borrowable = view_gen.is_borrowable_type(&packet_type, &mut HashSet::new());
 
         if borrowable {
