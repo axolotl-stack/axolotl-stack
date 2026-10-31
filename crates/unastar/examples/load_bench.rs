@@ -874,6 +874,8 @@ async fn jump(
     match kind {
         "tp" => command(play, &format!("tp @s {line}")).await,
         "respawn" => {
+            // Creative players survive `/kill`.
+            command(play, "gamemode survival @s").await;
             command(play, &format!("spawnpoint @s {line}")).await;
             command(play, "kill @s").await;
         }
