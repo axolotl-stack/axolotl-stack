@@ -286,7 +286,7 @@
 "minecraft:ender_dragon/dimension_bound" = { status = "missing", gaps = "changing dimension is not implemented, so there are no portals to keep the actor out of; ender_dragon cannot spawn yet" }
 "minecraft:ender_dragon/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:ender_dragon/flying_speed" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
-"minecraft:ender_dragon/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:ender_dragon/freezing_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:ender_dragon/game_event_movement_tracking" = { status = "missing", gaps = "game events and vibrations are not implemented; no movement vibrations are emitted" }
 "minecraft:ender_dragon/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:ender_dragon/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet" }
@@ -318,7 +318,7 @@
 "minecraft:wither/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (mob-runtime follow-up D2)." }
 "minecraft:wither/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
 "minecraft:wither/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
-"minecraft:wither/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:wither/freezing_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:wither/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:wither/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
 "minecraft:wither/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
@@ -362,7 +362,7 @@
 "minecraft:blaze/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:blaze/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
-"minecraft:blaze/freezing_vulnerable" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:blaze/freezing_vulnerable" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:blaze/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:blaze/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
@@ -513,7 +513,7 @@
 "minecraft:creaking/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
 "minecraft:creaking/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:creaking/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
-"minecraft:creaking/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:creaking/freezing_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:creaking/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:creaking/home" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:creaking/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
@@ -887,7 +887,7 @@
 "minecraft:magma_cube/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
-"minecraft:magma_cube/freezing_vulnerable" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:magma_cube/freezing_vulnerable" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:magma_cube/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:magma_cube/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
@@ -1249,7 +1249,7 @@
 "minecraft:skeleton/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
 "minecraft:skeleton/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
 "minecraft:skeleton/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:skeleton/freezing_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:skeleton/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:skeleton/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
 "minecraft:skeleton/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
@@ -1364,7 +1364,7 @@
 "minecraft:stray/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
 "minecraft:stray/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
 "minecraft:stray/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:stray/freezing_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:stray/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:stray/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
 "minecraft:stray/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
@@ -3311,7 +3311,7 @@
 "minecraft:polar_bear/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
 "minecraft:polar_bear/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
 "minecraft:polar_bear/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
-"minecraft:polar_bear/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:polar_bear/freezing_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:polar_bear/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:polar_bear/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
 "minecraft:polar_bear/is_baby" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
@@ -3520,7 +3520,7 @@
 "minecraft:snow_golem/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
 "minecraft:snow_golem/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:snow_golem/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (mob-runtime follow-up D2)." }
-"minecraft:snow_golem/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:snow_golem/freezing_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:snow_golem/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:snow_golem/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
 "minecraft:snow_golem/interact" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
@@ -3563,7 +3563,7 @@
 "minecraft:strider/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
 "minecraft:strider/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
 "minecraft:strider/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
-"minecraft:strider/freezing_vulnerable" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:strider/freezing_vulnerable" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:strider/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:strider/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
 "minecraft:strider/interact" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
@@ -3614,7 +3614,7 @@
 "minecraft:sulfur_cube/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/explode" = { status = "missing", gaps = "not implemented: needs explosions" }
-"minecraft:sulfur_cube/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:sulfur_cube/freezing_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:sulfur_cube/friction_modifier" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:sulfur_cube/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:sulfur_cube/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
