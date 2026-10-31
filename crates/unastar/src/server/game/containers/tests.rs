@@ -55,6 +55,7 @@ fn with_world(mode: GameMode, test: impl FnOnce(&mut Harness) + Send + 'static) 
                     runtime_id: 77,
                     position: glam::DVec3::new(0.5, 66.62, 0.5),
                     saved_data: None,
+                    enchantment_seed: None,
                     outbound_tx: tx,
                     chunk_radius: 0,
                 })

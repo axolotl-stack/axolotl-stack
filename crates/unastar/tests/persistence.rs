@@ -240,6 +240,7 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
             runtime_id: 1,
             position: DVec3::new(33.25, 75.0, -8.5),
             saved_data: None,
+            enchantment_seed: None,
             outbound_tx,
             chunk_radius: 1,
         })
@@ -348,6 +349,7 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
             runtime_id: 2,
             position: DVec3::new(spawn.x as f64, spawn.y as f64, spawn.z as f64),
             saved_data: Some(saved_data),
+            enchantment_seed: None,
             outbound_tx,
             chunk_radius: 1,
         })

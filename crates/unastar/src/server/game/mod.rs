@@ -898,6 +898,9 @@ impl GameServer {
                 experience.enchantment_seed = seed;
             }
         }
+        if let Some(seed) = data.enchantment_seed {
+            experience.enchantment_seed = seed;
+        }
 
         let entity = self
             .ecs
@@ -1285,6 +1288,7 @@ mod tests {
                     position: DVec3::new(0.5, 17.0, 0.5),
                     outbound_tx,
                     saved_data: None,
+                    enchantment_seed: None,
                     chunk_radius: 2,
                 })
                 .expect("fresh player spawns without saved data");
@@ -1320,6 +1324,7 @@ mod tests {
                 position: DVec3::new(0.5, 17.0, 0.5),
                 outbound_tx,
                 saved_data: None,
+                enchantment_seed: None,
                 chunk_radius: 2,
             })
             .expect("valid player spawn");
@@ -1382,6 +1387,7 @@ mod tests {
                 position: DVec3::new(0.5, 17.0, 0.5),
                 outbound_tx,
                 saved_data: None,
+                enchantment_seed: None,
                 chunk_radius: 4,
             })
             .expect("fresh player spawns");
@@ -1468,6 +1474,7 @@ mod saved_inventory_validation_tests {
             position: glam::DVec3::new(0.5, 17.0, 0.5),
             outbound_tx,
             saved_data: Some(saved),
+            enchantment_seed: None,
             chunk_radius: 0,
         });
         assert!(matches!(result, Err(StorageError::Deserialization(_))));

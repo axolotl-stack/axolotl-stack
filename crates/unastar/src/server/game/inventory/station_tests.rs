@@ -1220,6 +1220,7 @@ mod world {
                         runtime_id: 99,
                         position: DVec3::new(0.5, 64.0 + crate::entity::PLAYER_EYE_HEIGHT, 0.5),
                         saved_data: None,
+                        enchantment_seed: None,
                         outbound_tx: tx,
                         chunk_radius: 0,
                     })

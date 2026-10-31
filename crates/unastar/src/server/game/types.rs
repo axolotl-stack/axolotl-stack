@@ -108,6 +108,9 @@ pub struct PlayerSpawnData {
     pub position: DVec3,
     /// Validated persistent state loaded before the StartGame handshake.
     pub saved_data: Option<crate::storage::PlayerData>,
+    /// The enchanting seed the player's `StartGame` carried; `None` uses the
+    /// saved seed or draws a new one.
+    pub enchantment_seed: Option<u32>,
     /// Bounded outbound channel to prevent memory explosion on slow connections.
     pub outbound_tx: mpsc::Sender<McpePacket>,
     pub chunk_radius: i32,

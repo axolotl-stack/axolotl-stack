@@ -1818,6 +1818,7 @@ mod real_player_drop_test {
                         runtime_id: 41,
                         position: glam::DVec3::new(0.5, 17.0, 0.5),
                         saved_data: None,
+                        enchantment_seed: None,
                         outbound_tx: tx,
                         chunk_radius: 0,
                     })
