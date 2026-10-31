@@ -145,7 +145,9 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
     let actions = std::mem::take(&mut world.resource_mut::<InventoryPacketQueue>().0);
     let _span = tracing::info_span!("apply_inventory", count = actions.len()).entered();
     for (entity, action) in actions {
-        if world.get::<FatalInventoryRequest>(entity).is_some() {
+        if super::inventory_effects::is_quarantined(world, entity)
+            || world.get::<FatalInventoryRequest>(entity).is_some()
+        {
             continue;
         }
         let can_drop = world
