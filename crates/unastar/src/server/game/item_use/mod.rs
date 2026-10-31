@@ -173,11 +173,7 @@ fn can_use(world: &World, player: Entity) -> bool {
 /// BREATHING, HAS_COLLISION and HAS_GRAVITY plus the movement state and
 /// USINGITEM (capture `item-use-20261029`).
 pub(crate) fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
-    let mut flags = crate::server::broadcast::player_views::player_flags(world, player, using) as u64;
-    if world.get::<crate::entity::freezing::FreezingState>(player).is_some_and(|cold|cold.is_frozen()) {
-        flags |= 1u64 << actor_flags::SHAKING;
-    }
-    flags as i64
+    crate::server::broadcast::player_views::player_flags(world, player, using)
 }
 
 /// Tell the player and the players near it that it started or stopped

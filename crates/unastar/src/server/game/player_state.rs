@@ -8,6 +8,8 @@
 //! fall and hurt bookkeeping are cleared while captured velocity is restored.
 //! Temporary game modes retain their durable base as optional snapshot state;
 //! older snapshots without it restore their captured mode as the ordinary base.
+//! Cold exposure and lifetime tick phase are restored with the raw state, before
+//! any presentation, so actor recreation cannot reset a periodic condition.
 
 use std::collections::BTreeSet;
 
@@ -25,11 +27,12 @@ use thiserror::Error;
 use crate::ecs::resources::TickCounter;
 use crate::entity::PLAYER_EYE_HEIGHT;
 use crate::entity::components::{
-    ActiveEffect, AirSupply, ArmourInventory, BreakingState, ContainerWindows, EffectType, Effects,
-    EnderChestInventory, Experience, FallDistance, GameMode, Health, HeldSlot, Hunger,
+    ActiveEffect, Age, AirSupply, ArmourInventory, BreakingState, ContainerWindows, EffectType,
+    Effects, EnderChestInventory, Experience, FallDistance, GameMode, Health, HeldSlot, Hunger,
     MainInventory, OffhandSlot, OnFire, PLAYER_UI_SIZE, Player, PlayerSession, PlayerUi,
     PlayerUuid, Position, Rotation, RuntimeEntityId, ScreenKind, Velocity,
 };
+use crate::entity::freezing::FreezingState;
 use crate::entity::mob::combat::HurtTimer;
 use crate::entity::mob::state::LastHurt;
 use crate::entity::player_life::environment::{Burning, PlayerFall};
@@ -468,6 +471,8 @@ pub fn restore(
             SentAttributes::sent(&health, &hunger, snapshot.absorption),
             sent_effects,
             super::RequestIdAssignments::default(),
+            prepared.cold,
+            prepared.age,
         ));
         entity.remove::<(HurtTimer, LastHurt, super::item_use::ItemUsing, Burning)>();
         if snapshot.dead {
@@ -502,8 +507,15 @@ pub fn restore(
     life_attributes::send_attributes(
         world,
         player,
-        life_attributes::player_attributes(&health, &hunger, snapshot.absorption, &experience),
+        life_attributes::player_attributes_with_cold(
+            &health,
+            &hunger,
+            snapshot.absorption,
+            &experience,
+            prepared.cold,
+        ),
     );
+    crate::entity::freezing::refresh(world, player);
     send_effects(world, player, &old_effects, snapshot);
     send_life_and_motion(world, player, snapshot);
     Ok(())
@@ -518,10 +530,14 @@ struct Prepared {
     ender: EnderChestInventory,
     mode: GameMode,
     base_mode: Option<GameMode>,
+    cold: FreezingState,
+    age: Age,
 }
 
 /// Resolve complete snapshots with the ordinary persistence item-validation path.
 fn prepare(world: &World, snapshot: &PlayerSnapshot) -> Result<Prepared, SnapshotError> {
+    let cold = FreezingState::from_strength(snapshot.data.cold_exposure).map_err(invalid)?;
+    let age = Age(snapshot.data.age_ticks);
     let registry = &world
         .get_resource::<ItemRegistryResource>()
         .ok_or(SnapshotError::MissingResource)?
@@ -560,6 +576,8 @@ fn prepare(world: &World, snapshot: &PlayerSnapshot) -> Result<Prepared, Snapsho
         ender,
         mode,
         base_mode,
+        cold,
+        age,
     })
 }
 
@@ -1270,3 +1288,7 @@ mod detached_tests {
         assert_eq!(restored, snapshot);
     }
 }
+
+#[cfg(test)]
+#[path = "player_state/cold_tests.rs"]
+mod cold_tests;

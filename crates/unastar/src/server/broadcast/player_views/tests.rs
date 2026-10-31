@@ -85,6 +85,46 @@ fn flags(data: &[DataItemEntry]) -> i64 {
 }
 
 #[test]
+fn a_new_viewer_receives_cold_and_warm_projection_explicitly_clears_it() {
+    use crate::entity::freezing::FreezingState;
+    let mut world = world();
+    let (actor, _) = player(&mut world, 1);
+    let (_viewer, mut rx) = player(&mut world, 2);
+    let mut original = ActorFlags::default();
+    original.update(actor_flags::INVISIBLE, true).unwrap();
+    world
+        .entity_mut(actor)
+        .insert((original, FreezingState::from_strength(1.0).unwrap()));
+    sync_player_views(&mut world);
+    let packets = drain(&mut rx);
+    let metadata = packets
+        .iter()
+        .find_map(|packet| match packet {
+            McpePacketData::AddPlayerPacket(data)
+                if data.target_runtime_id.actor_runtime_id == 1 =>
+            {
+                Some(&data.entity_data.data)
+            }
+            _ => None,
+        })
+        .unwrap();
+    assert_ne!(flags(metadata) & (1i64 << actor_flags::SHAKING), 0);
+    assert_ne!(
+        flags(metadata) & (1i64 << actor_flags::INVISIBLE),
+        0,
+        "cold preserves other actor flags"
+    );
+    assert!(metadata.iter().any(|entry|entry.id==ids::FREEZING_EFFECT_STRENGTH
+        &&matches!(&entry.payload,DataItemEntryPayload::DataItemFloatPayload(value) if value.value==1.0)));
+    world.entity_mut(actor).insert(FreezingState::default());
+    sync_player_views(&mut world);
+    let packets = drain(&mut rx);
+    assert!(packets.iter().any(|packet|matches!(packet,McpePacketData::SetActorDataPacket(data)
+        if data.target_runtime_id.actor_runtime_id==1&&data.actor_data.data.iter().any(|entry|entry.id==ids::FREEZING_EFFECT_STRENGTH
+            &&matches!(&entry.payload,DataItemEntryPayload::DataItemFloatPayload(value) if value.value==0.0)))));
+}
+
+#[test]
 fn one_packet_channel_retries_spawn_hands_armour_and_remove_without_starvation() {
     let mut world = world();
     let (actor, _) = player(&mut world, 1);

@@ -166,6 +166,12 @@ pub(crate) fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
     {
         flags |= 1u64 << actor_flags::ONFIRE;
     }
+    if world
+        .get::<crate::entity::freezing::FreezingState>(player)
+        .is_some_and(|cold| cold.is_frozen())
+    {
+        flags |= 1u64 << actor_flags::SHAKING;
+    }
     flags as i64
 }
 
@@ -216,6 +222,7 @@ fn metadata(world: &World, actor: Entity) -> Vec<DataItemEntry> {
             (packed << 7) | (u64::from(id) << 1) | u64::from(ambient)
         });
     put(ids::VISIBLE_MOB_EFFECTS, packed as i64);
+    crate::entity::freezing::player_actor_data(world, actor, &mut data);
     data.sort_by_key(|entry| entry.id);
     data
 }
