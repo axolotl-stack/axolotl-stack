@@ -11,6 +11,11 @@ pub use hooks::{
 
 mod directory;
 pub(crate) mod loading;
+mod relocate;
+pub use relocate::{
+    PlayerRelocationCommitted, PlayerRelocationFailed, RelocationHandler, RelocationHooks,
+    request_relocation_checked,
+};
 mod router;
 mod transfer;
 pub use directory::{

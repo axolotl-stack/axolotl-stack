@@ -359,6 +359,7 @@ impl DimensionRouter {
             super::loading::expire(world);
         }
         self.apply_requests();
+        self.apply_relocations().await;
         self.apply_transfers().await;
         self.apply_requests();
         let handlers = self.tick_handlers.clone();
@@ -391,6 +392,34 @@ impl DimensionRouter {
             request(self, &directory);
         }
     }
+    /// Execute same-world durable moves without borrowing an ECS world twice.
+    async fn apply_relocations(&mut self) {
+        for server in self.worlds.values_mut() {
+            let requests = server
+                .ecs
+                .world_mut()
+                .get_resource_mut::<super::relocate::RelocationQueue>()
+                .map(|mut queue| std::mem::take(&mut queue.0))
+                .unwrap_or_default();
+            for request in requests {
+                let player = request.player;
+                server
+                    .ecs
+                    .world_mut()
+                    .get_resource_or_init::<super::relocate::ActiveRelocations>()
+                    .0
+                    .insert(player);
+                super::relocate::attempt(server, request).await;
+                server
+                    .ecs
+                    .world_mut()
+                    .resource_mut::<super::relocate::ActiveRelocations>()
+                    .0
+                    .remove(&player);
+            }
+        }
+    }
+
     /// Temporarily own both ECS instances so an async storage acknowledgement or
     /// native callback never aliases a borrowed router entry.
     async fn apply_transfers(&mut self) {
@@ -434,7 +463,7 @@ impl DimensionRouter {
             self.worlds.insert(source_dimension, source);
         }
         // Pins exist only while a source still needs generation/loading retries.
-        let destinations: std::collections::BTreeSet<_> = self
+        let mut destinations: std::collections::BTreeSet<_> = self
             .worlds
             .values()
             .flat_map(|server| {
@@ -446,6 +475,14 @@ impl DimensionRouter {
                     .flat_map(|queue| queue.0.iter().map(|request| request.destination_dimension))
             })
             .collect();
+        destinations.extend(self.worlds.iter().filter_map(|(&dimension, server)| {
+            server
+                .ecs
+                .world()
+                .get_resource::<super::relocate::RelocationQueue>()
+                .filter(|queue| !queue.0.is_empty())
+                .map(|_| dimension)
+        }));
         for (dimension, server) in &mut self.worlds {
             let preload = server
                 .ecs

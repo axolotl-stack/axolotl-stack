@@ -211,6 +211,9 @@ pub fn request_transfer_checked(
     {
         return Err(TransferError::SourceUnavailable);
     }
+    if super::relocate::pending(world, player) {
+        return Err(TransferError::Pending);
+    }
     let mut queue = world.get_resource_or_init::<TransferQueue>();
     if queue.0.iter().any(|pending| pending.player == player) {
         return Err(TransferError::Pending);

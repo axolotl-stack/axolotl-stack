@@ -339,6 +339,7 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum TeleportCause {
+    Command = 3,
     Projectile = 1,
     ChorusFruit = 2,
 }
@@ -384,14 +385,27 @@ pub(crate) fn teleport_checked_destination(
     cause: TeleportCause,
     valid: impl FnOnce(&World, glam::DVec3) -> bool,
 ) -> Option<glam::DVec3> {
-    use jolyne::valentine::types::{
-        EnumsPlayerPositionModeComponentPositionMode, MovePlayerTeleportData, Vec2, Vec3,
-    };
     let permit = crate::entity::projectile::hooks::teleport(world, player, source, cause, feet)?;
     let feet = permit.destination;
     if !valid(world, feet) {
         return None;
     }
+    commit_teleport(world, player, cause, permit, None)
+}
+
+/// Apply an already authorized, revalidated teleport without dispatching the
+/// proposal hooks a second time. The caller owns any required durable boundary.
+pub(crate) fn commit_teleport(
+    world: &mut World,
+    player: Entity,
+    cause: TeleportCause,
+    permit: crate::entity::projectile::hooks::TeleportPermit,
+    reserved: Option<tokio::sync::mpsc::Permit<'_, McpePacket>>,
+) -> Option<glam::DVec3> {
+    use jolyne::valentine::types::{
+        EnumsPlayerPositionModeComponentPositionMode, MovePlayerTeleportData, Vec2, Vec3,
+    };
+    let feet = permit.destination;
     let eye = feet + glam::DVec3::new(0.0, crate::entity::item_drop::PLAYER_EYE_HEIGHT, 0.0);
     let rotation = world
         .get::<crate::entity::components::Rotation>(player)
@@ -427,7 +441,11 @@ pub(crate) fn teleport_checked_destination(
         tick: crate::entity::components::input_tick_of(world, player),
     });
     // Other players follow through the regular position broadcast.
-    send_to(world, &[player], &packet);
+    if let Some(reserved) = reserved {
+        reserved.send(packet);
+    } else {
+        send_to(world, &[player], &packet);
+    }
     permit.commit(world);
     Some(feet)
 }
