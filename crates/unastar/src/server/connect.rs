@@ -50,6 +50,64 @@ pub async fn accept_join_sequence(
     ),
     JolyneError,
 > {
+    let dimension = world
+        .template
+        .start_game_template
+        .settings
+        .spawn_settings
+        .dimension;
+    let worlds = std::collections::BTreeMap::from([(
+        dimension,
+        JoinWorldTemplate {
+            template: std::sync::Arc::new(world.template.clone()),
+            state: world.state.clone(),
+            world_config: config.world,
+        },
+    )]);
+    let (play, identity, position, saved, _) = accept_join_sequence_in_worlds(
+        &worlds,
+        dimension,
+        server_key,
+        config,
+        player_data_store,
+        player_provider,
+        session_id,
+        handshake_stream,
+    )
+    .await?;
+    Ok((play, identity, position, saved))
+}
+
+/// Owned startup data retained by each authenticated join task.
+#[derive(Clone)]
+pub(crate) struct JoinWorldTemplate {
+    pub template: std::sync::Arc<WorldTemplate>,
+    pub state: crate::world::rules::StartGameWorldState,
+    pub world_config: crate::world::WorldConfig,
+}
+
+/// Select the saved world before StartGame, so reconnect never receives a
+/// different dimension's terrain or player restoration context.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn accept_join_sequence_in_worlds(
+    worlds: &std::collections::BTreeMap<i32, JoinWorldTemplate>,
+    primary: i32,
+    server_key: &SecretKey,
+    config: &UnastarConfig,
+    player_data_store: &PlayerDataStore,
+    player_provider: Option<&dyn PlayerProvider>,
+    session_id: u64,
+    handshake_stream: ServerHandshakeStream,
+) -> Result<
+    (
+        ServerPlayStream,
+        ValidatedIdentity,
+        Vec3,
+        Option<PlayerData>,
+        i32,
+    ),
+    JolyneError,
+> {
     /// Tells the client why a join step failed, then surfaces the error.
     async fn reasoned<T>(
         step: impl Future<Output = Result<T, Failed<RakNetTransport>>>,
@@ -76,9 +134,40 @@ pub async fn accept_join_sequence(
 
     // 5. Resolve spawn before StartGame.
     let uuid = identity.uuid().to_string();
-    let mut saved_data = load_player_data(player_provider, Some(&uuid)).await;
-    let spawn = resolve_spawn_location(
+    let mut saved_data = try_load_player_data(player_provider, Some(&uuid))
+        .await
+        .map_err(|error| JolyneError::Io(std::io::Error::other(error.to_string())))?;
+    let last = if config.spawn_rules.iter().any(|rule| rule.previous_position) {
+        match player_data_store.load_last_position(&uuid).await {
+            Ok(last) => last,
+            Err(error) if saved_data.is_none() => {
+                return Err(JolyneError::Io(std::io::Error::other(error.to_string())));
+            }
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+    let dimension = select_join_dimension(
         config,
+        primary,
+        saved_data.as_ref().map(|data| data.dimension),
+        last.as_ref().map(|data| data.dimension),
+    );
+    let selected = worlds.get(&dimension).ok_or_else(|| {
+        JolyneError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "saved dimension is not registered",
+        ))
+    })?;
+    let world = JoinWorld {
+        template: &selected.template,
+        state: &selected.state,
+    };
+    let mut selected_config = config.clone();
+    selected_config.world = selected.world_config;
+    let spawn = resolve_spawn_location(
+        &selected_config,
         Some(&uuid),
         world.template,
         player_data_store,
@@ -127,7 +216,29 @@ pub async fn accept_join_sequence(
     // `PlayStatus(PlayerSpawn)`, and keep streaming while the client loads (BDS
     // order). The play receive path enforces `SetLocalPlayerAsInitialized`.
     let play = reasoned(start_game_state.start_game_streamed(join_params)).await?;
-    Ok((play, identity, initial_position, saved_data))
+    Ok((play, identity, initial_position, saved_data, dimension))
+}
+
+/// Load and validate one authoritative account record without guessing first-join
+/// defaults after storage errors. Multi-world joins use this before selecting a
+/// template; a failed read cannot establish which dimension owns the account.
+pub async fn try_load_player_data(
+    provider: Option<&dyn PlayerProvider>,
+    uuid: Option<&str>,
+) -> crate::storage::StorageResult<Option<PlayerData>> {
+    let Some(provider) = provider else {
+        return Ok(None);
+    };
+    let Some(uuid) = uuid else {
+        return Ok(None);
+    };
+    let uuid = uuid::Uuid::parse_str(uuid)
+        .map_err(|_| crate::storage::StorageError::Deserialization("invalid player UUID".into()))?;
+    let data = provider.load(uuid).await?;
+    if let Some(data) = &data {
+        data.validate(uuid)?;
+    }
+    Ok(data)
 }
 
 /// Load validated player state once, before StartGame and ECS spawning.
@@ -242,4 +353,25 @@ pub async fn resolve_spawn_location(
 /// Convert a spawn location to a DVec3 position.
 pub fn spawn_to_dvec3(pos: &Vec3) -> DVec3 {
     DVec3::new(pos.x as f64, pos.y as f64, pos.z as f64)
+}
+
+/// Apply spawn-rule order when choosing a saved dimension. A configured fixed
+/// spawn preceding the previous-position rule deliberately uses the primary.
+pub(crate) fn select_join_dimension(
+    config: &UnastarConfig,
+    primary: i32,
+    saved: Option<i32>,
+    last: Option<i32>,
+) -> i32 {
+    for rule in &config.spawn_rules {
+        if rule.previous_position
+            && let Some(dimension) = saved.or(last)
+        {
+            return dimension;
+        }
+        if rule.always_at_location && rule.location.is_some() {
+            return primary;
+        }
+    }
+    primary
 }

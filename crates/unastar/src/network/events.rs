@@ -13,6 +13,12 @@ pub type SessionId = u64;
 /// a read handle once, so observation updates add no per-tick queue traffic.
 #[derive(Debug)]
 pub enum NetworkEvent {
+    /// Join selected a registered dimension template. Emitted immediately before
+    /// `Joined` by the native multi-world accept loop.
+    WorldSelected {
+        session_id: SessionId,
+        dimension: i32,
+    },
     /// Player requested its chunk radius at the end of the join (streamed
     /// spawn: `PlayStatus(PlayerSpawn)` and the client's
     /// `SetLocalPlayerAsInitialized` are still to come).
@@ -53,6 +59,7 @@ impl NetworkEvent {
     pub fn session_id(&self) -> SessionId {
         match self {
             NetworkEvent::Joined { session_id, .. } => *session_id,
+            NetworkEvent::WorldSelected { session_id, .. } => *session_id,
             NetworkEvent::Packet { session_id, .. } => *session_id,
             NetworkEvent::Disconnected { session_id } => *session_id,
             NetworkEvent::MetricsReady { session_id, .. } => *session_id,

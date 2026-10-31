@@ -14,6 +14,10 @@ impl ActorAudience {
     pub fn all() -> Self {
         Self::default()
     }
+    /// Whether this policy allows all viewers, including in a newly entered world.
+    pub fn is_unrestricted(&self) -> bool {
+        self.viewers.is_none()
+    }
     /// Restrict representation to these viewers, in addition to the actor itself.
     pub fn only(viewers: impl IntoIterator<Item = Entity>) -> Self {
         Self {

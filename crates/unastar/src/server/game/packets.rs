@@ -53,6 +53,10 @@ impl GameServer {
             return;
         }
 
+        if crate::server::worlds::loading::intercept(self.ecs.world_mut(), entity, &packet) {
+            return;
+        }
+
         if super::inventory_effects::is_quarantined(self.ecs.world(), entity)
             || super::player_events::initial_state_pending(self.ecs.world(), entity)
         {

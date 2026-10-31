@@ -87,6 +87,9 @@ fn handle_subchunk_request(
     chunk_data_q: &Query<&ChunkData>,
     chunk_viewers_q: &mut Query<&mut ChunkViewers>,
 ) {
+    if req.dimension_type.value != chunk_manager.dimension() {
+        return;
+    }
     let session_id = sessions.get(entity).map(|s| s.session_id).unwrap_or(0);
 
     let origin = &req.center_pos;
@@ -118,8 +121,9 @@ fn handle_subchunk_request(
 
         served_chunks.insert((target_chunk_x, target_chunk_z));
 
-        let min_sub_y = crate::world::chunk::MIN_Y >> 4;
-        let max_sub_y = min_sub_y + (crate::world::SUBCHUNK_COUNT as i32) - 1;
+        let bounds = crate::world::dimension_block_bounds(chunk_manager.dimension());
+        let min_sub_y = bounds.start >> 4;
+        let max_sub_y = (bounds.end >> 4) - 1;
 
         if sub_y < min_sub_y || sub_y > max_sub_y {
             entries.push(SubChunkPacketPayloadSubChunkPacketData {

@@ -1005,6 +1005,40 @@ impl Chunk {
         buf.to_vec()
     }
 
+    /// Encode precisely the biome sections understood by the selected vanilla
+    /// dimension. Internal padding below/above its build range is not sent.
+    pub fn encode_biomes_for_dimension(&self, dimension: i32) -> Vec<u8> {
+        self.assert_bedrock();
+        let bounds = crate::world::dimension_block_bounds(dimension);
+        let first = ((bounds.start - MIN_Y) >> 4) as usize;
+        let count = ((bounds.end - bounds.start) >> 4) as usize;
+        let mut out = BytesMut::new();
+        for section in &self.biomes[first..first + count] {
+            section.encode(&mut out, |biome| biome);
+        }
+        out.put_u8(0);
+        out.to_vec()
+    }
+    /// Count request-mode sections relative to the selected client's minimum Y.
+    pub fn highest_subchunk_for_dimension(&self, dimension: i32) -> u16 {
+        let bounds = crate::world::dimension_block_bounds(dimension);
+        let first = ((bounds.start - MIN_Y) >> 4) as usize;
+        let end = ((bounds.end - MIN_Y) >> 4) as usize;
+        (first..end)
+            .rev()
+            .find(|&index| {
+                let sub = &self.sub_chunks[index];
+                self.bounds.contains(&(MIN_Y + index as i32 * 16))
+                    && (sub.secondary.is_some()
+                        || !sub
+                            .storage
+                            .palette
+                            .iter()
+                            .all(|&state| self.state_space.is_air(state)))
+            })
+            .map_or(0, |index| (index - first + 1) as u16)
+    }
+
     /// Encode biomes as Bedrock's on-disk Data3D value (LevelDB key tag `0x2B`).
     ///
     /// Layout, as found in BDS-generated worlds (see `decode_biomes` in
@@ -1032,6 +1066,72 @@ impl Chunk {
             previous = Some(section);
         }
         out
+    }
+
+    /// Encode Data3D at the selected dimension's minimum Y, without internal
+    /// padding. Heights retain their normal relative-to-minimum representation.
+    pub fn encode_biomes_disk_for_dimension(&self, dimension: i32) -> Vec<u8> {
+        self.assert_bedrock();
+        let bounds = crate::world::dimension_block_bounds(dimension);
+        let first = ((bounds.start - MIN_Y) >> 4) as usize;
+        let count = ((bounds.end - bounds.start) >> 4) as usize;
+        let mut out = Vec::new();
+        for height in self.height_map.data {
+            out.extend_from_slice(
+                &(height.saturating_sub(bounds.start as i16))
+                    .max(0)
+                    .to_le_bytes(),
+            );
+        }
+        let mut previous = None;
+        for section in &self.biomes[first..first + count] {
+            if previous == Some(section) {
+                out.push(DATA3D_COPY_PREVIOUS);
+            } else {
+                section.encode_disk_biomes(&mut out);
+            }
+            previous = Some(section);
+        }
+        out
+    }
+    /// Read dimension-relative Data3D. Legacy full-height native files remain
+    /// readable; a normal shorter dimension maps its first section to its own
+    /// minimum Y instead of the physical storage minimum.
+    pub fn decode_biomes_disk_for_dimension(
+        &mut self,
+        data: &[u8],
+        dimension: i32,
+    ) -> Result<(), String> {
+        let mut decoded = self.clone();
+        decoded.decode_biomes_disk(data)?;
+        let bounds = crate::world::dimension_block_bounds(dimension);
+        if dimension == 0 {
+            self.biomes = decoded.biomes;
+            return Ok(());
+        }
+        // Count actual encoded sections before the legacy decoder repeats them.
+        let mut rest = &data[DATA3D_HEIGHTMAP_LEN..];
+        let mut count = 0;
+        while !rest.is_empty() {
+            if rest[0] == DATA3D_COPY_PREVIOUS {
+                rest = &rest[1..];
+            } else {
+                let (_, used) = PalettedStorage::decode_disk_biomes(rest)?;
+                rest = &rest[used..];
+            }
+            count += 1;
+        }
+        let sections = ((bounds.end - bounds.start) >> 4) as usize;
+        if count > sections && count != SUBCHUNK_COUNT as usize {
+            return Err("Data3D exceeds dimension biome section count".into());
+        }
+        if count == SUBCHUNK_COUNT as usize {
+            self.biomes = decoded.biomes;
+            return Ok(());
+        }
+        let first = ((bounds.start - MIN_Y) >> 4) as usize;
+        self.biomes[first..first + sections].clone_from_slice(&decoded.biomes[..sections]);
+        Ok(())
     }
 
     /// Replace this chunk's biomes with a Data3D value from [`Self::encode_biomes_disk`]

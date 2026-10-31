@@ -315,11 +315,33 @@ impl PlayerDataStore {
         let contents =
             toml_edit::ser::to_string_pretty(state).map_err(PlayerDataError::Serialize)?;
 
-        tokio::fs::write(&path, contents)
-            .await
-            .map_err(|source| PlayerDataError::Write { path, source })?;
-
-        Ok(())
+        // A complete acknowledged position must survive a dimension migration;
+        // never expose a truncated TOML file or acknowledge buffered data only.
+        let temporary = self
+            .root
+            .join(format!(".{}.{}.pending", uuid, uuid::Uuid::new_v4()));
+        let result = async {
+            use tokio::io::AsyncWriteExt;
+            let mut file = tokio::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temporary)
+                .await?;
+            file.write_all(contents.as_bytes()).await?;
+            file.sync_all().await?;
+            drop(file);
+            tokio::fs::rename(&temporary, &path).await?;
+            let root = self.root.clone();
+            tokio::task::spawn_blocking(move || std::fs::File::open(root)?.sync_all())
+                .await
+                .map_err(std::io::Error::other)??;
+            Ok::<(), std::io::Error>(())
+        }
+        .await;
+        if result.is_err() {
+            let _ = tokio::fs::remove_file(temporary).await;
+        }
+        result.map_err(|source| PlayerDataError::Write { path, source })
     }
 }
 
