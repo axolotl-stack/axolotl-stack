@@ -1441,3 +1441,17 @@ work; it runs after local ECS borrows finish, with a fresh directory. Queueing
 acknowledges no application success. `RouterTickHandler` runs once per aggregate
 tick, separately from every world's simulation. This boundary supports actual
 cross-world native effects without reentrant world borrowing or raw pointers.
+
+## Independent flight permission
+
+`server::game::flight::set_override(world, player, Some(true))` grants native
+flight permission without changing the effective or durable game mode. Use
+`Some(false)` to deny it explicitly or `None` to follow the current mode.
+`override_value` reads the overlay and `allowed` returns the effective permission.
+The overlay grants neither creative inventory, instant build nor invulnerability.
+
+Raw snapshots and native world migration retain the overlay; ordinary account
+records retain their base mode. Initial and late viewer snapshots include the
+current permission. Deferred joins withhold it, excluded audiences do not receive
+it, and full transport queues retry against the original connection. Authoritative
+movement rejects unauthorized flight flags before updating fall or movement costs.

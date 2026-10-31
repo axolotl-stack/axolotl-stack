@@ -81,6 +81,7 @@ pub fn apply_movement(world: &mut World, system_state: &mut MovementSystemState)
                     continue;
                 }
                 let mode = world.get::<GameMode>(entity).copied();
+                let flight_allowed = super::flight::allowed(world, entity);
                 let health = world
                     .get::<crate::entity::components::Health>(entity)
                     .map(|health| (health.current, health.max));
@@ -91,6 +92,7 @@ pub fn apply_movement(world: &mut World, system_state: &mut MovementSystemState)
                 player_events::movement(world, &mut event);
                 let unchanged = identity.matches(world, entity)
                     && world.get::<GameMode>(entity).copied() == mode
+                    && super::flight::allowed(world, entity) == flight_allowed
                     && world
                         .get::<crate::entity::components::Health>(entity)
                         .map(|health| (health.current, health.max))
@@ -123,7 +125,8 @@ pub fn apply_movement(world: &mut World, system_state: &mut MovementSystemState)
                 let committed = {
                     let (mut events, exhaustion, mut players, mut hungry) =
                         system_state.get_mut(world);
-                    let moved = process_auth_input(entity, &pk, &mut players, &mut events);
+                    let moved =
+                        process_auth_input(entity, &pk, &mut players, &mut events, flight_allowed);
                     if let (Some(moved), Ok((mut hunger, mode, policy))) =
                         (moved, hungry.get_mut(entity))
                         && !matches!(mode, GameMode::Creative | GameMode::Spectator)
@@ -221,6 +224,7 @@ fn process_auth_input(
     pk: &jolyne::valentine::PlayerAuthInputPacket,
     players: &mut MovingPlayers,
     events: &mut ResMut<MovementEvents>,
+    flight_allowed: bool,
 ) -> Option<Moved> {
     let Ok((mut pos, mut rot, mut state, mut input, fall)) = players.get_mut(entity) else {
         return None;
@@ -297,12 +301,15 @@ fn process_auth_input(
         state.gliding = false;
     }
     if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Startflying) {
-        state.flying = true;
+        state.flying = flight_allowed;
     }
     if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Stopflying) {
         state.flying = false;
     }
 
+    if !flight_allowed {
+        state.flying = false;
+    }
     if let Some(mut fall) = fall {
         fall.after_move(new_pos.y - old_pos.y, input.on_ground, state.flying);
     }

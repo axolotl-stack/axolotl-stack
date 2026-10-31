@@ -487,7 +487,9 @@ pub fn sync_player_views(world: &mut World) {
                     view.mode,
                 );
                 packet.carried_item = view.equipment[0].clone();
-                packet.abilities_data = crate::server::game::join::abilities_packet(
+                packet.abilities_data = crate::server::game::flight::packet_for(
+                    world,
+                    view.actor,
                     view.runtime_id,
                     view.mode,
                     world.get::<crate::command::Operator>(view.actor).is_some(),

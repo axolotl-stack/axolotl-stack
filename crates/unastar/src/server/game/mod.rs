@@ -17,6 +17,7 @@ mod containers;
 pub mod durability;
 pub mod effects;
 mod falling;
+pub mod flight;
 pub mod hunger;
 mod inventory;
 pub mod inventory_effects;
@@ -735,6 +736,8 @@ impl GameServer {
                 .chain()
                 .in_set(NetworkSendSet),
         );
+        ecs.schedule_mut()
+            .add_systems(flight::sync.in_set(NetworkSendSet));
         ecs.schedule_mut()
             .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
 

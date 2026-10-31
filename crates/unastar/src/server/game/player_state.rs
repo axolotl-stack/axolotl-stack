@@ -187,6 +187,9 @@ pub struct PlayerSnapshot {
     /// Omission preserves compatibility and restores `data.game_mode` as the base.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_game_mode: Option<u8>,
+    /// Temporary flight permission independent of the captured effective mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flight_override: Option<bool>,
     pub xuid: Option<String>,
     /// Includes every UI slot, including the cursor and crafting inputs.
     pub ui: Vec<StoredItemStack>,
@@ -320,6 +323,7 @@ pub fn capture(world: &World, player: Entity) -> Result<PlayerSnapshot, Snapshot
     let snapshot = PlayerSnapshot {
         version: SNAPSHOT_VERSION,
         data,
+        flight_override: super::flight::override_value(world, player),
         base_game_mode: crate::command::exec::mode_override(world, player)
             .and_then(|_| crate::command::exec::base_game_mode(world, player))
             .map(super::game_mode_to_storage_id),
@@ -482,6 +486,7 @@ pub fn restore(
             entity.insert(burning);
         }
     }
+    super::flight::restore_override(world, player, snapshot.flight_override);
     crate::command::exec::restore_game_mode(world, player, prepared.mode, prepared.base_mode);
     let eye = DVec3::from_array(snapshot.data.position);
     crate::command::exec::move_entity(
