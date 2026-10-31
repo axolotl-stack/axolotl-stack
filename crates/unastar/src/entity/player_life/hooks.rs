@@ -19,6 +19,42 @@ use glam::DVec3;
 
 use super::death::DeathCause;
 use crate::entity::mob::combat::Hit;
+use crate::item::ItemStack;
+
+/// Owned carried items captured immediately before a committed death applies drops.
+/// Includes retained items when the world or an item component keeps them on death.
+/// Network identifiers remain descriptive; this snapshot does not authorize transfers.
+#[derive(Debug, Clone)]
+pub struct PlayerDeathInventory {
+    pub main: Vec<ItemStack>,
+    /// Helmet, chestplate, leggings and boots, in that order.
+    pub armour: [ItemStack; 4],
+    pub offhand: ItemStack,
+    /// Complete cursor and crafting container, preserving exact slot positions.
+    pub ui: Vec<ItemStack>,
+    pub held_slot: u8,
+}
+
+impl PlayerDeathInventory {
+    /// Incomplete player entities do not produce a misleading partial inventory.
+    pub(super) fn capture(world: &World, player: Entity) -> Option<Self> {
+        use crate::entity::components::{
+            ArmourInventory, HeldSlot, MainInventory, OffhandSlot, PlayerUi,
+        };
+        let main = world.get::<MainInventory>(player)?;
+        let armour = world.get::<ArmourInventory>(player)?;
+        let offhand = world.get::<OffhandSlot>(player)?;
+        let ui = world.get::<PlayerUi>(player)?;
+        let held_slot = world.get::<HeldSlot>(player)?.0;
+        Some(Self {
+            main: main.0.slots().to_vec(),
+            armour: std::array::from_fn(|index| armour.slots()[index].clone()),
+            offhand: offhand.0.clone(),
+            ui: ui.0.slots().to_vec(),
+            held_slot,
+        })
+    }
+}
 
 /// A proposed player hit. No health, inventory, timer or packet changes have
 /// been committed when this event is delivered.
@@ -82,12 +118,17 @@ pub struct PlayerDamaged {
 /// A committed player death, after the dead marker and ordinary drops are
 /// applied and before an optional immediate respawn. This is a notification,
 /// not a cancellable decision; prevent lethal damage with [`PlayerDamage`].
-#[derive(Event, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone)]
 pub struct PlayerDeath {
     /// Player whose death committed.
     pub player: Entity,
     /// Damage cause and credited attacker.
     pub cause: DeathCause,
+    /// Carried state before ordinary drops, independently owned by this notification.
+    /// Absent only if the source entity lacks a complete native player inventory.
+    pub inventory: Option<PlayerDeathInventory>,
+    /// World policy at the committed death; individual items can also be retained.
+    pub keep_inventory: bool,
 }
 
 /// A proposed respawn, before health, hunger, position or packets change.

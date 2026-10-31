@@ -120,13 +120,22 @@ pub(super) fn die(world: &mut World, player: Entity, cause: DeathCause) {
         }));
     }
     let rules = world.resource::<GameRules>().clone();
+    let inventory = hooks::PlayerDeathInventory::capture(world, player);
     if rules.show_death_messages {
         broadcast_death_message(world, &message);
     }
     if !rules.keep_inventory {
         drop_everything(world, player);
     }
-    hooks::death(world, hooks::PlayerDeath { player, cause });
+    hooks::death(
+        world,
+        hooks::PlayerDeath {
+            player,
+            cause,
+            inventory,
+            keep_inventory: rules.keep_inventory,
+        },
+    );
     if world.get::<Dead>(player).is_none() || world.get::<Player>(player).is_none() {
         return;
     }
