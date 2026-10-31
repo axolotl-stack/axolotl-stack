@@ -1541,3 +1541,26 @@ acknowledgement terminally fences the account for recovery. Loading and outbound
 pressure retry within a bounded queue without invoking the final predicate.
 Same-world movement retains the actor and its world-local components; dimension
 migration continues to use the separate transfer callbacks.
+
+
+## Stable damage origins
+
+`entity::damage::DamageAttribution` retains a token-free snapshot of a hit's source
+world, owner entity/session, launch feet and account binding. Native launches,
+reflections and potion clouds carry it independently of their owner's current
+entity. `PlayerDamage`, `PlayerDamaged` and projectile/effect hooks expose the
+same immutable facts. `Hit.attacker` remains a real surviving actor in the
+current world; attribution never creates a proxy or searches another world.
+
+The authenticated-owner getter requires a canonical nonzero XUID and a valid
+session UUID matching `PlayerUuid`. Native networking supplies authenticated
+XUIDs; trusted embedders that construct `PlayerSession` own that ingress boundary.
+Guest UUIDs, invalid account numbers and mismatched bindings remain descriptive
+facts. Entity handles are scoped by their captured `WorldId`, and replacing a
+session prevents it from resolving as the original live owner.
+
+Ordinary `hurt_player` captures a direct hit's origin. `hurt_player_attributed`
+accepts a previously captured origin for delayed damage. Native projectile
+impacts and instant potion damage use this path; cloud effects inherit the
+source potion's owner after the potion disappears. This does not change the
+existing lasting-effect tick model or make its periodic damage newly attributed.

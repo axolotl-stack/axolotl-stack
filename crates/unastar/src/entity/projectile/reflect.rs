@@ -17,7 +17,9 @@ pub(crate) fn from_attack(world: &mut World, target: Entity, attacker: Option<En
         return false;
     };
     let direction = super::launch::view_direction(look.yaw, look.pitch);
-    redirect(world, target, attacker, direction)
+    let attribution =
+        crate::entity::damage::DamageAttribution::capture(world, Some(target), Some(attacker));
+    redirect(world, target, attacker, direction, attribution)
 }
 
 /// A projectile collision uses the incoming flight direction and attributes the
@@ -31,11 +33,19 @@ pub(super) fn from_projectile(world: &mut World, target: Entity, incoming: Entit
         .and_then(|flight| flight.owner)
         .filter(|owner| world.get_entity(*owner).is_ok())
         .unwrap_or(incoming);
-    redirect(world, target, owner, direction)
+    let attribution = crate::entity::damage::DamageAttribution::for_source(world, Some(incoming))
+        .with_source(world, target);
+    redirect(world, target, owner, direction, attribution)
 }
 
 /// Commit a finite redirection without creating health or replaying a spawn.
-fn redirect(world: &mut World, target: Entity, owner: Entity, direction: DVec3) -> bool {
+fn redirect(
+    world: &mut World,
+    target: Entity,
+    owner: Entity,
+    direction: DVec3,
+    attribution: crate::entity::damage::DamageAttribution,
+) -> bool {
     let Some(config) = world.get::<ProjectileConfig>(target) else {
         return false;
     };
@@ -61,6 +71,7 @@ fn redirect(world: &mut World, target: Entity, owner: Entity, direction: DVec3) 
     let (yaw, pitch) = super::launch::heading(velocity);
     let mut actor = world.entity_mut(target);
     actor.insert((
+        attribution,
         Velocity(velocity),
         Rotation::new(yaw, pitch),
         ProjectileFlight {

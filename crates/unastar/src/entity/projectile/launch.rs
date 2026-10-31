@@ -419,8 +419,11 @@ fn launch_internal(
         return Err(LaunchError::InvalidAim);
     }
     let (yaw, pitch) = heading(velocity);
+    let attribution =
+        crate::entity::damage::DamageAttribution::capture(world, Some(projectile), Some(thrower));
     let mut entity = world.entity_mut(projectile);
     entity.insert((
+        attribution,
         Position(feet),
         Velocity(velocity),
         Rotation::new(yaw, pitch),

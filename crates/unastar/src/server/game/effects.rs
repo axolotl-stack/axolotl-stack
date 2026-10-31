@@ -116,6 +116,7 @@ pub fn add_effect_scaled_from(
     if !potency.is_finite() || !(0.0..=1.0).contains(&potency) {
         return false;
     }
+    let attribution = crate::entity::damage::DamageAttribution::for_source(world, source);
     let Some((amplifier, duration_ticks)) = crate::entity::projectile::hooks::effect(
         world,
         player,
@@ -132,35 +133,17 @@ pub fn add_effect_scaled_from(
             return true;
         }
         EffectType::INSTANT_DAMAGE => {
-            let attacker = source
-                .and_then(|source| {
-                    if let Some(flight) =
-                        world.get::<crate::entity::projectile::ProjectileFlight>(source)
-                    {
-                        flight.owner
-                    } else if let Some(cloud) =
-                        world.get::<crate::entity::projectile::cloud::AreaEffectCloud>(source)
-                    {
-                        cloud.owner()
-                    } else {
-                        Some(source)
-                    }
-                })
-                .filter(|actor| {
-                    world
-                        .get::<crate::entity::components::Player>(*actor)
-                        .is_some()
-                        || world.get::<crate::entity::mob::MobKind>(*actor).is_some()
-                });
+            let attacker = attribution.live_owner(world).filter(|actor| {
+                world
+                    .get::<crate::entity::components::Player>(*actor)
+                    .is_some()
+                    || world.get::<crate::entity::mob::MobKind>(*actor).is_some()
+            });
             let hit = crate::entity::mob::combat::Hit {
                 damage: (6u32 << amplifier.min(28)) as f32 * potency,
                 cause: unastar_data::actor_components::body::ActorDamageCause::Magic,
                 attacker,
-                by_player: attacker.is_some_and(|actor| {
-                    world
-                        .get::<crate::entity::components::Player>(actor)
-                        .is_some()
-                }),
+                by_player: attribution.owner().is_some_and(|owner| owner.is_player()),
                 knockback_from: None,
                 knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
             };
@@ -168,7 +151,12 @@ pub fn add_effect_scaled_from(
                 .get::<crate::entity::components::Player>(player)
                 .is_some()
             {
-                crate::entity::player_life::hurt_player(world, player, &hit);
+                crate::entity::player_life::hurt_player_attributed(
+                    world,
+                    player,
+                    &hit,
+                    attribution,
+                );
             } else if world.get::<crate::entity::mob::MobKind>(player).is_some() {
                 crate::entity::mob::combat::hurt_mob(world, player, hit);
             }

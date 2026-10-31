@@ -100,7 +100,7 @@ pub(super) fn on_hit(
             };
             super::potions::splash(world, projectile, &potion, collision_at, direct, 0.25);
             if world.get_entity(projectile).is_ok() {
-                super::cloud::spawn(world, owner, collision_at, potion, cloud);
+                super::cloud::spawn(world, projectile, owner, collision_at, potion, cloud);
             }
         }
     }
@@ -118,7 +118,7 @@ pub(super) fn on_hit(
         super::fire::block(world, owner, position, fire);
     }
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
-        let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);
+        let (destroyed, applied) = impact_damage(world, projectile, impact, at, actor);
         removed |= destroyed;
         if applied > 0.0 {
             if impact.catch_fire {
@@ -165,7 +165,6 @@ pub(super) fn on_hit(
 fn impact_damage(
     world: &mut World,
     projectile: Entity,
-    owner: Option<Entity>,
     impact: &ImpactDamage,
     at: DVec3,
     actor: Entity,
@@ -207,21 +206,22 @@ fn impact_damage(
     } else {
         impact.min
     };
-    let owner = owner.filter(|owner| world.get_entity(*owner).is_ok());
+    let attribution = crate::entity::damage::DamageAttribution::for_source(world, Some(projectile));
+    let owner = attribution.live_owner(world);
     let names_attacker = damage > 0.0 || !impact.last_hurt_requires_damage;
     let attacker = owner.filter(|_| names_attacker);
     let hit = Hit {
         damage,
         cause: ActorDamageCause::Projectile,
         attacker,
-        by_player: attacker.is_some_and(|owner| world.get::<Player>(owner).is_some()),
+        by_player: names_attacker && attribution.owner().is_some_and(|owner| owner.is_player()),
         knockback_from: impact.knockback.then_some(at),
         knockback_power: knockback_power_of(world, projectile),
     };
     // Players take hits through the player hurt path (game mode, armour,
     // death); mobs through the mob one.
     let applied = if world.get::<Player>(actor).is_some() {
-        crate::entity::player_life::hurt_player(world, actor, &hit)
+        crate::entity::player_life::hurt_player_attributed(world, actor, &hit, attribution)
     } else {
         hurt_mob(world, actor, hit)
     };

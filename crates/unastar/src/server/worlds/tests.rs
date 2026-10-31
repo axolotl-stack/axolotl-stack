@@ -1310,3 +1310,5 @@ async fn per_world_inventory_effects_share_one_writer_without_nested_revision_gu
         );
     }
 }
+
+mod projectile_attribution;

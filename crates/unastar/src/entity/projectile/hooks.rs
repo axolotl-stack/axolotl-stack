@@ -22,6 +22,7 @@ pub enum ProjectileImpactTarget {
 /// A pending impact with immutable source, actual target and collision point.
 #[derive(Event, Clone, Debug)]
 pub struct ProjectileImpact {
+    attribution: crate::entity::damage::DamageAttribution,
     projectile: Entity,
     owner: Option<Entity>,
     target: ProjectileImpactTarget,
@@ -29,6 +30,10 @@ pub struct ProjectileImpact {
     cancelled: bool,
 }
 impl ProjectileImpact {
+    /// Immutable token-free source and original owner facts.
+    pub fn attribution(&self) -> &crate::entity::damage::DamageAttribution {
+        &self.attribution
+    }
     /// Read the projectile actor.
     pub fn projectile(&self) -> Entity {
         self.projectile
@@ -181,6 +186,7 @@ impl TeleportPermit {
 /// A proposed effect on one actual recipient.
 #[derive(Event, Clone, Debug)]
 pub struct EffectApplication {
+    attribution: crate::entity::damage::DamageAttribution,
     target: Entity,
     source: Option<Entity>,
     effect: EffectType,
@@ -189,6 +195,10 @@ pub struct EffectApplication {
     cancelled: bool,
 }
 impl EffectApplication {
+    /// Immutable token-free source and original owner facts.
+    pub fn attribution(&self) -> &crate::entity::damage::DamageAttribution {
+        &self.attribution
+    }
     /// Read the actual affected actor.
     pub fn target(&self) -> Entity {
         self.target
@@ -214,11 +224,16 @@ impl EffectApplication {
 /// Pending removal of fire from one actual water-impact recipient.
 #[derive(Event, Clone, Debug)]
 pub struct ProjectileExtinguish {
+    attribution: crate::entity::damage::DamageAttribution,
     source: Entity,
     target: Entity,
     cancelled: bool,
 }
 impl ProjectileExtinguish {
+    /// Immutable token-free source and original owner facts.
+    pub fn attribution(&self) -> &crate::entity::damage::DamageAttribution {
+        &self.attribution
+    }
     /// Read the water projectile producing this effect.
     pub fn source(&self) -> Entity {
         self.source
@@ -240,6 +255,7 @@ impl ProjectileExtinguish {
 /// One ordinary projectile block mutation, authorized at the affected block.
 #[derive(Event, Clone, Debug)]
 pub struct ProjectileBlockChange {
+    attribution: crate::entity::damage::DamageAttribution,
     source: Entity,
     owner: Option<Entity>,
     position: glam::IVec3,
@@ -248,6 +264,10 @@ pub struct ProjectileBlockChange {
     cancelled: bool,
 }
 impl ProjectileBlockChange {
+    /// Immutable token-free source and original owner facts.
+    pub fn attribution(&self) -> &crate::entity::damage::DamageAttribution {
+        &self.attribution
+    }
     /// Read the projectile producing this block effect.
     pub fn source(&self) -> Entity {
         self.source
@@ -395,6 +415,7 @@ pub(crate) fn impact(
         .filter(|owner| world.get_entity(*owner).is_ok())
         .map(|owner| (owner, Identity::capture(world, owner)));
     let mut event = ProjectileImpact {
+        attribution: crate::entity::damage::DamageAttribution::for_source(world, Some(projectile)),
         projectile,
         owner,
         target,
@@ -408,6 +429,8 @@ pub(crate) fn impact(
     // Observer Commands must finish before stale-state revalidation and costs.
     world.flush();
     !event.cancelled
+        && crate::entity::damage::DamageAttribution::for_source(world, Some(projectile))
+            == event.attribution
         && position.is_finite()
         && world.get::<Position>(projectile).map(|position| position.0) == before
         && world.get_entity(projectile).is_ok()
@@ -517,6 +540,7 @@ pub(crate) fn effect(
         .filter(|owner| world.get_entity(*owner).is_ok())
         .map(|owner| (owner, Identity::capture(world, owner)));
     let mut event = EffectApplication {
+        attribution: crate::entity::damage::DamageAttribution::for_source(world, source),
         target,
         source,
         effect,
@@ -531,6 +555,7 @@ pub(crate) fn effect(
     // Observer Commands must finish before stale-state revalidation and costs.
     world.flush();
     (!event.cancelled
+        && crate::entity::damage::DamageAttribution::for_source(world, source) == event.attribution
         && identity.matches(world, target)
         && (event.duration_ticks <= i32::MAX as u32 || event.duration_ticks == u32::MAX)
         && source_identity.is_none_or(|(source, identity)| identity.matches(world, source))
@@ -549,6 +574,7 @@ pub(crate) fn extinguish(world: &mut World, source: Entity, target: Entity) -> b
         .filter(|owner| world.get_entity(*owner).is_ok())
         .map(|owner| (owner, Identity::capture(world, owner)));
     let mut event = ProjectileExtinguish {
+        attribution: crate::entity::damage::DamageAttribution::for_source(world, Some(source)),
         source,
         target,
         cancelled: false,
@@ -559,6 +585,8 @@ pub(crate) fn extinguish(world: &mut World, source: Entity, target: Entity) -> b
     world.trigger_ref(&mut event);
     world.flush();
     !event.cancelled
+        && crate::entity::damage::DamageAttribution::for_source(world, Some(source))
+            == event.attribution
         && before.matches(world, target)
         && origin.matches(world, source)
         && world.get::<super::ProjectileFlight>(source).copied() == flight
@@ -584,6 +612,7 @@ pub(crate) fn block_change(
         .filter(|owner| world.get_entity(*owner).is_ok())
         .map(|owner| (owner, Identity::capture(world, owner)));
     let mut event = ProjectileBlockChange {
+        attribution: crate::entity::damage::DamageAttribution::for_source(world, Some(source)),
         source,
         owner,
         position,
@@ -597,6 +626,8 @@ pub(crate) fn block_change(
     world.trigger_ref(&mut event);
     world.flush();
     !event.cancelled
+        && crate::entity::damage::DamageAttribution::for_source(world, Some(source))
+            == event.attribution
         && identity.matches(world, source)
         && world.block_at(position) == Some(old_state)
         && world
