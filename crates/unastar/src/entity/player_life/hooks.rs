@@ -28,6 +28,12 @@ pub struct PlayerDamage {
     /// Incoming hit; extensions may change its damage and knockback. Modified
     /// values are validated before the ordinary damage rules are applied.
     pub hit: Hit,
+    /// Native override for armour reduction only. Immunity, the hurt timer,
+    /// damage cause, attribution and ordinary durability rules still apply.
+    pub bypass_armour: bool,
+    /// Native final health-loss factor applied after armour. It must be finite
+    /// and nonnegative; it does not change attribution or hit timer rules.
+    pub post_armour_multiplier: f32,
     cancelled: bool,
 }
 
@@ -53,6 +59,8 @@ impl PlayerDamage {
         Self {
             player,
             hit,
+            bypass_armour: false,
+            post_armour_multiplier: 1.0,
             cancelled: false,
         }
     }
@@ -180,6 +188,7 @@ pub(super) fn damage(world: &mut World, event: &mut PlayerDamage) {
         handler.on_damage(world, event);
     }
     world.trigger_ref(event);
+    world.flush();
 }
 
 /// Report actual positive health loss without exposing an uncommitted attempt.
@@ -204,6 +213,7 @@ pub(super) fn respawn(world: &mut World, event: &mut PlayerRespawn) {
         handler.on_respawn(world, event);
     }
     world.trigger_ref(event);
+    world.flush();
 }
 
 /// Report a committed respawn to handlers and immediate observers.

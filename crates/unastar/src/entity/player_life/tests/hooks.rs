@@ -424,3 +424,88 @@ fn committed_damage_notifications_exclude_cancelled_and_suppressed_hits_and_prec
     assert_eq!(h.hit_from(cow, 100.0), 0.0);
     assert!(h.world().resource::<DamageNotifications>().0.is_empty());
 }
+
+#[test]
+fn native_armour_override_preserves_hurt_timer_cause_attribution_and_wear() {
+    let mut ordinary = harness(Difficulty::Normal);
+    let player = ordinary.player;
+    ordinary
+        .world()
+        .get_mut::<crate::entity::components::ArmourInventory>(player)
+        .unwrap()
+        .set_chestplate(crate::item::test_support::stack(
+            "minecraft:iron_chestplate",
+            1,
+        ))
+        .unwrap();
+    let cow = ordinary.cow();
+    assert!(ordinary.hit_from(cow, 4.0) < 4.0);
+    let mut h = harness(Difficulty::Normal);
+    let player = h.player;
+    h.world()
+        .get_mut::<crate::entity::components::ArmourInventory>(player)
+        .unwrap()
+        .set_chestplate(crate::item::test_support::stack(
+            "minecraft:iron_chestplate",
+            1,
+        ))
+        .unwrap();
+    h.world()
+        .add_observer(|mut event: On<PlayerDamage>| event.bypass_armour = true);
+    let cow = h.cow();
+    assert_eq!(h.hit_from(cow, 4.0), 4.0);
+    assert_eq!(h.hit_from(cow, 4.0), 0.0);
+    let hurt = h.world().get::<LastHurt>(player).unwrap();
+    assert_eq!(
+        (hurt.cause, hurt.attacker),
+        (ActorDamageCause::EntityAttack, Some(cow))
+    );
+    let chest = h
+        .world()
+        .get::<crate::entity::components::ArmourInventory>(player)
+        .unwrap()
+        .chestplate()
+        .clone();
+    assert_eq!(crate::item::enchant::durability_damage(&chest), 1);
+}
+
+#[test]
+fn deferred_observer_despawn_cannot_commit_a_stale_damage_attempt() {
+    let mut h = harness(Difficulty::Normal);
+    h.world()
+        .add_observer(|event: On<PlayerDamage>, mut commands: Commands| {
+            commands.entity(event.player()).despawn();
+        });
+    let cow = h.cow();
+    assert_eq!(h.hit_from(cow, 100.0), 0.0);
+    assert!(h.drain().is_empty());
+}
+
+#[test]
+fn final_damage_multiplier_runs_after_armour_and_rejects_invalid_values_before_effects() {
+    let mut h = harness(Difficulty::Normal);
+    let player = h.player;
+    h.world()
+        .get_mut::<crate::entity::components::ArmourInventory>(player)
+        .unwrap()
+        .set_chestplate(crate::item::test_support::stack(
+            "minecraft:iron_chestplate",
+            1,
+        ))
+        .unwrap();
+    h.world()
+        .add_observer(|mut event: On<PlayerDamage>| event.post_armour_multiplier = 0.5);
+    let cow = h.cow();
+    let expected = unastar_data::armour::damage_after_armour(4.0, 6.0, 0.0) * 0.5;
+    assert!((h.hit_from(cow, 4.0) - expected).abs() < 1.0e-4);
+    for multiplier in [f32::NAN, f32::INFINITY, -1.0] {
+        let mut h = harness(Difficulty::Normal);
+        h.world().add_observer(move |mut event: On<PlayerDamage>| {
+            event.post_armour_multiplier = multiplier
+        });
+        let cow = h.cow();
+        assert_eq!(h.hit_from(cow, 4.0), 0.0);
+        assert!(h.drain().is_empty());
+        assert_eq!(h.health(), 20.0);
+    }
+}
