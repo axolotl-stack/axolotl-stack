@@ -1057,3 +1057,28 @@ behavior. `ProjectileHooks` authorize actual impact targets, item teleport
 destinations and individual effect recipients. Vetoed impacts discard the
 projectile without normal impact effects; teleports and effect changes validate
 modified data and live actor identity before applying them.
+
+
+Potion drinking, ender pearls, splash bottles and lingering bottles now use the
+ordinary item-use and projectile paths. `PotionCatalog` configures aux-valued
+profiles; an airborne bottle captures immutable contents at launch. A drink
+returns a glass bottle outside creative mode. Actual impacts apply radial
+instantaneous potency and lasting durations through the recipient hooks.
+Water impacts authorize each extinguished actor and changed fire/campfire block.
+Pearls authorize their final rewritten destination, require loaded collision-free
+space, and apply owner fall damage only after a successful teleport. The immutable
+`PlayerTeleported` notification exposes final feet coordinates only after commit.
+
+Lingering bottles create replicated, nonliving area-effect-cloud actors with a
+warm-up, finite lifetime, shrinking radius and per-recipient reapplication delay.
+Clouds expire in memory and are excluded from chunk actor saves. Optional impact
+spawns that the actor registry cannot run fail that spawn attempt without
+preventing the primary projectile's other behavior.
+
+Default potion profiles (aux 0–42), splash scaling and cloud behavior use the
+Dragonfly v0.10.13 reference; the MIT notice is in
+[licenses/dragonfly-MIT.txt](licenses/dragonfly-MIT.txt). They have deterministic
+host regressions and are not a claim of complete vanilla parity. Newer aux values
+need an explicitly configured profile. Existing limitations of individual lasting
+effect behaviors still apply; endermite actors and dimension travel remain
+unsupported.

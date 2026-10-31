@@ -34,12 +34,15 @@
 //! Layout: [`config`] compiles the component, [`launch`] throws,
 //! [`flight`] moves and collides, [`hit`] runs the `on_hit` effects.
 
+pub mod cloud;
 pub mod config;
 pub mod flight;
 pub mod hit;
 pub mod hooks;
 pub mod launch;
+mod pearl;
 pub mod pickup;
+pub(crate) mod potions;
 
 use bevy_ecs::prelude::*;
 

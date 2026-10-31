@@ -254,6 +254,7 @@ pub fn used_ticks(world: &World, using: &ItemUsing) -> u64 {
 pub enum UseMethod {
     None = -1,
     Eat = 1,
+    Drink = 2,
 }
 
 /// Tell the player's client the item use finished.
@@ -370,23 +371,46 @@ pub fn teleport_from(
     feet: glam::DVec3,
     cause: TeleportCause,
 ) -> bool {
+    teleport_checked_from(world, player, source, feet, cause, |_, _| true)
+}
+
+/// Apply an immutable world predicate to the final destination after all native
+/// handlers, observers and source checks. Rejection changes no position, sends
+/// no teleport packet and emits no accepted notification. The predicate receives
+/// feet coordinates and can enforce loaded terrain, collision or application rules.
+pub fn teleport_checked_from(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    feet: glam::DVec3,
+    cause: TeleportCause,
+    valid: impl FnOnce(&World, glam::DVec3) -> bool,
+) -> bool {
+    teleport_checked_destination(world, player, source, feet, cause, valid).is_some()
+}
+
+/// Return the actual accepted feet coordinates for subsequent source effects.
+pub(crate) fn teleport_checked_destination(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    feet: glam::DVec3,
+    cause: TeleportCause,
+    valid: impl FnOnce(&World, glam::DVec3) -> bool,
+) -> Option<glam::DVec3> {
     use jolyne::valentine::types::{
         EnumsPlayerPositionModeComponentPositionMode, MovePlayerTeleportData, Vec2, Vec3,
     };
-    let Some(feet) = crate::entity::projectile::hooks::teleport(world, player, source, cause, feet)
-    else {
-        return false;
-    };
+    let permit = crate::entity::projectile::hooks::teleport(world, player, source, cause, feet)?;
+    let feet = permit.destination;
+    if !valid(world, feet) {
+        return None;
+    }
     let eye = feet + glam::DVec3::new(0.0, crate::entity::item_drop::PLAYER_EYE_HEIGHT, 0.0);
-    let Some(rotation) = world
+    let rotation = world
         .get::<crate::entity::components::Rotation>(player)
-        .copied()
-    else {
-        return false;
-    };
-    let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
-        return false;
-    };
+        .copied()?;
+    let runtime_id = world.get::<RuntimeEntityId>(player).map(|r| r.0)?;
     if let Some(mut position) = world.get_mut::<Position>(player) {
         position.0 = eye;
     }
@@ -418,7 +442,8 @@ pub fn teleport_from(
     });
     // Other players follow through the regular position broadcast.
     send_to(world, &[player], &packet);
-    true
+    permit.commit(world);
+    Some(feet)
 }
 
 /// System (exclusive): finish eating and drinking whose use duration has
