@@ -201,18 +201,18 @@ pub struct InventoryPersistence {
 
 impl InventoryPersistence {
     /// Copy persistence metadata from the same record that supplied the player's slots.
-    pub(crate) fn from_record(data: Option<&PlayerData>) -> Self {
+    pub fn from_record(data: Option<&PlayerData>) -> Self {
         data.map_or_else(Self::default, |data| Self {
             revision: data.inventory_revision,
             receipts: data.inventory_effects.clone(),
         })
     }
     /// Read the epoch retained by ordinary autosave/disconnect snapshots.
-    pub(super) fn revision(&self) -> u64 {
+    pub fn revision(&self) -> u64 {
         self.revision
     }
     /// Read durable receipts retained by ordinary autosave/disconnect snapshots.
-    pub(super) fn receipts(&self) -> &BTreeMap<String, InventoryEffectRecord> {
+    pub fn receipts(&self) -> &BTreeMap<String, InventoryEffectRecord> {
         &self.receipts
     }
 }
