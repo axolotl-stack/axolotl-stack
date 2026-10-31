@@ -65,6 +65,29 @@ impl Default for ExhaustionValues {
     }
 }
 
+/// Per-actor food policy; absence preserves ordinary food behavior.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlayerFoodPolicy {
+    /// Permit exhaustion from movement, combat, mining, effects and healing.
+    pub exhaustion: bool,
+    /// Permit exhaustion to drain saturation or food.
+    pub food_drain: bool,
+    /// Permit the ordinary food-based natural healing timer.
+    pub natural_regeneration: bool,
+    /// Permit the ordinary empty-food starvation damage timer.
+    pub starvation: bool,
+}
+impl Default for PlayerFoodPolicy {
+    fn default() -> Self {
+        Self {
+            exhaustion: true,
+            food_drain: true,
+            natural_regeneration: true,
+            starvation: true,
+        }
+    }
+}
+
 /// Server-only food timers of a player.
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct FoodTimer {
@@ -119,6 +142,12 @@ impl FoodRules {
 /// Add the exhaustion `pick` selects from the player definition's values
 /// to a survival or adventure player.
 pub fn exhaust_player(world: &mut World, player: Entity, pick: impl Fn(&ExhaustionValues) -> f32) {
+    if world
+        .get::<PlayerFoodPolicy>(player)
+        .is_some_and(|policy| !policy.exhaustion)
+    {
+        return;
+    }
     let amount = pick(&world.get_resource_or_init::<ExhaustionValues>());
     if world
         .get::<GameMode>(player)
@@ -193,27 +222,52 @@ pub fn tick_food(
     }
 }
 
+/// Mutable food state and optional per-actor policy read by one food tick.
+type HungryPlayers = QueryState<(
+    Entity,
+    &'static mut Hunger,
+    &'static mut FoodTimer,
+    &'static mut Health,
+    &'static GameMode,
+    Option<&'static PlayerFoodPolicy>,
+)>;
+
 /// System (exclusive): tick every survival or adventure player's food.
 /// Starvation goes through the player damage path ([`hurt_player`]).
 pub fn tick_hunger(
     world: &mut World,
-    players: &mut QueryState<(Entity, &mut Hunger, &mut FoodTimer, &mut Health, &GameMode)>,
+    players: &mut HungryPlayers,
     mut starving: Local<Vec<Entity>>,
 ) {
     let rules = FoodRules::of(world);
     let heal = world.get_resource_or_init::<ExhaustionValues>().heal;
-    for (entity, mut hunger, mut timer, mut health, mode) in players.iter_mut(world) {
+    for (entity, mut hunger, mut timer, mut health, mode, policy) in players.iter_mut(world) {
         if matches!(mode, GameMode::Creative | GameMode::Spectator) || health.is_dead() {
             continue;
         }
+        let policy = policy.copied().unwrap_or_default();
         let mut next = hunger.clone();
-        tick_exhaustion(&mut next, rules.difficulty);
-        match tick_food(&mut next, &mut timer, &health, rules) {
+        if !policy.exhaustion {
+            next.exhaustion = 0.0;
+        }
+        if policy.food_drain {
+            tick_exhaustion(&mut next, rules.difficulty);
+        } else if next.exhaustion >= Hunger::EXHAUSTION_PER_POINT {
+            next.exhaustion -= Hunger::EXHAUSTION_PER_POINT;
+        }
+        let policy_rules = FoodRules {
+            natural_regeneration: rules.natural_regeneration && policy.natural_regeneration,
+            ..rules
+        };
+        match tick_food(&mut next, &mut timer, &health, policy_rules) {
             FoodTick::Heal => {
-                next.exhaust(heal);
+                if policy.exhaustion {
+                    next.exhaust(heal);
+                }
                 health.heal(1.0);
             }
-            FoodTick::Starve => starving.push(entity),
+            FoodTick::Starve if policy.starvation => starving.push(entity),
+            FoodTick::Starve => {}
             FoodTick::Nothing => {}
         }
         if next.food_level != hunger.food_level

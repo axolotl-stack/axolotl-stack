@@ -78,14 +78,37 @@ pub fn add_effect(
     amplifier: u8,
     duration_ticks: u32,
 ) {
+    add_effect_from(world, player, None, effect, amplifier, duration_ticks);
+}
+
+/// Give an actor an effect after authorizing its actual source and recipient.
+/// Returns false when a native handler, observer or stale actor rejects it.
+pub fn add_effect_from(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    effect: EffectType,
+    amplifier: u8,
+    duration_ticks: u32,
+) -> bool {
+    let Some((amplifier, duration_ticks)) = crate::entity::projectile::hooks::effect(
+        world,
+        player,
+        source,
+        effect,
+        amplifier,
+        duration_ticks,
+    ) else {
+        return false;
+    };
     match effect {
         EffectType::INSTANT_HEALTH => {
             heal(world, player, (4u32 << amplifier.min(30)) as f32);
-            return;
+            return true;
         }
         EffectType::SATURATION if duration_ticks <= 1 => {
             saturate(world, player, amplifier);
-            return;
+            return true;
         }
         _ => {}
     }
@@ -107,6 +130,7 @@ pub fn add_effect(
             }
         }
     }
+    true
 }
 
 /// Remove one effect from `player`.
@@ -155,10 +179,11 @@ pub fn apply_player_effects(
         &mut Hunger,
         &GameMode,
         Option<&mut Absorption>,
+        Option<&super::hunger::PlayerFoodPolicy>,
     )>,
     mut absent: Query<&mut Absorption, Without<Effects>>,
 ) {
-    for (player, effects, mut health, mut hunger, mode, absorption) in &mut players {
+    for (player, effects, mut health, mut hunger, mode, absorption, food_policy) in &mut players {
         if health.is_dead() {
             continue;
         }
@@ -196,7 +221,10 @@ pub fn apply_player_effects(
                 );
             });
         }
-        if survival && let Some(e) = effects.get(EffectType::HUNGER) {
+        if survival
+            && food_policy.is_none_or(|policy| policy.exhaustion)
+            && let Some(e) = effects.get(EffectType::HUNGER)
+        {
             hunger.exhaust(0.005 * (f32::from(e.level) + 1.0));
         }
         if let Some(e) = effects.get(EffectType::SATURATION) {

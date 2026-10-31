@@ -41,7 +41,7 @@ type MovementSystemState = SystemState<(
     ResMut<'static, MovementEvents>,
     Res<'static, super::hunger::ExhaustionValues>,
     MovingPlayers<'static, 'static>,
-    Query<'static, 'static, (&'static mut Hunger, &'static GameMode)>,
+    Query<'static, 'static, (&'static mut Hunger, &'static GameMode, Option<&'static crate::entity::player_life::hunger::PlayerFoodPolicy>)>,
 )>;
 
 /// Drain movement inputs, authorize proposals and commit without borrowed state
@@ -116,8 +116,9 @@ pub fn apply_movement(world: &mut World, system_state: &mut MovementSystemState)
                     let (mut events, exhaustion, mut players, mut hungry) =
                         system_state.get_mut(world);
                     let moved = process_auth_input(entity, &pk, &mut players, &mut events);
-                    if let (Some(moved), Ok((mut hunger, mode))) = (moved, hungry.get_mut(entity))
+                    if let (Some(moved), Ok((mut hunger, mode, policy))) = (moved, hungry.get_mut(entity))
                         && !matches!(mode, GameMode::Creative | GameMode::Spectator)
+                        && policy.is_none_or(|policy| policy.exhaustion)
                     {
                         hunger.exhaust(moved.exhaustion(&exhaustion));
                     }

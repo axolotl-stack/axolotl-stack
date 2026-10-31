@@ -109,8 +109,56 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
     let Some(entry) = stack.item().cloned() else {
         return;
     };
+    if super::held(world, player)
+        .is_none_or(|(current_slot, current)| current_slot != slot || current != *stack)
+    {
+        return;
+    }
+    let Some(permit) = crate::server::game::item_actions::authorize(
+        world,
+        player,
+        crate::server::game::item_actions::ItemActionKind::Consume,
+    ) else {
+        return;
+    };
+    if super::held(world, player)
+        .is_none_or(|(current_slot, current)| current_slot != slot || current != *stack)
+    {
+        return;
+    }
     let components = entry.components().clone();
     let converts_to = match (kind, components.food.as_ref()) {
+        (ConsumeKind::Food, Some(food)) => food.using_converts_to.clone(),
+        (ConsumeKind::Milk, _) => Some(BUCKET.to_owned()),
+        (ConsumeKind::Food, None) => return,
+    };
+    // Consumption is already authorized. Commit its source item before effect
+    // callbacks, which may change inventories or remove recipients themselves.
+    let creative = world.get::<GameMode>(player) == Some(&GameMode::Creative);
+    if !creative {
+        let left = stack.grow(-1);
+        let converted = converts_to.and_then(|name| {
+            let name = if name.contains(':') {
+                name
+            } else {
+                format!("minecraft:{name}")
+            };
+            world
+                .resource::<crate::server::game::types::ItemRegistryResource>()
+                .0
+                .stack(&name, 1)
+        });
+        match (left.is_empty(), converted) {
+            (true, Some(converted)) => super::set_slot(world, player, slot, converted),
+            (_, converted) => {
+                super::set_slot(world, player, slot, left);
+                if let Some(converted) = converted {
+                    super::give_or_drop(world, player, converted);
+                }
+            }
+        }
+    }
+    match (kind, components.food.as_ref()) {
         (ConsumeKind::Food, Some(food)) => {
             if let Some(mut hunger) = world.get_mut::<Hunger>(player) {
                 hunger.eat(
@@ -161,38 +209,12 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
                 }
                 None => {}
             }
-            food.using_converts_to.clone()
         }
         (ConsumeKind::Milk, _) => {
             effects::clear_effects(world, player);
-            Some(BUCKET.to_owned())
         }
         (ConsumeKind::Food, None) => return,
     };
-    let creative = world.get::<GameMode>(player) == Some(&GameMode::Creative);
-    if !creative {
-        let left = stack.grow(-1);
-        let converted = converts_to.and_then(|name| {
-            let name = if name.contains(':') {
-                name
-            } else {
-                format!("minecraft:{name}")
-            };
-            world
-                .resource::<crate::server::game::types::ItemRegistryResource>()
-                .0
-                .stack(&name, 1)
-        });
-        match (left.is_empty(), converted) {
-            (true, Some(converted)) => super::set_slot(world, player, slot, converted),
-            (_, converted) => {
-                super::set_slot(world, player, slot, left);
-                if let Some(converted) = converted {
-                    super::give_or_drop(world, player, converted);
-                }
-            }
-        }
-    }
     let method = match kind {
         ConsumeKind::Food => UseMethod::Eat,
         ConsumeKind::Milk => UseMethod::None,
@@ -211,6 +233,12 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
             -1,
         );
     }
+    permit.commit(
+        world,
+        crate::server::game::item_actions::ItemActionOutcome::Consumed {
+            count: if creative { 0 } else { 1 },
+        },
+    );
 }
 
 /// The effect (and its duration in ticks) of a suspicious stew with aux

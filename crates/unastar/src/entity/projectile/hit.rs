@@ -31,7 +31,15 @@ pub(super) fn on_hit(
     rules: &ProjectileRules,
     at: DVec3,
     target: Target,
+    collision_at: DVec3,
 ) -> bool {
+    let target_kind = match target {
+        Target::Block => super::hooks::ProjectileImpactTarget::Block,
+        Target::Actor(actor) => super::hooks::ProjectileImpactTarget::Entity(actor),
+    };
+    if !super::hooks::impact(world, projectile, owner, target_kind, collision_at) {
+        return true;
+    }
     let mut removed = false;
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
         let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);
