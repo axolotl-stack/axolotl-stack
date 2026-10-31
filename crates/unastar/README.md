@@ -1248,3 +1248,11 @@ explicit pair in one mode/abilities transition. A missing base field clears any
 current override and restores the snapshot's ordinary mode; older snapshots
 remain readable. Captured equal base/effective modes retain the explicit override
 so later base changes still wait until its removal.
+
+Deferred native snapshot restoration also withholds direct mode, teleport,
+attribute, effect, life and motion packets. Tick replication keeps pending state
+out of each client's sent-state cache. After release, the initial batch is
+followed by the current validated snapshot presentation, including final position,
+velocity, life state and effect particle/ambient flags; ordinary tick replication
+then resumes without replaying that effect set. Pending viewers receive no
+mob or item actor snapshots.

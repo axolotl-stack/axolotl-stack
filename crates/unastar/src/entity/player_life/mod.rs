@@ -70,7 +70,9 @@ pub(crate) fn send_to_player_and_viewers(world: &World, player: Entity, packet: 
         (position.0.z.floor() as i32) >> 4,
     );
     for viewer in grid.get_neighbors(chunk, 1) {
-        if viewer == player {
+        if viewer == player
+            || crate::server::game::player_events::initial_state_pending(world, viewer)
+        {
             continue;
         }
         if crate::server::broadcast::player_views::can_receive_actor(world, player, viewer)
