@@ -54,8 +54,8 @@ fn main() -> Result<()> {
     for func in &funcs {
         let name = func.name.replace('-', "_");
         let params = params_str(&resolve, func, false);
-        let ret = return_str(&resolve, func);
-        let default = default_body(func);
+        let ret = return_str(&resolve, func, false);
+        let default = default_body(&resolve, func);
         writeln!(out, "    fn {name}({params}){ret} {{ {default} }}")?;
     }
 
@@ -81,7 +81,7 @@ fn main() -> Result<()> {
         let name = func.name.replace('-', "_");
         let params = params_str(&resolve, func, true);
         let args = arg_names(func);
-        let ret = return_str(&resolve, func);
+        let ret = return_str(&resolve, func, true);
         writeln!(out, "            fn {name}({params}){ret} {{")?;
         writeln!(
             out,
@@ -126,22 +126,27 @@ fn arg_names(func: &wit_parser::Function) -> String {
 }
 
 /// Build the `-> Type` suffix, or empty string for void functions.
-fn return_str(resolve: &Resolve, func: &wit_parser::Function) -> String {
+fn return_str(resolve: &Resolve, func: &wit_parser::Function, in_macro: bool) -> String {
     match &func.result {
-        Some(ty) => format!(" -> {}", type_to_rust(resolve, ty, false)),
+        Some(ty) => format!(" -> {}", type_to_rust(resolve, ty, in_macro)),
         None => String::new(),
     }
 }
 
-/// Default body for trait methods: `true` for bool returns, empty otherwise.
-fn default_body(func: &wit_parser::Function) -> &'static str {
+/// Preserve matching inputs for optional decisions; allow boolean decisions.
+fn default_body(resolve: &Resolve, func: &wit_parser::Function) -> String {
     match &func.result {
-        Some(Type::Bool) => "true",
-        Some(_) => panic!(
-            "unsupported default for non-bool return type in `{}`",
-            func.name
-        ),
-        None => "",
+        Some(Type::Bool) => "true".into(),
+        Some(Type::Id(id)) => {
+            if let TypeDefKind::Option(inner) = &resolve.types[*id].kind
+                && let Some(param) = func.params.iter().find(|param| param.ty == *inner)
+            {
+                return format!("Some({})", param.name.replace('-', "_"));
+            }
+            panic!("unsupported default return type in `{}`", func.name)
+        }
+        Some(_) => panic!("unsupported default return type in `{}`", func.name),
+        None => String::new(),
     }
 }
 

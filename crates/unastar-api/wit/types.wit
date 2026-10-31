@@ -1,4 +1,4 @@
-package unastar:plugin@0.2.0;
+package unastar:plugin@0.3.0;
 
 interface types {
     record vec3 {
@@ -11,6 +11,47 @@ interface types {
         x: s32,
         y: s32,
         z: s32,
+    }
+
+    /// Semantic damage sources, independent of host enum discriminants.
+    enum damage-cause {
+        none,
+        override,
+        contact,
+        entity-attack,
+        projectile,
+        suffocation,
+        fall,
+        fire,
+        fire-tick,
+        lava,
+        drowning,
+        block-explosion,
+        entity-explosion,
+        void,
+        self-destruct,
+        magic,
+        wither,
+        starve,
+        anvil,
+        thorns,
+        falling-block,
+        piston,
+        fly-into-wall,
+        magma,
+        fireworks,
+        lightning,
+        charging,
+        temperature,
+        freezing,
+        stalactite,
+        stalagmite,
+        ram-attack,
+        sonic-boom,
+        campfire,
+        soul-campfire,
+        mace-smash,
+        all,
     }
 
     enum game-mode {
