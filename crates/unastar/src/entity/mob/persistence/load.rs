@@ -38,6 +38,8 @@ pub enum ActorDecodeError {
         name: &'static str,
         kind: &'static str,
     },
+    #[error("actor {0} is outside its valid runtime bounds")]
+    InvalidField(&'static str),
     #[error("actor {name} is not a list of {len} Floats")]
     WrongFloatList { name: &'static str, len: usize },
     #[error("definition entry {0:?} has no +/- prefix")]
@@ -287,7 +289,40 @@ fn restore_state(
     };
 
     let now = current_tick(world);
+    let anger_calmed = fields.flag("UnastarAngerCalmed")?;
+    let anger_deadline = match fields.0.get("UnastarAngerTicks") {
+        None => None,
+        Some(NBTTag::Long(ticks))
+            if ticks.0 >= 0
+                && world
+                    .get::<crate::entity::mob::components::reactive::Angry>(mob)
+                    .is_some() =>
+        {
+            Some(
+                now.checked_add(ticks.0 as u64)
+                    .ok_or(ActorDecodeError::InvalidField("UnastarAngerTicks"))?,
+            )
+        }
+        Some(NBTTag::Long(_)) => return Err(ActorDecodeError::InvalidField("UnastarAngerTicks")),
+        Some(_) => {
+            return Err(ActorDecodeError::WrongType {
+                name: "UnastarAngerTicks",
+                kind: "a Long",
+            });
+        }
+    };
+    if anger_calmed && anger_deadline != Some(now) {
+        return Err(ActorDecodeError::InvalidField("UnastarAngerCalmed"));
+    }
     let mut entity = world.entity_mut(mob);
+    if let Some(deadline) = anger_deadline {
+        let mut anger = entity
+            .get_mut::<crate::entity::mob::components::reactive::Angry>()
+            .expect("validated anger");
+        anger.until_tick = deadline;
+        anger.calmed = anger_calmed;
+        crate::entity::mob::components::reactive::angry_flag(&mut entity, !anger_calmed);
+    }
     if let Some((current, max)) = health
         && let Some(mut component) = entity.get_mut::<Health>()
     {

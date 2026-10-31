@@ -51,7 +51,7 @@ pub enum TriggerError {
 impl ComponentError for TriggerError {}
 
 /// Compile one lifecycle trigger without retaining authored JSON.
-fn compile(
+pub(super) fn compile(
     event: String,
     target: FilterSubject,
     filters: Option<unastar_data::actor_components::FilterJson>,

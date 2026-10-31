@@ -17,6 +17,9 @@ use super::generated::body::{
 use super::provisional as p;
 use super::{ActorComponent, ComponentBody, FilterJson, decode};
 
+mod reactive;
+pub use reactive::*;
+
 /// An event reference: a bare event name or a trigger object.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -1340,6 +1343,7 @@ macro_rules! dynamic_bodies {
 }
 
 dynamic_bodies!(
+    Angry,
     Ageable,
     AnnotationBreakDoor,
     AmbientSoundInterval,
@@ -1365,6 +1369,7 @@ dynamic_bodies!(
     Leashable,
     LeashableTo,
     Loot,
+    LookedAt,
     Movement,
     MovementBasic,
     Nameable,

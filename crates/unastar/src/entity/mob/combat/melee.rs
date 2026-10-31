@@ -45,7 +45,9 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
     ) else {
         return;
     };
-    if world.get::<Dead>(attacker).is_some() || !alive(world, target) {
+    if world.get::<Dead>(attacker).is_some()
+        || !crate::entity::mob::ai::combat_candidate(world, attacker, target)
+    {
         return;
     }
     let holding = gear::mainhand(world, attacker).is_some();

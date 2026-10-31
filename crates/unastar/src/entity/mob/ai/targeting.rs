@@ -118,6 +118,41 @@ impl Candidate {
     }
 }
 
+/// Shared hostile-target eligibility from the current live actor state.
+/// Invulnerable/dead players, peaceful worlds and current anger exclusions
+/// cannot become or remain attack targets through another acquisition path.
+pub(crate) fn combat_candidate(world: &World, source: Entity, target: Entity) -> bool {
+    if source == target
+        || Candidate::of(world, target).is_none()
+        || world.get::<Health>(target).is_none_or(Health::is_dead)
+    {
+        return false;
+    }
+    if world.get::<Player>(target).is_some()
+        && (matches!(
+            world.get::<GameMode>(target),
+            Some(GameMode::Creative | GameMode::Spectator)
+        ) || world
+            .get_resource::<Difficulty>()
+            .copied()
+            .unwrap_or_default()
+            == Difficulty::Peaceful)
+    {
+        return false;
+    }
+    world
+        .get::<crate::entity::mob::components::reactive::Angry>(source)
+        .filter(|anger| !anger.calmed)
+        .and_then(|anger| anger.config.filter.as_ref())
+        .is_none_or(|filter| {
+            filter.evaluate(&MobFacts {
+                world,
+                entity: source,
+                other: Some(target),
+            })
+        })
+}
+
 /// The fraction of `entity`'s four armour slots that hold an item.
 fn armour_cover(world: &World, entity: Entity) -> f32 {
     let worn = if let Some(armour) = world.get::<ArmourInventory>(entity) {
@@ -149,22 +184,6 @@ impl GoalContext<'_> {
 
     pub(super) fn sees(&self, target: &Candidate) -> bool {
         can_see(self.world, self.self_eye(), target.eye)
-    }
-
-    fn difficulty(&self) -> Difficulty {
-        self.world
-            .get_resource::<Difficulty>()
-            .copied()
-            .unwrap_or_default()
-    }
-
-    /// A player the native rules never target: invulnerable (creative,
-    /// spectator) or the world is peaceful.
-    fn untargetable_player(&self, player: Entity) -> bool {
-        matches!(
-            self.world.get::<GameMode>(player),
-            Some(GameMode::Creative | GameMode::Spectator)
-        ) || self.difficulty() == Difficulty::Peaceful
     }
 
     /// An authored follow range takes precedence over the target goal's
@@ -230,14 +249,11 @@ impl GoalContext<'_> {
         target: &Candidate,
         current: bool,
     ) -> Option<usize> {
-        if target.entity == self.entity {
+        if !combat_candidate(self.world, self.entity, target.entity) {
             return None;
         }
         let range = self.follow_range();
         if self.body.feet.distance_squared(target.pos) > range * range {
-            return None;
-        }
-        if target.player && self.untargetable_player(target.entity) {
             return None;
         }
         let entry = self.matches(base, target, current)?;
@@ -457,7 +473,7 @@ impl GoalContext<'_> {
         {
             return false;
         }
-        if target.player && self.difficulty() == Difficulty::Peaceful {
+        if !combat_candidate(self.world, self.entity, target.entity) {
             return false;
         }
         let range = self.follow_range();
@@ -474,14 +490,6 @@ impl GoalContext<'_> {
                     return false;
                 }
             }
-        }
-        if target.player
-            && matches!(
-                self.world.get::<GameMode>(target.entity),
-                Some(GameMode::Creative | GameMode::Spectator)
-            )
-        {
-            return false;
         }
         if !self.states.targets.reevaluate {
             return true;
