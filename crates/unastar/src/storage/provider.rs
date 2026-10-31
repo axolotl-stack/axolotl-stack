@@ -82,7 +82,7 @@ pub trait WorldProvider: Send + Sync + 'static {
 }
 
 /// Player data for persistence.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PlayerData {
     /// Player UUID.
     pub uuid: String,
@@ -157,7 +157,7 @@ fn default_saturation() -> f32 {
 }
 
 /// Stable persistence representation, independent of ECS inventory internals.
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct StoredItemStack {
     pub item_id: String,
     pub runtime_id: i32,

@@ -874,16 +874,22 @@ impl PluginManager {
             message,
         } = event
         {
-            use crate::entity::components::{PlayerName, PlayerSession};
+            use crate::entity::components::PlayerSession;
             use jolyne::valentine::{
                 McpePacket, TextPacket, TextPacketBody, TextPacketPayloadAuthorAndMessage,
                 TextPacketPayloadAuthorAndMessageMessageType,
             };
 
-            let sender_name = world
-                .get::<PlayerName>(entity)
-                .map(|n| n.0.clone())
-                .unwrap_or_else(|| "Unknown".to_string());
+            let Some(chat) = crate::server::game::player_events::chat(world, entity, message)
+            else {
+                return;
+            };
+            if chat.handled().is_some() {
+                crate::server::game::player_events::chatted(world, chat);
+                return;
+            }
+            let sender_name = &chat.display_name;
+            let message = &chat.message;
 
             let packet = TextPacket {
                 localize: false,
@@ -909,6 +915,7 @@ impl PluginManager {
                     let _ = other_session.send(McpePacket::from(packet.clone()));
                 }
             }
+            crate::server::game::player_events::chatted(world, chat);
         }
     }
 }
@@ -1539,5 +1546,163 @@ mod tests {
         begin_fuel_budget(&mut store, &limits).unwrap();
         prepare_invocation(&mut store);
         assert_eq!(ok.call(&mut store, ()).unwrap(), 7);
+    }
+}
+
+#[cfg(test)]
+mod native_chat_acceptance_tests {
+    use super::PluginManager;
+    use crate::ecs::events::ServerEvent;
+    use crate::entity::components::PlayerSession;
+    use crate::server::game::player_events::{
+        PlayerChat, PlayerChatted, PlayerEventHandler, PlayerEventHooks,
+    };
+    use bevy_ecs::prelude::*;
+    use jolyne::valentine::{McpePacket, McpePacketData};
+    use tokio::sync::mpsc;
+
+    /// Accepted messages recorded only at the committed native boundary.
+    #[derive(Resource, Default)]
+    struct Accepted(Vec<(String, Option<String>)>);
+
+    /// A generic custom route that publishes its effect only after acceptance.
+    struct RouteChat(bool);
+    impl PlayerEventHandler for RouteChat {
+        fn on_chat(&self, _world: &mut World, event: &mut PlayerChat) {
+            if self.0 {
+                event.handle("custom.route".into());
+            }
+        }
+        fn on_chatted(&self, world: &mut World, event: &PlayerChatted) {
+            world
+                .resource_mut::<Accepted>()
+                .0
+                .push((event.message.clone(), event.handled.clone()));
+            if event.handled.is_some() {
+                world
+                    .get::<PlayerSession>(event.player())
+                    .unwrap()
+                    .send(crate::server::game::types::system_text("Custom route accepted").into());
+            }
+        }
+    }
+
+    /// Connected source and viewer with the same final broadcast path as runtime.
+    fn world(
+        route: bool,
+    ) -> (
+        World,
+        Entity,
+        mpsc::Receiver<McpePacket>,
+        mpsc::Receiver<McpePacket>,
+    ) {
+        let mut world = World::new();
+        world.init_resource::<Accepted>();
+        world.init_resource::<PlayerEventHooks>();
+        world
+            .resource_mut::<PlayerEventHooks>()
+            .register(RouteChat(route));
+        world.init_resource::<crate::server::game::SessionEntityMap>();
+        let (source_tx, source_rx) = mpsc::channel(64);
+        let (viewer_tx, viewer_rx) = mpsc::channel(64);
+        let source = world
+            .spawn(PlayerSession::new(
+                1,
+                "Source".into(),
+                Some("123".into()),
+                None,
+                source_tx,
+            ))
+            .id();
+        let viewer = world
+            .spawn(PlayerSession::new(
+                2,
+                "Viewer".into(),
+                Some("456".into()),
+                None,
+                viewer_tx,
+            ))
+            .id();
+        world
+            .resource_mut::<crate::server::game::SessionEntityMap>()
+            .insert(1, source);
+        world
+            .resource_mut::<crate::server::game::SessionEntityMap>()
+            .insert(2, viewer);
+        (world, source, source_rx, viewer_rx)
+    }
+
+    /// Dispatch the final plugin-accepted chat behavior without opening sockets.
+    fn deliver(world: &mut World, source: Entity) {
+        PluginManager::execute_default_behavior(
+            ServerEvent::PlayerChat {
+                entity: source,
+                player_id: "123".into(),
+                message: "Hello".into(),
+            },
+            world,
+        );
+    }
+
+    #[test]
+    fn accepted_handled_chat_routes_once_without_default_broadcast() {
+        let (mut world, source, mut source_rx, mut viewer_rx) = world(true);
+        deliver(&mut world, source);
+        assert_eq!(
+            world.resource::<Accepted>().0,
+            vec![("Hello".into(), Some("custom.route".into()))]
+        );
+        assert!(matches!(
+            source_rx.try_recv().unwrap().data,
+            McpePacketData::TextPacket(_)
+        ));
+        assert!(source_rx.try_recv().is_err());
+        assert!(viewer_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn ordinary_chat_broadcasts_then_notifies_acceptance_once() {
+        let (mut world, source, mut source_rx, mut viewer_rx) = world(false);
+        deliver(&mut world, source);
+        assert_eq!(world.resource::<Accepted>().0, vec![("Hello".into(), None)]);
+        assert!(matches!(
+            source_rx.try_recv().unwrap().data,
+            McpePacketData::TextPacket(_)
+        ));
+        assert!(matches!(
+            viewer_rx.try_recv().unwrap().data,
+            McpePacketData::TextPacket(_)
+        ));
+        assert!(source_rx.try_recv().is_err());
+        assert!(viewer_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn late_observer_veto_suppresses_custom_and_ordinary_acceptance_and_delivery() {
+        for route in [false, true] {
+            let (mut world, source, mut source_rx, mut viewer_rx) = world(route);
+            world.add_observer(|mut event: On<PlayerChat>| event.cancel());
+            deliver(&mut world, source);
+            assert!(world.resource::<Accepted>().0.is_empty());
+            assert!(source_rx.try_recv().is_err());
+            assert!(viewer_rx.try_recv().is_err());
+        }
+    }
+
+    #[test]
+    fn invalid_or_conflicting_handled_actions_never_publish_acceptance() {
+        for (route, action) in [
+            (false, "".to_owned()),
+            (false, "x".repeat(129)),
+            (false, "line\nbreak".to_owned()),
+            (true, "other.route".to_owned()),
+        ] {
+            let (mut world, source, mut source_rx, mut viewer_rx) = world(route);
+            world.add_observer(move |mut event: On<PlayerChat>| event.handle(action.clone()));
+            deliver(&mut world, source);
+            assert!(world.resource::<Accepted>().0.is_empty());
+            assert!(source_rx.try_recv().is_err());
+            assert!(viewer_rx.try_recv().is_err());
+        }
     }
 }

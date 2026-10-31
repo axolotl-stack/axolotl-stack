@@ -1092,3 +1092,34 @@ positions, including adjacent targets and multi-block placements. Cancellation
 is sticky, and operations revalidate world and held-item state after callbacks.
 Open container windows are reauthorized on each inventory request before items
 move; a veto closes the window and sends authoritative inventory corrections.
+
+Native `PlayerEventHooks` handlers and Bevy observers can authorize or redirect
+movement before position, input, hunger and fall state changes, and observe
+`PlayerMoved` after accepted movement commits. Final chat can be rewritten or
+cancelled before broadcast, with identity and bounded text revalidation.
+`PlayerChat::handle(action)` replaces default broadcast with an extension-owned
+accepted action. `PlayerChatted` is notified only after all proposal handlers,
+observers and validation accept it; ordinary chat notifies after broadcast.
+Extensions route or account for custom chat from that committed notification,
+so a later veto never publishes effects from an unaccepted message.
+
+`PlayerJoined` runs before initial packets. `PlayerQuit` runs while the departing
+actor is present; `retain_entity()` detaches transport/input/permission/chunk
+ownership and retains the actor as `DetachedPlayer`. Detached actors remain
+visible to other sessions and are excluded from ordinary player autosaves.
+Embedding applications own their lifetime and persistence.
+
+`player_state::capture` and `restore` round-trip a versioned player snapshot,
+including complete inventory/UI slots, health, hunger, effects and motion.
+Restore validates identity, world and item data before mutating state, preserves
+the connection/runtime identity, assigns fresh item network IDs and sends
+authoritative updates. Captured death state is raw state, without applying a
+second death or dropping items again.
+Snapshots can also create a new detached actor with a fresh runtime identity,
+without synthesizing a network connection or join event.
+
+Native `PlayerFormResponse` reports actual bounded `ModalFormResponse` packets
+with immutable connection identity, request ID, optional raw response text and
+cancellation status. The host limits payloads to 65536 bytes and revalidates the
+source session before callbacks. Applications own outstanding request IDs, JSON
+interpretation and menu actions; the host performs no default form action.

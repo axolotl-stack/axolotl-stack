@@ -165,6 +165,27 @@ impl EventBuffer {
     pub fn drain(&mut self) -> Vec<ServerEvent> {
         std::mem::take(&mut self.events)
     }
+
+    /// Discard queued input from a connection that has left before dispatch.
+    pub(crate) fn discard_player(&mut self, player: Entity) {
+        self.events.retain(|event| match event {
+            ServerEvent::Tick { .. } | ServerEvent::Timer { .. } => true,
+            ServerEvent::PlayerJoin { entity, .. }
+            | ServerEvent::PlayerChat { entity, .. }
+            | ServerEvent::BlockBreak { entity, .. }
+            | ServerEvent::BlockPlace { entity, .. }
+            | ServerEvent::PlayerMove { entity, .. }
+            | ServerEvent::PlayerJump { entity }
+            | ServerEvent::PlayerToggleSneak { entity, .. }
+            | ServerEvent::PlayerToggleSprint { entity, .. }
+            | ServerEvent::PlayerQuit { entity }
+            | ServerEvent::PlayerHeldSlotChange { entity, .. }
+            | ServerEvent::PlayerStartBreak { entity, .. }
+            | ServerEvent::PlayerInteractBlock { entity, .. }
+            | ServerEvent::PlayerItemUse { entity }
+            | ServerEvent::PlayerSwing { entity } => *entity != player,
+        });
+    }
 }
 
 /// A queue of actions requested by plugins or internal logic.
