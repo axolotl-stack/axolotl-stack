@@ -9,8 +9,8 @@ pub type SessionId = u64;
 
 /// Events from network tasks to the main thread.
 ///
-/// All network communication is consolidated into this single enum,
-/// reducing channel proliferation while maintaining parallel I/O.
+/// Connection control and packet traffic cross this bounded queue. Metrics attach
+/// a read handle once, so observation updates add no per-tick queue traffic.
 #[derive(Debug)]
 pub enum NetworkEvent {
     /// Player requested its chunk radius at the end of the join (streamed
@@ -38,6 +38,12 @@ pub enum NetworkEvent {
         packet: Box<BorrowedMcpePacket>,
     },
 
+    /// Attach the read handle produced by this exact network task after join.
+    MetricsReady {
+        session_id: SessionId,
+        metrics: crate::entity::components::PlayerNetworkMetrics,
+    },
+
     /// Player disconnected (network task exiting).
     Disconnected { session_id: SessionId },
 }
@@ -49,6 +55,7 @@ impl NetworkEvent {
             NetworkEvent::Joined { session_id, .. } => *session_id,
             NetworkEvent::Packet { session_id, .. } => *session_id,
             NetworkEvent::Disconnected { session_id } => *session_id,
+            NetworkEvent::MetricsReady { session_id, .. } => *session_id,
         }
     }
 }
