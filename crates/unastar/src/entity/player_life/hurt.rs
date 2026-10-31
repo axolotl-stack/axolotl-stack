@@ -144,6 +144,14 @@ pub(super) fn apply_hit_result(
         if crate::server::game::durability::armour_wears_from(hit.cause) {
             crate::server::game::hunger::exhaust_player(world, player, |values| values.damage);
         }
+        hooks::damaged(
+            world,
+            hooks::PlayerDamaged {
+                player,
+                hit: *hit,
+                damage: applied,
+            },
+        );
     }
     if dead {
         death::die(
