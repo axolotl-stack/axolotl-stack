@@ -252,6 +252,328 @@ fn north() -> (&'static str, StateValue) {
     ("minecraft:cardinal_direction", StateValue::Str("north"))
 }
 
+/// Reserve a batch before exercising actual native writers.
+fn reserve(h: &mut Harness, cells: impl IntoIterator<Item = IVec3>) {
+    h.world()
+        .init_resource::<super::super::ContainerMutationLocks>();
+    assert!(
+        h.world()
+            .resource_mut::<super::super::ContainerMutationLocks>()
+            .acquire("operation", cells)
+    );
+}
+
+#[test]
+fn reserved_pair_blocks_both_opening_and_native_structural_mutations_before_cache_load() {
+    with_world(GameMode::Survival, |h| {
+        let first = IVec3::new(2, 64, 2);
+        let second = first + IVec3::X;
+        h.place(first, "minecraft:chest", &[north()]);
+        h.place(second, "minecraft:chest", &[north()]);
+        h.place(IVec3::new(5, 64, 2), "minecraft:stone", &[]);
+        let before = h.saved(first).encode();
+        h.world().resource_mut::<BlockContainers>().live.clear();
+        reserve(h, [second]);
+        let player = h.player;
+        assert!(open(h.world(), player, first));
+        assert!(
+            h.world()
+                .get::<ContainerWindows>(player)
+                .unwrap()
+                .open_id()
+                .is_none()
+        );
+        assert!(mutation_locked(h.world(), first));
+        super::super::blocks::destroy_block(h.world(), first);
+        assert_eq!(h.block_name(first), "minecraft:chest");
+        assert_eq!(h.saved(first).encode(), before);
+        let output = crate::command::execute(
+            h.world(),
+            crate::command::CommandSource::server(),
+            "/fill 2 64 2 3 64 2 stone",
+        );
+        assert!(!output.is_success());
+        assert_eq!(h.block_name(second), "minecraft:chest");
+        for (line, key) in [
+            ("/setblock 2 64 2 air", "commands.setblock.noChange"),
+            (
+                "/clone 5 64 2 5 64 2 2 64 2 replace move",
+                "commands.clone.failed",
+            ),
+        ] {
+            let output =
+                crate::command::execute(h.world(), crate::command::CommandSource::server(), line);
+            assert!(!output.is_success());
+            assert_eq!(output.messages[0].key, key);
+        }
+        assert_eq!(h.block_name(IVec3::new(5, 64, 2)), "minecraft:stone");
+    });
+}
+
+#[test]
+fn retained_window_cannot_move_items_and_completion_discards_stale_decoded_contents() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(2, 64, 2);
+        h.place(pos, "minecraft:chest", &[north()]);
+        h.open(pos);
+        let net = h.give(0, "minecraft:cobblestone", 20);
+        h.packets();
+        reserve(h, [pos]);
+        assert_ne!(
+            h.take(
+                12,
+                (Name::Hotbarcontainer, 0, net),
+                (Name::Levelentitycontainer, 3, 0)
+            ),
+            Status::Success
+        );
+        assert_eq!(h.main_slot(0).count, 20);
+        assert!(h.saved(pos).items.item(3).unwrap().is_empty());
+        let mut replacement = BlockContainer::new(ContainerKind::Chest, pos);
+        replacement
+            .items
+            .set_item(0, stack("minecraft:diamond", 5).into_slot())
+            .unwrap();
+        let chunk = h.chunk;
+        h.world()
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block_entity(BlockEntity::from_bedrock_compound(replacement.encode()).unwrap());
+        assert!(!super::super::complete_container_mutations(
+            h.world(),
+            "different",
+            [pos]
+        ));
+        let player = h.player;
+        assert!(
+            h.world()
+                .get::<ContainerWindows>(player)
+                .unwrap()
+                .open_id()
+                .is_some()
+        );
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [pos]
+        ));
+        let player = h.player;
+        assert!(
+            h.world()
+                .get::<ContainerWindows>(player)
+                .unwrap()
+                .open_id()
+                .is_none()
+        );
+        assert_eq!(
+            container(h.world(), pos)
+                .unwrap()
+                .items
+                .item(0)
+                .unwrap()
+                .item_id(),
+            "minecraft:diamond"
+        );
+        assert!(h.packets().iter().any(|packet| matches!(packet,McpePacketData::ContainerClosePacket(close) if close.server_initiated_close)));
+        h.open(pos);
+        let net = container(h.world(), pos)
+            .unwrap()
+            .items
+            .item(0)
+            .unwrap()
+            .net_id;
+        assert_eq!(
+            h.take(
+                5,
+                (Name::Levelentitycontainer, 0, net),
+                (Name::Hotbarcontainer, 1, 0)
+            ),
+            Status::Success
+        );
+        assert_eq!(h.main_slot(1).count, 5);
+        assert!(h.saved(pos).items.item(0).unwrap().is_empty());
+    });
+}
+
+#[test]
+fn reserved_furnace_keeps_fuel_progress_inventory_and_actor_unchanged_until_completion() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(6, 64, 6);
+        h.place(pos, "minecraft:furnace", &[north()]);
+        {
+            let mut furnace = container_mut(h.world(), pos).unwrap();
+            furnace
+                .items
+                .set_item(0, stack("minecraft:raw_iron", 2).into_slot())
+                .unwrap();
+            furnace
+                .items
+                .set_item(1, stack("minecraft:coal", 1).into_slot())
+                .unwrap();
+        }
+        save(h.world(), pos);
+        h.tick(1);
+        let before = h.saved(pos);
+        reserve(h, [pos]);
+        h.tick(50);
+        assert_eq!(h.saved(pos).encode(), before.encode());
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [pos]
+        ));
+        h.tick(1);
+        let after = h.saved(pos);
+        assert_eq!(after.furnace.cook_time, before.furnace.cook_time + 1);
+        assert_eq!(after.furnace.lit_time, before.furnace.lit_time - 1);
+    });
+}
+
+#[test]
+fn hopper_respects_reserved_source_and_destination_cells() {
+    with_world(GameMode::Survival, |h| {
+        let source = IVec3::new(8, 66, 8);
+        let hopper = source - IVec3::Y;
+        let target = hopper - IVec3::Y;
+        h.place(source, "minecraft:chest", &[north()]);
+        h.place(
+            hopper,
+            "minecraft:hopper",
+            &[("facing_direction", StateValue::Int(0))],
+        );
+        h.place(target, "minecraft:furnace", &[north()]);
+        container_mut(h.world(), source)
+            .unwrap()
+            .items
+            .set_item(4, stack("minecraft:raw_iron", 3).into_slot())
+            .unwrap();
+        save(h.world(), source);
+        reserve(h, [source]);
+        h.tick(10);
+        assert_eq!(h.saved(source).items.item(4).unwrap().count, 3);
+        assert!(h.saved(hopper).items.item(0).unwrap().is_empty());
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [source]
+        ));
+        h.tick(1);
+        assert_eq!(h.saved(hopper).items.item(0).unwrap().count, 1);
+        reserve(h, [target]);
+        h.tick(8);
+        assert!(h.saved(target).items.item(0).unwrap().is_empty());
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [target]
+        ));
+        h.tick(8);
+        assert_eq!(
+            h.saved(target).items.item(0).unwrap().item_id(),
+            "minecraft:raw_iron"
+        );
+    });
+}
+
+#[test]
+fn reserved_generated_loot_is_not_consumed_until_the_container_is_released_and_opened() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(12, 64, 12);
+        let state = h.state("minecraft:chest", &[north()]);
+        let chunk = h.chunk;
+        super::super::blocks::set_block(h.world(), pos, state, false);
+        h.world()
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block_entity(BlockEntity::generated(
+                pos.to_array(),
+                "Chest",
+                &[],
+                Some(crate::world::block_entity::LootTable::Bedrock(
+                    "loot_tables/chests/simple_dungeon.json",
+                    4242,
+                )),
+                None,
+            ));
+        reserve(h, [pos]);
+        let player = h.player;
+        assert!(open(h.world(), player, pos));
+        assert!(h.saved(pos).encode().0.contains_key("LootTable"));
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [pos]
+        ));
+        assert!(
+            h.saved(pos).encode().0.contains_key("LootTable"),
+            "completion loads but does not open/unpack a container"
+        );
+        h.open(pos);
+        assert!(!h.saved(pos).encode().0.contains_key("LootTable"));
+    });
+}
+
+#[test]
+fn completion_registers_new_authoritative_furnace_for_ordinary_ticking() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(11, 64, 11);
+        reserve(h, [pos]);
+        let state = h.state("minecraft:furnace", &[north()]);
+        let mut furnace = BlockContainer::new(ContainerKind::Furnace, pos);
+        furnace
+            .items
+            .set_item(0, stack("minecraft:raw_gold", 1).into_slot())
+            .unwrap();
+        furnace
+            .items
+            .set_item(1, stack("minecraft:coal", 1).into_slot())
+            .unwrap();
+        let chunk = h.chunk;
+        {
+            let mut data = h.world().get_mut::<ChunkData>(chunk).unwrap();
+            data.inner
+                .set_block(pos.x as u8, pos.y as i16, pos.z as u8, state);
+            data.inner
+                .set_block_entity(BlockEntity::from_bedrock_compound(furnace.encode()).unwrap());
+        }
+        h.tick(5);
+        assert_eq!(h.saved(pos).furnace.cook_time, 0);
+        assert!(super::super::complete_container_mutations(
+            h.world(),
+            "operation",
+            [pos]
+        ));
+        h.tick(1);
+        assert_eq!(h.saved(pos).furnace.cook_time, 1);
+        assert!(h.saved(pos).furnace.lit_time > 0);
+    });
+}
+
+#[test]
+fn reserved_window_still_rejects_fatal_request_ids_without_mutation() {
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(2, 64, 2);
+        h.place(pos, "minecraft:chest", &[north()]);
+        h.open(pos);
+        reserve(h, [pos]);
+        h.packets();
+        h.run_inventory(InventoryAction::ItemStackRequest(ItemStackRequestPacket {
+            requests: vec![ItemStackRequestPacketDataRequestData {
+                client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 { id: 2 },
+                ..Default::default()
+            }],
+        }));
+        assert!(
+            h.packets()
+                .iter()
+                .any(|packet| matches!(packet, McpePacketData::PacketViolationWarningPacket(_)))
+        );
+        assert!(h.saved(pos).items.slots().iter().all(ItemStack::is_empty));
+    });
+}
+
 #[test]
 fn chest_window_opens_moves_through_the_engine_saves_and_animates_the_lid() {
     with_world(GameMode::Survival, |h| {

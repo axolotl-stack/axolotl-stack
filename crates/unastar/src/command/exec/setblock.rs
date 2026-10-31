@@ -60,6 +60,9 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SetBlockArgs) -> CommandResult {
     };
     let block = BlockSpec::resolve(&tile_name, states.as_ref())?.state();
     let pos = ctx.block_position(Some(position));
+    if crate::server::game::container_cell_locked(ctx.world, pos) {
+        return failure!("commands.setblock.noChange");
+    }
     let Some(old) = block_at(ctx.world, (pos.x, pos.y, pos.z)) else {
         return failure!("commands.setblock.outOfWorld");
     };

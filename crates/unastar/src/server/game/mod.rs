@@ -10,6 +10,7 @@ mod chunks;
 #[cfg(test)]
 mod command_tests;
 mod commands;
+mod container_mutations;
 mod containers;
 pub mod durability;
 pub mod effects;
@@ -34,6 +35,9 @@ use bevy_ecs::prelude::*;
 pub(crate) use block_drops::{drop_block_items, loot_stacks};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use commands::ConsoleCommands;
+pub(crate) use container_mutations::area_locked as container_area_locked;
+pub use container_mutations::{ContainerMutationLocks, complete_container_mutations};
+pub(crate) use containers::mutation_locked as container_cell_locked;
 pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
@@ -42,6 +46,7 @@ use jolyne::WorldTemplate;
 use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};
 pub(crate) use loot::{LootContext, LootLevel};
+pub use placement::is_replaceable;
 use std::sync::Arc;
 use tracing::{info, warn};
 
