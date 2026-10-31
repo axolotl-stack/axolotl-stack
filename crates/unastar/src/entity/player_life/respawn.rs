@@ -131,6 +131,7 @@ pub fn respawn(world: &mut World, player: Entity) {
             position.0 = spawn;
         }
     }
+    crate::entity::freezing::reset_player(world, player);
     let (Some(session), Some(runtime_id)) = (
         world.get::<PlayerSession>(player),
         world.get::<RuntimeEntityId>(player).map(|id| id.0 as u64),

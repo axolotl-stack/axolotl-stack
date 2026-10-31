@@ -173,7 +173,7 @@ fn can_use(world: &World, player: Entity) -> bool {
 /// The flag word BDS sends for a player using an item: CANCLIMB,
 /// BREATHING, HAS_COLLISION and HAS_GRAVITY plus the movement state and
 /// USINGITEM (capture `item-use-20261029`).
-fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
+pub(crate) fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
     let mut flags = (1u64 << actor_flags::CANCLIMB)
         | (1u64 << actor_flags::BREATHING)
         | (1u64 << actor_flags::HAS_COLLISION)
@@ -192,6 +192,12 @@ fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
     }
     if using {
         flags |= 1u64 << actor_flags::USINGITEM;
+    }
+    if world
+        .get::<crate::entity::freezing::FreezingState>(player)
+        .is_some_and(|cold| cold.is_frozen())
+    {
+        flags |= 1u64 << actor_flags::SHAKING;
     }
     flags as i64
 }
