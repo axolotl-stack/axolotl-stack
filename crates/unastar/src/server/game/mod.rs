@@ -827,6 +827,13 @@ impl GameServer {
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(uuid::Uuid::new_v4);
         inventory_effects::allow_spawn(self.ecs.world(), player_uuid)?;
+        if inventory_effects::recovery_account_fenced(
+            self.ecs.world(),
+            player_uuid,
+            data.xuid.as_deref(),
+        ) {
+            return Err(crate::storage::StorageError::PlayerRecoveryRequired);
+        }
         let player_name = data.display_name.clone();
         let position = Position(data.position);
         let runtime_id = data.runtime_id;

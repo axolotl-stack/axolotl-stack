@@ -65,6 +65,13 @@ pub fn spawn_detached(
         ChunkRadius, LastBroadcastPosition, PlayerName, PlayerState, SpatialChunk,
     };
     snapshot.validate()?;
+    if super::inventory_effects::recovery_account_fenced(
+        world,
+        uuid::Uuid::parse_str(&snapshot.data.uuid).map_err(|_| SnapshotError::WrongAccount)?,
+        snapshot.xuid.as_deref(),
+    ) {
+        return Err(invalid("player account requires explicit runtime recovery"));
+    }
     if name.is_empty() || name.len() > 64 || name.chars().any(char::is_control) {
         return Err(invalid("invalid actor display name"));
     }
@@ -347,8 +354,18 @@ pub fn restore(
     player: Entity,
     snapshot: &PlayerSnapshot,
 ) -> Result<(), SnapshotError> {
+    if super::inventory_effects::is_recovery_fenced(world, player) {
+        return Err(invalid("player state requires explicit runtime recovery"));
+    }
     snapshot.validate()?;
     validate_target(world, player, snapshot)?;
+    if super::inventory_effects::recovery_account_fenced(
+        world,
+        uuid::Uuid::parse_str(&snapshot.data.uuid).map_err(|_| SnapshotError::WrongAccount)?,
+        snapshot.xuid.as_deref(),
+    ) {
+        return Err(invalid("player account requires explicit runtime recovery"));
+    }
     let prepared = prepare(world, snapshot)?;
     let now = world
         .get_resource::<TickCounter>()
