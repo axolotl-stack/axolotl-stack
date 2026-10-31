@@ -116,12 +116,23 @@ pub fn spawn_egg_actor(item_id: &str) -> Option<&str> {
 /// creative. Returns whether the held item was a spawn egg (the click is
 /// then fully handled, even when the actor cannot be spawned).
 pub fn use_spawn_egg_on_block(world: &mut World, player: Entity, adjacent: IVec3) -> bool {
-    let Some(actor) = held_item(world, player)
+    let result = spawn_egg_on_block(world, player, adjacent);
+    if result == Some(true) {
+        use_held_item(world, player, None);
+    }
+    result.is_some()
+}
+
+/// Create the actor and distinguish acceptance from a handled failed attempt.
+/// The caller owns the item cost so it can charge its original source snapshot.
+pub(crate) fn spawn_egg_on_block(
+    world: &mut World,
+    player: Entity,
+    adjacent: IVec3,
+) -> Option<bool> {
+    let actor = held_item(world, player)
         .and_then(|held| spawn_egg_actor(held.item_id()))
-        .map(str::to_owned)
-    else {
-        return false;
-    };
+        .map(str::to_owned)?;
     let feet = DVec3::new(
         f64::from(adjacent.x) + 0.5,
         f64::from(adjacent.y),
@@ -132,13 +143,13 @@ pub fn use_spawn_egg_on_block(world: &mut World, player: Entity, adjacent: IVec3
         .0
         .gen_range(0.0f32..360.0);
     match spawn_mob(world, &actor, feet, yaw, SpawnCause::Spawned) {
-        Ok(_) => use_held_item(world, player, None),
+        Ok(_) => Some(true),
         Err(error) => {
             warn!(%actor, %error, "spawn egg could not spawn its actor");
             resend_held(world, player);
+            Some(false)
         }
     }
-    true
 }
 
 /// `minecraft:spawn_egg_interaction`: the mob's own spawn egg spawns a baby

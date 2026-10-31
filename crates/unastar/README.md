@@ -1296,3 +1296,23 @@ reusing a number cannot transfer metrics to a different connection. The pump
 refreshes observations at its normal flush ticks and clears them on exit or task
 cancellation. Weak channel references allow departed transports to close normally.
 These facts are runtime state and are excluded from player persistence.
+
+`BlockInteractionHandler::on_committed` and Bevy `PlayerBlockCommitted` observers
+receive owned facts after an accepted native break, placement or use has applied
+its normal block writes, item costs, tool wear, drops and effects. Vetoed, stale
+and merely handled clicks emit no notification. Uses include newly opened block
+windows, tools, buckets, bone meal, fire starters and successfully spawned eggs;
+window inventory transfers remain separate operations.
+
+The event retains the originating `ConnectionIdentity`, semantic kind, affected
+cell snapshots, and the original hotbar slot and item even when the final item is
+consumed. `HeldItemSnapshot` includes an empty hand when its inventory exists;
+`held_after` reads the same original cell and is absent if that account or
+inventory is gone. Costs never transfer to a different selection or replacement
+account during callbacks. Cell snapshots use server runtime IDs and exact rooted
+Bedrock NetworkLittleEndian actor bytes; an absent actor or unconverted Java
+recipe has no Bedrock bytes. A missing after-snapshot explicitly reports a cell
+unloaded by a synchronous callback. Unchanged affected cells are retained, such
+as a crafting table used to open its screen. Committed notifications cannot veto
+completed actions, hold no registry borrow across callbacks, and permit nested
+operations; callbacks must account for their own reentrancy.
