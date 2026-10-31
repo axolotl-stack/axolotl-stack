@@ -20,6 +20,8 @@
 //! | `Age` | Int | baby age: negative ticks until grown, when growing |
 //! | `GrowthPaused` | Byte | baby growth paused |
 //! | `entries` | List of Compound | `minecraft:spawn_entity` timers by rule: `SpawnTimer` (Int, ticks until the rule fires, 0 = roll a new wait) and `StopSpawning` (Byte, a fired single-use rule) |
+//! | `UnastarHoverOffset` | Float | preferred target-relative vertical offset (server extension) |
+//! | `UnastarHoverTicks` | Int | active ticks until that offset changes, at most 100 (server extension) |
 //! | `UnastarAngerTicks` | Long | remaining timed anger ticks (server extension) |
 //! | `UnastarAngerCalmed` | Byte | whether the timer already completed (server extension) |
 //! | `Mainhand`, `Offhand` | List of 1 item Compound | held items ([`crate::entity::mob::gear::persist`]: `Name`, `Count`, `Damage`, `WasPickedUp`, optional `tag`) |

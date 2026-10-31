@@ -496,6 +496,7 @@ impl GameServer {
             (
                 crate::entity::mob::ai::tick_mob_ai,
                 crate::entity::mob::ai::push_mobs,
+                crate::entity::mob::native::motion::tick_native_motion,
             )
                 .chain()
                 .in_set(PhysicsSet)

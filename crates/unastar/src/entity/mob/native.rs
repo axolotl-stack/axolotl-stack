@@ -1,6 +1,8 @@
 //! Behaviour of native actor classes that behaviour-pack definitions do not
 //! describe, keyed by [`ActorType`] and resolved once per archetype.
 
+pub mod motion;
+
 use unastar_data::actor_identifiers::ActorType;
 
 use super::constants::{
@@ -11,6 +13,8 @@ use super::constants::{
 /// The native traits of one actor class.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NativeTraits {
+    /// The class adjusts target height and damps idle falling before travel.
+    pub hover: bool,
     /// Wing-flap vertical drag of the living physics step (the chicken
     /// glides down instead of falling); see `PhysicsBody::wing_flap_drag`.
     /// The flap animation is client-side: no actor data carries it.
@@ -46,12 +50,14 @@ pub enum SpawnClass {
 
 impl NativeTraits {
     pub const fn of(actor_type: ActorType) -> Self {
+        let hover = matches!(actor_type, ActorType::Blaze);
         let spawn_class = SpawnClass::of(actor_type);
         let immune_to_wither = matches!(actor_type, ActorType::WitherSkeleton);
         let ambient_sound_interval = ambient_sound_interval(actor_type);
         let aux_value = zombie_kind(actor_type);
         match actor_type {
             ActorType::Chicken => Self {
+                hover,
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
                 fall_damage_multiplier: CHICKEN_FALL_DAMAGE_MULTIPLIER,
                 spawn_class,
@@ -60,6 +66,7 @@ impl NativeTraits {
                 aux_value,
             },
             _ => Self {
+                hover,
                 wing_flap_drag: None,
                 fall_damage_multiplier: 1.0,
                 spawn_class,

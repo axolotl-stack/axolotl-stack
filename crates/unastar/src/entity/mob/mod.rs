@@ -230,6 +230,9 @@ fn spawn_unattached(
             ai::MobBrain::default(),
         ));
     }
+    if archetype.native.hover {
+        entity.insert(native::motion::HoverState::default());
+    }
     Ok(entity.id())
 }
 

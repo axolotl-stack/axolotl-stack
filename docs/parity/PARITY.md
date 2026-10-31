@@ -182,7 +182,7 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **hostile**
 
-- `minecraft:blaze`: Native hovering/slow-fall motion and structure spawning remain incomplete.
+- `minecraft:blaze`: Structure spawning and exact class-specific head attachment geometry remain incomplete.
 - missing: `minecraft:bogged`, `minecraft:breeze`, `minecraft:cave_spider`, `minecraft:creaking`, `minecraft:creeper`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:enderman`, `minecraft:endermite`, `minecraft:evocation_illager`, `minecraft:ghast`, `minecraft:guardian` and 24 more
 
 **object**
