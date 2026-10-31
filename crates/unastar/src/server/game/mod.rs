@@ -491,6 +491,21 @@ impl GameServer {
                 .after(crate::entity::mob::derive_mob_state)
                 .before(tick_physics),
         );
+        // Stage markers inside the physics set (see `TickStages`).
+        ecs.schedule_mut().add_systems((
+            crate::ecs::stage_marker("physics: mob ai")
+                .in_set(PhysicsSet)
+                .after(crate::entity::mob::derive_mob_state)
+                .before(crate::entity::mob::ai::tick_mob_ai),
+            crate::ecs::stage_marker("physics: bodies")
+                .in_set(PhysicsSet)
+                .after(crate::entity::mob::ai::push_mobs)
+                .before(tick_physics),
+            crate::ecs::stage_marker("physics: projectiles")
+                .in_set(PhysicsSet)
+                .after(tick_physics)
+                .before(crate::entity::projectile::tick_projectiles),
+        ));
 
         ecs.schedule_mut().add_systems(
             (tick_block_breaking, plugins::process_plugin_actions).in_set(EntityLogicSet),

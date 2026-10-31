@@ -40,6 +40,8 @@ OVERRIDES = {
     "tick-distance": "4",
     "online-mode": "false",
     "client-side-chunk-generation-enabled": "false",
+    # `--jump` sends /tp, /spawnpoint and /kill.
+    "default-player-permission-level": "operator",
 }
 
 
@@ -105,6 +107,8 @@ def bench(args, radius, world, label):
     ]
     if world == "fresh" and args.fly_seconds:
         command += ["--fly-seconds", str(args.fly_seconds)]
+    if args.jump:
+        command += ["--jump", args.jump, "--jump-distance", str(args.jump_distance)]
     print("==", " ".join(command), file=sys.stderr)
     subprocess.run(command, check=True, stdout=subprocess.DEVNULL, timeout=600)
 
@@ -115,6 +119,8 @@ def main():
     parser.add_argument("--radius", type=int, nargs="+", default=[8, 12, 16])
     parser.add_argument("--players", type=int, default=1)
     parser.add_argument("--fly-seconds", type=float, default=0)
+    parser.add_argument("--jump", choices=["tp", "respawn"])
+    parser.add_argument("--jump-distance", type=float, default=3000)
     parser.add_argument("--bench", default="target/release/examples/load_bench.exe")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
