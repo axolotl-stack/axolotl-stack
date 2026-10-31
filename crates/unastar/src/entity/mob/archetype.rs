@@ -286,7 +286,7 @@ fn attribute_seed(
     identifier: &str,
 ) -> Result<(AttributeLayout, Box<[AttributeValue]>), ArchetypeError> {
     let Some(observed) = unastar_data::actor_wire::get(identifier) else {
-        if projectile_attribute_profile(identifier) == Some(&[]) {
+        if additional_attribute_profile(identifier) == Some(&[]) {
             return Ok((
                 AttributeLayout::new(std::iter::empty::<Arc<str>>())?,
                 Box::new([]),
@@ -314,11 +314,15 @@ fn attribute_seed(
     Ok((layout, values))
 }
 
-/// Protocol 2193 projectile attribute profiles not supplied by summonable actors.
-/// An explicitly empty profile is distinct from an unsupported identifier.
-fn projectile_attribute_profile(identifier: &str) -> Option<&'static [AttributeValue]> {
+/// Explicit protocol-2193 attribute profiles absent from summonable actors.
+/// A known empty profile is distinct from an unsupported identifier.
+fn additional_attribute_profile(identifier: &str) -> Option<&'static [AttributeValue]> {
     match identifier {
-        "minecraft:small_fireball" => Some(&[]),
+        "minecraft:small_fireball"
+        | "minecraft:ender_pearl"
+        | "minecraft:splash_potion"
+        | "minecraft:lingering_potion"
+        | "minecraft:area_effect_cloud" => Some(&[]),
         _ => None,
     }
 }
@@ -419,10 +423,18 @@ mod projectile_profile_tests {
     use super::*;
 
     #[test]
-    fn explicit_empty_projectile_profile_does_not_authorize_unknown_layouts() {
-        let (layout, values) = attribute_seed("minecraft:small_fireball").unwrap();
-        assert!(layout.is_empty());
-        assert!(values.is_empty());
+    fn explicit_empty_actor_profiles_do_not_authorize_unknown_layouts() {
+        for identifier in [
+            "minecraft:small_fireball",
+            "minecraft:ender_pearl",
+            "minecraft:splash_potion",
+            "minecraft:lingering_potion",
+            "minecraft:area_effect_cloud",
+        ] {
+            let (layout, values) = attribute_seed(identifier).unwrap();
+            assert!(layout.is_empty(), "{identifier}");
+            assert!(values.is_empty(), "{identifier}");
+        }
         assert!(matches!(
             attribute_seed("minecraft:unknown_projectile"),
             Err(ArchetypeError::NoAttributeObservation(_))

@@ -510,8 +510,10 @@ Fire impacts use ordinary damage and immunity-aware burning; rejected damage
 does not ignite the target. Configured block ignition respects mob griefing and
 changes only an available air cell outside the struck face. The supported fields
 follow the [Bedrock projectile contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_projectile?view=minecraft-bedrock-stable).
-The small-fireball wire layout has an explicit empty attribute profile for
-protocol 2193; unknown identifiers still require their own supported layout.
+Small fireballs, ender pearls, splash/lingering potions and area-effect clouds
+have explicit empty attribute profiles for protocol 2193. Unknown identifiers
+still require their own supported layout; this does not enable their other
+unimplemented component or hit behaviors.
 
 `entity::spawn_item_drop(world, position, stack, thrower)` accepts feet positions
 for popped items and the source player's eye position for throws. Hotbar Q,
