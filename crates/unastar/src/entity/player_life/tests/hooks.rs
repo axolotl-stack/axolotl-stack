@@ -509,3 +509,131 @@ fn final_damage_multiplier_runs_after_armour_and_rejects_invalid_values_before_e
         assert_eq!(h.health(), 20.0);
     }
 }
+
+/// Retain owned death facts after their source actor has changed or respawned.
+#[derive(Resource, Default)]
+struct DeathImages(Vec<PlayerDeath>);
+
+/// Install the same immutable notification path available to native applications.
+fn record_death_images(h: &mut Harness) {
+    h.world().init_resource::<DeathImages>();
+    h.world()
+        .add_observer(|event: On<PlayerDeath>, mut images: ResMut<DeathImages>| {
+            images.0.push(event.event().clone());
+        });
+}
+
+#[test]
+fn committed_death_inventory_precedes_drops_and_remains_owned_after_respawn() {
+    use crate::entity::components::{
+        ArmourInventory, HeldSlot, MainInventory, OffhandSlot, PlayerUi,
+    };
+    use crate::item::{enchant, test_support::stack};
+    let mut h = harness(Difficulty::Normal);
+    record_death_images(&mut h);
+    let player = h.player;
+    let sword = enchant::with_enchantment_ids(
+        &stack("minecraft:diamond_sword", 1).with_damage(12),
+        [(9, 2)],
+    );
+    h.world()
+        .get_mut::<MainInventory>(player)
+        .unwrap()
+        .0
+        .set_item(3, sword.clone())
+        .unwrap();
+    h.world()
+        .get_mut::<ArmourInventory>(player)
+        .unwrap()
+        .set_helmet(stack("minecraft:iron_helmet", 1))
+        .unwrap();
+    h.world().get_mut::<OffhandSlot>(player).unwrap().0 = stack("minecraft:shield", 1);
+    h.world()
+        .get_mut::<PlayerUi>(player)
+        .unwrap()
+        .set_cursor(stack("minecraft:emerald", 5));
+    h.world().get_mut::<HeldSlot>(player).unwrap().0 = 3;
+    assert!(super::super::kill_player(h.world(), player));
+    assert_eq!(h.world().resource::<DeathImages>().0.len(), 1);
+    let event = h.world().resource::<DeathImages>().0[0].clone();
+    assert!(!event.keep_inventory);
+    let image = event.inventory.as_ref().unwrap();
+    assert_eq!(image.main.len(), 36);
+    assert_eq!(image.main[3].item_id(), sword.item_id());
+    assert_eq!(image.main[3].damage, 12);
+    assert_eq!(image.main[3].nbt, sword.nbt);
+    assert_eq!(image.armour[0].item_id(), "minecraft:iron_helmet");
+    assert_eq!(image.offhand.item_id(), "minecraft:shield");
+    assert_eq!(image.ui.len(), 54);
+    assert_eq!(image.ui[0].count, 5);
+    assert_eq!(image.held_slot, 3);
+    assert!(
+        h.world()
+            .get::<MainInventory>(player)
+            .unwrap()
+            .0
+            .item(3)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(!super::super::kill_player(h.world(), player));
+    assert_eq!(h.world().resource::<DeathImages>().0.len(), 1);
+    respawn::respawn(h.world(), player);
+    assert!(!h.dead());
+    h.world()
+        .get_mut::<MainInventory>(player)
+        .unwrap()
+        .0
+        .set_item(3, stack("minecraft:gold_ingot", 2))
+        .unwrap();
+    assert_eq!(
+        event.inventory.unwrap().main[3].item_id(),
+        "minecraft:diamond_sword"
+    );
+}
+
+#[test]
+fn kept_inventory_and_immediate_respawn_preserve_the_same_committed_death_image() {
+    use crate::entity::components::MainInventory;
+    use crate::item::test_support::stack;
+    let mut h = harness(Difficulty::Normal);
+    record_death_images(&mut h);
+    h.rules().keep_inventory = true;
+    h.rules().do_immediate_respawn = true;
+    let player = h.player;
+    h.world()
+        .get_mut::<MainInventory>(player)
+        .unwrap()
+        .0
+        .set_item(0, stack("minecraft:diamond", 3))
+        .unwrap();
+    assert!(super::super::kill_player(h.world(), player));
+    assert!(!h.dead());
+    assert!(h.drops().is_empty());
+    let event = &h.world().resource::<DeathImages>().0[0];
+    assert!(event.keep_inventory);
+    assert_eq!(event.inventory.as_ref().unwrap().main[0].count, 3);
+    assert_eq!(
+        h.world()
+            .get::<MainInventory>(player)
+            .unwrap()
+            .0
+            .item(0)
+            .unwrap()
+            .count,
+        3
+    );
+}
+
+#[test]
+fn incomplete_source_inventory_is_reported_without_fabricating_a_partial_image() {
+    use crate::entity::components::{PlayerSession, PlayerUi};
+    let mut h = harness(Difficulty::Normal);
+    record_death_images(&mut h);
+    let player = h.player;
+    h.world()
+        .entity_mut(player)
+        .remove::<(PlayerUi, PlayerSession)>();
+    assert!(super::super::kill_player(h.world(), player));
+    assert!(h.world().resource::<DeathImages>().0[0].inventory.is_none());
+}
