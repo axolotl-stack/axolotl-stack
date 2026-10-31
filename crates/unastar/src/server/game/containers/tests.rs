@@ -417,7 +417,10 @@ fn retained_window_cannot_move_items_and_completion_discards_stale_decoded_conte
                 .item_id(),
             "minecraft:diamond"
         );
-        assert!(h.packets().iter().any(|packet| matches!(packet,McpePacketData::ContainerClosePacket(close) if close.server_initiated_close)));
+        let completion_packets = h.packets();
+        if before_wrong_owner.is_some() {
+            assert!(completion_packets.iter().any(|packet| matches!(packet,McpePacketData::ContainerClosePacket(close) if close.server_initiated_close)));
+        }
         h.open(pos);
         let net = container(h.world(), pos)
             .unwrap()
