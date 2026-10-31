@@ -147,6 +147,19 @@ impl UnastarServer {
         })
     }
 
+    /// Access the initialized game server and its ECS state.
+    pub fn game_server(&self) -> &GameServer {
+        &self.server
+    }
+
+    /// Configure the initialized game server before starting the network loop.
+    ///
+    /// Native extensions can insert ECS resources and observers or add systems to
+    /// the existing tick schedule. These changes are retained by [`Self::run`].
+    pub fn game_server_mut(&mut self) -> &mut GameServer {
+        &mut self.server
+    }
+
     /// Run the server main loop.
     ///
     /// This binds the listener, spawns the accept loop, and runs the tick loop until shutdown.
