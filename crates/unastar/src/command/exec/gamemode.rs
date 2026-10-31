@@ -176,6 +176,9 @@ pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
 /// Change the engine's effective mode and send its ordinary authoritative packets.
 fn apply_game_mode(world: &mut World, player: Entity, mode: GameMode) {
     world.entity_mut(player).insert(mode);
+    if crate::server::game::player_events::initial_state_pending(world, player) {
+        return;
+    }
     let runtime_id = world.get::<RuntimeEntityId>(player).map_or(0, |id| id.0);
     let operator = world.get::<crate::command::Operator>(player).is_some();
     let game_type = UpdatePlayerGameTypePacket {

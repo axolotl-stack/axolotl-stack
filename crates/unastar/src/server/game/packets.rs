@@ -53,8 +53,9 @@ impl GameServer {
             return;
         }
 
-        if super::inventory_effects::is_quarantined(self.ecs.world(),entity)
-            ||super::player_events::initial_state_pending(self.ecs.world(),entity) {
+        if super::inventory_effects::is_quarantined(self.ecs.world(), entity)
+            || super::player_events::initial_state_pending(self.ecs.world(), entity)
+        {
             return;
         }
 

@@ -417,7 +417,11 @@ pub fn restore(
             })
             .collect(),
     };
-    let sent_effects = SentEffects::sent(&effects);
+    let sent_effects = if super::player_events::initial_state_pending(world, player) {
+        SentEffects::default()
+    } else {
+        SentEffects::sent(&effects)
+    };
     {
         let mut entity = world.entity_mut(player);
         entity.insert((
@@ -608,7 +612,9 @@ fn close_window(world: &mut World, player: Entity) {
         if let Some(mut windows) = world.get_mut::<ContainerWindows>(player) {
             windows.close();
         }
-        if let Some(session) = world.get::<PlayerSession>(player) {
+        if !super::player_events::initial_state_pending(world, player)
+            && let Some(session) = world.get::<PlayerSession>(player)
+        {
             session.send(
                 ContainerClosePacket {
                     container_id: window,
@@ -626,6 +632,9 @@ fn close_window(world: &mut World, player: Entity) {
 
 /// Replace the client's known effect set and preserve each snapshot's particle flags.
 fn send_effects(world: &World, player: Entity, old: &BTreeSet<u8>, snapshot: &PlayerSnapshot) {
+    if super::player_events::initial_state_pending(world, player) {
+        return;
+    }
     let (Some(session), Some(runtime)) = (
         world.get::<PlayerSession>(player),
         world.get::<RuntimeEntityId>(player),
@@ -679,6 +688,9 @@ fn effect_tick(world: &World, player: Entity, effect: u8) -> PlayerInputTick {
 
 /// Synchronize life-state presentation and captured velocity without gameplay callbacks.
 fn send_life_and_motion(world: &World, player: Entity, snapshot: &PlayerSnapshot) {
+    if super::player_events::initial_state_pending(world, player) {
+        return;
+    }
     let Some(runtime) = world.get::<RuntimeEntityId>(player) else {
         return;
     };
@@ -719,6 +731,29 @@ fn send_life_and_motion(world: &World, player: Entity, snapshot: &PlayerSnapshot
 /// Convert structural and item-resolution failures to a stable public error.
 fn invalid(error: impl std::fmt::Display) -> SnapshotError {
     SnapshotError::InvalidState(error.to_string())
+}
+
+/// Publish current raw presentation once the deferred initial batch has been sent.
+/// Effects, final position, velocity and life presentation are reconstructed from
+/// a validated current snapshot without gameplay actions.
+pub(crate) fn publish_deferred_state(world: &mut World, player: Entity) {
+    let Ok(snapshot) = capture(world, player) else {
+        return;
+    };
+    let feet = DVec3::from_array(snapshot.data.position) - DVec3::Y * PLAYER_EYE_HEIGHT;
+    crate::command::exec::move_entity(
+        world,
+        player,
+        feet,
+        snapshot.data.rotation[0],
+        snapshot.data.rotation[1],
+    );
+    send_effects(world, player, &BTreeSet::new(), &snapshot);
+    send_life_and_motion(world, player, &snapshot);
+    let sent = world
+        .get::<Effects>(player)
+        .map_or_else(SentEffects::default, SentEffects::sent);
+    world.entity_mut(player).insert(sent);
 }
 
 #[cfg(test)]

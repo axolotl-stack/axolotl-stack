@@ -581,6 +581,7 @@ pub fn sync_actor_viewers(
     chunk_manager: Res<ChunkManager>,
     chunk_viewers: Query<&ChunkViewers>,
     sessions: Query<&PlayerSession>,
+    pending: Query<(), With<crate::server::game::player_events::PendingInitialState>>,
     items: Res<ItemRegistryResource>,
     config: Res<crate::server::game::types::ServerConfigResource>,
     mut actors: Query<
@@ -628,6 +629,8 @@ pub fn sync_actor_viewers(
                 v.iter()
                     .filter(|e| {
                         sessions.contains(*e)
+                            && !pending.contains(*e)
+                            && !pending.contains(actor)
                             && audience.is_none_or(|audience| audience.allows(actor, *e))
                     })
                     .collect()
@@ -863,6 +866,33 @@ mod actor_viewer_tests {
         assert_eq!(world.get::<ActorViewers>(actor).unwrap().viewers, [player]);
         sync(&mut world);
         assert!(drain(&mut rx).is_empty(), "accepted spawn must not repeat");
+    }
+
+    #[test]
+    fn pending_viewer_receives_no_item_actor_until_publication() {
+        let (mut world, _, viewer, mut rx) = setup();
+        world.entity_mut(viewer).insert(RuntimeEntityId(1));
+        assert!(crate::server::game::player_events::defer_initial_state(
+            &mut world, viewer
+        ));
+        let item = spawn_item_drop(
+            &mut world,
+            DVec3::new(4.5, 64.0, 4.5),
+            crate::item::test_support::stack("minecraft:dirt", 1),
+            None,
+        )
+        .unwrap();
+        sync(&mut world);
+        assert!(drain(&mut rx).is_empty());
+        assert!(world.get::<ActorViewers>(item).unwrap().viewers.is_empty());
+        world
+            .entity_mut(viewer)
+            .remove::<crate::server::game::player_events::PendingInitialState>();
+        sync(&mut world);
+        assert!(matches!(
+            drain(&mut rx).as_slice(),
+            [McpePacketData::AddItemActorPacket(_)]
+        ));
     }
 
     #[test]

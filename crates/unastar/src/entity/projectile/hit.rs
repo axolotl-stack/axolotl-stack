@@ -16,7 +16,7 @@ use crate::entity::definition::apply_pending_definitions;
 use crate::entity::mob::combat::{Hit, hurt_mob, knockback_power_of};
 use crate::entity::mob::constants::{ICONCRACK_ITEM_SHIFT, PROJECTILE_PARTICLE_LEVEL_EVENT};
 use crate::entity::mob::events::{MobFacts, fire_event};
-use crate::entity::mob::net::sound::{level_event, play_level_sound};
+use crate::entity::mob::net::sound::{level_event_from, play_level_sound};
 use crate::entity::mob::{MobKind, MobRegistry, SpawnCause, derive_entity, spawn_mob};
 use crate::entity::systems::physics::collect_block_boxes;
 use crate::registry::collision::Aabb;
@@ -95,8 +95,9 @@ pub(super) fn on_hit(
         }
     }
     if let Some(potion) = world.get::<crate::server::game::potions::ProjectilePotion>(projectile) {
-        crate::entity::mob::net::sound::level_event(
+        level_event_from(
             world,
+            Some(projectile),
             collision_at,
             2002,
             (potion.profile.color | 0xff000000) as i32,
@@ -283,7 +284,13 @@ fn emit_particles(
         particle.particle
     };
     for _ in 0..particle.count {
-        level_event(world, at, PROJECTILE_PARTICLE_LEVEL_EVENT, data);
+        level_event_from(
+            world,
+            Some(projectile),
+            at,
+            PROJECTILE_PARTICLE_LEVEL_EVENT,
+            data,
+        );
     }
 }
 

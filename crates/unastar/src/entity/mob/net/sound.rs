@@ -42,9 +42,11 @@ pub fn send_from_to_viewers(
         return;
     };
     for viewer in viewers.iter() {
-        if source.is_none_or(|source| {
-            crate::server::broadcast::player_views::can_receive_actor(world, source, viewer)
-        }) && let Some(session) = world.get::<PlayerSession>(viewer)
+        if !crate::server::game::player_events::initial_state_pending(world, viewer)
+            && source.is_none_or(|source| {
+                crate::server::broadcast::player_views::can_receive_actor(world, source, viewer)
+            })
+            && let Some(session) = world.get::<PlayerSession>(viewer)
         {
             let _ = session.send(packet.clone());
         }

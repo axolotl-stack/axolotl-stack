@@ -120,6 +120,47 @@ fn recipient(world: &mut World, x: f64, z: f64) -> Entity {
 }
 
 #[test]
+fn projectile_and_teleport_particles_use_the_actual_source_audience() {
+    use crate::entity::components::ActorAudience;
+    use jolyne::valentine::McpePacketData;
+    for (item, aux) in [
+        ("minecraft:splash_potion", 22),
+        ("minecraft:ender_pearl", 0),
+    ] {
+        for restricted in [false, true] {
+            let (mut server, owner) = harness();
+            let world = server.ecs.world_mut();
+            let (tx, mut rx) = tokio::sync::mpsc::channel(256);
+            let viewer = world
+                .spawn(PlayerSession::new(2, "Viewer".into(), None, None, tx))
+                .id();
+            let chunk = world
+                .resource::<ChunkManager>()
+                .get_by_coords(0, 0)
+                .unwrap();
+            world.get_mut::<ChunkViewers>(chunk).unwrap().insert(viewer);
+            let projectile = throw(world, owner, item, aux);
+            while rx.try_recv().is_ok() {}
+            if restricted {
+                world.entity_mut(owner).insert(ActorAudience::only([]));
+                world.entity_mut(projectile).insert(ActorAudience::only([]));
+            }
+            floor_impact(world, projectile, 7.5, 7.5);
+            let effects = std::iter::from_fn(|| rx.try_recv().ok())
+                .filter(|packet| {
+                    matches!(
+                        packet.data,
+                        McpePacketData::LevelEventPacket(_)
+                            | McpePacketData::LevelSoundEventPacket(_)
+                    )
+                })
+                .count();
+            assert_eq!(effects > 0, !restricted, "{item} restricted={restricted}");
+        }
+    }
+}
+
+#[test]
 fn potion_drinking_uses_aux_effects_and_returns_a_glass_bottle_once() {
     let (mut server, owner) = harness();
     let world = server.ecs.world_mut();

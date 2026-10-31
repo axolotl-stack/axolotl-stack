@@ -82,22 +82,25 @@ struct PlayerView {
 
 /// Apply the actor's explicit audience without requiring a spawned client view.
 pub fn audience_allows(world: &World, actor: Entity, viewer: Entity) -> bool {
-    if crate::server::game::player_events::initial_state_pending(world,actor) || crate::server::game::player_events::initial_state_pending(world,viewer) {return false;}
+    if crate::server::game::player_events::initial_state_pending(world, actor)
+        || crate::server::game::player_events::initial_state_pending(world, viewer)
+    {
+        return false;
+    }
     world
         .get::<ActorAudience>(actor)
         .is_none_or(|audience| audience.allows(actor, viewer))
 }
 
 /// Whether a viewer may receive representation or transient events from an actor.
-/// Actor self always remains eligible. Player events additionally require a view
+/// Actor self remains eligible after initial publication. Player events require a view
 /// already queued for that same client transport once reconciliation is installed.
 pub fn can_receive_actor(world: &World, actor: Entity, viewer: Entity) -> bool {
-    if !audience_allows(world, actor, viewer) {return false;}
-    if actor == viewer {
-        return true;
-    }
     if !audience_allows(world, actor, viewer) {
         return false;
+    }
+    if actor == viewer {
+        return true;
     }
     if world.get::<Player>(actor).is_none() {
         return true;
@@ -267,7 +270,10 @@ fn views(world: &mut World, ready: &HashSet<Entity>) -> Vec<PlayerView> {
     let actors = world
         .query_filtered::<Entity, With<Player>>()
         .iter(world)
-        .filter(|actor| ready.contains(actor))
+        .filter(|actor| {
+            ready.contains(actor)
+                && !crate::server::game::player_events::initial_state_pending(world, *actor)
+        })
         .collect::<Vec<_>>();
     actors
         .into_iter()
@@ -362,7 +368,10 @@ pub fn sync_player_views(world: &mut World) {
     let viewers = world
         .query_filtered::<Entity, (With<PlayerSession>, With<Player>)>()
         .iter(world)
-        .filter(|viewer| cache.ready.contains(viewer) && !crate::server::game::player_events::initial_state_pending(world,*viewer))
+        .filter(|viewer| {
+            cache.ready.contains(viewer)
+                && !crate::server::game::player_events::initial_state_pending(world, *viewer)
+        })
         .collect::<Vec<_>>();
     let allowed = current
         .iter()

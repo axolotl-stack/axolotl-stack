@@ -1055,6 +1055,7 @@ impl GameServer {
             });
             if self.ecs.world().get::<PlayerSession>(entity).is_some() {
                 self.send_join_packets(entity);
+                player_state::publish_deferred_state(self.ecs.world_mut(), entity);
             }
             self.ecs
                 .world_mut()

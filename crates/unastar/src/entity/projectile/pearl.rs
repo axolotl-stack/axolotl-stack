@@ -77,7 +77,7 @@ pub(super) fn teleport_owner(
                 -1,
             );
         }
-        crate::entity::mob::net::sound::level_event(world, destination, 2013, 0);
+        crate::entity::mob::net::sound::level_event_from(world, Some(owner), destination, 2013, 0);
         crate::entity::player_life::hurt_player(
             world,
             owner,

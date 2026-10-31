@@ -108,6 +108,7 @@ pub fn sync_mob_viewers(
     chunk_manager: Res<ChunkManager>,
     chunk_viewers: Query<&ChunkViewers>,
     sessions: Query<&PlayerSession>,
+    pending: Query<(), With<crate::server::game::player_events::PendingInitialState>>,
     items: Option<Res<ItemRegistryResource>>,
     config: Option<Res<ServerConfigResource>>,
     mut mobs: Query<(
@@ -158,6 +159,8 @@ pub fn sync_mob_viewers(
                 v.iter()
                     .filter(|e| {
                         sessions.contains(*e)
+                            && !pending.contains(*e)
+                            && !pending.contains(actor)
                             && audience.is_none_or(|audience| audience.allows(actor, *e))
                     })
                     .collect()

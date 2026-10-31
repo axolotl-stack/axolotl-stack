@@ -85,6 +85,38 @@ fn flags(data: &[DataItemEntry]) -> i64 {
 }
 
 #[test]
+fn deferred_subjects_and_viewers_withhold_snapshots_and_self_events() {
+    use crate::server::game::player_events::{PendingInitialState, defer_initial_state};
+    let mut world = world();
+    let (pending, mut own) = player(&mut world, 1);
+    let (viewer, mut peer) = player(&mut world, 2);
+    assert!(defer_initial_state(&mut world, pending));
+    assert!(!audience_allows(&world, pending, pending));
+    assert!(!can_receive_actor(&world, pending, pending));
+    assert!(!can_receive_actor(&world, viewer, pending));
+    sync_player_views(&mut world);
+    crate::entity::player_life::send_to_player_and_viewers(
+        &world,
+        pending,
+        &McpePacket::from(jolyne::valentine::ActorEventPacket::default()),
+    );
+    assert!(drain(&mut own).is_empty());
+    assert!(drain(&mut peer).is_empty());
+    world.entity_mut(pending).remove::<PendingInitialState>();
+    sync_player_views(&mut world);
+    assert!(
+        drain(&mut own)
+            .iter()
+            .any(|packet| matches!(packet, McpePacketData::AddPlayerPacket(_)))
+    );
+    assert!(
+        drain(&mut peer)
+            .iter()
+            .any(|packet| matches!(packet, McpePacketData::AddPlayerPacket(_)))
+    );
+}
+
+#[test]
 fn one_packet_channel_retries_spawn_hands_armour_and_remove_without_starvation() {
     let mut world = world();
     let (actor, _) = player(&mut world, 1);

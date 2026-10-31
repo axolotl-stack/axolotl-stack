@@ -343,34 +343,38 @@ impl SentEffects {
 /// the changes since the last tick.
 #[allow(clippy::type_complexity)]
 pub fn sync_player_effects(
-    mut players: Query<(
-        &RuntimeEntityId,
-        &PlayerSession,
-        Option<&Effects>,
-        &mut SentEffects,
-        Option<&PlayerInput>,
-    )>,
+    mut players: Query<
+        (
+            &RuntimeEntityId,
+            &PlayerSession,
+            Option<&Effects>,
+            &mut SentEffects,
+            Option<&PlayerInput>,
+        ),
+        Without<super::player_events::PendingInitialState>,
+    >,
 ) {
     for (runtime_id, session, effects, mut sent, input) in &mut players {
         let tick = input.map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick);
-        let send = |event, effect: EffectType, amplifier: u8, duration: u32| {
-            let _ = session.send(McpePacket::from(MobEffectPacket {
-                target_runtime_id: ActorRuntimeId {
-                    actor_runtime_id: runtime_id.0 as u64,
-                },
-                event_id: event,
-                effect_id: i32::from(effect.0),
-                effect_amplifier: i32::from(amplifier),
-                show_particles: true,
-                effect_duration_ticks: duration as i32,
-                tick: if effect.affects_movement() {
-                    tick.clone()
-                } else {
-                    PlayerInputTick { inputtick: 0 }
-                },
-                ambient: false,
-            }));
-        };
+        let send =
+            |event, effect: EffectType, amplifier: u8, duration: u32, show_particles, ambient| {
+                let _ = session.send(McpePacket::from(MobEffectPacket {
+                    target_runtime_id: ActorRuntimeId {
+                        actor_runtime_id: runtime_id.0 as u64,
+                    },
+                    event_id: event,
+                    effect_id: i32::from(effect.0),
+                    effect_amplifier: i32::from(amplifier),
+                    show_particles,
+                    effect_duration_ticks: duration as i32,
+                    tick: if effect.affects_movement() {
+                        tick.clone()
+                    } else {
+                        PlayerInputTick { inputtick: 0 }
+                    },
+                    ambient,
+                }));
+            };
         let active = effects.map(|e| &e.active);
         let removed: Vec<_> = sent
             .0
@@ -380,7 +384,14 @@ pub fn sync_player_effects(
             .collect();
         for effect in removed {
             sent.0.remove(&effect);
-            send(EnumsMobEffectPacketPayloadEvent::Remove, effect, 0, 0);
+            send(
+                EnumsMobEffectPacketPayloadEvent::Remove,
+                effect,
+                0,
+                0,
+                false,
+                false,
+            );
         }
         for (effect, state) in active.into_iter().flatten() {
             // A duration that only counted down is not a change.
@@ -393,7 +404,14 @@ pub fn sync_player_effects(
             };
             sent.0.insert(*effect, (state.level, state.duration_ticks));
             if let Some(event) = event {
-                send(event, *effect, state.level, state.duration_ticks);
+                send(
+                    event,
+                    *effect,
+                    state.level,
+                    state.duration_ticks,
+                    state.show_particles,
+                    state.ambient,
+                );
             }
         }
     }
