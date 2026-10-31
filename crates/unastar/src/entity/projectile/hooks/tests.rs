@@ -183,3 +183,44 @@ fn callback_owner_or_projectile_definition_swap_cannot_resolve_a_stale_impact() 
         ));
     }
 }
+
+#[test]
+fn accepted_teleport_notifies_final_coordinates_and_immutable_identity_only_after_commit() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let (mut world, player, _) = actor();
+    let count = Arc::new(AtomicUsize::new(0));
+    let seen = count.clone();
+    world.add_observer(|mut event: On<PlayerTeleport>| {
+        event.destination = DVec3::new(4.0, 64.0, 4.0)
+    });
+    world.add_observer(
+        move |event: On<PlayerTeleported>, positions: Query<&Position>| {
+            seen.fetch_add(1, Ordering::SeqCst);
+            assert_eq!(event.player(), player);
+            assert_eq!(event.destination(), DVec3::new(4.0, 64.0, 4.0));
+            assert_eq!(
+                positions.get(player).unwrap().0,
+                event.destination() + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT
+            );
+            assert_eq!(event.identity().session_id(), Some(1));
+            assert_eq!(event.identity().xuid(), Some("123"));
+        },
+    );
+    assert!(item_use::teleport_from(
+        &mut world,
+        player,
+        None,
+        DVec3::new(20.0, 64.0, 20.0),
+        TeleportCause::Projectile
+    ));
+    assert_eq!(count.load(Ordering::SeqCst), 1);
+    world.add_observer(|mut event: On<PlayerTeleport>| event.cancel());
+    assert!(!item_use::teleport_from(
+        &mut world,
+        player,
+        None,
+        DVec3::new(30.0, 64.0, 30.0),
+        TeleportCause::Projectile
+    ));
+    assert_eq!(count.load(Ordering::SeqCst), 1);
+}

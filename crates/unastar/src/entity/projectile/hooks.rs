@@ -5,7 +5,9 @@
 //! destinations and individual effect recipients are checked at their actual
 //! application boundary, rather than authorizing only the original item click.
 
-use crate::entity::components::{EffectType, PlayerSession, PlayerUuid, Position};
+use crate::entity::components::{
+    EffectType, GameMode, Health, PlayerSession, PlayerUuid, Position,
+};
 use bevy_ecs::prelude::*;
 use glam::DVec3;
 use std::sync::Arc;
@@ -91,6 +93,81 @@ impl PlayerTeleport {
     }
 }
 
+/// Immutable account facts retained for accepted teleport accounting.
+#[derive(Clone, Debug)]
+pub struct TeleportIdentity {
+    session_id: Option<u64>,
+    uuid: Option<uuid::Uuid>,
+    xuid: Option<String>,
+}
+impl TeleportIdentity {
+    /// Read the original transport identifier, when connected.
+    pub fn session_id(&self) -> Option<u64> {
+        self.session_id
+    }
+    /// Read the persistent actor UUID, when present.
+    pub fn uuid(&self) -> Option<uuid::Uuid> {
+        self.uuid
+    }
+    /// Read the source account identifier supplied by its connection.
+    pub fn xuid(&self) -> Option<&str> {
+        self.xuid.as_deref()
+    }
+}
+
+/// An accepted teleport after destination validation and authoritative movement.
+#[derive(Event, Clone, Debug)]
+pub struct PlayerTeleported {
+    player: Entity,
+    source: Option<Entity>,
+    from: DVec3,
+    destination: DVec3,
+    cause: crate::server::game::item_use::TeleportCause,
+    identity: TeleportIdentity,
+}
+impl PlayerTeleported {
+    /// Read the actor that actually moved.
+    pub fn player(&self) -> Entity {
+        self.player
+    }
+    /// Read its original applying actor, if any.
+    pub fn source(&self) -> Option<Entity> {
+        self.source
+    }
+    /// Read the actual original feet position.
+    pub fn from(&self) -> DVec3 {
+        self.from
+    }
+    /// Read the final accepted feet position, including native rewrites.
+    pub fn destination(&self) -> DVec3 {
+        self.destination
+    }
+    /// Read the protocol teleport reason.
+    pub fn cause(&self) -> crate::server::game::item_use::TeleportCause {
+        self.cause
+    }
+    /// Read immutable account facts even if another notification removed the actor.
+    pub fn identity(&self) -> &TeleportIdentity {
+        &self.identity
+    }
+}
+
+/// Accepted teleport facts retained until the caller actually updates the actor.
+pub(crate) struct TeleportPermit {
+    pub destination: DVec3,
+    committed: PlayerTeleported,
+}
+impl TeleportPermit {
+    /// Notify native handlers and observers after authoritative position commit.
+    pub(crate) fn commit(self, world: &mut World) {
+        for handler in handlers(world) {
+            handler.on_teleported(world, &self.committed);
+        }
+        world.trigger(self.committed);
+        world.flush();
+    }
+}
+
 /// A proposed effect on one actual recipient.
 #[derive(Event, Clone, Debug)]
 pub struct EffectApplication {
@@ -124,12 +201,85 @@ impl EffectApplication {
     }
 }
 
+/// Pending removal of fire from one actual water-impact recipient.
+#[derive(Event, Clone, Debug)]
+pub struct ProjectileExtinguish {
+    source: Entity,
+    target: Entity,
+    cancelled: bool,
+}
+impl ProjectileExtinguish {
+    /// Read the water projectile producing this effect.
+    pub fn source(&self) -> Entity {
+        self.source
+    }
+    /// Read the affected actor.
+    pub fn target(&self) -> Entity {
+        self.target
+    }
+    /// Keep this actor's current burning state.
+    pub fn cancel(&mut self) {
+        self.cancelled = true;
+    }
+    /// Whether a callback rejected this recipient.
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled
+    }
+}
+
+/// One ordinary projectile block mutation, authorized at the affected block.
+#[derive(Event, Clone, Debug)]
+pub struct ProjectileBlockChange {
+    source: Entity,
+    owner: Option<Entity>,
+    position: glam::IVec3,
+    old_state: u32,
+    new_state: u32,
+    cancelled: bool,
+}
+impl ProjectileBlockChange {
+    /// Read the projectile producing this block effect.
+    pub fn source(&self) -> Entity {
+        self.source
+    }
+    /// Read its current owner.
+    pub fn owner(&self) -> Option<Entity> {
+        self.owner
+    }
+    /// Read the actual affected block position.
+    pub fn position(&self) -> glam::IVec3 {
+        self.position
+    }
+    /// Read the block state being replaced.
+    pub fn old_state(&self) -> u32 {
+        self.old_state
+    }
+    /// Read the proposed replacement block state.
+    pub fn new_state(&self) -> u32 {
+        self.new_state
+    }
+    /// Veto this affected block without changing other independently accepted blocks.
+    pub fn cancel(&mut self) {
+        self.cancelled = true;
+    }
+    /// Whether any native callback rejected this mutation.
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled
+    }
+}
+
 /// Native callbacks for projectile and effect application boundaries.
 pub trait ProjectileHandler: Send + Sync + 'static {
+    /// Authorize removal of fire from an actual water-impact recipient.
+    fn on_extinguish(&self, _world: &mut World, _event: &mut ProjectileExtinguish) {}
+    /// Authorize an actual affected block, such as water extinguishing fire.
+    fn on_block_change(&self, _world: &mut World, _event: &mut ProjectileBlockChange) {}
     /// Authorize an actual collision before its ordinary effects.
     fn on_impact(&self, _world: &mut World, _event: &mut ProjectileImpact) {}
     /// Authorize or redirect a destination before the player moves.
     fn on_teleport(&self, _world: &mut World, _event: &mut PlayerTeleport) {}
+    /// Observe an accepted teleport; attempts and late vetoes produce no notification.
+    fn on_teleported(&self, _world: &mut World, _event: &PlayerTeleported) {}
     /// Authorize or cap an effect for an actual recipient.
     fn on_effect(&self, _world: &mut World, _event: &mut EffectApplication) {}
 }
@@ -162,14 +312,22 @@ type SessionSnapshot = (
 );
 
 /// Retain actor and transport identity without an ECS borrow.
-struct Identity {
+pub(crate) struct Identity {
+    position: Option<DVec3>,
+    health: Option<(f32, f32)>,
+    mode: Option<GameMode>,
     uuid: Option<uuid::Uuid>,
     session: Option<SessionSnapshot>,
 }
 impl Identity {
     /// Snapshot identity for callback revalidation.
-    fn capture(world: &World, actor: Entity) -> Self {
+    pub(crate) fn capture(world: &World, actor: Entity) -> Self {
         Self {
+            position: world.get::<Position>(actor).map(|position| position.0),
+            health: world
+                .get::<Health>(actor)
+                .map(|health| (health.current, health.max)),
+            mode: world.get::<GameMode>(actor).copied(),
             uuid: world.get::<PlayerUuid>(actor).map(|id| id.0),
             session: world.get::<PlayerSession>(actor).map(|session| {
                 (
@@ -181,8 +339,8 @@ impl Identity {
             }),
         }
     }
-    /// Require the same live actor and account after callbacks.
-    fn matches(&self, world: &World, actor: Entity) -> bool {
+    /// Require the same live account and transport after a committed notification.
+    pub(crate) fn matches_account(&self, world: &World, actor: Entity) -> bool {
         world.get_entity(actor).is_ok()
             && world.get::<PlayerUuid>(actor).map(|id| id.0) == self.uuid
             && match (&self.session, world.get::<PlayerSession>(actor)) {
@@ -195,6 +353,16 @@ impl Identity {
                 (None, None) => true,
                 _ => false,
             }
+    }
+    /// Require the same actor, account and mutable state after authorization.
+    fn matches(&self, world: &World, actor: Entity) -> bool {
+        self.matches_account(world, actor)
+            && world.get::<Position>(actor).map(|position| position.0) == self.position
+            && world
+                .get::<Health>(actor)
+                .map(|health| (health.current, health.max))
+                == self.health
+            && world.get::<GameMode>(actor).copied() == self.mode
     }
 }
 
@@ -256,8 +424,10 @@ pub(crate) fn teleport(
     source: Option<Entity>,
     cause: crate::server::game::item_use::TeleportCause,
     destination: DVec3,
-) -> Option<DVec3> {
+) -> Option<TeleportPermit> {
     let eye = world.get::<Position>(player)?.0;
+    let source_identity = source.map(|source| (source, Identity::capture(world, source)));
+    let flight = source.map(|source| world.get::<super::ProjectileFlight>(source).copied());
     let identity = Identity::capture(world, player);
     let mut event = PlayerTeleport {
         player,
@@ -280,8 +450,26 @@ pub(crate) fn teleport(
             .is_some_and(|position| position.0 == eye)
         && event.destination.is_finite()
         && event.destination.as_vec3().is_finite()
-        && source.is_none_or(|source| world.get_entity(source).is_ok()))
-    .then_some(event.destination)
+        && source_identity.is_none_or(|(source, identity)| identity.matches(world, source))
+        && source.map(|source| world.get::<super::ProjectileFlight>(source).copied()) == flight)
+        .then_some(TeleportPermit {
+            destination: event.destination,
+            committed: PlayerTeleported {
+                player,
+                source,
+                from: event.from,
+                destination: event.destination,
+                cause,
+                identity: TeleportIdentity {
+                    session_id: identity.session.as_ref().map(|session| session.0),
+                    uuid: identity.uuid,
+                    xuid: identity
+                        .session
+                        .as_ref()
+                        .and_then(|session| session.1.clone()),
+                },
+            },
+        })
 }
 
 /// Authorize one actual effect recipient and validate adjusted protocol values.
@@ -293,7 +481,17 @@ pub(crate) fn effect(
     amplifier: u8,
     duration_ticks: u32,
 ) -> Option<(u8, u32)> {
+    if source.is_some_and(|source| world.get_entity(source).is_err()) {
+        return None;
+    }
     let identity = Identity::capture(world, target);
+    let source_identity = source.map(|source| (source, Identity::capture(world, source)));
+    let flight = source.map(|source| world.get::<super::ProjectileFlight>(source).copied());
+    let owner_identity = flight
+        .flatten()
+        .and_then(|flight| flight.owner)
+        .filter(|owner| world.get_entity(*owner).is_ok())
+        .map(|owner| (owner, Identity::capture(world, owner)));
     let mut event = EffectApplication {
         target,
         source,
@@ -311,8 +509,77 @@ pub(crate) fn effect(
     (!event.cancelled
         && identity.matches(world, target)
         && (event.duration_ticks <= i32::MAX as u32 || event.duration_ticks == u32::MAX)
-        && source.is_none_or(|source| world.get_entity(source).is_ok()))
-    .then_some((event.amplifier, event.duration_ticks))
+        && source_identity.is_none_or(|(source, identity)| identity.matches(world, source))
+        && owner_identity.is_none_or(|(owner, identity)| identity.matches(world, owner))
+        && source.map(|source| world.get::<super::ProjectileFlight>(source).copied()) == flight)
+        .then_some((event.amplifier, event.duration_ticks))
+}
+
+/// Authorize removal of fire without permitting stale actor/source state.
+pub(crate) fn extinguish(world: &mut World, source: Entity, target: Entity) -> bool {
+    let before = Identity::capture(world, target);
+    let origin = Identity::capture(world, source);
+    let flight = world.get::<super::ProjectileFlight>(source).copied();
+    let owner_identity = flight
+        .and_then(|flight| flight.owner)
+        .filter(|owner| world.get_entity(*owner).is_ok())
+        .map(|owner| (owner, Identity::capture(world, owner)));
+    let mut event = ProjectileExtinguish {
+        source,
+        target,
+        cancelled: false,
+    };
+    for handler in handlers(world) {
+        handler.on_extinguish(world, &mut event);
+    }
+    world.trigger_ref(&mut event);
+    world.flush();
+    !event.cancelled
+        && before.matches(world, target)
+        && origin.matches(world, source)
+        && world.get::<super::ProjectileFlight>(source).copied() == flight
+        && owner_identity.is_none_or(|(owner, identity)| identity.matches(world, owner))
+}
+
+/// Authorize one affected block while rejecting callback replacement/removal.
+pub(crate) fn block_change(
+    world: &mut World,
+    source: Entity,
+    position: glam::IVec3,
+    new_state: u32,
+) -> bool {
+    use crate::entity::systems::physics::BlockSource;
+    let Some(old_state) = world.block_at(position) else {
+        return false;
+    };
+    let identity = Identity::capture(world, source);
+    let owner = world
+        .get::<super::ProjectileFlight>(source)
+        .and_then(|flight| flight.owner);
+    let owner_identity = owner
+        .filter(|owner| world.get_entity(*owner).is_ok())
+        .map(|owner| (owner, Identity::capture(world, owner)));
+    let mut event = ProjectileBlockChange {
+        source,
+        owner,
+        position,
+        old_state,
+        new_state,
+        cancelled: false,
+    };
+    for handler in handlers(world) {
+        handler.on_block_change(world, &mut event);
+    }
+    world.trigger_ref(&mut event);
+    world.flush();
+    !event.cancelled
+        && identity.matches(world, source)
+        && world.block_at(position) == Some(old_state)
+        && world
+            .get::<super::ProjectileFlight>(source)
+            .and_then(|flight| flight.owner)
+            == owner
+        && owner_identity.is_none_or(|(owner, identity)| identity.matches(world, owner))
 }
 
 #[cfg(test)]

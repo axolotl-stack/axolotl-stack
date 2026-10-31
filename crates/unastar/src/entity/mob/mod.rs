@@ -174,23 +174,26 @@ fn spawn_unattached(
             .update(actor_flags::USES_LEGACY_FRICTION, true)
             .expect("catalogue flag index");
     }
-    let metadata = if archetype.projectile {
-        // Projectiles are spawned invisible (shown from their second tick).
-        flags
-            .update(actor_flags::INVISIBLE, true)
-            .expect("catalogue flag index");
-        EntityMetadata::actor_base()
-    } else {
-        let mut metadata = EntityMetadata::living_base();
-        metadata.set_float(
-            jolyne::valentine::actor_data_i_ds::AMBIENT_SOUND_INTERVAL,
-            archetype.native.ambient_sound_interval,
-        );
-        if let Some(kind) = archetype.native.aux_value {
-            metadata.set_short(jolyne::valentine::actor_data_i_ds::AUX_VALUE_DATA, kind);
-        }
-        metadata
-    };
+    let metadata =
+        if archetype.actor_type == unastar_data::actor_identifiers::ActorType::AreaEffectCloud {
+            EntityMetadata::actor_base()
+        } else if archetype.projectile {
+            // Projectiles are spawned invisible (shown from their second tick).
+            flags
+                .update(actor_flags::INVISIBLE, true)
+                .expect("catalogue flag index");
+            EntityMetadata::actor_base()
+        } else {
+            let mut metadata = EntityMetadata::living_base();
+            metadata.set_float(
+                jolyne::valentine::actor_data_i_ds::AMBIENT_SOUND_INTERVAL,
+                archetype.native.ambient_sound_interval,
+            );
+            if let Some(kind) = archetype.native.aux_value {
+                metadata.set_short(jolyne::valentine::actor_data_i_ds::AUX_VALUE_DATA, kind);
+            }
+            metadata
+        };
     let launched_tick = world
         .get_resource::<crate::ecs::resources::TickCounter>()
         .map_or(0, |tick| tick.current);
@@ -219,7 +222,7 @@ fn spawn_unattached(
                 critical: false,
             },
         ));
-    } else {
+    } else if archetype.actor_type != unastar_data::actor_identifiers::ActorType::AreaEffectCloud {
         entity.insert((
             Mob,
             Living,

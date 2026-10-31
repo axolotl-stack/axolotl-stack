@@ -40,6 +40,12 @@ pub enum LaunchError {
 /// The projectile actor and its climate variant label an item throws when
 /// used, if it is a throwable item.
 pub fn thrown_by(item: &str) -> Option<(ActorType, Option<&'static str>)> {
+    match item {
+        "minecraft:ender_pearl" => return Some((ActorType::EnderPearl, None)),
+        "minecraft:splash_potion" => return Some((ActorType::SplashPotion, None)),
+        "minecraft:lingering_potion" => return Some((ActorType::LingeringPotion, None)),
+        _ => {}
+    }
     if item == "minecraft:snowball" {
         return Some((ActorType::Snowball, None));
     }
@@ -112,6 +118,16 @@ fn throw_held(world: &mut World, player: Entity) {
     ) else {
         return;
     };
+    let potion = if matches!(actor, ActorType::SplashPotion | ActorType::LingeringPotion) {
+        let Some(potion) =
+            crate::server::game::potions::ProjectilePotion::from_stack(world, &stack)
+        else {
+            return;
+        };
+        Some(potion)
+    } else {
+        None
+    };
     let mode = world.get::<GameMode>(player).copied().unwrap_or_default();
     let projectile = match launch_with(
         world,
@@ -132,6 +148,13 @@ fn throw_held(world: &mut World, player: Entity) {
     if !permit.is_current(world) {
         world.despawn(projectile);
         return;
+    }
+    if let Some(potion) = potion {
+        world
+            .get_mut::<EntityMetadata>(projectile)
+            .expect("spawned projectile metadata")
+            .set_short(ids::AUX_VALUE_DATA, potion.aux);
+        world.entity_mut(projectile).insert(potion);
     }
     if mode != GameMode::Creative {
         crate::server::game::item_use::set_slot(world, player, slot, stack.grow(-1));

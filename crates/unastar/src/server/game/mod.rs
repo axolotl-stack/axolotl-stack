@@ -33,6 +33,7 @@ mod placement;
 pub mod player_events;
 pub mod player_state;
 mod plugins;
+pub mod potions;
 pub mod types;
 
 use bevy_ecs::prelude::*;
@@ -520,7 +521,11 @@ impl GameServer {
         );
         // Projectiles fly after the living bodies moved.
         ecs.schedule_mut().add_systems(
-            crate::entity::projectile::tick_projectiles
+            (
+                crate::entity::projectile::tick_projectiles,
+                crate::entity::projectile::cloud::tick_clouds,
+            )
+                .chain()
                 .in_set(PhysicsSet)
                 .after(tick_physics),
         );

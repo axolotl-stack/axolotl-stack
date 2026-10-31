@@ -91,6 +91,31 @@ pub fn add_effect_from(
     amplifier: u8,
     duration_ticks: u32,
 ) -> bool {
+    add_effect_scaled_from(
+        world,
+        player,
+        source,
+        effect,
+        amplifier,
+        duration_ticks,
+        1.0,
+    )
+}
+
+/// Apply a finite instantaneous potency after authorizing the actual recipient.
+/// Lasting durations are supplied by the caller, independently of potency.
+pub fn add_effect_scaled_from(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    effect: EffectType,
+    amplifier: u8,
+    duration_ticks: u32,
+    potency: f32,
+) -> bool {
+    if !potency.is_finite() || !(0.0..=1.0).contains(&potency) {
+        return false;
+    }
     let Some((amplifier, duration_ticks)) = crate::entity::projectile::hooks::effect(
         world,
         player,
@@ -103,7 +128,50 @@ pub fn add_effect_from(
     };
     match effect {
         EffectType::INSTANT_HEALTH => {
-            heal(world, player, (4u32 << amplifier.min(30)) as f32);
+            heal(world, player, (4u32 << amplifier.min(28)) as f32 * potency);
+            return true;
+        }
+        EffectType::INSTANT_DAMAGE => {
+            let attacker = source
+                .and_then(|source| {
+                    if let Some(flight) =
+                        world.get::<crate::entity::projectile::ProjectileFlight>(source)
+                    {
+                        flight.owner
+                    } else if let Some(cloud) =
+                        world.get::<crate::entity::projectile::cloud::AreaEffectCloud>(source)
+                    {
+                        cloud.owner()
+                    } else {
+                        Some(source)
+                    }
+                })
+                .filter(|actor| {
+                    world
+                        .get::<crate::entity::components::Player>(*actor)
+                        .is_some()
+                        || world.get::<crate::entity::mob::MobKind>(*actor).is_some()
+                });
+            let hit = crate::entity::mob::combat::Hit {
+                damage: (6u32 << amplifier.min(28)) as f32 * potency,
+                cause: unastar_data::actor_components::body::ActorDamageCause::Magic,
+                attacker,
+                by_player: attacker.is_some_and(|actor| {
+                    world
+                        .get::<crate::entity::components::Player>(actor)
+                        .is_some()
+                }),
+                knockback_from: None,
+                knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+            };
+            if world
+                .get::<crate::entity::components::Player>(player)
+                .is_some()
+            {
+                crate::entity::player_life::hurt_player(world, player, &hit);
+            } else if world.get::<crate::entity::mob::MobKind>(player).is_some() {
+                crate::entity::mob::combat::hurt_mob(world, player, hit);
+            }
             return true;
         }
         EffectType::SATURATION if duration_ticks <= 1 => {
@@ -148,7 +216,9 @@ pub fn clear_effects(world: &mut World, player: Entity) {
 }
 
 fn heal(world: &mut World, player: Entity, amount: f32) {
-    if let Some(mut health) = world.get_mut::<Health>(player) {
+    if let Some(mut health) = world.get_mut::<Health>(player)
+        && !health.is_dead()
+    {
         health.heal(amount);
     }
 }

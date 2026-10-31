@@ -34,6 +34,8 @@ pub enum ConsumeKind {
     Food,
     /// The milk bucket.
     Milk,
+    /// An aux-valued potion bottle.
+    Potion,
 }
 
 const MILK_BUCKET: &str = "minecraft:milk_bucket";
@@ -57,6 +59,8 @@ pub fn consumable(entry: &ItemEntry) -> Option<Consumable> {
         // eaten (BDS rejects such documents; vanilla has none).
         food.saturation_modifier.value()?;
         ConsumeKind::Food
+    } else if entry.identifier() == "minecraft:potion" {
+        ConsumeKind::Potion
     } else if entry.identifier() == MILK_BUCKET {
         ConsumeKind::Milk
     } else {
@@ -71,7 +75,7 @@ pub fn consumable(entry: &ItemEntry) -> Option<Consumable> {
 /// Whether the player may start eating: hungry, a food that can always be
 /// eaten, a drink, creative, or peaceful.
 fn may_start(world: &World, player: Entity, entry: &ItemEntry, kind: ConsumeKind) -> bool {
-    if kind == ConsumeKind::Milk {
+    if matches!(kind, ConsumeKind::Milk | ConsumeKind::Potion) {
         return true;
     }
     let always = entry
@@ -99,6 +103,11 @@ pub fn start(
     let Some(entry) = stack.item() else {
         return;
     };
+    if consumable.kind == ConsumeKind::Potion
+        && crate::server::game::potions::ProjectilePotion::from_stack(world, stack).is_none()
+    {
+        return;
+    }
     if may_start(world, player, entry, consumable.kind) {
         super::start_using(world, player, slot, entry.id);
     }
@@ -126,10 +135,20 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
     {
         return;
     }
+    let potion = if kind == ConsumeKind::Potion {
+        let Some(potion) = crate::server::game::potions::ProjectilePotion::from_stack(world, stack)
+        else {
+            return;
+        };
+        Some(potion)
+    } else {
+        None
+    };
     let components = entry.components().clone();
     let converts_to = match (kind, components.food.as_ref()) {
         (ConsumeKind::Food, Some(food)) => food.using_converts_to.clone(),
         (ConsumeKind::Milk, _) => Some(BUCKET.to_owned()),
+        (ConsumeKind::Potion, _) => Some("minecraft:glass_bottle".into()),
         (ConsumeKind::Food, None) => return,
     };
     // Consumption is already authorized. Commit its source item before effect
@@ -213,11 +232,24 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
         (ConsumeKind::Milk, _) => {
             effects::clear_effects(world, player);
         }
+        (ConsumeKind::Potion, _) => {
+            for effect in &potion.expect("resolved before cost").profile.effects {
+                effects::add_effect_from(
+                    world,
+                    player,
+                    None,
+                    effect.effect,
+                    effect.amplifier,
+                    effect.duration_ticks,
+                );
+            }
+        }
         (ConsumeKind::Food, None) => return,
     };
     let method = match kind {
         ConsumeKind::Food => UseMethod::Eat,
         ConsumeKind::Milk => UseMethod::None,
+        ConsumeKind::Potion => UseMethod::Drink,
     };
     super::completed(world, player, entry.network_id(), method);
     super::stop_using(world, player);

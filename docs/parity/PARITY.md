@@ -12,10 +12,10 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 117 | 4 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 166 | 903 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
@@ -35,8 +35,8 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | passive (part claimed) | 21 | 21 | 0 |
-| object | 16 | 16 | 0 |
-| projectile | 15 | 15 | 0 |
+| object | 16 | 15 | 1 |
+| projectile | 15 | 12 | 3 |
 | built_in | 4 | 4 | 0 |
 | village | 4 | 4 | 0 |
 | boss | 2 | 2 | 0 |
@@ -124,10 +124,10 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | boss | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
 | built_in | 9 | 4 | 0 | 0 | 2 | 3 | 33.3% |
 | hostile | 38 | 37 | 0 | 0 | 1 | 0 | 2.6% |
-| object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
+| object | 18 | 15 | 1 | 0 | 1 | 1 | 5.9% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| projectile | 18 | 15 | 0 | 2 | 1 | 0 | 16.7% |
+| projectile | 18 | 12 | 3 | 2 | 1 | 0 | 16.7% |
 | village | 4 | 4 | 0 | 0 | 0 | 0 | 0.0% |
 
 Sub-rows by facet, most incomplete first (30 of 371):
@@ -187,7 +187,8 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **object**
 
-- missing: `minecraft:area_effect_cloud`, `minecraft:armor_stand`, `minecraft:boat`, `minecraft:chest_boat`, `minecraft:chest_minecart`, `minecraft:command_block_minecart`, `minecraft:cushion`, `minecraft:eye_of_ender_signal`, `minecraft:fireworks_rocket`, `minecraft:hopper_minecart`, `minecraft:lightning_bolt`, `minecraft:minecart` and 4 more
+- `minecraft:area_effect_cloud`: nonliving cloud has warm-up, radius changes, lifetime and per-recipient reuse; dimension travel and complete native wire parity are unverified
+- missing: `minecraft:armor_stand`, `minecraft:boat`, `minecraft:chest_boat`, `minecraft:chest_minecart`, `minecraft:command_block_minecart`, `minecraft:cushion`, `minecraft:eye_of_ender_signal`, `minecraft:fireworks_rocket`, `minecraft:hopper_minecart`, `minecraft:lightning_bolt`, `minecraft:minecart`, `minecraft:npc` and 3 more
 
 **passive**
 
@@ -195,7 +196,10 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **projectile**
 
-- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:splash_potion`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile` and 3 more
+- `minecraft:ender_pearl`: actual launch and safe owner teleport work; endermite spawning and dimension travel remain unsupported; complete native parity is unverified
+- `minecraft:lingering_potion`: actual impact creates a replicated finite cloud with radius and recipient cooldowns; complete vanilla parity is unverified
+- `minecraft:splash_potion`: actual aux-valued launch, configured splash profiles and water extinguishing work; complete vanilla profile/effect parity is unverified
+- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile`, `minecraft:wither_skull`, `minecraft:wither_skull_dangerous`, `minecraft:xp_bottle`
 
 **village**
 
@@ -467,10 +471,10 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 | materials_misc | 40 | 2 | 0 | 38 | 0 | 0 | 95.0% |
 | melee_weapons | 17 | 0 | 1 | 16 | 0 | 0 | 94.1% |
 | other_tools | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| potions_drinks | 3 | 2 | 0 | 0 | 0 | 1 | 0.0% |
+| potions_drinks | 3 | 1 | 1 | 0 | 0 | 1 | 0.0% |
 | ranged_weapons | 8 | 0 | 4 | 4 | 0 | 0 | 50.0% |
 | spawn_eggs | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
-| throwables | 16 | 8 | 5 | 3 | 0 | 0 | 18.8% |
+| throwables | 16 | 5 | 8 | 3 | 0 | 0 | 18.8% |
 | tools | 280 | 95 | 87 | 94 | 0 | 4 | 34.1% |
 
 Sub-rows by facet, most incomplete first (25 of 25):
@@ -491,8 +495,8 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | piercing_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
 | repairable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
 | bucket | 8 | 3 | 3 | 2 | 0 | 0 | 25.0% |
-| throwable | 8 | 5 | 1 | 2 | 0 | 0 | 25.0% |
-| drink | 5 | 4 | 0 | 0 | 0 | 1 | 0.0% |
+| throwable | 8 | 2 | 4 | 2 | 0 | 0 | 25.0% |
+| drink | 5 | 3 | 1 | 0 | 0 | 1 | 0.0% |
 | compostable | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
 | shooter | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | wearable | 30 | 0 | 2 | 0 | 28 | 0 | 93.3% |
@@ -549,7 +553,8 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **potions_drinks**
 
-- missing: `minecraft:ominous_bottle/drink`, `minecraft:potion/drink`
+- `minecraft:potion/drink`: actual item use is implemented and tested with configurable classic profiles; complete vanilla parity remains unverified
+- missing: `minecraft:ominous_bottle/drink`
 
 **ranged_weapons**
 
@@ -569,9 +574,10 @@ Sub-rows by facet, most incomplete first (25 of 25):
 **throwables**
 
 - `minecraft:arrow/digger`, `minecraft:snowball/digger`, `minecraft:wind_charge/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
+- `minecraft:ender_pearl/throwable`, `minecraft:lingering_potion/throwable`, `minecraft:splash_potion/throwable`: actual item use is implemented and tested with configurable classic profiles; complete vanilla parity remains unverified
 - `minecraft:arrow/throwable`: tipped arrows (arrow data values above 0) are not used as ammunition or shot with their effects
 - `minecraft:trident/durability`: tridents cannot be thrown, so throws do not wear it
-- missing: `minecraft:ender_pearl/throwable`, `minecraft:lingering_potion/drink`, `minecraft:lingering_potion/throwable`, `minecraft:splash_potion/drink`, `minecraft:splash_potion/throwable`, `minecraft:trident/throwable`, `minecraft:wind_charge/cooldown`, `minecraft:wind_charge/throwable`
+- missing: `minecraft:lingering_potion/drink`, `minecraft:splash_potion/drink`, `minecraft:trident/throwable`, `minecraft:wind_charge/cooldown`, `minecraft:wind_charge/throwable`
 
 **tools**
 

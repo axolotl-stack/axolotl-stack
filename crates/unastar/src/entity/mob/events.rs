@@ -211,6 +211,17 @@ impl FilterContext for MobFacts<'_> {
                     .get::<PlayerState>(entity)
                     .is_some_and(|state| state.sneaking),
             ),
+            BuiltinTest::IsGameRule => {
+                match self
+                    .world
+                    .get_resource::<crate::world::rules::GameRules>()?
+                    .value(test.domain_str()?)?
+                    .1
+                {
+                    unastar_data::game_rules::GameRuleValue::Bool(value) => Fact::Bool(value),
+                    _ => return None,
+                }
+            }
             BuiltinTest::IsDifficulty => {
                 let want = test.value.as_str()?;
                 Fact::Matches(world_difficulty(self.world)? == want)
