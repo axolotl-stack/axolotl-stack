@@ -188,3 +188,10 @@ owner = "lane LOAD"
 since = 2026-10-29
 domain = "systems"
 ids = ["performance.chunk_streaming"]
+
+[[claim]]
+area = "Player melee target dispatch"
+owner = "@RestartFU"
+since = 2026-10-31
+domain = "systems"
+ids = ["player.combat"]
