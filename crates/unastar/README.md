@@ -1042,3 +1042,12 @@ of the native writer, reads all three codecs, and independently inflates/checksu
 the provider's actual compacted tables. This catches failures hidden by successful
 reads from an uncompressed write-ahead log. After changing native build flags,
 use `cargo clean -p bleveldb-sys` before the acceptance run.
+
+Native applications may register `BlockInteractionHooks` handlers (or Bevy
+observers) to synchronously authorize player block breaking, placement,
+container access and block item use before effects and item costs. A
+`BlockInteraction` exposes the immutable actor, operation kind and affected
+positions, including adjacent targets and multi-block placements. Cancellation
+is sticky, and operations revalidate world and held-item state after callbacks.
+Open container windows are reauthorized on each inventory request before items
+move; a veto closes the window and sends authoritative inventory corrections.
