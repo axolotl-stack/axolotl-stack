@@ -80,6 +80,52 @@ impl UnastarConfig {
         Ok(cfg)
     }
 
+    /// Validate listener resource bounds independently of world-generator setup.
+    pub(crate) fn validate_network(&self) -> Result<(), String> {
+        if !(1..=300).contains(&self.server.handshake_timeout_seconds) {
+            return Err("`server.handshake_timeout_seconds` must be in 1..=300".into());
+        }
+        if let Some(endpoint) = &self.server.nethernet {
+            if !(1..=120).contains(&endpoint.negotiation_timeout_seconds) {
+                return Err(
+                    "`server.nethernet.negotiation_timeout_seconds` must be in 1..=120".into(),
+                );
+            }
+            if endpoint.ice_servers.len() > 16
+                || endpoint.ice_servers.iter().any(|server| {
+                    server.urls.is_empty()
+                        || server.urls.len() > 16
+                        || server.username.len() > 1024
+                        || server.password.len() > 4096
+                        || server.urls.iter().any(|url| {
+                            url.len() > 2048
+                                || !["stun:", "stuns:", "turn:", "turns:"]
+                                    .iter()
+                                    .any(|scheme| url.starts_with(scheme))
+                        })
+                })
+            {
+                return Err(
+                    "`server.nethernet.ice_servers` requires bounded STUN/TURN service URLs".into(),
+                );
+            }
+            if endpoint.relay_only
+                && !endpoint
+                    .ice_servers
+                    .iter()
+                    .any(|server| server.urls.iter().any(|url| url.starts_with("turn:")))
+            {
+                return Err("`server.nethernet.relay_only` requires a UDP TURN service".into());
+            }
+            if !(1..=4096).contains(&endpoint.max_pending_connections) {
+                return Err(
+                    "`server.nethernet.max_pending_connections` must be in 1..=4096".into(),
+                );
+            }
+        }
+        Ok(())
+    }
+
     pub fn server_config(&self) -> ServerConfig {
         let defaults = ServerConfig::default();
 
@@ -109,6 +155,7 @@ impl UnastarConfig {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        self.validate_network()?;
         #[cfg(not(feature = "bedrock-worldgen"))]
         if matches!(
             self.world.generator,
@@ -149,6 +196,10 @@ impl UnastarConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ServerConfigFile {
+    /// Optional HTTP signaling listener. Omit the table to disable NetherNet.
+    pub nethernet: Option<NetherNetConfig>,
+    /// Maximum duration of the complete Bedrock join, on either transport.
+    pub handshake_timeout_seconds: u64,
     pub bind_address: String,
     pub motd: String,
     pub max_players: u32,
@@ -177,9 +228,55 @@ pub struct ServerConfigFile {
     pub operators: Vec<String>,
 }
 
+/// HTTP signaling and bounded negotiation settings for a NetherNet listener.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NetherNetConfig {
+    /// HTTP listener address. TLS can be terminated by a reverse proxy.
+    pub bind_address: std::net::SocketAddr,
+    /// Deadline for an HTTP offer and its WebRTC connection establishment.
+    pub negotiation_timeout_seconds: u64,
+    /// Maximum simultaneously tracked WebRTC negotiations/connections.
+    pub max_pending_connections: usize,
+    /// Explicit STUN/TURN servers; empty uses reachable host candidates only.
+    pub ice_servers: Vec<IceServerConfig>,
+    /// Advertise and use TURN relay candidates only.
+    pub relay_only: bool,
+}
+
+/// Static ICE service configuration. Secrets are omitted from Debug output.
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct IceServerConfig {
+    pub urls: Vec<String>,
+    pub username: String,
+    pub password: String,
+}
+impl std::fmt::Debug for IceServerConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IceServerConfig")
+            .field("url_count", &self.urls.len())
+            .finish_non_exhaustive()
+    }
+}
+
+impl Default for NetherNetConfig {
+    fn default() -> Self {
+        Self {
+            bind_address: std::net::SocketAddr::from(([127, 0, 0, 1], 18086)),
+            negotiation_timeout_seconds: 15,
+            max_pending_connections: 64,
+            ice_servers: Vec::new(),
+            relay_only: false,
+        }
+    }
+}
+
 impl Default for ServerConfigFile {
     fn default() -> Self {
         Self {
+            nethernet: None,
+            handshake_timeout_seconds: 30,
             bind_address: "127.0.0.1:19132".into(),
             motd: "Unastar Server".into(),
             max_players: 20,

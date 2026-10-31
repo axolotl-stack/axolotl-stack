@@ -49,6 +49,35 @@ directory. The old sample's `[world.storage]` table and its `data_dir`,
 a configuration error: remove that table and use the supported `[world]` keys.
 Player storage remains configured separately under `[players]`.
 
+The native runtime always accepts RakNet. An optional `[server.nethernet]` table
+also enables HTTP `/v1/join` signaling and WebRTC sessions:
+
+```toml
+[server.nethernet]
+bind_address = "127.0.0.1:18086"
+negotiation_timeout_seconds = 15
+max_pending_connections = 64
+relay_only = false
+```
+
+Omitting the table disables this listener. A reverse proxy may terminate HTTPS;
+HTTP signaling does not proxy the WebRTC UDP data path. Configure reachable host
+candidates or explicit `[[server.nethernet.ice_servers]]` STUN/TURN URLs. TURN
+entries accept `username` and `password`; `relay_only = true` requires a UDP TURN
+service. No external ICE service is selected implicitly.
+
+Both transports share the player limit, session identity allocator, saved-world
+routing and advertised player totals. `server.handshake_timeout_seconds` (default
+30, range 1–300) bounds the complete join. Negotiations are bounded separately
+by `negotiation_timeout_seconds` (1–120) and `max_pending_connections` (1–4096).
+The runtime stops its listeners and network pumps before shutdown saves.
+
+NetherNet uses DTLS instead of the additional Bedrock encryption layer. It
+requires a signed SDP identity; with online mode enabled, Login must also verify
+an Xbox account and prove the same identity key. An unproven or mismatched key
+cannot become an admitted online account. Offline mode still requires the
+explicit server setting and is intended for controlled testing.
+
 ## Embedding the runtime
 
 Native Rust applications can configure the initialized game server through

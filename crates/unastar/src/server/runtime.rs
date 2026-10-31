@@ -3,16 +3,18 @@
 //! Provides the `UnastarServer` struct that ties together configuration,
 //! networking, and the game server tick loop.
 
+use jolyne::listener::RawListener;
 use jolyne::proto::packs::ServerPacks;
-use jolyne::status::StaticStatus;
+use jolyne::status::{ServerStatus, StatusGameMode, StatusProvider};
 use jolyne::{BedrockListener, BedrockListenerConfig, FlushMode};
 use p384::SecretKey;
 use rand::thread_rng;
 use std::collections::{BTreeMap, HashMap};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::{Semaphore, broadcast, mpsc};
-use tokio_raknet::RaknetListener;
+use tokio::task::{JoinHandle, JoinSet};
 use tracing::{error, info, trace, warn};
 
 use crate::config::{PlayerDataStore, UnastarConfig};
@@ -181,6 +183,11 @@ impl UnastarServer {
     pub async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         info!("run() called, starting server initialization");
 
+        self.config
+            .validate_network()
+            .map_err(std::io::Error::other)?;
+        let status = Arc::new(RuntimeStatus::new(&self.config));
+
         // Build listener config from server settings
         let listener_config = BedrockListenerConfig {
             online_mode: self.config.server.online_mode,
@@ -193,22 +200,33 @@ impl UnastarServer {
             // Advertise the configured MOTD, live player count and limit
             // (protocol and game version come from jolyne's pinned surface).
             max_players: self.config.server.max_players as usize,
-            status: Some(Arc::new(StaticStatus::new(
-                self.config.server.motd.clone(),
-                "Unastar",
-            ))),
+            status: Some(status.clone()),
             ..Default::default()
         };
 
         // Bind listener
         let listener = BedrockListener::raknet()
             .addr(&self.config.server.bind_address)
-            .config(listener_config)
+            .config(listener_config.clone())
             .bind()
             .await?;
 
         let local_addr = listener.local_addr();
         info!("Listening on {:?}", local_addr);
+        let mut network_tasks = NetworkTasks::default();
+        let nethernet = if let Some(endpoint) = &self.config.server.nethernet {
+            let (handler, nethernet) = bind_nethernet(
+                endpoint,
+                listener_config,
+                tokio_nethernet::TransportConfig::default(),
+            )
+            .await?;
+            info!(address = ?handler.local_addr(), "NetherNet HTTP signaling listening");
+            network_tasks.endpoint = Some(handler);
+            Some(nethernet)
+        } else {
+            None
+        };
 
         // Where dead players respawn: the configured or generated world
         // spawn (no player's previous position).
@@ -258,51 +276,57 @@ impl UnastarServer {
         ));
 
         // Spawn accept loop
-        spawn_accept_loop(
-            listener,
-            AcceptLoopState {
-                worlds: self
-                    .server
-                    .iter()
-                    .map(|(dimension, server)| {
-                        (
-                            dimension,
-                            JoinWorldTemplate {
-                                template: server
-                                    .ecs
-                                    .world()
-                                    .resource::<crate::server::game::types::ServerWorldTemplate>()
-                                    .0
-                                    .clone(),
-                                state: server
-                                    .ecs
-                                    .world()
-                                    .resource::<crate::world::rules::StartGameWorldState>()
-                                    .clone(),
-                                world_config: *server
-                                    .ecs
-                                    .world()
-                                    .resource::<crate::world::ecs::ChunkManager>()
-                                    .world_config(),
-                            },
-                        )
-                    })
-                    .collect(),
-                primary: self.server.primary_dimension(),
-                key: self.server_key.clone(),
-                config: self.config.clone(),
-                player_data_store: self.player_data_store.clone(),
-                player_provider: self
-                    .server
-                    .ecs
-                    .world()
-                    .get_resource::<crate::server::game::types::PlayerProviderResource>()
-                    .map(|resource| resource.0.clone()),
-                event_tx,
-                tick_tx: tick_tx.clone(),
-                connection_gate,
-            },
-        );
+        let accept_state = AcceptLoopState {
+            worlds: self
+                .server
+                .iter()
+                .map(|(dimension, server)| {
+                    (
+                        dimension,
+                        JoinWorldTemplate {
+                            template: server
+                                .ecs
+                                .world()
+                                .resource::<crate::server::game::types::ServerWorldTemplate>()
+                                .0
+                                .clone(),
+                            state: server
+                                .ecs
+                                .world()
+                                .resource::<crate::world::rules::StartGameWorldState>()
+                                .clone(),
+                            world_config: *server
+                                .ecs
+                                .world()
+                                .resource::<crate::world::ecs::ChunkManager>()
+                                .world_config(),
+                        },
+                    )
+                })
+                .collect(),
+            primary: self.server.primary_dimension(),
+            key: self.server_key.clone(),
+            config: self.config.clone(),
+            player_data_store: self.player_data_store.clone(),
+            player_provider: self
+                .server
+                .ecs
+                .world()
+                .get_resource::<crate::server::game::types::PlayerProviderResource>()
+                .map(|resource| resource.0.clone()),
+            event_tx,
+            tick_tx: tick_tx.clone(),
+            connection_gate,
+            next_session_id: Arc::new(AtomicU64::new(1)),
+        };
+        network_tasks
+            .tasks
+            .push(spawn_accept_loop(listener, accept_state.clone()));
+        if let Some(nethernet) = nethernet {
+            network_tasks
+                .tasks
+                .push(spawn_accept_loop(nethernet, accept_state));
+        }
 
         // Main tick loop
         let mut interval = tokio::time::interval(TICK_DURATION);
@@ -442,6 +466,10 @@ impl UnastarServer {
 
                     let events_elapsed = tick_start.elapsed();
 
+                    status.players.store(
+                        self.server.iter().map(|(_, server)| server.ecs.world().resource::<crate::server::game::SessionEntityMap>().len()).sum(),
+                        Ordering::Relaxed,
+                    );
                     // Run game tick (this queues packets to broadcast systems)
                     let tick_logic_start = std::time::Instant::now();
                     self.server.tick().await?;
@@ -473,11 +501,13 @@ impl UnastarServer {
                     }
                     if self.server.stop_requested() {
                         info!("Stop requested by command, saving data...");
+                        network_tasks.stop().await;
                         return self.shutdown().await;
                     }
                 }
                 _ = &mut shutdown => {
                     info!("Shutdown signal received, saving data...");
+                    network_tasks.stop().await;
                     return self.shutdown().await;
                 }
             }
@@ -496,6 +526,7 @@ impl UnastarServer {
     }
 }
 
+#[derive(Clone)]
 struct AcceptLoopState {
     worlds: BTreeMap<i32, JoinWorldTemplate>,
     primary: i32,
@@ -506,12 +537,19 @@ struct AcceptLoopState {
     event_tx: mpsc::Sender<NetworkEvent>,
     tick_tx: broadcast::Sender<()>,
     connection_gate: Arc<Semaphore>,
+    next_session_id: Arc<AtomicU64>,
 }
 
 /// Spawn the accept loop as a background task.
-fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: AcceptLoopState) {
+fn spawn_accept_loop<L: RawListener + Sync + 'static>(
+    mut listener: BedrockListener<L>,
+    state: AcceptLoopState,
+) -> JoinHandle<()>
+where
+    L::Transport: 'static,
+{
     tokio::spawn(async move {
-        let mut next_session_id: u64 = 1;
+        let mut connections = JoinSet::new();
         let AcceptLoopState {
             worlds,
             primary,
@@ -522,10 +560,15 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
             event_tx,
             tick_tx,
             connection_gate,
+            next_session_id,
         } = state;
 
         loop {
-            match listener.accept().await {
+            let accepted = tokio::select! {
+                result = listener.accept() => result,
+                Some(_) = connections.join_next(), if !connections.is_empty() => continue,
+            };
+            match accepted {
                 Ok(handshake_stream) => {
                     let addr = handshake_stream.peer_addr();
                     info!(%addr, "Connection accepted");
@@ -549,30 +592,43 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                     let player_provider = player_provider.clone();
                     let event_tx = event_tx.clone();
                     let tick_rx = tick_tx.subscribe();
-                    let session_id = next_session_id;
-                    next_session_id += 1;
+                    let session_id = match next_session_id.fetch_update(
+                        Ordering::Relaxed,
+                        Ordering::Relaxed,
+                        |id| (id < i64::MAX as u64).then_some(id + 1),
+                    ) {
+                        Ok(id) => id,
+                        Err(_) => {
+                            error!("Session identity space exhausted");
+                            break;
+                        }
+                    };
 
-                    tokio::spawn(async move {
+                    connections.spawn(async move {
                         let _connection_permit = permit;
-                        match accept_join_sequence_in_worlds(
-                            &worlds,
-                            primary,
-                            &key,
-                            &config,
-                            &player_data_store,
-                            player_provider.as_deref(),
-                            session_id,
-                            handshake_stream,
+                        let timeout = Duration::from_secs(config.server.handshake_timeout_seconds);
+                        match tokio::time::timeout(
+                            timeout,
+                            accept_join_sequence_in_worlds(
+                                &worlds,
+                                primary,
+                                &key,
+                                &config,
+                                &player_data_store,
+                                player_provider.as_deref(),
+                                session_id,
+                                handshake_stream,
+                            ),
                         )
                         .await
                         {
-                            Ok((
+                            Ok(Ok((
                                 mut play_stream,
                                 identity,
                                 initial_position,
                                 saved_data,
                                 dimension,
-                            )) => {
+                            ))) => {
                                 let display_name = identity.display_name().to_string();
 
                                 info!(%addr, name = %display_name, "Player joined");
@@ -651,16 +707,148 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                 )
                                 .await;
                             }
-                            Err(e) => {
+                            Ok(Err(e)) => {
                                 error!(%addr, "Handshake failed: {:?}", e);
+                            }
+                            Err(_) => {
+                                warn!(%addr, "Bedrock join timed out");
                             }
                         }
                     });
                 }
                 Err(e) => {
                     error!("Accept failed: {:?}", e);
+                    break;
                 }
             }
         }
-    });
+    })
+}
+
+/// Shared advertised totals across every native transport listener.
+struct RuntimeStatus {
+    name: String,
+    max: usize,
+    mode: StatusGameMode,
+    players: AtomicUsize,
+}
+impl RuntimeStatus {
+    /// Build the shared status independently of each listener's transport slots.
+    fn new(config: &UnastarConfig) -> Self {
+        let mode = match config.server.default_gamemode.to_ascii_lowercase().as_str() {
+            "creative" => StatusGameMode::Creative,
+            "adventure" => StatusGameMode::Adventure,
+            "spectator" => StatusGameMode::Spectator,
+            _ => StatusGameMode::Survival,
+        };
+        Self {
+            name: config.server.motd.clone(),
+            max: config.server.max_players as usize,
+            mode,
+            players: AtomicUsize::new(0),
+        }
+    }
+}
+impl StatusProvider for RuntimeStatus {
+    fn status(&self, _player_count: usize, _max_players: usize) -> ServerStatus {
+        ServerStatus {
+            server_name: self.name.clone(),
+            sub_name: "Unastar".into(),
+            player_count: self.players.load(Ordering::Relaxed),
+            max_players: self.max,
+            game_mode: self.mode,
+        }
+    }
+}
+
+/// Runtime-owned tasks never outlive their server or a failed startup.
+#[derive(Default)]
+struct NetworkTasks {
+    tasks: Vec<JoinHandle<()>>,
+    endpoint: Option<Arc<tokio_nethernet::endpoint::Handler>>,
+}
+impl NetworkTasks {
+    /// Stop accepting and cancel active network pumps before ordinary saves.
+    async fn stop(&mut self) {
+        if let Some(endpoint) = self.endpoint.take() {
+            endpoint.close();
+        }
+        for task in &self.tasks {
+            task.abort();
+        }
+        for task in self.tasks.drain(..) {
+            let _ = task.await;
+        }
+    }
+}
+impl Drop for NetworkTasks {
+    fn drop(&mut self) {
+        if let Some(endpoint) = &self.endpoint {
+            endpoint.close();
+        }
+        for task in &self.tasks {
+            task.abort();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;
+
+/// Bind the real HTTP signaling and identity-verifying transport together.
+/// A failed bind closes its HTTP listener instead of leaving a partial service.
+async fn bind_nethernet(
+    endpoint: &crate::config::NetherNetConfig,
+    config: BedrockListenerConfig,
+    mut transport: tokio_nethernet::TransportConfig,
+) -> Result<
+    (
+        Arc<tokio_nethernet::endpoint::Handler>,
+        BedrockListener<tokio_nethernet::NetherNetListener>,
+    ),
+    Box<dyn std::error::Error>,
+> {
+    let timeout = Duration::from_secs(endpoint.negotiation_timeout_seconds);
+    let handler = tokio_nethernet::endpoint::HandlerConfig {
+        negotiation_timeout: timeout,
+        ..Default::default()
+    }
+    .serve(endpoint.bind_address)
+    .await?;
+    transport.relay_only = endpoint.relay_only;
+    let result = BedrockListener::nethernet()
+        .endpoint(
+            handler.clone(),
+            tokio_nethernet::NetherNetListenerConfig {
+                connection_timeout: timeout,
+                max_pending_connections: endpoint.max_pending_connections,
+                ice_servers: endpoint
+                    .ice_servers
+                    .iter()
+                    .map(|server| tokio_nethernet::IceServer {
+                        urls: server.urls.clone(),
+                        username: server.username.clone(),
+                        password: server.password.clone(),
+                    })
+                    .collect(),
+                transport,
+                // Login authenticates the account and binds its key to the signed
+                // SDP assertion already verified against the DTLS fingerprint.
+                allow_identityless_client: false,
+                ..Default::default()
+            },
+        )
+        .config(BedrockListenerConfig {
+            encryption_enabled: false,
+            ..config
+        })
+        .bind()
+        .await;
+    match result {
+        Ok(listener) => Ok((handler, listener)),
+        Err(error) => {
+            handler.close();
+            Err(error.into())
+        }
+    }
 }

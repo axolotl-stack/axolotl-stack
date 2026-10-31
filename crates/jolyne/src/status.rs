@@ -30,7 +30,7 @@ impl StatusGameMode {
         }
     }
 
-    #[cfg(feature = "discovery")]
+    #[cfg(any(feature = "discovery", feature = "endpoint"))]
     fn id(self) -> i32 {
         match self {
             Self::Survival => 0,
@@ -81,6 +81,20 @@ impl ServerStatus {
             port,
             port,
         )
+    }
+
+    /// NetherNet HTTP signaling status, using the same live provider as pings.
+    #[cfg(feature = "endpoint")]
+    pub fn endpoint_status(&self) -> tokio_nethernet::endpoint::Status {
+        tokio_nethernet::endpoint::Status {
+            server_name: self.server_name.clone(),
+            protocol: i64::from(PROTOCOL_VERSION),
+            version: GAME_VERSION.to_string(),
+            level_name: self.sub_name.clone(),
+            player_count: i64::try_from(self.player_count).unwrap_or(i64::MAX),
+            max_player_count: i64::try_from(self.advertised_max()).unwrap_or(i64::MAX),
+            game_type: i64::from(self.game_mode.id()),
+        }
     }
 
     /// NetherNet LAN discovery data.

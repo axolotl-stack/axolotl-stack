@@ -215,3 +215,72 @@ fn bedrock_config_requires_the_build_time_pack_feature() {
         cfg!(feature = "bedrock-worldgen")
     );
 }
+
+#[test]
+fn nethernet_is_optional_and_has_explicit_bounded_network_defaults() {
+    let config: UnastarConfig = toml_edit::de::from_str(VOID_WORLD).unwrap();
+    assert!(config.server.nethernet.is_none());
+    assert!(config.server.online_mode);
+    let config: UnastarConfig =
+        toml_edit::de::from_str(&format!("{VOID_WORLD}[server.nethernet]\n")).unwrap();
+    let endpoint = config.server.nethernet.as_ref().unwrap();
+    assert_eq!(
+        endpoint.bind_address,
+        "127.0.0.1:18086".parse::<std::net::SocketAddr>().unwrap()
+    );
+    assert_eq!(endpoint.negotiation_timeout_seconds, 15);
+    assert_eq!(endpoint.max_pending_connections, 64);
+    assert!(config.server.online_mode);
+    assert!(config.validate_network().is_ok());
+    let roundtrip = toml_edit::ser::to_string(&config).unwrap();
+    let loaded: UnastarConfig = toml_edit::de::from_str(&roundtrip).unwrap();
+    assert_eq!(
+        loaded.server.nethernet.unwrap().bind_address,
+        endpoint.bind_address
+    );
+    for values in [
+        "negotiation_timeout_seconds = 0",
+        "negotiation_timeout_seconds = 121",
+        "max_pending_connections = 0",
+        "max_pending_connections = 4097",
+    ] {
+        let config: UnastarConfig =
+            toml_edit::de::from_str(&format!("{VOID_WORLD}[server.nethernet]\n{values}\n"))
+                .unwrap();
+        assert!(config.validate_network().is_err(), "{values}");
+    }
+    for timeout in [0, 301] {
+        let mut config = config.clone();
+        config.server.handshake_timeout_seconds = timeout;
+        assert!(config.validate_network().is_err());
+    }
+    assert!(
+        toml_edit::de::from_str::<UnastarConfig>(&format!(
+            "{VOID_WORLD}[server.nethernet]\nallow_identityless_client=true"
+        ))
+        .is_err()
+    );
+}
+
+#[test]
+fn ice_configuration_is_bounded_and_secrets_are_not_in_debug_output() {
+    let mut config = UnastarConfig::default();
+    let endpoint = config.server.nethernet.insert(NetherNetConfig::default());
+    endpoint.relay_only = true;
+    assert!(config.validate_network().is_err());
+    let endpoint = config.server.nethernet.as_mut().unwrap();
+    endpoint.ice_servers.push(IceServerConfig {
+        urls: vec!["turn:relay.example.org:3478".into()],
+        username: "local-test-user".into(),
+        password: "local-test-password".into(),
+    });
+    assert!(!format!("{endpoint:?}").contains("local-test"));
+    assert!(config.validate_network().is_ok());
+    config.server.nethernet.as_mut().unwrap().ice_servers[0].urls[0] =
+        "https://not-ice.example.org".into();
+    assert!(config.validate_network().is_err());
+    config.server.nethernet.as_mut().unwrap().ice_servers[0]
+        .urls
+        .clear();
+    assert!(config.validate_network().is_err());
+}

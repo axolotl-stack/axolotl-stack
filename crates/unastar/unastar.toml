@@ -42,6 +42,20 @@ allow_legacy_auth = true
 encryption_enabled = true
 # Require clients to accept advertised resource packs.
 require_resource_packs = false
+# Bound the entire authenticated join, including packs and streamed spawn setup.
+handshake_timeout_seconds = 30
+
+# Optional NetherNet HTTP signaling alongside RakNet. Omit this table to disable.
+# HTTP carries offers/status; WebRTC still requires reachable UDP ICE candidates.
+# TLS may be terminated by a reverse proxy. Authentication stays online_mode.
+# [server.nethernet]
+# bind_address = "127.0.0.1:18086"
+# negotiation_timeout_seconds = 15
+# max_pending_connections = 64
+# relay_only = false
+# [[server.nethernet.ice_servers]]
+# urls = ["stun:stun.example.org:3478"]
+# For a TURN service, configure its turn: URL, username and password here.
 
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
