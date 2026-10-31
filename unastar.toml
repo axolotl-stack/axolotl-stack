@@ -46,6 +46,7 @@ handshake_timeout_seconds = 30
 # TLS may be terminated by a reverse proxy. Authentication stays online_mode.
 # [server.nethernet]
 # bind_address = "127.0.0.1:18086"
+# signing_key_path = "data/nethernet-signing-key.der"
 # negotiation_timeout_seconds = 15
 # max_pending_connections = 64
 # relay_only = false

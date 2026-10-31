@@ -162,6 +162,20 @@ cargo check -p axelerator --all-targets
 
 Tests include upstream wire fixtures, go-nethernet SDP line order and parse rules, authenticated malformed/truncated discovery input, configuration deadlines/ICE validation, fragment boundaries up to 262143-byte segments, receive-window backpressure, signed-identity tampering, HTTP signaling cancellation/credentials, retained WebSocket framing/closure, real loopback peers exchanging fragmented reliable and unreliable messages over inline and trickled candidates, go-nethernet close semantics, fingerprint-mismatch rejection, typed reassembly errors, a poisoned connection after a contained transport panic, mDNS candidate resolution, relay-only dials (inline and trickled) and a same-address `stun:`+`turn:` pair against an independent TURN server (webrtc-rs `turn`), an independent webrtc-rs 0.12 answerer with pion's AES-256-GCM-first SRTP preference and an independent webrtc-rs 0.12 offerer, sequential small sends that must not wait for delayed SACKs, and a contained listener negotiation panic.
 
+## Persistent server signing keys
+
+`identity::ServerSigningKey::load_or_create(path)` loads bounded PKCS#8 P-384
+material or atomically creates a new private key without replacing an existing
+file. Configure `NetherNetListenerConfig::signing_key` to issue a fresh self-signed
+server token for every negotiation while preserving the same public key across
+listener restarts. A complete explicit `identity` retains precedence. Omitting
+both options preserves the generated-key behavior.
+
+Malformed, unreadable or nonprivate Unix key files are errors. New files use
+0600 on Unix, file writes are synced before atomic publication, and Unix directory
+entries are synced. Competing creators converge on one complete key. The key file
+contains neither a signed token nor account authentication material.
+
 ## License
 
 MIT OR Apache-2.0

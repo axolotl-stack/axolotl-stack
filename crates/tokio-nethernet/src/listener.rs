@@ -26,8 +26,11 @@ pub struct NetherNetListenerConfig {
     pub max_sdp_size: usize,
     /// Maximum tracked negotiations/connections (local resource hardening).
     pub max_pending_connections: usize,
-    /// Local server SDP identity; absent values use the upstream-generated self identity.
+    /// Complete server SDP identity override; otherwise each negotiation issues a fresh token.
     pub identity: Option<Arc<crate::identity::Identity>>,
+    /// Stable server key used to issue a fresh token per negotiation.
+    /// A complete explicit `identity`, when supplied, takes precedence.
+    pub signing_key: Option<Arc<crate::identity::ServerSigningKey>>,
     /// Optional client-token authorization; otherwise Login must authenticate and bind its cpk.
     pub verify_client_token: Option<Arc<dyn crate::identity::TokenVerifier>>,
     /// Explicit local/testing opt-out; upstream rejects identityless clients by default.
@@ -57,6 +60,7 @@ impl Default for NetherNetListenerConfig {
             max_sdp_size: DEFAULT_MAX_SDP_SIZE,
             max_pending_connections: DEFAULT_MAX_PENDING_CONNECTIONS,
             identity: None,
+            signing_key: None,
             verify_client_token: None,
             allow_identityless_client: false,
             signal_monitor: None,
@@ -423,6 +427,8 @@ impl ListenerActor {
         // and issues a fresh self-signed server token for each negotiation.
         let server_identity = if let Some(identity) = &self.config.identity {
             Some(identity.clone())
+        } else if let Some(key) = &self.config.signing_key {
+            Some(Arc::new(key.identity("self")?))
         } else if self.signaling.requires_identity() {
             let key = self.generated_identity_key.get_or_insert_with(|| {
                 p384::ecdsa::SigningKey::random(&mut p384::elliptic_curve::rand_core::OsRng)

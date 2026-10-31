@@ -808,6 +808,12 @@ async fn bind_nethernet(
     ),
     Box<dyn std::error::Error>,
 > {
+    let signing_key = endpoint
+        .signing_key_path
+        .as_ref()
+        .map(tokio_nethernet::identity::ServerSigningKey::load_or_create)
+        .transpose()?
+        .map(Arc::new);
     let timeout = Duration::from_secs(endpoint.negotiation_timeout_seconds);
     let handler = tokio_nethernet::endpoint::HandlerConfig {
         negotiation_timeout: timeout,
@@ -820,6 +826,7 @@ async fn bind_nethernet(
         .endpoint(
             handler.clone(),
             tokio_nethernet::NetherNetListenerConfig {
+                signing_key,
                 connection_timeout: timeout,
                 max_pending_connections: endpoint.max_pending_connections,
                 ice_servers: endpoint

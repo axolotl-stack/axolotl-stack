@@ -388,3 +388,83 @@ async fn endpoint_status_refresh_tracks_the_shared_provider_and_preserves_game_m
     .await
     .unwrap();
 }
+
+/// Connect only the transport; no game Login or account authentication is performed.
+async fn persisted_endpoint_key(path: &std::path::Path) -> p384::ecdsa::VerifyingKey {
+    let endpoint = crate::config::NetherNetConfig {
+        bind_address: "127.0.0.1:0".parse().unwrap(),
+        signing_key_path: Some(path.to_owned()),
+        ..Default::default()
+    };
+    let (handler, listener) = bind_nethernet(
+        &endpoint,
+        BedrockListenerConfig::default(),
+        TransportConfig::loopback_v4(),
+    )
+    .await
+    .unwrap();
+    let identity = Arc::new(
+        tokio_nethernet::identity::Identity::generate_server(
+            p384::ecdsa::SigningKey::random(&mut rand::thread_rng()),
+            "localhost",
+        )
+        .unwrap(),
+    );
+    let dialer = NetherNetDialer::connect_with_signaling(
+        tokio_nethernet::endpoint::Client::new(),
+        NetherNetDialerConfig {
+            identity: Some(identity),
+            transport: TransportConfig::loopback_v4(),
+            ..Default::default()
+        },
+    );
+    let connection = tokio::time::timeout(
+        Duration::from_secs(5),
+        dialer.dial(format!("http://{}", handler.local_addr().unwrap())),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    let verified = connection.remote_identity().expect("signed server answer");
+    let key = verified.public_key;
+    drop(connection);
+    drop(listener);
+    handler.close();
+    key
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_endpoint_restart_retains_the_verified_server_key() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("keys/server.der");
+    let first = persisted_endpoint_key(&path).await;
+    let second = persisted_endpoint_key(&path).await;
+    assert_eq!(first, second);
+}
+
+#[tokio::test]
+async fn invalid_configured_key_fails_before_http_listener_is_bound() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("server.der");
+    tokio_nethernet::identity::ServerSigningKey::load_or_create(&path).unwrap();
+    std::fs::write(&path, b"invalid private key").unwrap();
+    let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = socket.local_addr().unwrap();
+    drop(socket);
+    let endpoint = crate::config::NetherNetConfig {
+        bind_address: address,
+        signing_key_path: Some(path.clone()),
+        ..Default::default()
+    };
+    assert!(
+        bind_nethernet(
+            &endpoint,
+            BedrockListenerConfig::default(),
+            TransportConfig::loopback_v4()
+        )
+        .await
+        .is_err()
+    );
+    let _available = tokio::net::TcpListener::bind(address).await.unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), b"invalid private key");
+}

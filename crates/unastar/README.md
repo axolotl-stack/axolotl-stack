@@ -55,6 +55,7 @@ also enables HTTP `/v1/join` signaling and WebRTC sessions:
 ```toml
 [server.nethernet]
 bind_address = "127.0.0.1:18086"
+signing_key_path = "data/nethernet-signing-key.der"
 negotiation_timeout_seconds = 15
 max_pending_connections = 64
 relay_only = false
@@ -65,6 +66,14 @@ HTTP signaling does not proxy the WebRTC UDP data path. Configure reachable host
 candidates or explicit `[[server.nethernet.ice_servers]]` STUN/TURN URLs. TURN
 entries accept `username` and `password`; `relay_only = true` requires a UDP TURN
 service. No external ICE service is selected implicitly.
+
+`signing_key_path` is optional. When configured, the runtime loads or atomically
+creates a PKCS#8 P-384 private key before binding HTTP. The same key signs fresh
+server assertions on every negotiation, so its public identity survives restarts.
+Existing invalid or unreadable keys fail startup without replacement. New key
+files use private Unix permissions; file contents are synced before publication
+and Unix directory entries are synced as well. Back up this key with server data.
+Omitting the path retains a generated key for each listener lifetime.
 
 Both transports share the player limit, session identity allocator, saved-world
 routing and advertised player totals. `server.handshake_timeout_seconds` (default

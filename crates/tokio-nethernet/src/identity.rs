@@ -5,6 +5,9 @@
 // identity.go:GenerateServerIdentity uses ES384 and a one-minute (60-second) expiry.
 // identity.go:claimPublicKey -> tokenClaims.Validate -> go-jose/v4 jwt.Claims.Validate
 // uses jwt.DefaultLeeway (60 seconds) for client exp/iat/nbf validation.
+mod key;
+pub use key::ServerSigningKey;
+
 use std::{
     fmt,
     future::Future,
