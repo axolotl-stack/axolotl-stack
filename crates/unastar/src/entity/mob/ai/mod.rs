@@ -73,6 +73,7 @@ use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::goal_selector::{GoalSelector, GoalSpec};
 use crate::entity::item_drop::PLAYER_EYE_HEIGHT;
+use crate::entity::navigation::WalkWaypoint;
 use crate::entity::systems::physics::{living_block_friction, living_liquid};
 use crate::registry::collision::Aabb;
 
@@ -445,16 +446,10 @@ fn think(
             hop.tick(config, &body, &mut yaw, movement, &mut rng.0),
         )
     } else {
-        let door_hold = nav.current().is_some_and(|(index, path)| {
-            break_door::held_by_breakable_door(
-                world,
-                entity,
-                table,
-                path,
-                index,
-                Aabb::from_feet(feet, physics.width, physics.height),
-            )
-        });
+        let mob_box = Aabb::from_feet(feet, physics.width, physics.height);
+        let door_hold = |path: &[WalkWaypoint], index: usize| {
+            break_door::held_by_breakable_door(world, entity, table, path, index, mob_box)
+        };
         let wall_climbing = if policy.climbs_walls {
             let collided = mob.get::<Climbing>().is_some_and(|c| c.collided);
             climb::navigate(world, table, &body, collided, nav, movement, door_hold)

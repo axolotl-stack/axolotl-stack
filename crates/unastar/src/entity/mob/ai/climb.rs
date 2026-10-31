@@ -29,6 +29,7 @@ use glam::DVec3;
 use super::control::{Body, MoveControl, PathFollower};
 use super::path::{PathBlockTable, climber_walks_directly};
 use crate::entity::mob::constants::{CLIMB_ARRIVAL_WIDTH_SQ_FACTOR, CLIMB_SWEEP_HEIGHT_FACTOR};
+use crate::entity::navigation::WalkWaypoint;
 use crate::entity::systems::physics::BlockSource;
 use crate::registry::block::LiquidKind;
 
@@ -43,7 +44,7 @@ pub(super) fn navigate(
     collided: bool,
     nav: &mut PathFollower,
     control: &mut MoveControl,
-    door_hold: bool,
+    door_hold: impl Fn(&[WalkWaypoint], usize) -> bool,
 ) -> bool {
     let wall_climbing = collided && nav.destination().is_some();
     match nav.destination() {

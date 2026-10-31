@@ -158,12 +158,16 @@ pub struct FallingBlock {
     pub state: u32,
 }
 
-/// A living body's climbing state (`systems::physics` climbs it). Every mob
-/// carries one.
+/// A living body's climbing and move-collision state (`systems::physics`
+/// climbs it and writes the collisions). Every mob carries one.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Climbing {
     /// The body's last move was blocked horizontally (physics writes it).
     pub collided: bool,
+    /// The body's last move was blocked on any axis: horizontally, or
+    /// vertically (resting on the ground, bumping a ceiling). Physics
+    /// writes it; a door breaker's crack ends on a tick it is clear.
+    pub touched: bool,
     /// The body shows the `WALLCLIMBING` actor flag (climb navigation
     /// writes it, together with the flag).
     pub wall_climbing: bool,

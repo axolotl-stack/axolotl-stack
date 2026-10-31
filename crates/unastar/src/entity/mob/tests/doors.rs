@@ -315,7 +315,8 @@ impl Harness {
             match packet {
                 McpePacketData::LevelEventPacket(event) => {
                     let p = event.position;
-                    let cell = IVec3::new(p.x.floor() as i32, p.y.floor() as i32, p.z.floor() as i32);
+                    let cell =
+                        IVec3::new(p.x.floor() as i32, p.y.floor() as i32, p.z.floor() as i32);
                     let centred = [p.x, p.y, p.z]
                         .into_iter()
                         .all(|v| (v - v.floor() - 0.5).abs() < 1e-4);
@@ -336,14 +337,23 @@ impl Harness {
         }
     }
 
-    /// Tick `ticks` times recording the door packets; also the ticks on
-    /// which the zombie stood in the door's cell while cracking it.
-    fn run_wire(&mut self, zombie: Entity, ticks: u64) -> (Vec<(u64, Wire)>, u64) {
-        let mut wire = Vec::new();
-        let mut cracking_in_cell = 0;
+    /// Tick `ticks` times recording the door packets, the ticks on which
+    /// the zombie stood in the door's cell while cracking it and the ticks
+    /// at whose end each door half was first air.
+    fn run_wire(&mut self, zombie: Entity, ticks: u64) -> BreakRun {
+        let air = air();
+        let mut run = BreakRun::default();
         for tick in 0..ticks {
             self.server.tick();
-            self.door_wire(tick, &mut wire);
+            self.door_wire(tick, &mut run.wire);
+            for (half, at) in [
+                (DOOR, &mut run.lower_air),
+                (DOOR + IVec3::Y, &mut run.upper_air),
+            ] {
+                if at.is_none() && self.block(half) == air {
+                    *at = Some(tick);
+                }
+            }
             let world = self.world();
             let (Some(position), Some(flags)) = (
                 world.get::<Position>(zombie),
@@ -353,11 +363,20 @@ impl Harness {
             };
             let in_cell = position.0.x + 0.3 > f64::from(DOOR.x);
             if in_cell && flags.get(actor_flags::BREAKING_OBSTRUCTION).unwrap() {
-                cracking_in_cell += 1;
+                run.cracking_in_cell += 1;
             }
         }
-        (wire, cracking_in_cell)
+        run
     }
+}
+
+/// What [`Harness::run_wire`] saw.
+#[derive(Default)]
+struct BreakRun {
+    wire: Vec<(u64, Wire)>,
+    cracking_in_cell: u64,
+    lower_air: Option<u64>,
+    upper_air: Option<u64>,
 }
 
 /// A door packet on the wire (see [`Harness::door_wire`]).
@@ -376,32 +395,45 @@ enum Wire {
 const BDS_AIR_WIRE: u32 = 3_690_217_760;
 const BDS_OAK_DOOR_DEFAULT_WIRE: i32 = 650_702_320;
 
-/// The door packets of a zombie breaking a closed oak door in the order of
-/// the BDS 1.26.51 captures `zombie-door-break.jsonl` and
-/// `zombie-door-break-inside.jsonl`:
+/// A zombie breaking a closed oak door as the BDS 1.26.51 captures
+/// `zombie-door-break.jsonl` and `zombie-door-break-inside.jsonl` show it:
 ///
 /// 1. the crack starts at the lower half (StartBlockCracking, data 273);
 /// 2. only door bashes (1 in 20 per tick: 10 and 14 in the captures) follow;
 /// 3. 241 ticks after the start the crash sound and the destroy particles
-///    of the door's default state play together at the lower half;
-/// 4. on the next tick the lower half turns to air and the upper half's
-///    destroy particles (its own state) play;
-/// 5. on the tick after that the upper half turns to air.
+///    of the door's default state play together at the lower half, and the
+///    lower half is removed;
+/// 4. on the next tick the upper half, left alone, is destroyed with its
+///    own destroy particles.
 ///
-/// Nothing else touches the door.
-fn assert_bds_break_order(wire: &[(u64, Wire)], upper_state: u32) {
+/// The level events must match exactly, and so must the server-side block
+/// state: the lower half is air at the end of the crash tick, the upper half
+/// one tick later. On the BDS wire each half's UpdateBlock arrives one tick
+/// after its removal (lower at crash + 1, upper at crash + 2), because BDS
+/// sends block changes once per tick, before the entity tick. Unastar sends
+/// them on the tick of the change, and sends each one twice (`set_block`
+/// plus `broadcast_block_updates`). Both are pending the block-flush change
+/// owned by the blocks lane. Until it lands, an UpdateBlock may arrive one
+/// tick before the BDS tick, and same-tick repeats count once.
+fn assert_bds_break_order(run: &BreakRun, upper_state: u32) {
+    let wire = &run.wire;
     let event = |upper, id, data| Wire::Event { upper, id, data };
-    let (start, first) = wire.first().copied().expect("the zombie cracks the door");
+    let events: Vec<(u64, Wire)> = wire
+        .iter()
+        .copied()
+        .filter(|(_, w)| matches!(w, Wire::Event { .. }))
+        .collect();
+    let (start, first) = events.first().copied().expect("the zombie cracks the door");
     assert_eq!(
         first,
         event(false, LEVEL_EVENT_START_BLOCK_CRACKING, 273),
         "{wire:?}"
     );
-    let crash = wire
+    let crash = events
         .iter()
         .position(|(_, w)| matches!(w, Wire::Event { id, .. } if *id == LEVEL_EVENT_SOUND_ZOMBIE_DOOR_CRASH))
         .unwrap_or_else(|| panic!("the door breaks: {wire:?}"));
-    let bashes = &wire[1..crash];
+    let bashes = &events[1..crash];
     assert!(
         bashes
             .iter()
@@ -413,40 +445,58 @@ fn assert_bds_break_order(wire: &[(u64, Wire)], upper_state: u32) {
         "1 in 20 per tick over 240 ticks: {}",
         bashes.len()
     );
-    let tick = wire[crash].0;
+    let tick = events[crash].0;
     assert_eq!(tick - start, BREAK_TICKS, "{wire:?}");
-    let upper_wire =
-        crate::registry::block::BlockNetworkIds::Hashed.to_wire(upper_state) as i32;
-    let expected = [
-        (tick, event(false, LEVEL_EVENT_SOUND_ZOMBIE_DOOR_CRASH, 0)),
-        (
-            tick,
-            event(
-                false,
-                LEVEL_EVENT_PARTICLES_DESTROY_BLOCK_NO_SOUND,
-                BDS_OAK_DOOR_DEFAULT_WIRE,
+    let upper_wire = crate::registry::block::BlockNetworkIds::Hashed.to_wire(upper_state) as i32;
+    assert_eq!(
+        &events[crash..],
+        &[
+            (tick, event(false, LEVEL_EVENT_SOUND_ZOMBIE_DOOR_CRASH, 0)),
+            (
+                tick,
+                event(
+                    false,
+                    LEVEL_EVENT_PARTICLES_DESTROY_BLOCK_NO_SOUND,
+                    BDS_OAK_DOOR_DEFAULT_WIRE,
+                ),
             ),
-        ),
-        (
-            tick + 1,
-            Wire::Block {
-                upper: false,
-                wire: BDS_AIR_WIRE,
-            },
-        ),
-        (
-            tick + 1,
-            event(true, LEVEL_EVENT_PARTICLES_DESTROY_BLOCK, upper_wire),
-        ),
-        (
-            tick + 2,
-            Wire::Block {
-                upper: true,
-                wire: BDS_AIR_WIRE,
-            },
-        ),
-    ];
-    assert_eq!(&wire[crash..], &expected, "{wire:?}");
+            (
+                tick + 1,
+                event(true, LEVEL_EVENT_PARTICLES_DESTROY_BLOCK, upper_wire),
+            ),
+        ],
+        "{wire:?}"
+    );
+    assert_eq!(
+        run.lower_air,
+        Some(tick),
+        "lower half removed on the crash tick"
+    );
+    assert_eq!(run.upper_air, Some(tick + 1), "upper half one tick later");
+    let mut blocks: Vec<(u64, Wire)> = wire
+        .iter()
+        .copied()
+        .filter(|(_, w)| matches!(w, Wire::Block { .. }))
+        .collect();
+    // Same-tick repeats count once (see above).
+    blocks.dedup();
+    let block = |upper| Wire::Block {
+        upper,
+        wire: BDS_AIR_WIRE,
+    };
+    // BDS ticks: lower at crash + 1, upper at crash + 2; one tick early is
+    // tolerated until the block flush moves (see above).
+    assert_eq!(blocks.len(), 2, "{wire:?}");
+    for ((at, w), (bds_tick, expected)) in blocks
+        .iter()
+        .zip([(tick + 1, block(false)), (tick + 2, block(true))])
+    {
+        assert_eq!(*w, expected, "{wire:?}");
+        assert!(
+            (bds_tick - 1..=bds_tick).contains(at),
+            "UpdateBlock at {at}, BDS at {bds_tick}: {wire:?}"
+        );
+    }
 }
 
 #[test]
@@ -454,7 +504,7 @@ fn breaker_breaks_the_door_in_the_bds_wire_order() {
     let mut h = harness(7, "minecraft:wooden_door", Difficulty::Hard);
     let zombie = h.zombie(true);
     h.provoke(zombie);
-    let (wire, _) = h.run_wire(zombie, 900);
+    let run = h.run_wire(zombie, 900);
     let upper = door_state("minecraft:wooden_door", true);
     // The capture's upper half (`zombie-door-break-inside.jsonl`: panel
     // against the west side, as here) has this wire id.
@@ -462,7 +512,7 @@ fn breaker_breaks_the_door_in_the_bds_wire_order() {
         crate::registry::block::BlockNetworkIds::Hashed.to_wire(upper) as i32,
         1_706_008_891
     );
-    assert_bds_break_order(&wire, upper);
+    assert_bds_break_order(&run, upper);
 }
 
 /// `zombie-door-break-inside.jsonl`: with the panel on the far side the
@@ -473,11 +523,23 @@ fn breaker_cracks_from_inside_the_cell_when_the_panel_is_on_the_far_side() {
     let mut h = harness_with_panel(7, "minecraft:wooden_door", Panel::Far, Difficulty::Hard);
     let zombie = h.zombie(true);
     h.provoke(zombie);
-    let (wire, cracking_in_cell) = h.run_wire(zombie, 900);
+    let run = h.run_wire(zombie, 900);
+    // As in the capture, the crack starts while the zombie is still outside
+    // the cell; it then walks in up to the panel and keeps cracking there.
     assert!(
-        cracking_in_cell > 200,
-        "it cracks from inside the cell: {cracking_in_cell} ticks, {wire:?}"
+        run.cracking_in_cell > BREAK_TICKS / 2,
+        "it cracks from inside the cell: {} ticks, {:?}",
+        run.cracking_in_cell,
+        run.wire
     );
+    let stops = run
+        .wire
+        .iter()
+        .filter(
+            |(_, w)| matches!(w, Wire::Event { id, .. } if *id == LEVEL_EVENT_STOP_BLOCK_CRACKING),
+        )
+        .count();
+    assert_eq!(stops, 0, "the crack never stops: {:?}", run.wire);
     let upper = door_state_with_panel("minecraft:wooden_door", Panel::Far, true);
     // The capture's upper half (`zombie-door-break.jsonl`: panel against
     // the east side, as here) has this wire id.
@@ -485,7 +547,7 @@ fn breaker_cracks_from_inside_the_cell_when_the_panel_is_on_the_far_side() {
         crate::registry::block::BlockNetworkIds::Hashed.to_wire(upper) as i32,
         -1_814_932_087
     );
-    assert_bds_break_order(&wire, upper);
+    assert_bds_break_order(&run, upper);
 }
 
 /// A jump against the door keeps the crack going (the move still touches
@@ -521,9 +583,9 @@ fn crack_ends_only_on_a_move_that_touches_nothing() {
     assert!(airborne >= 5, "it was airborne: {airborne}");
     assert!(breaking(&mut h), "the jump kept the crack: {wire:?}");
     assert!(
-        !wire
-            .iter()
-            .any(|(_, w)| matches!(w, Wire::Event { id, .. } if *id == LEVEL_EVENT_STOP_BLOCK_CRACKING)),
+        !wire.iter().any(
+            |(_, w)| matches!(w, Wire::Event { id, .. } if *id == LEVEL_EVENT_STOP_BLOCK_CRACKING)
+        ),
         "{wire:?}"
     );
     // Lift it into the open air west of the door: its next move touches
@@ -537,8 +599,9 @@ fn crack_ends_only_on_a_move_that_touches_nothing() {
     }
     assert!(!breaking(&mut h), "{wire:?}");
     assert!(
-        wire.iter()
-            .any(|(_, w)| matches!(w, Wire::Event { id, .. } if *id == LEVEL_EVENT_STOP_BLOCK_CRACKING)),
+        wire.iter().any(
+            |(_, w)| matches!(w, Wire::Event { id, .. } if *id == LEVEL_EVENT_STOP_BLOCK_CRACKING)
+        ),
         "{wire:?}"
     );
 }

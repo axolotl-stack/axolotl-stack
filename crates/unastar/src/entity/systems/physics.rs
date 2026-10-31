@@ -553,6 +553,7 @@ pub fn step_body_sensed(
 
     let result = move_aabb(blocks, aabb, *velocity, body.step_height, *on_ground);
     let blocked_horizontally = result.moved.x != velocity.x || result.moved.z != velocity.z;
+    let touched = blocked_horizontally || result.moved.y != velocity.y;
     if result.moved.x != velocity.x {
         velocity.x = 0.0;
     }
@@ -563,10 +564,9 @@ pub fn step_body_sensed(
         velocity.z = 0.0;
     }
     *on_ground = result.on_ground;
-    if let Some(climbing) = climbing
-        && climbing.collided != blocked_horizontally
-    {
+    if let Some(climbing) = climbing {
         climbing.collided = blocked_horizontally;
+        climbing.touched = touched;
     }
     let feet = result.aabb.feet();
     if body.model == PhysicsModel::FallingBlock && *on_ground {

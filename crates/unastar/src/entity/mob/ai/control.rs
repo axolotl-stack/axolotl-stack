@@ -232,21 +232,30 @@ impl PathFollower {
         self.index += 1;
     }
 
-    /// One tick of path following. `door_hold`: a door this door breaker
-    /// may break stands across the path at the current waypoint; the stuck
-    /// check then keeps the path, as the native follower does.
-    pub fn tick(&mut self, body: &Body, control: &mut MoveControl, door_hold: bool) {
+    /// One tick of path following. `door_hold(path, k)`: a door this door
+    /// breaker may break stands across the path at waypoint `k`. Such a
+    /// waypoint is never counted as passed, however close the mob stands
+    /// (it may stand inside the door's cell, pressed against a far-side
+    /// panel), and while it is the current waypoint the stuck check keeps
+    /// the path, as the native follower does.
+    pub fn tick(
+        &mut self,
+        body: &Body,
+        control: &mut MoveControl,
+        door_hold: impl Fn(&[WalkWaypoint], usize) -> bool,
+    ) {
         if self.is_done() {
             self.active = false;
             return;
         }
         // Every waypoint ahead on the mob's block level that the feet are
-        // horizontally within reach of counts as passed.
+        // horizontally within reach of counts as passed, up to a door that
+        // holds the path.
         let reach = (body.width * 0.5).max(PATH_WAYPOINT_REACH);
         let level = body.feet.y.floor();
         for (k, waypoint) in self.path.waypoints.iter().enumerate().skip(self.index) {
             let node = waypoint.feet;
-            if node.y.floor() != level {
+            if node.y.floor() != level || door_hold(&self.path.waypoints, k) {
                 break;
             }
             let (dx, dz) = (body.feet.x - node.x, body.feet.z - node.z);
@@ -267,7 +276,9 @@ impl PathFollower {
 
         self.stuck_ticks += 1;
         if self.stuck_ticks > PATH_STUCK_CHECK_TICKS {
-            if !door_hold && body.feet.distance(self.stuck_from) < PATH_STUCK_DISTANCE {
+            if !door_hold(&self.path.waypoints, self.index)
+                && body.feet.distance(self.stuck_from) < PATH_STUCK_DISTANCE
+            {
                 self.stop(control);
                 return;
             }
@@ -427,7 +438,7 @@ mod tests {
         let mut follower = PathFollower::default();
         follower.install(&mut path, 1.0, points[0]);
         let mut control = MoveControl::default();
-        follower.tick(&body(), &mut control, false);
+        follower.tick(&body(), &mut control, |_, _| false);
         (follower, control)
     }
 
