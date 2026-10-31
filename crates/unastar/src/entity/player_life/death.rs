@@ -121,7 +121,7 @@ pub(super) fn die(world: &mut World, player: Entity, cause: DeathCause) {
     }
     let rules = world.resource::<GameRules>().clone();
     if rules.show_death_messages {
-        broadcast_death_message(world, &message);
+        broadcast_death_message(world, &message, player, cause.attacker);
     }
     if !rules.keep_inventory {
         drop_everything(world, player);
@@ -234,7 +234,12 @@ fn actor_name(world: &World, actor: Entity) -> String {
 }
 
 /// Send the death message to every player's chat.
-fn broadcast_death_message(world: &mut World, message: &DeathMessage) {
+fn broadcast_death_message(
+    world: &mut World,
+    message: &DeathMessage,
+    player: Entity,
+    attacker: Option<Entity>,
+) {
     let packet = McpePacket::from(TextPacket {
         localize: true,
         body: TextPacketBody::MessageAndParams(TextPacketPayloadMessageAndParams {
@@ -250,9 +255,15 @@ fn broadcast_death_message(world: &mut World, message: &DeathMessage) {
         platform_id: "".into(),
         filtered_message: None,
     });
-    let mut sessions = world.query_filtered::<&PlayerSession, With<Player>>();
-    for session in sessions.iter(world) {
-        let _ = session.send(packet.clone());
+    let mut sessions = world.query_filtered::<(Entity, &PlayerSession), With<Player>>();
+    for (viewer, session) in sessions.iter(world) {
+        if crate::server::broadcast::player_views::audience_allows(world, player, viewer)
+            && attacker.is_none_or(|attacker| {
+                crate::server::broadcast::player_views::audience_allows(world, attacker, viewer)
+            })
+        {
+            let _ = session.send(packet.clone());
+        }
     }
 }
 

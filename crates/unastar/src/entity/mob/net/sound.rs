@@ -23,6 +23,16 @@ fn wire(position: DVec3) -> Vec3 {
 
 /// Send `packet` to every player viewing the chunk containing `position`.
 pub fn send_to_viewers(world: &World, position: DVec3, packet: &McpePacket) {
+    send_from_to_viewers(world, None, position, packet);
+}
+
+/// Send an attributed world event only to viewers eligible for its source actor.
+pub fn send_from_to_viewers(
+    world: &World,
+    source: Option<Entity>,
+    position: DVec3,
+    packet: &McpePacket,
+) {
     let (cx, cz) = world_to_chunk_coords(position.x.floor() as i32, position.z.floor() as i32);
     let Some(viewers) = world
         .get_resource::<ChunkManager>()
@@ -32,7 +42,10 @@ pub fn send_to_viewers(world: &World, position: DVec3, packet: &McpePacket) {
         return;
     };
     for viewer in viewers.iter() {
-        if let Some(session) = world.get::<PlayerSession>(viewer) {
+        if source.is_none_or(|source| {
+            crate::server::broadcast::player_views::can_receive_actor(world, source, viewer)
+        }) && let Some(session) = world.get::<PlayerSession>(viewer)
+        {
             let _ = session.send(packet.clone());
         }
     }
@@ -78,17 +91,28 @@ pub fn play_level_sound(
         actor_unique_id: unique_id.unwrap_or(-1),
         fire_at_position: None,
     });
-    send_to_viewers(world, position, &packet);
+    send_from_to_viewers(world, source, position, &packet);
 }
 
 /// Broadcast `LevelEvent(event_id, data)` at `position`.
 pub fn level_event(world: &World, position: DVec3, event_id: i32, data: i32) {
+    level_event_from(world, None, position, event_id, data);
+}
+
+/// Broadcast an attributed particle/event while respecting its source audience.
+pub fn level_event_from(
+    world: &World,
+    source: Option<Entity>,
+    position: DVec3,
+    event_id: i32,
+    data: i32,
+) {
     let packet = McpePacket::from(LevelEventPacket {
         event_id,
         position: wire(position),
         data,
     });
-    send_to_viewers(world, position, &packet);
+    send_from_to_viewers(world, source, position, &packet);
 }
 
 /// The middle of an actor's body (its feet plus half its box height).

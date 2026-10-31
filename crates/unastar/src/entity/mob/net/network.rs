@@ -111,6 +111,7 @@ pub fn sync_mob_viewers(
     items: Option<Res<ItemRegistryResource>>,
     config: Option<Res<ServerConfigResource>>,
     mut mobs: Query<(
+        Entity,
         &MobKind,
         &RuntimeId,
         &Position,
@@ -123,12 +124,14 @@ pub fn sync_mob_viewers(
         &mut ActorViewers,
         &mut MobNetState,
         Option<&mut MobEquipment>,
+        Option<&crate::entity::components::ActorAudience>,
     )>,
 ) {
     let block_ids = config
         .as_ref()
         .map_or_else(Default::default, |config| config.0.block_network_ids);
     for (
+        actor,
         kind,
         runtime_id,
         position,
@@ -141,6 +144,7 @@ pub fn sync_mob_viewers(
         mut viewers,
         mut net,
         mut gear,
+        audience,
     ) in &mut mobs
     {
         let (cx, cz) = crate::world::ecs::world_to_chunk_coords(
@@ -150,7 +154,14 @@ pub fn sync_mob_viewers(
         let desired: Vec<Entity> = chunk_manager
             .get_by_coords(cx, cz)
             .and_then(|chunk| chunk_viewers.get(chunk).ok())
-            .map(|v| v.iter().filter(|e| sessions.contains(*e)).collect())
+            .map(|v| {
+                v.iter()
+                    .filter(|e| {
+                        sessions.contains(*e)
+                            && audience.is_none_or(|audience| audience.allows(actor, *e))
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
         let rid = ActorRuntimeId {
             actor_runtime_id: runtime_id.0 as u64,
@@ -168,12 +179,12 @@ pub fn sync_mob_viewers(
                     actor_unique_id: runtime_id.0,
                 },
             });
-            for viewer in &gone {
-                if let Ok(session) = sessions.get(*viewer) {
-                    let _ = session.send(remove.clone());
-                }
-            }
-            viewers.viewers.retain(|v| !gone.contains(v));
+            viewers.viewers.retain(|viewer| {
+                !gone.contains(viewer)
+                    || sessions
+                        .get(*viewer)
+                        .is_ok_and(|session| !session.send(remove.clone()))
+            });
         }
 
         // Updates for existing viewers.
@@ -267,7 +278,11 @@ pub fn sync_mob_viewers(
         {
             replicate::changed_packets(runtime_id.0, gear, &items.0, block_ids, &mut updates);
         }
-        for viewer in &viewers.viewers {
+        for viewer in viewers
+            .viewers
+            .iter()
+            .filter(|viewer| desired.contains(viewer))
+        {
             if let Ok(session) = sessions.get(*viewer) {
                 for packet in &updates {
                     let _ = session.send(packet.clone());

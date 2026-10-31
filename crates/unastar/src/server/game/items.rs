@@ -116,6 +116,7 @@ pub fn pickup_items(
             &mut MainInventory,
             &RuntimeEntityId,
             Option<&Health>,
+            Option<&crate::entity::components::ActorAudience>,
         ),
         With<Player>,
     >,
@@ -123,7 +124,7 @@ pub fn pickup_items(
     config: Res<super::types::ServerConfigResource>,
 ) {
     let mut taken: Vec<Entity> = Vec::new();
-    for (player, eye, mode, mut inventory, player_rid, health) in players.iter_mut() {
+    for (player, eye, mode, mut inventory, player_rid, health, audience) in players.iter_mut() {
         if *mode == GameMode::Spectator || health.is_some_and(|h| h.current <= 0.0) {
             continue;
         }
@@ -176,7 +177,17 @@ pub fn pickup_items(
                 }
                 for receiver in receivers {
                     if let Ok(session) = sessions.get(receiver) {
-                        let _ = session.send(McpePacket::from(packet.clone()));
+                        if audience.is_none_or(|audience| audience.allows(player, receiver)) {
+                            let _ = session.send(McpePacket::from(packet.clone()));
+                        } else {
+                            let _ = session.send(McpePacket::from(
+                                jolyne::valentine::RemoveActorPacket {
+                                    target_actor_id: jolyne::valentine::types::ActorUniqueId {
+                                        actor_unique_id: item_rid.0,
+                                    },
+                                },
+                            ));
+                        }
                     }
                 }
                 stack.0 = ItemStack::empty();
@@ -266,6 +277,52 @@ mod tests {
             .filter(|s| s.item_id() == id)
             .map(|s| usize::from(s.count))
             .sum()
+    }
+
+    #[test]
+    fn collecting_with_restricted_audience_removes_item_without_exposing_collector() {
+        let mut h = harness(GameMode::Survival);
+        let (tx, mut viewer) = tokio::sync::mpsc::channel(64);
+        let peer = h
+            .world
+            .spawn(PlayerSession::new(2, "Peer".into(), None, None, tx))
+            .id();
+        h.world
+            .entity_mut(h.player)
+            .insert(crate::entity::components::ActorAudience::only([]));
+        let item = drop_at(
+            &mut h,
+            DVec3::new(1.0, 64.0, 0.5),
+            "minecraft:cobblestone",
+            3,
+        );
+        let item_rid = h.world.get::<RuntimeId>(item).unwrap().0;
+        h.world.get_mut::<PickupDelay>(item).unwrap().0 = 0;
+        h.world
+            .get_mut::<ActorViewers>(item)
+            .unwrap()
+            .viewers
+            .push(peer);
+        h.schedule.run(&mut h.world);
+        assert_eq!(inventory_count(&h, "minecraft:cobblestone"), 3);
+        assert!(h.world.get_entity(item).is_err());
+        let mut saw_remove = false;
+        while let Ok(packet) = viewer.try_recv() {
+            match packet.data {
+                McpePacketData::TakeItemActorPacket(_) => panic!("restricted collector identity"),
+                McpePacketData::RemoveActorPacket(remove) => {
+                    assert_eq!(remove.target_actor_id.actor_unique_id, item_rid);
+                    saw_remove = true;
+                }
+                _ => {}
+            }
+        }
+        assert!(saw_remove, "visible item must disappear from the viewer");
+        assert!(
+            std::iter::from_fn(|| h.rx.try_recv().ok())
+                .any(|packet| matches!(packet.data, McpePacketData::TakeItemActorPacket(_))),
+            "collector still receives its normal animation"
+        );
     }
 
     #[test]
