@@ -108,7 +108,9 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
     if world.get::<player_events::DetachedPlayer>(entity).is_some() {
         return None;
     }
-    capture_player_record(world, entity, true)
+    let (uuid, mut data) = capture_player_record(world, entity, true)?;
+    data.game_mode = game_mode_to_storage_id(crate::command::exec::base_game_mode(world, entity)?);
+    Some((uuid, data))
 }
 
 /// Capture authoritative gameplay state, optionally normalizing a dead player's
