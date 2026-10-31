@@ -68,6 +68,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn follow_range_has_a_closed_typed_attribute_body() {
+        let body = serde_json::json!({"value":48,"max":48});
+        assert!(decode_component(ActorComponent::FollowRange, &body).unwrap());
+        let fixed = decode::<body::FollowRange>(&body).unwrap();
+        assert_eq!(fixed.value, body::ValueOrRange::Value(48.0));
+        assert_eq!(fixed.max, Some(48.0));
+        assert!(decode::<body::FollowRange>(&serde_json::json!({"max":48})).is_err());
+        assert!(decode::<body::FollowRange>(&serde_json::json!({"value":48,"unknown":1})).is_err());
+    }
+
+    #[test]
     fn hand_written_bodies_only_cover_components_without_a_published_schema() {
         for &component in dynamic::DYNAMIC {
             assert!(
