@@ -10,4 +10,5 @@ mod interaction;
 mod passive;
 mod sensors;
 mod spawn;
+mod triggers;
 mod zombie;
