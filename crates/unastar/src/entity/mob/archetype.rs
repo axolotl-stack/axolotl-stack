@@ -285,8 +285,17 @@ impl MobArchetype {
 fn attribute_seed(
     identifier: &str,
 ) -> Result<(AttributeLayout, Box<[AttributeValue]>), ArchetypeError> {
-    let observed = unastar_data::actor_wire::get(identifier)
-        .ok_or_else(|| ArchetypeError::NoAttributeObservation(identifier.to_owned()))?;
+    let Some(observed) = unastar_data::actor_wire::get(identifier) else {
+        if projectile_attribute_profile(identifier) == Some(&[]) {
+            return Ok((
+                AttributeLayout::new(std::iter::empty::<Arc<str>>())?,
+                Box::new([]),
+            ));
+        }
+        return Err(ArchetypeError::NoAttributeObservation(
+            identifier.to_owned(),
+        ));
+    };
     let layout = AttributeLayout::new(
         observed
             .attributes
@@ -303,6 +312,15 @@ fn attribute_seed(
         })
         .collect();
     Ok((layout, values))
+}
+
+/// Protocol 2193 projectile attribute profiles not supplied by summonable actors.
+/// An explicitly empty profile is distinct from an unsupported identifier.
+fn projectile_attribute_profile(identifier: &str) -> Option<&'static [AttributeValue]> {
+    match identifier {
+        "minecraft:small_fireball" => Some(&[]),
+        _ => None,
+    }
 }
 
 fn format_before(version: &str, limit: [u32; 3]) -> bool {
@@ -393,5 +411,21 @@ impl MobRegistry {
 
     pub fn identifiers(&self) -> impl Iterator<Item = &str> {
         self.archetypes.keys().map(AsRef::as_ref)
+    }
+}
+
+#[cfg(test)]
+mod projectile_profile_tests {
+    use super::*;
+
+    #[test]
+    fn explicit_empty_projectile_profile_does_not_authorize_unknown_layouts() {
+        let (layout, values) = attribute_seed("minecraft:small_fireball").unwrap();
+        assert!(layout.is_empty());
+        assert!(values.is_empty());
+        assert!(matches!(
+            attribute_seed("minecraft:unknown_projectile"),
+            Err(ArchetypeError::NoAttributeObservation(_))
+        ));
     }
 }

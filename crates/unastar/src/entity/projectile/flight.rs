@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use bevy_ecs::prelude::*;
-use glam::DVec3;
+use glam::{DVec3, IVec3};
 use jolyne::valentine::{actor_data_i_ds as ids, actor_flags};
 use unastar_data::actor_identifiers::ActorType;
 
@@ -53,10 +53,32 @@ fn segment_entry(aabb: &Aabb, from: DVec3, delta: DVec3) -> Option<f64> {
     Some(enter)
 }
 
+/// Segment entry and the outward axis normal of the first block face.
+fn segment_contact(bounds: &Aabb, from: DVec3, delta: DVec3) -> Option<(f64, IVec3)> {
+    let fraction = segment_entry(bounds, from, delta)?;
+    let at = from + delta * fraction;
+    let mut face = IVec3::ZERO;
+    for axis in 0..3 {
+        if delta[axis].abs() < 1e-12 {
+            continue;
+        }
+        let plane = if delta[axis] > 0.0 {
+            bounds.min[axis]
+        } else {
+            bounds.max[axis]
+        };
+        if (at[axis] - plane).abs() < 1e-7 {
+            face[axis] = if delta[axis] > 0.0 { -1 } else { 1 };
+            break;
+        }
+    }
+    Some((fraction, face))
+}
+
 /// What a projectile hit.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum Target {
-    Block,
+    Block(IVec3),
     Actor(Entity),
 }
 
@@ -74,10 +96,7 @@ pub struct ProjectileScratch {
 pub fn tick_projectiles(
     world: &mut World,
     projectiles: &mut QueryState<(Entity, &ProjectileConfig), With<Projectile>>,
-    mobs: &mut QueryState<
-        (Entity, &Position, &PhysicsBody, &MobKind),
-        (Without<Dead>, Without<Projectile>),
-    >,
+    mobs: &mut QueryState<(Entity, &Position, Option<&PhysicsBody>, &MobKind), Without<Dead>>,
     players: &mut QueryState<(Entity, &Position, Option<&GameMode>, Option<&Health>), With<Player>>,
     mut scratch: Local<ProjectileScratch>,
 ) {
@@ -97,10 +116,7 @@ fn step(
     world: &mut World,
     projectile: Entity,
     rules: &ProjectileRules,
-    mobs: &mut QueryState<
-        (Entity, &Position, &PhysicsBody, &MobKind),
-        (Without<Dead>, Without<Projectile>),
-    >,
+    mobs: &mut QueryState<(Entity, &Position, Option<&PhysicsBody>, &MobKind), Without<Dead>>,
     players: &mut QueryState<(Entity, &Position, Option<&GameMode>, Option<&Health>), With<Player>>,
     boxes: &mut Vec<Aabb>,
     hits: &mut Vec<(f64, Target)>,
@@ -131,23 +147,35 @@ fn step(
     let swept = Aabb::new(from.min(to), from.max(to)).inflate(DVec3::splat(1e-7));
     boxes.clear();
     collect_block_boxes(world, swept, boxes);
-    if let Some(t) = boxes
+    if let Some((t, face)) = boxes
         .iter()
-        .filter_map(|b| segment_entry(b, from, velocity))
-        .min_by(f64::total_cmp)
+        .filter_map(|bounds| segment_contact(bounds, from, velocity))
+        .min_by(|a, b| a.0.total_cmp(&b.0))
     {
-        hits.push((t, Target::Block));
+        let at = from + velocity * t;
+        let struck = (at - face.as_dvec3() * 1e-7).floor().as_ivec3();
+        hits.push((t, Target::Block(struck + face)));
     }
     let grow = ((ticks as f64 - PROJECTILE_HIT_INFLATE_DELAY) * PROJECTILE_HIT_INFLATE_STEP)
         .clamp(0.0, PROJECTILE_HIT_INFLATE_MAX);
     let candidate = |entity: Entity, actor: ActorType| {
-        entity != projectile && Some(entity) != flight.owner && !rules.ignored.contains(&actor)
+        entity != projectile
+            && (Some(entity) != flight.owner || ticks > rules.owner_immunity_ticks)
+            && !rules.ignored.contains(&actor)
     };
-    for (entity, position, body, kind) in mobs.iter(world) {
-        if !candidate(entity, kind.0.actor_type) {
+    for (entity, _position, _body, kind) in mobs.iter(world) {
+        if !candidate(entity, kind.0.actor_type)
+            || (world.get::<Projectile>(entity).is_some()
+                && world
+                    .get::<ProjectileConfig>(entity)
+                    .is_none_or(|config| !config.0.reflect_on_hurt))
+        {
             continue;
         }
-        let aabb = Aabb::from_feet(position.0, body.width, body.height).inflate(DVec3::splat(grow));
+        let Some(aabb) = crate::entity::geometry::collision_box(world, entity) else {
+            continue;
+        };
+        let aabb = aabb.inflate(DVec3::splat(grow));
         if let Some(t) = segment_entry(&aabb, from, velocity) {
             hits.push((t, Target::Actor(entity)));
         }
@@ -168,14 +196,24 @@ fn step(
     hits.sort_by(|a, b| a.0.total_cmp(&b.0));
 
     let mut removed = false;
-    for &(_, target) in hits.iter() {
-        removed |= on_hit(world, projectile, flight.owner, rules, from, target);
+    let mut stopped = false;
+    for &(fraction, target) in hits.iter() {
+        let at = from + velocity * fraction;
+        removed |= on_hit(world, projectile, flight.owner, rules, at, target);
+        stopped |= world.get::<super::Stuck>(projectile).is_some();
         if removed || !rules.multiple_targets {
             break;
         }
     }
     if removed {
         world.despawn(projectile);
+        return;
+    }
+    if stopped {
+        return;
+    }
+    // Reflection may have changed this actor while an earlier projectile ticked.
+    if world.get::<ProjectileFlight>(projectile) != Some(&flight) {
         return;
     }
 

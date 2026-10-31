@@ -12,8 +12,8 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1191 | 2668 | 170 | 7 | 46 | 4.4% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 120 | 1 | 3 | 9 | 4 | 9.0% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1190 | 2668 | 171 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
@@ -36,7 +36,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---:|---:|---:|
 | passive (part claimed) | 21 | 21 | 0 |
 | object | 16 | 16 | 0 |
-| projectile | 15 | 15 | 0 |
+| projectile | 15 | 14 | 1 |
 | built_in | 4 | 4 | 0 |
 | village | 4 | 4 | 0 |
 | boss | 2 | 2 | 0 |
@@ -126,7 +126,7 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| projectile | 18 | 15 | 0 | 2 | 1 | 0 | 16.7% |
+| projectile | 18 | 14 | 1 | 2 | 1 | 0 | 16.7% |
 | village | 4 | 4 | 0 | 0 | 0 | 0 | 0.0% |
 
 Sub-rows by facet, most incomplete first (30 of 371):
@@ -137,7 +137,7 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | conditional_bandwidth_optimization | 116 | 105 | 10 | 0 | 0 | 1 | 0.0% |
 | physics | 125 | 0 | 115 | 9 | 0 | 1 | 7.3% |
 | type_family | 124 | 1 | 113 | 9 | 0 | 1 | 7.3% |
-| collision_box | 124 | 0 | 113 | 10 | 0 | 1 | 8.1% |
+| collision_box | 124 | 0 | 112 | 11 | 0 | 1 | 8.9% |
 | pushable_by_entity | 109 | 0 | 104 | 5 | 0 | 0 | 4.6% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
 | health | 94 | 1 | 87 | 5 | 0 | 1 | 5.4% |
@@ -194,7 +194,8 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **projectile**
 
-- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:splash_potion`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile` and 3 more
+- `minecraft:small_fireball`: spawn, launch, flight, damage, ignition and reflection implemented; bandwidth optimization, general external pushing, and native RNG seed matching remain incomplete
+- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:splash_potion`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile`, `minecraft:wither_skull` and 2 more
 
 **village**
 

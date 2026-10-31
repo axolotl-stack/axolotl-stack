@@ -30,6 +30,43 @@ pub fn eye_position(world: &World, entity: Entity) -> Option<DVec3> {
     feet_position(world, entity).map(|feet| feet + DVec3::Y * eye_height(world, entity))
 }
 
+/// Authoritative collision bounds for living bodies, players and projectiles.
+/// Projectiles expose geometry without acquiring living-physics components.
+pub fn collision_box(world: &World, entity: Entity) -> Option<crate::registry::collision::Aabb> {
+    use crate::entity::components::PhysicsBody;
+    use crate::entity::definition::components::{RawCollisionBox, ScaleConfig};
+    use crate::registry::collision::Aabb;
+    if world.get::<Player>(entity).is_some() {
+        let eye = world.get::<Position>(entity)?.0;
+        return eye
+            .is_finite()
+            .then(|| crate::server::game::player_box(eye));
+    }
+    let feet = feet_position(world, entity)?;
+    if !feet.is_finite() {
+        return None;
+    }
+    if let Some(body) = world.get::<PhysicsBody>(entity) {
+        return (body.width.is_finite()
+            && body.height.is_finite()
+            && body.width >= 0.0
+            && body.height >= 0.0)
+            .then(|| Aabb::from_feet(feet, body.width, body.height));
+    }
+    let raw = world.get::<RawCollisionBox>(entity)?;
+    let scale = world
+        .get::<ScaleConfig>(entity)
+        .map_or(1.0, |scale| scale.value);
+    if !raw.width.is_finite() || !raw.height.is_finite() || !scale.is_finite() || scale < 0.0 {
+        return None;
+    }
+    Some(Aabb::from_feet(
+        feet,
+        f64::from(raw.width.max(0.0) * scale),
+        f64::from(raw.height.max(0.0) * scale),
+    ))
+}
+
 /// Yaw (degrees, Bedrock convention: 0 faces +z, 90 faces −x) from `from` towards `to`.
 pub fn yaw_towards(from: DVec3, to: DVec3) -> f32 {
     let delta = to - from;

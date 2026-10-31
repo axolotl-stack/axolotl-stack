@@ -496,6 +496,23 @@ automatic `Age` insertion, the three captured off-phase ground cases and the
 delayed support-removal transition; mob gameplay and real-client parity remain
 separate gates.
 
+`entity::projectile::launch_aimed` launches an actor-owned projectile at an
+explicit world-space target. It resolves authored origin, player eye and
+bounding-box middle anchors, local offsets, power and difficulty-adjusted
+spread. Nonplayer eye anchors and non-default actor-shot damage randomization
+return explicit errors. Player item launches keep their item-supplied eye origin.
+
+Projectile collisions use the swept segment's actual hit point and block face.
+Reflectable projectiles can be redirected by authoritative melee or projectile
+hits without replacing their entity/runtime identity or adding living physics.
+Reflection changes the shooter and starts its launch-immunity period.
+Fire impacts use ordinary damage and immunity-aware burning; rejected damage
+does not ignite the target. Configured block ignition respects mob griefing and
+changes only an available air cell outside the struck face. The supported fields
+follow the [Bedrock projectile contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_projectile?view=minecraft-bedrock-stable).
+The small-fireball wire layout has an explicit empty attribute profile for
+protocol 2193; unknown identifiers still require their own supported layout.
+
 `entity::spawn_item_drop(world, position, stack, thrower)` accepts feet positions
 for popped items and the source player's eye position for throws. Hotbar Q,
 open-inventory Q and whole-stack ctrl-drop controls in

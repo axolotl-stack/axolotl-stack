@@ -464,8 +464,8 @@ mod tests {
     fn arrows_stick_in_the_ground_and_come_back() {
         let mut r = range(&[("minecraft:bow", 1), ("minecraft:arrow", 2)]);
         let player = r.player;
-        // Look down at the floor in front.
-        r.world().get_mut::<Rotation>(player).unwrap().pitch = 60.0;
+        // Land beyond pickup reach so sticking is observed before walking over.
+        r.world().get_mut::<Rotation>(player).unwrap().pitch = 30.0;
         r.send(UseRequest::UseAir);
         r.ticks(24);
         r.send(UseRequest::Release);

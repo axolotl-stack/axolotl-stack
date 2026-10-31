@@ -28,8 +28,7 @@ use super::death;
 use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
 use crate::entity::components::{
-    ActorViewers, GameMode, Health, PhysicsBody, Player, PlayerSession, Position, RuntimeId,
-    Velocity,
+    ActorViewers, GameMode, Health, Player, PlayerSession, Position, RuntimeId, Velocity,
 };
 use crate::entity::mob::components::{
     HurtCondition, HurtOnConditionConfig, KnockbackPower, KnockbackRules,
@@ -37,7 +36,6 @@ use crate::entity::mob::components::{
 use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::state::{Dead, LastHurt};
 use crate::entity::mob::{MobKind, constants};
-use crate::registry::collision::Aabb;
 
 /// The hurt timer of a mob: the server tick it runs out at and the damage
 /// of the hit that started it.
@@ -86,13 +84,9 @@ pub fn player_attack(
     let Some(eye) = attacker_eye(world, player) else {
         return;
     };
-    let (Some(feet), Some(body)) = (
-        world.get::<Position>(target).map(|p| p.0),
-        world.get::<PhysicsBody>(target),
-    ) else {
+    let Some(mob_box) = crate::entity::geometry::collision_box(world, target) else {
         return;
     };
-    let mob_box = Aabb::from_feet(feet, body.width, body.height);
     if eye.distance_squared(eye.clamp(mob_box.min, mob_box.max))
         > constants::MELEE_REACH * constants::MELEE_REACH
     {
@@ -139,7 +133,10 @@ fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
 /// that empties the mob's health starts its death. Zero damage still counts
 /// as a hit (hurt animation, hurt timer, knockback), as BDS hurts with it.
 pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
-    if hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
+    if !hit.damage.is_finite() || hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
+        return 0.0;
+    }
+    if crate::entity::projectile::reflect::from_attack(world, target, hit.attacker) {
         return 0.0;
     }
     if world.get::<Health>(target).is_none_or(Health::is_dead) {

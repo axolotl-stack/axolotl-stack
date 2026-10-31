@@ -11,7 +11,7 @@ use unastar_data::actor_identifiers::ActorType;
 
 use super::{ProjectileConfig, ProjectileFlight, ThrowQueue};
 use crate::entity::components::{
-    GameMode, Health, HeldSlot, MainInventory, Position, Rotation, Velocity,
+    GameMode, Health, HeldSlot, MainInventory, Player, Position, Rotation, Velocity,
 };
 use crate::entity::definition::components::{PhysicsConfig, RawCollisionBox, ScaleConfig};
 use crate::entity::definition::flags::ActorFlags;
@@ -32,6 +32,12 @@ use crate::server::game::send_slot;
 pub enum LaunchError {
     #[error("the thrower has no position or rotation")]
     NoThrowerPosition,
+    #[error("the projectile aim or launch parameters are invalid")]
+    InvalidAim,
+    #[error("the shooter has no geometry for the selected launch anchor")]
+    NoAnchorGeometry,
+    #[error("actor-owned projectile damage randomization is unsupported")]
+    UnsupportedDamageRandomization,
     #[error("spawning the projectile: {0}")]
     Spawn(#[source] MobSpawnError),
     #[error("{0} has no minecraft:projectile component")]
@@ -128,7 +134,7 @@ fn throw_held(world: &mut World, player: Entity) {
 }
 
 /// The unit view vector of a rotation (degrees; Bedrock yaw/pitch).
-fn view_direction(yaw: f32, pitch: f32) -> DVec3 {
+pub(super) fn view_direction(yaw: f32, pitch: f32) -> DVec3 {
     let (yaw, pitch) = (f64::from(yaw).to_radians(), f64::from(pitch).to_radians());
     DVec3::new(
         -yaw.sin() * pitch.cos(),
@@ -202,12 +208,73 @@ pub fn launch_with(
     climate: Option<&str>,
     spec: LaunchSpec,
 ) -> Result<Entity, LaunchError> {
+    launch_internal(world, thrower, actor, climate, spec, None)
+}
+
+/// Launch an actor-owned projectile at an authoritative world-space target.
+/// The definition chooses the shooter anchor, offset and difficulty-adjusted
+/// spread; `spec.inaccuracy` adds extra spread. Player item throwing
+/// continues to use [`launch_with`], whose origin is supplied by the item lane.
+pub fn launch_aimed(
+    world: &mut World,
+    thrower: Entity,
+    actor: ActorType,
+    target: DVec3,
+    spec: LaunchSpec,
+) -> Result<Entity, LaunchError> {
+    if !target.is_finite() {
+        return Err(LaunchError::InvalidAim);
+    }
+    launch_internal(world, thrower, actor, None, spec, Some(target))
+}
+
+/// Resolve an authored anchor without treating a mob's feet as player eyes.
+fn anchor(
+    world: &World,
+    actor: Entity,
+    kind: unastar_data::actor_components::body::ProjectileAnchor,
+) -> Result<DVec3, LaunchError> {
+    use unastar_data::actor_components::body::ProjectileAnchor;
+    let feet = crate::entity::geometry::feet_position(world, actor)
+        .ok_or(LaunchError::NoThrowerPosition)?;
+    match kind {
+        ProjectileAnchor::Origin => Ok(feet),
+        ProjectileAnchor::EyeHeight if world.get::<Player>(actor).is_some() => {
+            Ok(feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT)
+        }
+        ProjectileAnchor::EyeHeight => Err(LaunchError::NoAnchorGeometry),
+        ProjectileAnchor::Middle => crate::entity::geometry::collision_box(world, actor)
+            .map(|bounds| DVec3::new(feet.x, (bounds.min.y + bounds.max.y) * 0.5, feet.z))
+            .ok_or(LaunchError::NoAnchorGeometry),
+    }
+}
+
+/// Shared spawn path; an absent target preserves item-supplied eye origin.
+fn launch_internal(
+    world: &mut World,
+    thrower: Entity,
+    actor: ActorType,
+    climate: Option<&str>,
+    spec: LaunchSpec,
+    target: Option<DVec3>,
+) -> Result<Entity, LaunchError> {
+    if !spec.inaccuracy.is_finite()
+        || spec.inaccuracy < 0.0
+        || spec
+            .speed
+            .is_some_and(|speed| !speed.is_finite() || speed <= 0.0)
+    {
+        return Err(LaunchError::InvalidAim);
+    }
     let (Some(eye), Some(look)) = (
         world.get::<Position>(thrower).map(|p| p.0),
         world.get::<Rotation>(thrower).copied(),
     ) else {
         return Err(LaunchError::NoThrowerPosition);
     };
+    if !eye.is_finite() || !look.yaw.is_finite() || !look.pitch.is_finite() {
+        return Err(LaunchError::InvalidAim);
+    }
     let projectile = spawn_mob(world, actor.name(), eye, look.yaw, SpawnCause::Spawned)
         .map_err(LaunchError::Spawn)?;
     let Some(rules) = world
@@ -217,6 +284,15 @@ pub fn launch_with(
         world.despawn(projectile);
         return Err(LaunchError::NotProjectile(actor.name()));
     };
+    if target.is_some()
+        && rules.impact_damage.as_ref().is_some_and(|impact| {
+            impact.difficulty_randomization
+                != unastar_data::actor_components::body::ImpactDamageDifficultyRandomization::None
+        })
+    {
+        world.despawn(projectile);
+        return Err(LaunchError::UnsupportedDamageRandomization);
+    }
     if let Some(climate) = climate
         && let Some(mut properties) = world.get_mut::<ActorProperties>(projectile)
         && let Err(error) =
@@ -225,7 +301,21 @@ pub fn launch_with(
         world.despawn(projectile);
         return Err(LaunchError::Climate(error));
     }
-    let mut feet = eye;
+    let mut feet = if target.is_some() {
+        match anchor(world, thrower, rules.anchor) {
+            Ok(position) => position,
+            Err(error) => {
+                world.despawn(projectile);
+                return Err(error);
+            }
+        }
+    } else {
+        eye
+    };
+    if !feet.is_finite() {
+        world.despawn(projectile);
+        return Err(LaunchError::InvalidAim);
+    }
     if rules.offset != DVec3::ZERO {
         let (sin, cos) = f64::from(look.yaw).to_radians().sin_cos();
         let offset = DVec3::new(
@@ -245,17 +335,42 @@ pub fn launch_with(
         );
         feet = moved.aabb.feet();
     }
-    let pitch = look.pitch + rules.angle_offset * f64::from(look.pitch).to_radians().cos() as f32;
-    let mut direction = view_direction(look.yaw, pitch);
+    let (yaw, base_pitch) = match target {
+        Some(target) if target.distance_squared(feet) > 1e-12 => {
+            crate::entity::geometry::look_at(feet, target)
+        }
+        Some(_) => {
+            world.despawn(projectile);
+            return Err(LaunchError::InvalidAim);
+        }
+        None => (look.yaw, look.pitch),
+    };
+    let pitch = base_pitch + rules.angle_offset * f64::from(base_pitch).to_radians().cos() as f32;
+    let mut direction = view_direction(yaw, pitch);
     direction /= direction.length().max(0.001);
-    if spec.inaccuracy > 0.0 {
+    let authored_spread = if target.is_some() {
+        let difficulty = world
+            .get_resource::<crate::world::rules::Difficulty>()
+            .copied()
+            .unwrap_or_default();
+        (rules.uncertainty_base - f64::from(difficulty.wire()) * rules.uncertainty_multiplier)
+            .max(0.0)
+    } else {
+        0.0
+    };
+    let inaccuracy = spec.inaccuracy + authored_spread;
+    if inaccuracy > 0.0 {
         let rng = &mut world
             .get_resource_or_init::<crate::entity::EntityRandom>()
             .0;
-        let spread = 0.0172275 * spec.inaccuracy;
+        let spread = 0.0172275 * inaccuracy;
         direction += DVec3::new(gaussian(rng), gaussian(rng), gaussian(rng)) * spread;
     }
     let velocity = direction * spec.speed.unwrap_or(rules.power);
+    if !velocity.is_finite() {
+        world.despawn(projectile);
+        return Err(LaunchError::InvalidAim);
+    }
     let (yaw, pitch) = heading(velocity);
     let mut entity = world.entity_mut(projectile);
     entity.insert((

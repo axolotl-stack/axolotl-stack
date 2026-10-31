@@ -672,7 +672,7 @@ fn creative_throws_keep_the_egg_and_hatch_chicks_at_the_native_rates() {
         assert_eq!(climate(world, chick), "cold");
         let feet = world.get::<Position>(chick).unwrap().0;
         assert!(
-            feet.x == 2.5 && feet.y > f64::from(FLOOR + 1) && (8.0..12.0).contains(&feet.z),
+            feet.x == 2.5 && feet.y >= f64::from(FLOOR + 1) && (8.0..12.0).contains(&feet.z),
             "chick at {feet}"
         );
     }
