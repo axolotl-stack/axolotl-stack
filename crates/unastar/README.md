@@ -438,6 +438,34 @@ parity.
 
 ## Actor registries and data
 
+Living definitions support `minecraft:fire_immune` and
+`minecraft:renders_when_invisible`, including component-group removal. Fire
+immunity prevents ignition and heat damage in both the player and mob damage
+paths, and puts out an existing fire when the component becomes active. The
+rendering marker is replicated in actor flags. The `in_contact_with_water`
+filter checks fluid overlap with the actor's body, including water beside its
+feet; `in_water` continues to check the feet cell.
+Rain exposure and splash-water-bottle contact are not yet supplied to this
+filter; the current implementation covers world fluid contact.
+
+See the published component contracts for
+[fire immunity](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_fire_immune?view=minecraft-bedrock-stable)
+and
+[rendering while invisible](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_renders_when_invisible?view=minecraft-bedrock-stable).
+Mob definitions can provide `minecraft:follow_range` to override a targeting
+goal's legacy `within_radius` for both acquisition and retention. Fixed,
+nonnegative values are supported; invalid bounds and randomized values fail
+definition compilation. See the
+[published follow-range contract](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_follow_range?view=minecraft-bedrock-stable).
+
+`minecraft:on_hurt`, `minecraft:on_hurt_by_player` and
+`minecraft:on_target_acquired` compile optional filters and self/other event
+receivers. Hit triggers run after an accepted hit commits its hurt timer and
+health; cancelled and timer-rejected hits do not fire them. Target triggers run
+after a different nonempty target is committed, once rather than every tick the
+same target is retained. AI-triggered events run outside the AI's resource
+scopes so their event handlers can use the normal random-state resource.
+
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
 by identifier, replacing the whole definition rather than merging components.
 `freeze()` consumes the builder and shares immutable definitions through `Arc`.
@@ -1083,11 +1111,6 @@ loss, with the actual removed health and validated hit, before a possible death
 notification. Cancelled, invalid and hurt-timer-suppressed hits do not emit it.
 Use `PlayerDamage` to authorize attempts and `PlayerDamaged` to account for
 committed hits.
-Native applications can install `server::game::inventory_effects` before the
-network loop to submit complete durable inventory replacements. Each request
-binds a stable effect ID to expected and replacement inventory images. A worker
-writes the replacement and its receipt together, and the ECS publishes fresh
-stack IDs only after acknowledgement. Full player UI inventories are persisted.
 
 Native applications may register `BlockInteractionHooks` handlers (or Bevy
 observers) to synchronously authorize player block breaking, placement,
@@ -1097,28 +1120,6 @@ positions, including adjacent targets and multi-block placements. Cancellation
 is sticky, and operations revalidate world and held-item state after callbacks.
 Open container windows are reauthorized on each inventory request before items
 move; a veto closes the window and sends authoritative inventory corrections.
-
-All connection loads, ordinary saves and effect writes use the installed
-serialized provider. Inventory epochs reject stale autosave/disconnect records,
-and receipt IDs survive restarts so callers can acknowledge a repeated request
-without granting its items again. LevelDB player writes request synchronous
-persistence. Other providers must explicitly advertise `atomic_durable_records`,
-honor that contract and avoid separate unwrapped access. Unsupported providers
-are rejected before installation. Receipt history is bounded at 65,536 effects
-per account; exhaustion rejects new effects before writing.
-
-An extension coordinating another persistence boundary can capture a
-`inventory_effects::RecoverySource` before that operation. An uncertain result
-can call `fence_for_recovery` with that exact source: account, runtime identity
-and outbound transport must still match. The terminal fence physically withholds
-mutable player state, excludes ordinary saves and snapshots, and rejects further
-account admission. Worker completion, snapshot restoration, disconnect and
-session ID reuse never release it. `recovery_account_fenced` also lets a router
-check UUID and authenticated account identity across several worlds.
-
-This helper performs no storage writes and does not acknowledge the external
-operation. Recovery requires reconstructing coherent durable state and restarting
-the runtime; there is no automatic release path. Other accounts remain available.
 
 Native `PlayerEventHooks` handlers and Bevy observers can authorize or redirect
 movement before position, input, hunger and fall state changes, and observe
@@ -1189,6 +1190,19 @@ persistence. Other providers must explicitly advertise `atomic_durable_records`,
 honor that contract and avoid separate unwrapped access. Unsupported providers
 are rejected before installation. Receipt history is bounded at 65,536 effects
 per account; exhaustion rejects new effects before writing.
+
+An extension coordinating another persistence boundary can capture a
+`inventory_effects::RecoverySource` before that operation. An uncertain result
+can call `fence_for_recovery` with that exact source: account, runtime identity
+and outbound transport must still match. The terminal fence physically withholds
+mutable player state, excludes ordinary saves and snapshots, and rejects further
+account admission. Worker completion, snapshot restoration, disconnect and
+session ID reuse never release it. `recovery_account_fenced` also lets a router
+check UUID and authenticated account identity across several worlds.
+
+This helper performs no storage writes and does not acknowledge the external
+operation. Recovery requires reconstructing coherent durable state and restarting
+the runtime; there is no automatic release path. Other accounts remain available.
 
 Native damage proposals may independently bypass armour reduction and apply a
 finite nonnegative multiplier after armour. Both preserve the hit cause, hurt
