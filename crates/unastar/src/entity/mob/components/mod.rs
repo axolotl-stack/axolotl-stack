@@ -182,5 +182,6 @@ pub fn register_component_kinds(
     spawn_entity::register_component_kinds(builder, items)?;
     equipment::register_component_kinds(builder)?;
     knockback::register_component_kinds(builder)?;
-    triggers::register_component_kinds(builder)
+    triggers::register_component_kinds(builder)?;
+    crate::entity::freezing::register_component_kinds(builder)
 }

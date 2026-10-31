@@ -172,7 +172,7 @@ fn can_use(world: &World, player: Entity) -> bool {
 /// The flag word BDS sends for a player using an item: CANCLIMB,
 /// BREATHING, HAS_COLLISION and HAS_GRAVITY plus the movement state and
 /// USINGITEM (capture `item-use-20261029`).
-fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
+pub(crate) fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
     crate::server::broadcast::player_views::player_flags(world, player, using)
 }
 

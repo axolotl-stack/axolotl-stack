@@ -7,7 +7,6 @@ use crate::entity::components::{
     ArmourInventory, Experience, GameMode, Health, HeldSlot, Hunger, MainInventory, OffhandSlot,
     PlayerSession, PlayerUi, RuntimeEntityId,
 };
-use crate::entity::player_life::attributes::player_attributes;
 use crate::world::clock;
 use crate::world::rules::{Difficulty, GameRules, WorldTime};
 use bevy_ecs::prelude::{Entity, World};
@@ -183,11 +182,41 @@ impl GameServer {
             target_runtime_id: ActorRuntimeId {
                 actor_runtime_id: runtime_id as u64,
             },
-            attribute_list: player_attributes(&health, &hunger, absorption, &experience),
+            attribute_list: crate::entity::player_life::attributes::player_attributes_with_cold(
+                &health,
+                &hunger,
+                absorption,
+                &experience,
+                world
+                    .get::<crate::entity::freezing::FreezingState>(entity)
+                    .copied()
+                    .unwrap_or_default(),
+            ),
             tick: input_tick.clone(),
         }));
 
-        let actor_data = initial_player_actor_data();
+        let mut actor_data = initial_player_actor_data();
+        if let Some(cold) = world.get::<crate::entity::freezing::FreezingState>(entity)
+            && cold.strength() > 0.0
+        {
+            if cold.is_frozen() {
+                for entry in &mut actor_data {
+                    if entry.id == actor_data_ids::RESERVED_0
+                        && let DataItemEntryPayload::DataItemInt64Payload(flags) =
+                            &mut entry.payload
+                    {
+                        flags.value |= 1i64 << actor_flags::SHAKING;
+                    }
+                }
+            }
+            actor_data.push(DataItemEntry {
+                id: actor_data_ids::FREEZING_EFFECT_STRENGTH,
+                payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
+                    type_: EnumsDataItemType::Float,
+                    value: cold.strength(),
+                }),
+            });
+        }
 
         let _ = session.send(McpePacket::from(SetActorDataPacket {
             target_runtime_id: ActorRuntimeId {

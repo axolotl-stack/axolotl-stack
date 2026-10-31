@@ -150,6 +150,7 @@ fn try_respawn(world: &mut World, player: Entity, acknowledge: bool) {
             position.0 = spawn;
         }
     }
+    crate::entity::freezing::reset_player(world, player);
     send_respawn(world, player, spawn);
     hooks::respawned(
         world,
