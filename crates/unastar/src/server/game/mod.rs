@@ -16,6 +16,7 @@ pub mod effects;
 mod falling;
 pub mod hunger;
 mod inventory;
+pub mod item_actions;
 pub mod item_use;
 mod items;
 pub(crate) mod join;
