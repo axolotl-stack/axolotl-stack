@@ -122,7 +122,13 @@ fn resend_abilities(ctx: &mut CommandContext<'_>, player: Entity, operator: bool
         .get::<GameMode>(player)
         .copied()
         .unwrap_or(GameMode::Survival);
-    ctx.broadcast(abilities_packet(runtime_id, mode, operator));
+    let packet = abilities_packet(runtime_id, mode, operator);
+    let mut sessions = ctx.world.query::<(Entity, &PlayerSession)>();
+    for (viewer, session) in sessions.iter(ctx.world) {
+        if crate::server::broadcast::player_views::can_receive_actor(ctx.world, player, viewer) {
+            let _ = session.send(packet.clone().into());
+        }
+    }
 }
 
 #[cfg(test)]
@@ -146,6 +152,23 @@ mod tests {
                 _ => None,
             })
             .collect()
+    }
+
+    #[test]
+    fn restricted_operator_updates_do_not_publish_abilities_to_excluded_viewers() {
+        let mut h = Harness::new();
+        let bob = h.player("Bob", false);
+        let alice = h.player("Alice", false);
+        h.sent(alice);
+        h.world()
+            .entity_mut(bob)
+            .insert(crate::entity::components::ActorAudience::only([]));
+        assert!(console(&mut h, "/op Bob").is_success());
+        assert!(abilities(&mut h, alice).is_empty());
+        assert_eq!(
+            abilities(&mut h, bob),
+            [EnumsCommandPermissionLevel::Gamedirectors]
+        );
     }
 
     #[test]

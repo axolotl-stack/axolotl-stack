@@ -43,6 +43,36 @@ fn carried(h: &mut Harness) -> Vec<String> {
 }
 
 #[test]
+fn restricted_death_keeps_private_screen_without_public_identity_or_events() {
+    let mut h = harness(Difficulty::Normal);
+    let mut viewer = h.viewer();
+    let player = h.player;
+    h.world()
+        .entity_mut(player)
+        .insert(crate::entity::components::ActorAudience::only([]));
+    h.tick();
+    h.drain();
+    drain(&mut viewer);
+    h.rules().keep_inventory = true;
+    assert!(crate::entity::player_life::kill_player(h.world(), player));
+    let own = h.drain();
+    assert!(
+        !death_infos(&own).is_empty(),
+        "victim retains its death screen"
+    );
+    assert!(!respawns(&own).is_empty(), "victim can still respawn");
+    let peer = drain(&mut viewer);
+    assert!(
+        translations(&peer).is_empty(),
+        "restricted name is not announced"
+    );
+    assert!(
+        actor_events(&peer, SESSION).is_empty(),
+        "restricted actor has no death/hurt events"
+    );
+}
+
+#[test]
 fn a_player_killed_by_a_mob_dies_drops_everything_and_sees_the_respawn_screen() {
     let mut h = harness(Difficulty::Normal);
     equip(&mut h);
