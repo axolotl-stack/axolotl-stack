@@ -168,8 +168,17 @@ fn step(
     hits.sort_by(|a, b| a.0.total_cmp(&b.0));
 
     let mut removed = false;
-    for &(_, target) in hits.iter() {
-        removed |= on_hit(world, projectile, flight.owner, rules, from, target);
+    for &(fraction, target) in hits.iter() {
+        let collision_at = from + velocity * fraction;
+        removed |= on_hit(
+            world,
+            projectile,
+            flight.owner,
+            rules,
+            from,
+            target,
+            collision_at,
+        );
         if removed || !rules.multiple_targets {
             break;
         }

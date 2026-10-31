@@ -45,15 +45,21 @@ pub fn apply_movement(
     mut events: ResMut<MovementEvents>,
     exhaustion: Res<super::hunger::ExhaustionValues>,
     mut players: MovingPlayers,
-    mut hungry: Query<(&mut Hunger, &GameMode)>,
+    mut hungry: Query<(
+        &mut Hunger,
+        &GameMode,
+        Option<&super::hunger::PlayerFoodPolicy>,
+    )>,
 ) {
     let _span = tracing::info_span!("apply_movement", count = queue.0.len()).entered();
     for (entity, input) in queue.0.drain(..) {
         match input {
             MovementInput::AuthInput(pk) => {
                 let moved = process_auth_input(entity, &pk, &mut players, &mut events);
-                if let (Some(moved), Ok((mut hunger, mode))) = (moved, hungry.get_mut(entity))
+                if let (Some(moved), Ok((mut hunger, mode, policy))) =
+                    (moved, hungry.get_mut(entity))
                     && !matches!(mode, GameMode::Creative | GameMode::Spectator)
+                    && policy.is_none_or(|policy| policy.exhaustion)
                 {
                     hunger.exhaust(moved.exhaustion(&exhaustion));
                 }

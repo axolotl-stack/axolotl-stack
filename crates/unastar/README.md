@@ -1042,3 +1042,18 @@ of the native writer, reads all three codecs, and independently inflates/checksu
 the provider's actual compacted tables. This catches failures hidden by successful
 reads from an uncompressed write-ahead log. After changing native build flags,
 use `cargo clean -p bleveldb-sys` before the acceptance run.
+
+Native `ItemActionHooks` authorize held-item Use, Release, Consume and Launch
+stages before ordinary costs. `PlayerItemAction::handle(HandledItemAction)`
+requests bounded, validated engine-owned consumption for a custom action; late
+vetoes prevent its cost and notification. Committed notifications distinguish
+started use, actual consumption, actual projectile spawn and custom handling.
+Automatic food completion also authorizes Consume, and failed throws preserve
+the held item instead of charging for an unsuccessful launch.
+
+`PlayerFoodPolicy` independently controls per-actor exhaustion, exhaustion-based
+food drain, natural healing and starvation. Missing policy preserves ordinary
+behavior. `ProjectileHooks` authorize actual impact targets, item teleport
+destinations and individual effect recipients. Vetoed impacts discard the
+projectile without normal impact effects; teleports and effect changes validate
+modified data and live actor identity before applying them.

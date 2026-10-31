@@ -37,6 +37,7 @@
 pub mod config;
 pub mod flight;
 pub mod hit;
+pub mod hooks;
 pub mod launch;
 pub mod pickup;
 
