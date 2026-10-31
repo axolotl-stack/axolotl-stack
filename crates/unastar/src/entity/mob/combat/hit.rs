@@ -255,7 +255,9 @@ pub fn send_actor_event(world: &World, entity: Entity, event: EnumsActorEvent, d
         fire_at_position: None,
     });
     for viewer in &viewers.viewers {
-        if let Some(session) = world.get::<PlayerSession>(*viewer) {
+        if crate::server::broadcast::player_views::can_receive_actor(world, entity, *viewer)
+            && let Some(session) = world.get::<PlayerSession>(*viewer)
+        {
             let _ = session.send(packet.clone());
         }
     }

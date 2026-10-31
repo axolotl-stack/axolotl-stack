@@ -1153,3 +1153,32 @@ explicit pair in one mode/abilities transition. A missing base field clears any
 current override and restores the snapshot's ordinary mode; older snapshots
 remain readable. Captured equal base/effective modes retain the explicit override
 so later base changes still wait until its removal.
+
+## Actor presentation
+
+`entity::components::ActorAudience::only(viewers)` restricts an actor's native
+replication to explicit ECS viewer identities. Absence or `all()` preserves the
+ordinary audience, and an actor always receives its own updates. Player, mob
+and item visibility reconciles at runtime: removing a viewer queues `RemoveActor`,
+and adding one sends a fresh current snapshot. Native actor events, attributed
+sounds and death announcements respect the audience. Item collection still
+removes the item for viewers unable to see its collector, without naming that
+collector. Child actors have their own audiences; applications explicitly assign
+them when needed. Unattributed world events remain world events.
+
+`PlayerEquipmentProjection` overrides the main hand, offhand and four armour
+slots displayed to other clients. `None` uses the actual inventory slot; an
+empty stack hides the displayed slot. Inventories and combat equipment remain
+authoritative. New viewers receive current equipment, metadata and effects with
+the spawn, and existing viewers receive changes even while the player is still.
+Per-viewer caches track successful queues and connection identity; a replacement
+connection receives a fresh snapshot, and backpressure retries each equipment
+packet independently. Players become eligible after `PlayerSpawnedEvent`.
+
+`server::broadcast::player_views::{audience_allows, can_receive_actor}` and
+`entity::mob::net::sound::{send_from_to_viewers, level_event_from}` let embedding
+applications apply the same recipient rules to their own attributed events.
+These APIs cover actor representation; player-list and skin support is outside
+this capability. The visible-effect metadata packing follows
+[Dragonfly v0.10.13](https://github.com/df-mc/dragonfly/blob/v0.10.13/server/session/entity_metadata.go),
+under the [MIT license](licenses/dragonfly-MIT.txt).

@@ -190,10 +190,12 @@ fn apply_game_mode(world: &mut World, player: Entity, mode: GameMode) {
         tick: crate::entity::components::input_tick_of(world, player),
     };
     let abilities = abilities_packet(runtime_id, mode, operator);
-    let mut sessions = world.query_filtered::<&PlayerSession, bevy_ecs::prelude::Without<crate::server::game::player_events::PendingInitialState>>();
-    for session in sessions.iter(world) {
-        let _ = session.send(game_type.clone().into());
-        let _ = session.send(abilities.clone().into());
+    let mut sessions = world.query::<(Entity, &PlayerSession)>();
+    for (viewer, session) in sessions.iter(world) {
+        if crate::server::broadcast::player_views::can_receive_actor(world, player, viewer) {
+            let _ = session.send(game_type.clone().into());
+            let _ = session.send(abilities.clone().into());
+        }
     }
 }
 

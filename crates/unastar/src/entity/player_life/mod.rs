@@ -73,7 +73,9 @@ pub(crate) fn send_to_player_and_viewers(world: &World, player: Entity, packet: 
         {
             continue;
         }
-        if let Some(session) = world.get::<PlayerSession>(viewer) {
+        if crate::server::broadcast::player_views::can_receive_actor(world, player, viewer)
+            && let Some(session) = world.get::<PlayerSession>(viewer)
+        {
             let _ = session.send(packet.clone());
         }
     }
