@@ -6,6 +6,8 @@
 //! gameplay respawns. Entity, account, connection and runtime identities remain
 //! owned by the target; snapshots never replace them. Open windows and input,
 //! fall and hurt bookkeeping are cleared while captured velocity is restored.
+//! Temporary game modes retain their durable base as optional snapshot state;
+//! older snapshots without it restore their captured mode as the ordinary base.
 
 use std::collections::BTreeSet;
 
@@ -181,6 +183,10 @@ pub struct SnapshotEffect {
 pub struct PlayerSnapshot {
     pub version: u32,
     pub data: PlayerData,
+    /// Durable base when the captured game mode is a temporary effective override.
+    /// Omission preserves compatibility and restores `data.game_mode` as the base.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_game_mode: Option<u8>,
     pub xuid: Option<String>,
     /// Includes every UI slot, including the cursor and crafting inputs.
     pub ui: Vec<StoredItemStack>,
@@ -222,6 +228,9 @@ impl PlayerSnapshot {
         let uuid =
             uuid::Uuid::parse_str(&self.data.uuid).map_err(|_| SnapshotError::WrongAccount)?;
         self.data.validate(uuid).map_err(invalid)?;
+        if let Some(base) = self.base_game_mode {
+            mode_from_id(base)?;
+        }
         if self.data.inventory.len() != 36
             || self.data.ender_chest.len() != crate::entity::components::ENDER_CHEST_SIZE
             || self.ui.len() != PLAYER_UI_SIZE
@@ -311,6 +320,9 @@ pub fn capture(world: &World, player: Entity) -> Result<PlayerSnapshot, Snapshot
     let snapshot = PlayerSnapshot {
         version: SNAPSHOT_VERSION,
         data,
+        base_game_mode: crate::command::exec::mode_override(world, player)
+            .and_then(|_| crate::command::exec::base_game_mode(world, player))
+            .map(super::game_mode_to_storage_id),
         xuid: world
             .get::<PlayerSession>(player)
             .and_then(|session| session.xuid.clone())
@@ -470,7 +482,7 @@ pub fn restore(
             entity.insert(burning);
         }
     }
-    crate::command::exec::set_game_mode(world, player, prepared.mode);
+    crate::command::exec::restore_game_mode(world, player, prepared.mode, prepared.base_mode);
     let eye = DVec3::from_array(snapshot.data.position);
     crate::command::exec::move_entity(
         world,
@@ -505,6 +517,7 @@ struct Prepared {
     ui: PlayerUi,
     ender: EnderChestInventory,
     mode: GameMode,
+    base_mode: Option<GameMode>,
 }
 
 /// Resolve complete snapshots with the ordinary persistence item-validation path.
@@ -537,13 +550,8 @@ fn prepare(world: &World, snapshot: &PlayerSnapshot) -> Result<Prepared, Snapsho
     {
         return Err(invalid("invalid stored item wire data"));
     }
-    let mode = match snapshot.data.game_mode {
-        0 => GameMode::Survival,
-        1 => GameMode::Creative,
-        2 => GameMode::Adventure,
-        6 => GameMode::Spectator,
-        _ => return Err(invalid("invalid game mode")),
-    };
+    let mode = mode_from_id(snapshot.data.game_mode)?;
+    let base_mode = snapshot.base_game_mode.map(mode_from_id).transpose()?;
     Ok(Prepared {
         main,
         armour,
@@ -551,7 +559,19 @@ fn prepare(world: &World, snapshot: &PlayerSnapshot) -> Result<Prepared, Snapsho
         ui,
         ender,
         mode,
+        base_mode,
     })
+}
+
+/// Decode the stable persisted game-mode IDs before any target mutation.
+fn mode_from_id(mode: u8) -> Result<GameMode, SnapshotError> {
+    match mode {
+        0 => Ok(GameMode::Survival),
+        1 => Ok(GameMode::Creative),
+        2 => Ok(GameMode::Adventure),
+        6 => Ok(GameMode::Spectator),
+        _ => Err(invalid("invalid game mode")),
+    }
 }
 
 /// Reject cross-account or cross-world restoration before even closing a window.
@@ -770,6 +790,13 @@ mod tests {
 
     /// Spawn an initialized connected actor without any network sockets or external data.
     fn player() -> (GameServer, Entity, Receiver<McpePacket>) {
+        player_with_data(None)
+    }
+
+    /// Rejoin the same test account through the ordinary validated persistence path.
+    fn player_with_data(
+        saved_data: Option<PlayerData>,
+    ) -> (GameServer, Entity, Receiver<McpePacket>) {
         let mut server = GameServer::with_config(ServerConfig {
             world: WorldConfig::void_spawn_platform(1),
             ..ServerConfig::default()
@@ -784,7 +811,7 @@ mod tests {
                 runtime_id: 7,
                 position: DVec3::new(1.5, 17.62, 1.5),
                 outbound_tx,
-                saved_data: None,
+                saved_data,
                 chunk_radius: 2,
             })
             .unwrap();
@@ -795,6 +822,196 @@ mod tests {
     /// Drain synchronous restoration packets without running unrelated game ticks.
     fn packets(rx: &mut Receiver<McpePacket>) -> Vec<McpePacketData> {
         std::iter::from_fn(|| rx.try_recv().ok().map(|packet| packet.data)).collect()
+    }
+
+    #[test]
+    fn snapshot_restores_explicit_mode_pair_and_legacy_snapshot_clears_override_atomically() {
+        use crate::command::exec::{base_game_mode, mode_override, set_mode_override};
+        let (mut server, player, mut rx) = player();
+        let ordinary = capture(server.ecs.world(), player).unwrap();
+        assert_eq!(ordinary.base_game_mode, None);
+        assert!(set_mode_override(
+            server.ecs.world_mut(),
+            player,
+            Some(GameMode::Creative)
+        ));
+        let overridden = capture(server.ecs.world(), player).unwrap();
+        assert_eq!(overridden.base_game_mode, Some(0));
+        assert_eq!(overridden.data.game_mode, 1);
+        let encoded = serde_json::to_vec(&overridden).unwrap();
+        let decoded: PlayerSnapshot = serde_json::from_slice(&encoded).unwrap();
+        restore(server.ecs.world_mut(), player, &ordinary).unwrap();
+        assert_eq!(mode_override(server.ecs.world(), player), None);
+        restore(server.ecs.world_mut(), player, &decoded).unwrap();
+        assert_eq!(
+            mode_override(server.ecs.world(), player),
+            Some(GameMode::Creative)
+        );
+        assert_eq!(
+            base_game_mode(server.ecs.world(), player),
+            Some(GameMode::Survival)
+        );
+        packets(&mut rx);
+        for (effective, base) in [(255, Some(0)), (1, Some(255))] {
+            let mut invalid = decoded.clone();
+            invalid.data.game_mode = effective;
+            invalid.base_game_mode = base;
+            assert!(restore(server.ecs.world_mut(), player, &invalid).is_err());
+            assert_eq!(capture(server.ecs.world(), player).unwrap(), decoded);
+            assert!(
+                packets(&mut rx).is_empty(),
+                "invalid modes emit no transition"
+            );
+        }
+        let legacy = serde_json::to_vec(&ordinary).unwrap();
+        assert!(!String::from_utf8_lossy(&legacy).contains("base_game_mode"));
+        restore(
+            server.ecs.world_mut(),
+            player,
+            &serde_json::from_slice(&legacy).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(mode_override(server.ecs.world(), player), None);
+        assert_eq!(
+            base_game_mode(server.ecs.world(), player),
+            Some(GameMode::Survival)
+        );
+        let transitions = packets(&mut rx)
+            .into_iter()
+            .filter(|packet| matches!(packet, McpePacketData::UpdatePlayerGameTypePacket(_)))
+            .count();
+        assert_eq!(
+            transitions, 1,
+            "restoration publishes only its final effective mode"
+        );
+    }
+
+    #[tokio::test]
+    async fn temporary_mode_snapshot_round_trip_and_provider_reopen_preserve_durable_base() {
+        use crate::command::exec::{base_game_mode, mode_override, set_mode_override};
+        use crate::command::{CommandSource, execute};
+        use crate::storage::{LevelDBPlayerProvider, PlayerProvider};
+        use std::sync::Arc;
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("players");
+        let snapshot_path = directory.path().join("snapshot.json");
+        let provider = Arc::new(LevelDBPlayerProvider::open(&database).unwrap());
+        let (mut server, player, _) = player();
+        let uuid = server.ecs.world().get::<PlayerUuid>(player).unwrap().0;
+        server
+            .ecs
+            .world_mut()
+            .insert_resource(super::super::types::PlayerProviderResource(
+                provider.clone(),
+            ));
+        server
+            .ecs
+            .world_mut()
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, stack("minecraft:diamond", 3))
+            .unwrap();
+        assert!(set_mode_override(
+            server.ecs.world_mut(),
+            player,
+            Some(GameMode::Creative)
+        ));
+        assert!(
+            execute(
+                server.ecs.world_mut(),
+                CommandSource::server(),
+                "/gamemode adventure Alice"
+            )
+            .is_success()
+        );
+        let raw = capture(server.ecs.world(), player).unwrap();
+        assert_eq!((raw.data.game_mode, raw.base_game_mode), (1, Some(2)));
+        std::fs::write(&snapshot_path, serde_json::to_vec(&raw).unwrap()).unwrap();
+        assert_eq!(server.save_all_players().await, 1);
+        assert_eq!(provider.load(uuid).await.unwrap().unwrap().game_mode, 2);
+        drop(server);
+        provider.close().await.unwrap();
+        drop(provider);
+        let provider = Arc::new(LevelDBPlayerProvider::open(&database).unwrap());
+        let saved = provider.load(uuid).await.unwrap().unwrap();
+        let (mut server, player, _) = player_with_data(Some(saved));
+        assert_eq!(
+            server.ecs.world().get::<GameMode>(player),
+            Some(&GameMode::Adventure)
+        );
+        let raw: PlayerSnapshot =
+            serde_json::from_slice(&std::fs::read(snapshot_path).unwrap()).unwrap();
+        restore(server.ecs.world_mut(), player, &raw).unwrap();
+        assert_eq!(
+            mode_override(server.ecs.world(), player),
+            Some(GameMode::Creative)
+        );
+        assert_eq!(
+            base_game_mode(server.ecs.world(), player),
+            Some(GameMode::Adventure)
+        );
+        assert!(set_mode_override(server.ecs.world_mut(), player, None));
+        assert_eq!(
+            server.ecs.world().get::<GameMode>(player),
+            Some(&GameMode::Adventure)
+        );
+        assert_eq!(
+            capture(server.ecs.world(), player).unwrap().data.inventory,
+            raw.data.inventory
+        );
+        server
+            .ecs
+            .world_mut()
+            .insert_resource(super::super::types::PlayerProviderResource(
+                provider.clone(),
+            ));
+        assert_eq!(server.save_all_players().await, 1);
+        drop(server);
+        provider.close().await.unwrap();
+        drop(provider);
+        let provider = LevelDBPlayerProvider::open(database).unwrap();
+        assert_eq!(provider.load(uuid).await.unwrap().unwrap().game_mode, 2);
+        provider.close().await.unwrap();
+    }
+
+    #[test]
+    fn temporary_creative_mode_controls_native_damage_and_removal_restores_base_rules() {
+        use crate::command::exec::set_mode_override;
+        use crate::entity::mob::combat::Hit;
+        use crate::entity::mob::components::KnockbackPower;
+        use unastar_data::actor_components::body::ActorDamageCause;
+        let (mut server, player, _) = player();
+        let hit = Hit {
+            damage: 5.0,
+            cause: ActorDamageCause::EntityAttack,
+            attacker: None,
+            by_player: true,
+            knockback_from: None,
+            knockback_power: KnockbackPower::DEFAULT,
+        };
+        assert!(set_mode_override(
+            server.ecs.world_mut(),
+            player,
+            Some(GameMode::Creative)
+        ));
+        assert_eq!(
+            crate::entity::player_life::hurt_player(server.ecs.world_mut(), player, &hit),
+            0.0
+        );
+        assert_eq!(
+            server.ecs.world().get::<Health>(player).unwrap().current,
+            20.0
+        );
+        assert!(set_mode_override(server.ecs.world_mut(), player, None));
+        assert_eq!(
+            crate::entity::player_life::hurt_player(server.ecs.world_mut(), player, &hit),
+            5.0
+        );
+        assert_eq!(
+            server.ecs.world().get::<Health>(player).unwrap().current,
+            15.0
+        );
     }
 
     #[test]
