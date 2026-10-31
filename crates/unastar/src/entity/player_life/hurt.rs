@@ -42,7 +42,6 @@ use crate::entity::components::{
 };
 use crate::entity::mob::combat::{Hit, HurtTimer, knockback_velocity};
 use crate::entity::mob::components::KnockbackPower;
-use crate::entity::mob::constants::HURT_TICKS;
 use crate::entity::mob::state::LastHurt;
 use crate::world::rules::{Difficulty, GameRules};
 
@@ -108,7 +107,11 @@ pub(super) fn apply_hit_result(
             }
             (damage - timer.last_damage, timer.until_tick, false)
         }
-        _ => (damage, now + u64::from(HURT_TICKS), true),
+        _ => (
+            damage,
+            now.saturating_add(u64::from(event.hurt_ticks)),
+            true,
+        ),
     };
     let dealt = if !event.bypass_armour && reduced_by_armour(hit.cause) {
         let (defence, toughness) = worn_armour(world, player);

@@ -1,6 +1,7 @@
 //! Lifecycle extension regressions through the live player state and packets.
 
 use super::*;
+use crate::ecs::resources::TickCounter;
 use crate::entity::components::{Hunger, Player};
 use crate::entity::mob::combat::HurtTimer;
 use crate::entity::mob::state::LastHurt;
@@ -636,4 +637,71 @@ fn incomplete_source_inventory_is_reported_without_fabricating_a_partial_image()
         .remove::<(PlayerUi, PlayerSession)>();
     assert!(super::super::kill_player(h.world(), player));
     assert!(h.world().resource::<DeathImages>().0[0].inventory.is_none());
+}
+
+#[test]
+fn adjusted_full_hit_window_keeps_delta_hits_on_the_original_deadline() {
+    let mut h = harness(Difficulty::Normal);
+    h.world()
+        .add_observer(|mut event: On<PlayerDamage>| event.hurt_ticks = 37);
+    let cow = h.cow();
+    let player = h.player;
+    h.world().resource_mut::<TickCounter>().current = 80;
+    assert_eq!(h.hit_from(cow, 4.0), 4.0);
+    assert_eq!(h.world().get::<HurtTimer>(player).unwrap().until_tick, 117);
+    h.world().resource_mut::<TickCounter>().current = 99;
+    assert_eq!(h.hit_from(cow, 7.0), 3.0);
+    assert_eq!(h.world().get::<HurtTimer>(player).unwrap().until_tick, 117);
+    h.world().resource_mut::<TickCounter>().current = 118;
+    assert_eq!(h.hit_from(cow, 4.0), 4.0);
+    assert_eq!(h.world().get::<HurtTimer>(player).unwrap().until_tick, 155);
+}
+
+#[test]
+fn zero_hurt_window_permits_a_fresh_hit_without_changing_damage_rules() {
+    let mut h = harness(Difficulty::Normal);
+    h.world()
+        .add_observer(|mut event: On<PlayerDamage>| event.hurt_ticks = 0);
+    let cow = h.cow();
+    let player = h.player;
+    assert_eq!(h.hit_from(cow, 4.0), 4.0);
+    assert_eq!(h.hit_from(cow, 4.0), 4.0);
+    let now = h.world().resource::<TickCounter>().current;
+    assert_eq!(h.world().get::<HurtTimer>(player).unwrap().until_tick, now);
+}
+
+#[test]
+fn changed_hurt_window_creates_no_timer_for_cancelled_or_invalid_damage() {
+    for cancelled in [false, true] {
+        let mut h = harness(Difficulty::Normal);
+        h.world().add_observer(move |mut event: On<PlayerDamage>| {
+            event.hurt_ticks = u32::MAX;
+            if cancelled {
+                event.cancel();
+            } else {
+                event.hit.damage = f32::NAN;
+            }
+        });
+        let cow = h.cow();
+        let player = h.player;
+        assert_eq!(h.hit_from(cow, 4.0), 0.0);
+        assert_eq!(h.health(), 20.0);
+        assert!(h.world().get::<HurtTimer>(player).is_none());
+        assert!(h.drain().is_empty());
+    }
+}
+
+#[test]
+fn full_hurt_deadline_saturates_at_the_clock_limit() {
+    let mut h = harness(Difficulty::Normal);
+    h.world()
+        .add_observer(|mut event: On<PlayerDamage>| event.hurt_ticks = 100);
+    let cow = h.cow();
+    let player = h.player;
+    h.world().resource_mut::<TickCounter>().current = u64::MAX - 2;
+    assert_eq!(h.hit_from(cow, 4.0), 4.0);
+    assert_eq!(
+        h.world().get::<HurtTimer>(player).unwrap().until_tick,
+        u64::MAX
+    );
 }

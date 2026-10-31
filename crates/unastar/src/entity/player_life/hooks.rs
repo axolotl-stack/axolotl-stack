@@ -64,6 +64,10 @@ pub struct PlayerDamage {
     /// Incoming hit; extensions may change its damage and knockback. Modified
     /// values are validated before the ordinary damage rules are applied.
     pub hit: Hit,
+    /// Window, in simulation ticks, created by a new full hit. Defaults to the
+    /// engine hurt window. Zero disables that window; delta hits retain their
+    /// existing deadline. The deadline saturates at the maximum world tick.
+    pub hurt_ticks: u32,
     /// Native override for armour reduction only. Immunity, the hurt timer,
     /// damage cause, attribution and ordinary durability rules still apply.
     pub bypass_armour: bool,
@@ -95,6 +99,7 @@ impl PlayerDamage {
         Self {
             player,
             hit,
+            hurt_ticks: crate::entity::mob::constants::HURT_TICKS,
             bypass_armour: false,
             post_armour_multiplier: 1.0,
             cancelled: false,
