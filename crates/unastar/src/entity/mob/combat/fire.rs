@@ -27,6 +27,7 @@ use unastar_data::actor_components::body::ActorDamageCause;
 use super::{Hit, hurt_mob};
 use crate::ecs::resources::TickCounter;
 use crate::entity::components::{PhysicsBody, Position};
+use crate::entity::conditions::fire_immune;
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::mob::MobKind;
 use crate::entity::mob::components::{BurnsInDaylightConfig, KnockbackPower};
@@ -57,12 +58,6 @@ pub struct Burning {
 /// Whether `mob` is burning.
 pub fn is_burning(world: &World, mob: Entity) -> bool {
     world.get::<Burning>(mob).is_some()
-}
-
-fn fire_immune(world: &World, mob: Entity) -> bool {
-    world
-        .get::<ActorFlags>(mob)
-        .is_some_and(|flags| flags.get(actor_flags::FIRE_IMMUNE).unwrap_or(false))
 }
 
 fn set_on_fire_flag(world: &mut World, mob: Entity, on_fire: bool) {
@@ -121,7 +116,10 @@ pub fn burn_mobs(
         )
     }));
     for (mob, burning, aabb) in due.drain(..) {
-        if now >= burning.until_tick || living_liquid(world, aabb) == Some(LiquidKind::Water) {
+        if now >= burning.until_tick
+            || fire_immune(world, mob)
+            || living_liquid(world, aabb) == Some(LiquidKind::Water)
+        {
             extinguish(world, mob);
             continue;
         }

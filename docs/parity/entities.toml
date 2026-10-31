@@ -284,7 +284,7 @@
 "minecraft:ender_dragon/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet" }
 "minecraft:ender_dragon/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (mob-runtime follow-up D2)." }
 "minecraft:ender_dragon/dimension_bound" = { status = "missing", gaps = "changing dimension is not implemented, so there are no portals to keep the actor out of; ender_dragon cannot spawn yet" }
-"minecraft:ender_dragon/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:ender_dragon/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:ender_dragon/flying_speed" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
 "minecraft:ender_dragon/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
 "minecraft:ender_dragon/game_event_movement_tracking" = { status = "missing", gaps = "game events and vibrations are not implemented; no movement vibrations are emitted" }
@@ -317,7 +317,7 @@
 "minecraft:wither/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:wither/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (mob-runtime follow-up D2)." }
 "minecraft:wither/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
-"minecraft:wither/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:wither/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:wither/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
 "minecraft:wither/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:wither/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
@@ -360,7 +360,7 @@
 "minecraft:blaze/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (mob-runtime follow-up D2)." }
 "minecraft:blaze/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:blaze/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:blaze/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:blaze/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
 "minecraft:blaze/freezing_vulnerable" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:blaze/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
@@ -493,7 +493,7 @@
 "minecraft:cave_spider/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cave_spider cannot spawn yet" }
 "minecraft:cave_spider/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); cave_spider cannot spawn yet" }
 "minecraft:cave_spider/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cave_spider cannot spawn yet" }
-"minecraft:cave_spider/renders_when_invisible" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:cave_spider/renders_when_invisible" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/definition/compiled/tests.rs::condition_marker_groups_update_and_remove_both_flag_words"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:cave_spider/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:cave_spider/spawn_rules" = { status = "partial", gaps = "cave_spider cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:cave_spider/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cave_spider cannot spawn yet" }
@@ -511,7 +511,7 @@
 "minecraft:creaking/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
 "minecraft:creaking/dimension_bound" = { status = "missing", gaps = "changing dimension is not implemented, so there are no portals to keep the actor out of; creaking cannot spawn yet" }
 "minecraft:creaking/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
-"minecraft:creaking/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:creaking/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:creaking/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
 "minecraft:creaking/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
 "minecraft:creaking/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
@@ -530,7 +530,7 @@
 "minecraft:creaking/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
 "minecraft:creaking/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); creaking cannot spawn yet" }
 "minecraft:creaking/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
-"minecraft:creaking/renders_when_invisible" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:creaking/renders_when_invisible" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/definition/compiled/tests.rs::condition_marker_groups_update_and_remove_both_flag_words"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:creaking/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
 "minecraft:creaking/variable_max_auto_step" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:creeper" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.melee_attack, behavior.swell, explode, is_charged, on_target_escape (+1 more)" }
@@ -686,7 +686,7 @@
 "minecraft:enderman/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but enderman cannot spawn yet" }
 "minecraft:enderman/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); enderman cannot spawn yet" }
 "minecraft:enderman/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but enderman cannot spawn yet" }
-"minecraft:enderman/renders_when_invisible" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:enderman/renders_when_invisible" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/definition/compiled/tests.rs::condition_marker_groups_update_and_remove_both_flag_words"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:enderman/spawn_rules" = { status = "partial", gaps = "enderman cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:enderman/teleport" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:enderman/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but enderman cannot spawn yet" }
@@ -771,7 +771,7 @@
 "minecraft:ghast/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (mob-runtime follow-up D2)." }
 "minecraft:ghast/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
-"minecraft:ghast/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:ghast/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:ghast/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
 "minecraft:ghast/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:ghast/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
@@ -886,7 +886,7 @@
 "minecraft:magma_cube/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (mob-runtime follow-up D2)." }
 "minecraft:magma_cube/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
-"minecraft:magma_cube/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:magma_cube/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:magma_cube/freezing_vulnerable" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:magma_cube/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:magma_cube/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
@@ -967,7 +967,7 @@
 "minecraft:phantom/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
 "minecraft:phantom/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); phantom cannot spawn yet" }
 "minecraft:phantom/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
-"minecraft:phantom/renders_when_invisible" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:phantom/renders_when_invisible" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/definition/compiled/tests.rs::condition_marker_groups_update_and_remove_both_flag_words"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:phantom/spawn_rules" = { status = "partial", gaps = "phantom cannot spawn yet, so drawn entries spawn nothing; the native spawn check of phantom's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:phantom/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
 "minecraft:piglin" = { status = "missing", gaps = "not spawnable: needs admire_item, angry, annotation.open_door, attack_cooldown, barter, behavior.admire_item (+13 more)" }
@@ -1177,7 +1177,7 @@
 "minecraft:shulker/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; shulker cannot spawn yet" }
 "minecraft:shulker/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:shulker/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
-"minecraft:shulker/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:shulker/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:shulker/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:shulker/interact" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:shulker/is_collidable" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
@@ -1189,7 +1189,7 @@
 "minecraft:shulker/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:shulker/peek" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:shulker/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
-"minecraft:shulker/renders_when_invisible" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:shulker/renders_when_invisible" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/definition/compiled/tests.rs::condition_marker_groups_update_and_remove_both_flag_words"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:shulker/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
 "minecraft:shulker/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:shulker/variant" = { status = "missing", gaps = "not implemented: needs variants" }
@@ -1337,7 +1337,7 @@
 "minecraft:spider/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but spider cannot spawn yet" }
 "minecraft:spider/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); spider cannot spawn yet" }
 "minecraft:spider/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but spider cannot spawn yet" }
-"minecraft:spider/renders_when_invisible" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:spider/renders_when_invisible" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/definition/compiled/tests.rs::condition_marker_groups_update_and_remove_both_flag_words"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:spider/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:spider/spawn_rules" = { status = "partial", gaps = "spider cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:spider/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but spider cannot spawn yet" }
@@ -1397,7 +1397,7 @@
 "minecraft:vex/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
 "minecraft:vex/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
 "minecraft:vex/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:vex/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:vex/game_event_movement_tracking" = { status = "missing", gaps = "game events and vibrations are not implemented; no movement vibrations are emitted" }
 "minecraft:vex/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:vex/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
@@ -1474,7 +1474,7 @@
 "minecraft:warden/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; warden cannot spawn yet" }
 "minecraft:warden/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet" }
 "minecraft:warden/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet" }
-"minecraft:warden/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:warden/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:warden/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
 "minecraft:warden/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:warden/heartbeat" = { status = "missing", gaps = "not implemented: needs warden behaviour" }
@@ -1552,7 +1552,7 @@
 "minecraft:wither_skeleton/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skeleton cannot spawn yet" }
 "minecraft:wither_skeleton/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skeleton cannot spawn yet" }
 "minecraft:wither_skeleton/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skeleton cannot spawn yet" }
-"minecraft:wither_skeleton/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:wither_skeleton/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:wither_skeleton/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skeleton cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:wither_skeleton/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skeleton cannot spawn yet" }
 "minecraft:wither_skeleton/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skeleton cannot spawn yet" }
@@ -1585,7 +1585,7 @@
 "minecraft:zoglin/custom_hit_test" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:zoglin/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
 "minecraft:zoglin/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:zoglin/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:zoglin/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:zoglin/is_baby" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
 "minecraft:zoglin/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
@@ -1728,7 +1728,7 @@
 "minecraft:zombie_pigman/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
 "minecraft:zombie_pigman/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
 "minecraft:zombie_pigman/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
-"minecraft:zombie_pigman/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:zombie_pigman/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:zombie_pigman/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:zombie_pigman/is_baby" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
 "minecraft:zombie_pigman/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
@@ -1971,7 +1971,7 @@
 "minecraft:npc/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but npc cannot spawn yet" }
 "minecraft:npc/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but npc cannot spawn yet" }
 "minecraft:npc/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but npc cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (mob-runtime follow-up D2)." }
-"minecraft:npc/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:npc/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:npc/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but npc cannot spawn yet" }
 "minecraft:npc/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but npc cannot spawn yet" }
 "minecraft:npc/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; npc cannot spawn yet" }
@@ -2619,7 +2619,7 @@
 "minecraft:ender_crystal/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_crystal cannot spawn yet" }
 "minecraft:ender_crystal/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:ender_crystal/explode" = { status = "missing", gaps = "not implemented: needs explosions" }
-"minecraft:ender_crystal/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:ender_crystal/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:ender_crystal/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_crystal cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:ender_crystal/on_hurt" = { status = "missing", gaps = "not implemented: needs anger and target events" }
 "minecraft:ender_crystal/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_crystal cannot spawn yet" }
@@ -2819,7 +2819,7 @@
 "minecraft:happy_ghast/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
-"minecraft:happy_ghast/renders_when_invisible" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:happy_ghast/renders_when_invisible" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/definition/compiled/tests.rs::condition_marker_groups_update_and_remove_both_flag_words"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:happy_ghast/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:happy_ghast/rotation_axis_aligned" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:happy_ghast/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
@@ -3562,7 +3562,7 @@
 "minecraft:strider/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
 "minecraft:strider/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
 "minecraft:strider/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
-"minecraft:strider/fire_immune" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:strider/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:strider/freezing_vulnerable" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:strider/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:strider/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but strider cannot spawn yet" }
@@ -3635,7 +3635,7 @@
 "minecraft:sulfur_cube/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
-"minecraft:sulfur_cube/renders_when_invisible" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:sulfur_cube/renders_when_invisible" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/definition/compiled/tests.rs::condition_marker_groups_update_and_remove_both_flag_words"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
 "minecraft:sulfur_cube/rotation_axis_aligned" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:sulfur_cube/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
@@ -3902,7 +3902,7 @@
 "minecraft:arrow/dimension_bound" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: changing dimension is not implemented, so there are no portals to keep the arrow out of" }
 "minecraft:arrow/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; no test puts an arrow in lava" }
 "minecraft:arrow/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/ranged.rs::arrows_stick_in_the_ground_and_come_back"] }
-"minecraft:arrow/projectile" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/ranged.rs::a_drawn_bow_shoots_an_arrow_that_hurts_a_cow", "crates/unastar/src/server/game/item_use/ranged.rs::arrows_stick_in_the_ground_and_come_back", "crates/unastar/src/server/game/item_use/ranged.rs::crossbows_load_after_25_ticks_then_fire"], gaps = "on_hit.arrow_effect applies nothing because tipped arrows are not implemented; uncertainty (mob shot spread) is unused because no mob shoots", notes = "Speed-scaled damage with critical bonus, sticking in the ground, bouncing off when no damage is dealt, and pickup are implemented." }
+"minecraft:arrow/projectile" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/ranged.rs::a_drawn_bow_shoots_an_arrow_that_hurts_a_cow", "crates/unastar/src/server/game/item_use/ranged.rs::arrows_stick_in_the_ground_and_come_back", "crates/unastar/src/server/game/item_use/ranged.rs::crossbows_load_after_25_ticks_then_fire"], gaps = "on_hit.arrow_effect applies nothing because tipped arrows are not implemented; actor-owned launch supports authored uncertainty; non-default actor-shot damage randomization remains unsupported", notes = "Speed-scaled damage with critical bonus, sticking in the ground, bouncing off when no damage is dealt, and pickup are implemented." }
 "minecraft:arrow/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
 "minecraft:arrow/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:breeze_wind_charge_projectile" = { status = "missing", gaps = "not spawnable: needs explode; projectile features reflect_on_hurt, uncertainty, on_hit.wind_burst_on_hit are rejected" }
@@ -3981,15 +3981,15 @@
 "minecraft:shulker_bullet/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker_bullet cannot spawn yet" }
 "minecraft:shulker_bullet/projectile" = { status = "partial", owner = "entities", gaps = "projectile flight and impact are implemented (egg), but this definition uses rejected features: anchor, crit_particle_on_hurt, destroy_on_hurt, homing, should_bounce, uncertainty, on_hit.mob_effect, particle largeexplode; shulker_bullet cannot spawn yet" }
 "minecraft:shulker_bullet/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker_bullet cannot spawn yet" }
-"minecraft:small_fireball" = { status = "missing", gaps = "not spawnable: needs dimension_bound; projectile features anchor, reflect_on_hurt, uncertainty, on_hit.catch_fire, impact_damage.catch_fire are rejected" }
-"minecraft:small_fireball/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but small_fireball cannot spawn yet" }
+"minecraft:small_fireball" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/projectile/tests.rs::fire_projectile_has_an_explicit_empty_attribute_profile_and_real_middle_anchor", "crates/unastar/src/entity/projectile/tests.rs::actual_collision_ignites_the_hit_face_and_mob_griefing_suppresses_only_world_fire", "crates/unastar/src/entity/projectile/tests.rs::actual_player_attack_redirects_without_health_or_a_new_actor_and_changes_owner", "crates/unastar/src/entity/projectile/tests.rs::actual_projectile_sweep_reflects_without_damaging_or_replacing_the_target"], gaps = "spawn, launch, flight, damage, ignition and reflection implemented; bandwidth optimization, general external pushing, and native RNG seed matching remain incomplete" }
+"minecraft:small_fireball/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/projectile/tests.rs::actual_player_attack_redirects_without_health_or_a_new_actor_and_changes_owner", "crates/unastar/src/entity/projectile/tests.rs::actual_projectile_sweep_reflects_without_damaging_or_replacing_the_target"] }
 "minecraft:small_fireball/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
-"minecraft:small_fireball/dimension_bound" = { status = "missing", gaps = "changing dimension is not implemented, so there are no portals to keep the actor out of; small_fireball cannot spawn yet" }
-"minecraft:small_fireball/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but small_fireball cannot spawn yet" }
-"minecraft:small_fireball/projectile" = { status = "partial", owner = "entities", gaps = "projectile flight and impact are implemented (egg), but this definition uses rejected features: anchor, reflect_on_hurt, uncertainty, on_hit.catch_fire, impact_damage.catch_fire; small_fireball cannot spawn yet" }
-"minecraft:small_fireball/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); small_fireball cannot spawn yet" }
-"minecraft:small_fireball/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but small_fireball cannot spawn yet" }
-"minecraft:small_fireball/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but small_fireball cannot spawn yet" }
+"minecraft:small_fireball/dimension_bound" = { status = "partial", owner = "entities", gaps = "projectiles do not migrate between dimensions; no dimension-change regression" }
+"minecraft:small_fireball/physics" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/projectile/tests.rs::actual_collision_ignites_the_hit_face_and_mob_griefing_suppresses_only_world_fire"], gaps = "projectile flight and block collision use authored motion; external force interactions are not covered" }
+"minecraft:small_fireball/projectile" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/projectile/tests.rs::fire_projectile_direct_hit_damages_and_ignites_but_immunity_prevents_ignition", "crates/unastar/src/entity/projectile/tests.rs::actual_collision_ignites_the_hit_face_and_mob_griefing_suppresses_only_world_fire", "crates/unastar/src/entity/projectile/tests.rs::actual_player_attack_redirects_without_health_or_a_new_actor_and_changes_owner", "crates/unastar/src/entity/projectile/config.rs::reflection_duration_boundary_uses_a_compiled_authored_delay"], gaps = "middle anchor, authored spread, fire and reflection implemented; native RNG seed matching and exact reflection edge cases are not verified" }
+"minecraft:small_fireball/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but piston actor pushing is not implemented" }
+"minecraft:small_fireball/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "presence is recorded, but general external projectile pushing is not implemented" }
+"minecraft:small_fireball/type_family" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/projectile/tests.rs::fire_projectile_has_an_explicit_empty_attribute_profile_and_real_middle_anchor"], gaps = "authored families compile; family-filter interactions are not independently exercised" }
 "minecraft:snowball" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/ranged.rs::snowballs_are_thrown"], notes = "Players throw snowballs like eggs. Sub-row gap: the blaze-only impact damage and the snowballpoof particles are untested (projectile)." }
 "minecraft:snowball/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spawn.rs::spawned_adult_cow_add_actor_matches_native_summon", "crates/unastar/src/server/game/item_use/ranged.rs::snowballs_are_thrown"] }
 "minecraft:snowball/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: network send-rate tuning is not modelled; every significant change is replicated" }
