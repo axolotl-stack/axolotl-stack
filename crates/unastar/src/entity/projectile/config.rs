@@ -471,6 +471,31 @@ fn compile_spawn_chance(
     })
 }
 
+/// Validate that an actor-owned shooter can use this complete projectile body.
+pub(crate) fn check_aimed(
+    archetype: &MobArchetype,
+    items: &ItemRegistry,
+) -> Result<(), ProjectileError> {
+    let source = archetype
+        .source
+        .components
+        .get(ActorComponent::Projectile.name())
+        .ok_or(ProjectileError::Unsupported("missing projectile behavior"))?;
+    let body = decode::<body::Projectile>(source).map_err(ProjectileError::Decode)?;
+    let rules = compile(body, items)?;
+    if rules.anchor == ProjectileAnchor::EyeHeight {
+        return Err(ProjectileError::Unsupported("nonplayer eye anchor"));
+    }
+    if rules.impact_damage.as_ref().is_some_and(|impact| {
+        impact.difficulty_randomization != body::ImpactDamageDifficultyRandomization::None
+    }) {
+        return Err(ProjectileError::Unsupported(
+            "actor-shot damage randomization",
+        ));
+    }
+    Ok(())
+}
+
 /// Startup check, once every archetype is compiled: what a projectile's
 /// `spawn_chance` targets that are available must define their `on_spawn` events.
 /// An unavailable optional actor fails only that runtime spawn attempt.

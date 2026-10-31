@@ -19,6 +19,8 @@ use super::{ActorComponent, ComponentBody, FilterJson, decode};
 
 mod reactive;
 pub use reactive::*;
+mod ranged;
+pub use ranged::*;
 mod teleport;
 pub use teleport::*;
 
@@ -1381,10 +1383,12 @@ dynamic_bodies!(
     Rideable,
     Scale,
     Shareables,
+    Shooter,
     SpawnEggInteraction,
     SpawnEntity,
     Transformation,
     Timer,
+    TargetNearbySensor,
     Teleport,
     TypeFamily,
     VariableMaxAutoStep,

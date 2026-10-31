@@ -297,7 +297,7 @@
 "minecraft:ender_dragon/on_start_takeoff" = { status = "missing", gaps = "not implemented: needs bosses" }
 "minecraft:ender_dragon/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:ender_dragon/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet" }
-"minecraft:ender_dragon/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:ender_dragon/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:ender_dragon/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet" }
 "minecraft:wither" = { status = "missing", gaps = "not spawnable: needs behavior.look_at_target, behavior.wither_random_attack_pos_goal, behavior.wither_target_highest_damage, boss, can_fly, fire_immune (+2 more)" }
 "minecraft:wither/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
@@ -345,24 +345,24 @@
 "minecraft:painting" = { status = "missing", gaps = "no actor; paintings cannot be placed" }  # built-in actor without a behaviour-pack definition
 
 # hostile (1499)
-"minecraft:blaze" = { status = "missing", gaps = "not spawnable: needs behavior.ranged_attack, fire_immune, follow_range, freezing_vulnerable, on_hurt, on_hurt_by_player (+2 more)" }
+"minecraft:blaze" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Native hovering/slow-fall motion and structure spawning remain incomplete.", notes = "The complete original definition is spawnable; real charged fireball bursts damage and ignite living targets and the authored sensor switches melee/ranged modes." }
 "minecraft:blaze/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:blaze/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "retaliation targeting is implemented in mob::ai::targeting, but no test exercises it; blaze cannot spawn yet" }
+"minecraft:blaze/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "retaliation targeting is implemented in mob::ai::targeting, but no test exercises it" }
 "minecraft:blaze/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:blaze/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); blaze cannot spawn yet" }
+"minecraft:blaze/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it)" }
 "minecraft:blaze/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:blaze/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
-"minecraft:blaze/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; blaze cannot spawn yet" }
+"minecraft:blaze/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
+"minecraft:blaze/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
 "minecraft:blaze/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:blaze/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (mob-runtime follow-up D2)." }
 "minecraft:blaze/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:blaze/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
-"minecraft:blaze/follow_range" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/triggers.rs::target_events_fire_once_and_authored_follow_range_overrides_legacy_radius"], gaps = "randomized values are rejected; actor not covered by a spawn regression" }
-"minecraft:blaze/freezing_vulnerable" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
+"minecraft:blaze/fire_immune" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::fire_immunity_rejects_heat_before_hurt_state_and_extinguishes_existing_fire"], gaps = "component implemented; dedicated Blaze interaction coverage remains incomplete" }
+"minecraft:blaze/follow_range" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/triggers.rs::target_events_fire_once_and_authored_follow_range_overrides_legacy_radius"], gaps = "randomized values are rejected; dedicated Blaze interaction coverage remains incomplete" }
+"minecraft:blaze/freezing_vulnerable" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/freezing/tests.rs::cold_accumulation_damage_cadence_and_vulnerability_use_real_living_damage_paths", "crates/unastar/src/entity/freezing/tests.rs::equipped_leather_and_definition_immunity_protect_but_carried_leather_does_not"], gaps = "component implemented; dedicated Blaze interaction coverage remains incomplete" }
 "minecraft:blaze/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (mob-runtime follow-up D2)." }
 "minecraft:blaze/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
@@ -370,16 +370,16 @@
 "minecraft:blaze/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:blaze/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; blaze cannot spawn yet" }
+"minecraft:blaze/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
 "minecraft:blaze/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:blaze/on_hurt" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/triggers.rs::accepted_hits_dispatch_filtered_triggers_but_timer_rejections_do_not"], gaps = "only self/other receivers are supported; actor not covered by a spawn regression" }
-"minecraft:blaze/on_hurt_by_player" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/triggers.rs::accepted_hits_dispatch_filtered_triggers_but_timer_rejections_do_not"], gaps = "only self/other receivers are supported; actor not covered by a spawn regression" }
+"minecraft:blaze/on_hurt" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/triggers.rs::accepted_hits_dispatch_filtered_triggers_but_timer_rejections_do_not"], gaps = "only self/other receivers are supported; dedicated Blaze interaction coverage remains incomplete" }
+"minecraft:blaze/on_hurt_by_player" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/triggers.rs::accepted_hits_dispatch_filtered_triggers_but_timer_rejections_do_not"], gaps = "only self/other receivers are supported; dedicated Blaze interaction coverage remains incomplete" }
 "minecraft:blaze/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:blaze/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); blaze cannot spawn yet" }
+"minecraft:blaze/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
 "minecraft:blaze/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:blaze/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:blaze/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:blaze/spawn_rules" = { status = "missing", gaps = "the rule has no natural conditions: blaze spawns only from structures or villages, which do not spawn mobs yet" }
-"minecraft:blaze/target_nearby_sensor" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:blaze/target_nearby_sensor" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::original_target_sensor_keeps_hysteresis_and_changes_real_composed_attack_modes", "crates/unastar/src/entity/mob/ai/ranged/tests.rs::vision_loss_inside_inner_boundary_dispatches_even_without_must_see"], gaps = "Inside/outside/vision-loss events are implemented; other containing actor compositions still need their own native regressions." }
 "minecraft:blaze/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:bogged" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.flee_sun, behavior.ranged_attack, shooter" }
 "minecraft:bogged/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
@@ -393,7 +393,7 @@
 "minecraft:bogged/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
 "minecraft:bogged/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); bogged cannot spawn yet" }
 "minecraft:bogged/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:bogged/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:bogged/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; bogged cannot spawn yet" }
 "minecraft:bogged/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
 "minecraft:bogged/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; bogged cannot spawn yet" }
@@ -419,7 +419,7 @@
 "minecraft:bogged/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); bogged cannot spawn yet" }
 "minecraft:bogged/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
 "minecraft:bogged/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:bogged/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:bogged/spawn_rules" = { status = "partial", gaps = "bogged cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:bogged/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
 "minecraft:breeze" = { status = "missing", gaps = "not spawnable: needs behavior.fire_at_target, behavior.jump_around_target, behavior.move_around_target, follow_range, knockback_resistance, persistent (+1 more)" }
@@ -568,7 +568,7 @@
 "minecraft:creeper/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); creeper cannot spawn yet" }
 "minecraft:creeper/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creeper cannot spawn yet" }
 "minecraft:creeper/spawn_rules" = { status = "partial", gaps = "creeper cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
-"minecraft:creeper/target_nearby_sensor" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:creeper/target_nearby_sensor" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::original_target_sensor_keeps_hysteresis_and_changes_real_composed_attack_modes", "crates/unastar/src/entity/mob/ai/ranged/tests.rs::vision_loss_inside_inner_boundary_dispatches_even_without_must_see"], gaps = "Inside/outside/vision-loss events are implemented; other containing actor compositions still need their own native regressions." }
 "minecraft:creeper/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creeper cannot spawn yet" }
 "minecraft:drowned" = { status = "missing", gaps = "not spawnable: needs behavior.flee_sun, behavior.ranged_attack, movement.generic, navigation.generic, on_target_acquired, on_target_escape (+3 more)", notes = "Drowned conversion still needs swim navigation, the trident ranged attack, target_nearby_sensor, flee_sun and the conversion itself (entity backlog)." }
 "minecraft:drowned/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
@@ -585,7 +585,7 @@
 "minecraft:drowned/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); drowned cannot spawn yet" }
 "minecraft:drowned/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
-"minecraft:drowned/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:drowned/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:drowned/behavior.stomp_turtle_egg" = { status = "missing", gaps = "turtle eggs are not implemented, so there is nothing to stomp" }
 "minecraft:drowned/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; drowned cannot spawn yet" }
 "minecraft:drowned/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
@@ -615,11 +615,11 @@
 "minecraft:drowned/rotation_locked_to_vehicle" = { status = "partial", owner = "entities", gaps = "the flag is replicated; riding is not implemented; drowned cannot spawn yet" }
 "minecraft:drowned/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
-"minecraft:drowned/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:drowned/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:drowned/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/spawn_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/spawn_rules" = { status = "partial", gaps = "drowned cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
-"minecraft:drowned/target_nearby_sensor" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:drowned/target_nearby_sensor" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::original_target_sensor_keeps_hysteresis_and_changes_real_composed_attack_modes", "crates/unastar/src/entity/mob/ai/ranged/tests.rs::vision_loss_inside_inner_boundary_dispatches_even_without_must_see"], gaps = "Inside/outside/vision-loss events are implemented; other containing actor compositions still need their own native regressions." }
 "minecraft:drowned/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:elder_guardian" = { status = "missing", gaps = "not spawnable: needs behavior.guardian_attack, behavior.move_towards_home_restriction, behavior.random_swim, follow_range, home, movement.sway (+2 more)" }
@@ -762,7 +762,7 @@
 "minecraft:ghast/behavior.float_wander" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
 "minecraft:ghast/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "retaliation targeting is implemented in mob::ai::targeting, but no test exercises it; ghast cannot spawn yet" }
 "minecraft:ghast/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
-"minecraft:ghast/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:ghast/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:ghast/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; ghast cannot spawn yet" }
 "minecraft:ghast/can_fly" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
 "minecraft:ghast/cannot_be_attacked" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
@@ -783,7 +783,7 @@
 "minecraft:ghast/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); ghast cannot spawn yet" }
 "minecraft:ghast/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
-"minecraft:ghast/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:ghast/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:ghast/spawn_rules" = { status = "partial", gaps = "ghast cannot spawn yet, so drawn entries spawn nothing; the native spawn check of ghast's class is not modelled; brightness is sky light only" }
 "minecraft:ghast/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:guardian" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.guardian_attack, behavior.move_towards_home_restriction, behavior.random_swim, follow_range, home (+4 more)" }
@@ -816,7 +816,7 @@
 "minecraft:guardian/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); guardian cannot spawn yet" }
 "minecraft:guardian/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
 "minecraft:guardian/spawn_rules" = { status = "partial", gaps = "guardian cannot spawn yet, so drawn entries spawn nothing; the native spawn check of guardian's class is not modelled; brightness is sky light only" }
-"minecraft:guardian/target_nearby_sensor" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:guardian/target_nearby_sensor" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::original_target_sensor_keeps_hysteresis_and_changes_real_composed_attack_modes", "crates/unastar/src/entity/mob/ai/ranged/tests.rs::vision_loss_inside_inner_boundary_dispatches_even_without_must_see"], gaps = "Inside/outside/vision-loss events are implemented; other containing actor compositions still need their own native regressions." }
 "minecraft:guardian/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
 "minecraft:guardian/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
 "minecraft:guardian/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
@@ -916,7 +916,7 @@
 "minecraft:parched/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); parched cannot spawn yet" }
 "minecraft:parched/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:parched/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:parched/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; parched cannot spawn yet" }
 "minecraft:parched/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; parched cannot spawn yet" }
 "minecraft:parched/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
@@ -940,7 +940,7 @@
 "minecraft:parched/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); parched cannot spawn yet" }
 "minecraft:parched/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:parched/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:parched/spawn_rules" = { status = "partial", gaps = "parched cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:parched/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:phantom" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.circle_around_anchor, behavior.swoop_attack, follow_range, movement.glide, renders_when_invisible" }
@@ -992,7 +992,7 @@
 "minecraft:piglin/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
 "minecraft:piglin/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); piglin cannot spawn yet" }
 "minecraft:piglin/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
-"minecraft:piglin/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:piglin/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:piglin/behavior.use_kinetic_weapon" = { status = "missing", gaps = "kinetic (spear) weapons and charge attacks are not implemented; a mob holding a spear uses its melee attack" }
 "minecraft:piglin/block_sensor" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:piglin/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; piglin cannot spawn yet" }
@@ -1026,7 +1026,7 @@
 "minecraft:piglin/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
 "minecraft:piglin/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
 "minecraft:piglin/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
-"minecraft:piglin/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:piglin/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:piglin/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
 "minecraft:piglin/spawn_rules" = { status = "partial", gaps = "piglin cannot spawn yet, so drawn entries spawn nothing; the native spawn check of piglin's class is not modelled; brightness is sky light only" }
 "minecraft:piglin/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
@@ -1091,7 +1091,7 @@
 "minecraft:pillager/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:pillager/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); pillager cannot spawn yet" }
 "minecraft:pillager/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
-"minecraft:pillager/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:pillager/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:pillager/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; pillager cannot spawn yet" }
 "minecraft:pillager/can_join_raid" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:pillager/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
@@ -1121,7 +1121,7 @@
 "minecraft:pillager/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); pillager cannot spawn yet" }
 "minecraft:pillager/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:pillager/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
-"minecraft:pillager/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:pillager/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:pillager/spawn_rules" = { status = "missing", gaps = "the rule has no natural conditions: pillager spawns only from structures or villages, which do not spawn mobs yet" }
 "minecraft:pillager/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:pillager/variant" = { status = "missing", gaps = "not implemented: needs variants" }
@@ -1173,7 +1173,7 @@
 "minecraft:shulker/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:shulker/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:shulker/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); shulker cannot spawn yet" }
-"minecraft:shulker/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:shulker/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:shulker/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; shulker cannot spawn yet" }
 "minecraft:shulker/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:shulker/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
@@ -1190,7 +1190,7 @@
 "minecraft:shulker/peek" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:shulker/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:shulker/renders_when_invisible" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/definition/compiled/tests.rs::condition_marker_groups_update_and_remove_both_flag_words"], gaps = "component implemented and tested on another actor; this actor is not covered by a spawn regression" }
-"minecraft:shulker/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:shulker/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:shulker/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but shulker cannot spawn yet" }
 "minecraft:shulker/variant" = { status = "missing", gaps = "not implemented: needs variants" }
 "minecraft:silverfish" = { status = "missing", gaps = "not spawnable: needs angry, behavior.silverfish_merge_with_stone, behavior.silverfish_wake_up_friends, block_climber, can_stand_on_powder_snow, mob_effect_immunity (+1 more)" }
@@ -1237,7 +1237,7 @@
 "minecraft:skeleton/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
 "minecraft:skeleton/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); skeleton cannot spawn yet" }
 "minecraft:skeleton/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:skeleton/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:skeleton/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; skeleton cannot spawn yet" }
 "minecraft:skeleton/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
 "minecraft:skeleton/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; skeleton cannot spawn yet" }
@@ -1265,7 +1265,7 @@
 "minecraft:skeleton/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
 "minecraft:skeleton/rotation_locked_to_vehicle" = { status = "partial", owner = "entities", gaps = "the flag is replicated; riding is not implemented; skeleton cannot spawn yet" }
 "minecraft:skeleton/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:skeleton/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:skeleton/spawn_rules" = { status = "partial", gaps = "skeleton cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:skeleton/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
 "minecraft:skeleton/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
@@ -1353,7 +1353,7 @@
 "minecraft:stray/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
 "minecraft:stray/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); stray cannot spawn yet" }
 "minecraft:stray/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:stray/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:stray/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; stray cannot spawn yet" }
 "minecraft:stray/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
 "minecraft:stray/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; stray cannot spawn yet" }
@@ -1378,7 +1378,7 @@
 "minecraft:stray/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); stray cannot spawn yet" }
 "minecraft:stray/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
 "minecraft:stray/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:stray/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:stray/spawn_rules" = { status = "missing", gaps = "conditions not implemented: spawn_event (2 of 2 entries left out of every pool); stray cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:stray/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
 "minecraft:stray/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
@@ -1507,7 +1507,7 @@
 "minecraft:witch/behavior.nearest_prioritized_attackable_target" = { status = "missing", gaps = "not implemented: needs anger and target events" }
 "minecraft:witch/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); witch cannot spawn yet" }
 "minecraft:witch/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
-"minecraft:witch/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:witch/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:witch/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; witch cannot spawn yet" }
 "minecraft:witch/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; witch cannot spawn yet" }
 "minecraft:witch/can_join_raid" = { status = "missing", gaps = "not implemented: needs villages and raids" }
@@ -1531,7 +1531,7 @@
 "minecraft:witch/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
 "minecraft:witch/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); witch cannot spawn yet" }
 "minecraft:witch/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
-"minecraft:witch/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:witch/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:witch/spawn_rules" = { status = "partial", gaps = "witch cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:witch/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
 "minecraft:wither_skeleton" = { status = "missing", gaps = "not spawnable: needs fire_immune" }
@@ -2949,7 +2949,7 @@
 "minecraft:llama/behavior.panic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet", notes = "Unconfirmed natively: the default damage_sources list is the 18-cause legacy list (mob-runtime follow-up D2)." }
 "minecraft:llama/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); llama cannot spawn yet" }
 "minecraft:llama/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
-"minecraft:llama/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:llama/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:llama/behavior.run_around_like_crazy" = { status = "missing", gaps = "not implemented: needs mob inventories and mount gear" }
 "minecraft:llama/behavior.tempt" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
 "minecraft:llama/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; llama cannot spawn yet" }
@@ -2987,7 +2987,7 @@
 "minecraft:llama/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
 "minecraft:llama/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:llama/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
-"minecraft:llama/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:llama/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:llama/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
 "minecraft:llama/spawn_rules" = { status = "partial", gaps = "llama cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:llama/strength" = { status = "missing", gaps = "not implemented: needs mob inventories and mount gear" }
@@ -3514,7 +3514,7 @@
 "minecraft:snow_golem/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
 "minecraft:snow_golem/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); snow_golem cannot spawn yet" }
 "minecraft:snow_golem/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
-"minecraft:snow_golem/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:snow_golem/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:snow_golem/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; snow_golem cannot spawn yet" }
 "minecraft:snow_golem/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; snow_golem cannot spawn yet" }
 "minecraft:snow_golem/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
@@ -3538,7 +3538,7 @@
 "minecraft:snow_golem/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
 "minecraft:snow_golem/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); snow_golem cannot spawn yet" }
 "minecraft:snow_golem/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
-"minecraft:snow_golem/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:snow_golem/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:snow_golem/trail" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:snow_golem/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
 "minecraft:strider" = { status = "missing", gaps = "not spawnable: needs addrider, behavior.move_to_liquid, behavior.rise_to_liquid_level, fire_immune, freezing_vulnerable, lava_movement (+1 more)" }
@@ -3660,7 +3660,7 @@
 "minecraft:trader_llama/behavior.panic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet", notes = "Unconfirmed natively: the default damage_sources list is the 18-cause legacy list (mob-runtime follow-up D2)." }
 "minecraft:trader_llama/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); trader_llama cannot spawn yet" }
 "minecraft:trader_llama/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
-"minecraft:trader_llama/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:trader_llama/behavior.ranged_attack" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::complete_blaze_definition_fires_owned_bursts_that_damage_and_ignite_a_real_player"], gaps = "Swing and nonzero charge_charged_trigger are rejected; broader actor-specific timing and movement coverage remains incomplete.", notes = "Ordinary and charged shots, burst/reload timing, sight/range gates, aim and follow/hold movement run against current authoritative targets." }
 "minecraft:trader_llama/behavior.run_around_like_crazy" = { status = "missing", gaps = "not implemented: needs mob inventories and mount gear" }
 "minecraft:trader_llama/behavior.tempt" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
 "minecraft:trader_llama/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; trader_llama cannot spawn yet" }
@@ -3701,7 +3701,7 @@
 "minecraft:trader_llama/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
 "minecraft:trader_llama/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:trader_llama/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
-"minecraft:trader_llama/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
+"minecraft:trader_llama/shooter" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/ranged/tests.rs::startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures"], gaps = "Magic, auxiliary potion overrides, nonplayer eye anchors and nondefault actor-shot damage randomization are rejected; containing actors may have other unsupported components.", notes = "Every conditional/default projectile must be a supported native projectile at startup; power, sound and live filters are applied." }
 "minecraft:trader_llama/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
 "minecraft:trader_llama/strength" = { status = "missing", gaps = "not implemented: needs mob inventories and mount gear" }
 "minecraft:trader_llama/tamemount" = { status = "missing", gaps = "not implemented: needs taming and owners" }
