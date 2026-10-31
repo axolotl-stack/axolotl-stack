@@ -28,7 +28,8 @@ mod time;
 mod weather;
 mod xp;
 
-pub use gamemode::set_game_mode;
+pub(crate) use gamemode::restore_game_mode;
+pub use gamemode::{base_game_mode, mode_override, set_game_mode, set_mode_override};
 pub use op::OperatorList;
 pub use stop::StopRequested;
 pub use teleport::move_entity;
