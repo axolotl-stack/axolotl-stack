@@ -1,12 +1,12 @@
-//! Random enchanting as BDS 1.26.51 performs it for loot and mob gear
-//! (`enchant_random_gear`): the enchantment table, the selection of
-//! enchantments for an item and an enchanting level, and the rule that adds
-//! one enchantment to an item's existing set.
+//! Random enchanting as BDS 1.26.51 performs it for loot and mob gear: the
+//! enchantment table, the selection of enchantments for an item and an
+//! enchanting level, and the rule that adds one enchantment to an item's
+//! existing set.
 //!
 //! The caller classifies items ([`ItemEnchanting`]: which enchantment slots
 //! the item belongs to and its enchantability); this module has no item
-//! registry. Enchantment ids are the Bedrock `Enchant::Type` numbers that item
-//! NBT stores in `ench[].id`.
+//! registry. Enchantment ids are the protocol enchantment ids that item NBT
+//! stores in `ench[].id`.
 //!
 //! Draws follow Bedrock's game random: a bounded integer is one 32-bit
 //! output modulo the bound and a float is one output scaled by 2^-32, so a
@@ -122,7 +122,7 @@ const DIGGER: u32 = slot::HOE | slot::AXE | slot::PICKAXE | slot::SHOVEL;
 /// Unbreaking and mending: primary and secondary slot sets.
 const DURABLE: (u32, u32) = (0x0081_1e7f, 0x0072_e1c0);
 
-/// The BDS enchantment table indexed by `Enchant::Type`.
+/// The enchantment table, indexed by protocol enchantment id.
 const ENCHANTMENTS: [Definition; 42] = [
     def(10, ARMOR, 0, (1, 11), 4, 3, 0),               // protection
     def(5, ARMOR, 0, (10, 8), 4, 3, 0),                // fire_protection
