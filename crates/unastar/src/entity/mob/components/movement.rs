@@ -4,7 +4,7 @@
 use bevy_ecs::prelude::*;
 use unastar_data::actor_components::body;
 
-use super::common::insert_infallible;
+use super::common::{insert, insert_infallible};
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
 
 /// `minecraft:navigation.walk`: path permissions.
@@ -42,10 +42,38 @@ pub struct JumpConfig {
     pub jump_power: f32,
 }
 
+/// `minecraft:variable_max_auto_step`: collision step heights in blocks.
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct VariableMaxAutoStep {
+    pub base_value: f64,
+    pub controlled_value: f64,
+    pub jump_prevented_value: f64,
+}
+
+/// An authored step height must be finite and nonnegative.
+#[derive(Debug, thiserror::Error)]
+#[error("automatic step heights must be finite and nonnegative")]
+struct InvalidStepHeight;
+
+impl crate::entity::definition::ComponentError for InvalidStepHeight {}
+
 /// Register the movement and navigation component kinds.
 pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
 ) -> Result<(), DefinitionError> {
+    insert(builder, |b: body::VariableMaxAutoStep| {
+        if [b.base_value, b.controlled_value, b.jump_prevented_value]
+            .into_iter()
+            .any(|height| !height.is_finite() || height < 0.0)
+        {
+            return Err(InvalidStepHeight);
+        }
+        Ok(VariableMaxAutoStep {
+            base_value: f64::from(b.base_value),
+            controlled_value: f64::from(b.controlled_value),
+            jump_prevented_value: f64::from(b.jump_prevented_value),
+        })
+    })?;
     insert_infallible(builder, |b: body::NavigationWalk| WalkNavigationConfig {
         avoid_water: b.avoid_water,
         avoid_damage_blocks: b.avoid_damage_blocks,
