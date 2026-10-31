@@ -1073,3 +1073,12 @@ with immutable connection identity, request ID, optional raw response text and
 cancellation status. The host limits payloads to 65536 bytes and revalidates the
 source session before callbacks. Applications own outstanding request IDs, JSON
 interpretation and menu actions; the host performs no default form action.
+
+Native `PlayerJoined` handlers may call `player_events::defer_initial_state`
+before asynchronous initialization. This withholds initial player-state packets
+and actor publication, and discards incoming packets except disconnects. Call
+`release_initial_state` when the original actor's complete state is ready; the
+host validates its identity and publishes the initial batch once after the ECS
+tick. Released retained actors can become visible without an attached transport.
+A published actor cannot be deferred again. These hooks coordinate publication;
+extensions remain responsible for completing or rejecting their initialization.

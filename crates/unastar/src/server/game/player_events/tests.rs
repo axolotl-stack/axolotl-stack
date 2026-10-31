@@ -605,3 +605,158 @@ fn deferred_observer_removal_prevents_movement_commit_and_notification() {
     assert!(world.resource::<MovementEvents>().0.is_empty());
     assert!(rx.try_recv().is_err());
 }
+
+/// Retain one inventory group while asynchronous initialization is outstanding.
+#[derive(Resource)]
+struct HeldInitialInventory(MainInventory);
+struct DeferAlice;
+impl PlayerEventHandler for DeferAlice {
+    fn on_joined(&self, world: &mut World, event: &PlayerJoined) {
+        if event.identity().name() == "Alice" {
+            assert!(defer_initial_state(world, event.player()));
+            let inventory = world
+                .entity_mut(event.player())
+                .take::<MainInventory>()
+                .unwrap();
+            world.insert_resource(HeldInitialInventory(inventory));
+        }
+    }
+    fn on_quit(&self, _world: &mut World, event: &mut PlayerQuit) {
+        event.retain_entity();
+    }
+}
+
+/// Build a real host that delays one initialized actor's first publication.
+fn deferred_server() -> GameServer {
+    let mut server = GameServer::with_config(ServerConfig {
+        world: crate::world::WorldConfig::void_spawn_platform(1),
+        ..Default::default()
+    });
+    server
+        .ecs
+        .world_mut()
+        .resource_mut::<PlayerEventHooks>()
+        .register(DeferAlice);
+    server
+}
+
+#[test]
+fn deferred_initial_state_waits_for_complete_inventory_then_publishes_once() {
+    let mut server = deferred_server();
+    let (_, mut viewer) = join(&mut server, 2, "Bob");
+    server.tick();
+    while viewer.try_recv().is_ok() {}
+    let (alice, mut own) = join(&mut server, 1, "Alice");
+    assert!(initial_state_pending(server.ecs.world(), alice));
+    assert!(own.try_recv().is_err());
+    server.tick();
+    assert!(!std::iter::from_fn(||viewer.try_recv().ok()).any(|packet|matches!(packet.data,McpePacketData::AddPlayerPacket(ref add) if add.target_runtime_id.actor_runtime_id==1)));
+    assert!(!release_initial_state(server.ecs.world_mut(), alice));
+    let inventory = server
+        .ecs
+        .world_mut()
+        .remove_resource::<HeldInitialInventory>()
+        .unwrap()
+        .0;
+    server.ecs.world_mut().entity_mut(alice).insert(inventory);
+    assert!(release_initial_state(server.ecs.world_mut(), alice));
+    assert!(release_initial_state(server.ecs.world_mut(), alice));
+    server.tick();
+    assert!(!initial_state_pending(server.ecs.world(), alice));
+    let initial: Vec<_> = std::iter::from_fn(|| own.try_recv().ok()).collect();
+    assert!(
+        initial
+            .iter()
+            .any(|packet| matches!(packet.data, McpePacketData::InventoryContentPacket(_)))
+    );
+    server.tick();
+    assert_eq!(std::iter::from_fn(||viewer.try_recv().ok()).filter(|packet|matches!(packet.data,McpePacketData::AddPlayerPacket(ref add) if add.target_runtime_id.actor_runtime_id==1)).count(),1);
+    assert!(
+        !std::iter::from_fn(|| own.try_recv().ok())
+            .any(|packet| matches!(packet.data, McpePacketData::InventoryContentPacket(_)))
+    );
+    assert!(!defer_initial_state(server.ecs.world_mut(), alice));
+    assert!(!release_initial_state(server.ecs.world_mut(), alice));
+}
+
+#[test]
+fn deferred_initial_state_cannot_release_to_a_replaced_connection() {
+    let mut server = deferred_server();
+    let (alice, mut own) = join(&mut server, 1, "Alice");
+    let inventory = server
+        .ecs
+        .world_mut()
+        .remove_resource::<HeldInitialInventory>()
+        .unwrap()
+        .0;
+    server.ecs.world_mut().entity_mut(alice).insert(inventory);
+    server
+        .ecs
+        .world_mut()
+        .get_mut::<PlayerSession>(alice)
+        .unwrap()
+        .session_id = 9;
+    assert!(!release_initial_state(server.ecs.world_mut(), alice));
+    server.tick();
+    let residual: Vec<_> = std::iter::from_fn(|| own.try_recv().ok()).collect();
+    assert!(
+        !residual.iter().any(|packet| matches!(
+            packet.data,
+            McpePacketData::SetCommandsEnabledPacket(_) | McpePacketData::InventoryContentPacket(_)
+        )),
+        "unexpected initial state: {:?}",
+        residual
+            .iter()
+            .map(|packet| packet.data.packet_id())
+            .collect::<Vec<_>>()
+    );
+    assert!(initial_state_pending(server.ecs.world(), alice));
+}
+
+#[test]
+fn retained_deferred_actor_can_publish_to_viewers_without_a_departed_transport() {
+    let mut server = deferred_server();
+    let (_, mut viewer) = join(&mut server, 2, "Bob");
+    server.tick();
+    while viewer.try_recv().is_ok() {}
+    let (alice, mut own) = join(&mut server, 1, "Alice");
+    server.despawn_player(1);
+    let inventory = server
+        .ecs
+        .world_mut()
+        .remove_resource::<HeldInitialInventory>()
+        .unwrap()
+        .0;
+    server.ecs.world_mut().entity_mut(alice).insert(inventory);
+    assert!(release_initial_state(server.ecs.world_mut(), alice));
+    server.tick();
+    server.tick();
+    assert!(!initial_state_pending(server.ecs.world(), alice));
+    assert!(own.try_recv().is_err());
+    assert_eq!(std::iter::from_fn(||viewer.try_recv().ok()).filter(|packet|matches!(packet.data,McpePacketData::AddPlayerPacket(ref add) if add.target_runtime_id.actor_runtime_id==1)).count(),1);
+}
+
+#[test]
+fn deferred_initial_state_discards_real_form_packets_until_publication() {
+    let mut server = deferred_server();
+    server.ecs.world_mut().init_resource::<Forms>();
+    server
+        .ecs
+        .world_mut()
+        .resource_mut::<PlayerEventHooks>()
+        .register(RecordForms);
+    let (alice, _) = join(&mut server, 1, "Alice");
+    form_packet(&mut server, 1, 7, Some("0"), false);
+    assert!(server.ecs.world().resource::<Forms>().0.is_empty());
+    let inventory = server
+        .ecs
+        .world_mut()
+        .remove_resource::<HeldInitialInventory>()
+        .unwrap()
+        .0;
+    server.ecs.world_mut().entity_mut(alice).insert(inventory);
+    assert!(release_initial_state(server.ecs.world_mut(), alice));
+    server.tick();
+    form_packet(&mut server, 1, 7, Some("0"), false);
+    assert_eq!(server.ecs.world().resource::<Forms>().0.len(), 1);
+}

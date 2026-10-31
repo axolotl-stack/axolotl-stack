@@ -935,14 +935,20 @@ impl GameServer {
             session_map.insert(data.session_id, entity);
         }
 
-        self.ecs.world_mut().write_message(PlayerSpawnedEvent {
-            entity,
-            position: data.position,
-            runtime_id,
-        });
         player_events::joined(self.ecs.world_mut(), entity);
         if self.ecs.world().get::<PlayerSession>(entity).is_some() {
-            self.send_join_packets(entity);
+            if !player_events::initial_state_pending(self.ecs.world(), entity) {
+                self.ecs.world_mut().write_message(PlayerSpawnedEvent {
+                    entity,
+                    position: data.position,
+                    runtime_id,
+                });
+                self.send_join_packets(entity);
+                self.ecs
+                    .world_mut()
+                    .entity_mut(entity)
+                    .insert(player_events::InitialStatePublished);
+            }
         } else if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>()
             && map.get(data.session_id) == Some(entity)
         {
@@ -999,6 +1005,26 @@ impl GameServer {
 
     pub fn tick(&mut self) {
         self.ecs.tick();
+        for entity in player_events::ready_initial_states(self.ecs.world_mut()) {
+            let Some(position) = self.ecs.world().get::<Position>(entity).copied() else {
+                continue;
+            };
+            let Some(runtime) = self.ecs.world().get::<RuntimeEntityId>(entity).copied() else {
+                continue;
+            };
+            self.ecs.world_mut().write_message(PlayerSpawnedEvent {
+                entity,
+                position: position.0,
+                runtime_id: runtime.0,
+            });
+            if self.ecs.world().get::<PlayerSession>(entity).is_some() {
+                self.send_join_packets(entity);
+            }
+            self.ecs
+                .world_mut()
+                .entity_mut(entity)
+                .insert(player_events::InitialStatePublished);
+        }
     }
 
     fn build_creative_content(
