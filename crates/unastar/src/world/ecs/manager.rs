@@ -10,7 +10,7 @@ use super::components::{
 };
 use super::generation_worker::{ChunkGenerationWorker, generation_threads};
 use crate::storage::{ChunkColumn, WorldProvider};
-use crate::world::generator::ChunkPipeline;
+use crate::world::generator::{ChunkPipeline, Generator};
 use crate::world::{Chunk, ChunkPos, WorldConfig};
 
 /// Run a storage future to completion from synchronous ECS code. It runs on a
@@ -106,8 +106,22 @@ impl ChunkManager {
     ///
     /// Generators that use the generation pool must be created inside a tokio runtime.
     pub fn new(world_config: WorldConfig) -> Self {
-        let pipeline = Arc::new(ChunkPipeline::new(world_config.generator.build()));
-        let generation_worker = world_config.generator.uses_generation_pool().then(|| {
+        let generator = world_config.generator.build();
+        let background = world_config.generator.uses_generation_pool();
+        Self::with_generator(world_config, generator, background)
+    }
+
+    /// Construct an empty world manager with an application-supplied generator.
+    /// The explicit generator replaces the config's generator selection, while
+    /// dimension, bounds, worker count and storage behavior retain their normal
+    /// contracts. Background generation requires an active Tokio runtime.
+    pub fn with_generator(
+        world_config: WorldConfig,
+        generator: Arc<dyn Generator>,
+        background: bool,
+    ) -> Self {
+        let pipeline = Arc::new(ChunkPipeline::new(generator));
+        let generation_worker = background.then(|| {
             ChunkGenerationWorker::spawn(
                 pipeline.clone(),
                 generation_threads(world_config.generation_threads),
@@ -458,5 +472,74 @@ mod tests {
 
         let positions: Vec<_> = manager.positions().collect();
         assert_eq!(positions.len(), 2);
+    }
+    #[test]
+    fn supplied_generator_controls_finished_terrain_and_spawn_instead_of_config_selection() {
+        let manager = ChunkManager::with_generator(
+            WorldConfig::void_spawn_platform(1),
+            Arc::new(crate::world::generator::FlatGenerator),
+            false,
+        );
+        let chunk = manager.generate_chunk(0, 0);
+        assert_eq!(
+            chunk.get_block(0, 3, 0),
+            *crate::world::chunk::blocks::GRASS_BLOCK
+        );
+        assert_eq!(chunk.get_block(0, 4, 0), *crate::world::chunk::blocks::AIR);
+        assert_eq!(manager.pipeline().find_spawn().y, 4);
+        assert!(!manager.has_async_generation());
+    }
+
+    #[tokio::test]
+    async fn supplied_generator_uses_the_normal_background_completion_path() {
+        let mut manager = ChunkManager::with_generator(
+            WorldConfig {
+                generation_threads: 1,
+                ..WorldConfig::void_spawn_platform(1)
+            },
+            Arc::new(crate::world::generator::FlatGenerator),
+            true,
+        );
+        let mut world = World::new();
+        let viewer = world.spawn_empty().id();
+        let receiver = manager.request_generation(2, -3, viewer).unwrap();
+        let generated = receiver.await.unwrap().unwrap();
+        assert_eq!(
+            generated.0.chunk.get_block(0, 3, 0),
+            *crate::world::chunk::blocks::GRASS_BLOCK
+        );
+        assert_eq!(manager.complete_generation(2, -3), Some(vec![viewer]));
+        assert!(manager.has_async_generation());
+    }
+    #[tokio::test]
+    async fn supplied_generator_loads_saved_columns_before_generating_new_terrain() {
+        let directory = tempfile::tempdir().unwrap();
+        let provider =
+            Arc::new(crate::storage::LevelDBWorldProvider::open(directory.path(), 0).unwrap());
+        let mut saved = Chunk::new(2, -3);
+        saved.set_block(0, 3, 0, *crate::world::chunk::blocks::STONE);
+        provider
+            .save_column(ChunkPos::new(2, -3), 0, &ChunkColumn::new(saved))
+            .await
+            .unwrap();
+        provider.flush().await.unwrap();
+        let mut manager = ChunkManager::with_generator(
+            WorldConfig::void_spawn_platform(1),
+            Arc::new(crate::world::generator::FlatGenerator),
+            false,
+        );
+        manager.set_provider(provider);
+        let (column, loaded) = manager.load_or_generate_chunk(2, -3);
+        assert!(loaded);
+        assert_eq!(
+            column.chunk.get_block(0, 3, 0),
+            *crate::world::chunk::blocks::STONE
+        );
+        let (column, loaded) = manager.load_or_generate_chunk(3, -3);
+        assert!(!loaded);
+        assert_eq!(
+            column.chunk.get_block(0, 3, 0),
+            *crate::world::chunk::blocks::GRASS_BLOCK
+        );
     }
 }
