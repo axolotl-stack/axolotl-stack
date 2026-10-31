@@ -145,6 +145,9 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if world.get::<Health>(target).is_none_or(Health::is_dead) {
         return 0.0;
     }
+    if crate::entity::conditions::rejects_fire_damage(world, target, hit.cause) {
+        return 0.0;
+    }
     let (hit, sensor_trigger) = match damage_sensor::sense(world, target, hit) {
         Sensed::Hurt { hit, after } => (hit, after),
         Sensed::Cancelled => return 0.0,

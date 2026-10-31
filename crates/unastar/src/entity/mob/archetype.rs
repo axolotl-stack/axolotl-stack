@@ -118,6 +118,7 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         BuiltinTest::IsFamily
         | BuiltinTest::HasEquipment
         | BuiltinTest::EnumProperty
+        | BuiltinTest::InContactWithWater
         | BuiltinTest::InWater
         | BuiltinTest::IsUnderwater
         | BuiltinTest::IsVehicleFamily => {
