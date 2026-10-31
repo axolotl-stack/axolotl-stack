@@ -395,6 +395,10 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
         } => {
             if can_interact(world, *entity, *position)
                 && block_at(world, *position) == Some(*block_id)
+                && !super::containers::mutation_locked(
+                    world,
+                    IVec3::new(position.0, position.1, position.2),
+                )
             {
                 apply_break_block(world, *entity, position.0, position.1, position.2);
             } else {
@@ -416,6 +420,13 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                 reject_block_event(world, event);
                 return;
             };
+            let pos = IVec3::new(position.0, position.1, position.2);
+            if super::containers::mutation_locked(world, pos)
+                || upper.is_some_and(|(above, _)| super::containers::mutation_locked(world, above))
+            {
+                reject_block_event(world, event);
+                return;
+            }
             place_block(world, position.0, position.1, position.2, *block_id);
             if let Some((above, upper_state)) = upper {
                 place_block(world, above.x, above.y, above.z, upper_state);
@@ -501,6 +512,9 @@ fn break_block(world: &mut World, player: Entity, x: i32, y: i32, z: i32) {
 
 /// Apply an already approved break; never called before cancellable dispatch.
 fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32, z: i32) {
+    if super::containers::mutation_locked(world, IVec3::new(x, y, z)) {
+        return;
+    }
     debug!(pos = ?(x, y, z), "Committing block break");
 
     let (cx, cz) = world_to_chunk_coords(x, z);
@@ -966,6 +980,9 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 /// viewers (with the place sound when `place_sound`) and schedule gravity
 /// checks for the block and the one above it.
 pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    if super::containers::mutation_locked(world, pos) {
+        return;
+    }
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
@@ -1059,6 +1076,9 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
 /// air, and its tool-less drops and any container contents fall as items
 /// (BDS's order: `LevelEvent` 2001, `UpdateBlock`, `AddItemActor`).
 pub(crate) fn destroy_block(world: &mut World, pos: IVec3) {
+    if super::containers::mutation_locked(world, pos) {
+        return;
+    }
     let Some(original) = block_at(world, (pos.x, pos.y, pos.z)) else {
         return;
     };

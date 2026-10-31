@@ -276,7 +276,19 @@ fn handle_item_stack_request(
     let mut responses = Vec::with_capacity(pk.requests.len());
     let mut drops = Vec::new();
     let mut fatal = false;
+    let unavailable_window = matches!(ctx.screen, ScreenKind::Block(_)) && block.is_none();
     for request in &pk.requests {
+        // Keep the engine's request-ID validation and ordinary error response,
+        // without staging moves against an unavailable or reserved block view.
+        let unavailable = jolyne::valentine::ItemStackRequestPacketDataRequestData {
+            client_request_id: request.client_request_id.clone(),
+            ..Default::default()
+        };
+        let request = if unavailable_window {
+            &unavailable
+        } else {
+            request
+        };
         let mut stores = engine::Stores {
             main: &mut player.main.0,
             armor: &mut player.armor,
