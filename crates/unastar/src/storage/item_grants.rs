@@ -31,6 +31,9 @@ const ROW_PREFIX: &[u8] = b"unastar:durable-items:v1:row:";
 const MAX_ROWS: usize = 65_536;
 const MAX_BYTES: usize = 16 * 1024 * 1024;
 const MAX_ACTIVE: usize = 4096;
+const MAX_ITEM_NBT_BYTES: usize = 131_072;
+// JSON byte arrays need up to four encoded bytes per opaque payload byte.
+const MAX_ROW_BYTES: usize = MAX_ITEM_NBT_BYTES * 4 + 4096;
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -82,7 +85,7 @@ fn valid(item: &PersistentItem) -> bool {
             .stack
             .nbt
             .as_ref()
-            .is_none_or(|bytes| bytes.len() <= 131_072)
+            .is_none_or(|bytes| bytes.len() <= MAX_ITEM_NBT_BYTES)
 }
 
 impl ItemLedger {
@@ -123,7 +126,7 @@ impl ItemLedger {
                 .get(&key(id), &bleveldb::ReadOptions::new())
                 .map_err(StorageError::Database)?
                 .ok_or_else(invalid)?;
-            if bytes.len() > 132_096 {
+            if bytes.len() > MAX_ROW_BYTES {
                 return Err(invalid());
             }
             let row: Row = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
@@ -230,6 +233,9 @@ impl ItemLedger {
                 item: item.clone(),
             })
             .map_err(|error| StorageError::Serialization(error.to_string()))?;
+            if bytes.len() > MAX_ROW_BYTES {
+                return Err(StorageError::ItemQuotaExceeded);
+            }
             if let Some(old) = self.rows.get(&id) {
                 prepared.bytes -= old.bytes;
                 prepared.active -= usize::from(old.item.is_some());
@@ -414,5 +420,76 @@ mod tests {
             .unwrap();
         }
         assert!(crate::storage::LevelDBPlayerProvider::open(directory.path()).is_err());
+    }
+
+    #[tokio::test]
+    async fn accepted_opaque_metadata_bound_commits_and_cold_reopens_without_truncation() {
+        use crate::storage::{LevelDBPlayerProvider, PlayerData, PlayerProvider};
+        use zuri_nbt::{NBTTag, tag};
+
+        let prototype = |length| {
+            crate::item::enchant::with_item_tag(
+                &crate::item::test_support::stack("minecraft:diamond", 1),
+                tag::Compound(
+                    [(
+                        "opaque".into(),
+                        NBTTag::ByteArray(tag::ByteArray(vec![255; length])),
+                    )]
+                    .into_iter()
+                    .collect(),
+                ),
+            )
+        };
+        let overhead = prototype(1).user_data().len() - 1;
+        let native = prototype(MAX_ITEM_NBT_BYTES - overhead);
+        assert_eq!(native.user_data().len(), MAX_ITEM_NBT_BYTES);
+        assert!(crate::item::enchant::valid_user_data(&native));
+        let mut row = item(2);
+        row.stack = StoredItemStack::from(&native);
+        let encoded = serde_json::to_vec(&Row {
+            version: 1,
+            item: Some(row.clone()),
+        })
+        .unwrap();
+        assert!(encoded.len() > 132_096);
+        assert!(encoded.len() <= MAX_ROW_BYTES);
+
+        let directory = tempfile::tempdir().unwrap();
+        let uuid = Uuid::from_u128(99);
+        let data = PlayerData {
+            uuid: uuid.to_string(),
+            ..Default::default()
+        };
+        {
+            let provider = LevelDBPlayerProvider::open(directory.path()).unwrap();
+            provider
+                .save_with_items(uuid, &data, &ItemMutation::Create(vec![row.clone()]))
+                .await
+                .unwrap();
+            let mut oversized = item(3);
+            oversized.stack = StoredItemStack::from(&prototype(MAX_ITEM_NBT_BYTES - overhead + 1));
+            assert!(
+                provider
+                    .save_with_items(uuid, &data, &ItemMutation::Create(vec![oversized]))
+                    .await
+                    .is_err()
+            );
+            assert_eq!(
+                provider
+                    .world_items(row.world, row.dimension)
+                    .await
+                    .unwrap(),
+                [row.clone()]
+            );
+        }
+        let provider = LevelDBPlayerProvider::open(directory.path()).unwrap();
+        assert_eq!(
+            provider
+                .world_items(row.world, row.dimension)
+                .await
+                .unwrap(),
+            [row]
+        );
+        assert_eq!(provider.load(uuid).await.unwrap().unwrap(), data);
     }
 }
