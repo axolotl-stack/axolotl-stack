@@ -21,9 +21,8 @@ fn component_export_dispatches_to_the_plugin() {
         &unastar_api::raw::WorldTx,
         &unastar_api::raw::Player,
         Option<&unastar_api::raw::Player>,
-        unastar_api::DamageCause,
-        f32,
-    ) -> Option<f32> = <__UnastarPluginBridge as Guest>::on_player_damage;
+        unastar_api::DamageProposal,
+    ) -> Option<unastar_api::DamageTuning> = <__UnastarPluginBridge as Guest>::on_player_damage;
     let _: fn(
         &unastar_api::raw::WorldTx,
         &unastar_api::raw::Player,

@@ -11,6 +11,20 @@ use uuid::Uuid;
 
 use super::components::{Player, PlayerSession, PlayerUuid};
 
+/// Opaque identity for one engine world lifetime, never persisted or used for access checks.
+#[derive(Resource)]
+pub(crate) struct DamageWorldLifetime(pub(crate) Uuid);
+impl Default for DamageWorldLifetime {
+    fn default() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
+
+/// Capture only installed engine evidence; a bare ECS world does not invent an identity.
+fn world_lifetime(world: &World) -> Option<Uuid> {
+    world.get_resource::<DamageWorldLifetime>().map(|id| id.0)
+}
+
 /// Stable account facts from a correctly bound, authenticated native session.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AuthenticatedDamageOwner {
@@ -33,6 +47,7 @@ impl AuthenticatedDamageOwner {
 pub struct DamageOwner {
     entity: Entity,
     world: WorldId,
+    world_lifetime: Option<Uuid>,
     dimension: Option<i32>,
     session: Option<u64>,
     player: bool,
@@ -48,6 +63,10 @@ impl DamageOwner {
     /// Runtime world instance containing the original actor.
     pub fn world_id(&self) -> WorldId {
         self.world
+    }
+    /// Descriptive runtime evidence for component observations, never a live capability.
+    pub(crate) fn world_lifetime(&self) -> Option<Uuid> {
+        self.world_lifetime
     }
     /// Configured dimension of that world, when available.
     pub fn dimension(&self) -> Option<i32> {
@@ -80,6 +99,7 @@ impl DamageOwner {
 pub struct DamageAttribution {
     source: Option<Entity>,
     world: WorldId,
+    world_lifetime: Option<Uuid>,
     dimension: Option<i32>,
     owner: Option<DamageOwner>,
 }
@@ -121,6 +141,7 @@ impl DamageAttribution {
             DamageOwner {
                 entity,
                 world: world.id(),
+                world_lifetime: world_lifetime(world),
                 dimension,
                 session: session.map(|session| session.session_id),
                 player,
@@ -133,6 +154,7 @@ impl DamageAttribution {
         Self {
             source,
             world: world.id(),
+            world_lifetime: world_lifetime(world),
             dimension,
             owner,
         }
@@ -144,6 +166,10 @@ impl DamageAttribution {
     /// Runtime world that scopes the source entity.
     pub fn world_id(&self) -> WorldId {
         self.world
+    }
+    /// Launch-time lifetime evidence remains available after the original world closes.
+    pub(crate) fn world_lifetime(&self) -> Option<Uuid> {
+        self.world_lifetime
     }
     /// Configured source dimension, when available.
     pub fn dimension(&self) -> Option<i32> {
@@ -176,6 +202,7 @@ impl DamageAttribution {
         Self {
             source: Some(source),
             world: world.id(),
+            world_lifetime: world_lifetime(world),
             dimension: world
                 .get_resource::<crate::world::ChunkManager>()
                 .map(|chunks| chunks.dimension()),

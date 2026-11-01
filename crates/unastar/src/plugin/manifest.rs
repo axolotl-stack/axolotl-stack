@@ -138,6 +138,8 @@ pub enum PluginCapability {
     ItemValues,
     /// Capture complete owned inventory images for the current scoped player.
     ReadInventory,
+    /// Stage bounded native status, motion, mode and flight changes.
+    PlayerMechanics,
     /// Read typed actor references and current-world observations.
     ReadPlayers,
     /// Advertise owned command roots; handling still uses explicit subscriptions.

@@ -2,7 +2,9 @@
 
 use std::sync::{Arc, Mutex};
 
-use bevy_ecs::prelude::{Entity, World};
+#[cfg(test)]
+use bevy_ecs::prelude::Entity;
+use bevy_ecs::prelude::World;
 use glam::DVec3;
 use tracing::error;
 use unastar_data::actor_components::body::ActorDamageCause;
@@ -13,10 +15,11 @@ use super::{
 };
 use super::{begin_fuel_budget, prepare_invocation, wit_types, with_world};
 use crate::ecs::events::{ActionQueue, EventKind};
+#[cfg(test)]
 use crate::entity::components::Player;
 use crate::entity::player_life::hooks::{
-    PlayerDamage, PlayerDeath, PlayerLifecycleHandler, PlayerLifecycleHooks, PlayerRespawn,
-    PlayerRespawned,
+    PlayerDamage, PlayerDamaged, PlayerDeath, PlayerLifecycleHandler, PlayerLifecycleHooks,
+    PlayerRespawn, PlayerRespawned,
 };
 
 /// Shared manager adapter used while the runtime ticks its ECS world.
@@ -52,6 +55,16 @@ impl PlayerLifecycleHandler for LifecycleBridge {
         match self.manager.try_lock() {
             Ok(mut manager) => manager.player_death(world, event),
             Err(error) => error!(%error, "Plugin manager unavailable during player death"),
+        }
+    }
+
+    fn on_damaged(&self, world: &mut World, event: &PlayerDamaged) {
+        match self.manager.try_lock() {
+            Ok(mut manager) => manager.player_damaged(world, event),
+            Err(error) => {
+                error!(%error, "Component manager unavailable after player health loss");
+                super::readiness::fence_world(world);
+            }
         }
     }
 
@@ -139,75 +152,6 @@ impl PluginManager {
         ids
     }
 
-    /// Apply ordered damage decisions while the hit has no committed side effects.
-    fn player_damage(&mut self, world: &mut World, event: &mut PlayerDamage) {
-        if !self.begin_tick(world) {
-            event.cancel();
-            return;
-        }
-        for id in self.subscribers(EventKind::PlayerDamage) {
-            let plugin = self.plugins.get_mut(&id).expect("subscribed plugin exists");
-            let player = event.player();
-            let attacker = player_attacker(world, event.hit.attacker);
-            let cause = damage_cause(event.hit.cause);
-            let damage = event.hit.damage;
-            let result = invoke(plugin, world, |store, bindings| {
-                let tx = make_world_tx(store)?;
-                let player = make_player_resource(store, player)?;
-                let attacker = attacker
-                    .map(|entity| make_player_resource(store, entity))
-                    .transpose()?;
-                bindings.call_on_player_damage(store, tx, player, attacker, cause, damage)
-            });
-            match result {
-                Ok(Some(damage)) if damage.is_finite() && damage >= 0.0 => {
-                    event.hit.damage = damage;
-                }
-                Ok(None) => {
-                    event.cancel();
-                    break;
-                }
-                Ok(Some(_)) => {
-                    self.callback_failed(world, &id, "invalid damage decision");
-                    event.cancel();
-                    break;
-                }
-                Err(error) => {
-                    error!(plugin = %id, %error, "Player damage callback failed");
-                    self.callback_failed(world, &id, &error.to_string());
-                    event.cancel();
-                    break;
-                }
-            }
-        }
-    }
-
-    /// Notify subscribers after the native death has committed.
-    fn player_death(&mut self, world: &mut World, event: &PlayerDeath) {
-        if !self.begin_tick(world) {
-            return;
-        }
-        for id in self.subscribers(EventKind::PlayerDeath) {
-            let plugin = self.plugins.get_mut(&id).expect("subscribed plugin exists");
-            let attacker = player_attacker(world, event.cause.attacker);
-            let cause = damage_cause(event.cause.cause);
-            if let Err(error) = invoke(plugin, world, |store, bindings| {
-                let tx = make_world_tx(store)?;
-                let player = make_player_resource(store, event.player)?;
-                let attacker = attacker
-                    .map(|entity| make_player_resource(store, entity))
-                    .transpose()?;
-                bindings.call_on_player_death(store, tx, player, attacker, cause)
-            }) {
-                error!(plugin = %id, %error, "Player death callback failed");
-                self.callback_failed(world, &id, &error.to_string());
-                if self.readiness.check().is_err() {
-                    break;
-                }
-            }
-        }
-    }
-
     /// Apply ordered respawn decisions before acknowledging or restoring the player.
     fn player_respawn(&mut self, world: &mut World, event: &mut PlayerRespawn) {
         if !self.begin_tick(world) {
@@ -218,11 +162,25 @@ impl PluginManager {
             let plugin = self.plugins.get_mut(&id).expect("subscribed plugin exists");
             let player = event.player();
             let position = to_wit(event.position);
-            let result = invoke(plugin, world, |store, bindings| {
-                let tx = make_world_tx(store)?;
-                let player = make_player_resource(store, player)?;
-                bindings.call_on_player_respawn(store, tx, player, position)
-            });
+            let result = invoke_decided(
+                plugin,
+                world,
+                |store, bindings| {
+                    let tx = make_world_tx(store)?;
+                    let player = make_player_resource(store, player)?;
+                    bindings.call_on_player_respawn(store, tx, player, position)
+                },
+                |position| {
+                    position.as_ref().is_some_and(|position| {
+                        let position = DVec3::new(
+                            position.x,
+                            position.y + crate::entity::PLAYER_EYE_HEIGHT,
+                            position.z,
+                        );
+                        position.is_finite() && position.as_vec3().is_finite()
+                    })
+                },
+            );
             match result {
                 Ok(Some(position)) => {
                     let position = DVec3::new(
@@ -281,11 +239,22 @@ pub(super) fn invoke<R>(
     world: &mut World,
     call: impl FnOnce(&mut Store<HostContext>, &UnastarPlugin) -> anyhow::Result<R>,
 ) -> anyhow::Result<R> {
+    invoke_decided(plugin, world, call, |_| true)
+}
+
+/// Only mechanics staging observes proposal vetoes; handled commands and replaced chat remain successful.
+pub(super) fn invoke_decided<R>(
+    plugin: &mut LoadedPlugin,
+    world: &mut World,
+    call: impl FnOnce(&mut Store<HostContext>, &UnastarPlugin) -> anyhow::Result<R>,
+    accepted: impl FnOnce(&R) -> bool,
+) -> anyhow::Result<R> {
     plugin.store.data_mut().pending_actions.clear();
     let result = with_world(&mut plugin.store, world, |store| {
         prepare_invocation(store);
         call(store, &plugin.bindings)
     });
+    plugin.store.data_mut().mechanics_accepted = result.as_ref().is_ok_and(accepted);
     super::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
     let actions = std::mem::take(&mut plugin.store.data_mut().pending_actions);
     if result.is_ok() && !actions.is_empty() {
@@ -294,11 +263,6 @@ pub(super) fn invoke<R>(
         }
     }
     result
-}
-
-/// Only player attackers have a player resource handle in the component API.
-fn player_attacker(world: &World, attacker: Option<Entity>) -> Option<Entity> {
-    attacker.filter(|entity| world.get::<Player>(*entity).is_some())
 }
 
 /// The component API uses feet; native player components continue to use eye height.
@@ -311,7 +275,7 @@ pub(super) fn to_wit(position: DVec3) -> wit_types::Vec3 {
 }
 
 /// Map semantic causes explicitly so Rust enum numbering is never an API contract.
-fn damage_cause(cause: ActorDamageCause) -> wit_types::DamageCause {
+pub(super) fn damage_cause(cause: ActorDamageCause) -> wit_types::DamageCause {
     match cause {
         ActorDamageCause::None => wit_types::DamageCause::None,
         ActorDamageCause::Override => wit_types::DamageCause::Override,

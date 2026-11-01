@@ -381,3 +381,94 @@ with fresh scoped player and world access. Rejected, stale, unchanged and invali
 movement emits no commit; required callback failures stop the runtime and fence
 its players. Movement callbacks share the router cycle's existing component
 budget and do not dispatch duplicate buffered movement events.
+
+### Component damage transactions
+
+`player_damage` supplies an immutable `DamageProposal` with native launch or
+deflection attribution, plus adjustable `DamageTuning`. Scoped handlers may
+change incoming damage, knockback, the full-hit hurt window, armour bypass and
+the final health-loss multiplier, or cancel through their player context. The
+canonical callback returns only tuning; it cannot rewrite the damage cause or
+origin. Adjustments must be finite and nonnegative, and ordinary native immunity,
+timer, armour, durability and food rules still determine the result.
+
+Subscribe separately to `player_damaged` for `DamageCommitted`, emitted only for
+positive actual health loss after those rules. Its incoming damage and actual
+loss are separate values. Vetoed, invalid, immune and hurt-timer-suppressed hits
+do not produce this notification. Proposal acceptance alone is not a committed
+hit. Required callback failures apply the runtime's terminal recovery policy.
+
+Attribution carries owned authenticated account and original feet facts even
+after an owner leaves or migrates. An optional scoped attacker exists only when
+the exact native owner still resolves in this world. Optional world-lifetime
+UUIDs identify captured runtime instances for observation; they differ from
+durable configured world identity and never grant access. Missing engine
+lifetime evidence remains absent.
+
+### Owned component death observations
+
+`player_death` receives a fresh world transaction and an owned `DeathCommitted`.
+Identity, position and origin are captured before native death observers can
+remove the actor. The callback follows ordinary drops; the preceding positive
+health-loss notification runs before death/drop processing.
+
+The fallible inventory contains every main, armour, offhand and crafting/UI slot
+in its original position, including the selected slot. Its detached stack values
+preserve instance metadata and remain usable after the original actor disappears
+or respawns. `item-values` permission, ordinary metadata validation and existing
+resource/retained-byte quotas apply to the complete capture. A failed capture
+releases its partial allocations and returns an explicit error. A required
+callback failure fences subsequent ordinary player saves.
+
+### Scoped component player mechanics
+
+With `read-players`, `Player::mechanics()` copies the current native effects,
+optional stored server velocity, durable/effective game modes, mode overlay and flight
+permission. Effect kinds are semantic enums; durations are remaining native
+ticks, including an explicit flag for an existing infinite effect. This is a
+current-world read, rather than a prediction of pending writes. Velocity is the
+stored native motion vector; client movement and native impulses that do not
+store one are not synthesized into observations.
+
+`player-mechanics` additionally permits finite effect application/removal,
+velocity, durable mode changes, temporary mode overlays and independent flight
+permission. `EffectApplication` includes the zero-based amplifier, a duration of
+1 through 2,147,483,647 ticks, ambient and particle flags. Velocity must be finite,
+wire-representable and have a magnitude of at most 64 blocks per tick. Temporary
+mode changes preserve the durable base; flight permission grants only MayFly.
+All mutations require a complete, published, connected player.
+
+Every setter returns `MechanicsAcknowledgement::Staged`, which acknowledges a
+bounded intent, not native application or durable storage. Up to 64 intents can
+be staged per callback and 1,024 can await application in a world. After a
+successful callback, the world applies a bounded batch after simulation with no
+component-manager lock held. The original component, world lifetime, actor,
+transport and availability are checked again. Unload, reconnect, world transfer,
+death and inventory quarantine can invalidate a staged intent. An optional
+effect source must be a real player in the same callback and remain valid when
+applied; it is never replaced with an invented actor.
+
+Traps discard that callback's mechanics. Returning a veto from movement, damage,
+respawn or block proposals, or rejecting admission, also discards its mechanics. A handled command or cancelled chat is a
+successful callback and can still send explicit replies and stage mechanics.
+A successful proposal does not imply that later native observers accepted the
+underlying action; use committed movement or positive-health-loss callbacks when
+an effect depends on that outcome. Native effect authorization, precedence and
+instant-damage hooks remain in force. Instant damage runs through attributed
+native damage/death handling after the manager lock has been released. Effects
+queued by those callbacks wait for a later world batch.
+
+```rust,no_run
+use unastar_api::{EffectApplication, EffectKind, Player, AccessError};
+
+fn grant_speed(player: &Player<'_>) -> Result<(), AccessError> {
+    player.apply_effect(&EffectApplication {
+        kind: EffectKind::Speed,
+        amplifier: 0,
+        duration_ticks: 100,
+        ambient: false,
+        show_particles: true,
+    }, None)?;
+    Ok(())
+}
+```

@@ -102,7 +102,7 @@ impl EffectType {
 }
 
 /// A single active effect.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActiveEffect {
     pub level: u8,
     pub duration_ticks: u32,

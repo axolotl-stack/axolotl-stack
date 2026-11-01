@@ -54,6 +54,161 @@ interface types {
         all,
     }
 
+    /// Authenticated account facts captured at the native launch or deflection boundary.
+    record authenticated-damage-account {
+        uuid: string,
+        xuid: u64,
+    }
+
+    /// Descriptive origin facts never authorize live access or substitute a reconnected player.
+    record damage-owner {
+        is-player: bool,
+        uuid: option<string>,
+        authenticated: option<authenticated-damage-account>,
+        connection-id: option<u64>,
+        dimension: option<s32>,
+        world-lifetime: option<string>,
+        feet: option<vec3>,
+    }
+
+    record damage-attribution {
+        source-dimension: option<s32>,
+        source-world-lifetime: option<string>,
+        owner: option<damage-owner>,
+    }
+
+    record knockback {
+        horizontal: f64,
+        vertical: f64,
+        vertical-cap: f64,
+        retain: f64,
+    }
+
+    /// Only these proposal fields may be adjusted; attribution and cause remain immutable.
+    record damage-tuning {
+        damage: f32,
+        knockback: knockback,
+        hurt-ticks: u32,
+        bypass-armour: bool,
+        post-armour-multiplier: f32,
+    }
+
+    record damage-proposal {
+        cause: damage-cause,
+        attribution: damage-attribution,
+        tuning: damage-tuning,
+    }
+
+    /// Positive actual health loss after native immunity, timer and armour rules.
+    record damage-committed {
+        identity: player-identity,
+        dimension: s32,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        incoming-damage: f32,
+        actual-health-loss: f32,
+        knockback: knockback,
+    }
+
+    /// Detached item values retain exact native slot positions and instance properties.
+    record death-inventory {
+        main: list<stack>,
+        armour: list<stack>,
+        offhand: stack,
+        ui: list<stack>,
+        held-slot: u8,
+    }
+
+    /// Owned facts after committed death, including carried values captured before drops.
+    /// Incomplete source evidence and item-value quota failures remain explicit errors.
+    record death-committed {
+        identity: result<player-identity, access-error>,
+        dimension: option<s32>,
+        feet: option<vec3>,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        fall-distance: option<f64>,
+        keep-inventory: bool,
+        inventory: result<death-inventory, access-error>,
+    }
+
+    /// Semantic native effect identifiers, independent of wire enum numbering.
+    enum effect-kind {
+        speed,
+        slowness,
+        haste,
+        mining-fatigue,
+        strength,
+        instant-health,
+        instant-damage,
+        jump-boost,
+        nausea,
+        regeneration,
+        resistance,
+        fire-resistance,
+        water-breathing,
+        invisibility,
+        blindness,
+        night-vision,
+        hunger,
+        weakness,
+        poison,
+        wither,
+        health-boost,
+        absorption,
+        saturation,
+        levitation,
+        fatal-poison,
+        conduit-power,
+        slow-falling,
+        bad-omen,
+        village-hero,
+        darkness,
+        trial-omen,
+        wind-charged,
+        weaving,
+        oozing,
+        infested,
+        raid-omen,
+    }
+
+    /// Owned current native state; infinite effects keep their native pulse counter.
+    record active-status-effect {
+        kind: effect-kind,
+        amplifier: u8,
+        duration-ticks: u32,
+        ambient: bool,
+        show-particles: bool,
+        infinite: bool,
+    }
+
+    /// Finite application intent; ordinary native effect precedence and authorization still apply.
+    record effect-application {
+        kind: effect-kind,
+        amplifier: u8,
+        duration-ticks: u32,
+        ambient: bool,
+        show-particles: bool,
+    }
+
+    record player-mechanics-state {
+        effects: list<active-status-effect>,
+        /// Stored server motion; none when a client-driven player has no native motion vector.
+        velocity: option<vec3>,
+        base-game-mode: game-mode,
+        effective-game-mode: game-mode,
+        mode-override: option<game-mode>,
+        flight-override: option<bool>,
+        flight-allowed: bool,
+        flying: bool,
+        captured-tick: u64,
+    }
+
+    /// Queued intent; subsequent native validation can reject it. This is not a physical acknowledgement.
+    enum mechanics-acknowledgement {
+        staged,
+    }
+
     enum game-mode {
         survival,
         creative,
@@ -294,6 +449,16 @@ interface types {
 
     /// Live access is transaction scoped. Store player-handle instead of player.
     resource player {
+        /// Capture current authoritative state; pending requests are not reflected here.
+        mechanics: func() -> result<player-mechanics-state, access-error>;
+        apply-effect: func(effect: effect-application, source: option<borrow<player>>) -> result<mechanics-acknowledgement, access-error>;
+        remove-effect: func(kind: effect-kind) -> result<mechanics-acknowledgement, access-error>;
+        clear-effects: func() -> result<mechanics-acknowledgement, access-error>;
+        /// Server-assigned velocity, in blocks per simulation tick.
+        set-velocity: func(velocity: vec3) -> result<mechanics-acknowledgement, access-error>;
+        set-game-mode: func(mode: game-mode) -> result<mechanics-acknowledgement, access-error>;
+        set-mode-override: func(mode: option<game-mode>) -> result<mechanics-acknowledgement, access-error>;
+        set-flight-override: func(allowed: option<bool>) -> result<mechanics-acknowledgement, access-error>;
         to-handle: func() -> result<player-handle, access-error>;
         identity: func() -> result<player-identity, access-error>;
         position: func() -> result<vec3, access-error>;

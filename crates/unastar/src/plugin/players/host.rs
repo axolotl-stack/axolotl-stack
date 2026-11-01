@@ -10,6 +10,62 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
     ) -> Result<Resource<wit::InventoryImage>, wit::AccessError> {
         self.capture_inventory(player.rep())
     }
+    fn mechanics(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::PlayerMechanicsState, wit::AccessError> {
+        self.mechanics_state(player.rep())
+    }
+    fn apply_effect(
+        &mut self,
+        player: Resource<wit::Player>,
+        effect: wit::EffectApplication,
+        source: Option<Resource<wit::Player>>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_effect(player.rep(), effect, source.map(|source| source.rep()))
+    }
+    fn remove_effect(
+        &mut self,
+        player: Resource<wit::Player>,
+        kind: wit::EffectKind,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_remove(player.rep(), kind)
+    }
+    fn clear_effects(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_clear(player.rep())
+    }
+    fn set_velocity(
+        &mut self,
+        player: Resource<wit::Player>,
+        velocity: wit::Vec3,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_velocity(player.rep(), velocity)
+    }
+    fn set_game_mode(
+        &mut self,
+        player: Resource<wit::Player>,
+        mode: wit::GameMode,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_mode(player.rep(), mode)
+    }
+    fn set_mode_override(
+        &mut self,
+        player: Resource<wit::Player>,
+        mode: Option<wit::GameMode>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_mode_override(player.rep(), mode)
+    }
+    fn set_flight_override(
+        &mut self,
+        player: Resource<wit::Player>,
+        allowed: Option<bool>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_flight(player.rep(), allowed)
+    }
+
     fn to_handle(
         &mut self,
         player: Resource<wit::Player>,

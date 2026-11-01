@@ -20,6 +20,60 @@ fn size(stack: &Stack) -> usize {
 }
 
 impl HostContext {
+    /// Capture a bounded batch through the same validated detached-value ownership path.
+    pub(in crate::plugin::manager) fn capture_item_values<'a>(
+        &mut self,
+        stacks: impl IntoIterator<Item = &'a Stack>,
+    ) -> Result<Vec<Resource<wit::Stack>>, wit::AccessError> {
+        self.operation()?;
+        self.require(PluginCapability::ItemValues)?;
+        let mut values = Vec::new();
+        for stack in stacks {
+            match self.own_item(stack.clone()) {
+                Ok(value) => values.push(value),
+                Err(error) => {
+                    self.discard_captured_items(
+                        &values.iter().map(Resource::rep).collect::<Vec<_>>(),
+                    );
+                    return Err(error);
+                }
+            }
+        }
+        Ok(values)
+    }
+
+    /// Release only this batch's still-owned values; reuse normal quota release accounting.
+    pub(in crate::plugin::manager) fn discard_captured_items(&mut self, reps: &[u32]) {
+        for rep in reps {
+            if matches!(self.resources.entries.get(rep), Some(Entry::Item(_))) {
+                let _ = super::super::wit_bindings::unastar::plugin::types::HostStack::drop(
+                    self,
+                    Resource::new_own(*rep),
+                );
+            }
+        }
+    }
+
+    /// Inspect immutable value images in actual component tests without exposing a guest API.
+    #[cfg(test)]
+    pub(in crate::plugin::manager) fn test_item_values(&mut self) -> Vec<Stack> {
+        let reps: Vec<_> = self
+            .resources
+            .entries
+            .iter()
+            .filter_map(|(rep, entry)| matches!(entry, Entry::Item(_)).then_some(*rep))
+            .collect();
+        reps.into_iter()
+            .map(|rep| self.item_value(rep).expect("owned item value"))
+            .collect()
+    }
+
+    /// Assert failed batch construction restores its retained-byte reservation in tests.
+    #[cfg(test)]
+    pub(in crate::plugin::manager) fn test_item_bytes(&self) -> usize {
+        self.resources.value_budget.used()
+    }
+
     /// Resolve a registry identity only inside the supplied world transaction.
     pub(super) fn create_item(
         &mut self,

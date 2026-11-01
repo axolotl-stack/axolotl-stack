@@ -107,7 +107,7 @@ pub(super) fn bytes(bodies: &[(&str, String)]) -> Vec<u8> {
             "on-player-admission" => "i32.const 32 i32.const 0 i32.store i32.const 32".into(),
             "on-player-quit" => "i32.const 0".into(),
             "on-player-move" => "i32.const 32 i32.const 1 i32.store i32.const 40 local.get 5 f64.store i32.const 48 local.get 6 f64.store i32.const 56 local.get 7 f64.store i32.const 32".into(),
-            "on-player-damage" => "i32.const 32 i32.const 1 i32.store i32.const 36 local.get 5 f32.store i32.const 32".into(),
+            "on-player-damage" => legacy_damage_body("i32.const 32 i32.const 1 i32.store i32.const 36 local.get 4 f32.store i32.const 32"),
             "on-player-respawn" => "i32.const 64 i32.const 1 i32.store i32.const 72 local.get 2 f64.store i32.const 80 local.get 3 f64.store i32.const 88 local.get 4 f64.store i32.const 64".into(),
             _ => String::new(),
         });
@@ -189,4 +189,118 @@ pub(super) fn bytes(bodies: &[(&str, String)]) -> Vec<u8> {
         .validate(true)
         .encode()
         .unwrap()
+}
+
+/// Resolve aliases before inspecting a canonical record layout.
+fn unalias(resolve: &Resolve, mut ty: wit_parser::Type) -> wit_parser::Type {
+    loop {
+        if let wit_parser::Type::Id(id) = ty
+            && let wit_parser::TypeDefKind::Type(inner) = resolve.types[id].kind
+        {
+            ty = inner;
+            continue;
+        }
+        return ty;
+    }
+}
+
+/// Locate a field in an indirect callback using current WIT canonical alignment and size.
+pub(super) fn field_layout(export: &str, parameter: &str, fields: &[&str]) -> (usize, usize) {
+    let mut resolve = Resolve::default();
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../unastar-api/wit");
+    let (package, _) = resolve.push_dir(path).unwrap();
+    let world = resolve
+        .select_world(&[package], Some("unastar-plugin"))
+        .unwrap();
+    let function = resolve.worlds[world]
+        .exports
+        .values()
+        .find_map(|item| match item {
+            WorldItem::Function(function) if function.name == export => Some(function),
+            _ => None,
+        })
+        .unwrap();
+    assert!(
+        resolve
+            .wasm_signature(wit_parser::abi::AbiVariant::GuestExport, function)
+            .indirect_params
+    );
+    let mut sizes = wit_parser::SizeAlign::default();
+    sizes.fill(&resolve);
+    let mut offset = 0usize;
+    for param in &function.params {
+        offset = offset.next_multiple_of(sizes.align(&param.ty).align_wasm32());
+        if param.name == parameter {
+            let mut ty = param.ty;
+            for name in fields {
+                if *name == "ok" {
+                    let wit_parser::Type::Id(id) = unalias(&resolve, ty) else {
+                        panic!("not a result")
+                    };
+                    let wit_parser::TypeDefKind::Result(result) = &resolve.types[id].kind else {
+                        panic!("not a result")
+                    };
+                    offset = (offset + 1).next_multiple_of(sizes.align(&ty).align_wasm32());
+                    ty = result.ok.expect("result value");
+                    continue;
+                }
+                if *name == "some" {
+                    let wit_parser::Type::Id(id) = unalias(&resolve, ty) else {
+                        panic!("not an option")
+                    };
+                    let wit_parser::TypeDefKind::Option(inner) = resolve.types[id].kind else {
+                        panic!("not an option")
+                    };
+                    offset = (offset + 1).next_multiple_of(sizes.align(&inner).align_wasm32());
+                    ty = inner;
+                    continue;
+                }
+                let wit_parser::Type::Id(id) = unalias(&resolve, ty) else {
+                    panic!("not a record")
+                };
+                let wit_parser::TypeDefKind::Record(record) = &resolve.types[id].kind else {
+                    panic!("not a record")
+                };
+                let mut found = None;
+                for field in &record.fields {
+                    offset = offset.next_multiple_of(sizes.align(&field.ty).align_wasm32());
+                    if field.name == *name {
+                        found = Some(field.ty);
+                        break;
+                    }
+                    offset += sizes.size(&field.ty).size_wasm32();
+                }
+                ty = found.expect("canonical field");
+            }
+            return (offset, sizes.size(&ty).size_wasm32());
+        }
+        offset += sizes.size(&param.ty).size_wasm32();
+    }
+    panic!("canonical parameter")
+}
+
+/// Preserve the native tuning while adapting older controlled scalar fixture bodies.
+/// Scratch return memory stays below the fixture allocator's heap at 4096.
+pub(super) fn legacy_damage_body(body: &str) -> String {
+    let (tuning, size) = field_layout("on-player-damage", "proposal", &["tuning"]);
+    let (player, _) = field_layout("on-player-damage", "player", &[]);
+    let (attacker, _) = field_layout("on-player-damage", "attacker", &[]);
+    let (cause, _) = field_layout("on-player-damage", "proposal", &["cause"]);
+    let loads = [
+        format!("local.get 0 i32.load offset={player}"),
+        format!("local.get 0 i32.load8_u offset={attacker}"),
+        format!("local.get 0 i32.load offset={}", attacker + 4),
+        format!("local.get 0 i32.load8_u offset={cause}"),
+        format!("local.get 0 f32.load offset={tuning}"),
+    ];
+    let mut body = body.replace("global.get $damage-calls", "i32.const 400 i32.load");
+    for index in 0..loads.len() {
+        body = body.replace(&format!("local.get {index}"), &format!("@legacy-{index}@"));
+    }
+    for (index, load) in loads.iter().enumerate() {
+        body = body.replace(&format!("@legacy-{index}@"), load);
+    }
+    format!(
+        "i32.const 520 local.get 0 i32.const {tuning} i32.add i32.const {size} memory.copy {body} drop i32.const 512 i32.const 32 i32.load8_u i32.store i32.const 520 i32.const 36 f32.load f32.store i32.const 512"
+    )
 }

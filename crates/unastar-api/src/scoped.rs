@@ -163,6 +163,58 @@ impl<'scope> Player<'scope> {
     pub fn inventory(&self) -> Result<crate::InventoryImage, AccessError> {
         self.raw().inventory()
     }
+    /// Copy current native effects, optional stored motion and mode/flight state.
+    pub fn mechanics(&self) -> Result<crate::PlayerMechanicsState, AccessError> {
+        self.raw().mechanics()
+    }
+    /// Stage a finite native effect. A source must be a real player in this same callback.
+    /// Native precedence, immunity and effect authorization remain authoritative.
+    pub fn apply_effect(
+        &self,
+        effect: &crate::EffectApplication,
+        source: Option<&Player<'_>>,
+    ) -> Result<crate::MechanicsAcknowledgement, AccessError> {
+        self.raw().apply_effect(*effect, source.map(Player::raw))
+    }
+    /// Stage removal of one native effect.
+    pub fn remove_effect(
+        &self,
+        kind: crate::EffectKind,
+    ) -> Result<crate::MechanicsAcknowledgement, AccessError> {
+        self.raw().remove_effect(kind)
+    }
+    /// Stage milk-style clearing through native effect synchronization.
+    pub fn clear_effects(&self) -> Result<crate::MechanicsAcknowledgement, AccessError> {
+        self.raw().clear_effects()
+    }
+    /// Stage finite server-assigned motion, bounded to a magnitude of 64 blocks per tick.
+    pub fn set_velocity(
+        &self,
+        velocity: Vec3,
+    ) -> Result<crate::MechanicsAcknowledgement, AccessError> {
+        self.raw().set_velocity(velocity)
+    }
+    /// Stage the durable base mode, preserving an active temporary overlay.
+    pub fn set_game_mode(
+        &self,
+        mode: GameMode,
+    ) -> Result<crate::MechanicsAcknowledgement, AccessError> {
+        self.raw().set_game_mode(mode)
+    }
+    /// Stage a temporary native mode; clearing it restores the durable base.
+    pub fn set_mode_override(
+        &self,
+        mode: Option<GameMode>,
+    ) -> Result<crate::MechanicsAcknowledgement, AccessError> {
+        self.raw().set_mode_override(mode)
+    }
+    /// Stage independent flight permission without changing creative inventory or immunity.
+    pub fn set_flight_override(
+        &self,
+        allowed: Option<bool>,
+    ) -> Result<crate::MechanicsAcknowledgement, AccessError> {
+        self.raw().set_flight_override(allowed)
+    }
     /// Stage a bounded message for this exact connection after callback success.
     pub fn message(&self, message: &str) -> Result<(), AccessError> {
         self.raw().message(message)

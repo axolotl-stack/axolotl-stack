@@ -300,18 +300,24 @@ async fn component_fuel_is_not_replenished_between_worlds_or_deferred_router_wor
     assert_eq!(health(&router), [19.0, 19.0, 18.0]);
     router.tick().await.unwrap();
     assert_eq!(health(&router), [18.0, 18.0, 16.0]);
+    router.tick().await.unwrap();
+    assert_eq!(health(&router), [17.0, 17.0, 14.0]);
     let remaining = remaining.lock().unwrap();
-    assert_eq!(remaining.len(), 8);
+    assert_eq!(remaining.len(), 12);
     assert!(
-        remaining[..4].windows(2).all(|pair| pair[1] < pair[0]),
+        remaining
+            .chunks_exact(4)
+            .all(|cycle| cycle.windows(2).all(|pair| pair[1] < pair[0])),
         "{remaining:?}"
     );
     assert!(
-        remaining[4..].windows(2).all(|pair| pair[1] < pair[0]),
+        remaining[4] > remaining[3] && remaining[8] > remaining[7],
         "{remaining:?}"
     );
+    // The first indirect record initializes the guest allocator. Compare steady
+    // cycles so its one-time setup cost is not mistaken for another fuel reset.
     assert_eq!(
-        remaining[0], remaining[4],
+        remaining[4], remaining[8],
         "the next cycle renews exactly once"
     );
     assert!(!manager.lock().unwrap().tick_prepared);
