@@ -349,6 +349,13 @@ Resource allocation and byte reservations fail atomically; capacity is released
 only after the last owner of a retained value drops. This layer provides observations
 and candidate construction; it does not submit inventory writes.
 
+Owned item values expose `same_item` for exact non-empty native contents,
+including block state, auxiliary values and all opaque metadata. Counts and wire
+tracking IDs do not affect equality. `stackable_with` additionally requires the
+native item type to allow stacking; it does not check remaining capacity. Identical
+unstackable tools can match for selection without becoming mergeable. Both queries
+work after actor departure and leave live slots and retained values unchanged.
+
 ### Durable WASM inventory transactions
 
 The `write-inventory` capability adds `Player::submit_inventory(request_id, image)`.

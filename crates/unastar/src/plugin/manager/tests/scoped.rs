@@ -487,3 +487,6 @@ mod inventory_tests;
 
 #[path = "inventory_writes.rs"]
 mod inventory_write_tests;
+
+#[path = "item_comparisons.rs"]
+mod item_comparison_tests;

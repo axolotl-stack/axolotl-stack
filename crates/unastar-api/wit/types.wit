@@ -456,6 +456,10 @@ interface types {
         identifier: func() -> result<string, access-error>;
         count: func() -> result<u8, access-error>;
         max-count: func() -> result<u8, access-error>;
+        /// Exact non-empty native item contents, including opaque metadata; ignores count and wire tracking IDs.
+        same-item: func(other: borrow<stack>) -> result<bool, access-error>;
+        /// Exact matching contents that native rules allow to share a stack; capacity is checked separately.
+        stackable-with: func(other: borrow<stack>) -> result<bool, access-error>;
         damage: func() -> result<u16, access-error>;
         with-count: func(count: u8) -> result<stack, access-error>;
         with-damage: func(damage: u16) -> result<stack, access-error>;

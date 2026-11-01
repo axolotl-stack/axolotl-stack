@@ -19,7 +19,32 @@ fn size(stack: &Stack) -> usize {
     128 + stack.item_id().len() + stack.nbt.as_ref().map_or(0, |bytes| bytes.len())
 }
 
+/// Compare complete native contents without allowing empty slots or depending on stack counts.
+fn same_item(left: &Stack, right: &Stack) -> bool {
+    !left.is_empty()
+        && !right.is_empty()
+        && left.clone().with_count(1) == right.clone().with_count(1)
+}
+
 impl HostContext {
+    /// Compare retained values without copying metadata or borrowing any live actor or world.
+    fn compare_item_values(
+        &mut self,
+        left: u32,
+        right: u32,
+        merging: bool,
+    ) -> Result<bool, wit::AccessError> {
+        self.operation()?;
+        self.require(PluginCapability::ItemValues)?;
+        let (Some(Entry::Item(left)), Some(Entry::Item(right))) = (
+            self.resources.entries.get(&left),
+            self.resources.entries.get(&right),
+        ) else {
+            return Err(wit::AccessError::InvalidArgument);
+        };
+        Ok(same_item(left, right) && (!merging || left.comparable(right)))
+    }
+
     /// Capture a bounded batch through the same validated detached-value ownership path.
     pub(in crate::plugin::manager) fn capture_item_values<'a>(
         &mut self,
@@ -267,6 +292,20 @@ fn property(value: &NBTTag) -> Result<wit::ItemValue, wit::AccessError> {
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostStack for HostContext {
+    fn same_item(
+        &mut self,
+        left: Resource<wit::Stack>,
+        right: Resource<wit::Stack>,
+    ) -> Result<bool, wit::AccessError> {
+        self.compare_item_values(left.rep(), right.rep(), false)
+    }
+    fn stackable_with(
+        &mut self,
+        left: Resource<wit::Stack>,
+        right: Resource<wit::Stack>,
+    ) -> Result<bool, wit::AccessError> {
+        self.compare_item_values(left.rep(), right.rep(), true)
+    }
     fn identifier(&mut self, item: Resource<wit::Stack>) -> Result<String, wit::AccessError> {
         self.item_value(item.rep())
             .map(|item| item.item_id().into())
