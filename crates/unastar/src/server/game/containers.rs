@@ -292,13 +292,16 @@ fn stored_pair(world: &World, pos: IVec3) -> Option<IVec3> {
 
 /// A native operation on either half must respect a reservation on the other.
 pub(crate) fn mutation_locked(world: &World, pos: IVec3) -> bool {
-    let Some(locks) = world.get_resource::<super::ContainerMutationLocks>() else {
-        return false;
-    };
-    if locks.is_empty() {
+    if crate::storage::column_runtime::cell_reserved(world, pos) {
+        return true;
+    }
+    let locks = world.get_resource::<super::ContainerMutationLocks>();
+    if locks.is_none_or(|locks| locks.is_empty())
+        && !crate::storage::column_runtime::any_reserved(world)
+    {
         return false;
     }
-    if locks.is_locked(pos) {
+    if locks.is_some_and(|locks| locks.is_locked(pos)) {
         return true;
     }
     let cached = world
@@ -308,7 +311,10 @@ pub(crate) fn mutation_locked(world: &World, pos: IVec3) -> bool {
         Some(container) => pair_pos(container),
         None => stored_pair(world, pos),
     };
-    other.is_some_and(|other| locks.is_locked(other))
+    other.is_some_and(|other| {
+        locks.is_some_and(|locks| locks.is_locked(other))
+            || crate::storage::column_runtime::cell_reserved(world, other)
+    })
 }
 
 /// Replace obsolete runtime windows/cache after a trusted acknowledged edit batch.

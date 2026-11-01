@@ -727,6 +727,7 @@ pub fn cancel_chunk_unloads(
 /// standing in it (when anything changed), then the mobs and the chunk are
 /// removed from the world.
 pub fn process_chunk_unloads(world: &mut World) {
+    crate::storage::column_runtime::poll(world);
     let mut pending = world.query::<(Entity, &mut ChunkPendingUnload)>();
     let expired: Vec<Entity> = pending
         .iter_mut(world)
@@ -739,16 +740,34 @@ pub fn process_chunk_unloads(world: &mut World) {
         let chunk_manager = world.resource::<ChunkManager>();
         (chunk_manager.provider(), chunk_manager.dimension())
     };
-    for snapshot in snapshot_chunks(world, &expired, true) {
+    let expired: Vec<_> = expired
+        .into_iter()
+        .filter(|&entity| !crate::storage::column_runtime::pinned(world, entity))
+        .collect();
+    if provider
+        .as_ref()
+        .is_some_and(|provider| provider.column_writer().is_some())
+    {
+        for chunks in expired.chunks(crate::storage::column_writer::MAX_COLUMNS) {
+            match crate::storage::column_runtime::capture(world, chunks)
+                .and_then(|capture| crate::storage::column_runtime::save(world, capture, true))
+            {
+                Ok(_) => {}
+                Err(error) => tracing::debug!(%error, "Chunk unload write deferred"),
+            }
+        }
+        return;
+    }
+    for snapshot in snapshot_chunks(world, &expired, false) {
         let pos = snapshot.pos;
-        if let (Some(column), Some(provider)) = (snapshot.column, provider.clone()) {
+        if let (Some(column), Some(provider)) = (&snapshot.column, provider.clone()) {
+            let column = column.clone();
             match block_on_storage(async move { provider.save_column(pos, dim, &column).await }) {
                 Ok(()) => debug!(chunk = ?(pos.x, pos.z), "Saved chunk before unload"),
-                Err(e) => warn!(
-                    chunk = ?(pos.x, pos.z),
-                    error = %e,
-                    "Failed to save chunk before unload"
-                ),
+                Err(e) => {
+                    warn!(chunk = ?(pos.x, pos.z), error = %e, "Failed to save chunk before unload");
+                    continue;
+                }
             }
         }
         for mob in snapshot.mobs {

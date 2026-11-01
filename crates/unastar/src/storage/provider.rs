@@ -25,6 +25,9 @@ pub enum StorageError {
     #[error("Deserialization error: {0}")]
     Deserialization(String),
 
+    #[error(transparent)]
+    ColumnWrite(#[from] super::column_writer::ColumnWriteError),
+
     #[error("Not found")]
     NotFound,
 
@@ -83,6 +86,12 @@ pub trait WorldProvider: Send + Sync + 'static {
 
     /// Save a chunk column to storage.
     async fn save_column(&self, pos: ChunkPos, dim: i32, col: &ChunkColumn) -> StorageResult<()>;
+
+    /// Optional provider-wide atomic column writer. Unsupported providers must
+    /// not claim durable whole-set effects through their ordinary save method.
+    fn column_writer(&self) -> Option<std::sync::Arc<super::column_writer::ColumnWriter>> {
+        None
+    }
 
     /// Flush any pending writes to disk.
     async fn flush(&self) -> StorageResult<()>;

@@ -536,7 +536,7 @@ impl UnastarServer {
         }
         let players_saved = self.server.save_all_players().await;
         info!(players = players_saved, "Player data saved");
-        let chunks_saved = self.server.save_all_chunks().await;
+        let chunks_saved = self.server.try_save_all_chunks().await?;
         self.server.flush_worlds().await?;
         info!(chunks = chunks_saved, "Chunk data saved");
         info!("Server shutdown complete");

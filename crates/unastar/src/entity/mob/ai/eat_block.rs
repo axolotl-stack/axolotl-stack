@@ -80,6 +80,9 @@ pub(super) fn success_chance(goal: &EatBlockGoal, baby: bool, rng: &mut StdRng) 
 /// The block at `pos` if the goal eats it: `(its runtime id, the
 /// replacement's runtime id)`.
 pub(super) fn edible(world: &World, goal: &EatBlockGoal, pos: IVec3) -> Option<(u32, u32)> {
+    if crate::storage::column_runtime::cell_reserved(world, pos) {
+        return None;
+    }
     let state = world.block_at(pos)?;
     let block = world.registry().get_by_runtime_id(state)?.id;
     goal.pairs
@@ -142,6 +145,9 @@ pub(super) fn replace_block(
     state: u32,
     particles: LevelEventPacket,
 ) {
+    if crate::storage::column_runtime::cell_reserved(world, pos) {
+        return;
+    }
     let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
     let Some(chunk) = world.resource::<ChunkManager>().get_by_coords(cx, cz) else {
         return;
@@ -160,6 +166,7 @@ pub(super) fn replace_block(
     let old = data.inner.get_block(lx, ly, lz);
     data.inner.set_block(lx, ly, lz, state);
     if let Some(mut flags) = world.get_mut::<ChunkStateFlags>(chunk) {
+        flags.mark_dirty();
         flags.mark_needs_rebroadcast();
     }
     world.trigger(BlockChanged {

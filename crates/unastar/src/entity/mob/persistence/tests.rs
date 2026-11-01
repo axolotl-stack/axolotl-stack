@@ -207,11 +207,13 @@ fn unloading_saves_and_removes_the_cow_and_reloading_restores_it() {
     let unique_id = unique_id(world, cow);
 
     let mut last_position = COW_FEET;
-    for _ in 0..5 {
+    for _ in 0..200 {
         if let Some(position) = server.ecs.world().get::<Position>(cow) {
             last_position = position.0;
         }
         server.tick();
+        // Unload owns asynchronous storage work; ticks never wait for fsync.
+        std::thread::sleep(std::time::Duration::from_millis(1));
         if !server
             .ecs
             .world()

@@ -3,8 +3,10 @@
 //! Implements `WorldProvider` using `bleveldb` for Bedrock-compatible storage.
 
 use async_trait::async_trait;
+#[cfg(test)]
+use bleveldb::WriteOptions;
 use bleveldb::options::Compression;
-use bleveldb::{DB, Options, ReadOptions, WriteBatch, WriteOptions};
+use bleveldb::{DB, Options, ReadOptions};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::task;
@@ -22,7 +24,9 @@ use crate::world::{Chunk, ChunkPos};
 /// Each world should have its own instance pointing to `<world>/db`.
 pub struct LevelDBWorldProvider {
     /// Thread-safe database handle.
+    #[cfg(test)]
     db: Arc<DB>,
+    writer: Arc<super::column_writer::ColumnWriter>,
     /// Dimension ID for key encoding.
     dimension: i32,
 }
@@ -46,8 +50,12 @@ impl LevelDBWorldProvider {
         let db =
             DB::open(path.as_ref(), &options).map_err(|e| StorageError::Database(e.to_string()))?;
 
+        let db = Arc::new(db);
+        let writer = super::column_writer::ColumnWriter::open(db.clone())?;
         Ok(Self {
-            db: Arc::new(db),
+            #[cfg(test)]
+            db,
+            writer,
             dimension,
         })
     }
@@ -61,10 +69,10 @@ impl LevelDBWorldProvider {
 #[async_trait]
 impl WorldProvider for LevelDBWorldProvider {
     async fn load_column(&self, pos: ChunkPos, dim: i32) -> StorageResult<Option<ChunkColumn>> {
-        let db = self.db.clone();
+        let writer = self.writer.clone();
         let version_key = keys::version_key(pos, dim);
 
-        task::spawn_blocking(move || {
+        task::spawn_blocking(move || writer.read(|db| {
             let read_opts = ReadOptions::new();
 
             // Check if chunk exists by reading version
@@ -76,16 +84,9 @@ impl WorldProvider for LevelDBWorldProvider {
                     // Load subchunks for standard overworld range (-4 to 19, corresponding to Y -64 to 319)
                     for y_index in -4i8..20i8 {
                         let subchunk_key = keys::subchunk_key(pos, dim, y_index);
-                        if let Ok(Some(data)) = db.get(&subchunk_key, &read_opts) {
-                            // Decode subchunk data into the chunk
-                            if let Err(e) = chunk.decode_subchunk(y_index as i32, &data) {
-                                tracing::warn!(
-                                    chunk = ?(pos.x, pos.z),
-                                    y = y_index,
-                                    error = %e,
-                                    "Failed to decode subchunk, using empty"
-                                );
-                            }
+                        if let Some(data) = db.get(&subchunk_key, &read_opts).map_err(StorageError::Database)? {
+                            chunk.decode_subchunk(y_index as i32, &data).map_err(|error|
+                                StorageError::Deserialization(format!("chunk ({}, {}) section {y_index}: {error}", pos.x, pos.z)))?;
                         }
                         // Missing subchunks are fine - they're just empty (air)
                     }
@@ -163,11 +164,9 @@ impl WorldProvider for LevelDBWorldProvider {
                                 .map_err(StorageError::Database)?
                             {
                                 Some(nbt) => column.actors.push(StoredActor { unique_id, nbt }),
-                                None => tracing::warn!(
-                                    chunk = ?(pos.x, pos.z),
-                                    unique_id,
-                                    "Actor listed by the chunk digest has no record; skipping it"
-                                ),
+                                // A global actor deletion also tombstones old
+                                // digests left behind by its previous chunks.
+                                None => tracing::debug!(unique_id, "Obsolete chunk actor reference"),
                             }
                         }
                     }
@@ -177,122 +176,31 @@ impl WorldProvider for LevelDBWorldProvider {
                 Ok(None) => Ok(None),
                 Err(e) => Err(StorageError::Database(e)),
             }
-        })
+        }))
         .await
         .map_err(|e| StorageError::Database(format!("Join error: {e}")))?
     }
 
     async fn save_column(&self, pos: ChunkPos, dim: i32, col: &ChunkColumn) -> StorageResult<()> {
-        let db = self.db.clone();
+        self.writer
+            .legacy_save(super::column_writer::ColumnWrite {
+                position: pos,
+                dimension: dim,
+                column: col.clone(),
+            })
+            .await
+    }
 
-        // Build all key-value pairs to write
-        let version_key = keys::version_key(pos, dim);
-        let finalisation_key = keys::finalisation_key(pos, dim);
-
-        // Encode chunk data
-        let biome_data = col.chunk.encode_biomes_disk_for_dimension(dim);
-        let biome_key = keys::biome_key(pos, dim);
-        let block_entities_key = keys::block_entities_key(pos, dim);
-        let actor_digest_key = keys::entity_ids_key(pos, dim);
-        let mut actor_digest = Vec::with_capacity(col.actors.len() * 8);
-        let mut actor_records = Vec::with_capacity(col.actors.len());
-        for actor in &col.actors {
-            actor_digest.extend_from_slice(&actor.unique_id.to_le_bytes());
-            actor_records.push((keys::entity_data_key(actor.unique_id), actor.nbt.clone()));
-        }
-        let removed_actor_keys: Vec<Vec<u8>> = col
-            .removed_actors
-            .iter()
-            .map(|&id| keys::entity_data_key(id))
-            .collect();
-        let mut block_entities = Vec::new();
-        for entity in col.chunk.block_entities() {
-            let [x, _, z] = entity.position();
-            if x.div_euclid(16) != pos.x || z.div_euclid(16) != pos.z {
-                return Err(StorageError::Serialization(format!(
-                    "block entity {:?} is outside chunk ({}, {})",
-                    entity.position(),
-                    pos.x,
-                    pos.z
-                )));
-            }
-            entity
-                .write_disk_nbt(&mut block_entities)
-                .map_err(|e| StorageError::Serialization(format!("block entity: {e}")))?;
-        }
-
-        // Collect subchunk data
-        let mut subchunk_entries: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
-        for y_index in -4..20i8 {
-            // Standard overworld range
-            if let Some(data) = col.chunk.encode_subchunk_disk(y_index as i32) {
-                let key = keys::subchunk_key(pos, dim, y_index);
-                subchunk_entries.push((key, data));
-            }
-        }
-
-        task::spawn_blocking(move || {
-            let write_opts = WriteOptions::new();
-            let mut batch = WriteBatch::new();
-
-            // Version
-            batch.put(&version_key, &[keys::CHUNK_VERSION]);
-
-            // Finalisation (2 = populated)
-            batch.put(&finalisation_key, &2u32.to_le_bytes());
-
-            // Biomes
-            batch.put(&biome_key, &biome_data);
-
-            // Subchunks
-            for (key, data) in subchunk_entries {
-                batch.put(&key, &data);
-            }
-
-            // Overwrites must remove the previous sparse metadata as well.
-            if block_entities.is_empty() {
-                batch.delete(&block_entities_key);
-            } else {
-                batch.put(&block_entities_key, &block_entities);
-            }
-
-            // The digest replaces the chunk's actor list; records of actors
-            // that are gone for good are deleted.
-            for key in &removed_actor_keys {
-                batch.delete(key);
-            }
-            if actor_digest.is_empty() {
-                batch.delete(&actor_digest_key);
-            } else {
-                batch.put(&actor_digest_key, &actor_digest);
-            }
-            for (key, nbt) in &actor_records {
-                batch.put(key, nbt);
-            }
-
-            // Write batch atomically - method is on WriteBatch, takes &db
-            batch
-                .write(&db, &write_opts)
-                .map_err(StorageError::Database)?;
-
-            Ok(())
-        })
-        .await
-        .map_err(|e| StorageError::Database(format!("Join error: {e}")))?
+    fn column_writer(&self) -> Option<Arc<super::column_writer::ColumnWriter>> {
+        Some(self.writer.clone())
     }
 
     async fn flush(&self) -> StorageResult<()> {
-        let db = self.db.clone();
-        task::spawn_blocking(move || {
-            db.flush();
-            Ok(())
-        })
-        .await
-        .map_err(|e| StorageError::Database(format!("Join error: {e}")))?
+        self.writer.flush().await.map_err(StorageError::ColumnWrite)
     }
 
     async fn close(&self) -> StorageResult<()> {
-        self.flush().await
+        self.writer.close().await.map_err(StorageError::ColumnWrite)
     }
 }
 
@@ -360,9 +268,17 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
         let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
         let pos = ChunkPos::new(-3, 4);
-        let actor = |unique_id: i64| StoredActor {
-            unique_id,
-            nbt: vec![10, 0, 0, 0, unique_id as u8],
+        let actor = |unique_id: i64| {
+            use zuri_nbt::{NBTTag, encoding::LittleEndian, tag};
+            let mut nbt = Vec::new();
+            NBTTag::Compound(
+                tag::Compound::builder()
+                    .with_long("UniqueID", unique_id)
+                    .build(),
+            )
+            .write(&mut nbt, LittleEndian)
+            .unwrap();
+            StoredActor { unique_id, nbt }
         };
         let mut column = ChunkColumn::new(Chunk::new(pos.x, pos.z));
         column.actors = vec![actor(-4294967295), actor(7)];

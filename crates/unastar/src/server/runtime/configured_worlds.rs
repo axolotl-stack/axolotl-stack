@@ -165,6 +165,10 @@ pub(super) fn open(
         )
         .map_err(invalid)?,
     };
+    let lease = Arc::new(lease);
+    if let Some(writer) = provider.column_writer() {
+        writer.attach_lease(lease.clone()).map_err(invalid)?;
+    }
     Ok((
         WorldIdentity {
             id,
@@ -205,7 +209,7 @@ fn persist_manifest(root: &Path, path: &Path, manifest: &Manifest) -> io::Result
 /// Keep the exclusive metadata lease while any asynchronous provider user survives.
 struct LeasedProvider {
     inner: Arc<dyn WorldProvider>,
-    _lease: File,
+    _lease: Arc<File>,
 }
 #[async_trait]
 impl WorldProvider for LeasedProvider {
@@ -223,6 +227,9 @@ impl WorldProvider for LeasedProvider {
         column: &ChunkColumn,
     ) -> StorageResult<()> {
         self.inner.save_column(pos, dimension, column).await
+    }
+    fn column_writer(&self) -> Option<Arc<crate::storage::column_writer::ColumnWriter>> {
+        self.inner.column_writer()
     }
     async fn flush(&self) -> StorageResult<()> {
         self.inner.flush().await

@@ -792,7 +792,21 @@ impl GameServer {
         saved
     }
 
+    /// Compatibility count-returning save; failures are logged and never clear
+    /// rejected buffers. Use `try_save_all_chunks` when completion is mandatory.
     pub async fn save_all_chunks(&mut self) -> usize {
+        match self.try_save_all_chunks().await {
+            Ok(saved) => saved,
+            Err(error) => {
+                warn!(%error, "Failed to save all chunks");
+                0
+            }
+        }
+    }
+
+    /// Save all current terrain, reporting a rejected or uncertain set as an
+    /// error. Shutdown must not acknowledge buffers that storage did not accept.
+    pub async fn try_save_all_chunks(&mut self) -> crate::storage::StorageResult<usize> {
         let Some((provider, dimension)) =
             self.ecs
                 .world()
@@ -803,8 +817,44 @@ impl GameServer {
                         .map(|provider| (provider, manager.dimension()))
                 })
         else {
-            return 0;
+            return Ok(0);
         };
+
+        if provider.column_writer().is_some() {
+            crate::storage::column_runtime::settle(self.ecs.world_mut()).await?;
+            let chunks: Vec<Entity> = {
+                let world = self.ecs.world_mut();
+                let mut query = world.query_filtered::<Entity, With<ChunkPosition>>();
+                query.iter(world).collect()
+            };
+            let mut saved = 0;
+            for chunks in chunks.chunks(crate::storage::column_writer::MAX_COLUMNS) {
+                let Some(capture) =
+                    crate::storage::column_runtime::capture_changed(self.ecs.world_mut(), chunks)?
+                else {
+                    continue;
+                };
+                let changed_count = capture.columns.len();
+                let ticket =
+                    crate::storage::column_runtime::save(self.ecs.world_mut(), capture, false)?;
+                loop {
+                    crate::storage::column_runtime::poll(self.ecs.world_mut());
+                    match ticket.status() {
+                        crate::storage::column_runtime::ColumnOperationStatus::Pending => {
+                            tokio::time::sleep(std::time::Duration::from_millis(1)).await
+                        }
+                        crate::storage::column_runtime::ColumnOperationStatus::Applied(_) => {
+                            saved += changed_count;
+                            break;
+                        }
+                        crate::storage::column_runtime::ColumnOperationStatus::Failed(error) => {
+                            return Err(error.into());
+                        }
+                    }
+                }
+            }
+            return Ok(saved);
+        }
 
         // Every chunk with something to write: dirty terrain, mobs standing in
         // it, or actors stored with it earlier.
@@ -825,11 +875,11 @@ impl GameServer {
                     saved += 1;
                     crate::entity::mob::persistence::mark_saved(self.ecs.world_mut(), &snapshot);
                 }
-                Err(e) => warn!(chunk = ?snapshot.pos, error = %e, "Failed to save chunk"),
+                Err(error) => return Err(error),
             }
         }
 
-        saved
+        Ok(saved)
     }
 
     pub async fn save_player(&mut self, session_id: SessionId) -> bool {

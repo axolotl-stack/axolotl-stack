@@ -968,3 +968,41 @@ native owned-value budget, including values retained by accepted work. Each worl
 bounds its queue to 4,096 requests/8,192 cells and publishes at most 128 requests
 and 1,024 cells per phase, preserving batch order. Owner unload, world closure,
 conflicts and late reservations end pending work before physical writes.
+
+### Serialized column persistence
+
+The native storage coordinator uses immutable provider-scoped capture stamps for
+ordinary saves, unloads and durable column sets. A durable set advances the
+provider's effect epoch. An older snapshot is rejected rather than being
+restamped; its acknowledgement cannot clear newer dirty terrain. Chunk unloads
+keep their terrain and actors loaded while asynchronous writes are pending, and
+retry if terrain or actor state changed before acknowledgement.
+
+LevelDB supports synchronous atomic sets of up to 16 complete columns and 16 MiB
+of encoded data. Terrain, biomes, sparse block actors, actor digests, global actor
+records and the effect receipt share the final batch. A persisted preparation is
+reconciled before any column is exposed after restart. Receipt IDs bind an exact
+typed payload; NBT compound field order does not change its fingerprint. Replay
+queries do not reinstall historical terrain. Unknown or malformed
+recovery metadata fails opening the provider. Missing global actor records retain
+the existing tombstone behavior for obsolete chunk digests.
+
+Accepted durable operations pin their original loaded column lifetimes and
+exclude native terrain/container mutations until physical publication. Mobs stay
+live; newer actor state prevents an ordinary unload. The current terrain
+publication path preserves captured actor and sparse block-actor payloads;
+container metadata changes require their own transaction capability. Dropping a completion ticket
+or closing a native world does not cancel accepted storage work. Ambiguous IO or
+lost source ownership retains a recovery fence; callers must query durable state
+and reopen/reconcile rather than assume rollback. Shutdown settles accepted work
+before capturing its final ordinary saves and rejects shutdown success when a
+terrain save was unaccepted.
+
+The writer admits at most 16 queued jobs and 32 MiB of encoded data, including
+active work. Native publication owns at most 16 outstanding sets. Receipt history
+is bounded to 65,536 entries and 16 MiB, with no implicit pruning or ID reuse.
+Unstamped `save_column` calls remain compatible only before the first durable
+effect epoch; native save/unload paths use original capture stamps thereafter.
+Providers without atomic-set support, including BlazeDB, report unsupported
+instead of promising durable effects. This storage foundation adds no component
+operation; `WorldTx::apply_blocks` still describes physical in-memory changes.
