@@ -74,6 +74,11 @@ const SYSTEMS: &[(&str, &str, &str)] = &[
     ("world", "world.world_border", "world border limits"),
     (
         "world",
+        "world.portable_terrain_configuration",
+        "portable generator preset configuration and built-in biome decoration",
+    ),
+    (
+        "world",
         "world.difficulty",
         "difficulty and regional difficulty effects",
     ),

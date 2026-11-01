@@ -125,6 +125,9 @@ impl JavaGenerator {
 }
 
 impl NativeStructureSource for JavaGenerator {
+    fn template_features_enabled(&self) -> bool {
+        self.template_features
+    }
     fn noise_biome(&self, quart_x: i32, quart_y: i32, quart_z: i32) -> u8 {
         self.sample_biome(quart_x << 2, quart_y << 2, quart_z << 2) as u8
     }

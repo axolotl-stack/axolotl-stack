@@ -25,6 +25,9 @@ pub fn place<W: FeatureWorld + ?Sized>(
     cfg: &FossilConfig,
     origin: BlockPos,
 ) -> bool {
+    if !world.template_features_enabled() {
+        return false;
+    }
     let rotation = Rotation::random(rng);
     let i = rng.next_int_bounded(cfg.fossil_structures.len() as i32) as usize;
     let fossil = lookup(cfg.fossil_structures[i]);
@@ -77,4 +80,34 @@ pub fn place<W: FeatureWorld + ?Sized>(
         place_in_world(world, start, start, &mut settings, rng, &mut |_| {});
     }
     true
+}
+
+#[cfg(test)]
+mod portable_tests {
+    use super::*;
+    use crate::features::test_world::TestWorld;
+
+    #[test]
+    fn template_capability_rejects_actual_fossil_placement_before_lookup_or_random_draws() {
+        let mut world = TestWorld::flat(63);
+        assert!(world.template_features_enabled());
+        world.template_features = false;
+        let before = world.blocks.clone();
+        let mut random = FeatureRandom::new(7);
+        let config = FossilConfig {
+            fossil_structures: &["missing-template"],
+            overlay_structures: &["missing-overlay"],
+            fossil_processors: &[],
+            overlay_processors: &[],
+            max_empty_corners_allowed: 4,
+        };
+        assert!(!place(
+            &mut world,
+            &mut random,
+            &config,
+            BlockPos::new(0, 32, 0)
+        ));
+        assert_eq!(world.blocks, before);
+        assert_eq!(random.next_int(), FeatureRandom::new(7).next_int());
+    }
 }

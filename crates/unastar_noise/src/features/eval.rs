@@ -44,6 +44,11 @@ impl BlockEntityData {
 /// outside the region return air; writes outside the writable area are
 /// dropped and report `false`, like Java's `WorldGenRegion.ensureCanWrite`.
 pub trait FeatureWorld {
+    /// Whether generation may read authored feature templates.
+    /// Portable callers can disable them while keeping ordinary biome decoration.
+    fn template_features_enabled(&self) -> bool {
+        true
+    }
     /// Lowest buildable Y.
     fn min_y(&self) -> i32;
     /// Build height (number of layers).

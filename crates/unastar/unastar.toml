@@ -82,7 +82,12 @@ mode = "infinite"
 # max_z = 64
 
 [world.generator]
-# kinds: "super_flat" | "void_spawn_platform" | "java" | "bedrock" (edition-style kinds require seed)
+# kinds: "super_flat" | "void_spawn_platform" | "java" | "java_terrain" | "bedrock"
+# java_terrain needs no game files: set preset to overworld, nether or end,
+# matching world.dimension. It includes built-in biome features, excludes
+# authored structures/template fossils, and does not change the full java kind.
+# kind = "java_terrain"
+# preset = "overworld"
 # "bedrock" needs --features bedrock-worldgen and UNASTAR_BDS_DIR at build time.
 kind = "java"
 seed = 12345

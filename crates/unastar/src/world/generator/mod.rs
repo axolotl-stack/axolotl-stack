@@ -8,6 +8,7 @@
 //! | `kind` | Generator | Truth source |
 //! |---|---|---|
 //! | `java` | [`JavaGenerator`] | Java Edition 1.21.11 reference worlds |
+//! | `java_terrain` | [`JavaGenerator`] | built-in dimension presets; authored template placement disabled |
 //! | `bedrock` | `bedrock::BedrockGenerator` (`bedrock-worldgen` feature) | BDS 1.26.51 reference worlds; parity incomplete |
 //! | `super_flat` | [`FlatGenerator`] | classic superflat layers |
 //! | `void_spawn_platform` | [`VoidGenerator`] | stone platform around the origin |
@@ -24,6 +25,8 @@ pub mod noise;
 pub mod ore_veinifier;
 pub mod parity;
 pub mod pipeline;
+#[cfg(test)]
+mod portable_tests;
 pub mod proto;
 pub mod region;
 pub mod spawn;
@@ -40,7 +43,10 @@ pub use terrain::{JavaGenerationOptions, JavaGenerator, JavaTerrainStage};
 
 /// The three pinned vanilla Java dimension presets. Storage height and noise
 /// height remain distinct (Nether/End store 256 blocks but fill 128 noise blocks).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum JavaDimension {
     #[default]
     Overworld,
@@ -49,6 +55,14 @@ pub enum JavaDimension {
 }
 
 impl JavaDimension {
+    /// Bedrock dimension identity used by the ordinary world configuration.
+    pub fn dimension_id(self) -> i32 {
+        match self {
+            Self::Overworld => 0,
+            Self::Nether => 1,
+            Self::End => 2,
+        }
+    }
     /// Legal build/storage blocks from the pinned vanilla dimension type. This
     /// intentionally includes Nether/End storage above their 128-block noise fill.
     pub fn block_bounds(self) -> std::ops::Range<i32> {

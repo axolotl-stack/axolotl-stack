@@ -90,8 +90,22 @@ Java Edition 1.21.11 `server.jar` (its structure templates are read at build tim
 UNASTAR_JAVA_SERVER_JAR=/path/to/server.jar cargo run --release -p unastar --features java-worldgen
 ```
 
-Without that jar, set `[world.generator] kind = "super_flat"` in `unastar.toml` and run
-`cargo run --release -p unastar`. The Bedrock-style generator (`kind = "bedrock"`) instead needs
+Without that jar, choose `super_flat`, `void_spawn_platform`, or the portable `java_terrain`
+generator and run `cargo run --release -p unastar`. The portable generator keeps built-in terrain,
+ores and vegetation; it excludes authored structures and template-backed fossils, including when
+the binary has optional templates. Choose the preset matching the world's dimension:
+
+```toml
+[world]
+dimension = 0
+[world.generator]
+kind = "java_terrain"
+seed = 12345
+preset = "overworld" # nether for dimension 1, end for dimension 2
+```
+
+The existing `java` selection keeps its full template requirement and generation semantics.
+The Bedrock-style generator (`kind = "bedrock"`) instead needs
 `--features bedrock-worldgen` and `UNASTAR_BDS_DIR` pointing at a local BDS 1.26.51 server directory.
 
 ### Tests

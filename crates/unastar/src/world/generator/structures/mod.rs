@@ -23,6 +23,11 @@ use super::features::{DimensionDecoration, dimension_decoration};
 /// aquifer material rules, with one horizontal noise cell and no beardifier.
 /// This is not the bulk `fillFromNoise` traversal or a surface/carver column.
 pub trait NativeStructureSource: Sync {
+    /// Whether this source allows biome features backed by authored templates.
+    /// Ordinary generation retains its existing behaviour unless explicitly restricted.
+    fn template_features_enabled(&self) -> bool {
+        true
+    }
     /// Unzoomed source biome at a quart position, in compiled biome index space.
     fn noise_biome(&self, quart_x: i32, quart_y: i32, quart_z: i32) -> u8;
     /// Fill canonical Java states starting at the dimension's storage minimum.

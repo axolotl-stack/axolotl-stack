@@ -165,6 +165,11 @@ impl UnastarConfig {
 
     pub fn validate(&self) -> Result<(), String> {
         self.validate_network()?;
+        if let crate::world::WorldGenerator::JavaTerrain { preset, .. } = self.world.generator
+            && preset.dimension_id() != self.world.dimension
+        {
+            return Err("`world.generator.preset` must match `world.dimension`".into());
+        }
         self.plugins.validate()?;
         #[cfg(not(feature = "bedrock-worldgen"))]
         if matches!(
