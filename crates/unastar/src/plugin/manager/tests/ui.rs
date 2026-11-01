@@ -75,6 +75,8 @@ impl Harness {
             player,
             rx,
         };
+        // Finish the admission callback's cycle before a later controlled notification.
+        h.tick();
         h.packets();
         h
     }
@@ -236,7 +238,7 @@ fn wire(packets: &[McpePacket]) -> u32 {
         .expect("form packet")
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn form_selection_is_typed_bound_to_its_viewer_and_consumed_once() {
     let response = format!(
         "local.get 2 i64.const 1 i64.ne if unreachable end local.get 3 i64.const 77 i64.ne if unreachable end local.get 4 if unreachable end local.get 5 i32.const 1 i32.ne if unreachable end {}",
@@ -280,7 +282,7 @@ async fn form_selection_is_typed_bound_to_its_viewer_and_consumed_once() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invalid_form_payload_never_becomes_a_selection_or_a_command() {
     for json in ["9", "-1", "\"/op somebody\"", "[0]", "1.0"] {
         let response = format!(
@@ -309,7 +311,7 @@ async fn invalid_form_payload_never_becomes_a_selection_or_a_command() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sidebar_and_actionbar_are_real_packets_without_identity_or_life_mutation() {
     let mut h = Harness::new(
         format!("{} {}", sidebar("Board", "Value"), bar("Ready")),
@@ -356,7 +358,7 @@ async fn sidebar_and_actionbar_are_real_packets_without_identity_or_life_mutatio
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn callback_trap_rolls_back_every_new_widget_and_form() {
     let mut h = Harness::new(
         format!(
@@ -377,7 +379,7 @@ async fn callback_trap_rolls_back_every_new_widget_and_form() {
     assert!(h.packets().is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dropping_owner_restores_sidebar_actionbar_and_open_form() {
     let mut h = Harness::new(
         format!("{} {} {}", sidebar("Board", "Value"), bar("Ready"), form()),
@@ -406,22 +408,24 @@ async fn dropping_owner_restores_sidebar_actionbar_and_open_form() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn one_slot_transport_makes_sidebar_progress_without_losing_rows() {
     let mut h = Harness::new(sidebar("Board", "Value"), String::new(), String::new());
-    let (tx, mut rx) = mpsc::channel(1);
-    h.server
+    let tx = h
+        .server
         .ecs
-        .world_mut()
-        .get_mut::<crate::entity::components::PlayerSession>(h.player)
+        .world()
+        .get::<crate::entity::components::PlayerSession>(h.player)
         .unwrap()
-        .outbound_tx = tx;
+        .outbound_tx
+        .clone();
+    // Reserve capacity on the authenticated channel instead of replacing the session's transport.
+    let _occupied = tx.try_reserve_many(tx.capacity() - 1).unwrap();
     h.open();
-    drain(&mut rx);
-    let mut packets = Vec::new();
+    let mut packets = drain(&mut h.rx);
     for _ in 0..6 {
         h.tick();
-        packets.extend(drain(&mut rx));
+        packets.extend(drain(&mut h.rx));
     }
     assert_eq!(
         packets
@@ -453,7 +457,7 @@ impl crate::server::game::player_events::PlayerEventHandler for Hold {
         ));
     }
 }
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn staged_ui_waits_for_actual_native_initial_publication() {
     let mut h = Harness::new(String::new(), String::new(), String::new());
     h.server
@@ -492,7 +496,7 @@ async fn staged_ui_waits_for_actual_native_initial_publication() {
     assert!(h.packets().iter().any(|packet|matches!(&packet.data,McpePacketData::SetTitlePacket(value)if &*value.title_text=="Waiting")));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn disconnected_form_closes_without_manufacturing_a_live_player_callback() {
     let closed = "local.get 2 i32.const 3 i32.ne if unreachable end i32.const 0 i32.const 0 i32.const 0 call @log@";
     let mut h = Harness::new(form(), "unreachable".into(), closed.into());
@@ -519,7 +523,7 @@ fn log(text: &str) -> String {
         text.len()
     )
 }
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn another_component_cannot_replace_an_owned_sidebar() {
     let attempt = |title: &str| {
         sidebar(title,"Value").replace("i32.const 128 i32.load8_u if unreachable end",&format!("i32.const 128 i32.load8_u if i32.const 129 i32.load8_u i32.const 1 i32.ne if unreachable end {} else {} end",log("conflict"),log("owned")))
@@ -571,7 +575,7 @@ async fn another_component_cannot_replace_an_owned_sidebar() {
     assert_eq!(outcomes, ["conflict", "owned"]);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn widget_quota_denial_preserves_an_already_staged_sidebar() {
     let denied=bar("Denied").replace("i32.const 128 i32.load8_u if unreachable end","i32.const 128 i32.load8_u i32.const 1 i32.ne if unreachable end i32.const 129 i32.load8_u i32.const 3 i32.ne if unreachable end");
     let mut h = Harness::new(
@@ -602,7 +606,7 @@ async fn widget_quota_denial_preserves_an_already_staged_sidebar() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stale_form_identifier_cannot_close_or_answer_a_replacement() {
     let close = r#"local.get 0 local.get 1 i64.const 1 i32.const 192 call @close-form@
         i32.const 192 i32.load8_u if unreachable end i32.const 193 i32.load8_u if unreachable end"#;
@@ -633,7 +637,7 @@ async fn stale_form_identifier_cannot_close_or_answer_a_replacement() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trapped_update_preserves_the_previous_committed_sidebar() {
     let body = format!(
         "i32.const 600 i32.load i32.eqz if {} else {} unreachable end i32.const 600 i32.const 1 i32.store",
@@ -650,7 +654,7 @@ async fn trapped_update_preserves_the_previous_committed_sidebar() {
     assert!(h.packets().is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn retained_raw_live_player_cannot_mutate_ui_in_a_later_transaction() {
     let retain = r#"
         local.get 1 i32.const 64 call @[method]player.to-handle@
@@ -685,7 +689,7 @@ async fn retained_raw_live_player_cannot_mutate_ui_in_a_later_transaction() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn form_response_follows_the_exact_connection_into_a_fresh_world_scope() {
     let response = format!(
         r#"
@@ -772,7 +776,7 @@ async fn form_response_follows_the_exact_connection_into_a_fresh_world_scope() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invalid_widget_value_reserves_nothing_and_a_later_valid_write_can_commit() {
     let invalid = sidebar("Bad\nTitle", "Value").replace(
         "i32.const 128 i32.load8_u if unreachable end",

@@ -11,7 +11,7 @@ use unastar::plugin::PluginManager;
 use unastar::world::rules::{Difficulty, GameRules};
 use unastar_data::actor_components::body::ActorDamageCause;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn custom_runtime_can_attach_synchronous_component_hooks() {
     let mut world = World::new();
     world.init_resource::<TickCounter>();

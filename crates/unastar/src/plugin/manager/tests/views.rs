@@ -287,7 +287,7 @@ fn flags(data: &[DataItemEntry]) -> u64 {
         .expect("flag metadata")
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn initial_tags_are_viewer_specific_and_canonical_identity_is_unchanged() {
     let body = format!(
         "i32.const 600 i32.load i32.const 1 i32.eq if {} else {} end",
@@ -320,7 +320,7 @@ async fn initial_tags_are_viewer_specific_and_canonical_identity_is_unchanged() 
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn equipment_is_hidden_and_restored_without_overwriting_physical_slots() {
     let body = format!(
         "i32.const 600 i32.load i32.const 1 i32.eq if {} else {} end",
@@ -371,7 +371,7 @@ async fn equipment_is_hidden_and_restored_without_overwriting_physical_slots() {
     assert!(restored.iter().any(|packet|matches!(packet,McpePacketData::MobArmorEquipmentPacket(armour)if armour.target_runtime_id.actor_runtime_id==7 && armour.head.id!=0)));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn restrictive_actor_visibility_and_native_audiences_both_remain_authoritative() {
     let body = format!(
         "i32.const 600 i32.load i32.const 1 i32.eq if {} else {} end",
@@ -399,7 +399,7 @@ async fn restrictive_actor_visibility_and_native_audiences_both_remain_authorita
     assert!(!h.packets(1).iter().any(|packet|matches!(packet,McpePacketData::AddPlayerPacket(add)if add.target_runtime_id.actor_runtime_id==7)));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trapped_replacement_keeps_previously_committed_projection() {
     let body = format!(
         "i32.const 600 i32.load i32.const 1 i32.eq if {} else {} unreachable end",
@@ -415,7 +415,7 @@ async fn trapped_replacement_keeps_previously_committed_projection() {
     assert!(h.packets(1).iter().all(|packet|!matches!(packet,McpePacketData::SetActorDataPacket(data)if data.target_runtime_id.actor_runtime_id==7)));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn owner_drop_restores_the_current_native_name_and_invisibility() {
     let mut h = Harness::new(scoped(&project("Projected", true, true, true)));
     h.jump(1);
@@ -435,7 +435,7 @@ async fn owner_drop_restores_the_current_native_name_and_invisibility() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn same_number_replacement_channel_cannot_inherit_a_viewer_projection() {
     let mut h = Harness::new(scoped(&project("Old connection", false, true, true)));
     h.jump(1);
@@ -453,7 +453,7 @@ async fn same_number_replacement_channel_cannot_inherit_a_viewer_projection() {
     assert_eq!(name(initial(&h.packets(1))), "Viewer7");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn false_invisibility_preserves_native_invisibility_and_immediate_flags_preserve_the_tag() {
     let mut h = Harness::new(scoped(&project("Tagged", false, true, true)));
     h.server
@@ -482,7 +482,7 @@ async fn false_invisibility_preserves_native_invisibility_and_immediate_flags_pr
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn self_projection_changes_metadata_without_a_duplicate_local_actor() {
     let mut h = Harness::new(scoped(&project("Local tag", false, false, false)));
     h.jump(0);
@@ -492,7 +492,7 @@ async fn self_projection_changes_metadata_without_a_duplicate_local_actor() {
     assert!(!packets.iter().any(|packet|matches!(packet,McpePacketData::AddPlayerPacket(add)if add.target_runtime_id.actor_runtime_id==7)));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn another_live_owner_receives_a_typed_conflict() {
     let mut h = Harness::new(scoped(&project("First", false, true, true)));
     h.jump(1);
@@ -529,7 +529,7 @@ impl crate::server::game::player_events::PlayerEventHandler for Hold {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn projection_cannot_publish_a_source_before_the_actual_initial_state_barrier_opens() {
     let mut h = Harness::with_hold(scoped(&project("After release", false, true, true)), true);
     h.jump(1);
@@ -557,7 +557,7 @@ impl crate::server::game::player_events::PlayerEventHandler for Retain {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn retained_sessionless_subject_keeps_the_original_binding_and_remains_attackable() {
     let mut h = Harness::new(scoped(&project("Retained", false, true, true)));
     h.jump(1);
@@ -600,7 +600,7 @@ async fn retained_sessionless_subject_keeps_the_original_binding_and_remains_att
         McpePacketData::RemoveActorPacket(remove) if remove.target_actor_id.actor_unique_id == 7)));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn pair_quota_denial_does_not_publish_a_partial_second_projection() {
     let denied=project("Rejected",false,true,true).replace("i32.const 128 i32.load8_u if unreachable end","i32.const 128 i32.load8_u i32.const 1 i32.ne if unreachable end i32.const 129 i32.load8_u i32.const 3 i32.ne if unreachable end i32.const 0 i32.const 0 i32.const 0 call @log@");
     let body = format!(
@@ -633,7 +633,7 @@ async fn pair_quota_denial_does_not_publish_a_partial_second_projection() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invalid_tag_does_not_reserve_a_pair_before_a_valid_write() {
     let denied=project(&"x".repeat(1025),false,true,true).replace("i32.const 128 i32.load8_u if unreachable end","i32.const 128 i32.load8_u i32.const 1 i32.ne if unreachable end i32.const 129 i32.load8_u i32.const 2 i32.ne if unreachable end");
     let mut h = Harness::new(scoped(&format!(
@@ -655,7 +655,7 @@ async fn invalid_tag_does_not_reserve_a_pair_before_a_valid_write() {
     assert_eq!(name(initial(&h.packets(1))), "Valid");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn full_outbound_channel_retries_projected_metadata_without_advancing_the_cache() {
     let body = format!(
         "i32.const 600 i32.load i32.const 1 i32.eq if {} else {} end",
@@ -663,14 +663,16 @@ async fn full_outbound_channel_retries_projected_metadata_without_advancing_the_
         project("New", false, true, true)
     );
     let mut h = Harness::new(scoped(&body));
-    let (tx, rx) = mpsc::channel(1);
-    h.server
+    let tx = h
+        .server
         .ecs
-        .world_mut()
-        .get_mut::<PlayerSession>(h.players[1])
+        .world()
+        .get::<PlayerSession>(h.players[1])
         .unwrap()
-        .outbound_tx = tx.clone();
-    h.receivers[1] = rx;
+        .outbound_tx
+        .clone();
+    // Backpressure must preserve the exact original authenticated connection.
+    let _occupied = tx.try_reserve_many(tx.capacity() - 1).unwrap();
     h.jump(1);
     h.packets(1);
     for _ in 0..16 {
@@ -730,7 +732,7 @@ async fn transfer(
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn world_migration_discards_old_pair_and_fresh_component_scope_can_rebind() {
     let mut h = Harness::new(scoped(&project("Scoped tag", false, true, true)));
     h.jump(1);

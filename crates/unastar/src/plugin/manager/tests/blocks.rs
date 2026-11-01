@@ -21,6 +21,15 @@ impl Harness {
     }
     /// Optional component traps also veto their operation, while required traps fence admission.
     async fn required(proposal: String, committed: String, required: bool) -> Self {
+        Self::with_capabilities(proposal, committed, required, &[]).await
+    }
+    /// Compose independent capability families in one real component.
+    async fn with_capabilities(
+        proposal: String,
+        committed: String,
+        required: bool,
+        extra: &[crate::plugin::manifest::PluginCapability],
+    ) -> Self {
         let mut router = DimensionRouter::new(GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..Default::default()
@@ -38,7 +47,9 @@ impl Harness {
                 crate::plugin::manifest::PluginCapability::ItemValues,
                 crate::plugin::manifest::PluginCapability::SendMessages,
             ]
-            .into(),
+            .into_iter()
+            .chain(extra.iter().cloned())
+            .collect(),
             subscriptions: [
                 EventKind::BlockTransaction,
                 EventKind::BlockCommitted,
@@ -358,7 +369,7 @@ fn batch_proposal(allow: bool, minimum: usize) -> String {
     )
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn one_veto_cancels_both_door_cells_and_the_item_cost() {
     let mut h = Harness::new(door_proposal(false), "unreachable".into()).await;
     h.held("minecraft:wooden_door", 2);
@@ -375,7 +386,7 @@ async fn one_veto_cancels_both_door_cells_and_the_item_cost() {
     assert_eq!(h.count(), 2);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn accepted_plan_commits_both_cells_once_and_skips_scalar_compatibility_callbacks() {
     let mut h = Harness::new(door_proposal(true), door_committed()).await;
     h.held("minecraft:wooden_door", 2);
@@ -404,7 +415,7 @@ impl crate::server::game::block_interaction::BlockInteractionHandler for NativeV
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn earlier_native_veto_emits_no_component_completion_or_item_cost() {
     let mut h = Harness::new(door_proposal(true), "unreachable".into()).await;
     h.held("minecraft:wooden_door", 2);
@@ -424,7 +435,7 @@ async fn earlier_native_veto_emits_no_component_completion_or_item_cost() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn late_native_observer_veto_does_not_turn_an_accepted_proposal_into_a_completion() {
     let mut h = Harness::new(door_proposal(true), "unreachable".into()).await;
     h.held("minecraft:wooden_door", 2);
@@ -465,7 +476,7 @@ impl crate::server::game::block_interaction::BlockInteractionHandler for ChangeU
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn changed_before_state_rejects_the_whole_stale_plan_after_component_approval() {
     let mut h = Harness::new(door_proposal(true), "unreachable".into()).await;
     h.held("minecraft:wooden_door", 2);
@@ -489,7 +500,7 @@ async fn changed_before_state_rejects_the_whole_stale_plan_after_component_appro
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn multi_cell_growth_is_planned_before_a_single_veto_and_consumes_no_item() {
     let mut h = Harness::new(batch_proposal(false, 2), "unreachable".into()).await;
     h.held("minecraft:bone_meal", 2);
@@ -509,7 +520,7 @@ async fn multi_cell_growth_is_planned_before_a_single_veto_and_consumes_no_item(
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn adjacent_bucket_plan_is_vetoed_before_block_or_source_replacement() {
     let mut h = Harness::new(batch_proposal(false, 2), "unreachable".into()).await;
     h.held("minecraft:water_bucket", 1);
@@ -536,7 +547,7 @@ async fn adjacent_bucket_plan_is_vetoed_before_block_or_source_replacement() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn affected_cell_quota_rejects_the_whole_plan_without_item_cost() {
     let mut h = Harness::new("unreachable".into(), "unreachable".into()).await;
     h.held("minecraft:wooden_door", 2);
@@ -562,7 +573,7 @@ async fn affected_cell_quota_rejects_the_whole_plan_without_item_cost() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn optional_trap_discards_the_plan_and_preserves_world_and_selected_stack() {
     let mut h = Harness::required(
         format!("{} unreachable", door_proposal(true)),
@@ -584,7 +595,7 @@ async fn optional_trap_discards_the_plan_and_preserves_world_and_selected_stack(
     assert!(h.manager.lock().unwrap().check_required().is_ok());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn required_trap_fences_the_original_actor_before_any_default_block_effect() {
     let mut h = Harness::new(
         format!("{} unreachable", door_proposal(true)),
@@ -620,7 +631,7 @@ impl crate::server::game::block_interaction::BlockInteractionHandler for RemoveA
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn committed_identity_and_item_values_remain_owned_after_the_source_actor_is_removed() {
     let layout = Layout::new();
     let event = layout.param("on-block-committed", "event");
@@ -699,7 +710,7 @@ impl crate::server::game::block_interaction::BlockInteractionHandler for ChangeP
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unchanged_partner_actor_change_invalidates_the_whole_captured_plan() {
     let layout = Layout::new();
     let proposal = layout.param("on-block-transaction", "proposal");
@@ -742,7 +753,7 @@ async fn unchanged_partner_actor_change_invalidates_the_whole_captured_plan() {
     assert_eq!(h.block(next), *crate::world::chunk::blocks::AIR);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn raw_live_player_retained_from_an_earlier_block_scope_is_rejected() {
     let layout = Layout::new();
     let tx = layout.param("on-block-transaction", "tx");
@@ -780,7 +791,7 @@ async fn raw_live_player_retained_from_an_earlier_block_scope_is_rejected() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn typed_before_proposed_properties_and_actual_after_values_cross_the_real_component_abi() {
     let layout = Layout::new();
     let proposal = layout.param("on-block-transaction", "proposal");
@@ -837,4 +848,83 @@ async fn typed_before_proposed_properties_and_actual_after_values_cross_the_real
     assert!(logs.windows(2).any(|pair| pair == ["upper_block_bit", "1"]));
     assert_eq!(&logs[logs.len() - 2..], ["minecraft:wooden_door", "C"]);
     assert_eq!(h.count(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn composed_block_veto_preserves_explicit_ui_reply_and_image_accounting_but_discards_mechanics()
+ {
+    use crate::plugin::manifest::PluginCapability;
+    let layout = Layout::new();
+    let tx = layout.param("on-block-transaction", "tx");
+    let player = layout.param("on-block-transaction", "player");
+    let proposal = format!(
+        r#"
+        local.get 0 i32.load offset={player} i32.const 64 call @[method]player.inventory@
+        i32.const 64 i32.load8_u if unreachable end
+        i32.const 68 i32.load call @inventory-image_drop@
+        local.get 0 i32.load offset={player} f64.const 0.5 f64.const 0 f64.const 0 i32.const 80 call @[method]player.set-velocity@
+        i32.const 80 i32.load8_u if unreachable end
+        i32.const 1100 i32.const 120 i32.store8
+        local.get 0 i32.load offset={tx} local.get 0 i32.load offset={player} i32.const 1 i32.const 1100 i32.const 1 i32.const 96 call @set-action-bar@
+        i32.const 96 i32.load8_u if unreachable end
+        local.get 0 i32.load offset={player} i32.const 1100 i32.const 1 i32.const 112 call @[method]player.message@
+        i32.const 112 i32.load8_u if unreachable end
+        {} {} i32.const 0
+    "#,
+        layout.drop_proposal(),
+        witness(b'R')
+    );
+    let mut h = Harness::with_capabilities(
+        proposal,
+        "unreachable".into(),
+        true,
+        &[
+            PluginCapability::ReadInventory,
+            PluginCapability::Presentation,
+            PluginCapability::PlayerMechanics,
+        ],
+    )
+    .await;
+    h.held("minecraft:wooden_door", 2);
+    while h._packets.try_recv().is_ok() {}
+    h.click(glam::IVec3::new(1, 15, 1), 1).await.unwrap();
+    assert_eq!(h.count(), 2);
+    assert_eq!(
+        h.block(glam::IVec3::new(1, 16, 1)),
+        *crate::world::chunk::blocks::AIR
+    );
+    assert!(
+        h.router
+            .world(0)
+            .unwrap()
+            .ecs
+            .world()
+            .get::<crate::entity::components::Velocity>(h.player)
+            .is_none()
+    );
+    let packets = std::iter::from_fn(|| h._packets.try_recv().ok()).collect::<Vec<_>>();
+    assert!(
+        packets
+            .iter()
+            .any(|packet| matches!(&packet.data, McpePacketData::TextPacket(_)))
+    );
+    assert!(packets.iter().any(|packet|matches!(&packet.data,McpePacketData::SetTitlePacket(value) if &*value.title_text=="x")));
+    assert!(
+        !packets
+            .iter()
+            .any(|packet| matches!(&packet.data, McpePacketData::SetActorMotionPacket(_)))
+    );
+    assert_eq!(
+        h.manager
+            .lock()
+            .unwrap()
+            .plugins
+            .values()
+            .next()
+            .unwrap()
+            .store
+            .data()
+            .test_item_bytes(),
+        0
+    );
 }

@@ -184,7 +184,7 @@ fn committed(incoming: f32, loss: f32) -> String {
     )
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_tuning_and_actual_health_loss_are_distinct_after_native_armour_multiplier() {
     let (base, _) = fixture::field_layout("on-player-damage", "proposal", &["tuning"]);
     let (post, _) = fixture::field_layout(
@@ -208,7 +208,7 @@ async fn component_tuning_and_actual_health_loss_are_distinct_after_native_armou
     assert_eq!(harness.world().get::<Health>(target).unwrap().current, 16.0);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cancellation_late_veto_and_immunity_never_emit_committed_loss() {
     for mode in 0..3 {
         let body = if mode == 0 {
@@ -239,7 +239,7 @@ async fn cancellation_late_veto_and_immunity_never_emit_committed_loss() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn timer_suppression_has_no_commit_but_delta_hit_reports_only_removed_health() {
     let mut harness = Harness::new(&[("on-player-damaged", witness(b'C'))]);
     assert_eq!(harness.hit(4.0), 4.0);
@@ -250,7 +250,7 @@ async fn timer_suppression_has_no_commit_but_delta_hit_reports_only_removed_heal
     assert_eq!(harness.world().get::<Health>(target).unwrap().current, 14.0);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tuning_hurt_window_preserves_native_delta_deadline_and_knockback_fields() {
     let (base, _) = fixture::field_layout("on-player-damage", "proposal", &["tuning"]);
     let (ticks, _) =
@@ -301,7 +301,7 @@ async fn tuning_hurt_window_preserves_native_delta_deadline_and_knockback_fields
     assert_eq!(harness.logs(), ["C", "C"]);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn malformed_tuning_or_required_trap_rejects_before_health_and_applies_terminal_fence() {
     for body in [
         tuning("i32.const 520 f32.const nan f32.store"),
@@ -322,7 +322,7 @@ async fn malformed_tuning_or_required_trap_rejects_before_health_and_applies_ter
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_arrow_hit_retains_launch_account_and_feet_after_departure_or_native_world_transfer() {
     for migrate in [false, true] {
         let (attacker, _) = fixture::field_layout("on-player-damage", "attacker", &[]);

@@ -17,6 +17,14 @@ struct Harness {
 impl Harness {
     /// Complete native join first; each case then calls an actual current-ABI component.
     fn new(bodies: &[(&str, String)], permitted: bool) -> Self {
+        Self::with_capabilities(bodies, permitted, &[])
+    }
+    /// Compose current-ABI imports with additional explicit manifest grants.
+    fn with_capabilities(
+        bodies: &[(&str, String)],
+        permitted: bool,
+        extra: &[PluginCapability],
+    ) -> Self {
         let mut server = GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..Default::default()
@@ -29,6 +37,7 @@ impl Harness {
         if permitted {
             capabilities.insert(PluginCapability::PlayerMechanics);
         }
+        capabilities.extend(extra.iter().cloned());
         let mut subscriptions = [
             EventKind::PlayerCommand,
             EventKind::PlayerJump,
@@ -73,7 +82,14 @@ impl Harness {
             view_registry: Default::default(),
         }));
         PluginManager::attach_to_world(manager.clone(), server.ecs.world_mut());
-        manager.lock().unwrap().begin_tick(server.ecs.world_mut());
+        {
+            let mut manager = manager.lock().unwrap();
+            assert!(
+                manager.begin_tick(server.ecs.world_mut()),
+                "{:?}",
+                manager.readiness.check()
+            );
+        }
         let (outbound_tx, mut packets) = tokio::sync::mpsc::channel(4096);
         let player = server
             .spawn_player(PlayerSpawnData {
@@ -156,7 +172,7 @@ fn witness() -> &'static str {
     "i32.const 1024 i32.const 120 i32.store8 i32.const 0 i32.const 1024 i32.const 1 call @log@"
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn actual_component_effects_and_motion_wait_for_commit_and_encode_native_updates() {
     let mut harness = Harness::new(
         &[(
@@ -230,7 +246,7 @@ async fn actual_component_effects_and_motion_wait_for_commit_and_encode_native_u
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trapped_and_explicitly_vetoed_callbacks_never_apply_mechanics() {
     let mut trap = Harness::new(
         &[("on-player-jump", format!("{} unreachable", velocity(1.0)))],
@@ -274,7 +290,7 @@ async fn trapped_and_explicitly_vetoed_callbacks_never_apply_mechanics() {
     assert!(veto.packets.try_recv().is_err());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn handled_chat_commits_explicit_effects_and_messages_instead_of_discarding_them() {
     let mut harness = Harness::new(
         &[(
@@ -326,7 +342,7 @@ async fn handled_chat_commits_explicit_effects_and_messages_instead_of_discardin
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stale_replaced_session_dead_and_recovery_fenced_targets_drop_queued_intents() {
     for variant in 0..4 {
         let mut harness = Harness::new(&[("on-player-jump", velocity(1.0))], true);
@@ -373,7 +389,7 @@ async fn stale_replaced_session_dead_and_recovery_fenced_targets_drop_queued_int
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn typed_permissions_limits_and_native_mode_overlays_remain_authoritative() {
     let denied = "local.get 1 f64.const 1 f64.const 0 f64.const 0 i32.const 64 call @[method]player.set-velocity@ i32.const 64 i32.load8_u i32.const 1 i32.ne if unreachable end";
     let mut harness = Harness::new(
@@ -430,7 +446,7 @@ async fn typed_permissions_limits_and_native_mode_overlays_remain_authoritative(
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn instant_damage_uses_native_hooks_after_unlocking_manager_and_can_be_vetoed() {
     let (owner_xuid, _) = fixture::field_layout(
         "on-player-damage",
@@ -541,7 +557,7 @@ fn mechanics_layout(fields: &[&str]) -> usize {
     offset
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn actual_component_reads_owned_effects_motion_and_base_mode_without_predicting_staged_state()
 {
     let velocity_tag = mechanics_layout(&["ok", "velocity"]);
@@ -603,7 +619,7 @@ fn velocity_body(x: f64) -> String {
     velocity(x)
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn effect_precedence_and_native_recipient_veto_do_not_bypass_authority() {
     let mut harness = Harness::new(&[("on-player-jump", effect(0, 0, 20, true, false))], true);
     crate::server::game::effects::add_effect(
@@ -662,7 +678,7 @@ async fn effect_precedence_and_native_recipient_veto_do_not_bypass_authority() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn bounded_queue_invalid_motion_and_invalid_duration_return_typed_errors_without_native_writes()
  {
     let mut body = String::new();
@@ -696,7 +712,7 @@ async fn bounded_queue_invalid_motion_and_invalid_duration_return_typed_errors_w
     assert!(harness.packets.try_recv().is_err());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn actual_inventory_quarantine_blocks_current_reads_and_discards_previously_staged_motion() {
     use crate::server::game::inventory_effects::{self, InventoryEffect, InventoryState};
     let unavailable = "local.get 1 i32.const 128 call @[method]player.mechanics@ i32.const 128 i32.load8_u i32.const 1 i32.ne if unreachable end local.get 1 f64.const 1 f64.const 0 f64.const 0 i32.const 64 call @[method]player.set-velocity@ i32.const 64 i32.load8_u i32.const 1 i32.ne if unreachable end";
@@ -785,7 +801,7 @@ async fn actual_inventory_quarantine_blocks_current_reads_and_discards_previousl
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_guest_can_clear_mode_and_flight_overlays_without_replacing_durable_base() {
     let mut harness=Harness::new(&[("on-player-jump","local.get 1 i32.const 0 i32.const 0 i32.const 64 call @[method]player.set-mode-override@ i32.const 64 i32.load8_u if unreachable end local.get 1 i32.const 0 i32.const 0 i32.const 64 call @[method]player.set-flight-override@ i32.const 64 i32.load8_u if unreachable end".into())],true);
     let world = harness.server.ecs.world_mut();
@@ -831,7 +847,7 @@ async fn real_guest_can_clear_mode_and_flight_overlays_without_replacing_durable
     assert!(harness.packets.try_recv().is_err());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn handled_real_command_keeps_explicit_mechanics_and_reply_without_running_native_default() {
     use jolyne::valentine::{BorrowedMcpePacket, CommandRequestPacket, McpePacketArgs};
     let mut harness = Harness::new(
@@ -905,7 +921,7 @@ async fn handled_real_command_keeps_explicit_mechanics_and_reply_without_running
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn genuine_deferred_admission_allows_owned_reads_but_rejects_ordinary_mechanics() {
     let defer = "local.get 1 i32.const 64 call @[method]player.defer-admission@ i32.const 64 i32.load8_u if unreachable end i32.const 512 i32.const 68 i32.load i32.store i32.const 32 i32.const 2 i32.store i32.const 32";
     let unavailable = "local.get 1 f64.const 1 f64.const 0 f64.const 0 i32.const 64 call @[method]player.set-velocity@ i32.const 64 i32.load8_u i32.const 1 i32.ne if unreachable end local.get 1 i32.const 128 call @[method]player.mechanics@ i32.const 128 i32.load8_u if unreachable end";
@@ -934,7 +950,7 @@ async fn genuine_deferred_admission_allows_owned_reads_but_rejects_ordinary_mech
     assert!(harness.packets.try_recv().is_err());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn native_late_effect_observer_cannot_replace_the_authorized_runtime_binding() {
     struct Replace(bool);
     impl crate::entity::projectile::hooks::ProjectileHandler for Replace {
@@ -974,4 +990,89 @@ async fn native_late_effect_observer_cannot_replace_the_authorized_runtime_bindi
         );
         assert!(harness.packets.try_recv().is_err());
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn composed_handled_chat_commits_ui_and_mechanics_without_leaking_owned_inventory_images() {
+    let body = format!(
+        r#"
+        local.get 1 i32.const 64 call @[method]player.inventory@
+        i32.const 64 i32.load8_u if unreachable end
+        i32.const 68 i32.load i32.const 0 i32.const 80 call @[method]inventory-image.slot-count@
+        i32.const 80 i32.load8_u if unreachable end
+        i32.const 84 i32.load i32.const 36 i32.ne if unreachable end
+        i32.const 68 i32.load call @inventory-image_drop@
+        {}
+        i32.const 1100 i32.const 120 i32.store8
+        local.get 0 local.get 1 i32.const 1 i32.const 1100 i32.const 1 i32.const 96 call @set-action-bar@
+        i32.const 96 i32.load8_u if unreachable end
+        {} i32.const 0
+    "#,
+        velocity(0.5),
+        witness()
+    );
+    let mut h = Harness::with_capabilities(
+        &[("on-player-chat", body)],
+        true,
+        &[
+            PluginCapability::ReadInventory,
+            PluginCapability::Presentation,
+        ],
+    );
+    let before = crate::server::game::inventory_effects::InventoryState::capture(
+        h.server.ecs.world(),
+        h.player,
+    )
+    .unwrap();
+    h.server
+        .ecs
+        .world_mut()
+        .resource_mut::<EventBuffer>()
+        .push(ServerEvent::PlayerChat {
+            entity: h.player,
+            player_id: "Player".into(),
+            message: "handled".into(),
+        });
+    h.manager
+        .lock()
+        .unwrap()
+        .drain_world_events(h.server.ecs.world_mut());
+    h.apply();
+    h.manager
+        .lock()
+        .unwrap()
+        .publish_ui(h.server.ecs.world_mut());
+    assert_eq!(h.logs(), ["x"]);
+    assert_eq!(
+        crate::server::game::inventory_effects::InventoryState::capture(
+            h.server.ecs.world(),
+            h.player
+        )
+        .unwrap(),
+        before
+    );
+    assert_eq!(
+        h.server.ecs.world().get::<Velocity>(h.player).unwrap().0.x,
+        0.5
+    );
+    assert_eq!(
+        h.manager
+            .lock()
+            .unwrap()
+            .plugins
+            .values()
+            .next()
+            .unwrap()
+            .store
+            .data()
+            .test_item_bytes(),
+        0
+    );
+    let packets = std::iter::from_fn(|| h.packets.try_recv().ok()).collect::<Vec<_>>();
+    assert!(packets.iter().any(|packet|matches!(&packet.data,McpePacketData::SetTitlePacket(value) if &*value.title_text=="x")));
+    assert!(
+        packets
+            .iter()
+            .any(|packet| matches!(&packet.data, McpePacketData::SetActorMotionPacket(_)))
+    );
 }

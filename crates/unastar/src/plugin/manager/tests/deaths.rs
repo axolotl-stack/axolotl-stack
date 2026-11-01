@@ -297,7 +297,7 @@ fn schedule() -> String {
     "local.get 0 i32.load i32.const 128 call @[method]world-tx.world@ i32.const 128 i32.load8_u if unreachable end i32.const 132 i32.load i64.const 1 i32.const 160 call @[method]world-handle.schedule@ i32.const 160 i32.load8_u if unreachable end i32.const 164 i32.load call @task_drop@ i32.const 132 i32.load call @world-handle_drop@".into()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn committed_death_retains_complete_slot_metadata_and_values_after_actor_removal() {
     let task = format!(
         "i32.const 768 i32.load i32.const 96 call @[method]stack.count@ i32.const 96 i32.load8_u if unreachable end i32.const 97 i32.load8_u i32.const 1 i32.ne if unreachable end i32.const 768 i32.load call @stack_drop@ {}",
@@ -346,7 +346,7 @@ async fn committed_death_retains_complete_slot_metadata_and_values_after_actor_r
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn earlier_native_removal_does_not_erase_captured_identity_or_inventory() {
     let mut harness = Harness::new(&[("on-player-death", record_slots())], 4096, true, true);
     harness.kill();
@@ -361,7 +361,7 @@ async fn earlier_native_removal_does_not_erase_captured_identity_or_inventory() 
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn keep_inventory_and_immediate_respawn_still_observe_original_death_once() {
     for keep in [false, true] {
         let mut harness = Harness::new(&[("on-player-death", record_slots())], 4096, true, false);
@@ -394,7 +394,7 @@ async fn keep_inventory_and_immediate_respawn_still_observe_original_death_once(
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn missing_capability_or_small_quota_never_delivers_partial_item_resources() {
     let (inventory, _) = fixture::field_layout("on-player-death", "death", &["inventory"]);
     for (items, maximum) in [(false, 4096), (true, 8), (true, 95)] {
@@ -425,7 +425,7 @@ async fn missing_capability_or_small_quota_never_delivers_partial_item_resources
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn required_death_trap_releases_new_item_values_and_fences_ordinary_saves() {
     let mut harness = Harness::new(
         &[("on-player-death", "unreachable".into())],
@@ -444,7 +444,7 @@ async fn required_death_trap_releases_new_item_values_and_fences_ordinary_saves(
     assert!(harness.values().is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lethal_real_arrow_retains_departed_launch_account_in_the_owned_death() {
     let (account, _) = fixture::field_layout(
         "on-player-death",
