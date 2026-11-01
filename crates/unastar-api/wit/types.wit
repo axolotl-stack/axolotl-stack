@@ -191,8 +191,19 @@ interface types {
         show-particles: bool,
     }
 
+    /// Explicit native permanence; no large finite duration is substituted.
+    record infinite-effect-application {
+        kind: effect-kind,
+        amplifier: u8,
+        ambient: bool,
+        show-particles: bool,
+    }
+
     record player-mechanics-state {
         effects: list<active-status-effect>,
+        /// Actual embedded player fall history, or standalone native body history.
+        /// None means no native fall component exists; it never means a guessed zero.
+        fall-distance: option<f64>,
         /// Stored server motion; none when a client-driven player has no native motion vector.
         velocity: option<vec3>,
         base-game-mode: game-mode,
@@ -608,6 +619,7 @@ interface types {
         /// Capture current authoritative state; pending requests are not reflected here.
         mechanics: func() -> result<player-mechanics-state, access-error>;
         apply-effect: func(effect: effect-application, source: option<borrow<player>>) -> result<mechanics-acknowledgement, access-error>;
+        apply-infinite-effect: func(effect: infinite-effect-application, source: option<borrow<player>>) -> result<mechanics-acknowledgement, access-error>;
         remove-effect: func(kind: effect-kind) -> result<mechanics-acknowledgement, access-error>;
         clear-effects: func() -> result<mechanics-acknowledgement, access-error>;
         /// Server-assigned velocity, in blocks per simulation tick.

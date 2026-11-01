@@ -50,11 +50,11 @@ pub use raw::{
     ArchiveReference, ArchiveWorld, ArchivedPlayerState, AuthenticatedDamageAccount, BlockPos,
     DamageAttribution, DamageCause, DamageCommitted, DamageOwner, DamageProposal, DamageTuning,
     DeathCommitted, DeathInventory, DisconnectDetail, DisconnectReason, EffectApplication,
-    EffectKind, Enchantment, GameMode, InventoryArea, InventoryCommit, InventoryError,
-    InventoryImage, InventoryOperation, InventoryReceipt, InventoryStatus, ItemValue, Knockback,
-    LogLevel, MechanicsAcknowledgement, MovementCommitted, PlayerAvailability, PlayerFlags,
-    PlayerHandle, PlayerIdentity, PlayerMechanicsState, PlayerSnapshot, QuitDisposition, QuitEvent,
-    Task, TaskStatus, Vec3, WorldHandle,
+    EffectKind, Enchantment, GameMode, InfiniteEffectApplication, InventoryArea, InventoryCommit,
+    InventoryError, InventoryImage, InventoryOperation, InventoryReceipt, InventoryStatus,
+    ItemValue, Knockback, LogLevel, MechanicsAcknowledgement, MovementCommitted,
+    PlayerAvailability, PlayerFlags, PlayerHandle, PlayerIdentity, PlayerMechanicsState,
+    PlayerSnapshot, QuitDisposition, QuitEvent, Task, TaskStatus, Vec3, WorldHandle,
 };
 pub use raw::{
     BlockClick, BlockCommitted, BlockFace, BlockHeldItems, BlockOperationKind, BlockProperty,

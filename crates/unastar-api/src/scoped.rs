@@ -229,6 +229,16 @@ impl<'scope> Player<'scope> {
     ) -> Result<crate::MechanicsAcknowledgement, AccessError> {
         self.raw().apply_effect(*effect, source.map(Player::raw))
     }
+    /// Stage an actual infinite native effect on this living physical actor.
+    /// Instant-only effect kinds are rejected; source remains a real same-world player.
+    pub fn apply_infinite_effect(
+        &self,
+        effect: &crate::InfiniteEffectApplication,
+        source: Option<&Player<'_>>,
+    ) -> Result<crate::MechanicsAcknowledgement, AccessError> {
+        self.raw()
+            .apply_infinite_effect(*effect, source.map(Player::raw))
+    }
     /// Stage removal of one native effect.
     pub fn remove_effect(
         &self,

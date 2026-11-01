@@ -509,20 +509,30 @@ callback failure fences subsequent ordinary player saves.
 ### Scoped component player mechanics
 
 With `read-players`, `Player::mechanics()` copies the current native effects,
-optional stored server velocity, durable/effective game modes, mode overlay and flight
+optional native fall distance and stored server velocity, durable/effective game modes, mode overlay and flight
 permission. Effect kinds are semantic enums; durations are remaining native
 ticks, including an explicit flag for an existing infinite effect. This is a
 current-world read, rather than a prediction of pending writes. Velocity is the
 stored native motion vector; client movement and native impulses that do not
 store one are not synthesized into observations.
+Fall distance reads the player's actual input history when present, then the
+standalone native fall component. Missing history returns `None`; malformed
+present history returns `Unavailable` rather than inventing a zero value.
 
-`player-mechanics` additionally permits finite effect application/removal,
+`player-mechanics` additionally permits finite or explicit infinite effect application/removal,
 velocity, durable mode changes, temporary mode overlays and independent flight
 permission. `EffectApplication` includes the zero-based amplifier, a duration of
 1 through 2,147,483,647 ticks, ambient and particle flags. Velocity must be finite,
 wire-representable and have a magnitude of at most 64 blocks per tick. Temporary
 mode changes preserve the durable base; flight permission grants only MayFly.
-All mutations require a complete, published, connected player.
+`InfiniteEffectApplication` has no duration: `apply_infinite_effect` installs the
+native infinite state, preserving periodic effect pulses and ordinary amplifier
+precedence. Instant health, instant damage and saturation reject infinite
+application. Infinite effects are sent with the native permanent-duration marker
+even after their internal pulse counter advances.
+All mutations require a complete living actor with its original connection or
+an explicitly retained physical actor with that same original lineage. Retained
+access does not create a connection or replace an unavailable actor.
 
 Every setter returns `MechanicsAcknowledgement::Staged`, which acknowledges a
 bounded intent, not native application or durable storage. Up to 64 intents can
@@ -530,7 +540,7 @@ be staged per callback and 1,024 can await application in a world. After a
 successful callback, the world applies a bounded batch after simulation with no
 component-manager lock held. The original component, world lifetime, actor,
 transport and availability are checked again. Unload, reconnect, world transfer,
-death and inventory quarantine can invalidate a staged intent. An optional
+death, recovery fencing and inventory quarantine can invalidate a staged intent. An optional
 effect source must be a real player in the same callback and remain valid when
 applied; it is never replaced with an invented actor.
 
