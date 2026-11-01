@@ -868,6 +868,9 @@ impl GameServer {
     }
 
     pub fn spawn_player(&mut self, data: PlayerSpawnData) -> crate::storage::StorageResult<Entity> {
+        if !crate::plugin::manager::readiness::admission_allowed(self.ecs.world()) {
+            return Err(crate::storage::StorageError::RequiredComponentUnavailable);
+        }
         let player_uuid = data
             .uuid
             .as_ref()
@@ -1116,6 +1119,9 @@ impl GameServer {
     }
 
     pub fn tick(&mut self) {
+        if !crate::plugin::manager::readiness::admission_allowed(self.ecs.world()) {
+            return;
+        }
         self.ecs.tick();
         self.publish_initial_states();
     }

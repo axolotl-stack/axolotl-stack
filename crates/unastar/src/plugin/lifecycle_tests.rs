@@ -52,6 +52,8 @@ impl Harness {
             name: "Lifecycle test".into(),
             version: "1".into(),
             api_version: PLUGIN_API_VERSION.into(),
+            required: false,
+            config: None,
             capabilities: Default::default(),
             subscriptions: subscriptions.iter().copied().collect(),
             limits: PluginLimits::default(),
@@ -73,6 +75,7 @@ impl Harness {
             pending: vec![pending],
             tick_prepared: false,
             tick_budget_valid: true,
+            readiness: Default::default(),
         }));
         let mut world = World::new();
         world.insert_resource(TickCounter { current: 42 });
@@ -259,6 +262,7 @@ fn old_api_manifest_is_rejected_before_reading_or_compiling_wasm() {
         pending: Vec::new(),
         tick_prepared: false,
         tick_budget_valid: true,
+        readiness: Default::default(),
     };
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(

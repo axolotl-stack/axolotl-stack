@@ -142,3 +142,20 @@ We are building towards a production-ready, open-source Bedrock server stack. He
 4.  **High-Performance Server (`Unastar`)**: Build a modular, ECS-driven server foundation.
 
 *“Everything is better with Axolotls.”*
+
+### Required WASM components
+
+Plugins are optional by default. Set `required = true` in `plugin.toml` to make
+initialization and callback failures fatal. Also list essential manifest IDs in
+`[plugins] required = ["example.policy"]` in `unastar.toml` so a missing or unreadable
+manifest cannot silently remove the requirement. Initialization completes before
+network listeners bind and player admission opens. A required runtime trap stops
+all dimension worlds, discards queued component actions and terminally fences
+connected player state against ordinary saves. Restart with validated durable
+state after correcting the failure; another tick does not reopen admission.
+
+A manifest may set `config = "settings.bin"`. The loader caches at most 1 MiB of
+opaque bytes from a regular file contained in the plugin directory before
+instantiation. Absolute paths, escapes and symlinks outside that directory are
+rejected. Configuration does not grant filesystem access. The cache is internal
+in API 0.3; exposing those bytes to components requires a versioned host binding.

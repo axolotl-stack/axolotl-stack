@@ -33,6 +33,9 @@ pub enum StorageError {
 
     #[error("player state requires recovery before further persistence")]
     PlayerRecoveryRequired,
+
+    #[error("required component initialization or recovery is incomplete")]
+    RequiredComponentUnavailable,
 }
 
 /// One saved actor: its unique ID and its Bedrock actor NBT (a rooted,

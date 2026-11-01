@@ -82,6 +82,12 @@ impl PluginManager {
     /// manager automatically.
     pub fn attach_to_world(manager: Arc<Mutex<Self>>, world: &mut World) {
         world.init_resource::<PlayerLifecycleHooks>();
+        let readiness = manager
+            .lock()
+            .expect("component manager lock")
+            .readiness
+            .clone();
+        world.insert_resource(readiness);
         LifecycleBridge::install(manager, world);
     }
 
@@ -93,16 +99,25 @@ impl PluginManager {
     /// closed when a budget cannot be initialized.
     pub fn begin_tick(&mut self, world: &mut World) -> bool {
         if self.tick_prepared {
-            return self.tick_budget_valid;
+            return self.tick_budget_valid && self.readiness.check().is_ok();
         }
         self.tick_prepared = true;
         self.tick_budget_valid = true;
         self.initialize_pending(world);
+        if self.readiness.check().is_err() {
+            self.tick_budget_valid = false;
+            return false;
+        }
         for plugin in self.plugins.values_mut() {
             if let Err(error) = begin_fuel_budget(&mut plugin.store, &plugin.manifest.limits) {
                 error!(plugin = %plugin.manifest.id, %error, "Failed to set tick fuel budget");
                 self.tick_budget_valid = false;
+                self.readiness
+                    .fail(&plugin.manifest.id.0, &error.to_string());
             }
+        }
+        if self.readiness.check().is_err() {
+            super::readiness::fence_world(world);
         }
         self.tick_budget_valid
     }
@@ -140,12 +155,18 @@ impl PluginManager {
                 Ok(Some(damage)) if damage.is_finite() && damage >= 0.0 => {
                     event.hit.damage = damage;
                 }
-                Ok(_) => {
+                Ok(None) => {
+                    event.cancel();
+                    break;
+                }
+                Ok(Some(_)) => {
+                    self.callback_failed(world, &id, "invalid damage decision");
                     event.cancel();
                     break;
                 }
                 Err(error) => {
                     error!(plugin = %id, %error, "Player damage callback failed");
+                    self.callback_failed(world, &id, &error.to_string());
                     event.cancel();
                     break;
                 }
@@ -168,6 +189,10 @@ impl PluginManager {
                 bindings.call_on_player_death(store, player, attacker, cause)
             }) {
                 error!(plugin = %id, %error, "Player death callback failed");
+                self.callback_failed(world, &id, &error.to_string());
+                if self.readiness.check().is_err() {
+                    break;
+                }
             }
         }
     }
@@ -192,6 +217,7 @@ impl PluginManager {
                     if position.is_finite() && position.as_vec3().is_finite() {
                         event.position = position;
                     } else {
+                        self.callback_failed(world, &id, "invalid respawn destination");
                         event.cancel();
                         break;
                     }
@@ -202,6 +228,7 @@ impl PluginManager {
                 }
                 Err(error) => {
                     error!(plugin = %id, %error, "Player respawn callback failed");
+                    self.callback_failed(world, &id, &error.to_string());
                     event.cancel();
                     break;
                 }
@@ -222,6 +249,10 @@ impl PluginManager {
                 bindings.call_on_player_respawned(store, player, position)
             }) {
                 error!(plugin = %id, %error, "Player respawned callback failed");
+                self.callback_failed(world, &id, &error.to_string());
+                if self.readiness.check().is_err() {
+                    break;
+                }
             }
         }
     }

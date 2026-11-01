@@ -482,3 +482,69 @@ async fn invalid_configured_key_fails_before_http_listener_is_bound() {
     let _available = tokio::net::TcpListener::bind(address).await.unwrap();
     assert_eq!(std::fs::read(&path).unwrap(), b"invalid private key");
 }
+
+/// Run in an isolated process because the production loader resolves plugin files from CWD.
+#[tokio::test]
+async fn required_component_initializes_before_listener_binding_and_admission() {
+    const ISOLATED: &str = "UNASTAR_REQUIRED_COMPONENT_STARTUP_TEST";
+    if std::env::var_os(ISOLATED).is_none() {
+        let directory = tempfile::tempdir().unwrap();
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "server::runtime::tests::required_component_initializes_before_listener_binding_and_admission", "--nocapture"])
+            .env(ISOLATED, "1")
+            .current_dir(directory.path())
+            .output().unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        return;
+    }
+    let plugin = std::path::Path::new("plugins/example");
+    std::fs::create_dir_all(plugin).unwrap();
+    std::fs::write(plugin.join("plugin.toml"), "id = 'example.required'\nname = 'Example'\nversion = '1'\napi_version = '0.3.0'\nrequired = true\n").unwrap();
+    std::fs::write(
+        plugin.join("plugin.wasm"),
+        crate::plugin::manager::tests::component_source(
+            true,
+            "unreachable",
+            "unreachable",
+            "",
+            "unreachable",
+        ),
+    )
+    .unwrap();
+    let occupied = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+    let mut config = UnastarConfig {
+        world: crate::world::WorldConfig::void_spawn_platform(1),
+        ..Default::default()
+    };
+    config.players.leveldb_enabled = false;
+    config.server.bind_address = occupied.local_addr().unwrap().to_string();
+    config.plugins.required.push("example.required".into());
+    let mut runtime = UnastarServer::new(Arc::new(config)).await.unwrap();
+    let (outbound_tx, _packets) = mpsc::channel(128);
+    let spawn = runtime.game_server_mut().spawn_player(PlayerSpawnData {
+        session_id: 1,
+        runtime_id: 1,
+        display_name: "Player".into(),
+        xuid: Some("1".into()),
+        uuid: Some(uuid::Uuid::from_u128(1).to_string()),
+        position: glam::DVec3::new(0.5, 65.62, 0.5),
+        outbound_tx,
+        saved_data: None,
+        chunk_radius: 0,
+    });
+    assert!(matches!(
+        spawn,
+        Err(crate::storage::StorageError::RequiredComponentUnavailable)
+    ));
+    let error = runtime.run().await.unwrap_err().to_string();
+    assert!(error.contains("required component"), "{error}");
+    assert!(
+        !error.contains("Address already in use"),
+        "initialization must precede binding: {error}"
+    );
+}
