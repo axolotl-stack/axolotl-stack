@@ -4,8 +4,8 @@ use bevy_ecs::prelude::*;
 use glam::DVec3;
 use std::sync::{Arc, Weak};
 
-use crate::entity::projectile::hooks::PlayerTeleport;
-use crate::server::worlds::PlayerWorldTransfer;
+use crate::entity::projectile::hooks::{PlayerTeleport, PlayerTeleported};
+use crate::server::worlds::{PlayerWorldTransfer, PlayerWorldTransferred};
 
 /// An exact approval belongs to the component instance that actually made it.
 #[derive(Clone, Debug)]
@@ -30,6 +30,16 @@ pub(crate) trait Authorizer: Send + Sync + 'static {
     fn teleport(&self, _world: &mut World, _event: &mut PlayerTeleport) {}
     /// Validate the actual chosen cross-world feet before persistence or ownership movement.
     fn transfer(&self, _source: &mut World, _target: &mut World, _event: &mut PlayerWorldTransfer) {
+    }
+    /// Observe actual movement before ordinary native post-move handlers can replace the source.
+    fn teleported(&self, _world: &mut World, _event: &PlayerTeleported) {}
+    /// Observe the actual migrated actor while both world lifetimes remain available.
+    fn transferred(
+        &self,
+        _source: &mut World,
+        _target: &mut World,
+        _event: &PlayerWorldTransferred,
+    ) {
     }
 }
 
@@ -66,5 +76,19 @@ pub(crate) fn transfer(source: &mut World, target: &mut World, event: &mut Playe
             break;
         }
         handler.transfer(source, target, event);
+    }
+}
+
+/// Report only a caller's actual authoritative position commit; this cannot veto or undo it.
+pub(crate) fn teleported(world: &mut World, event: &PlayerTeleported) {
+    for handler in handlers(world) {
+        handler.teleported(world, event);
+    }
+}
+
+/// Keep source request ownership available until its ordinary terminal listener consumes it.
+pub(crate) fn transferred(source: &mut World, target: &mut World, event: &PlayerWorldTransferred) {
+    for handler in handlers(source) {
+        handler.transferred(source, target, event);
     }
 }

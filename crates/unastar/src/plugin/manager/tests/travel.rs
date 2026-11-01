@@ -241,6 +241,8 @@ impl Harness {
 
 #[path = "travel/authorization.rs"]
 mod authorization;
+#[path = "travel/committed.rs"]
+mod committed;
 
 /// Obtain the exact destination world lifetime during initialization, never a fabricated handle.
 fn load_destination(dimension: i32) -> String {

@@ -88,4 +88,4 @@ pub use raw::{
 };
 pub use raw::{FoodPolicy, PlayerVitals};
 pub use raw::{InventoryMechanicsOperation, InventoryMechanicsStatus};
-pub use raw::{TravelCause, TravelProposal};
+pub use raw::{TravelCause, TravelCommitted, TravelProposal};

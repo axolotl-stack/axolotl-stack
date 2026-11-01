@@ -806,6 +806,19 @@ interface types {
         /// Only the originating component instance sees its request's opaque correlation.
         correlation: option<u64>,
     }
+    /// Actual native movement, independent of durable queued-request receipts or client acknowledgement.
+    /// No live player/world capability is retained by this record.
+    record travel-committed {
+        identity: result<player-identity, access-error>,
+        cause: travel-cause,
+        origin: travel-location,
+        destination: travel-location,
+        origin-world-lifetime: option<string>,
+        destination-world-lifetime: option<string>,
+        captured-tick: option<u64>,
+        /// Present only for the component instance that originated an actual queued request.
+        correlation: option<u64>,
+    }
     enum travel-error {
         cancelled, source-closed, destination-closed, stale-source,
         unavailable, unsafe-destination, rejected, pending, invalid-request,
