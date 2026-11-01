@@ -10,6 +10,8 @@ use crate::ecs::events::{PluginAction, ServerEvent};
 
 #[path = "commands.rs"]
 pub(crate) mod commands;
+#[path = "guest_runtime.rs"]
+mod guest_runtime;
 #[path = "lifecycle.rs"]
 mod lifecycle;
 #[path = "players.rs"]
@@ -238,6 +240,16 @@ fn with_world<R>(
         _world: std::marker::PhantomData,
     };
     call(attachment.store)
+}
+
+/// Enter a synchronous guest on its world owner, with Tokio-safe WASI I/O.
+/// Raw imports/tests may use `with_world`; production exports use this boundary.
+pub(super) fn with_guest_world<R>(
+    store: &mut Store<HostContext>,
+    world: &mut bevy_ecs::world::World,
+    call: impl FnOnce(&mut Store<HostContext>) -> anyhow::Result<R>,
+) -> anyhow::Result<R> {
+    guest_runtime::call(|| with_world(store, world, call))
 }
 
 /// One completion point commits staged imports only after a successful guest export.
@@ -578,7 +590,7 @@ impl PluginManager {
             pending.store.data_mut().view_registry = self.view_registry.clone();
             pending.store.data_mut().plugin_id = pending.manifest.id.clone();
             pending.store.data_mut().capabilities = pending.manifest.capabilities.clone();
-            let result = with_world(&mut pending.store, world, |store| -> anyhow::Result<_> {
+            let result = with_guest_world(&mut pending.store, world, |store| -> anyhow::Result<_> {
                 let mut linker = Linker::<HostContext>::new(&self.engine);
                 wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
                 UnastarPlugin::add_to_linker::<HostContext, HostContext>(&mut linker, |ctx| ctx)?;
@@ -771,7 +783,7 @@ impl PluginManager {
             store: &'a mut Store<HostContext>,
             bindings: &'a UnastarPlugin,
         }
-        let result = with_world(&mut plugin.store, world, |store| {
+        let result = with_guest_world(&mut plugin.store, world, |store| {
             prepare_invocation(store);
             let mut plugin = Invocation {
                 store,
@@ -1189,6 +1201,8 @@ pub(crate) mod tests {
     mod ui_tests;
     #[path = "views.rs"]
     mod views_tests;
+    #[path = "wasi_stdio.rs"]
+    mod wasi_stdio_tests;
 
     #[test]
     fn real_plugin_load_reads_world_and_chat_cancellation_prevents_delivery() {

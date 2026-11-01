@@ -13,7 +13,7 @@ use wasmtime::Store;
 use super::{
     HostContext, LoadedPlugin, PluginManager, UnastarPlugin, make_player_resource, make_world_tx,
 };
-use super::{begin_fuel_budget, prepare_invocation, wit_types, with_world};
+use super::{begin_fuel_budget, prepare_invocation, wit_types, with_guest_world};
 use crate::ecs::events::{ActionQueue, EventKind};
 #[cfg(test)]
 use crate::entity::components::Player;
@@ -263,7 +263,7 @@ pub(super) fn invoke_decided<R>(
     accepted: impl FnOnce(&R) -> bool,
 ) -> anyhow::Result<R> {
     plugin.store.data_mut().pending_actions.clear();
-    let result = with_world(&mut plugin.store, world, |store| {
+    let result = with_guest_world(&mut plugin.store, world, |store| {
         prepare_invocation(store);
         call(store, &plugin.bindings)
     });

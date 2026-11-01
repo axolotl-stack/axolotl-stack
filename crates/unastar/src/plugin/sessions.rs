@@ -2,7 +2,7 @@
 
 use super::{
     PluginManager, make_player_resource, make_world_tx, players, prepare_invocation,
-    wit_types as wit, with_world,
+    wit_types as wit, with_guest_world,
 };
 use crate::ecs::events::EventKind;
 use crate::entity::components::{PlayerSession, RuntimeEntityId};
@@ -144,7 +144,7 @@ impl PluginManager {
             }
             let plugin = self.plugins.get_mut(&owner).expect("subscribed component");
             plugin.store.data_mut().pending_actions.clear();
-            let result = with_world(&mut plugin.store, world, |store| -> anyhow::Result<_> {
+            let result = with_guest_world(&mut plugin.store, world, |store| -> anyhow::Result<_> {
                 prepare_invocation(store);
                 store.data_mut().active_admission = Some(active.clone());
                 let tx = make_world_tx(store)?;
@@ -207,7 +207,7 @@ impl PluginManager {
             }
             let plugin = self.plugins.get_mut(&owner).expect("subscribed component");
             plugin.store.data_mut().pending_actions.clear();
-            let result = with_world(&mut plugin.store, world, |store| -> anyhow::Result<_> {
+            let result = with_guest_world(&mut plugin.store, world, |store| -> anyhow::Result<_> {
                 prepare_invocation(store);
                 let tx = make_world_tx(store)?;
                 plugin.bindings.call_on_player_quit(store, tx, &record)
@@ -243,7 +243,7 @@ impl PluginManager {
         let record = wit::AdmittedEvent { observation };
         for owner in self.subscribers(EventKind::PlayerAdmitted) {
             let plugin = self.plugins.get_mut(&owner).expect("subscribed component");
-            let result = with_world(&mut plugin.store, world, |store| {
+            let result = with_guest_world(&mut plugin.store, world, |store| {
                 prepare_invocation(store);
                 plugin.bindings.call_on_player_admitted(store, &record)
             });

@@ -144,7 +144,7 @@ fn request(server: &mut GameServer, line: &str) {
     server.tick();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_request_reaches_scoped_handler_and_preserves_opaque_origin_id() {
     let (mut server, manager) = harness();
     add(
@@ -191,7 +191,7 @@ async fn real_request_reaches_scoped_handler_and_preserves_opaque_origin_id() {
     assert_eq!(messages, 1);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn builtin_registration_keeps_metadata_and_pass_keeps_native_permissions() {
     let (mut server, manager) = harness();
     let baseline = server
@@ -233,7 +233,7 @@ async fn builtin_registration_keeps_metadata_and_pass_keeps_native_permissions()
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn another_owner_conflicts_and_trapped_registration_is_rolled_back_before_next_init() {
     for trap in [false, true] {
         let (mut server, manager) = harness();
@@ -275,7 +275,7 @@ async fn another_owner_conflicts_and_trapped_registration_is_rolled_back_before_
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn owner_unload_removes_only_its_roots_and_exact_channel_replacement_gets_a_fresh_catalogue()
 {
     let (mut server, manager) = harness();
@@ -341,7 +341,7 @@ async fn owner_unload_removes_only_its_roots_and_exact_channel_replacement_gets_
     assert!(advertisements(&mut rx).is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn registration_validates_capability_quota_identifiers_and_builtin_aliases() {
     for case in ["capability", "quota", "identifier", "builtin-alias"] {
         let (mut server, manager) = harness();
@@ -398,7 +398,7 @@ async fn registration_validates_capability_quota_identifiers_and_builtin_aliases
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn catalogue_backpressure_retries_without_advancing_the_delivery_cache() {
     let (mut server, manager) = harness();
     add(
@@ -466,7 +466,7 @@ impl crate::server::game::player_events::PlayerEventHandler for HoldInitial {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn initializing_connection_receives_no_advertisement_until_actual_initial_publication() {
     let (mut server, manager) = harness();
     add(
@@ -512,7 +512,7 @@ async fn initializing_connection_receives_no_advertisement_until_actual_initial_
     assert!(advertisements(&mut rx).is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn handled_builtin_and_trapping_required_callback_never_execute_native_default() {
     for trap in [false, true] {
         let (mut server, manager) = harness();
