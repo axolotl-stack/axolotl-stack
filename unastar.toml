@@ -64,6 +64,15 @@ block_network_ids = "hashed"
 # operators = ["Steve", "2535400000000000"]
 operators = []
 
+[resource_packs]
+# Local .mcpack or ZIP archives, in advertised stack order, relative to this working directory.
+# Every archive is validated and retained before listeners start. Restart to offer changes.
+paths = []
+# Maximum combined archive bytes retained for both transports (512 MiB).
+max_total_bytes = 536870912
+# Maximum decompressed manifest.json bytes per archive (1 MiB).
+max_manifest_bytes = 1048576
+
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
 dimension = 0

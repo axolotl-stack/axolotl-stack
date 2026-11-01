@@ -87,6 +87,44 @@ an Xbox account and prove the same identity key. An unproven or mismatched key
 cannot become an admitted online account. Offline mode still requires the
 explicit server setting and is intended for controlled testing.
 
+## Resource packs
+
+Configure resource-pack archives in their advertised stack order:
+
+```toml
+[server]
+require_resource_packs = true
+
+[resource_packs]
+paths = ["packs/interface.mcpack", "packs/sounds.mcpack"]
+max_total_bytes = 536870912
+max_manifest_bytes = 1048576
+```
+
+Paths are relative to the server's working directory. Each archive must contain
+a root `manifest.json` with a non-nil header UUID, a version, a minimum engine
+version and at least one `resources` module with its own UUID and version.
+Header and module UUIDs must be unique across the configured stack. Manifest
+formats 2 and 3 are supported, including JSON comments; format 3 requires text
+versions. Behavior and script modules are rejected rather than executed.
+
+The runtime reads and validates every configured archive before initializing
+plugins or binding listeners. Missing files, malformed manifests and exceeded
+byte limits fail startup. RakNet and NetherNet use the same immutable archive
+bytes, hashes and order throughout that server lifetime. Restart to offer changed
+archives; changing a file during play does not change an existing offer. Empty
+`paths` preserves the default empty offer. Pack acceptance is controlled separately
+by `server.require_resource_packs`.
+
+Components can query `server::resource_packs()` during initialization and later
+callbacks. It returns that runtime's actual required flag and ordered UUID,
+version and SHA-256 values. An embedding that has not installed an offer returns
+`Unavailable`; this is distinct from a validated empty offer. The facts describe
+the server's advertised stack and do not claim a client has rendered its content.
+
+This loader negotiates and transfers resource packs. It does not interpret their
+client-side content or load behavior packs into the server.
+
 ## Embedding the runtime
 
 Native Rust applications can configure the initialized game server through

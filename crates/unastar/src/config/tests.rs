@@ -69,6 +69,42 @@ const VOID_WORLD: &str =
     "[world.generator]\nkind = 'void_spawn_platform'\nplatform_radius_chunks = 1\n";
 
 #[test]
+fn resource_pack_samples_keep_defaults_and_explicit_limits_reject_invalid_values() {
+    let defaults = toml_edit::ser::to_string(&ResourcePackConfig::default()).unwrap();
+    for sample in [
+        include_str!("../../../../unastar.toml"),
+        include_str!("../../unastar.toml"),
+        "",
+    ] {
+        let config: UnastarConfig = toml_edit::de::from_str(sample).unwrap();
+        assert_eq!(
+            toml_edit::ser::to_string(&config.resource_packs).unwrap(),
+            defaults
+        );
+        assert!(config.validate_network().is_ok());
+    }
+    for values in [
+        "paths = ['']",
+        "max_total_bytes = 0",
+        "max_manifest_bytes = 0",
+    ] {
+        let config: UnastarConfig =
+            toml_edit::de::from_str(&format!("{VOID_WORLD}[resource_packs]\n{values}\n")).unwrap();
+        assert!(config.validate_network().is_err(), "{values}");
+    }
+    let config: UnastarConfig = toml_edit::de::from_str(&format!(
+        "{VOID_WORLD}[resource_packs]\npaths = ['packs/interface.mcpack']\nmax_total_bytes = 4096\nmax_manifest_bytes = 1024\n"
+    ))
+    .unwrap();
+    assert!(config.validate_network().is_ok());
+    assert_eq!(
+        config.resource_packs.paths,
+        [PathBuf::from("packs/interface.mcpack")]
+    );
+    assert!(toml_edit::de::from_str::<UnastarConfig>("[resource_packs]\nunknown = true").is_err());
+}
+
+#[test]
 fn unknown_config_keys_are_rejected_instead_of_silently_ignored() {
     let file = ConfigFile::new();
     for source in [

@@ -565,6 +565,7 @@ impl<'scope> PlayerContext<'scope> {
 
 /// Global enumeration returns storable handles, never live foreign-world players.
 pub mod server {
+    pub use crate::host::{ResourcePack, ResourcePackOffer};
     pub use crate::host::{configuration, get_tick_id, log, unix_time_seconds};
     use crate::{AccessError, PlayerHandle, WorldHandle};
     /// Enumerate immutable references to actors across registered worlds.
@@ -574,5 +575,9 @@ pub mod server {
     /// Schedule work through a world reference to receive its own fresh transaction.
     pub fn worlds() -> Result<Vec<WorldHandle>, AccessError> {
         crate::host::worlds()
+    }
+    /// Read the actual immutable server offer, independently of client-side rendering.
+    pub fn resource_packs() -> Result<ResourcePackOffer, AccessError> {
+        crate::host::resource_packs()
     }
 }

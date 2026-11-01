@@ -10,7 +10,9 @@ use crate::world::WorldConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
+mod resource_packs;
 mod worlds;
+pub use resource_packs::ResourcePackConfig;
 pub use worlds::{SecondaryWorldConfig, WorldStorageConfig};
 
 #[cfg(test)]
@@ -36,6 +38,7 @@ where
 #[serde(default, deny_unknown_fields)]
 pub struct UnastarConfig {
     pub server: ServerConfigFile,
+    pub resource_packs: ResourcePackConfig,
     pub world: WorldConfig,
     pub world_storage: WorldStorageConfig,
     pub secondary_worlds: Vec<SecondaryWorldConfig>,
@@ -49,6 +52,7 @@ impl Default for UnastarConfig {
     fn default() -> Self {
         Self {
             server: ServerConfigFile::default(),
+            resource_packs: ResourcePackConfig::default(),
             world: WorldConfig::default(),
             world_storage: WorldStorageConfig::default(),
             secondary_worlds: Vec::new(),
@@ -90,6 +94,7 @@ impl UnastarConfig {
 
     /// Validate listener resource bounds independently of world-generator setup.
     pub(crate) fn validate_network(&self) -> Result<(), String> {
+        self.resource_packs.validate()?;
         if !(1..=300).contains(&self.server.handshake_timeout_seconds) {
             return Err("`server.handshake_timeout_seconds` must be in 1..=300".into());
         }

@@ -4,7 +4,6 @@
 //! networking, and the game server tick loop.
 
 use jolyne::listener::RawListener;
-use jolyne::proto::packs::ServerPacks;
 use jolyne::status::{ServerStatus, StatusGameMode, StatusProvider};
 use jolyne::{BedrockListener, BedrockListenerConfig, FlushMode};
 use p384::SecretKey;
@@ -157,6 +156,18 @@ impl UnastarServer {
         self.config
             .validate_network()
             .map_err(std::io::Error::other)?;
+        let resource_packs = super::resource_packs::load(
+            &self.config.resource_packs,
+            self.config.server.require_resource_packs,
+        )?;
+        for (_, world) in self.server.iter_mut() {
+            world
+                .ecs
+                .world_mut()
+                .insert_resource(super::resource_packs::ConfiguredPacks(
+                    resource_packs.clone(),
+                ));
+        }
         self.server.initialize_plugins()?;
         let status = Arc::new(RuntimeStatus::new(&self.config));
 
@@ -165,10 +176,7 @@ impl UnastarServer {
             online_mode: self.config.server.online_mode,
             allow_legacy_auth: self.config.server.allow_legacy_auth,
             encryption_enabled: self.config.server.encryption_enabled,
-            resource_packs: Arc::new(ServerPacks {
-                required: self.config.server.require_resource_packs,
-                ..ServerPacks::default()
-            }),
+            resource_packs,
             // Advertise the configured MOTD, live player count and limit
             // (protocol and game version come from jolyne's pinned surface).
             max_players: self.config.server.max_players as usize,

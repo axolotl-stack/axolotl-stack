@@ -492,3 +492,127 @@ mod inventory_write_tests;
 mod item_comparison_tests;
 #[path = "state_restoration.rs"]
 mod state_restoration_tests;
+
+/// The actual component receives an error until a runtime has installed a real offer.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn resource_pack_offer_is_unavailable_before_runtime_installation() {
+    let (mut router, _clients) = router();
+    let body = format!(
+        "i32.const 512 call @resource-packs@ i32.const 512 i32.load8_u i32.const 1 i32.ne if unreachable end {}",
+        witness()
+    );
+    let manager = attach_scoped(&mut router, &[("on-load", body)]);
+    router.initialize_plugins().unwrap();
+    assert_eq!(logs(&manager), ["x"]);
+}
+
+/// An installed empty offer is a successful fact, not the absence of runtime configuration.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn resource_pack_offer_distinguishes_an_actual_empty_stack_from_unavailability() {
+    let (mut router, _clients) = router();
+    let offer =
+        crate::server::resource_packs::load(&crate::config::ResourcePackConfig::default(), false)
+            .unwrap();
+    for (_, world) in router.iter_mut() {
+        world
+            .ecs
+            .world_mut()
+            .insert_resource(crate::server::resource_packs::ConfiguredPacks(
+                offer.clone(),
+            ));
+    }
+    let body = format!(
+        "i32.const 512 call @resource-packs@ i32.const 512 i32.load8_u if unreachable end i32.const 516 i32.load8_u if unreachable end i32.const 524 i32.load if unreachable end {}",
+        witness()
+    );
+    let manager = attach_scoped(&mut router, &[("on-load", body)]);
+    router.initialize_plugins().unwrap();
+    assert_eq!(logs(&manager), ["x"]);
+}
+
+/// Check canonical record/list/string lowering against actual original loaded archives.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn resource_pack_offer_reports_the_immutable_required_stack_in_actual_component_callbacks() {
+    use crate::server::resource_packs::{
+        self, ConfiguredPacks,
+        tests::{archive, configured, document},
+    };
+    use serde_json::json;
+    let first = archive(
+        document(10, json!([1, 2, 3])).to_string().as_bytes(),
+        "manifest.json",
+    );
+    let second = archive(
+        document(20, json!([4, 5, 6])).to_string().as_bytes(),
+        "manifest.json",
+    );
+    let (directory, mut config) = configured(&first);
+    let path = directory.path().join("second.mcpack");
+    std::fs::write(&path, second).unwrap();
+    config.paths.push(path);
+    let offer = resource_packs::load(&config, true).unwrap();
+    let mut body = String::from(
+        "i32.const 512 call @resource-packs@ i32.const 512 i32.load8_u if unreachable end i32.const 516 i32.load8_u i32.const 1 i32.ne if unreachable end i32.const 524 i32.load i32.const 2 i32.ne if unreachable end ",
+    );
+    for (index, pack) in offer.packs.iter().enumerate() {
+        let fields = [
+            (0, pack.uuid.to_string().into_bytes()),
+            (8, pack.version.as_bytes().to_vec()),
+            (16, pack.sha256().to_vec()),
+        ];
+        for (offset, bytes) in fields {
+            let field = index * 24 + offset;
+            body.push_str(&format!("i32.const 520 i32.load i32.const {} i32.add i32.load i32.const {} i32.ne if unreachable end ", field+4, bytes.len()));
+            for (byte_index, byte) in bytes.iter().enumerate() {
+                body.push_str(&format!("i32.const 520 i32.load i32.const {field} i32.add i32.load i32.const {byte_index} i32.add i32.load8_u i32.const {byte} i32.ne if unreachable end "));
+            }
+        }
+    }
+    body.push_str(witness());
+    let (mut router, _clients) = router();
+    for (_, world) in router.iter_mut() {
+        world
+            .ecs
+            .world_mut()
+            .insert_resource(ConfiguredPacks(offer.clone()));
+    }
+    // Mutating paths cannot turn the loaded metadata into a fresh or partial offer.
+    for path in &config.paths {
+        std::fs::write(path, b"changed after load").unwrap();
+    }
+    let manager = attach_scoped(&mut router, &[("on-load", body.clone()), ("on-tick", body)]);
+    router.initialize_plugins().unwrap();
+    assert_eq!(logs(&manager), ["x"]);
+    router.tick().await.unwrap();
+    assert_eq!(logs(&manager), ["x"]);
+}
+
+/// A malformed physical player cannot disappear from an apparently complete fresh enumeration.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn scoped_player_enumeration_rejects_malformed_actors_instead_of_returning_a_partial_list() {
+    let (mut router, clients) = router();
+    let malformed = router
+        .world_mut(0)
+        .unwrap()
+        .ecs
+        .world_mut()
+        .spawn(crate::entity::components::Player)
+        .id();
+    let body = format!(
+        "local.get 0 i32.const 512 call @[method]world-tx.players@ i32.const 512 i32.load8_u i32.const 768 i32.load8_u i32.const 1 i32.xor i32.ne if unreachable end i32.const 768 i32.const 1 i32.store8 {}",
+        witness()
+    );
+    let manager = attach_scoped(&mut router, &[("on-player-jump", body)]);
+    scope_callback(&mut router, clients[0].0);
+    router.tick().await.unwrap();
+    assert_eq!(logs(&manager), ["x"]);
+    router
+        .world_mut(0)
+        .unwrap()
+        .ecs
+        .world_mut()
+        .despawn(malformed);
+    scope_callback(&mut router, clients[0].0);
+    router.tick().await.unwrap();
+    assert_eq!(logs(&manager), ["x"]);
+}

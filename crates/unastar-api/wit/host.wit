@@ -3,6 +3,18 @@ package unastar:plugin@0.4.0;
 interface host {
     use types.{log-level, player-handle, world-handle, access-error};
 
+    /// The immutable archive identity offered by the running server.
+    record resource-pack {
+        uuid: string,
+        version: string,
+        sha256: list<u8>,
+    }
+    /// This describes the configured offer, not a client's rendering or installation.
+    record resource-pack-offer {
+        required: bool,
+        packs: list<resource-pack>,
+    }
+
     /// Immutable operator-provided bytes, cached before component initialization.
     configuration: func() -> list<u8>;
 
@@ -11,5 +23,7 @@ interface host {
     /// Stable handles, never borrowed players from other live worlds.
     players: func() -> result<list<player-handle>, access-error>;
     worlds: func() -> result<list<world-handle>, access-error>;
+    /// Unavailable before the runtime installs its validated archive offer.
+    resource-packs: func() -> result<resource-pack-offer, access-error>;
     log: func(level: log-level, message: string);
 }

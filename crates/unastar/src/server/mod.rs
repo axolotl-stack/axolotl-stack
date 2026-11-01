@@ -4,6 +4,7 @@ pub mod broadcast;
 pub mod config;
 pub mod connect;
 pub mod game;
+pub(crate) mod resource_packs;
 pub mod runtime;
 pub mod timer;
 #[cfg(test)]

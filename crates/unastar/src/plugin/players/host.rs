@@ -420,7 +420,15 @@ impl super::super::wit_bindings::unastar::plugin::types::HostWorldTx for HostCon
     ) -> Result<Vec<Resource<wit::PlayerHandle>>, wit::AccessError> {
         self.transaction(tx.rep())?;
         self.require(PluginCapability::ReadPlayers)?;
-        let mut observed = observe(self.world_mut());
+        let world = self.world_mut();
+        let count = world
+            .query_filtered::<Entity, With<crate::entity::components::Player>>()
+            .iter(world)
+            .count();
+        let mut observed = observe(world);
+        if observed.len() != count {
+            return Err(wit::AccessError::InvalidIdentity);
+        }
         observed.sort_by_key(|actor| actor.reference.uuid);
         if self.resources.entries.len() + observed.len()
             > self.api_limits.max_owned_resources as usize
@@ -556,6 +564,31 @@ impl super::super::wit_bindings::unastar::plugin::types::HostTask for HostContex
 impl super::super::wit_bindings::unastar::plugin::types::Host for HostContext {}
 
 impl super::super::wit_bindings::unastar::plugin::host::Host for HostContext {
+    fn resource_packs(
+        &mut self,
+    ) -> Result<
+        super::super::wit_bindings::unastar::plugin::host::ResourcePackOffer,
+        wit::AccessError,
+    > {
+        self.operation()?;
+        let packs = unsafe { self.world() }
+            .get_resource::<crate::server::resource_packs::ConfiguredPacks>()
+            .ok_or(wit::AccessError::Unavailable)?;
+        use super::super::wit_bindings::unastar::plugin::host::{ResourcePack, ResourcePackOffer};
+        Ok(ResourcePackOffer {
+            required: packs.0.required,
+            packs: packs
+                .0
+                .packs
+                .iter()
+                .map(|pack| ResourcePack {
+                    uuid: pack.uuid.to_string(),
+                    version: pack.version.clone(),
+                    sha256: pack.sha256().to_vec(),
+                })
+                .collect(),
+        })
+    }
     fn configuration(&mut self) -> Vec<u8> {
         self.configuration.clone()
     }

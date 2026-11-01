@@ -484,6 +484,50 @@ async fn invalid_configured_key_fails_before_http_listener_is_bound() {
 }
 
 /// Run in an isolated process because the production loader resolves plugin files from CWD.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn invalid_resource_pack_fails_before_either_listener_binds() {
+    const ISOLATED: &str = "UNASTAR_RESOURCE_PACK_STARTUP_TEST";
+    if std::env::var_os(ISOLATED).is_none() {
+        let directory = tempfile::tempdir().unwrap();
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "server::runtime::tests::invalid_resource_pack_fails_before_either_listener_binds",
+                "--nocapture",
+            ])
+            .env(ISOLATED, "1")
+            .current_dir(directory.path())
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        return;
+    }
+    let udp = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+    let tcp = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    std::fs::write("invalid.mcpack", b"invalid archive").unwrap();
+    let mut config = UnastarConfig {
+        world: crate::world::WorldConfig::void_spawn_platform(1),
+        ..Default::default()
+    };
+    config.players.leveldb_enabled = false;
+    config.server.bind_address = udp.local_addr().unwrap().to_string();
+    config.server.nethernet = Some(crate::config::NetherNetConfig {
+        bind_address: tcp.local_addr().unwrap(),
+        ..Default::default()
+    });
+    config.resource_packs.paths.push("invalid.mcpack".into());
+    let mut runtime = UnastarServer::new(Arc::new(config)).await.unwrap();
+    let error = runtime.run().await.unwrap_err().to_string();
+    assert!(error.contains("invalid ZIP archive"), "{error}");
+    assert!(!error.contains("Address already in use"), "{error}");
+}
+
+/// Run in an isolated process because the production loader resolves plugin files from CWD.
 #[tokio::test]
 async fn required_component_initializes_before_listener_binding_and_admission() {
     const ISOLATED: &str = "UNASTAR_REQUIRED_COMPONENT_STARTUP_TEST";
