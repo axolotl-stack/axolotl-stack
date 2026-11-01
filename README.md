@@ -157,8 +157,26 @@ state after correcting the failure; another tick does not reopen admission.
 A manifest may set `config = "settings.bin"`. The loader caches at most 1 MiB of
 opaque bytes from a regular file contained in the plugin directory before
 instantiation. Absolute paths, escapes and symlinks outside that directory are
-rejected. Configuration does not grant filesystem access. The cache is internal
-in API 0.3; exposing those bytes to components requires a versioned host binding.
+rejected. Components read the cached bytes through `host.configuration()`;
+an omitted file yields empty bytes. Configuration does not grant filesystem access.
+
+Components can keep opaque durable values through the typed `storage` interface
+without requesting filesystem access. A manifest ID owns one isolated namespace,
+including across reloads. `read` returns a value and its revision;
+`compare-exchange` creates an absent key or replaces the exact expected revision.
+Success acknowledges a flushed file and directory. Corrupt data is an error and
+never becomes an empty namespace. A second server cannot open the same namespace.
+
+`uncertain` means installation may have succeeded: read back and reconcile before
+retrying. An acknowledged storage write remains durable if a later guest operation
+traps; it does not roll back with queued world effects. Components must coordinate
+their durable state and side effects accordingly. Storage does not renew guest
+fuel; bounded time spent in storage imports is excluded from the epoch allowance.
+
+Operators configure capacity under `[plugins.storage]` in `unastar.toml`.
+`storage.limits()` reports the effective limits to the guest. The directory must
+stay outside plugin filesystem preopens. Logical keys use up to 128 ASCII letters,
+digits, dots, hyphens or underscores, excluding `.` and `..`.
 
 
 ### Scoped WASM player API

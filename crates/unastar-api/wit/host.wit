@@ -3,6 +3,9 @@ package unastar:plugin@0.4.0;
 interface host {
     use types.{log-level, player-handle, world-handle, access-error};
 
+    /// Immutable operator-provided bytes, cached before component initialization.
+    configuration: func() -> list<u8>;
+
     get-tick-id: func() -> u64;
     unix-time-seconds: func() -> u64;
     /// Stable handles, never borrowed players from other live worlds.

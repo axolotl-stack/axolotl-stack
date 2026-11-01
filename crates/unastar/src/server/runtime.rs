@@ -133,6 +133,7 @@ impl UnastarServer {
         let mut plugin_manager = PluginManager::new()
             .map_err(|e| format!("Failed to initialize plugin manager: {}", e))?;
         plugin_manager.require_plugins(&config.plugins.required);
+        plugin_manager.configure_storage(&config.plugins.storage)?;
 
         // Load plugins from "plugins" directory relative to CWD
         let plugins_dir = std::env::current_dir()?.join("plugins");

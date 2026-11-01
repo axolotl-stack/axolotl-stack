@@ -14,6 +14,8 @@ mod lifecycle;
 pub(crate) mod players;
 #[path = "readiness.rs"]
 pub(crate) mod readiness;
+#[path = "storage_bridge.rs"]
+mod storage_bridge;
 #[path = "tasks.rs"]
 mod tasks;
 
@@ -63,6 +65,9 @@ pub struct HostContext {
     limits: wasmtime::StoreLimits,
     /// Immutable opaque bytes loaded before component instantiation.
     configuration: Vec<u8>,
+    storage_registry: std::sync::Arc<std::sync::Mutex<super::storage::Registry>>,
+    storage_namespace: Option<super::storage::SharedNamespace>,
+    io_budget: super::io_budget::IoBudget,
 }
 
 // Safety: We only access world_ptr from the thread that owns the World (during system execution).
@@ -105,6 +110,9 @@ impl HostContext {
                 .trap_on_grow_failure(true)
                 .build(),
             configuration: Vec::new(),
+            storage_registry: Default::default(),
+            storage_namespace: None,
+            io_budget: Default::default(),
         }
     }
 
@@ -135,6 +143,7 @@ pub struct PluginManager {
     tick_prepared: bool,
     tick_budget_valid: bool,
     readiness: readiness::PluginReadiness,
+    storage_registry: std::sync::Arc<std::sync::Mutex<super::storage::Registry>>,
 }
 
 struct LoadedPlugin {
@@ -184,7 +193,8 @@ fn begin_fuel_budget(store: &mut Store<HostContext>, limits: &PluginLimits) -> a
 
 /// Wall-clock interruption is independent of the shared per-tick fuel budget.
 fn prepare_invocation(store: &mut Store<HostContext>) {
-    store.set_epoch_deadline(2);
+    store.data_mut().io_budget.reset(std::time::Instant::now());
+    store.set_epoch_deadline(super::io_budget::INVOCATION_EPOCHS);
 }
 
 fn create_store(
@@ -195,6 +205,17 @@ fn create_store(
 ) -> anyhow::Result<Store<HostContext>> {
     let mut store = Store::new(engine, HostContext::new(wasi_ctx, plugin_id, limits));
     store.limiter(|ctx| &mut ctx.limits);
+    store.epoch_deadline_callback(|context| {
+        if context
+            .data()
+            .io_budget
+            .may_continue(std::time::Instant::now())
+        {
+            Ok(wasmtime::UpdateDeadline::Continue(1))
+        } else {
+            Err(anyhow::anyhow!("component guest epoch deadline exhausted"))
+        }
+    });
     begin_fuel_budget(&mut store, limits)?;
     prepare_invocation(&mut store);
     Ok(store)
@@ -232,6 +253,24 @@ fn placement_depends_on_interaction(previous: &ServerEvent, event: &ServerEvent)
 }
 
 impl PluginManager {
+    /// Configure isolated storage before discovering or instantiating components.
+    pub(crate) fn configure_storage(
+        &mut self,
+        config: &crate::config::PluginStorageConfig,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.plugins.is_empty() && self.pending.is_empty(),
+            "component storage must be configured before discovery"
+        );
+        config
+            .limits()
+            .validate()
+            .map_err(|_| anyhow::anyhow!("invalid component storage limits"))?;
+        self.storage_registry = std::sync::Arc::new(std::sync::Mutex::new(
+            super::storage::Registry::new(config.directory.clone(), config.limits()),
+        ));
+        Ok(())
+    }
     pub fn new() -> Result<Self, anyhow::Error> {
         let mut config = wasmtime::Config::new();
         config.wasm_component_model(true);
@@ -245,7 +284,7 @@ impl PluginManager {
         // Uses the tokio runtime already running for network I/O.
         let epoch_engine = engine.clone();
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_millis(5));
+            let mut interval = tokio::time::interval(super::io_budget::EPOCH_INTERVAL);
             loop {
                 interval.tick().await;
                 epoch_engine.increment_epoch();
@@ -259,6 +298,7 @@ impl PluginManager {
             tick_prepared: false,
             tick_budget_valid: true,
             readiness: Default::default(),
+            storage_registry: Default::default(),
         })
     }
 
@@ -273,6 +313,16 @@ impl PluginManager {
                 .discovered(&Default::default())
                 .map_err(anyhow::Error::msg);
         }
+
+        self.storage_registry
+            .lock()
+            .map_err(|_| anyhow::anyhow!("component storage registry is unavailable"))?
+            .validate_directory(plugins_dir)
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "component storage must be outside filesystem preopens with valid limits"
+                )
+            })?;
 
         let mut found_any = false;
         for entry in std::fs::read_dir(plugins_dir)? {
@@ -375,6 +425,11 @@ impl PluginManager {
             .capabilities
             .contains(&crate::plugin::manifest::PluginCapability::Filesystem)
         {
+            self.storage_registry
+                .lock()
+                .map_err(|_| anyhow::anyhow!("component storage registry is unavailable"))?
+                .validate_directory(plugin_dir)
+                .map_err(|_| anyhow::anyhow!("component filesystem overlaps durable storage"))?;
             let dir_perm = wasmtime_wasi::DirPerms::all();
             let file_perm = wasmtime_wasi::FilePerms::all();
             wasi_builder.preopened_dir(plugin_dir, ".", dir_perm, file_perm)?;
@@ -383,6 +438,7 @@ impl PluginManager {
 
         let mut store = create_store(&self.engine, wasi_ctx, plugin_id, &manifest.limits)?;
         store.data_mut().configuration = configuration;
+        store.data_mut().storage_registry = self.storage_registry.clone();
         tracing::debug!(
             config_bytes = store.data().configuration.len(),
             "Component configuration prepared"
@@ -1019,6 +1075,8 @@ pub(crate) mod tests {
 
     #[path = "readiness.rs"]
     mod readiness_tests;
+    #[path = "storage.rs"]
+    mod storage_tests;
 
     #[test]
     fn real_plugin_load_reads_world_and_chat_cancellation_prevents_delivery() {
@@ -1047,6 +1105,7 @@ pub(crate) mod tests {
                 tick_prepared: false,
                 tick_budget_valid: true,
                 readiness: Default::default(),
+                storage_registry: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::world::ChunkManager::new(
@@ -1161,6 +1220,7 @@ pub(crate) mod tests {
                 tick_prepared: false,
                 tick_budget_valid: true,
                 readiness: Default::default(),
+                storage_registry: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1252,6 +1312,7 @@ pub(crate) mod tests {
             tick_prepared: false,
             tick_budget_valid: true,
             readiness: Default::default(),
+            storage_registry: Default::default(),
         };
         let mut world = bevy_ecs::world::World::new();
         world.insert_resource(crate::ecs::resources::TickCounter::default());

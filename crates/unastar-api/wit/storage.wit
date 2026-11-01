@@ -1,0 +1,30 @@
+package unastar:plugin@0.4.0;
+
+/// Durable opaque values are isolated by component identity, without filesystem access.
+interface storage {
+    record blob {
+        revision: u64,
+        bytes: list<u8>,
+    }
+
+    enum storage-error {
+        invalid-key,
+        quota-exceeded,
+        conflict,
+        io-error,
+        uncertain,
+    }
+
+    record storage-limits {
+        max-value-bytes: u64,
+        max-namespace-bytes: u64,
+        max-keys: u64,
+    }
+
+    limits: func() -> storage-limits;
+    read: func(key: string) -> result<option<blob>, storage-error>;
+    /// None expects absence; successful creation acknowledges revision1.
+    /// A successful replacement acknowledges exactly the next durable revision.
+    /// Uncertain writes require a reconciliation read before any further write.
+    compare-exchange: func(key: string, expected-revision: option<u64>, bytes: list<u8>) -> result<u64, storage-error>;
+}

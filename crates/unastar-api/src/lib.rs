@@ -26,6 +26,7 @@ pub use bindings::Guest;
 #[doc(hidden)]
 pub use bindings::export;
 pub use bindings::unastar::plugin::host;
+pub use bindings::unastar::plugin::storage;
 /// Canonical WIT bindings for advanced component integrations.
 /// Live raw resources still expire at their originating callback boundary.
 pub mod raw {

@@ -209,10 +209,52 @@ impl UnastarConfig {
 pub struct PluginConfig {
     /// Manifest IDs, independent of directory names; an empty list requires none.
     pub required: Vec<String>,
+    pub storage: PluginStorageConfig,
+}
+
+/// Opaque component data is kept separately from filesystem capability preopens.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct PluginStorageConfig {
+    pub directory: PathBuf,
+    pub max_value_bytes: usize,
+    pub max_namespace_bytes: u64,
+    pub max_keys: usize,
+}
+
+impl Default for PluginStorageConfig {
+    /// Share defaults with the actual durable namespace implementation.
+    fn default() -> Self {
+        let limits = crate::plugin::storage::Limits::default();
+        Self {
+            directory: PathBuf::from(crate::plugin::storage::DEFAULT_DIRECTORY),
+            max_value_bytes: limits.value_bytes,
+            max_namespace_bytes: limits.namespace_bytes,
+            max_keys: limits.keys,
+        }
+    }
+}
+
+impl PluginStorageConfig {
+    /// Convert operator limits to the internal storage contract.
+    pub(crate) fn limits(&self) -> crate::plugin::storage::Limits {
+        crate::plugin::storage::Limits {
+            value_bytes: self.max_value_bytes,
+            namespace_bytes: self.max_namespace_bytes,
+            keys: self.max_keys,
+        }
+    }
 }
 impl PluginConfig {
     /// Reject ambiguous, empty or unbounded required component identities.
     pub(crate) fn validate(&self) -> Result<(), String> {
+        if self.storage.directory.as_os_str().is_empty()
+            || self.storage.limits().validate().is_err()
+        {
+            return Err(
+                "`plugins.storage` requires a directory and positive non-overflowing limits".into(),
+            );
+        }
         let unique: std::collections::BTreeSet<_> = self.required.iter().collect();
         if self.required.len() > 128
             || unique.len() != self.required.len()

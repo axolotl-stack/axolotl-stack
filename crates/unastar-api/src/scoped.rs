@@ -169,7 +169,7 @@ impl<'scope> PlayerContext<'scope> {
 
 /// Global enumeration returns storable handles, never live foreign-world players.
 pub mod server {
-    pub use crate::host::{get_tick_id, log, unix_time_seconds};
+    pub use crate::host::{configuration, get_tick_id, log, unix_time_seconds};
     use crate::{AccessError, PlayerHandle, WorldHandle};
     /// Enumerate immutable references to actors across registered worlds.
     pub fn players() -> Result<Vec<PlayerHandle>, AccessError> {

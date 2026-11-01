@@ -261,6 +261,9 @@ impl super::super::wit_bindings::unastar::plugin::types::HostTask for HostContex
 impl super::super::wit_bindings::unastar::plugin::types::Host for HostContext {}
 
 impl super::super::wit_bindings::unastar::plugin::host::Host for HostContext {
+    fn configuration(&mut self) -> Vec<u8> {
+        self.configuration.clone()
+    }
     fn get_tick_id(&mut self) -> u64 {
         unsafe { self.world() }
             .get_resource::<crate::ecs::resources::TickCounter>()
