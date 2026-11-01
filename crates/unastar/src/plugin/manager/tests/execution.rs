@@ -286,19 +286,15 @@ fn execution_limits_roundtrip_and_invalid_allowances_fail_before_guest_execution
     assert_eq!(restored.callback_timeout_ms, 25);
     for limits in [
         PluginLimits {
-            initialization_timeout_ms: 0,
-            ..Default::default()
-        },
-        PluginLimits {
             initialization_timeout_ms: 60001,
             ..Default::default()
         },
         PluginLimits {
-            callback_timeout_ms: 0,
+            callback_timeout_ms: 1001,
             ..Default::default()
         },
         PluginLimits {
-            callback_timeout_ms: 1001,
+            host_io_timeout_ms: 60001,
             ..Default::default()
         },
     ] {
@@ -313,3 +309,6 @@ fn execution_limits_roundtrip_and_invalid_allowances_fail_before_guest_execution
         );
     }
 }
+
+#[path = "execution_deadlines.rs"]
+mod optional_deadlines;

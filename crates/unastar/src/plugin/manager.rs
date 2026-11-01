@@ -313,7 +313,7 @@ fn begin_fuel_budget(store: &mut Store<HostContext>, limits: &PluginLimits) -> a
     store.set_fuel(fuel_allowance(limits.fuel_per_tick))
 }
 
-/// Exempt components use maximal engine fuel within their independent bounded deadline.
+/// Exempt components use maximal engine fuel independently of optional time allowances.
 fn fuel_allowance(configured: u64) -> u64 {
     if configured == 0 {
         u64::MAX
@@ -328,16 +328,21 @@ fn prepare_invocation(store: &mut Store<HostContext>) {
     prepare_deadline(store, timeout);
 }
 
-/// Set one bounded CPU allowance; only measured trusted storage time can extend it.
+/// Select optional CPU/I/O allowances; zero never installs a finite duration cutoff.
 fn prepare_deadline(store: &mut Store<HostContext>, timeout_ms: u32) {
     let allowance = std::time::Duration::from_millis(u64::from(timeout_ms));
-    store
-        .data_mut()
-        .io_budget
-        .reset_with_allowance(std::time::Instant::now(), allowance);
+    let io_allowance =
+        std::time::Duration::from_millis(u64::from(store.data().api_limits.host_io_timeout_ms));
+    store.data_mut().io_budget.reset_with_limits(
+        std::time::Instant::now(),
+        allowance,
+        io_allowance,
+    );
     let epochs =
         u64::from(timeout_ms).div_ceil(super::io_budget::EPOCH_INTERVAL.as_millis() as u64);
-    store.set_epoch_deadline(epochs);
+    // A disabled allowance is rechecked indefinitely by the callback. Avoid a
+    // huge relative delta: Wasmtime adds it to the current epoch without saturation.
+    store.set_epoch_deadline(epochs.max(1));
 }
 
 /// Instantiation and on-load share the configured budget, never refreshed between them.
@@ -470,7 +475,7 @@ impl PluginManager {
         let engine = Engine::new(&config)?;
 
         // Increment the epoch every 5ms so that long-running plugin exports
-        // trap instead of blocking the game thread indefinitely.
+        // enforce an explicit time allowance when the component selects one.
         // Uses the tokio runtime already running for network I/O.
         let epoch_engine = engine.clone();
         tokio::spawn(async move {

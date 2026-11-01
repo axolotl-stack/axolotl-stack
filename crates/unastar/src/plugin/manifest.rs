@@ -65,19 +65,25 @@ pub struct PluginLimits {
     pub max_block_cells: u32,
     /// Wasmtime instruction fuel shared by all event exports in one server tick.
     /// Defaults to 10M; epoch interruption remains an independent per-call limit.
-    /// Zero opts out of a finite instruction cap, while retaining the callback deadline.
+    /// Zero opts out of a finite instruction cap; time allowances are independent.
     #[serde(default = "default_fuel")]
     pub fuel_per_tick: u64,
     /// One instruction budget for instantiation and on-load together, before admission.
-    /// Zero opts out of that instruction cap; the initialization deadline still applies.
+    /// Zero opts out of that instruction cap; initialization time is configured separately.
     #[serde(default = "default_initialization_fuel")]
     pub fuel_per_initialization: u64,
-    /// One non-storage wall allowance for instantiation and on-load together.
+    /// Optional non-storage wall allowance for instantiation and on-load together.
+    /// Zero (the default) disables that duration limit.
     #[serde(default = "default_initialization_timeout")]
     pub initialization_timeout_ms: u32,
-    /// Non-storage wall allowance per ordinary callback; it does not renew cycle fuel.
+    /// Optional non-storage wall allowance per ordinary callback; it does not renew cycle fuel.
+    /// Zero (the default) disables that duration limit.
     #[serde(default = "default_callback_timeout")]
     pub callback_timeout_ms: u32,
+    /// Optional cumulative trusted storage/archive I/O allowance per invocation.
+    /// Zero (the default) disables the time limit, independently of call/byte quotas.
+    #[serde(default)]
+    pub host_io_timeout_ms: u32,
     /// Maximum bytes per Wasm linear memory, enforced at creation and growth.
     /// Exceeding this limit traps. Defaults to 64MB.
     #[serde(default = "default_memory")]
@@ -133,6 +139,7 @@ impl Default for PluginLimits {
             fuel_per_initialization: default_initialization_fuel(),
             initialization_timeout_ms: default_initialization_timeout(),
             callback_timeout_ms: default_callback_timeout(),
+            host_io_timeout_ms: 0,
             max_memory: default_memory(),
             max_owned_resources: default_owned_resources(),
             max_host_operations_per_tick: default_host_operations(),
@@ -163,12 +170,16 @@ impl PluginLimits {
     /// Reject invalid execution deadlines before instantiating a guest.
     pub(crate) fn validate_execution(&self) -> anyhow::Result<()> {
         anyhow::ensure!(
-            (1..=60_000).contains(&self.initialization_timeout_ms),
-            "initialization timeout must be between 1 and 60000 ms"
+            self.initialization_timeout_ms <= 60_000,
+            "initialization timeout must be zero or at most 60000 ms"
         );
         anyhow::ensure!(
-            (1..=1000).contains(&self.callback_timeout_ms),
-            "callback timeout must be between 1 and 1000 ms"
+            self.callback_timeout_ms <= 1000,
+            "callback timeout must be zero or at most 1000 ms"
+        );
+        anyhow::ensure!(
+            self.host_io_timeout_ms <= 60_000,
+            "host I/O timeout must be zero or at most 60000 ms"
         );
         Ok(())
     }
@@ -178,13 +189,13 @@ impl PluginLimits {
 fn default_initialization_fuel() -> u64 {
     100_000_000
 }
-/// Initialization finishes before listeners and player admission open.
+/// Time limits are explicit component configuration, independently of instruction caps.
 fn default_initialization_timeout() -> u32 {
-    1000
+    0
 }
-/// Keep the existing short callback default, independently of startup capacity.
+/// Ordinary callback time limits also opt in separately.
 fn default_callback_timeout() -> u32 {
-    10
+    0
 }
 
 /// Cover bounded native multi-cell growth while rejecting unbounded lifting.

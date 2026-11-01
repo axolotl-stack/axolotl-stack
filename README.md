@@ -219,8 +219,12 @@ set `fuel_per_tick = 0` for no finite shared cycle cap and
 `fuel_per_initialization = 0` for no finite startup cap. Positive values retain
 their existing separate startup and shared-cycle allowances. The shared Wasmtime
 engine still counts fuel; opted-out stores receive its maximal allowance.
-`callback_timeout_ms` and `initialization_timeout_ms` remain independent bounded
-deadlines, and host-operation, memory and owned-resource limits continue to apply.
+Time allowances are independently opt-in: `callback_timeout_ms`,
+`initialization_timeout_ms` and `host_io_timeout_ms` each default to zero, meaning
+no duration cutoff for that category. Positive values set explicit limits. Trusted
+storage/archive I/O time is excluded from a finite execution allowance and can
+have its own cumulative duration limit. Host-operation counts, storage bytes,
+memory and owned-resource quotas continue to apply.
 
 A manifest may set `config = "settings.bin"`. The loader caches at most 1 MiB of
 opaque bytes from a regular file contained in the plugin directory before
@@ -239,7 +243,9 @@ never becomes an empty namespace. A second server cannot open the same namespace
 retrying. An acknowledged storage write remains durable if a later guest operation
 traps; it does not roll back with queued world effects. Components must coordinate
 their durable state and side effects accordingly. Storage does not renew guest
-fuel; bounded time spent in storage imports is excluded from the epoch allowance.
+fuel; measured trusted storage time is excluded from a finite epoch allowance.
+The optional `host_io_timeout_ms` controls cumulative storage/archive duration;
+storage call-count and byte quotas remain separate.
 
 Operators configure capacity under `[plugins.storage]` in `unastar.toml`.
 `storage.limits()` reports the effective limits to the guest. The directory must

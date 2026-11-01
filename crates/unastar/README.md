@@ -953,11 +953,15 @@ Manifest `limits.max_memory` caps each linear memory at creation and growth;
 `limits.fuel_per_tick` is a shared instruction budget for the plugin's event
 batch each tick (10 million by default). Instantiation and `on-load` share one
 separate `limits.fuel_per_initialization` budget (100 million by default), without
-a reset between them. Ordinary callbacks use `limits.callback_timeout_ms` (10 ms,
-range 1–1000); startup uses `limits.initialization_timeout_ms` (1000 ms, range
-1–60000). These wall-clock guards run independently of fuel. Only bounded time
-spent in trusted storage imports receives I/O credit; host queries cannot renew
-execution time. Startup allowances never enlarge subsequent callback budgets.
+a reset between them. Duration limits are independent and opt-in: ordinary
+callbacks use `limits.callback_timeout_ms` (0 by default, positive range 1–1000),
+and startup uses `limits.initialization_timeout_ms` (0 by default, positive range
+1–60000). Zero disables that duration cutoff. Trusted storage/archive imports
+exclude their measured I/O time from a finite execution allowance;
+`limits.host_io_timeout_ms` separately selects a cumulative I/O duration limit
+(0 by default, positive range 1–60000). Ordinary host queries do not renew finite
+execution time. Startup allowances never enlarge later callbacks, and disabling
+duration limits does not change instruction, call-count, byte or resource quotas.
 Trapping plugin callbacks are logged with a coarse failure cause, and cancellable
 callbacks fail closed.
 
