@@ -346,7 +346,7 @@ fn deferred_shots_reject_pending_mode_removal_and_new_solid_obstructions() {
 }
 
 #[test]
-fn startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures() {
+fn startup_rejects_required_nonprojectiles_but_keeps_optional_spawn_targets() {
     use crate::entity::definition::properties::ActorPropertyRegistry;
     use crate::registry::entity::ActorDefinitionRegistryBuilder;
     use crate::server::game::types::ItemRegistryResource;
@@ -376,12 +376,45 @@ fn startup_rejects_conditional_nonprojectiles_and_propagates_reference_failures(
             .contains("no base projectile")
     );
     assert!(
-        registry.get("minecraft:small_fireball").is_none(),
-        "references close over later failures"
+        registry.get("minecraft:small_fireball").is_some(),
+        "an unavailable optional impact spawn must not disable the projectile"
     );
+}
+
+#[test]
+fn required_projectile_references_close_over_later_validation_failures() {
+    use crate::entity::definition::properties::ActorPropertyRegistry;
+    use crate::registry::entity::ActorDefinitionRegistryBuilder;
+    use crate::server::game::types::ItemRegistryResource;
+    let (server, _, _, _rx) = harness();
+    let mut fireball =
+        (**unastar_data::actor_definitions::get("minecraft:small_fireball").unwrap()).clone();
+    fireball.components.insert(
+        "minecraft:shooter".into(),
+        serde_json::json!({"def":"minecraft:cow"}),
+    );
+    let mut definitions = ActorDefinitionRegistryBuilder::default();
+    definitions.load_vanilla();
+    definitions.register(Arc::new(fireball));
+    let definitions = definitions.freeze();
+    let properties = ActorPropertyRegistry::compile(&definitions).unwrap();
+    let registry = MobRegistry::compile(
+        &definitions,
+        &properties,
+        &server.ecs.world().resource::<ItemRegistryResource>().0,
+    )
+    .unwrap();
+    assert!(registry.get("minecraft:small_fireball").is_none());
     assert!(
         registry
             .unsupported_reason("minecraft:small_fireball")
+            .unwrap()
+            .contains("no base projectile")
+    );
+    assert!(registry.get("minecraft:blaze").is_none());
+    assert!(
+        registry
+            .unsupported_reason("minecraft:blaze")
             .unwrap()
             .contains("not a spawnable")
     );

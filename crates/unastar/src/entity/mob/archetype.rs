@@ -375,8 +375,8 @@ impl MobRegistry {
                 }
             }
         }
-        // References are validated to a fixed point: removing an unsupported
-        // shooter may also invalidate a projectile that spawns that actor.
+        // Required references close to a fixed point: removing an unsupported
+        // projectile also invalidates shooters that require that actor.
         loop {
             let broken: Vec<(Arc<str>, ArchetypeError)> = archetypes
                 .iter()
