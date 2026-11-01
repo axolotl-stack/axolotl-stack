@@ -1,5 +1,5 @@
 use bevy_ecs::prelude::Entity;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 use tracing::{error, info, warn};
 use wasmtime::component::{Component, Linker, Resource, ResourceTable};
@@ -10,11 +10,15 @@ use crate::ecs::events::{PluginAction, ServerEvent};
 
 #[path = "lifecycle.rs"]
 mod lifecycle;
+#[path = "players.rs"]
+pub(crate) mod players;
 #[path = "readiness.rs"]
 pub(crate) mod readiness;
+#[path = "tasks.rs"]
+mod tasks;
 
 /// Component API version supported by this host.
-pub const PLUGIN_API_VERSION: &str = "0.3.0";
+pub const PLUGIN_API_VERSION: &str = "0.4.0";
 use crate::plugin::manifest::{PluginId, PluginLimits, PluginManifest};
 
 // ============================================================================
@@ -45,9 +49,17 @@ pub struct HostContext {
     world_ptr: *mut bevy_ecs::world::World,
     /// Actions accumulated during a single WASM call.
     pending_actions: Vec<PluginAction>,
-    /// Maps resource rep -> ECS Entity for player resources.
-    entity_map: HashMap<u32, Entity>,
-    next_rep: u32,
+    resources: players::PlayerResources,
+    api_limits: PluginLimits,
+    capabilities: HashSet<crate::plugin::manifest::PluginCapability>,
+    generation: uuid::Uuid,
+    pending_messages: Vec<players::BoundMessage>,
+    pending_tasks: Vec<tasks::TaskRequest>,
+    task_requests: VecDeque<tasks::TaskRequest>,
+    task_failures: VecDeque<tasks::TaskFailure>,
+    task_sequence: u64,
+    #[cfg(test)]
+    test_logs: Vec<String>,
     limits: wasmtime::StoreLimits,
     /// Immutable opaque bytes loaded before component instantiation.
     configuration: Vec<u8>,
@@ -77,8 +89,17 @@ impl HostContext {
             plugin_id,
             world_ptr: std::ptr::null_mut(),
             pending_actions: Vec::new(),
-            entity_map: HashMap::new(),
-            next_rep: 1,
+            resources: players::PlayerResources::default(),
+            api_limits: limits.clone(),
+            capabilities: HashSet::new(),
+            generation: uuid::Uuid::new_v4(),
+            pending_messages: Vec::new(),
+            pending_tasks: Vec::new(),
+            task_requests: VecDeque::new(),
+            task_failures: VecDeque::new(),
+            task_sequence: 0,
+            #[cfg(test)]
+            test_logs: Vec::new(),
             limits: wasmtime::StoreLimitsBuilder::new()
                 .memory_size(limits.max_memory)
                 .trap_on_grow_failure(true)
@@ -95,233 +116,11 @@ impl HostContext {
         unsafe { &*self.world_ptr }
     }
 
+    /// Access the one world exclusively attached for this callback.
     fn world_mut(&mut self) -> &mut bevy_ecs::world::World {
         assert!(!self.world_ptr.is_null(), "plugin world is not attached");
         // `with_world` exclusively borrows the World for the entire host call.
         unsafe { &mut *self.world_ptr }
-    }
-
-    /// Create a new player resource handle for the given Entity.
-    fn new_player_resource(&mut self, entity: Entity) -> Resource<wit_types::Player> {
-        let rep = self.next_rep;
-        self.next_rep += 1;
-        self.entity_map.insert(rep, entity);
-        Resource::new_own(rep)
-    }
-
-    /// Look up a player entity from a Resource handle.
-    fn player_entity(&self, player: &Resource<wit_types::Player>) -> Entity {
-        self.entity_map[&player.rep()]
-    }
-
-    /// Look up a player's UUID string from the ECS.
-    fn player_uuid(&self, entity: Entity) -> String {
-        let world = unsafe { self.world() };
-        world
-            .get::<crate::entity::components::PlayerUuid>(entity)
-            .map(|u| u.0.to_string())
-            .unwrap_or_default()
-    }
-}
-
-// ============================================================================
-// Host trait: unastar:plugin/types — Player resource methods
-// ============================================================================
-
-impl wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
-    fn get_name(&mut self, self_: Resource<wit_types::Player>) -> String {
-        let entity = self.player_entity(&self_);
-        let world = unsafe { self.world() };
-        world
-            .get::<crate::entity::components::PlayerName>(entity)
-            .map(|n| n.0.clone())
-            .unwrap_or_default()
-    }
-
-    fn get_uuid(&mut self, self_: Resource<wit_types::Player>) -> String {
-        let entity = self.player_entity(&self_);
-        self.player_uuid(entity)
-    }
-
-    fn get_position(&mut self, self_: Resource<wit_types::Player>) -> wit_types::Vec3 {
-        let entity = self.player_entity(&self_);
-        let world = unsafe { self.world() };
-        let pos = world
-            .get::<crate::entity::components::transform::Position>(entity)
-            .map(|p| p.0)
-            .unwrap_or(glam::DVec3::ZERO);
-        wit_types::Vec3 {
-            x: pos.x,
-            y: pos.y,
-            z: pos.z,
-        }
-    }
-
-    fn get_rotation(&mut self, self_: Resource<wit_types::Player>) -> (f32, f32) {
-        let entity = self.player_entity(&self_);
-        let world = unsafe { self.world() };
-        world
-            .get::<crate::entity::components::transform::Rotation>(entity)
-            .map(|r| (r.yaw, r.pitch))
-            .unwrap_or((0.0, 0.0))
-    }
-
-    fn get_health(&mut self, self_: Resource<wit_types::Player>) -> f32 {
-        let entity = self.player_entity(&self_);
-        let world = unsafe { self.world() };
-        world
-            .get::<crate::entity::components::living::Health>(entity)
-            .map(|h| h.current)
-            .unwrap_or(20.0)
-    }
-
-    fn get_max_health(&mut self, self_: Resource<wit_types::Player>) -> f32 {
-        let entity = self.player_entity(&self_);
-        let world = unsafe { self.world() };
-        world
-            .get::<crate::entity::components::living::Health>(entity)
-            .map(|h| h.max)
-            .unwrap_or(20.0)
-    }
-
-    fn get_game_mode(&mut self, _self_: Resource<wit_types::Player>) -> wit_types::GameMode {
-        // TODO: read actual GameMode component
-        wit_types::GameMode::Survival
-    }
-
-    fn send_message(&mut self, self_: Resource<wit_types::Player>, message: String) {
-        let entity = self.player_entity(&self_);
-        self.pending_actions
-            .push(PluginAction::SendMessage { entity, message });
-    }
-
-    fn teleport(&mut self, self_: Resource<wit_types::Player>, position: wit_types::Vec3) {
-        let entity = self.player_entity(&self_);
-        self.pending_actions.push(PluginAction::Teleport {
-            entity,
-            position: (position.x, position.y, position.z),
-        });
-    }
-
-    fn give_item(&mut self, self_: Resource<wit_types::Player>, item_id: String, count: u8) {
-        let entity = self.player_entity(&self_);
-        self.pending_actions.push(PluginAction::GiveItem {
-            entity,
-            item_id,
-            count,
-        });
-    }
-
-    fn kick(&mut self, self_: Resource<wit_types::Player>, reason: String) {
-        let entity = self.player_entity(&self_);
-        self.pending_actions
-            .push(PluginAction::Kick { entity, reason });
-    }
-
-    fn drop(&mut self, rep: Resource<wit_types::Player>) -> wasmtime::Result<()> {
-        self.entity_map.remove(&rep.rep());
-        Ok(())
-    }
-}
-
-/// Empty impl — no free functions on the `types` interface.
-impl wit_bindings::unastar::plugin::types::Host for HostContext {}
-
-// ============================================================================
-// Host trait: unastar:plugin/host — world query functions
-// ============================================================================
-
-impl wit_bindings::unastar::plugin::host::Host for HostContext {
-    fn get_tick_id(&mut self) -> u64 {
-        let world = unsafe { self.world() };
-        world
-            .get_resource::<crate::ecs::resources::TickCounter>()
-            .map(|t| t.current)
-            .unwrap_or(0)
-    }
-
-    fn get_tps(&mut self) -> f32 {
-        20.0 // TODO: real TPS tracking
-    }
-
-    fn get_player_count(&mut self) -> u32 {
-        let world = self.world_mut();
-        if let Some(directory) = world.get_resource::<crate::server::worlds::WorldDirectory>() {
-            return directory.players().count().min(u32::MAX as usize) as u32;
-        }
-        world
-            .query_filtered::<(), bevy_ecs::prelude::With<crate::entity::components::Player>>()
-            .iter(world)
-            .count() as u32
-    }
-
-    fn get_spawn(&mut self) -> wit_types::Vec3 {
-        let world = unsafe { self.world() };
-        if let Some(wrapper) =
-            world.get_resource::<crate::server::game::types::ServerWorldTemplate>()
-        {
-            let coords = &wrapper.0.start_game_template.position;
-            wit_types::Vec3 {
-                x: coords.x as f64,
-                y: coords.y as f64,
-                z: coords.z as f64,
-            }
-        } else {
-            wit_types::Vec3 {
-                x: 0.0,
-                y: 100.0,
-                z: 0.0,
-            }
-        }
-    }
-
-    fn get_block(&mut self, pos: wit_types::BlockPos) -> u32 {
-        let world = unsafe { self.world() };
-        if let Some(chunk_manager) = world.get_resource::<crate::world::ecs::ChunkManager>() {
-            use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
-            let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
-            let (lx, ly, lz) = world_to_local_coords(pos.x, pos.y, pos.z);
-            if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz)
-                && let Some(chunk_data) = world.get::<crate::world::ecs::ChunkData>(chunk_entity)
-            {
-                return chunk_data.inner.get_block(lx, ly, lz);
-            }
-        }
-        0
-    }
-
-    fn set_block(&mut self, pos: wit_types::BlockPos, block_id: u32) {
-        self.pending_actions.push(PluginAction::SetBlock {
-            position: (pos.x, pos.y, pos.z),
-            block_id,
-        });
-    }
-
-    fn log(&mut self, level: wit_types::LogLevel, message: String) {
-        let id = &self.plugin_id;
-        match level {
-            wit_types::LogLevel::Info => info!(plugin = %id, "{}", message),
-            wit_types::LogLevel::Warn => warn!(plugin = %id, "{}", message),
-            wit_types::LogLevel::Error => error!(plugin = %id, "{}", message),
-        }
-    }
-
-    fn list_players(&mut self) -> Vec<String> {
-        let world = self.world_mut();
-        if let Some(directory) = world.get_resource::<crate::server::worlds::WorldDirectory>() {
-            return directory
-                .players()
-                .map(|player| player.identity().name().to_owned())
-                .collect();
-        }
-        let mut names = Vec::new();
-        for name in world
-            .query_filtered::<&crate::entity::components::PlayerName, bevy_ecs::prelude::With<crate::entity::components::Player>>()
-            .iter(world)
-        {
-            names.push(name.0.clone());
-        }
-        names
     }
 }
 
@@ -365,11 +164,11 @@ fn with_world<R>(
         fn drop(&mut self) {
             let ctx = self.store.data_mut();
             ctx.world_ptr = std::ptr::null_mut();
-            ctx.entity_map.clear();
-            ctx.next_rep = 1;
+            ctx.resources.end_scope();
         }
     }
     store.data_mut().world_ptr = world;
+    store.data_mut().resources.begin_scope(world);
     let attachment = Attachment {
         store,
         _world: std::marker::PhantomData,
@@ -379,6 +178,7 @@ fn with_world<R>(
 
 /// Initialization and each plugin tick batch have one shared instruction budget.
 fn begin_fuel_budget(store: &mut Store<HostContext>, limits: &PluginLimits) -> anyhow::Result<()> {
+    players::begin_budget(store.data_mut());
     store.set_fuel(limits.fuel_per_tick)
 }
 
@@ -587,6 +387,7 @@ impl PluginManager {
             config_bytes = store.data().configuration.len(),
             "Component configuration prepared"
         );
+        store.data_mut().capabilities = manifest.capabilities.clone();
         // Runtime discovery happens before the game World is available.
         // Defer *instantiation* too: component start functions can call hosts.
         self.pending.push(PendingPlugin {
@@ -604,6 +405,8 @@ impl PluginManager {
             if pending.manifest.required {
                 self.readiness.require(&pending.manifest.id.0);
             }
+            pending.store.data_mut().plugin_id = pending.manifest.id.clone();
+            pending.store.data_mut().capabilities = pending.manifest.capabilities.clone();
             let result = with_world(&mut pending.store, world, |store| -> anyhow::Result<_> {
                 let mut linker = Linker::<HostContext>::new(&self.engine);
                 wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
@@ -643,7 +446,11 @@ impl PluginManager {
                 }
             }
         }
-        if self.readiness.check().is_ok() {
+        let succeeded = self.readiness.check().is_ok();
+        for plugin in self.plugins.values_mut() {
+            players::finish_invocation(plugin.store.data_mut(), world, succeeded);
+        }
+        if succeeded {
             for action in staged {
                 world
                     .resource_mut::<crate::ecs::events::ActionQueue>()
@@ -764,6 +571,28 @@ impl PluginManager {
         world: &mut bevy_ecs::world::World,
         readiness: &readiness::PluginReadiness,
     ) -> bool {
+        // Committed notifications may outlive an actor removed earlier in this cycle.
+        // Gameplay proposals still take the fallible, fail-closed dispatch below.
+        let committed_actor = match event {
+            ServerEvent::PlayerJoin { entity, .. }
+            | ServerEvent::PlayerQuit { entity }
+            | ServerEvent::PlayerMove { entity, .. }
+            | ServerEvent::PlayerJump { entity }
+            | ServerEvent::PlayerToggleSneak { entity, .. }
+            | ServerEvent::PlayerToggleSprint { entity, .. }
+            | ServerEvent::PlayerHeldSlotChange { entity, .. }
+            | ServerEvent::PlayerStartBreak { entity, .. }
+            | ServerEvent::PlayerItemUse { entity }
+            | ServerEvent::PlayerSwing { entity } => Some(*entity),
+            _ => None,
+        };
+        if committed_actor.is_some_and(|entity| {
+            world
+                .get::<crate::entity::components::Player>(entity)
+                .is_none()
+        }) {
+            return false;
+        }
         struct Invocation<'a> {
             store: &'a mut Store<HostContext>,
             bindings: &'a UnastarPlugin,
@@ -782,26 +611,29 @@ impl PluginManager {
                 ServerEvent::PlayerJoin {
                     entity, username, ..
                 } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     plugin
                         .bindings
-                        .call_on_player_join(&mut plugin.store, handle, username)
+                        .call_on_player_join(&mut plugin.store, tx, handle, username)
                         .map(|_| false)
                 }
                 ServerEvent::PlayerQuit { entity, .. } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     plugin
                         .bindings
-                        .call_on_player_quit(&mut plugin.store, handle)
+                        .call_on_player_quit(&mut plugin.store, tx, handle)
                         .map(|_| false)
                 }
                 ServerEvent::PlayerChat {
                     entity, message, ..
                 } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     plugin
                         .bindings
-                        .call_on_player_chat(&mut plugin.store, handle, message)
+                        .call_on_player_chat(&mut plugin.store, tx, handle, message)
                         .map(|allow| !allow)
                 }
                 ServerEvent::BlockBreak {
@@ -810,7 +642,8 @@ impl PluginManager {
                     block_id,
                     ..
                 } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     let pos = wit_types::BlockPos {
                         x: position.0,
                         y: position.1,
@@ -818,7 +651,7 @@ impl PluginManager {
                     };
                     plugin
                         .bindings
-                        .call_on_block_break(&mut plugin.store, handle, pos, *block_id)
+                        .call_on_block_break(&mut plugin.store, tx, handle, pos, *block_id)
                         .map(|allow| !allow)
                 }
                 ServerEvent::BlockPlace {
@@ -827,7 +660,8 @@ impl PluginManager {
                     block_id,
                     ..
                 } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     let pos = wit_types::BlockPos {
                         x: position.0,
                         y: position.1,
@@ -835,51 +669,55 @@ impl PluginManager {
                     };
                     plugin
                         .bindings
-                        .call_on_block_place(&mut plugin.store, handle, pos, *block_id)
+                        .call_on_block_place(&mut plugin.store, tx, handle, pos, *block_id)
                         .map(|allow| !allow)
                 }
                 ServerEvent::PlayerMove { entity, from, to } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     let from_v = wit_types::Vec3 {
                         x: from.0,
-                        y: from.1,
+                        y: from.1 - crate::entity::PLAYER_EYE_HEIGHT,
                         z: from.2,
                     };
                     let to_v = wit_types::Vec3 {
                         x: to.0,
-                        y: to.1,
+                        y: to.1 - crate::entity::PLAYER_EYE_HEIGHT,
                         z: to.2,
                     };
                     plugin
                         .bindings
-                        .call_on_player_move(&mut plugin.store, handle, from_v, to_v)
+                        .call_on_player_move(&mut plugin.store, tx, handle, from_v, to_v)
                         .map(|_| false)
                 }
                 ServerEvent::PlayerJump { entity } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     plugin
                         .bindings
-                        .call_on_player_jump(&mut plugin.store, handle)
+                        .call_on_player_jump(&mut plugin.store, tx, handle)
                         .map(|_| false)
                 }
                 ServerEvent::PlayerToggleSneak {
                     entity,
                     is_sneaking,
                 } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     plugin
                         .bindings
-                        .call_on_player_toggle_sneak(&mut plugin.store, handle, *is_sneaking)
+                        .call_on_player_toggle_sneak(&mut plugin.store, tx, handle, *is_sneaking)
                         .map(|_| false)
                 }
                 ServerEvent::PlayerToggleSprint {
                     entity,
                     is_sprinting,
                 } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     plugin
                         .bindings
-                        .call_on_player_toggle_sprint(&mut plugin.store, handle, *is_sprinting)
+                        .call_on_player_toggle_sprint(&mut plugin.store, tx, handle, *is_sprinting)
                         .map(|_| false)
                 }
                 ServerEvent::PlayerHeldSlotChange {
@@ -887,11 +725,13 @@ impl PluginManager {
                     old_slot,
                     new_slot,
                 } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     plugin
                         .bindings
                         .call_on_player_held_slot_change(
                             &mut plugin.store,
+                            tx,
                             handle,
                             *old_slot,
                             *new_slot,
@@ -903,7 +743,8 @@ impl PluginManager {
                     position,
                     face,
                 } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     let pos = wit_types::BlockPos {
                         x: position.0,
                         y: position.1,
@@ -911,7 +752,7 @@ impl PluginManager {
                     };
                     plugin
                         .bindings
-                        .call_on_player_start_break(&mut plugin.store, handle, pos, *face)
+                        .call_on_player_start_break(&mut plugin.store, tx, handle, pos, *face)
                         .map(|_| false)
                 }
                 ServerEvent::PlayerInteractBlock {
@@ -919,7 +760,8 @@ impl PluginManager {
                     position,
                     face,
                 } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     let pos = wit_types::BlockPos {
                         x: position.0,
                         y: position.1,
@@ -927,30 +769,36 @@ impl PluginManager {
                     };
                     plugin
                         .bindings
-                        .call_on_player_interact_block(&mut plugin.store, handle, pos, *face)
+                        .call_on_player_interact_block(&mut plugin.store, tx, handle, pos, *face)
                         .map(|allow| !allow)
                 }
                 ServerEvent::PlayerItemUse { entity } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     plugin
                         .bindings
-                        .call_on_player_item_use(&mut plugin.store, handle)
+                        .call_on_player_item_use(&mut plugin.store, tx, handle)
                         .map(|_| false)
                 }
                 ServerEvent::PlayerSwing { entity } => {
-                    let handle = make_player_handle(plugin.store, *entity);
+                    let handle = make_player_resource(plugin.store, *entity)?;
+                    let tx = make_world_tx(plugin.store)?;
                     plugin
                         .bindings
-                        .call_on_player_swing(&mut plugin.store, handle)
+                        .call_on_player_swing(&mut plugin.store, tx, handle)
                         .map(|_| false)
                 }
-                ServerEvent::Timer { id } => plugin
-                    .bindings
-                    .call_on_timer(&mut plugin.store, *id)
-                    .map(|_| false),
+                ServerEvent::Timer { id } => {
+                    let tx = make_world_tx(plugin.store)?;
+                    plugin
+                        .bindings
+                        .call_on_timer(&mut plugin.store, tx, *id)
+                        .map(|_| false)
+                }
             }
         });
 
+        players::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
         match result {
             Ok(cancelled) => cancelled,
             Err(e) => {
@@ -1032,11 +880,22 @@ impl PluginManager {
 }
 
 /// Create a new player resource handle for passing to WIT exports.
-fn make_player_handle(
+fn make_player_resource(
     store: &mut Store<HostContext>,
     entity: Entity,
-) -> Resource<wit_types::Player> {
-    store.data_mut().new_player_resource(entity)
+) -> anyhow::Result<Resource<wit_types::Player>> {
+    store
+        .data_mut()
+        .borrow_player(entity)
+        .map_err(|error| anyhow::anyhow!("{error:?}"))
+}
+
+/// Supply the current callback's world scope without exposing a live foreign world.
+fn make_world_tx(store: &mut Store<HostContext>) -> anyhow::Result<Resource<wit_types::WorldTx>> {
+    store
+        .data_mut()
+        .borrow_transaction()
+        .map_err(|error| anyhow::anyhow!("{error:?}"))
 }
 
 #[cfg(test)]
@@ -1044,6 +903,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::plugin::manifest::PluginLimits;
     use wit_bindings::unastar::plugin::host::Host;
+    mod fixture;
 
     pub(super) fn engine() -> Engine {
         let mut config = wasmtime::Config::new();
@@ -1111,217 +971,50 @@ pub(crate) mod tests {
         .unwrap()
     }
 
-    /// Source fixture supports discovery and actual initialization from a directory.
+    /// Executable fixture supports actual initialization from a plugin directory.
     pub(crate) fn component_source(
         allow: bool,
         damage_body: &str,
         respawn_body: &str,
         tick_body: &str,
         load_body: &str,
-    ) -> String {
-        let exports = [
-            ("on-load", "", "", false),
-            ("on-unload", "", "", false),
-            ("on-tick", "(param \"tick-id\" u64)", "i64", false),
-            (
-                "on-player-join",
-                "(param \"player\" (borrow $player)) (param \"username\" string)",
-                "i32 i32 i32",
-                false,
-            ),
-            (
-                "on-player-quit",
-                "(param \"player\" (borrow $player))",
-                "i32",
-                false,
-            ),
-            (
-                "on-player-chat",
-                "(param \"player\" (borrow $player)) (param \"message\" string)",
-                "i32 i32 i32",
-                true,
-            ),
-            (
-                "on-block-break",
-                "(param \"player\" (borrow $player)) (param \"position\" $pos) (param \"block-id\" u32)",
-                "i32 i32 i32 i32 i32",
-                true,
-            ),
-            (
-                "on-block-place",
-                "(param \"player\" (borrow $player)) (param \"position\" $pos) (param \"block-id\" u32)",
-                "i32 i32 i32 i32 i32",
-                true,
-            ),
-            (
-                "on-player-move",
-                "(param \"player\" (borrow $player)) (param \"old-position\" $vec) (param \"new-position\" $vec)",
-                "i32 f64 f64 f64 f64 f64 f64",
-                false,
-            ),
-            (
-                "on-player-jump",
-                "(param \"player\" (borrow $player))",
-                "i32",
-                false,
-            ),
-            (
-                "on-player-toggle-sneak",
-                "(param \"player\" (borrow $player)) (param \"is-sneaking\" bool)",
-                "i32 i32",
-                false,
-            ),
-            (
-                "on-player-toggle-sprint",
-                "(param \"player\" (borrow $player)) (param \"is-sprinting\" bool)",
-                "i32 i32",
-                false,
-            ),
-            (
-                "on-player-held-slot-change",
-                "(param \"player\" (borrow $player)) (param \"old-slot\" u8) (param \"new-slot\" u8)",
-                "i32 i32 i32",
-                false,
-            ),
-            (
-                "on-player-start-break",
-                "(param \"player\" (borrow $player)) (param \"position\" $pos) (param \"face\" u8)",
-                "i32 i32 i32 i32 i32",
-                false,
-            ),
-            (
-                "on-player-interact-block",
-                "(param \"player\" (borrow $player)) (param \"position\" $pos) (param \"face\" u8)",
-                "i32 i32 i32 i32 i32",
-                true,
-            ),
-            (
-                "on-player-item-use",
-                "(param \"player\" (borrow $player))",
-                "i32",
-                false,
-            ),
-            (
-                "on-player-swing",
-                "(param \"player\" (borrow $player))",
-                "i32",
-                false,
-            ),
-            ("on-timer", "(param \"timer-id\" u64)", "i64", false),
-        ];
-        let mut wat = String::from(
-            r#"(component
-            (import "unastar:plugin/types@0.3.0" (instance $types
-                (export "player" (type (sub resource)))
-                (type $pos (record (field "x" s32) (field "y" s32) (field "z" s32)))
-                (export "block-pos" (type (eq $pos)))
-                (type $vec (record (field "x" f64) (field "y" f64) (field "z" f64)))
-                (export "vec3" (type (eq $vec)))
-                (type $cause (enum "none" "override" "contact" "entity-attack" "projectile" "suffocation" "fall" "fire" "fire-tick" "lava" "drowning" "block-explosion" "entity-explosion" "void" "self-destruct" "magic" "wither" "starve" "anvil" "thorns" "falling-block" "piston" "fly-into-wall" "magma" "fireworks" "lightning" "charging" "temperature" "freezing" "stalactite" "stalagmite" "ram-attack" "sonic-boom" "campfire" "soul-campfire" "mace-smash" "all"))
-                (export "damage-cause" (type (eq $cause)))))
-            (alias export $types "player" (type $player))
-            (alias export $types "block-pos" (type $pos))
-            (alias export $types "vec3" (type $vec))
-            (alias export $types "damage-cause" (type $cause))
-            (core func $player-drop (canon resource.drop $player))
-            (import "unastar:plugin/host@0.3.0" (instance $host
-                (export "get-tick-id" (func (result u64)))
-                (export "get-player-count" (func (result u32)))
-                (export "set-block" (func (param "pos" $pos) (param "block-id" u32)))))
-            (alias export $host "get-tick-id" (func $tick))
-            (alias export $host "get-player-count" (func $player-count))
-            (alias export $host "set-block" (func $set-block))
-            (core func $tick-lowered (canon lower (func $tick)))
-            (core func $player-count-lowered (canon lower (func $player-count)))
-            (core func $set-block-lowered (canon lower (func $set-block)))
-            (core module $module
-                (import "host" "tick" (func $tick (result i64)))
-                (import "host" "player-count" (func $player-count (result i32)))
-                (import "host" "set-block" (func $set-block (param i32 i32 i32 i32)))
-                (import "host" "drop-player" (func $drop-player (param i32)))
-                (memory (export "memory") 1)
-                (global $damage-calls (mut i32) (i32.const 0))
-                (func (export "realloc") (param i32 i32 i32 i32) (result i32) i32.const 0)
-        "#,
-        );
-        for (name, signature, params, returns_bool) in exports {
-            let params = if params.is_empty() {
-                String::new()
-            } else {
-                format!("(param {params})")
-            };
-            let body = if name == "on-load" {
-                load_body.to_owned()
-            } else if name == "on-tick" {
-                tick_body.to_owned()
-            } else if returns_bool {
-                format!("i32.const {}", u8::from(allow))
-            } else {
-                String::new()
-            };
-            let result = if returns_bool { "(result i32)" } else { "" };
-            wat.push_str(&format!(
-                "(func (export \"{name}\") {params} {result} {body} {})",
-                if signature.contains("borrow") {
-                    "local.get 0 call $drop-player"
-                } else {
-                    ""
-                }
-            ));
+    ) -> Vec<u8> {
+        // Existing controlled lifecycle bodies gain the transaction argument.
+        fn scoped(body: &str) -> String {
+            let mut result = body.to_owned();
+            for index in (0..=5).rev() {
+                result = result.replace(
+                    &format!("local.get {index}"),
+                    &format!("local.get __{}", index + 1),
+                );
+            }
+            result
+                .replace("local.get __", "local.get ")
+                .replace("global.get $damage-calls", "i32.const 400 i32.load")
         }
-        wat.push_str(&format!(
-            r#"
-                (func (export "on-player-damage") (param i32 i32 i32 i32 f32) (result i32)
-                    global.get $damage-calls i32.const 1 i32.add global.set $damage-calls
-                    local.get 0 call $drop-player
-                    local.get 1 if local.get 2 call $drop-player end
-                    {damage_body})
-                (func (export "on-player-death") (param i32 i32 i32 i32)
-                    local.get 0 call $drop-player
-                    local.get 1 if local.get 2 call $drop-player end)
-                (func (export "on-player-respawn") (param i32 f64 f64 f64) (result i32)
-                    local.get 0 call $drop-player
-                    {respawn_body})
-                (func (export "on-player-respawned") (param i32 f64 f64 f64)
-                    local.get 0 call $drop-player)
-            "#
-        ));
-        wat.push_str(
-            r#")
-            (core instance $host-core
-                (export "tick" (func $tick-lowered))
-                (export "player-count" (func $player-count-lowered))
-                (export "set-block" (func $set-block-lowered))
-                (export "drop-player" (func $player-drop)))
-            (core instance $instance (instantiate $module (with "host" (instance $host-core))))
-        "#,
-        );
-        for (name, params, _, returns_bool) in exports {
-            let result = if returns_bool { "(result bool)" } else { "" };
-            wat.push_str(&format!(
-                "(func (export \"{name}\") {params} {result}
-                    (canon lift (core func $instance \"{name}\")
-                        (memory $instance \"memory\") (realloc (func $instance \"realloc\"))))"
-            ));
-        }
-        wat.push_str(r#"
-            (func (export "on-player-damage")
-                (param "player" (borrow $player)) (param "attacker" (option (borrow $player)))
-                (param "cause" $cause) (param "damage" f32) (result (option f32))
-                (canon lift (core func $instance "on-player-damage") (memory $instance "memory")))
-            (func (export "on-player-death")
-                (param "player" (borrow $player)) (param "attacker" (option (borrow $player)))
-                (param "cause" $cause)
-                (canon lift (core func $instance "on-player-death") (memory $instance "memory")))
-            (func (export "on-player-respawn")
-                (param "player" (borrow $player)) (param "position" $vec) (result (option $vec))
-                (canon lift (core func $instance "on-player-respawn") (memory $instance "memory")))
-            (func (export "on-player-respawned")
-                (param "player" (borrow $player)) (param "position" $vec)
-                (canon lift (core func $instance "on-player-respawned") (memory $instance "memory")))
-        "#);
-        wat.push(')');
-        wat
+        let allow = format!("i32.const {}", u8::from(allow));
+        fixture::bytes(&[
+            (
+                "on-load",
+                load_body.replace("call $tick", "call @get-tick-id@"),
+            ),
+            (
+                "on-tick",
+                tick_body.replace("call $tick", "call @get-tick-id@"),
+            ),
+            ("on-player-chat", allow.clone()),
+            ("on-block-break", allow.clone()),
+            ("on-block-place", allow.clone()),
+            ("on-player-interact-block", allow),
+            (
+                "on-player-damage",
+                format!(
+                    "i32.const 400 i32.const 400 i32.load i32.const 1 i32.add i32.store {}",
+                    scoped(damage_body)
+                ),
+            ),
+            ("on-player-respawn", scoped(respawn_body)),
+        ])
     }
 
     #[path = "readiness.rs"]
@@ -1356,11 +1049,17 @@ pub(crate) mod tests {
                 readiness: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
+            world.insert_resource(crate::world::ChunkManager::new(
+                crate::world::WorldConfig::void_spawn_platform(1),
+            ));
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
             world.insert_resource(crate::ecs::events::ActionQueue::default());
             let (tx, mut rx) = tokio::sync::mpsc::channel(8);
             let entity = world
                 .spawn((
+                    crate::entity::components::Player,
+                    crate::entity::components::PlayerUuid(uuid::Uuid::from_u128(1)),
+                    crate::entity::components::RuntimeEntityId(1),
                     crate::entity::components::PlayerName("Alice".into()),
                     crate::entity::components::PlayerSession::new(
                         1,
@@ -1466,6 +1165,9 @@ pub(crate) mod tests {
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
             world.insert_resource(crate::ecs::events::ActionQueue::default());
+            world.insert_resource(crate::server::game::types::ServerConfigResource(
+                crate::server::game::ServerConfig::default(),
+            ));
             world.insert_resource(bevy_ecs::message::Messages::<BlockBroadcastEvent>::default());
             world.insert_resource(ChunkManager::new(
                 crate::world::WorldConfig::void_spawn_platform(1),
@@ -1485,8 +1187,20 @@ pub(crate) mod tests {
                 .0
                 .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
                 .unwrap();
+            let (tx, _rx) = tokio::sync::mpsc::channel(8);
             let entity = world
                 .spawn((
+                    crate::entity::components::Player,
+                    crate::entity::components::PlayerName("Builder".into()),
+                    crate::entity::components::PlayerUuid(uuid::Uuid::from_u128(1)),
+                    crate::entity::components::RuntimeEntityId(1),
+                    crate::entity::components::PlayerSession::new(
+                        1,
+                        "Builder".into(),
+                        None,
+                        None,
+                        tx,
+                    ),
                     inventory,
                     HeldSlot::default(),
                     GameMode::Survival,
@@ -1853,5 +1567,12 @@ mod native_chat_acceptance_tests {
             assert!(source_rx.try_recv().is_err());
             assert!(viewer_rx.try_recv().is_err());
         }
+    }
+}
+
+impl Drop for HostContext {
+    /// Dropping or replacing a component cancels jobs still owned by its instance.
+    fn drop(&mut self) {
+        tasks::cancel_pending(self);
     }
 }

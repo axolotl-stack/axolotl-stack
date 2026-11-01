@@ -8,7 +8,9 @@ use tracing::error;
 use unastar_data::actor_components::body::ActorDamageCause;
 use wasmtime::Store;
 
-use super::{HostContext, LoadedPlugin, PluginManager, UnastarPlugin, make_player_handle};
+use super::{
+    HostContext, LoadedPlugin, PluginManager, UnastarPlugin, make_player_resource, make_world_tx,
+};
 use super::{begin_fuel_budget, prepare_invocation, wit_types, with_world};
 use crate::ecs::events::{ActionQueue, EventKind};
 use crate::entity::components::Player;
@@ -147,9 +149,12 @@ impl PluginManager {
             let cause = damage_cause(event.hit.cause);
             let damage = event.hit.damage;
             let result = invoke(plugin, world, |store, bindings| {
-                let player = make_player_handle(store, player);
-                let attacker = attacker.map(|entity| make_player_handle(store, entity));
-                bindings.call_on_player_damage(store, player, attacker, cause, damage)
+                let tx = make_world_tx(store)?;
+                let player = make_player_resource(store, player)?;
+                let attacker = attacker
+                    .map(|entity| make_player_resource(store, entity))
+                    .transpose()?;
+                bindings.call_on_player_damage(store, tx, player, attacker, cause, damage)
             });
             match result {
                 Ok(Some(damage)) if damage.is_finite() && damage >= 0.0 => {
@@ -184,9 +189,12 @@ impl PluginManager {
             let attacker = player_attacker(world, event.cause.attacker);
             let cause = damage_cause(event.cause.cause);
             if let Err(error) = invoke(plugin, world, |store, bindings| {
-                let player = make_player_handle(store, event.player);
-                let attacker = attacker.map(|entity| make_player_handle(store, entity));
-                bindings.call_on_player_death(store, player, attacker, cause)
+                let tx = make_world_tx(store)?;
+                let player = make_player_resource(store, event.player)?;
+                let attacker = attacker
+                    .map(|entity| make_player_resource(store, entity))
+                    .transpose()?;
+                bindings.call_on_player_death(store, tx, player, attacker, cause)
             }) {
                 error!(plugin = %id, %error, "Player death callback failed");
                 self.callback_failed(world, &id, &error.to_string());
@@ -208,12 +216,17 @@ impl PluginManager {
             let player = event.player();
             let position = to_wit(event.position);
             let result = invoke(plugin, world, |store, bindings| {
-                let player = make_player_handle(store, player);
-                bindings.call_on_player_respawn(store, player, position)
+                let tx = make_world_tx(store)?;
+                let player = make_player_resource(store, player)?;
+                bindings.call_on_player_respawn(store, tx, player, position)
             });
             match result {
                 Ok(Some(position)) => {
-                    let position = DVec3::new(position.x, position.y, position.z);
+                    let position = DVec3::new(
+                        position.x,
+                        position.y + crate::entity::PLAYER_EYE_HEIGHT,
+                        position.z,
+                    );
                     if position.is_finite() && position.as_vec3().is_finite() {
                         event.position = position;
                     } else {
@@ -245,8 +258,9 @@ impl PluginManager {
             let plugin = self.plugins.get_mut(&id).expect("subscribed plugin exists");
             let position = to_wit(event.position);
             if let Err(error) = invoke(plugin, world, |store, bindings| {
-                let player = make_player_handle(store, event.player);
-                bindings.call_on_player_respawned(store, player, position)
+                let tx = make_world_tx(store)?;
+                let player = make_player_resource(store, event.player)?;
+                bindings.call_on_player_respawned(store, tx, player, position)
             }) {
                 error!(plugin = %id, %error, "Player respawned callback failed");
                 self.callback_failed(world, &id, &error.to_string());
@@ -269,6 +283,7 @@ fn invoke<R>(
         prepare_invocation(store);
         call(store, &plugin.bindings)
     });
+    super::players::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
     let actions = std::mem::take(&mut plugin.store.data_mut().pending_actions);
     if result.is_ok() && !actions.is_empty() {
         for action in actions {
@@ -283,11 +298,11 @@ fn player_attacker(world: &World, attacker: Option<Entity>) -> Option<Entity> {
     attacker.filter(|entity| world.get::<Player>(*entity).is_some())
 }
 
-/// Preserve the native eye-height position convention at the component boundary.
+/// The component API uses feet; native player components continue to use eye height.
 fn to_wit(position: DVec3) -> wit_types::Vec3 {
     wit_types::Vec3 {
         x: position.x,
-        y: position.y,
+        y: position.y - crate::entity::PLAYER_EYE_HEIGHT,
         z: position.z,
     }
 }

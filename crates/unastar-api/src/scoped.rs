@@ -1,0 +1,182 @@
+//! Transaction-scoped SDK views over the component's resource capabilities.
+
+use crate::{
+    AccessError, GameMode, PlayerAvailability, PlayerFlags, PlayerHandle, PlayerIdentity,
+    PlayerSnapshot, Vec3, WorldHandle, raw,
+};
+use std::marker::PhantomData;
+
+/// A world transaction is valid only during the callback that supplied it.
+/// Store a [`WorldHandle`] to schedule later work instead.
+pub struct WorldTx<'scope> {
+    raw: &'scope raw::WorldTx,
+}
+impl<'scope> WorldTx<'scope> {
+    /// Wrap the canonical borrowed resource for generated component bridges.
+    #[doc(hidden)]
+    pub fn __from_borrowed(raw: &'scope raw::WorldTx) -> Self {
+        Self { raw }
+    }
+    /// Obtain a storable world reference, never a second live world borrow.
+    pub fn world(&self) -> Result<WorldHandle, AccessError> {
+        self.raw.world()
+    }
+    /// Enumerate owned actor references in this transaction's current world.
+    pub fn players(&self) -> Result<Vec<PlayerHandle>, AccessError> {
+        self.raw.players()
+    }
+    /// Resolve a reference only in this world and this callback.
+    /// The returned player cannot outlive the transaction borrow.
+    ///
+    /// ```compile_fail
+    /// use unastar_api::{Player, PlayerHandle, WorldTx};
+    /// fn escape(tx: &WorldTx<'_>, handle: &PlayerHandle) -> Player<'static> {
+    ///     tx.player(handle).unwrap()
+    /// }
+    /// ```
+    pub fn player<'tx>(&'tx self, handle: &PlayerHandle) -> Result<Player<'tx>, AccessError> {
+        self.raw.player(handle).map(|raw| Player {
+            raw: PlayerResource::Owned(raw),
+            scope: PhantomData,
+        })
+    }
+}
+
+enum PlayerResource<'scope> {
+    Borrowed(&'scope raw::Player),
+    Owned(raw::Player),
+}
+
+/// A live player valid only inside its originating transaction callback.
+/// Use [`Self::handle`] when storing a roster or scheduling later work.
+pub struct Player<'scope> {
+    raw: PlayerResource<'scope>,
+    scope: PhantomData<&'scope WorldTx<'scope>>,
+}
+impl<'scope> Player<'scope> {
+    /// Bind generated callback arguments to the same transaction lifetime.
+    #[doc(hidden)]
+    pub fn __from_borrowed(raw: &'scope raw::Player, _tx: &'scope WorldTx<'scope>) -> Self {
+        Self {
+            raw: PlayerResource::Borrowed(raw),
+            scope: PhantomData,
+        }
+    }
+    /// Select the underlying capability without extending its callback lifetime.
+    fn raw(&self) -> &raw::Player {
+        match &self.raw {
+            PlayerResource::Borrowed(raw) => raw,
+            PlayerResource::Owned(raw) => raw,
+        }
+    }
+    /// Retain a stable actor reference instead of this scoped player.
+    pub fn handle(&self) -> Result<PlayerHandle, AccessError> {
+        self.raw().to_handle()
+    }
+    /// Read immutable authenticated identity from the current actor binding.
+    pub fn identity(&self) -> Result<PlayerIdentity, AccessError> {
+        self.raw().identity()
+    }
+    /// Read feet coordinates in this transaction's world.
+    pub fn position(&self) -> Result<Vec3, AccessError> {
+        self.raw().position()
+    }
+    /// Read the current yaw and pitch.
+    pub fn rotation(&self) -> Result<(f32, f32), AccessError> {
+        self.raw().rotation()
+    }
+    /// Read authoritative current health without substituting default values.
+    pub fn health(&self) -> Result<f32, AccessError> {
+        self.raw().health()
+    }
+    /// Read authoritative maximum health.
+    pub fn max_health(&self) -> Result<f32, AccessError> {
+        self.raw().max_health()
+    }
+    /// Read the durable base mode, independently of transient overlays.
+    pub fn game_mode(&self) -> Result<GameMode, AccessError> {
+        self.raw().game_mode()
+    }
+    /// Read the mode currently used by native gameplay and permissions.
+    pub fn effective_game_mode(&self) -> Result<GameMode, AccessError> {
+        self.raw().effective_game_mode()
+    }
+    /// Read current native movement and life facts.
+    pub fn flags(&self) -> Result<PlayerFlags, AccessError> {
+        self.raw().flags()
+    }
+    /// Read native lifecycle availability, independently of plugin game rules.
+    pub fn availability(&self) -> Result<PlayerAvailability, AccessError> {
+        self.raw().availability()
+    }
+    /// Read the immutable host configuration grant, not a mutable permission component.
+    pub fn configured_admin(&self) -> Result<bool, AccessError> {
+        self.raw().configured_admin()
+    }
+    /// Copy read-only observations when data must survive this callback.
+    pub fn snapshot(&self) -> Result<PlayerSnapshot, AccessError> {
+        self.raw().snapshot()
+    }
+    /// Stage a bounded message for this exact connection after callback success.
+    pub fn message(&self, message: &str) -> Result<(), AccessError> {
+        self.raw().message(message)
+    }
+}
+
+/// A handler's current player and world transaction, with its own cancellation scope.
+pub struct PlayerContext<'scope> {
+    tx: &'scope WorldTx<'scope>,
+    player: &'scope Player<'scope>,
+    cancelled: bool,
+    cancellable: bool,
+}
+impl<'scope> PlayerContext<'scope> {
+    /// Construct one event scope for generated Handler bridges.
+    #[doc(hidden)]
+    pub fn __new(
+        tx: &'scope WorldTx<'scope>,
+        player: &'scope Player<'scope>,
+        cancellable: bool,
+    ) -> Self {
+        Self {
+            tx,
+            player,
+            cancelled: false,
+            cancellable,
+        }
+    }
+    /// Access the player only within this event's callback.
+    pub fn player(&self) -> &Player<'scope> {
+        self.player
+    }
+    /// Query other actors in this same live world transaction.
+    pub fn tx(&self) -> &WorldTx<'scope> {
+        self.tx
+    }
+    /// Cancel a cancellable proposal. Returns false for committed notifications.
+    pub fn cancel(&mut self) -> bool {
+        if !self.cancellable {
+            return false;
+        }
+        self.cancelled = true;
+        true
+    }
+    /// Read this event's cancellation without affecting any other callback.
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled
+    }
+}
+
+/// Global enumeration returns storable handles, never live foreign-world players.
+pub mod server {
+    pub use crate::host::{get_tick_id, log, unix_time_seconds};
+    use crate::{AccessError, PlayerHandle, WorldHandle};
+    /// Enumerate immutable references to actors across registered worlds.
+    pub fn players() -> Result<Vec<PlayerHandle>, AccessError> {
+        crate::host::players()
+    }
+    /// Schedule work through a world reference to receive its own fresh transaction.
+    pub fn worlds() -> Result<Vec<WorldHandle>, AccessError> {
+        crate::host::worlds()
+    }
+}

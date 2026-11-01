@@ -54,7 +54,11 @@ impl Harness {
             api_version: PLUGIN_API_VERSION.into(),
             required: false,
             config: None,
-            capabilities: Default::default(),
+            capabilities: [
+                crate::plugin::manifest::PluginCapability::ReadPlayers,
+                crate::plugin::manifest::PluginCapability::ScheduleTasks,
+            ]
+            .into(),
             subscriptions: subscriptions.iter().copied().collect(),
             limits: PluginLimits::default(),
         };
@@ -78,6 +82,9 @@ impl Harness {
             readiness: Default::default(),
         }));
         let mut world = World::new();
+        world.insert_resource(crate::world::ChunkManager::new(
+            crate::world::WorldConfig::void_spawn_platform(1),
+        ));
         world.insert_resource(TickCounter { current: 42 });
         world.insert_resource(ActionQueue::default());
         world.insert_resource(EventBuffer::default());
@@ -92,6 +99,8 @@ impl Harness {
             .spawn((
                 Player,
                 PlayerName("Alice".into()),
+                crate::entity::components::PlayerUuid(uuid::Uuid::from_u128(7)),
+                crate::entity::components::PlayerState::default(),
                 PlayerSession::new(7, "Alice".into(), None, None, tx),
                 RuntimeEntityId(7),
                 Position(DVec3::new(2.0, 70.0, 2.0)),
@@ -168,7 +177,17 @@ fn damage_veto_traps_and_invalid_results_leave_player_state_unchanged() {
 fn damage_callback_changes_the_hit_and_receives_a_player_attacker() {
     let body = "local.get 1 i32.const 1 i32.ne if unreachable end i32.const 32 i32.const 1 i32.store i32.const 36 f32.const 3 f32.store i32.const 32";
     let mut h = Harness::new(&[EventKind::PlayerDamage], body, KEEP_POSITION);
-    let attacker = h.world.spawn(Player).id();
+    let (tx, _rx) = mpsc::channel(128);
+    let attacker = h
+        .world
+        .spawn((
+            Player,
+            PlayerName("Attacker".into()),
+            crate::entity::components::PlayerUuid(uuid::Uuid::from_u128(8)),
+            RuntimeEntityId(8),
+            PlayerSession::new(8, "Attacker".into(), None, None, tx),
+        ))
+        .id();
     assert_eq!(h.hit(100.0, Some(attacker)), 3.0);
     assert_eq!(h.world.get::<Health>(h.player).unwrap().current, 17.0);
     assert!(h.world.get::<Dead>(h.player).is_none());
@@ -211,7 +230,7 @@ fn respawn_callback_can_veto_or_choose_the_destination() {
             assert_eq!(h.world.get::<Health>(h.player).unwrap().current, 20.0);
             assert_eq!(
                 h.world.get::<Position>(h.player).unwrap().0,
-                DVec3::new(7.0, 80.0, -4.0)
+                DVec3::new(7.0, 80.0 + crate::entity::PLAYER_EYE_HEIGHT, -4.0)
             );
         } else {
             assert!(h.world.get::<Dead>(h.player).is_some());
@@ -289,7 +308,7 @@ fn trapped_buffered_callbacks_discard_partial_host_actions_after_lifecycle_calls
         &[EventKind::PlayerDamage, EventKind::Tick],
         KEEP_DAMAGE,
         KEEP_POSITION,
-        "i32.const 1 i32.const 2 i32.const 3 i32.const 4 call $set-block unreachable",
+        "i32.const 256 call @players@ i32.const 260 i32.load i32.load i64.const 9 i32.const 280 call @[method]player-handle.schedule@ unreachable",
     );
     assert_eq!(h.hit(2.0, None), 2.0);
     h.manager.lock().unwrap().tick(&mut h.world);

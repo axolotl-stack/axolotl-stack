@@ -159,3 +159,35 @@ opaque bytes from a regular file contained in the plugin directory before
 instantiation. Absolute paths, escapes and symlinks outside that directory are
 rejected. Configuration does not grant filesystem access. The cache is internal
 in API 0.3; exposing those bytes to components requires a versioned host binding.
+
+
+### Scoped WASM player API
+
+API `0.4.0` replaces unscoped player access with callback transactions. Implement
+`unastar_api::Handler` and export it with `export_handler!`. A `PlayerContext`
+provides the current `Player` and `WorldTx`; `ctx.cancel()` vetoes cancellable
+callbacks. Positions use feet coordinates. Typed queries return errors for missing
+state instead of default health, modes or positions.
+
+Live `Player` and `WorldTx` values expire when their callback returns. The Rust SDK
+also binds their lifetimes to that scope. Store an owned `PlayerHandle` or
+`WorldHandle` for later work, then use `schedule(callback_id)` to receive a fresh
+transaction in `on_player_task` or `on_world_task`. Player handles follow the same
+connection through world migration and reject reconnect replacements, even when
+account, UUID and session numbers are reused. A transaction cannot resolve a live
+player from another world. Global enumeration returns owned handles; cross-world
+snapshots are read-only observations carrying their capture tick.
+
+Tasks have explicit pending, running, completed and typed failure states. A stale
+player or closed world invokes `on_task_failed`; work never synchronously reenters
+a borrowed world. Tasks share the component's original cycle fuel. Required task
+traps close readiness just like other required callbacks. Messages and scheduled
+work commit only when their callback succeeds; initialization messages and scheduled tasks wait until
+all required components are ready.
+
+Manifests request `read-players`, `send-messages` and `schedule-tasks` separately.
+`PluginLimits` also bounds owned resources, host operations, queued tasks and
+messages independently of fuel and linear memory. The former direct item, teleport,
+kick and block mutation imports are absent from this version; new mutation
+capabilities must use authoritative host operations with their own typed contracts.
+The example component demonstrates scoped handlers and deferred player messages.

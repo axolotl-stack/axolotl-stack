@@ -96,6 +96,8 @@ fn main() -> Result<()> {
     writeln!(out, "    }};")?;
     writeln!(out, "}}")?;
 
+    generate_handler(&mut out, &resolve, &funcs)?;
+
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
     fs::write(out_dir.join("plugin_api.rs"), out)?;
 
@@ -173,17 +175,17 @@ fn type_to_rust(resolve: &Resolve, ty: &Type, in_macro: bool) -> String {
                 TypeDefKind::Handle(Handle::Borrow(inner_id)) => {
                     let name = resolve_type_name(resolve, *inner_id);
                     if in_macro {
-                        format!("&$crate::{name}")
+                        format!("&$crate::raw::{name}")
                     } else {
-                        format!("&{name}")
+                        format!("&raw::{name}")
                     }
                 }
                 TypeDefKind::Handle(Handle::Own(inner_id)) => {
                     let name = resolve_type_name(resolve, *inner_id);
                     if in_macro {
-                        format!("$crate::{name}")
+                        format!("$crate::raw::{name}")
                     } else {
-                        name
+                        format!("raw::{name}")
                     }
                 }
                 TypeDefKind::List(inner) => {
@@ -239,4 +241,139 @@ fn to_pascal_case(s: &str) -> String {
             }
         })
         .collect()
+}
+
+/// Whether a callback owns a transaction-scoped player argument.
+fn has_player(func: &wit_parser::Function) -> bool {
+    func.params.iter().any(|param| param.name == "player")
+}
+
+/// Translate canonical callback parameters into lifetime-bound Handler contexts.
+fn handler_params(resolve: &Resolve, func: &wit_parser::Function) -> String {
+    let player = has_player(func);
+    let mut params = Vec::new();
+    if player {
+        params.push("ctx: &mut PlayerContext<'_>".into());
+    } else if func.params.iter().any(|param| param.name == "tx") {
+        params.push("tx: &WorldTx<'_>".into());
+    }
+    for param in &func.params {
+        if param.name == "tx" || param.name == "player" {
+            continue;
+        }
+        let name = param.name.replace('-', "_");
+        let ty = if name == "attacker" {
+            "Option<&Player<'_>>".into()
+        } else if func.name == "on-player-damage" && name == "damage" {
+            "&mut f32".into()
+        } else if func.name == "on-player-respawn" && name == "position" {
+            "&mut Vec3".into()
+        } else {
+            type_to_rust(resolve, &param.ty, false)
+        };
+        params.push(format!("{name}: {ty}"));
+    }
+    params.join(", ")
+}
+
+/// Generate static Handler methods and a canonical Guest bridge with isolated cancellation.
+fn generate_handler(
+    out: &mut String,
+    resolve: &Resolve,
+    funcs: &[&wit_parser::Function],
+) -> Result<()> {
+    writeln!(
+        out,
+        "/// Dragonfly-style scoped handlers. Store handles rather than live players or transactions."
+    )?;
+    writeln!(out, "#[allow(unused_variables)] pub trait Handler {{")?;
+    for func in funcs {
+        writeln!(
+            out,
+            "fn {}({}) {{}}",
+            func.name.replace('-', "_"),
+            handler_params(resolve, func)
+        )?;
+    }
+    writeln!(out, "}}")?;
+    writeln!(out, "/// Export one scoped Handler as a component.")?;
+    writeln!(
+        out,
+        "#[macro_export] macro_rules! export_handler {{ ($t:ty) => {{ struct __UnastarHandlerBridge; impl $crate::Guest for __UnastarHandlerBridge {{"
+    )?;
+    for func in funcs {
+        let method = func.name.replace('-', "_");
+        writeln!(
+            out,
+            "fn {method}({}){} {{",
+            params_str(resolve, func, true),
+            return_str(resolve, func, true)
+        )?;
+        let has_tx = func.params.iter().any(|param| param.name == "tx");
+        let has_player = has_player(func);
+        if has_tx {
+            writeln!(out, "let tx = $crate::WorldTx::__from_borrowed(tx);")?;
+        }
+        let cancellable = func.result.is_some();
+        if has_player {
+            writeln!(
+                out,
+                "let player = $crate::Player::__from_borrowed(player, &tx); let mut ctx = $crate::PlayerContext::__new(&tx, &player, {cancellable});"
+            )?;
+        }
+        if func.params.iter().any(|param| param.name == "attacker") {
+            writeln!(
+                out,
+                "let attacker = attacker.map(|raw| $crate::Player::__from_borrowed(raw, &tx));"
+            )?;
+        }
+        if func.name == "on-player-damage" {
+            writeln!(out, "let mut damage = damage;")?;
+        }
+        if func.name == "on-player-respawn" {
+            writeln!(out, "let mut position = position;")?;
+        }
+        let mut args = Vec::new();
+        if has_player {
+            args.push("&mut ctx".to_string());
+        } else if has_tx {
+            args.push("&tx".to_string());
+        }
+        for param in &func.params {
+            if param.name == "tx" || param.name == "player" {
+                continue;
+            }
+            let name = param.name.replace('-', "_");
+            args.push(if name == "attacker" {
+                "attacker.as_ref()".into()
+            } else if (func.name == "on-player-damage" && name == "damage")
+                || (func.name == "on-player-respawn" && name == "position")
+            {
+                format!("&mut {name}")
+            } else {
+                name
+            });
+        }
+        writeln!(
+            out,
+            "<$t as $crate::Handler>::{method}({});",
+            args.join(", ")
+        )?;
+        match &func.result {
+            Some(Type::Bool) => writeln!(out, "!ctx.is_cancelled()")?,
+            Some(_) if func.name == "on-player-damage" => writeln!(
+                out,
+                "if ctx.is_cancelled() {{ None }} else {{ Some(damage) }}"
+            )?,
+            Some(_) if func.name == "on-player-respawn" => writeln!(
+                out,
+                "if ctx.is_cancelled() {{ None }} else {{ Some(position) }}"
+            )?,
+            Some(_) => anyhow::bail!("unsupported Handler result for {}", func.name),
+            None => {}
+        }
+        writeln!(out, "}}")?;
+    }
+    writeln!(out, "}} $crate::export!(__UnastarHandlerBridge); }}; }}")?;
+    Ok(())
 }

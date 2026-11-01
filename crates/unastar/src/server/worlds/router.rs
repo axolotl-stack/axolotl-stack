@@ -454,6 +454,14 @@ impl DimensionRouter {
             manager
                 .lock()
                 .map_err(|_| WorldTickError::PluginManagerUnavailable)?
+                .drain_scheduled_tasks(self);
+            self.check_plugins()?;
+            self.apply_requests();
+            self.check_plugins()?;
+            self.refresh_directory();
+            manager
+                .lock()
+                .map_err(|_| WorldTickError::PluginManagerUnavailable)?
                 .end_tick();
         }
         Ok(())
@@ -461,7 +469,13 @@ impl DimensionRouter {
     /// Replace immutable directory resources without holding a world borrow.
     pub fn refresh_directory(&mut self) -> WorldDirectory {
         let directory = WorldDirectory::capture(self);
+        let component_directory =
+            crate::plugin::manager::players::ComponentDirectory::capture(self);
         for world in self.worlds.values_mut() {
+            world
+                .ecs
+                .world_mut()
+                .insert_resource(component_directory.clone());
             world.ecs.world_mut().insert_resource(directory.clone());
         }
         directory

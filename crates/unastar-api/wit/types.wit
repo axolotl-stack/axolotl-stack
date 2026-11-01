@@ -1,4 +1,4 @@
-package unastar:plugin@0.3.0;
+package unastar:plugin@0.4.0;
 
 interface types {
     record vec3 {
@@ -72,17 +72,118 @@ interface types {
         count: u8,
     }
 
+    /// Scope and identity failures never return fabricated player values.
+    enum access-error {
+        expired-scope,
+        stale-player,
+        wrong-world,
+        world-closed,
+        invalid-identity,
+        invalid-argument,
+        permission-denied,
+        limit-exceeded,
+        unavailable,
+        callback-failed,
+        cancelled,
+    }
+
+    enum player-availability {
+        ready,
+        initializing,
+        quarantined,
+        recovering,
+        loading,
+        retained,
+        dead,
+        incomplete,
+    }
+
+    record player-identity {
+        authenticated-xuid: option<u64>,
+        uuid: string,
+        name: string,
+        connection-id: option<u64>,
+    }
+
+    record player-flags {
+        on-ground: option<bool>,
+        sneaking: bool,
+        sprinting: bool,
+        swimming: bool,
+        gliding: bool,
+        flying: bool,
+        invisible: bool,
+        burning: bool,
+        dead: bool,
+    }
+
+    /// An owned read-only observation. Position is feet, never eye height.
+    /// Global observations describe the last refreshed world directory;
+    /// resolve a handle inside a world transaction before acting on live state.
+    record player-snapshot {
+        identity: player-identity,
+        dimension: s32,
+        position: vec3,
+        rotation: tuple<f32, f32>,
+        health: f32,
+        max-health: f32,
+        game-mode: game-mode,
+        effective-game-mode: game-mode,
+        %flags: player-flags,
+        availability: player-availability,
+        configured-admin: bool,
+        captured-tick: u64,
+    }
+
+    variant task-status {
+        pending,
+        running,
+        completed,
+        failed(access-error),
+    }
+
+    resource task {
+        id: func() -> result<u64, access-error>;
+        status: func() -> result<task-status, access-error>;
+        cancel: func() -> result<bool, access-error>;
+    }
+
+    /// A storable actor reference. Transfers preserve it; reconnects do not.
+    resource player-handle {
+        identity: func() -> result<player-identity, access-error>;
+        snapshot: func() -> result<player-snapshot, access-error>;
+        schedule: func(callback-id: u64) -> result<task, access-error>;
+    }
+
+    /// A storable world reference; scheduling never borrows a foreign live world.
+    resource world-handle {
+        dimension: func() -> result<s32, access-error>;
+        schedule: func(callback-id: u64) -> result<task, access-error>;
+    }
+
+    /// Valid only during its supplying callback. The SDK prevents escape;
+    /// the host independently rejects expired transaction epochs.
+    resource world-tx {
+        %world: func() -> result<world-handle, access-error>;
+        players: func() -> result<list<player-handle>, access-error>;
+        /// The returned capability expires with this callback, even if retained.
+        player: func(handle: borrow<player-handle>) -> result<player, access-error>;
+    }
+
+    /// Live access is transaction scoped. Store player-handle instead of player.
     resource player {
-        get-name: func() -> string;
-        get-uuid: func() -> string;
-        get-position: func() -> vec3;
-        get-rotation: func() -> tuple<f32, f32>;
-        get-health: func() -> f32;
-        get-max-health: func() -> f32;
-        get-game-mode: func() -> game-mode;
-        send-message: func(message: string);
-        teleport: func(position: vec3);
-        give-item: func(item-id: string, count: u8);
-        kick: func(reason: string);
+        to-handle: func() -> result<player-handle, access-error>;
+        identity: func() -> result<player-identity, access-error>;
+        position: func() -> result<vec3, access-error>;
+        rotation: func() -> result<tuple<f32, f32>, access-error>;
+        health: func() -> result<f32, access-error>;
+        max-health: func() -> result<f32, access-error>;
+        game-mode: func() -> result<game-mode, access-error>;
+        effective-game-mode: func() -> result<game-mode, access-error>;
+        %flags: func() -> result<player-flags, access-error>;
+        availability: func() -> result<player-availability, access-error>;
+        configured-admin: func() -> result<bool, access-error>;
+        snapshot: func() -> result<player-snapshot, access-error>;
+        message: func(message: string) -> result<_, access-error>;
     }
 }

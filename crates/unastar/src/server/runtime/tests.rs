@@ -504,7 +504,7 @@ async fn required_component_initializes_before_listener_binding_and_admission() 
     }
     let plugin = std::path::Path::new("plugins/example");
     std::fs::create_dir_all(plugin).unwrap();
-    std::fs::write(plugin.join("plugin.toml"), "id = 'example.required'\nname = 'Example'\nversion = '1'\napi_version = '0.3.0'\nrequired = true\n").unwrap();
+    std::fs::write(plugin.join("plugin.toml"), "id = 'example.required'\nname = 'Example'\nversion = '1'\napi_version = '0.4.0'\nrequired = true\n").unwrap();
     std::fs::write(
         plugin.join("plugin.wasm"),
         crate::plugin::manager::tests::component_source(

@@ -84,7 +84,7 @@ fn attach(
         api_version: PLUGIN_API_VERSION.into(),
         required: false,
         config: None,
-        capabilities: Default::default(),
+        capabilities: [crate::plugin::manifest::PluginCapability::ReadPlayers].into(),
         subscriptions: kinds.iter().copied().collect(),
         limits: PluginLimits {
             fuel_per_tick: 10_000,
@@ -132,16 +132,30 @@ async fn component_tick_runs_once_with_the_global_player_directory_and_primary_c
         r#"
         local.get 0 call $tick i64.ne if unreachable end
         i32.const 128 i32.const 128 i32.load i32.const 1 i32.add i32.store
-        i32.const 0 i32.const 64 i32.const 0 i32.const 128 i32.load call $set-block
-        i32.const 1 i32.const 64 i32.const 0 call $player-count call $set-block
+        i32.const 1024 i32.const 128 i32.load i32.const 48 i32.add i32.store8
+        i32.const 0 i32.const 1024 i32.const 1 call @log@
+        i32.const 256 call @players@
+        i32.const 256 i32.load8_u if unreachable end
+        i32.const 1025 i32.const 264 i32.load i32.const 48 i32.add i32.store8
+        i32.const 0 i32.const 1025 i32.const 1 call @log@
     "#,
     );
     for expected in [1, 2] {
         router.tick().await.unwrap();
-        let queued = actions(&mut router, 0);
-        assert!(
-            matches!(queued.as_slice(),[PluginAction::SetBlock{position:(0,64,0),block_id},PluginAction::SetBlock{position:(1,64,0),block_id:3}] if *block_id==expected)
-        );
+        let logs = {
+            let mut manager = manager.lock().unwrap();
+            std::mem::take(
+                &mut manager
+                    .plugins
+                    .get_mut(&PluginId("example.global".into()))
+                    .unwrap()
+                    .store
+                    .data_mut()
+                    .test_logs,
+            )
+        };
+        assert_eq!(logs, [expected.to_string(), "3".into()]);
+        assert!(actions(&mut router, 0).is_empty());
         assert!(actions(&mut router, 1).is_empty());
         assert!(actions(&mut router, 2).is_empty());
     }
@@ -153,7 +167,20 @@ async fn component_tick_runs_once_with_the_global_player_directory_and_primary_c
     let names = with_world(
         &mut plugin.store,
         router.world_mut(0).unwrap().ecs.world_mut(),
-        |store| Host::list_players(store.data_mut()),
+        |store| {
+            let context = store.data_mut();
+            Host::players(context)
+                .unwrap()
+                .into_iter()
+                .map(|handle| {
+                    wit_bindings::unastar::plugin::types::HostPlayerHandle::identity(
+                        context, handle,
+                    )
+                    .unwrap()
+                    .name
+                })
+                .collect::<Vec<_>>()
+        },
     );
     assert_eq!(names, ["Player0", "Player1", "Player2"]);
     assert!(!manager.tick_prepared);
@@ -304,7 +331,7 @@ async fn required_tick_trap_fences_all_worlds_and_never_recovers_on_next_fuel_cy
         &mut router,
         &[crate::ecs::events::EventKind::Tick],
         KEEP_DAMAGE,
-        "i32.const 0 i32.const 64 i32.const 0 i32.const 9 call $set-block unreachable",
+        "unreachable",
     );
     require(&manager);
     assert!(matches!(
@@ -400,3 +427,6 @@ async fn required_legitimate_damage_veto_preserves_readiness_and_player_state() 
     assert!(super::super::readiness::admission_allowed(world));
     router.tick().await.unwrap();
 }
+
+#[path = "scoped.rs"]
+mod scoped_tests;

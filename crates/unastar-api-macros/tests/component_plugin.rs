@@ -18,13 +18,17 @@ impl Plugin for ComponentPlugin {
 #[test]
 fn component_export_dispatches_to_the_plugin() {
     let _: fn(
-        &unastar_api::Player,
-        Option<&unastar_api::Player>,
+        &unastar_api::raw::WorldTx,
+        &unastar_api::raw::Player,
+        Option<&unastar_api::raw::Player>,
         unastar_api::DamageCause,
         f32,
     ) -> Option<f32> = <__UnastarPluginBridge as Guest>::on_player_damage;
-    let _: fn(&unastar_api::Player, unastar_api::Vec3) -> Option<unastar_api::Vec3> =
-        <__UnastarPluginBridge as Guest>::on_player_respawn;
+    let _: fn(
+        &unastar_api::raw::WorldTx,
+        &unastar_api::raw::Player,
+        unastar_api::Vec3,
+    ) -> Option<unastar_api::Vec3> = <__UnastarPluginBridge as Guest>::on_player_respawn;
     <__UnastarPluginBridge as Guest>::on_load();
     <__UnastarPluginBridge as Guest>::on_tick(42);
     assert_eq!(LAST_TICK.load(Ordering::SeqCst), 42);

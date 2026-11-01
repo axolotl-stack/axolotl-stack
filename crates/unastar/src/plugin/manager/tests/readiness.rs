@@ -24,6 +24,9 @@ fn manager() -> PluginManager {
 fn world() -> bevy_ecs::world::World {
     let mut world = bevy_ecs::world::World::new();
     world.insert_resource(TickCounter { current: 42 });
+    world.insert_resource(crate::world::ChunkManager::new(
+        crate::world::WorldConfig::void_spawn_platform(1),
+    ));
     world.insert_resource(ActionQueue::default());
     world.insert_resource(EventBuffer::default());
     world
@@ -32,7 +35,7 @@ fn world() -> bevy_ecs::world::World {
 fn plugin(root: &Path, directory: &str, id: &str, required: bool, load: &str) -> PathBuf {
     let directory = root.join(directory);
     std::fs::create_dir_all(&directory).unwrap();
-    std::fs::write(directory.join("plugin.toml"), format!("id = {id:?}\nname = \"Example\"\nversion = \"1\"\napi_version = {PLUGIN_API_VERSION:?}\nrequired = {required}\n")).unwrap();
+    std::fs::write(directory.join("plugin.toml"), format!("id = {id:?}\nname = \"Example\"\nversion = \"1\"\napi_version = {PLUGIN_API_VERSION:?}\nrequired = {required}\ncapabilities = [\"read-players\",\"schedule-tasks\"]\n")).unwrap();
     std::fs::write(
         directory.join("plugin.wasm"),
         component_source(true, KEEP_DAMAGE, KEEP_POSITION, "", load),
@@ -81,7 +84,13 @@ fn manifest_required_compile_and_initialization_failures_are_sticky() {
             "example",
             "example.required",
             true,
-            "i32.const 0 i32.const 1 i32.const 0 i32.const 9 call $set-block unreachable",
+            r#"
+                i32.const 64 call @worlds@
+                i32.const 64 i32.load8_u if unreachable end
+                i32.const 68 i32.load i32.load i64.const 9 i32.const 96 call @[method]world-handle.schedule@
+                i32.const 96 i32.load8_u if unreachable end
+                unreachable
+            "#,
         );
         if malformed_module {
             std::fs::write(dir.join("plugin.wasm"), b"invalid").unwrap();
@@ -111,7 +120,13 @@ fn optional_broken_components_preserve_startup_and_discard_their_actions() {
             "example",
             "example.optional",
             false,
-            "i32.const 0 i32.const 1 i32.const 0 i32.const 9 call $set-block unreachable",
+            r#"
+                i32.const 64 call @worlds@
+                i32.const 64 i32.load8_u if unreachable end
+                i32.const 68 i32.load i32.load i64.const 9 i32.const 96 call @[method]world-handle.schedule@
+                i32.const 96 i32.load8_u if unreachable end
+                unreachable
+            "#,
         );
         if corrupt_module {
             std::fs::write(dir.join("plugin.wasm"), b"invalid").unwrap();
@@ -145,7 +160,12 @@ fn required_startup_preloads_immutable_opaque_configuration_without_filesystem_g
     let mut manager = manager();
     manager.load_plugins(root.path()).unwrap();
     assert_eq!(manager.pending[0].store.data().configuration, bytes);
-    assert!(manager.pending[0].manifest.capabilities.is_empty());
+    assert!(
+        !manager.pending[0]
+            .manifest
+            .capabilities
+            .contains(&crate::plugin::manifest::PluginCapability::Filesystem)
+    );
     std::fs::write(dir.join("settings.bin"), b"changed").unwrap();
     let mut world = world();
     world.insert_resource(manager.readiness.clone());

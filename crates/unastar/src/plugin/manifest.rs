@@ -54,6 +54,24 @@ pub struct PluginLimits {
     /// Exceeding this limit traps. Defaults to 64MB.
     #[serde(default = "default_memory")]
     pub max_memory: usize,
+    /// Maximum live component resources, including expired capabilities retained by a guest.
+    #[serde(default = "default_owned_resources")]
+    pub max_owned_resources: u32,
+    /// Aggregate host calls in one shared tick budget.
+    #[serde(default = "default_host_operations")]
+    pub max_host_operations_per_tick: u32,
+    /// Maximum scheduled jobs accepted per shared tick.
+    #[serde(default = "default_tasks_per_tick")]
+    pub max_tasks_per_tick: u32,
+    /// Maximum unexecuted jobs retained by one component instance.
+    #[serde(default = "default_pending_tasks")]
+    pub max_pending_tasks: u32,
+    /// Maximum UTF-8 bytes in one message or diagnostic.
+    #[serde(default = "default_message_bytes")]
+    pub max_message_bytes: u32,
+    /// Maximum direct messages staged in one shared tick.
+    #[serde(default = "default_messages")]
+    pub max_messages_per_tick: u32,
 }
 
 impl Default for PluginLimits {
@@ -61,6 +79,12 @@ impl Default for PluginLimits {
         Self {
             fuel_per_tick: default_fuel(),
             max_memory: default_memory(),
+            max_owned_resources: default_owned_resources(),
+            max_host_operations_per_tick: default_host_operations(),
+            max_tasks_per_tick: default_tasks_per_tick(),
+            max_pending_tasks: default_pending_tasks(),
+            max_message_bytes: default_message_bytes(),
+            max_messages_per_tick: default_messages(),
         }
     }
 }
@@ -72,10 +96,41 @@ fn default_memory() -> usize {
     64 * 1024 * 1024
 }
 
+/// Bound resource references independently of Wasm linear memory.
+fn default_owned_resources() -> u32 {
+    4096
+}
+/// Limit cheap imported operations in addition to Wasm instruction fuel.
+fn default_host_operations() -> u32 {
+    20_000
+}
+/// Keep deferred work finite even when every callback schedules more work.
+fn default_tasks_per_tick() -> u32 {
+    256
+}
+/// Bound jobs independently of how many task handles the guest drops.
+fn default_pending_tasks() -> u32 {
+    1024
+}
+/// Allow formatted messages without unbounded host allocations.
+fn default_message_bytes() -> u32 {
+    4096
+}
+/// Bound a component's packet-producing direct message calls.
+fn default_messages() -> u32 {
+    256
+}
+
 /// Capabilities a plugin can request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginCapability {
+    /// Read typed actor references and current-world observations.
+    ReadPlayers,
+    /// Send bounded direct messages to exact current connections.
+    SendMessages,
+    /// Schedule bounded work on world owners with fresh transaction scopes.
+    ScheduleTasks,
     /// Access to the filesystem (scoped).
     Filesystem,
     /// Access to network (http/sockets).

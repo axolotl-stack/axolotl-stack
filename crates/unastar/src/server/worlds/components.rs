@@ -197,6 +197,7 @@ pub(super) fn native_components() -> TransferComponents {
         game::item_use::ItemUsing
     );
     crate::command::exec::register_transfer_components(&mut all);
+    crate::plugin::manager::players::register_transfer_components(&mut all);
     all
 }
 

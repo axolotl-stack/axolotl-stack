@@ -49,6 +49,16 @@ const SNAPSHOT_VERSION: u32 = 1;
 #[derive(Component)]
 pub(super) struct DetachedIdentity(Option<String>);
 
+/// Read the verified runtime account binding, including retained sessionless actors.
+pub(crate) fn account_xuid(world: &World, player: Entity) -> Option<&str> {
+    if let Some(session) = world.get::<PlayerSession>(player) {
+        return session.xuid.as_deref();
+    }
+    world
+        .get::<DetachedIdentity>(player)
+        .and_then(|identity| identity.0.as_deref())
+}
+
 /// Preserve the verified account binding before detaching a connection.
 pub(super) fn remember_identity(world: &mut World, player: Entity) {
     let identity = world
