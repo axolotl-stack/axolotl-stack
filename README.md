@@ -56,7 +56,7 @@ A standalone library for handling Xbox Live authentication flows (XSTS, Device C
 The protocol generator and the game data come from git submodules, so clone with them:
 
 ```bash
-git clone --recurse-submodules https://github.com/axolotl-stack/axolotl-stack.git
+git clone --recurse-submodules https://github.com/cinnabar-mc/axolotl-stack.git
 # or, in an existing clone:
 git submodule update --init --recursive
 ```
