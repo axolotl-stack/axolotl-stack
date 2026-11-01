@@ -11,6 +11,7 @@ world unastar-plugin {
 
     use types.{world-tx, player, vec3, block-pos, access-error, admission-decision, quit-event, quit-disposition, admitted-event, movement-committed, damage-proposal, damage-tuning, damage-committed, death-committed};
     use types.{block-proposal, block-committed};
+    use types.{item-action-proposal, item-action-decision, item-action-committed};
 
     export on-load: func();
     export on-unload: func();
@@ -38,6 +39,11 @@ world unastar-plugin {
     export on-player-held-slot-change: func(tx: borrow<world-tx>, player: borrow<player>, old-slot: u8, new-slot: u8);
     export on-player-start-break: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, face: u8);
     export on-player-interact-block: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, face: u8) -> bool;
+    /// Proposal supersedes the scalar item-use callback for the same subscriber.
+    /// Target is a borrowed player only when the actual resolved native target is a player.
+    export on-item-action: func(tx: borrow<world-tx>, player: borrow<player>, target: option<borrow<player>>, proposal: item-action-proposal) -> item-action-decision;
+    /// Only physical native completions, not inventory persistence receipts.
+    export on-item-action-committed: func(tx: borrow<world-tx>, event: item-action-committed);
     export on-player-item-use: func(tx: borrow<world-tx>, player: borrow<player>);
     export on-player-swing: func(tx: borrow<world-tx>, player: borrow<player>);
     export on-timer: func(tx: borrow<world-tx>, timer-id: u64);

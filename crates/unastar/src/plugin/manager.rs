@@ -33,6 +33,8 @@ mod blocks;
 mod damage;
 #[path = "deaths.rs"]
 mod deaths;
+#[path = "item_actions.rs"]
+mod item_actions;
 #[path = "movements.rs"]
 mod movements;
 #[path = "sessions.rs"]
@@ -667,6 +669,7 @@ impl PluginManager {
             .resource_mut::<crate::ecs::events::EventBuffer>()
             .drain();
         self.dispatch_events(ecs_world, events);
+        crate::server::game::item_actions::clear_blocks(ecs_world);
     }
 
     /// Dispatch one aggregate tick while retaining the budget for queued work.
@@ -726,6 +729,14 @@ impl PluginManager {
                             | ServerEvent::BlockPlace { .. }
                             | ServerEvent::PlayerInteractBlock { .. }
                     )
+                {
+                    continue;
+                }
+                if plugin
+                    .manifest
+                    .subscriptions
+                    .contains(&crate::ecs::events::EventKind::ItemAction)
+                    && matches!(event, ServerEvent::PlayerItemUse { .. })
                 {
                     continue;
                 }
@@ -996,6 +1007,7 @@ impl PluginManager {
             Err(e) => {
                 plugin.store.data_mut().pending_actions.clear();
                 error!(plugin = %plugin.manifest.id, error = %e, "Event dispatch failed");
+                crate::server::game::item_actions::clear_blocks(world);
                 if readiness.fail(&plugin.manifest.id.0, &wasm_failure_reason(&e)) {
                     readiness::fence_world(world);
                 }
@@ -1225,6 +1237,8 @@ pub(crate) mod tests {
     mod command_tests;
     #[path = "execution.rs"]
     mod execution_tests;
+    #[path = "item_actions.rs"]
+    mod item_action_tests;
     #[path = "readiness.rs"]
     mod readiness_tests;
     #[path = "storage.rs"]

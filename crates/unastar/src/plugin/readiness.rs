@@ -159,6 +159,8 @@ impl PluginManager {
         id: &crate::plugin::manifest::PluginId,
         reason: &str,
     ) {
+        // A failed policy callback cannot leave an earlier queued item authorization alive.
+        crate::server::game::item_actions::clear_blocks(world);
         if self.readiness.fail(&id.0, reason) {
             self.tick_budget_valid = false;
             fence_world(world);

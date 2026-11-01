@@ -121,6 +121,7 @@ impl PluginManager {
         super::views::install(views, world);
 
         super::blocks::install(manager.clone(), world);
+        super::item_actions::install(manager.clone(), world);
         LifecycleBridge::install(manager, world);
     }
 

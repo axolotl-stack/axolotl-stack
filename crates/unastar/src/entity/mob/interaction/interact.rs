@@ -45,20 +45,56 @@ pub fn player_interact(
     target: Entity,
     transaction: &ItemUseOnActorInventoryTransaction,
 ) {
-    if world.get::<Dead>(target).is_some() {
+    player_item_interact(world, player, target, transaction, true);
+}
+
+/// Resolve authoritative actor/held facts before any interaction cost, durability or mob effect.
+pub(crate) fn player_item_interact(
+    world: &mut World,
+    player: Entity,
+    target: Entity,
+    transaction: &ItemUseOnActorInventoryTransaction,
+    ordinary: bool,
+) {
+    if player == target
+        || world.get::<Dead>(target).is_some()
+        || crate::server::game::inventory_effects::is_quarantined(world, player)
+    {
         return;
     }
-    let (Some(mode), Some(slot)) = (
+    let (Some(mode), Some(slot), Some(eye)) = (
         world.get::<GameMode>(player).copied(),
-        world.get::<HeldSlot>(player).map(|slot| slot.0),
+        world.get::<HeldSlot>(player).map(|s| s.0),
+        world.get::<Position>(player).map(|p| p.0),
     ) else {
         return;
     };
-    if mode == GameMode::Spectator {
+    if mode == GameMode::Spectator || !eye.is_finite() || transaction.slot != i32::from(slot) {
+        resend_held(world, player);
         return;
     }
-    if transaction.slot != i32::from(slot) {
-        resend_held(world, player);
+    let Some(bounds) = crate::entity::geometry::collision_box(world, target) else {
+        return;
+    };
+    let reach = if mode == GameMode::Creative { 6.0 } else { 5.0 };
+    if eye.distance_squared(eye.clamp(bounds.min, bounds.max)) > reach * reach {
+        return;
+    }
+    let Some(target_facts) =
+        crate::server::game::item_actions::ItemActorTarget::capture(world, target)
+    else {
+        return;
+    };
+    let Some(permit) = crate::server::game::item_actions::authorize_target(
+        world,
+        player,
+        crate::server::game::item_actions::ItemActionKind::Use,
+        crate::server::game::item_actions::ItemTarget::Actor(target_facts),
+        None,
+    ) else {
+        return;
+    };
+    if !ordinary || world.get::<MobKind>(target).is_none() {
         return;
     }
     let Some(held) = held_item(world, player).cloned() else {
@@ -70,7 +106,13 @@ pub fn player_interact(
         || fall_in_love(world, player, target, &held)
         || authored_interaction(world, player, target);
     if used {
-        world.entity_mut(target).insert(Persistent);
+        if let Ok(mut target) = world.get_entity_mut(target) {
+            target.insert(Persistent);
+        }
+        permit.commit(
+            world,
+            crate::server::game::item_actions::ItemActionOutcome::Interacted,
+        );
     }
 }
 

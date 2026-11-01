@@ -141,4 +141,17 @@ impl Handler for ExamplePlugin {
             );
         }
     }
+    fn on_item_action(
+        ctx: &mut PlayerContext<'_>,
+        _target: Option<&unastar_api::Player<'_>>,
+        proposal: &unastar_api::ItemActionProposal,
+    ) -> unastar_api::ItemActionDecision {
+        if proposal.stage == unastar_api::ItemActionStage::Launch
+            && proposal.selected.identifier().as_deref() == Ok("minecraft:ender_pearl")
+        {
+            let _ = ctx.player().message("Throwing this item is disabled here");
+            ctx.cancel();
+        }
+        unastar_api::ItemActionDecision::Pass
+    }
 }

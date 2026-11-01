@@ -44,7 +44,7 @@ pub(super) fn install(manager: Arc<Mutex<PluginManager>>, world: &mut World) {
 }
 
 /// Copy a loaded registry value into typed properties without exposing internal runtime IDs.
-fn value(world: &World, runtime: u32) -> Result<wit::BlockValue, wit::AccessError> {
+pub(super) fn value(world: &World, runtime: u32) -> Result<wit::BlockValue, wit::AccessError> {
     let registry = world
         .get_resource::<crate::server::game::types::BlockRegistryResource>()
         .ok_or(wit::AccessError::Unavailable)?;
@@ -89,7 +89,7 @@ fn position(pos: glam::IVec3) -> wit::BlockPos {
     }
 }
 /// Preserve only present native click facts, including unknown faces as none.
-fn click(source: Option<&BlockClick>) -> Option<wit::BlockClick> {
+pub(super) fn click(source: Option<&BlockClick>) -> Option<wit::BlockClick> {
     source.map(|source| wit::BlockClick {
         position: position(source.position),
         face: source.face.and_then(|face| match face {
@@ -156,6 +156,13 @@ fn held_values(
 }
 
 impl ScopedBlockDispatcher for PluginManager {
+    fn item_committed(
+        &mut self,
+        world: &mut World,
+        event: &crate::server::game::item_actions::PlayerItemActionCommitted,
+    ) {
+        self.item_completed(world, event);
+    }
     fn proposed(&mut self, world: &mut World, event: &mut BlockInteraction) {
         self.block_proposal(world, event);
     }

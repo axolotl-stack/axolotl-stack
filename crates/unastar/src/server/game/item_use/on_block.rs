@@ -167,6 +167,7 @@ impl Use<'_> {
                     BlockInteractionKind::Use,
                     &proposed,
                     Some(BlockClick {
+                        item_action: None,
                         position: self.clicked,
                         face: (self.face <= 5).then_some(self.face),
                         offset: self.offset,

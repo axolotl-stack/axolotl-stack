@@ -489,3 +489,14 @@ fn custom_automatic_consumption_finishes_once_across_repeated_ticks() {
     world.run_system_once(item_use::tick_using).unwrap();
     assert_eq!(item_use::held(&world, player).unwrap().1.count, 2);
 }
+
+#[test]
+fn dropping_an_approving_owner_invalidates_a_retained_action_permit() {
+    let (mut world, player, _packets) = actor("minecraft:paper", 2);
+    let mut permit = authorize(&mut world, player, ItemActionKind::Use).unwrap();
+    let owner = Arc::new(());
+    permit.event.require_owner(Arc::downgrade(&owner));
+    assert!(permit.is_current(&world));
+    drop(owner);
+    assert!(!permit.is_current(&world));
+}

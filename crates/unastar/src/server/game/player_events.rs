@@ -556,6 +556,7 @@ pub(crate) fn discard_input(world: &mut World, player: Entity) {
     if let Some(mut events) = world.get_resource_mut::<crate::ecs::events::EventBuffer>() {
         events.discard_player(player);
     }
+    super::item_actions::discard_player(world, player);
     let screen = world
         .get::<crate::entity::components::ContainerWindows>(player)
         .map(|windows| windows.screen());

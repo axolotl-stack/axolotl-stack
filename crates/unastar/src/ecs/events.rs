@@ -51,6 +51,8 @@ pub enum EventKind {
     PlayerStartBreak,
     PlayerInteractBlock,
     PlayerItemUse,
+    ItemAction,
+    ItemActionCommitted,
     PlayerSwing,
     PlayerDamage,
     PlayerDamaged,

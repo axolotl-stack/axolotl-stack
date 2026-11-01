@@ -575,3 +575,50 @@ For a component subscribed to `block_transaction`, its scalar `block_break`,
 `block_place` and `player_interact_block` compatibility callbacks are suppressed.
 This gives one decision path for each planned operation. The example protects
 all cells of a column through the complete proposal and observes actual commits.
+
+
+### Scoped component item actions
+
+Subscribe to `item_action` for `Handler::on_item_action(ctx, target, &proposal)`.
+The selected item is an owned detached `ItemStack` from the actual server slot.
+Stages distinguish air/block/actor use, release, consuming, ammunition charging
+and launching. Block targets retain actual click facts and a typed loaded block
+value or an explicit unavailable error. Actor targets retain the actual registered
+identifier, feet position and player identity when present. The optional borrowed
+`target` exists only for an actual native player; it never turns a mob or departed
+projectile owner into a live player.
+
+Return `Pass` for ordinary behavior or `Deny` to stop it. `ctx.cancel()` always
+wins over the returned decision. `Handled { correlation, consume }` suppresses
+ordinary behavior and asks the engine to consume a positive bounded count from the exact
+selected stack. The numeric correlation is only echoed; it dispatches no host
+behavior. Creative mode retains the normal zero-cost rule. Invalid or conflicting
+handling, callback traps and later native vetoes fail closed. Actor, selected item,
+clicked before-state and known ammunition cells are revalidated after callbacks
+before default costs, wear or projectile creation. A passed gesture by itself is
+not a successful physical action. Each stage has its own world-lifetime action ID;
+it is not a durable request identifier or a receipt for the entire input gesture.
+
+Subscribe to `item_action_committed` for owned actual outcomes: starting use,
+consumption, charging, launching, a successful native actor interaction, a real
+correlated block operation, or custom engine-owned consumption. The record keeps
+the original account identity even if a later native callback removes the actor.
+It captures the selected cell and, when applicable, the known ammunition cell;
+it is explicitly not a complete inventory diff. Missing post-action cells and
+capture/quota failures remain explicit rather than becoming fabricated values.
+Inert clicks, rejected proposals and failed default operations emit no completion.
+
+These are synchronous physical action boundaries, **not durable inventory
+receipts or persistence acknowledgements**. An extension implementing durable
+transactions must deny the ordinary action and use the authoritative durable
+inventory capability; an immediate consume shortcut cannot replace that protocol.
+Block effects continue to expose their complete affected-cell authorization and
+completion through the separate block transaction callbacks. Their IDs correlate
+with item completion only within the actual world lifetime.
+
+The typed `item_action` subscription suppresses the same component's legacy
+`player_item_use` callback. All callbacks share existing cycle fuel, scope limits
+and trap cleanup. Pending block correlations are bounded to 128 entries, 1 MiB per
+selected user-data value and 16 MiB combined, then cleared after the queued batch
+or source closure, and invalidated by callback failures or component removal.
+No transient correlation is a durable receipt.

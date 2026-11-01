@@ -64,3 +64,9 @@ include!(concat!(env!("OUT_DIR"), "/plugin_api.rs"));
 
 /// An owned detached item stack, independent of any live inventory.
 pub use raw::Stack as ItemStack;
+
+pub use raw::{
+    CustomItemOutcome, HandledItemAction, ItemActionCommitted, ItemActionDecision, ItemActionItems,
+    ItemActionOutcome, ItemActionProposal, ItemActionStage, ItemActionTarget, ItemActorTarget,
+    ItemAmmunitionChange, ItemBlockTarget, LaunchedItemActor,
+};

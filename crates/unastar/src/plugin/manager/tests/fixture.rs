@@ -115,6 +115,7 @@ fn bytes_with_start(bodies: &[(&str, String)], start: bool) -> Vec<u8> {
         );
         let body = bodies.iter().find(|(name, _)| *name == function.name).map(|(_, body)| body.clone()).unwrap_or_else(|| match function.name.as_str() {
             "on-player-command" | "on-player-chat" | "on-block-break" | "on-block-place" | "on-block-transaction" | "on-player-interact-block" => "i32.const 1".into(),
+            "on-item-action" => "i32.const 32 i32.const 0 i32.store i32.const 32".into(),
             "on-player-admission" => "i32.const 32 i32.const 0 i32.store i32.const 32".into(),
             "on-player-quit" => "i32.const 0".into(),
             "on-player-move" => "i32.const 32 i32.const 1 i32.store i32.const 40 local.get 5 f64.store i32.const 48 local.get 6 f64.store i32.const 56 local.get 7 f64.store i32.const 32".into(),
@@ -152,12 +153,14 @@ fn bytes_with_start(bodies: &[(&str, String)], start: bool) -> Vec<u8> {
                 }
             }
         }
-        if function.params.iter().any(|param| param.name == "attacker") {
-            if indirect {
-                let at = offsets["attacker"];
-                body.push_str(&format!(" local.get 0 i32.load8_u offset={at} if local.get 0 i32.load offset={} call @player_drop@ end",at+4));
-            } else {
-                body.push_str(" local.get 2 if local.get 3 call @player_drop@ end");
+        for name in ["attacker", "target"] {
+            if function.params.iter().any(|param| param.name == name) {
+                if indirect {
+                    let at = offsets[name];
+                    body.push_str(&format!(" local.get 0 i32.load8_u offset={at} if local.get 0 i32.load offset={} call @player_drop@ end",at+4));
+                } else {
+                    body.push_str(" local.get 2 if local.get 3 call @player_drop@ end");
+                }
             }
         }
         for (name, index) in &imports {
