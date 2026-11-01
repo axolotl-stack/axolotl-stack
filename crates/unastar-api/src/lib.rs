@@ -25,6 +25,8 @@ pub mod bindings {
 pub use bindings::Guest;
 #[doc(hidden)]
 pub use bindings::export;
+/// Immutable native state archives owned by this module's manifest identity.
+pub use bindings::unastar::plugin::archives;
 /// Advertise owned command roots without replacing native builtin permissions.
 pub use bindings::unastar::plugin::commands;
 pub use bindings::unastar::plugin::host;
@@ -36,6 +38,7 @@ pub mod raw {
 }
 pub use raw::{
     AccessError, AdmissionAcknowledgement, AdmissionDecision, AdmissionResolution, AdmittedEvent,
+    ArchiveError, ArchiveFacts, ArchiveLimits, ArchiveReference, ArchiveWorld, ArchivedPlayerState,
     BlockPos, DamageCause, DisconnectDetail, DisconnectReason, Enchantment, GameMode,
     InventoryArea, InventoryImage, ItemValue, LogLevel, MovementCommitted, PlayerAvailability,
     PlayerFlags, PlayerHandle, PlayerIdentity, PlayerSnapshot, QuitDisposition, QuitEvent, Task,

@@ -54,6 +54,7 @@ impl Harness {
             tick_budget_valid: true,
             readiness: Default::default(),
             storage_registry: Default::default(),
+            archive_registry: Default::default(),
             command_roots: Default::default(),
         }));
         PluginManager::attach_to_world(

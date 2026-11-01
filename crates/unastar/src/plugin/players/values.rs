@@ -14,9 +14,24 @@ const MAX_BYTES: usize = 16 * 1024 * 1024;
 pub(in crate::plugin::manager) struct Budget(Arc<AtomicUsize>);
 
 /// A reservation releases once, after the last owner of its value disappears.
-struct Reservation {
+pub(super) struct Reservation {
     budget: Budget,
     bytes: usize,
+}
+
+impl Reservation {
+    /// Attach data only after the caller has acquired its byte allowance.
+    pub(super) fn bind<T>(self, data: T) -> Arc<Value<T>> {
+        Arc::new(Value {
+            data,
+            _reservation: self,
+        })
+    }
+
+    /// Internal constructors verify their borrowed estimate against the materialized image.
+    pub(super) fn bytes(&self) -> usize {
+        self.bytes
+    }
 }
 
 impl Drop for Reservation {
@@ -40,20 +55,23 @@ impl<T> Deref for Value<T> {
 }
 
 impl Budget {
-    /// Reserve capacity before exposing a value; overflow and quota failures change nothing.
-    pub(super) fn own<T>(&self, data: T, bytes: usize) -> Result<Arc<Value<T>>, wit::AccessError> {
+    /// Reserve before cloning native buffers; dropping an unused reservation releases it.
+    pub(super) fn reserve(&self, bytes: usize) -> Result<Reservation, wit::AccessError> {
         self.0
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| {
                 used.checked_add(bytes).filter(|next| *next <= MAX_BYTES)
             })
             .map_err(|_| wit::AccessError::LimitExceeded)?;
-        Ok(Arc::new(Value {
-            data,
-            _reservation: Reservation {
-                budget: self.clone(),
-                bytes,
-            },
-        }))
+        Ok(Reservation {
+            budget: self.clone(),
+            bytes,
+        })
+    }
+
+    /// Preserve the existing owned-value contract for already constructed bounded data.
+    pub(super) fn own<T>(&self, data: T, bytes: usize) -> Result<Arc<Value<T>>, wit::AccessError> {
+        self.reserve(bytes)
+            .map(|reservation| reservation.bind(data))
     }
 
     /// Observe retained bytes without acquiring or releasing a lease.
@@ -98,6 +116,30 @@ mod tests {
             Err(wit::AccessError::LimitExceeded)
         ));
         drop(first);
+        assert_eq!(budget.used(), 0);
+    }
+}
+
+#[cfg(test)]
+mod reservation_tests {
+    use super::*;
+    #[test]
+    fn capacity_is_owned_before_materialization_and_follows_bound_values() {
+        let budget = Budget::default();
+        let reservation = budget.reserve(MAX_BYTES).unwrap();
+        assert_eq!(budget.used(), MAX_BYTES);
+        assert!(matches!(
+            budget.reserve(1),
+            Err(wit::AccessError::LimitExceeded)
+        ));
+        let value = reservation.bind(vec![1, 2, 3]);
+        let retained = value.clone();
+        drop(value);
+        assert_eq!(budget.used(), MAX_BYTES);
+        drop(retained);
+        assert_eq!(budget.used(), 0);
+        let unused = budget.reserve(64).unwrap();
+        drop(unused);
         assert_eq!(budget.used(), 0);
     }
 }

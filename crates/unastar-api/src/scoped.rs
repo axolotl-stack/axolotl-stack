@@ -163,6 +163,12 @@ impl<'scope> Player<'scope> {
     pub fn inventory(&self) -> Result<crate::InventoryImage, AccessError> {
         self.raw().inventory()
     }
+    /// Persist complete host-owned state without exporting native encoded buffers.
+    /// Acknowledgement is durable independently of this callback's later success.
+    /// This does not detach, restore or otherwise change the current actor.
+    pub fn archive(&self, key: &str) -> Result<crate::ArchiveReference, crate::ArchiveError> {
+        self.raw().archive(key)
+    }
     /// Stage a bounded message for this exact connection after callback success.
     pub fn message(&self, message: &str) -> Result<(), AccessError> {
         self.raw().message(message)

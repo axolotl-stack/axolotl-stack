@@ -78,7 +78,9 @@ pub struct HostContext {
     /// Immutable opaque bytes loaded before component instantiation.
     configuration: Vec<u8>,
     storage_registry: std::sync::Arc<std::sync::Mutex<super::storage::Registry>>,
+    archive_registry: std::sync::Arc<std::sync::Mutex<super::archive_store::Registry>>,
     storage_namespace: Option<super::storage::SharedNamespace>,
+    archive_namespace: Option<super::archive_store::SharedNamespace>,
     io_budget: super::io_budget::IoBudget,
 }
 
@@ -128,7 +130,9 @@ impl HostContext {
                 .build(),
             configuration: Vec::new(),
             storage_registry: Default::default(),
+            archive_registry: Default::default(),
             storage_namespace: None,
+            archive_namespace: None,
             io_budget: Default::default(),
         }
     }
@@ -161,6 +165,7 @@ pub struct PluginManager {
     tick_budget_valid: bool,
     readiness: readiness::PluginReadiness,
     storage_registry: std::sync::Arc<std::sync::Mutex<super::storage::Registry>>,
+    archive_registry: std::sync::Arc<std::sync::Mutex<super::archive_store::Registry>>,
     command_roots: commands::CommandRoots,
 }
 
@@ -301,6 +306,29 @@ impl PluginManager {
         ));
         Ok(())
     }
+    /// Configure immutable native archives before loading any component instance.
+    pub(crate) fn configure_archives(
+        &mut self,
+        config: &crate::config::PluginArchiveConfig,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.plugins.is_empty() && self.pending.is_empty(),
+            "component archives must be configured before discovery"
+        );
+        config
+            .limits()
+            .validate()
+            .map_err(|_| anyhow::anyhow!("invalid component archive limits"))?;
+        anyhow::ensure!(
+            config.max_value_bytes <= super::archive_store::MAX_SNAPSHOT_BYTES,
+            "component snapshot limit exceeds maximum"
+        );
+        self.archive_registry = std::sync::Arc::new(std::sync::Mutex::new(
+            super::archive_store::Registry::new(config.directory.clone(), config.limits()),
+        ));
+        Ok(())
+    }
+
     pub fn new() -> Result<Self, anyhow::Error> {
         let mut config = wasmtime::Config::new();
         config.wasm_component_model(true);
@@ -329,6 +357,7 @@ impl PluginManager {
             tick_budget_valid: true,
             readiness: Default::default(),
             storage_registry: Default::default(),
+            archive_registry: Default::default(),
             command_roots: Default::default(),
         })
     }
@@ -354,6 +383,25 @@ impl PluginManager {
                     "component storage must be outside filesystem preopens with valid limits"
                 )
             })?;
+
+        {
+            let archives = self
+                .archive_registry
+                .lock()
+                .map_err(|_| anyhow::anyhow!("component archive registry is unavailable"))?;
+            archives.validate_directory(plugins_dir).map_err(|_| {
+                anyhow::anyhow!(
+                    "component archives must be outside filesystem preopens with valid limits"
+                )
+            })?;
+            let storage = self
+                .storage_registry
+                .lock()
+                .map_err(|_| anyhow::anyhow!("component storage registry is unavailable"))?;
+            archives.validate_storage(&storage).map_err(|_| {
+                anyhow::anyhow!("component archives must be disjoint from guest storage")
+            })?;
+        }
 
         let mut found_any = false;
         for entry in std::fs::read_dir(plugins_dir)? {
@@ -461,6 +509,11 @@ impl PluginManager {
                 .map_err(|_| anyhow::anyhow!("component storage registry is unavailable"))?
                 .validate_directory(plugin_dir)
                 .map_err(|_| anyhow::anyhow!("component filesystem overlaps durable storage"))?;
+            self.archive_registry
+                .lock()
+                .map_err(|_| anyhow::anyhow!("component archive registry is unavailable"))?
+                .validate_directory(plugin_dir)
+                .map_err(|_| anyhow::anyhow!("component filesystem overlaps native archives"))?;
             let dir_perm = wasmtime_wasi::DirPerms::all();
             let file_perm = wasmtime_wasi::FilePerms::all();
             wasi_builder.preopened_dir(plugin_dir, ".", dir_perm, file_perm)?;
@@ -470,6 +523,21 @@ impl PluginManager {
         let mut store = create_store(&self.engine, wasi_ctx, plugin_id, &manifest.limits)?;
         store.data_mut().configuration = configuration;
         store.data_mut().storage_registry = self.storage_registry.clone();
+        store.data_mut().archive_registry = self.archive_registry.clone();
+        if manifest
+            .capabilities
+            .contains(&crate::plugin::manifest::PluginCapability::PlayerStateArchives)
+        {
+            store.data_mut().archive_namespace = Some(
+                self.archive_registry
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("component archive registry is unavailable"))?
+                    .namespace(&manifest.id.0)
+                    .map_err(|error| {
+                        anyhow::anyhow!("component native archive unavailable: {error:?}")
+                    })?,
+            );
+        }
         tracing::debug!(
             config_bytes = store.data().configuration.len(),
             "Component configuration prepared"
@@ -1079,6 +1147,8 @@ pub(crate) mod tests {
         ])
     }
 
+    #[path = "archives.rs"]
+    mod archive_tests;
     #[path = "commands.rs"]
     mod command_tests;
     #[path = "readiness.rs"]
@@ -1114,6 +1184,7 @@ pub(crate) mod tests {
                 tick_budget_valid: true,
                 readiness: Default::default(),
                 storage_registry: Default::default(),
+                archive_registry: Default::default(),
                 command_roots: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
@@ -1230,6 +1301,7 @@ pub(crate) mod tests {
                 tick_budget_valid: true,
                 readiness: Default::default(),
                 storage_registry: Default::default(),
+                archive_registry: Default::default(),
                 command_roots: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
@@ -1323,6 +1395,7 @@ pub(crate) mod tests {
             tick_budget_valid: true,
             readiness: Default::default(),
             storage_registry: Default::default(),
+            archive_registry: Default::default(),
             command_roots: Default::default(),
         };
         let mut world = bevy_ecs::world::World::new();

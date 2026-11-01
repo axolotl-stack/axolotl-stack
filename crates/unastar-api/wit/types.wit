@@ -292,6 +292,68 @@ interface types {
         with-held-slot: func(slot: u8) -> result<inventory-image, access-error>;
     }
 
+    /// Original persistent world identity, not a capability for a live world.
+    record archive-world {
+        uuid: string,
+        name: string,
+        dimension: s32,
+    }
+
+    /// Immutable, module-owned reference. It grants no authority for a current actor.
+    record archive-reference {
+        key: string,
+        revision: u64,
+        fingerprint: string,
+        owner: player-identity,
+    }
+
+    variant archive-error {
+        access(access-error),
+        invalid-key,
+        conflict,
+        not-found,
+        invalid-reference,
+        invalid-snapshot,
+        quota-exceeded,
+        io-error,
+        uncertain,
+    }
+
+    record archive-limits {
+        max-snapshot-bytes: u64,
+        max-namespace-bytes: u64,
+        max-snapshots: u64,
+    }
+
+    /// Historical observations. Position is feet; no live availability is inferred.
+    record archive-facts {
+        owner: player-identity,
+        source-world: archive-world,
+        captured-tick: u64,
+        position: vec3,
+        rotation: tuple<f32, f32>,
+        velocity: vec3,
+        health: f32,
+        max-health: f32,
+        absorption: f32,
+        food: u8,
+        saturation: f32,
+        exhaustion: f32,
+        experience: u32,
+        experience-progress: f32,
+        base-game-mode: game-mode,
+        effective-game-mode: game-mode,
+        dead: bool,
+    }
+
+    /// Native full state remains host-owned, including unknown item metadata.
+    /// This resource only reads immutable observations; restoration is a separate capability.
+    resource archived-player-state {
+        reference: func() -> result<archive-reference, access-error>;
+        facts: func() -> result<archive-facts, access-error>;
+        inventory: func() -> result<inventory-image, access-error>;
+    }
+
     /// Live access is transaction scoped. Store player-handle instead of player.
     resource player {
         to-handle: func() -> result<player-handle, access-error>;
@@ -307,6 +369,9 @@ interface types {
         configured-admin: func() -> result<bool, access-error>;
         snapshot: func() -> result<player-snapshot, access-error>;
         inventory: func() -> result<inventory-image, access-error>;
+        /// Persist one complete current capture. Success is durable even if this callback traps.
+        /// Existing keys are never overwritten; reconcile uncertain results with archives.lookup.
+        archive: func(key: string) -> result<archive-reference, archive-error>;
         message: func(message: string) -> result<_, access-error>;
         /// Native physical-plan completeness is independent of availability/permission.
         initial-state-ready: func() -> result<bool, access-error>;

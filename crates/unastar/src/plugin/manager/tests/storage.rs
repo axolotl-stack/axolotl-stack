@@ -25,7 +25,7 @@ fn storage_component(engine: &Engine, load: &str, tick: &str) -> Component {
         load
     )
     .replace("call $cas", "call @compare-exchange@")
-    .replace("call $read", "call @read@")
+    .replace("call $read", "call @storage.read@")
     .replace("call $configuration", "call @configuration@");
     fixture::component(engine, &[("on-load", load), ("on-tick", tick.into())])
 }
@@ -88,6 +88,7 @@ fn manager(
         readiness: Default::default(),
         command_roots: Default::default(),
         storage_registry: registry,
+        archive_registry: Default::default(),
     };
     manager.require_plugins(&["example.store".into()]);
     manager

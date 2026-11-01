@@ -1,0 +1,12 @@
+package unastar:plugin@0.4.0;
+
+interface archives {
+    use types.{archive-reference, archived-player-state, archive-error, archive-limits};
+
+    /// Quotas apply to native encoded files; no encoded state is returned to guests.
+    limits: func() -> archive-limits;
+    /// A successful lookup durably reconciles a previously uncertain installation.
+    lookup: func(key: string) -> result<option<archive-reference>, archive-error>;
+    /// Every reference field and original account binding must match the immutable record.
+    read: func(reference: archive-reference) -> result<archived-player-state, archive-error>;
+}

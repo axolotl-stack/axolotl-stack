@@ -4,6 +4,7 @@ world unastar-plugin {
     import types;
     import host;
     import storage;
+    import archives;
     import commands;
 
     use types.{world-tx, player, vec3, block-pos, damage-cause, access-error, admission-decision, quit-event, quit-disposition, admitted-event, movement-committed};
