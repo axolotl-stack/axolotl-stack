@@ -1,8 +1,7 @@
 //! Scoped Component Model example; build for `wasm32-wasip2`.
 
 use unastar_api::{
-    AdmissionDecision, AdmittedEvent, BlockPos, DeathCommitted, Handler, LogLevel, PlayerContext,
-    WorldTx, commands, server,
+    AdmissionDecision, AdmittedEvent, BlockPos, DeathCommitted, FormResponse, Handler, LogLevel, NameTagVisibility, PlayerContext, PlayerProjection, Sidebar, SidebarLine, SimpleForm, WorldTx, commands, server,
 };
 
 struct ExamplePlugin;
@@ -49,7 +48,55 @@ impl Handler for ExamplePlugin {
             let _ = ctx
                 .player()
                 .message("Hello from an advertised component command");
+            let _ = ctx.tx().sidebar(
+                ctx.player(),
+                Some(&Sidebar {
+                    title: "Example".into(),
+                    lines: vec![SidebarLine {
+                        key: "status".into(),
+                        text: "Scoped widgets are active".into(),
+                    }],
+                }),
+            );
+            let _ = ctx.tx().show_form(
+                ctx.player(),
+                &SimpleForm {
+                    title: "Greeting".into(),
+                    content: "Choose a response".into(),
+                    buttons: vec!["Hello".into(), "Clear sidebar".into()],
+                },
+                1,
+            );
+            let _ = ctx.tx().project_player(
+                ctx.player(),
+                ctx.player(),
+                Some(&PlayerProjection {
+                    name_tag: Some("Example viewer".into()),
+                    name_tag_visibility: Some(NameTagVisibility::Always),
+                    invisible: None,
+                    actor_visible: None,
+                    equipment_visible: None,
+                }),
+            );
             ctx.cancel();
+        }
+    }
+    fn on_player_form_response(
+        ctx: &mut PlayerContext<'_>,
+        _request_id: u64,
+        callback_id: u64,
+        response: FormResponse,
+    ) {
+        if callback_id == 1 {
+            match response {
+                FormResponse::Selected(0) => {
+                    let _ = ctx.tx().action_bar(ctx.player(), Some("Hello!"));
+                }
+                FormResponse::Selected(1) => {
+                    let _ = ctx.tx().sidebar(ctx.player(), None);
+                }
+                _ => {}
+            }
         }
     }
     fn on_player_chat(ctx: &mut PlayerContext<'_>, message: String) {

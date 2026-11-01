@@ -1,0 +1,45 @@
+package unastar:plugin@0.4.0;
+
+/// Typed self UI. Text and selection interpretation belong to the component.
+interface presentation {
+    use types.{world-tx, player, access-error};
+
+    record sidebar-line {
+        key: string,
+        text: string,
+    }
+    record sidebar {
+        title: string,
+        lines: list<sidebar-line>,
+    }
+    record simple-form {
+        title: string,
+        content: string,
+        buttons: list<string>,
+    }
+    enum form-close-reason {
+        dismissed,
+        cancelled,
+        replaced,
+        disconnected,
+        expired,
+        invalid-response,
+    }
+    variant form-response {
+        selected(u32),
+        closed(form-close-reason),
+    }
+    variant presentation-error {
+        access(access-error),
+        conflict,
+        invalid-value,
+        limit-exceeded,
+    }
+    /// Clear with none; another component's active widget is a typed conflict.
+    set-sidebar: func(tx: borrow<world-tx>, viewer: borrow<player>, value: option<sidebar>) -> result<_, presentation-error>;
+    set-action-bar: func(tx: borrow<world-tx>, viewer: borrow<player>, value: option<string>) -> result<_, presentation-error>;
+    /// Returns an opaque owned request ID, separate from client packet identifiers.
+    show-form: func(tx: borrow<world-tx>, viewer: borrow<player>, value: simple-form, callback-id: u64) -> result<u64, presentation-error>;
+    /// Only the current exact request can be closed; stale IDs never close a replacement.
+    close-form: func(tx: borrow<world-tx>, viewer: borrow<player>, request-id: u64) -> result<bool, presentation-error>;
+}

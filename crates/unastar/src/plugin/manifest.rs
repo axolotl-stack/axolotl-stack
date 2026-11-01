@@ -75,6 +75,18 @@ pub struct PluginLimits {
     /// Maximum owned command roots, including provisional registrations.
     #[serde(default = "default_command_roots")]
     pub max_command_roots: u32,
+    /// Maximum owned UI widget slots, including provisional callback updates.
+    #[serde(default = "default_ui_widgets")]
+    pub max_ui_widgets: u32,
+    /// Maximum staged widget updates per shared component tick.
+    #[serde(default = "default_ui_updates")]
+    pub max_ui_updates_per_tick: u32,
+    /// Maximum owned subject/viewer pairs, including provisional updates.
+    #[serde(default = "default_view_pairs")]
+    pub max_view_pairs: u32,
+    /// Maximum viewer projection writes per shared component tick.
+    #[serde(default = "default_view_updates")]
+    pub max_view_updates_per_tick: u32,
 }
 
 impl Default for PluginLimits {
@@ -89,6 +101,10 @@ impl Default for PluginLimits {
             max_message_bytes: default_message_bytes(),
             max_messages_per_tick: default_messages(),
             max_command_roots: default_command_roots(),
+            max_ui_widgets: default_ui_widgets(),
+            max_ui_updates_per_tick: default_ui_updates(),
+            max_view_pairs: default_view_pairs(),
+            max_view_updates_per_tick: default_view_updates(),
         }
     }
 }
@@ -130,6 +146,24 @@ fn default_command_roots() -> u32 {
     64
 }
 
+/// Bound owned widgets independently of network speed or guest handle retention.
+fn default_ui_widgets() -> u32 {
+    512
+}
+/// Bound callback-stage allocations independently of committed widget count.
+fn default_ui_updates() -> u32 {
+    512
+}
+
+/// Keep pairwise formatting memory finite independently of player count.
+fn default_view_pairs() -> u32 {
+    4096
+}
+/// Bound projection recomputation independently of guest fuel.
+fn default_view_updates() -> u32 {
+    4096
+}
+
 /// Capabilities a plugin can request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -144,6 +178,10 @@ pub enum PluginCapability {
     ReadPlayers,
     /// Advertise owned command roots; handling still uses explicit subscriptions.
     Commands,
+    /// Manage typed self UI bound to scoped player and world capabilities.
+    Presentation,
+    /// Restrict and format one player's representation to an exact scoped viewer.
+    PlayerViews,
     /// Send bounded direct messages to exact current connections.
     SendMessages,
     /// Schedule bounded work on world owners with fresh transaction scopes.

@@ -1,0 +1,27 @@
+package unastar:plugin@0.4.0;
+
+/// Presentation of a subject to one exact viewer, independent of canonical identity.
+interface views {
+    use types.{world-tx, player, access-error};
+
+    enum name-tag-visibility { hidden, normal, always }
+    record player-projection {
+        name-tag: option<string>,
+        name-tag-visibility: option<name-tag-visibility>,
+        /// True adds visual invisibility. False preserves native invisibility.
+        invisible: option<bool>,
+        /// False restricts remote representation; true never bypasses native visibility.
+        actor-visible: option<bool>,
+        /// False hides remote equipment without changing physical slots.
+        equipment-visible: option<bool>,
+    }
+    variant projection-error {
+        access(access-error),
+        conflict,
+        invalid-value,
+        limit-exceeded,
+    }
+    /// Writes stage until callback success. None clears only this owner's pair.
+    /// Both players must resolve in this transaction's actual world.
+    project-player: func(tx: borrow<world-tx>, subject: borrow<player>, viewer: borrow<player>, value: option<player-projection>) -> result<_, projection-error>;
+}

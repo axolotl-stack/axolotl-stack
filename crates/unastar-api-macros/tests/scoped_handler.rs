@@ -64,6 +64,15 @@ fn generated_handler_dispatches_and_uses_the_canonical_transaction_signature() {
         &unastar_api::raw::Player,
         unastar_api::MovementCommitted,
     ) = <__UnastarHandlerBridge as Guest>::on_player_moved;
+    let _: fn(
+        &unastar_api::raw::WorldTx,
+        &unastar_api::raw::Player,
+        u64,
+        u64,
+        unastar_api::FormResponse,
+    ) = <__UnastarHandlerBridge as Guest>::on_player_form_response;
+    let _: fn(u64, u64, unastar_api::FormCloseReason) =
+        <__UnastarHandlerBridge as Guest>::on_form_closed;
     <__UnastarHandlerBridge as Guest>::on_tick(123);
     assert_eq!(LAST_TICK.load(Ordering::SeqCst), 123);
 }

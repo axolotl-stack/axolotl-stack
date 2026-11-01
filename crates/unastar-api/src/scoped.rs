@@ -41,6 +41,49 @@ impl<'scope> WorldTx<'scope> {
     pub fn players(&self) -> Result<Vec<PlayerHandle>, AccessError> {
         self.raw.players()
     }
+    /// Stage this exact viewer's sidebar, or release this component's sidebar with none.
+    pub fn sidebar(
+        &self,
+        viewer: &Player<'_>,
+        value: Option<&crate::Sidebar>,
+    ) -> Result<(), crate::PresentationError> {
+        crate::presentation::set_sidebar(self.raw, viewer.raw(), value)
+    }
+    /// Stage a maintained action bar, or clear this component's value with none.
+    pub fn action_bar(
+        &self,
+        viewer: &Player<'_>,
+        value: Option<&str>,
+    ) -> Result<(), crate::PresentationError> {
+        crate::presentation::set_action_bar(self.raw, viewer.raw(), value)
+    }
+    /// Display a typed button menu after callback success and initial publication.
+    pub fn show_form(
+        &self,
+        viewer: &Player<'_>,
+        value: &crate::SimpleForm,
+        callback_id: u64,
+    ) -> Result<u64, crate::PresentationError> {
+        crate::presentation::show_form(self.raw, viewer.raw(), value, callback_id)
+    }
+    /// Close only this component's current exact request, never a replacement.
+    pub fn close_form(
+        &self,
+        viewer: &Player<'_>,
+        request_id: u64,
+    ) -> Result<bool, crate::PresentationError> {
+        crate::presentation::close_form(self.raw, viewer.raw(), request_id)
+    }
+    /// Stage a viewer-specific representation; none clears only this component's pair.
+    /// Native audiences, invisibility and publication restrictions remain authoritative.
+    pub fn project_player(
+        &self,
+        subject: &Player<'_>,
+        viewer: &Player<'_>,
+        value: Option<&crate::PlayerProjection>,
+    ) -> Result<(), crate::ProjectionError> {
+        crate::views::project_player(self.raw, subject.raw(), viewer.raw(), value)
+    }
     /// Resolve a reference only in this world and this callback.
     /// The returned player cannot outlive the transaction borrow.
     ///

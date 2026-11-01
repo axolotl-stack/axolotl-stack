@@ -472,3 +472,61 @@ fn grant_speed(player: &Player<'_>) -> Result<(), AccessError> {
     Ok(())
 }
 ```
+
+### Component presentation
+
+The `presentation` capability provides typed, scoped forms, sidebars and action
+bars. Use `ctx.tx().sidebar(ctx.player(), Some(&Sidebar { title, lines }))` or
+`action_bar(ctx.player(), Some(text))`; `None` releases the current component's
+widget. Sidebar row keys are stable component values, independent of visible text.
+The host diffs changes and retries bounded outbound channels without acknowledging
+unsent packets. Action bars refresh while owned. All widgets wait for the native
+initial player state to be published.
+
+`show_form(player, &SimpleForm { title, content, buttons }, callback_id)` returns
+an opaque request ID. A real response invokes
+`Handler::on_player_form_response(ctx, request_id, callback_id, response)` with a
+bounded `Selected(index)` or typed `Closed(reason)`; raw response strings are
+never executed or passed through as commands. Responses must match the exact
+connection, sent request and button bounds, and are consumed before the callback.
+Closing a stale request cannot close its replacement. Replaced, expired and
+disconnected requests invoke `on_form_closed` without inventing a live player.
+Forms expire 60 seconds after their actual first send.
+
+Widget writes commit after a successful callback. Traps discard provisional
+updates, and dropping a component removes its widgets. Another live component's
+widget returns `Conflict` rather than silently replacing it. Each component
+defaults to 512 owned widget slots and 512 updates per shared tick, configured
+with `max_ui_widgets` and `max_ui_updates_per_tick`. Text and list sizes are
+validated before allocation; invalid values return a typed error. The example
+command demonstrates a typed menu and a sidebar.
+
+### Viewer-specific player presentation
+
+Request `player-views` to stage
+`ctx.tx().project_player(subject, viewer, Some(&PlayerProjection { ... }))`.
+Both players must belong to the same current transaction and actual world. The
+projection changes only that viewer's displayed tag, tag visibility, visual
+invisibility and remote actor/equipment visibility. Canonical names, UUIDs,
+accounts, effects, collision, permissions and physical slots remain unchanged.
+Tags allow at most 1024 UTF-8 bytes and ordinary newlines. Self tags use metadata
+updates without spawning or hiding the local actor; equipment restrictions apply
+to remote representations.
+
+Native actor audiences, invisibility and initial publication remain authoritative.
+`actor_visible` or `equipment_visible` set to `false` restricts the native view;
+`true` preserves the native baseline. `invisible: Some(false)` does not remove a
+native invisibility effect. Initial actor packets, subsequent reconciliation and
+immediate native flag updates use the same projection. Clearing with `None` or
+dropping the owner restores current native presentation, including current gear.
+Failed sends retry without acknowledging an unsent metadata or equipment change.
+
+One component instance owns each subject/viewer pair. Competing owners receive
+`Conflict`; traps discard provisional changes and preserve a committed view.
+Bindings include both exact actor lineages and the actual world lifetime. Viewer
+reconnects and world migrations discard old bindings, even if account or session
+numbers are reused. A retained sessionless subject remains eligible only with its
+original owned account binding. Components should recompute presentation in a
+fresh transaction after world changes. `max_view_pairs` and
+`max_view_updates_per_tick` each default to 4096 per component; host-wide pair
+ownership is also bounded.

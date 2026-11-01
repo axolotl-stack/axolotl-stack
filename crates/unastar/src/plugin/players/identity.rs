@@ -28,8 +28,13 @@ impl PlayerLineage {
             })
     }
 
+
+    /// Opaque connection/actor lifetime key for internal owned presentation state.
+    pub(crate) fn key(&self) -> uuid::Uuid {
+        self.id
+    }
     /// Require the same engine actor and exact transport, or its retained sessionless actor.
-    pub(super) fn matches(&self, world: &World, player: Entity) -> bool {
+    pub(crate) fn matches(&self, world: &World, player: Entity) -> bool {
         world.get::<Player>(player).is_some()
             && world
                 .get::<PlayerLineage>(player)
@@ -223,7 +228,7 @@ pub(super) fn observe(world: &mut World) -> Vec<ActorObservation> {
 }
 
 /// Locate a handle only in the current transaction's world; foreign live access is forbidden.
-pub(super) fn resolve(
+pub(crate) fn resolve(
     world: &mut World,
     reference: &PlayerLineage,
 ) -> Result<Entity, wit::AccessError> {

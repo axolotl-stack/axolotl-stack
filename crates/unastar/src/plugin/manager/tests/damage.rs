@@ -79,6 +79,8 @@ impl Harness {
             readiness: Default::default(),
             storage_registry: Default::default(),
             command_roots: Default::default(),
+            ui_registry: Default::default(),
+            view_registry: Default::default(),
         }));
         for (_, server) in router.iter_mut() {
             PluginManager::attach_to_world(manager.clone(), server.ecs.world_mut());
