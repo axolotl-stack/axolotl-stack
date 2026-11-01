@@ -185,6 +185,8 @@ pub struct InventoryEffectCommitted {
     pub record: InventoryEffectRecord,
     pub already_committed: bool,
     pub live_applied: bool,
+    /// The protected source still owns frozen inventory buffers after this result.
+    pub retained_buffers: bool,
 }
 
 /// A rejection distinguishes proven non-application from ambiguous persistent state.
@@ -195,6 +197,14 @@ pub struct InventoryEffectFailed {
     pub id: String,
     pub kind: WriteFailureKind,
     pub message: String,
+    /// Keep accepted-work reservations while the engine still retains the source image.
+    pub retained_buffers: bool,
+}
+
+/// Internal lifetime notification for reservations attached to accepted work.
+#[derive(Event, Clone, Copy)]
+pub(crate) struct InventoryBuffersReleased {
+    pub player: Entity,
 }
 
 /// Loaded inventory epoch and receipts, retained across ordinary saves.
@@ -293,6 +303,7 @@ struct Completion {
     uuid: Uuid,
     id: String,
     result: Result<EffectWrite, EffectWriteFailure>,
+    _retention: Option<Arc<dyn Send + Sync>>,
 }
 
 /// Deliver a conservative result even when a provider future unwinds or is cancelled.
@@ -303,6 +314,7 @@ struct ReplyGuard {
     uuid: Uuid,
     id: String,
     finished: bool,
+    retention: Option<Arc<dyn Send + Sync>>,
 }
 
 impl ReplyGuard {
@@ -314,6 +326,7 @@ impl ReplyGuard {
             uuid: self.uuid,
             id: self.id.clone(),
             result,
+            _retention: self.retention.take(),
         });
     }
 }
@@ -330,6 +343,7 @@ impl Drop for ReplyGuard {
                     resume_source: false,
                     message: "inventory persistence worker interrupted".into(),
                 }),
+                _retention: self.retention.take(),
             });
         }
     }
@@ -350,11 +364,30 @@ pub fn install(server: &mut GameServer) -> Result<(), EffectError> {
         rx: Mutex::new(rx),
         pending: BTreeMap::new(),
     });
+    world.add_observer(|event: On<Remove, Quarantined>, mut commands: Commands| {
+        commands.trigger(InventoryBuffersReleased {
+            player: event.entity,
+        });
+    });
     server
         .ecs
         .schedule_mut()
         .add_systems(poll.before(PacketApplySet));
     Ok(())
+}
+
+/// Report transaction support without exposing the coordinator resource outside the engine.
+pub(crate) fn available(world: &World) -> Result<(), EffectError> {
+    if world.contains_resource::<Coordinator>() {
+        return Ok(());
+    }
+    if world
+        .get_resource::<PlayerProviderResource>()
+        .is_some_and(|provider| !provider.0.atomic_durable_records())
+    {
+        return Err(EffectError::UnsupportedProvider);
+    }
+    Err(EffectError::NotInstalled)
 }
 
 /// Whether packet-driven gameplay and ordinary saves must stop for this actor.
@@ -394,6 +427,26 @@ pub fn submit(
     world: &mut World,
     player: Entity,
     effect: InventoryEffect,
+) -> Result<Submission, EffectError> {
+    submit_with_retention(world, player, effect, None)
+}
+
+/// Keep an accepted caller reservation alive through worker cancellation and undelivered replies.
+pub(crate) fn submit_retained(
+    world: &mut World,
+    player: Entity,
+    effect: InventoryEffect,
+    retention: Arc<dyn Send + Sync>,
+) -> Result<Submission, EffectError> {
+    submit_with_retention(world, player, effect, Some(retention))
+}
+
+/// One coordinator path serves ordinary calls and calls with retained resource ownership.
+fn submit_with_retention(
+    world: &mut World,
+    player: Entity,
+    effect: InventoryEffect,
+    retention: Option<Arc<dyn Send + Sync>>,
 ) -> Result<Submission, EffectError> {
     if !valid_inventory_effect_id(&effect.id) {
         return Err(EffectError::InvalidIdentifier);
@@ -501,6 +554,7 @@ pub fn submit(
         uuid,
         id: effect.id.clone(),
         finished: false,
+        retention,
     };
     handle.spawn(async move {
         let result = writer
@@ -576,6 +630,7 @@ pub fn poll(world: &mut World) {
                     record: write.record,
                     already_committed: write.already_committed,
                     live_applied,
+                    retained_buffers: world.get::<Quarantined>(completion.player).is_some(),
                 });
             }
             Err(error) => {
@@ -616,6 +671,7 @@ pub fn poll(world: &mut World) {
                     id: completion.id,
                     kind: error.kind,
                     message: error.message,
+                    retained_buffers: world.get::<Quarantined>(completion.player).is_some(),
                 });
             }
         }
@@ -650,7 +706,7 @@ fn same_source(world: &World, player: Entity, frozen: &Quarantined, id: &str) ->
 }
 
 /// Bind idempotency to the complete candidate inventory rather than a mutable display name.
-fn request_hash(state: &InventoryState) -> Result<[u8; 32], EffectError> {
+pub(crate) fn request_hash(state: &InventoryState) -> Result<[u8; 32], EffectError> {
     let mut state = state.clone();
     state.revision = 0;
     let bytes = serde_json::to_vec(&state)

@@ -82,6 +82,7 @@ pub struct HostContext {
     mechanics_owner: std::sync::Arc<()>,
     active_admission: Option<sessions::ActiveAdmission>,
     pending_admissions: Vec<sessions::StagedResolution>,
+    inventories: players::InventoryRequests,
     pending_tasks: Vec<tasks::TaskRequest>,
     task_requests: VecDeque<tasks::TaskRequest>,
     task_failures: VecDeque<tasks::TaskFailure>,
@@ -145,6 +146,7 @@ impl HostContext {
             mechanics_owner: std::sync::Arc::new(()),
             active_admission: None,
             pending_admissions: Vec::new(),
+            inventories: Default::default(),
             pending_tasks: Vec::new(),
             task_requests: VecDeque::new(),
             task_failures: VecDeque::new(),
@@ -269,6 +271,7 @@ pub(super) fn finish_invocation(
 ) {
     players::finish_mechanics(context, world, succeeded && context.mechanics_accepted);
     commands::finish_invocation(context, succeeded);
+    players::finish_inventory_invocation(context, world, succeeded);
     players::finish_admission_invocation(context, world, succeeded);
 
     ui::finish_invocation(context, world, succeeded);

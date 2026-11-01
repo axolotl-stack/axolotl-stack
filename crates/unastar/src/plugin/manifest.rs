@@ -98,6 +98,9 @@ pub struct PluginLimits {
     /// Maximum viewer projection writes per shared component tick.
     #[serde(default = "default_view_updates")]
     pub max_view_updates_per_tick: u32,
+    /// Maximum outstanding staged or provider-owned inventory writes per instance.
+    #[serde(default = "default_pending_inventory_operations")]
+    pub max_pending_inventory_operations: u32,
 }
 
 impl Default for PluginLimits {
@@ -120,6 +123,7 @@ impl Default for PluginLimits {
             max_ui_updates_per_tick: default_ui_updates(),
             max_view_pairs: default_view_pairs(),
             max_view_updates_per_tick: default_view_updates(),
+            max_pending_inventory_operations: default_pending_inventory_operations(),
         }
     }
 }
@@ -216,6 +220,11 @@ fn default_view_updates() -> u32 {
     4096
 }
 
+/// Bound accepted asynchronous writes independently of guest resource drops.
+fn default_pending_inventory_operations() -> u32 {
+    64
+}
+
 /// Capabilities a plugin can request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -228,6 +237,8 @@ pub enum PluginCapability {
     ReadInventory,
     /// Stage bounded native status, motion, mode and flight changes.
     PlayerMechanics,
+    /// Replace exact inventory images through durable idempotent transactions.
+    WriteInventory,
     /// Read typed actor references and current-world observations.
     ReadPlayers,
     /// Advertise owned command roots; handling still uses explicit subscriptions.

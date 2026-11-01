@@ -349,6 +349,9 @@ interface types {
 
     resource admission-hold {
         resolve: func(tx: borrow<world-tx>, decision: admission-resolution) -> result<admission-acknowledgement, access-error>;
+        /// Call in a fresh transaction after Deferred admission has finished evaluating.
+        /// The owning hold authorizes only its exact initializing actor.
+        submit-inventory: func(tx: borrow<world-tx>, request-id: string, image: borrow<inventory-image>) -> result<inventory-operation, inventory-error>;
     }
 
     enum quit-disposition {
@@ -485,6 +488,46 @@ interface types {
         slot: func(area: inventory-area, index: u32) -> result<stack, access-error>;
         with-slot: func(area: inventory-area, index: u32, item: borrow<stack>) -> result<inventory-image, access-error>;
         with-held-slot: func(slot: u8) -> result<inventory-image, access-error>;
+        /// Candidate fingerprint used by durable receipts; excludes the source revision.
+        request-hash: func() -> result<list<u8>, access-error>;
+    }
+
+    variant inventory-error {
+        access(access-error),
+        not-installed,
+        unsupported-provider,
+        busy,
+        conflict,
+        invalid-image,
+        invalid-identifier,
+        not-applied,
+        recovery-required,
+    }
+
+    record inventory-receipt {
+        revision: u64,
+        request-hash: list<u8>,
+    }
+
+    record inventory-commit {
+        receipt: inventory-receipt,
+        already-committed: bool,
+        live-applied: bool,
+    }
+
+    /// Only committed carries an acknowledged durable receipt; queued is not delivery.
+    variant inventory-status {
+        staged,
+        queued,
+        committed(inventory-commit),
+        rejected(inventory-error),
+        uncertain,
+        cancelled,
+    }
+
+    /// Dropping a reference cannot cancel a write already accepted by storage.
+    resource inventory-operation {
+        status: func() -> result<inventory-status, access-error>;
     }
 
     /// Original persistent world identity, not a capability for a live world.
@@ -577,6 +620,8 @@ interface types {
         /// Persist one complete current capture. Success is durable even if this callback traps.
         /// Existing keys are never overwritten; reconcile uncertain results with archives.lookup.
         archive: func(key: string) -> result<archive-reference, archive-error>;
+        submit-inventory: func(request-id: string, image: borrow<inventory-image>) -> result<inventory-operation, inventory-error>;
+        inventory-receipt: func(request-id: string) -> result<option<inventory-receipt>, inventory-error>;
         message: func(message: string) -> result<_, access-error>;
         /// Native physical-plan completeness is independent of availability/permission.
         initial-state-ready: func() -> result<bool, access-error>;

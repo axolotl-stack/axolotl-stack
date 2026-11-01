@@ -61,16 +61,23 @@ impl DimensionRouter {
     /// Complete required initialization before listeners or simulation admit players.
     pub(crate) fn initialize_plugins(&mut self) -> Result<(), WorldTickError> {
         if let Some(manager) = self.plugin_manager.clone() {
-            let result = manager
-                .lock()
-                .map_err(|_| WorldTickError::PluginManagerUnavailable)?
-                .initialize_startup(
-                    self.worlds
-                        .get_mut(&self.primary)
-                        .expect("primary world")
-                        .ecs
-                        .world_mut(),
-                );
+            let result = {
+                let mut manager = manager
+                    .lock()
+                    .map_err(|_| WorldTickError::PluginManagerUnavailable)?;
+                (|| {
+                    for server in self.worlds.values_mut() {
+                        manager.prepare_inventory_support(server)?;
+                    }
+                    manager.initialize_startup(
+                        self.worlds
+                            .get_mut(&self.primary)
+                            .expect("primary world")
+                            .ecs
+                            .world_mut(),
+                    )
+                })()
+            };
             if let Err(reason) = result {
                 self.fence_plugin_failure();
                 return Err(WorldTickError::RequiredComponentUnavailable(reason));
