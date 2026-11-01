@@ -150,8 +150,6 @@ impl HostContext {
             task_failures: VecDeque::new(),
             task_sequence: 0,
             command_roots: Default::default(),
-            ui_registry: Default::default(),
-            view_registry: Default::default(),
             command_owner: std::sync::Arc::new(()),
             pending_command_roots: Vec::new(),
             ui_registry: Default::default(),

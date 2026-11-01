@@ -148,30 +148,31 @@ impl Harness {
         if archives.is_some() {
             capabilities.insert(PluginCapability::PlayerStateArchives);
         }
+        let pending = PendingPlugin {
+            component: Component::from_file(&engine, guest()).unwrap(),
+            store: context,
+            manifest: PluginManifest {
+                id: PluginId("example.inventory".into()),
+                name: "Inventory".into(),
+                version: "1".into(),
+                api_version: PLUGIN_API_VERSION.into(),
+                required: true,
+                config: None,
+                capabilities,
+                subscriptions: [
+                    EventKind::PlayerJump,
+                    EventKind::PlayerJoin,
+                    EventKind::PlayerQuit,
+                    EventKind::PlayerAdmitted,
+                    EventKind::PlayerMove,
+                    EventKind::Tick,
+                ]
+                .into(),
+                limits,
+            },
+        };
         let manager = Arc::new(Mutex::new(PluginManager {
-            pending: vec![PendingPlugin {
-                component: Component::from_file(&engine, guest()).unwrap(),
-                store: context,
-                manifest: PluginManifest {
-                    id: PluginId("example.inventory".into()),
-                    name: "Inventory".into(),
-                    version: "1".into(),
-                    api_version: PLUGIN_API_VERSION.into(),
-                    required: true,
-                    config: None,
-                    capabilities,
-                    subscriptions: [
-                        EventKind::PlayerJump,
-                        EventKind::PlayerJoin,
-                        EventKind::PlayerQuit,
-                        EventKind::PlayerAdmitted,
-                        EventKind::PlayerMove,
-                        EventKind::Tick,
-                    ]
-                    .into(),
-                    limits,
-                },
-            }],
+            pending: Vec::new(),
             engine,
             plugins: Default::default(),
             tick_prepared: false,
@@ -193,6 +194,7 @@ impl Harness {
                 })
                 .unwrap();
         }
+        manager.lock().unwrap().pending.push(pending);
         let world = router.world_mut(0).unwrap().ecs.world_mut();
         world.insert_resource(crate::world::WorldIdentity {
             id: uuid::Uuid::from_u128(9),
@@ -874,6 +876,11 @@ async fn valid_default_cancellation_preserves_an_independent_durable_inventory_i
         .get::<crate::entity::components::Position>(harness.player)
         .unwrap()
         .0;
+    harness.router.tick().await.unwrap();
+    assert!(!crate::server::game::player_events::initial_state_pending(
+        harness.router.world(0).unwrap().ecs.world(),
+        harness.player,
+    ));
     harness.move_to(3.5).await.unwrap();
     assert_eq!(
         harness
@@ -900,6 +907,11 @@ async fn valid_default_cancellation_preserves_an_independent_durable_inventory_i
 async fn a_malformed_callback_result_discards_its_staged_durable_inventory_intent() {
     let provider = Arc::new(Provider::new());
     let mut harness = Harness::new(28, provider.clone(), PluginLimits::default(), true);
+    harness.router.tick().await.unwrap();
+    assert!(!crate::server::game::player_events::initial_state_pending(
+        harness.router.world(0).unwrap().ecs.world(),
+        harness.player,
+    ));
     assert!(harness.move_to(3.5).await.is_err());
     assert_eq!(provider.writes.load(Ordering::SeqCst), 0);
     assert_eq!(harness.retained(), (0, 0));
