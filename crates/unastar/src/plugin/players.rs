@@ -17,6 +17,10 @@ mod admission;
 mod host;
 #[path = "players/items.rs"]
 mod items;
+#[path = "players/mechanics.rs"]
+mod mechanics;
+pub(crate) use mechanics::apply_pending as apply_mechanics;
+pub(super) use mechanics::{MechanicsRequest, finish as finish_mechanics};
 
 /// One callback's authority; tokens are invalidated before another callback can run.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -35,12 +35,13 @@ pub mod raw {
     pub use crate::bindings::unastar::plugin::types::*;
 }
 pub use raw::{
-    AccessError, AdmissionAcknowledgement, AdmissionDecision, AdmissionResolution, AdmittedEvent,
-    AuthenticatedDamageAccount, BlockPos, DamageAttribution, DamageCause, DamageCommitted,
-    DamageOwner, DamageProposal, DamageTuning, DeathCommitted, DeathInventory, DisconnectDetail,
-    DisconnectReason, Enchantment, GameMode, ItemValue, Knockback, LogLevel, MovementCommitted,
-    PlayerAvailability, PlayerFlags, PlayerHandle, PlayerIdentity, PlayerSnapshot, QuitDisposition,
-    QuitEvent, Task, TaskStatus, Vec3, WorldHandle,
+    AccessError, ActiveStatusEffect, AdmissionAcknowledgement, AdmissionDecision,
+    AdmissionResolution, AdmittedEvent, AuthenticatedDamageAccount, BlockPos, DamageAttribution,
+    DamageCause, DamageCommitted, DamageOwner, DamageProposal, DamageTuning, DeathCommitted,
+    DeathInventory, DisconnectDetail, DisconnectReason, EffectApplication, EffectKind, Enchantment,
+    GameMode, ItemValue, Knockback, LogLevel, MechanicsAcknowledgement, MovementCommitted,
+    PlayerAvailability, PlayerFlags, PlayerHandle, PlayerIdentity, PlayerMechanicsState,
+    PlayerSnapshot, QuitDisposition, QuitEvent, Task, TaskStatus, Vec3, WorldHandle,
 };
 mod scoped;
 pub use scoped::{AdmissionHold, Player, PlayerContext, WorldTx, server};

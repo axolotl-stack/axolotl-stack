@@ -1108,6 +1108,7 @@ impl GameServer {
             return;
         }
         self.ecs.tick();
+        crate::plugin::manager::players::apply_mechanics(self.ecs.world_mut());
         self.publish_initial_states();
     }
 

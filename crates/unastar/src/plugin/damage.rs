@@ -1,6 +1,6 @@
 //! Typed damage proposals and positive-health-loss observations over native rules.
 
-use super::lifecycle::{damage_cause, invoke};
+use super::lifecycle::{damage_cause, invoke, invoke_decided};
 use super::{PluginManager, make_player_resource, make_world_tx, players, wit_types as wit};
 use crate::ecs::events::EventKind;
 use crate::entity::components::Player;
@@ -86,14 +86,19 @@ impl PluginManager {
                     post_armour_multiplier: event.post_armour_multiplier,
                 },
             };
-            let result = invoke(plugin, world, |store, bindings| {
-                let tx = make_world_tx(store)?;
-                let player = make_player_resource(store, player)?;
-                let attacker = attacker
-                    .map(|actor| make_player_resource(store, actor))
-                    .transpose()?;
-                bindings.call_on_player_damage(store, tx, player, attacker, &proposal)
-            });
+            let result = invoke_decided(
+                plugin,
+                world,
+                |store, bindings| {
+                    let tx = make_world_tx(store)?;
+                    let player = make_player_resource(store, player)?;
+                    let attacker = attacker
+                        .map(|actor| make_player_resource(store, actor))
+                        .transpose()?;
+                    bindings.call_on_player_damage(store, tx, player, attacker, &proposal)
+                },
+                |tuning| tuning.as_ref().is_some_and(valid),
+            );
             match result {
                 Ok(Some(tuning)) if valid(&tuning) => {
                     event.hit.damage = tuning.damage;

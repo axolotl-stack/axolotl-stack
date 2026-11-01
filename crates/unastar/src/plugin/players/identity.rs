@@ -251,7 +251,7 @@ pub(super) fn resolve(
 }
 
 /// Explicitly map semantic modes; effective transient modes do not overwrite durable bases.
-fn mode(mode: GameMode) -> wit::GameMode {
+pub(super) fn mode(mode: GameMode) -> wit::GameMode {
     match mode {
         GameMode::Survival => wit::GameMode::Survival,
         GameMode::Creative => wit::GameMode::Creative,
