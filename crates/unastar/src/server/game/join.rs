@@ -198,14 +198,17 @@ impl GameServer {
         let mut actor_data = initial_player_actor_data();
         crate::entity::freezing::player_actor_data(world, entity, &mut actor_data);
 
-        let _ = session.send(McpePacket::from(SetActorDataPacket {
+        let initial = McpePacket::from(SetActorDataPacket {
             target_runtime_id: ActorRuntimeId {
                 actor_runtime_id: runtime_id as u64,
             },
             actor_data: SynchedActorDataCopyableDataList { data: actor_data },
             synched_properties: PropertySyncData::default(),
             tick: input_tick,
-        }));
+        });
+        let _ = session.send(crate::server::broadcast::player_views::project_packet(
+            world, entity, entity, &initial,
+        ));
 
         // Send inventory contents to enable inventory UI
         // Without these packets, the client won't allow opening the inventory

@@ -204,7 +204,13 @@ fn broadcast_using(world: &World, player: Entity, using: bool) {
             crate::server::broadcast::player_views::can_receive_actor(world, player, *viewer)
         })
         .collect::<Vec<_>>();
-    send_to(world, &viewers, &packet);
+    for viewer in viewers {
+        if let Some(session) = world.get::<PlayerSession>(viewer) {
+            let _ = session.send(crate::server::broadcast::player_views::project_packet(
+                world, player, viewer, &packet,
+            ));
+        }
+    }
 }
 
 /// Start using the held item.

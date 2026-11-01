@@ -81,6 +81,12 @@ pub struct PluginLimits {
     /// Maximum staged widget updates per shared component tick.
     #[serde(default = "default_ui_updates")]
     pub max_ui_updates_per_tick: u32,
+    /// Maximum owned subject/viewer pairs, including provisional updates.
+    #[serde(default = "default_view_pairs")]
+    pub max_view_pairs: u32,
+    /// Maximum viewer projection writes per shared component tick.
+    #[serde(default = "default_view_updates")]
+    pub max_view_updates_per_tick: u32,
 }
 
 impl Default for PluginLimits {
@@ -97,6 +103,8 @@ impl Default for PluginLimits {
             max_command_roots: default_command_roots(),
             max_ui_widgets: default_ui_widgets(),
             max_ui_updates_per_tick: default_ui_updates(),
+            max_view_pairs: default_view_pairs(),
+            max_view_updates_per_tick: default_view_updates(),
         }
     }
 }
@@ -147,6 +155,15 @@ fn default_ui_updates() -> u32 {
     512
 }
 
+/// Keep pairwise formatting memory finite independently of player count.
+fn default_view_pairs() -> u32 {
+    4096
+}
+/// Bound projection recomputation independently of guest fuel.
+fn default_view_updates() -> u32 {
+    4096
+}
+
 /// Capabilities a plugin can request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -157,6 +174,8 @@ pub enum PluginCapability {
     Commands,
     /// Manage typed self UI bound to scoped player and world capabilities.
     Presentation,
+    /// Restrict and format one player's representation to an exact scoped viewer.
+    PlayerViews,
     /// Send bounded direct messages to exact current connections.
     SendMessages,
     /// Schedule bounded work on world owners with fresh transaction scopes.

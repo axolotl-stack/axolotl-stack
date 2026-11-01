@@ -83,6 +83,7 @@ impl Harness {
             storage_registry: Default::default(),
             command_roots: Default::default(),
             ui_registry: Default::default(),
+            view_registry: Default::default(),
         }));
         let mut world = World::new();
         world.insert_resource(crate::world::ChunkManager::new(
@@ -288,6 +289,7 @@ fn old_api_manifest_is_rejected_before_reading_or_compiling_wasm() {
         storage_registry: Default::default(),
         command_roots: Default::default(),
         ui_registry: Default::default(),
+        view_registry: Default::default(),
     };
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(

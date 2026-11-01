@@ -88,6 +88,7 @@ fn manager(
         readiness: Default::default(),
         command_roots: Default::default(),
         ui_registry: Default::default(),
+        view_registry: Default::default(),
         storage_registry: registry,
     };
     manager.require_plugins(&["example.store".into()]);

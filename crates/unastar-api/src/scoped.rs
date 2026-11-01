@@ -58,6 +58,16 @@ impl<'scope> WorldTx<'scope> {
     ) -> Result<bool, crate::PresentationError> {
         crate::presentation::close_form(self.raw, viewer.raw(), request_id)
     }
+    /// Stage a viewer-specific representation; none clears only this component's pair.
+    /// Native audiences, invisibility and publication restrictions remain authoritative.
+    pub fn project_player(
+        &self,
+        subject: &Player<'_>,
+        viewer: &Player<'_>,
+        value: Option<&crate::PlayerProjection>,
+    ) -> Result<(), crate::ProjectionError> {
+        crate::views::project_player(self.raw, subject.raw(), viewer.raw(), value)
+    }
     /// Resolve a reference only in this world and this callback.
     /// The returned player cannot outlive the transaction borrow.
     ///

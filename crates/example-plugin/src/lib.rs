@@ -1,8 +1,8 @@
 //! Scoped Component Model example; build for `wasm32-wasip2`.
 
 use unastar_api::{
-    BlockPos, FormResponse, Handler, LogLevel, PlayerContext, Sidebar, SidebarLine, SimpleForm,
-    commands, server,
+    BlockPos, FormResponse, Handler, LogLevel, NameTagVisibility, PlayerContext, PlayerProjection,
+    Sidebar, SidebarLine, SimpleForm, commands, server,
 };
 
 struct ExamplePlugin;
@@ -52,6 +52,17 @@ impl Handler for ExamplePlugin {
                     buttons: vec!["Hello".into(), "Clear sidebar".into()],
                 },
                 1,
+            );
+            let _ = ctx.tx().project_player(
+                ctx.player(),
+                ctx.player(),
+                Some(&PlayerProjection {
+                    name_tag: Some("Example viewer".into()),
+                    name_tag_visibility: Some(NameTagVisibility::Always),
+                    invisible: None,
+                    actor_visible: None,
+                    equipment_visible: None,
+                }),
             );
             ctx.cancel();
         }

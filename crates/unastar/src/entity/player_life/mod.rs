@@ -57,7 +57,9 @@ pub(crate) fn send_to_player_and_viewers(world: &World, player: Entity, packet: 
         return;
     }
     if let Some(session) = world.get::<PlayerSession>(player) {
-        let _ = session.send(packet.clone());
+        let _ = session.send(crate::server::broadcast::player_views::project_packet(
+            world, player, player, packet,
+        ));
     }
     let (Some(position), Some(grid)) = (
         world.get::<Position>(player),
@@ -78,7 +80,9 @@ pub(crate) fn send_to_player_and_viewers(world: &World, player: Entity, packet: 
         if crate::server::broadcast::player_views::can_receive_actor(world, player, viewer)
             && let Some(session) = world.get::<PlayerSession>(viewer)
         {
-            let _ = session.send(packet.clone());
+            let _ = session.send(crate::server::broadcast::player_views::project_packet(
+                world, player, viewer, packet,
+            ));
         }
     }
 }

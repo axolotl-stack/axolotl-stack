@@ -468,6 +468,7 @@ impl DimensionRouter {
                 let manager = manager
                     .lock()
                     .map_err(|_| WorldTickError::PluginManagerUnavailable)?;
+                manager.prune_player_views(self);
                 for world in self.worlds.values_mut() {
                     manager.publish_command_roots(world.ecs.world_mut());
                     manager.publish_ui(world.ecs.world_mut());

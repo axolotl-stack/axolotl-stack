@@ -6,6 +6,7 @@ world unastar-plugin {
     import storage;
     import commands;
     import presentation;
+    import views;
     use presentation.{form-response, form-close-reason};
 
     use types.{world-tx, player, vec3, block-pos, damage-cause, access-error};

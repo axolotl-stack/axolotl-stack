@@ -31,9 +31,12 @@ pub use bindings::unastar::plugin::host;
 /// Typed player widgets with exact request and connection ownership.
 pub use bindings::unastar::plugin::presentation;
 pub use bindings::unastar::plugin::storage;
+/// Viewer-specific representation never changes the subject's canonical identity.
+pub use bindings::unastar::plugin::views;
 pub use presentation::{
     FormCloseReason, FormResponse, PresentationError, Sidebar, SidebarLine, SimpleForm,
 };
+pub use views::{NameTagVisibility, PlayerProjection, ProjectionError};
 /// Canonical WIT bindings for advanced component integrations.
 /// Live raw resources still expire at their originating callback boundary.
 pub mod raw {

@@ -20,6 +20,9 @@ use jolyne::valentine::{
 use jolyne::valentine::{actor_data_i_ds as ids, actor_flags};
 use std::collections::{HashMap, HashSet};
 
+mod projections;
+pub(crate) use projections::packet as project_packet;
+
 /// Per-client transport identity, so a replacement connection receives a fresh view.
 #[derive(Clone)]
 struct Connection {
@@ -54,6 +57,14 @@ struct KnownPlayer {
     selected: u8,
 }
 
+/// Self metadata changes without creating a second local actor representation.
+struct OwnView {
+    connection: Connection,
+    runtime_id: i64,
+    uuid: uuid::Uuid,
+    metadata: Vec<DataItemEntry>,
+}
+
 /// Spawn readiness and client-known player state, keyed by full ECS identities.
 #[derive(Resource, Default)]
 struct PlayerViewCache {
@@ -61,6 +72,7 @@ struct PlayerViewCache {
     despawned: MessageCursor<PlayerDespawnedEvent>,
     ready: HashSet<Entity>,
     known: HashMap<(Entity, Entity), KnownPlayer>,
+    own: HashMap<Entity, OwnView>,
 }
 
 /// One actor's current immutable representation, captured once for every viewer.
@@ -84,6 +96,7 @@ struct PlayerView {
 /// The departing viewer's own view cache is cleared without sending stale actor
 /// updates after its dimension change.
 pub(crate) fn forget_world_player(world: &mut World, player: Entity) {
+    crate::plugin::manager::views::forget(world, player);
     let Some(mut cache) = world.remove_resource::<PlayerViewCache>() else {
         return;
     };
@@ -111,6 +124,7 @@ pub(crate) fn forget_world_player(world: &mut World, player: Entity) {
         }
     }
     cache.ready.remove(&player);
+    cache.own.remove(&player);
     world.insert_resource(cache);
 }
 
@@ -124,6 +138,7 @@ pub fn audience_allows(world: &World, actor: Entity, viewer: Entity) -> bool {
     world
         .get::<ActorAudience>(actor)
         .is_none_or(|audience| audience.allows(actor, viewer))
+        && crate::plugin::manager::views::actor_allowed(world, actor, viewer)
 }
 
 /// Whether a viewer may receive representation or transient events from an actor.
@@ -257,6 +272,7 @@ fn metadata(world: &World, actor: Entity) -> Vec<DataItemEntry> {
         });
     put(ids::VISIBLE_MOB_EFFECTS, packed as i64);
     crate::entity::freezing::player_actor_data(world, actor, &mut data);
+    projections::baseline(world, actor, &mut data);
     data.sort_by_key(|entry| entry.id);
     data
 }
@@ -348,47 +364,96 @@ fn views(world: &mut World, ready: &HashSet<Entity>) -> Vec<PlayerView> {
 }
 
 /// Remember each queued packet separately so small channels cannot starve armour.
-fn send_equipment(session: &PlayerSession, view: &PlayerView, known: &mut KnownPlayer) {
+fn send_equipment(
+    session: &PlayerSession,
+    view: &PlayerView,
+    equipment: &[WireItem; 6],
+    known: &mut KnownPlayer,
+) {
     let rid = ActorRuntimeId {
         actor_runtime_id: view.runtime_id as u64,
     };
     for (index, container_id) in [(0, 0), (1, 119)] {
-        if known.hands[index].as_ref() == Some(&view.equipment[index])
+        if known.hands[index].as_ref() == Some(&equipment[index])
             && (index != 0 || known.selected == view.selected)
         {
             continue;
         }
         if session.send(McpePacket::from(MobEquipmentPacket {
             target_runtime_id: rid.clone(),
-            item: view.equipment[index].clone(),
+            item: equipment[index].clone(),
             slot: if index == 0 { view.selected } else { 0 },
             selected_slot: if index == 0 { view.selected } else { 0 },
             container_id,
         })) {
-            known.hands[index] = Some(view.equipment[index].clone());
+            known.hands[index] = Some(equipment[index].clone());
             if index == 0 {
                 known.selected = view.selected;
             }
         }
     }
-    let armour = std::array::from_fn(|slot| view.equipment[slot + 2].clone());
+    let armour = std::array::from_fn(|slot| equipment[slot + 2].clone());
     if known.armour.as_ref() == Some(&armour) {
         return;
     }
     if session.send(McpePacket::from(MobArmorEquipmentPacket {
         target_runtime_id: rid,
-        head: view.equipment[2].clone(),
-        torso: view.equipment[3].clone(),
-        legs: view.equipment[4].clone(),
-        feet: view.equipment[5].clone(),
+        head: equipment[2].clone(),
+        torso: equipment[3].clone(),
+        legs: equipment[4].clone(),
+        feet: equipment[5].clone(),
         body: WireItem::default(),
     })) {
         known.armour = Some(armour);
     }
 }
 
+/// Reconcile an explicit self override without sending AddPlayer for the local actor.
+fn sync_own_metadata(world: &World, view: &PlayerView, known: &mut HashMap<Entity, OwnView>) {
+    let projected = projections::has_projection(world, view.actor, view.actor);
+    if !projected && !known.contains_key(&view.actor) {
+        return;
+    }
+    let Some(session) = world.get::<PlayerSession>(view.actor) else {
+        return;
+    };
+    let data = projections::metadata(world, view.actor, view.actor, &view.metadata);
+    if known
+        .get(&view.actor)
+        .is_some_and(|last| last.metadata == data)
+    {
+        if !projected {
+            known.remove(&view.actor);
+        }
+        return;
+    }
+    if session.send(McpePacket::from(SetActorDataPacket {
+        target_runtime_id: ActorRuntimeId {
+            actor_runtime_id: view.runtime_id as u64,
+        },
+        actor_data: SynchedActorDataCopyableDataList { data: data.clone() },
+        synched_properties: PropertySyncData::default(),
+        tick: view.tick.clone(),
+    })) {
+        if projected {
+            known.insert(
+                view.actor,
+                OwnView {
+                    connection: Connection::of(session),
+                    runtime_id: view.runtime_id,
+                    uuid: view.uuid,
+                    metadata: data,
+                },
+            );
+        } else {
+            known.remove(&view.actor);
+        }
+    }
+}
+
 /// Reconcile ready players against each live viewer and remember only queued state.
 pub fn sync_player_views(world: &mut World) {
+    crate::plugin::manager::views::prune(world);
     let mut cache = world
         .remove_resource::<PlayerViewCache>()
         .unwrap_or_default();
@@ -405,6 +470,17 @@ pub fn sync_player_views(world: &mut World) {
     cache
         .ready
         .retain(|actor| world.get::<Player>(*actor).is_some());
+    cache.own.retain(|actor, known| {
+        world
+            .get::<PlayerSession>(*actor)
+            .is_some_and(|session| known.connection.matches(session))
+            && world
+                .get::<RuntimeEntityId>(*actor)
+                .is_some_and(|id| id.0 == known.runtime_id)
+            && world
+                .get::<PlayerUuid>(*actor)
+                .is_some_and(|id| id.0 == known.uuid)
+    });
     let current = views(world, &cache.ready);
     let viewers = world
         .query_filtered::<Entity, (With<PlayerSession>, With<Player>)>()
@@ -420,7 +496,11 @@ pub fn sync_player_views(world: &mut World) {
             viewers
                 .iter()
                 .copied()
-                .filter(|viewer| *viewer != view.actor && view.audience.allows(view.actor, *viewer))
+                .filter(|viewer| {
+                    *viewer != view.actor
+                        && view.audience.allows(view.actor, *viewer)
+                        && crate::plugin::manager::views::actor_allowed(world, view.actor, *viewer)
+                })
                 .map(|viewer| (viewer, view.actor))
         })
         .collect::<HashSet<_>>();
@@ -439,15 +519,26 @@ pub fn sync_player_views(world: &mut World) {
         true
     });
     for view in &current {
-        for viewer in viewers
-            .iter()
-            .copied()
-            .filter(|viewer| *viewer != view.actor && view.audience.allows(view.actor, *viewer))
-        {
+        sync_own_metadata(world, view, &mut cache.own);
+        for viewer in viewers.iter().copied().filter(|viewer| {
+            *viewer != view.actor
+                && view.audience.allows(view.actor, *viewer)
+                && crate::plugin::manager::views::actor_allowed(world, view.actor, *viewer)
+        }) {
             let session = world
                 .get::<PlayerSession>(viewer)
                 .expect("captured live viewer");
             let key = (viewer, view.actor);
+            let projection = crate::plugin::manager::views::projection(world, view.actor, viewer);
+            let equipment = if projection
+                .as_ref()
+                .is_some_and(|value| value.hide_equipment)
+            {
+                std::array::from_fn(|_| WireItem::default())
+            } else {
+                view.equipment.clone()
+            };
+            let projected = projections::metadata(world, view.actor, viewer, &view.metadata);
             if cache.known.get(&key).is_some_and(|known| {
                 known.runtime_id != view.runtime_id
                     || known.uuid != view.uuid
@@ -471,7 +562,7 @@ pub fn sync_player_views(world: &mut World) {
                     &view.rotation,
                     view.mode,
                 );
-                packet.carried_item = view.equipment[0].clone();
+                packet.carried_item = equipment[0].clone();
                 packet.abilities_data = crate::server::game::flight::packet_for(
                     world,
                     view.actor,
@@ -481,7 +572,7 @@ pub fn sync_player_views(world: &mut World) {
                 )
                 .data;
                 packet.entity_data = SynchedActorDataCopyableDataList {
-                    data: view.metadata.clone(),
+                    data: projected.clone(),
                 };
                 if !session.send(McpePacket::from(packet)) {
                     continue;
@@ -499,27 +590,27 @@ pub fn sync_player_views(world: &mut World) {
                         yaw: view.rotation.yaw,
                         pitch: view.rotation.pitch,
                     },
-                    metadata: view.metadata.clone(),
+                    metadata: projected.clone(),
                     hands: [None, None],
                     armour: None,
                     selected: view.selected,
                 });
             }
             let known = cache.known.get_mut(&key).expect("queued player spawn");
-            send_equipment(session, view, known);
-            if known.metadata != view.metadata
+            send_equipment(session, view, &equipment, known);
+            if known.metadata != projected
                 && session.send(McpePacket::from(SetActorDataPacket {
                     target_runtime_id: ActorRuntimeId {
                         actor_runtime_id: view.runtime_id as u64,
                     },
                     actor_data: SynchedActorDataCopyableDataList {
-                        data: view.metadata.clone(),
+                        data: projected.clone(),
                     },
                     synched_properties: PropertySyncData::default(),
                     tick: view.tick.clone(),
                 }))
             {
-                known.metadata = view.metadata.clone();
+                known.metadata = projected;
             }
             let near = world.get::<Position>(viewer).is_none_or(|position| {
                 let a: glam::IVec3 = (position.0.floor().as_ivec3()) >> 4;

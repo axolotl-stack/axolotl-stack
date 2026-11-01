@@ -22,6 +22,8 @@ mod storage_bridge;
 mod tasks;
 #[path = "ui.rs"]
 mod ui;
+#[path = "views.rs"]
+pub(crate) mod views;
 
 /// Component API version supported by this host.
 pub const PLUGIN_API_VERSION: &str = "0.4.0";
@@ -71,6 +73,10 @@ pub struct HostContext {
     ui_lease: std::sync::Arc<()>,
     pending_ui: Vec<ui::Action>,
     ui_updates: u32,
+    view_registry: views::Registry,
+    view_lease: std::sync::Arc<()>,
+    pending_views: Vec<views::Action>,
+    view_updates: u32,
     #[cfg(test)]
     test_logs: Vec<String>,
     limits: wasmtime::StoreLimits,
@@ -121,6 +127,10 @@ impl HostContext {
             ui_lease: std::sync::Arc::new(()),
             pending_ui: Vec::new(),
             ui_updates: 0,
+            view_registry: Default::default(),
+            view_lease: std::sync::Arc::new(()),
+            pending_views: Vec::new(),
+            view_updates: 0,
             #[cfg(test)]
             test_logs: Vec::new(),
             limits: wasmtime::StoreLimitsBuilder::new()
@@ -164,6 +174,7 @@ pub struct PluginManager {
     storage_registry: std::sync::Arc<std::sync::Mutex<super::storage::Registry>>,
     command_roots: commands::CommandRoots,
     ui_registry: ui::Registry,
+    view_registry: views::Registry,
 }
 
 struct LoadedPlugin {
@@ -213,6 +224,7 @@ fn finish_invocation(
 ) {
     commands::finish_invocation(context, succeeded);
     ui::finish_invocation(context, world, succeeded);
+    views::finish_invocation(context, world, succeeded);
     players::finish_invocation(context, world, succeeded);
 }
 
@@ -220,6 +232,7 @@ fn finish_invocation(
 fn begin_fuel_budget(store: &mut Store<HostContext>, limits: &PluginLimits) -> anyhow::Result<()> {
     players::begin_budget(store.data_mut());
     store.data_mut().ui_updates = 0;
+    store.data_mut().view_updates = 0;
     store.set_fuel(limits.fuel_per_tick)
 }
 
@@ -333,6 +346,7 @@ impl PluginManager {
             storage_registry: Default::default(),
             command_roots: Default::default(),
             ui_registry: Default::default(),
+            view_registry: Default::default(),
         })
     }
 
@@ -497,6 +511,7 @@ impl PluginManager {
             }
             pending.store.data_mut().command_roots = self.command_roots.clone();
             pending.store.data_mut().ui_registry = self.ui_registry.clone();
+            pending.store.data_mut().view_registry = self.view_registry.clone();
             pending.store.data_mut().plugin_id = pending.manifest.id.clone();
             pending.store.data_mut().capabilities = pending.manifest.capabilities.clone();
             let result = with_world(&mut pending.store, world, |store| -> anyhow::Result<_> {
@@ -1122,6 +1137,8 @@ pub(crate) mod tests {
     mod storage_tests;
     #[path = "ui.rs"]
     mod ui_tests;
+    #[path = "views.rs"]
+    mod views_tests;
 
     #[test]
     fn real_plugin_load_reads_world_and_chat_cancellation_prevents_delivery() {
@@ -1153,6 +1170,7 @@ pub(crate) mod tests {
                 storage_registry: Default::default(),
                 command_roots: Default::default(),
                 ui_registry: Default::default(),
+                view_registry: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::world::ChunkManager::new(
@@ -1270,6 +1288,7 @@ pub(crate) mod tests {
                 storage_registry: Default::default(),
                 command_roots: Default::default(),
                 ui_registry: Default::default(),
+                view_registry: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1364,6 +1383,7 @@ pub(crate) mod tests {
             storage_registry: Default::default(),
             command_roots: Default::default(),
             ui_registry: Default::default(),
+            view_registry: Default::default(),
         };
         let mut world = bevy_ecs::world::World::new();
         world.insert_resource(crate::ecs::resources::TickCounter::default());
