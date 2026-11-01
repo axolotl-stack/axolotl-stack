@@ -71,8 +71,17 @@ pub struct PlayerTeleport {
     /// Destination in feet coordinates, matching the public item teleport API.
     pub destination: DVec3,
     cancelled: bool,
+    approvals: Vec<crate::server::game::travel_authorization::Approval>,
 }
 impl PlayerTeleport {
+    /// Record only the exact final destination observed by a live component instance.
+    pub(crate) fn approve_destination(&mut self, owner: std::sync::Weak<()>) {
+        self.approvals
+            .push(crate::server::game::travel_authorization::Approval::new(
+                owner,
+                self.destination,
+            ));
+    }
     /// Read the teleported player.
     pub fn player(&self) -> Entity {
         self.player
@@ -487,6 +496,7 @@ pub(crate) fn teleport_with_request(
         request_id: request_id.clone(),
         destination,
         cancelled: false,
+        approvals: Vec::new(),
     };
     for handler in handlers(world) {
         handler.on_teleport(world, &mut event);
@@ -494,7 +504,13 @@ pub(crate) fn teleport_with_request(
     world.trigger_ref(&mut event);
     // Observer Commands must finish before stale-state revalidation and costs.
     world.flush();
+    crate::server::game::travel_authorization::teleport(world, &mut event);
+    world.flush();
     (!event.cancelled
+        && event
+            .approvals
+            .iter()
+            .all(|approval| approval.matches(event.destination))
         && identity.matches(world, player)
         && world
             .get::<Position>(player)

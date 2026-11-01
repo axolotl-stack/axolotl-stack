@@ -41,6 +41,8 @@ mod item_actions;
 mod movements;
 #[path = "sessions.rs"]
 pub(crate) mod sessions;
+#[path = "travel_authorization.rs"]
+mod travel_authorization;
 
 /// Component API version supported by this host.
 pub const PLUGIN_API_VERSION: &str = "0.4.0";

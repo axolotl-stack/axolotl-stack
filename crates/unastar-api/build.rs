@@ -283,15 +283,17 @@ fn handler_params(resolve: &Resolve, func: &wit_parser::Function) -> String {
             "Option<&Player<'_>>".into()
         } else if matches!(
             func.name.as_str(),
-            "on-player-damage" | "on-block-transaction" | "on-item-action"
+            "on-player-damage" | "on-block-transaction" | "on-item-action" | "on-player-travel"
         ) && name == "proposal"
         {
             if func.name == "on-player-damage" {
                 "&DamageProposal".into()
             } else if func.name == "on-block-transaction" {
                 "&BlockProposal".into()
-            } else {
+            } else if func.name == "on-item-action" {
                 "&ItemActionProposal".into()
+            } else {
+                "&TravelProposal".into()
             }
         } else if (func.name == "on-player-respawn" && name == "position")
             || (func.name == "on-player-move" && name == "new_position")
@@ -405,7 +407,7 @@ fn generate_handler(
                 format!("&mut {name}")
             } else if matches!(
                 func.name.as_str(),
-                "on-player-damage" | "on-block-transaction" | "on-item-action"
+                "on-player-damage" | "on-block-transaction" | "on-item-action" | "on-player-travel"
             ) && name == "proposal"
             {
                 "&proposal".into()

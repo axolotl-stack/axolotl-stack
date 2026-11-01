@@ -87,3 +87,4 @@ pub use raw::{
     ConnectionControlError,
 };
 pub use raw::{InventoryMechanicsOperation, InventoryMechanicsStatus};
+pub use raw::{TravelCause, TravelProposal};

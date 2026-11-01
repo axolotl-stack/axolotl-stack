@@ -81,6 +81,24 @@ impl Drop for Operation {
 
 #[derive(Resource, Default)]
 struct Pending(HashMap<String, Operation>);
+
+/// Echo only an actual pending request from this exact component instance.
+pub(in crate::plugin::manager) fn correlation(
+    world: &World,
+    request_id: Option<&str>,
+    owner: &Arc<()>,
+) -> Option<u64> {
+    let request = world
+        .get_resource::<Pending>()?
+        .0
+        .get(request_id?)?
+        .0
+        .as_ref()?;
+    request
+        .owner
+        .ptr_eq(&Arc::downgrade(owner))
+        .then_some(request.event.correlation)
+}
 #[derive(Resource)]
 struct Installed;
 

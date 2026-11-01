@@ -417,6 +417,7 @@ pub(super) async fn attempt(
         from,
         feet,
         cancelled: false,
+        approvals: Vec::new(),
     };
     if !hooks::proposed(source.ecs.world_mut(), target.ecs.world_mut(), &mut event) {
         hooks::failed(source.ecs.world_mut(), request, TransferError::Rejected);

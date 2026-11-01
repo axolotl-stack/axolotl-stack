@@ -59,6 +59,7 @@ pub enum EventKind {
     PlayerDeath,
     PlayerRespawn,
     PlayerRespawned,
+    PlayerTravel,
 }
 
 /// Internal event representation carrying Entity references.
