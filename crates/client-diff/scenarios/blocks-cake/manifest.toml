@@ -1,0 +1,109 @@
+scenario = "blocks-cake"
+steps = 20
+steps_sha256 = "6d4fc3e19adbf579ce4350f639471103f278d00f7471bded591a3c15d4661bf6"
+description = "Measured on BDS 1.26.51 with the scripted bot: Cake clicked at full hunger, then after a hunger effect (easy difficulty) twice."
+known_failing = []
+accepted = []
+
+[source]
+run = "tools/client-diff/runs/blocks-b/blocks-cake-vanilla-go.jsonl"
+server = "BDS 1.26.51 + Endstone 0.11.12"
+protocol = 2193
+recorded = "2026-10-31"
+player_runtime_id = 1
+player_unique_id = -8589934591
+window_ms = 7300.0
+recording_sha256 = "f0535ac218fb4db545405b147fb7e069d011faaee149a3df3727184bd3425b65"
+
+[world]
+kind = "superflat"
+game_mode = "creative"
+difficulty = "peaceful"
+setup = "Endstone capture world (tools/client-diff/endstone-capture): default superflat, fixed seed, spawn at feet (0.5, -60, 0.5), time 6000, clear weather; the bot's player is an operator."
+
+[world.game_rules]
+commandBlockOutput = true
+commandBlocksEnabled = true
+doDayLightCycle = false
+doEntityDrops = true
+doFireTick = true
+doImmediateRespawn = false
+doInsomnia = true
+doLimitedCrafting = false
+doMobLoot = true
+doMobSpawning = false
+doTileDrops = true
+doWeatherCycle = false
+drowningDamage = true
+fallDamage = true
+fireDamage = true
+freezeDamage = true
+functionCommandLimit = 10000
+keepInventory = false
+locatorbar = true
+maxCommandChainLength = 65535
+mobGriefing = true
+naturalRegeneration = true
+playerWaypoints = 1
+playersSleepingPercentage = 100
+projectilesCanBreakBlocks = true
+pvp = true
+randomTickSpeed = 0
+recipesUnlock = true
+respawnBlocksExplode = true
+sendCommandFeedback = true
+showBorderEffect = true
+showCoordinates = false
+showDaysPlayed = false
+showDeathMessages = true
+showRecipeMessages = true
+showTags = true
+spawnRadius = 10
+tntExplodes = true
+tntExplosionDropDecay = false
+
+[compare]
+packets = [
+    "LevelSoundEvent",
+    "SetActorData",
+    "UpdateAttributes",
+    "UpdateBlock",
+    "UpdateSubChunkBlocks",
+]
+timing_tolerance_ms = 120.0
+float_tolerance = 0.001
+
+[[mask]]
+field = "actor_runtime_id"
+rule = "runtime_id"
+reason = "Runtime IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+field = "actor_unique_id"
+rule = "unique_id"
+reason = "Unique IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+path = "actor_data.data[id=5].payload"
+packets = [
+    "SetActorData",
+    "AddActor",
+    "AddItemActor",
+]
+rule = "unique_id"
+reason = "Metadata key 5 (owner) holds a unique ID."
+
+[[mask]]
+field = "net_id_variant"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "item_stack_net_id"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "inputtick"
+rule = "ignore"
+reason = "Server tick numbers start at different values on each server and session."

@@ -1,0 +1,142 @@
+scenario = "blocks-pressure-plates"
+steps = 27
+steps_sha256 = "5f1a587f4101f47c5464017f05d227dcb8cfa73bd9fd0d5a4b71932f32d2c2f6"
+description = "Measured on BDS 1.26.51 with the scripted bot: Stone and oak plates on the floor, each with a lamp east of it; a dirt block destroyed with /setblock ... destroy (its drop teleported onto each plate, then killed), then the player teleported onto and off each plate (two dwell times)."
+known_failing = []
+accepted = []
+
+[source]
+run = "tools/client-diff/runs/blocks-b/blocks-pressure-plates-vanilla-go.jsonl"
+server = "BDS 1.26.51 + Endstone 0.11.12"
+protocol = 2193
+recorded = "2026-10-31"
+player_runtime_id = 1
+player_unique_id = -8589934591
+window_ms = 41149.0
+recording_sha256 = "6b807ebd03e05c8057b83acb4604d70775198664e01d87b757a66cef02016b0e"
+
+[world]
+kind = "superflat"
+game_mode = "creative"
+difficulty = "peaceful"
+setup = "Endstone capture world (tools/client-diff/endstone-capture): default superflat, fixed seed, spawn at feet (0.5, -60, 0.5), time 6000, clear weather; the bot's player is an operator."
+
+[world.game_rules]
+commandBlockOutput = true
+commandBlocksEnabled = true
+doDayLightCycle = false
+doEntityDrops = true
+doFireTick = true
+doImmediateRespawn = false
+doInsomnia = true
+doLimitedCrafting = false
+doMobLoot = true
+doMobSpawning = false
+doTileDrops = true
+doWeatherCycle = false
+drowningDamage = true
+fallDamage = true
+fireDamage = true
+freezeDamage = true
+functionCommandLimit = 10000
+keepInventory = false
+locatorbar = true
+maxCommandChainLength = 65535
+mobGriefing = true
+naturalRegeneration = true
+playerWaypoints = 1
+playersSleepingPercentage = 100
+projectilesCanBreakBlocks = true
+pvp = true
+randomTickSpeed = 0
+recipesUnlock = true
+respawnBlocksExplode = true
+sendCommandFeedback = true
+showBorderEffect = true
+showCoordinates = false
+showDaysPlayed = false
+showDeathMessages = true
+showRecipeMessages = true
+showTags = true
+spawnRadius = 10
+tntExplodes = true
+tntExplosionDropDecay = false
+
+[compare]
+packets = [
+    "AddItemActor",
+    "LevelEvent",
+    "LevelSoundEvent",
+    "MoveActorDelta",
+    "RemoveActor",
+    "SetActorData",
+    "UpdateBlock",
+    "UpdateSubChunkBlocks",
+]
+timing_tolerance_ms = 120.0
+float_tolerance = 0.001
+
+[[mask]]
+field = "actor_runtime_id"
+rule = "runtime_id"
+reason = "Runtime IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+field = "actor_unique_id"
+rule = "unique_id"
+reason = "Unique IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+path = "actor_data.data[id=5].payload"
+packets = [
+    "SetActorData",
+    "AddActor",
+    "AddItemActor",
+]
+rule = "unique_id"
+reason = "Metadata key 5 (owner) holds a unique ID."
+
+[[mask]]
+field = "net_id_variant"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "item_stack_net_id"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "inputtick"
+rule = "ignore"
+reason = "Server tick numbers start at different values on each server and session."
+
+[[mask]]
+field = "position"
+packets = ["AddItemActor"]
+rule = "ignore"
+reason = "Block and item drops spawn at a random offset inside the block."
+
+[[mask]]
+field = "velocity"
+packets = ["AddItemActor"]
+rule = "ignore"
+reason = "Block and item drops get a random initial velocity."
+
+[[mask]]
+field = "new_position_x"
+packets = ["MoveActorDelta"]
+rule = "ignore"
+reason = "The only moving actors are drops (and primed TNT) that start with a random offset and velocity, so every position they report is random."
+
+[[mask]]
+field = "new_position_y"
+packets = ["MoveActorDelta"]
+rule = "ignore"
+reason = "The only moving actors are drops (and primed TNT) that start with a random offset and velocity, so every position they report is random."
+
+[[mask]]
+field = "new_position_z"
+packets = ["MoveActorDelta"]
+rule = "ignore"
+reason = "The only moving actors are drops (and primed TNT) that start with a random offset and velocity, so every position they report is random."
