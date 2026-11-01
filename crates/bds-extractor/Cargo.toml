@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 # Workspace crates
 jolyne = { workspace = true, features = ["client", "raknet"] }
+# Archived fixture readers retain their explicit codec; live sessions use Jolyne's facade.
 valentine = { workspace = true, default-features = false, features = ["bedrock_1_26_51"] }
 
 # Async runtime

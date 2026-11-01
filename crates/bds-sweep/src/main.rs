@@ -192,15 +192,15 @@ impl Player {
         let mut actions: Vec<_> = self.pending.take().into_iter().collect();
         if let Some(mining) = &mut self.mining {
             let action = if mining.elapsed == 0 {
-                EnumsPlayerActionType::Startdestroyblock
+                EnumsPlayerActionType::StartDestroyBlock
             } else if mining.predict_after != 0 && mining.elapsed >= mining.predict_after {
-                EnumsPlayerActionType::Predictdestroyblock
+                EnumsPlayerActionType::PredictDestroyBlock
             } else {
-                EnumsPlayerActionType::Continuedestroyblock
+                EnumsPlayerActionType::ContinueDestroyBlock
             };
             actions.push(block_action(action, mining));
             mining.elapsed += 1;
-            if action == EnumsPlayerActionType::Predictdestroyblock {
+            if action == EnumsPlayerActionType::PredictDestroyBlock {
                 self.mining = None;
             }
         }
@@ -214,7 +214,7 @@ impl Player {
             Order::Stop => {
                 if let Some(mining) = self.mining.take() {
                     self.pending = Some(block_action(
-                        EnumsPlayerActionType::Abortdestroyblock,
+                        EnumsPlayerActionType::AbortDestroyBlock,
                         &mining,
                     ));
                 }
@@ -330,7 +330,7 @@ impl Player {
             DropSource::Inventory => {
                 self.pending_drop = Some(drop);
                 packets.push(McpePacket::from(InteractPacket {
-                    action: EnumsInteractPacketPayloadAction::Openinventory,
+                    action: EnumsInteractPacketPayloadAction::OpenInventory,
                     target_runtime_id: ActorRuntimeId {
                         actor_runtime_id: self.runtime_id,
                     },
@@ -368,10 +368,10 @@ impl Player {
                                 fullcontainername: FullContainerName {
                                     container_name: match drop.source {
                                         DropSource::Hotbar => {
-                                            EnumsContainerEnumName::Hotbarcontainer
+                                            EnumsContainerEnumName::HotbarContainer
                                         }
                                         DropSource::Inventory => {
-                                            EnumsContainerEnumName::Inventorycontainer
+                                            EnumsContainerEnumName::InventoryContainer
                                         }
                                     },
                                     dynamic_id: None,
@@ -395,7 +395,7 @@ impl Player {
         let player_block_actions = if actions.is_empty() {
             None
         } else {
-            input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Performblockactions);
+            input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::PerformBlockActions);
             Some(actions)
         };
         McpePacket::from(PlayerAuthInputPacket {
@@ -477,14 +477,14 @@ impl Player {
             }
             McpePacketData::ChangeDimensionPacket(packet) => {
                 self.position = packet.position;
-                return Ok(vec![self.action(EnumsPlayerActionType::Changedimensionack)]);
+                return Ok(vec![self.action(EnumsPlayerActionType::ChangeDimensionAck)]);
             }
             McpePacketData::RespawnPacket(packet) => match packet.state {
-                EnumsPlayerRespawnState::Searchingforspawn => {
+                EnumsPlayerRespawnState::SearchingForSpawn => {
                     return Ok(vec![
                         McpePacket::from(RespawnPacket {
                             position: packet.position,
-                            state: EnumsPlayerRespawnState::Clientreadytospawn,
+                            state: EnumsPlayerRespawnState::ClientReadyToSpawn,
                             player_runtime_id: ActorRuntimeId {
                                 actor_runtime_id: self.runtime_id,
                             },
@@ -492,7 +492,7 @@ impl Player {
                         self.action(EnumsPlayerActionType::Respawn),
                     ]);
                 }
-                EnumsPlayerRespawnState::Readytospawn => self.position = packet.position,
+                EnumsPlayerRespawnState::ReadyToSpawn => self.position = packet.position,
                 _ => {}
             },
             McpePacketData::NetworkStackLatencyPacket(mut latency) if latency.is_from_server => {
@@ -811,7 +811,7 @@ mod tests {
             assert_eq!(
                 assert_drop(
                     request,
-                    EnumsContainerEnumName::Hotbarcontainer,
+                    EnumsContainerEnumName::HotbarContainer,
                     2,
                     count,
                     12345
@@ -841,7 +841,7 @@ mod tests {
             let McpePacketData::InteractPacket(open) = &open.data else {
                 panic!("expected Interact");
             };
-            assert_eq!(open.action, EnumsInteractPacketPayloadAction::Openinventory);
+            assert_eq!(open.action, EnumsInteractPacketPayloadAction::OpenInventory);
             assert_eq!(open.target_runtime_id.actor_runtime_id, player.runtime_id);
             synchronize(&mut player, 9, 64, Some(9876));
             let packets = open_inventory(&mut player);
@@ -849,7 +849,7 @@ mod tests {
             assert_eq!(
                 assert_drop(
                     &packets[0],
-                    EnumsContainerEnumName::Inventorycontainer,
+                    EnumsContainerEnumName::InventoryContainer,
                     9,
                     count,
                     9876
@@ -917,7 +917,7 @@ mod tests {
         };
         assert_drop(
             request,
-            EnumsContainerEnumName::Inventorycontainer,
+            EnumsContainerEnumName::InventoryContainer,
             9,
             1,
             72,
@@ -944,13 +944,13 @@ mod tests {
             McpePacketData::ContainerClosePacket(_)
         ));
         assert_eq!(
-            assert_drop(request, EnumsContainerEnumName::Hotbarcontainer, 0, 1, 71),
+            assert_drop(request, EnumsContainerEnumName::HotbarContainer, 0, 1, 71),
             -1
         );
         let next = player.order(drop).unwrap();
         assert_eq!(next.len(), 1);
         assert_eq!(
-            assert_drop(&next[0], EnumsContainerEnumName::Hotbarcontainer, 0, 1, 71),
+            assert_drop(&next[0], EnumsContainerEnumName::HotbarContainer, 0, 1, 71),
             -3
         );
     }
@@ -983,7 +983,7 @@ mod tests {
             .unwrap();
         assert_drop(
             &packets[0],
-            EnumsContainerEnumName::Hotbarcontainer,
+            EnumsContainerEnumName::HotbarContainer,
             0,
             7,
             999,
@@ -1007,7 +1007,7 @@ mod tests {
             .unwrap();
         assert_drop(
             &packets[0],
-            EnumsContainerEnumName::Hotbarcontainer,
+            EnumsContainerEnumName::HotbarContainer,
             0,
             5,
             1000,
@@ -1067,10 +1067,10 @@ mod tests {
         assert_eq!(
             kinds,
             [
-                vec![Startdestroyblock],
-                vec![Continuedestroyblock],
-                vec![Continuedestroyblock],
-                vec![Predictdestroyblock],
+                vec![StartDestroyBlock],
+                vec![ContinueDestroyBlock],
+                vec![ContinueDestroyBlock],
+                vec![PredictDestroyBlock],
                 vec![],
             ]
         );
@@ -1088,7 +1088,7 @@ mod tests {
         assert_eq!(actions.len(), 1);
         assert_eq!(
             actions[0].player_action_type,
-            EnumsPlayerActionType::Abortdestroyblock
+            EnumsPlayerActionType::AbortDestroyBlock
         );
         assert!(player.block_actions().is_empty());
     }
