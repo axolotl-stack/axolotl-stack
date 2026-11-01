@@ -335,8 +335,9 @@ impl ItemPermit {
             .iter()
             .all(|owner| owner.upgrade().is_some())
             && self.actor.matches(world, self.event.player)
-            && selected(world, self.event.player)
-                .is_some_and(|(slot, stack)| slot == self.event.slot && stack == self.event.stack)
+            && selected(world, self.event.player).is_some_and(|(slot, stack)| {
+                slot == self.event.slot && same_cell_stack(&stack, &self.event.stack)
+            })
             && self
                 .ammo
                 .as_ref()
@@ -611,8 +612,13 @@ impl AmmoSnapshot {
     }
     /// A full stack fingerprint includes auxiliary values and owned user data.
     fn current(&self, world: &World, player: Entity) -> bool {
-        self.stack_at(world, player) == Some(&self.before)
+        self.stack_at(world, player)
+            .is_some_and(|stack| same_cell_stack(stack, &self.before))
     }
+}
+/// Value equality permits merging; an action witness also requires the original stack identity.
+fn same_cell_stack(current: &ItemStack, expected: &ItemStack) -> bool {
+    current.net_id == expected.net_id && current == expected
 }
 /// Capture an actual cell even when the hand is empty.
 fn selected_slot(world: &World, player: Entity, slot: u8) -> Option<ItemStack> {

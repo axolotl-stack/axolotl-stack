@@ -248,6 +248,54 @@ fn changed_held_slot_or_connection_cannot_consume_the_pre_callback_stack() {
 }
 
 #[test]
+fn equal_values_with_a_replaced_stack_identity_invalidate_held_and_ammunition_witnesses() {
+    for ammunition in [false, true] {
+        let (mut world, player, mut rx) = actor("minecraft:snowball", 2);
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(1, stack("minecraft:arrow", 2))
+            .unwrap();
+        let count = Arc::new(AtomicUsize::new(0));
+        world.resource_mut::<ItemActionHooks>().register(Custom);
+        world
+            .resource_mut::<ItemActionHooks>()
+            .register(CountCommitted(count.clone()));
+        let ammo = ammunition.then(|| AmmoSnapshot::capture(&world, player, Some(1)).unwrap());
+        world.add_observer(
+            move |event: On<PlayerItemAction>, mut inventories: Query<&mut MainInventory>| {
+                let slot = usize::from(ammunition);
+                let mut inventory = inventories.get_mut(event.player()).unwrap();
+                let mut replacement = inventory.0.item(slot).unwrap().clone();
+                replacement.net_id ^= 0x4000_0000;
+                inventory.0.set_item(slot, replacement).unwrap();
+            },
+        );
+        let kind = if ammunition {
+            ItemActionKind::Launch
+        } else {
+            ItemActionKind::Use
+        };
+        assert!(authorize_target(&mut world, player, kind, ItemTarget::Air, ammo).is_none());
+        for slot in 0..2 {
+            assert_eq!(
+                world
+                    .get::<MainInventory>(player)
+                    .unwrap()
+                    .0
+                    .item(slot)
+                    .unwrap()
+                    .count,
+                2
+            );
+        }
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+        assert!(rx.try_recv().is_err());
+    }
+}
+
+#[test]
 fn ordinary_consumption_reports_after_food_and_held_stack_commit() {
     let (mut world, player, _) = actor("minecraft:apple", 2);
     let consumed = Arc::new(AtomicUsize::new(0));
