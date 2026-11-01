@@ -8,6 +8,8 @@ use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
 use crate::ecs::events::{PluginAction, ServerEvent};
 
+#[path = "commands.rs"]
+pub(crate) mod commands;
 #[path = "lifecycle.rs"]
 mod lifecycle;
 #[path = "players.rs"]
@@ -60,6 +62,9 @@ pub struct HostContext {
     task_requests: VecDeque<tasks::TaskRequest>,
     task_failures: VecDeque<tasks::TaskFailure>,
     task_sequence: u64,
+    command_roots: commands::CommandRoots,
+    command_owner: std::sync::Arc<()>,
+    pending_command_roots: Vec<commands::Reservation>,
     #[cfg(test)]
     test_logs: Vec<String>,
     limits: wasmtime::StoreLimits,
@@ -103,6 +108,9 @@ impl HostContext {
             task_requests: VecDeque::new(),
             task_failures: VecDeque::new(),
             task_sequence: 0,
+            command_roots: Default::default(),
+            command_owner: std::sync::Arc::new(()),
+            pending_command_roots: Vec::new(),
             #[cfg(test)]
             test_logs: Vec::new(),
             limits: wasmtime::StoreLimitsBuilder::new()
@@ -144,6 +152,7 @@ pub struct PluginManager {
     tick_budget_valid: bool,
     readiness: readiness::PluginReadiness,
     storage_registry: std::sync::Arc<std::sync::Mutex<super::storage::Registry>>,
+    command_roots: commands::CommandRoots,
 }
 
 struct LoadedPlugin {
@@ -183,6 +192,16 @@ fn with_world<R>(
         _world: std::marker::PhantomData,
     };
     call(attachment.store)
+}
+
+/// Commit staged capability work only after the component invocation succeeds.
+fn finish_invocation(
+    context: &mut HostContext,
+    world: &mut bevy_ecs::world::World,
+    succeeded: bool,
+) {
+    commands::finish_invocation(context, succeeded);
+    players::finish_invocation(context, world, succeeded);
 }
 
 /// Initialization and each plugin tick batch have one shared instruction budget.
@@ -299,6 +318,7 @@ impl PluginManager {
             tick_budget_valid: true,
             readiness: Default::default(),
             storage_registry: Default::default(),
+            command_roots: Default::default(),
         })
     }
 
@@ -461,6 +481,7 @@ impl PluginManager {
             if pending.manifest.required {
                 self.readiness.require(&pending.manifest.id.0);
             }
+            pending.store.data_mut().command_roots = self.command_roots.clone();
             pending.store.data_mut().plugin_id = pending.manifest.id.clone();
             pending.store.data_mut().capabilities = pending.manifest.capabilities.clone();
             let result = with_world(&mut pending.store, world, |store| -> anyhow::Result<_> {
@@ -477,6 +498,7 @@ impl PluginManager {
             });
             match result {
                 Ok(bindings) => {
+                    commands::finish_invocation(pending.store.data_mut(), true);
                     staged.extend(std::mem::take(
                         &mut pending.store.data_mut().pending_actions,
                     ));
@@ -492,6 +514,7 @@ impl PluginManager {
                     );
                 }
                 Err(error) => {
+                    commands::finish_invocation(pending.store.data_mut(), false);
                     error!(id = %pending.manifest.id, %error, "Plugin initialization failed");
                     if self
                         .readiness
@@ -504,7 +527,7 @@ impl PluginManager {
         }
         let succeeded = self.readiness.check().is_ok();
         for plugin in self.plugins.values_mut() {
-            players::finish_invocation(plugin.store.data_mut(), world, succeeded);
+            finish_invocation(plugin.store.data_mut(), world, succeeded);
         }
         if succeeded {
             for action in staged {
@@ -522,6 +545,7 @@ impl PluginManager {
     pub fn tick(&mut self, ecs_world: &mut bevy_ecs::world::World) {
         self.drain_world_events(ecs_world);
         self.dispatch_global_tick(ecs_world);
+        self.publish_command_roots(ecs_world);
         self.end_tick();
     }
 
@@ -854,7 +878,7 @@ impl PluginManager {
             }
         });
 
-        players::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
+        finish_invocation(plugin.store.data_mut(), world, result.is_ok());
         match result {
             Ok(cancelled) => cancelled,
             Err(e) => {
@@ -1073,6 +1097,8 @@ pub(crate) mod tests {
         ])
     }
 
+    #[path = "commands.rs"]
+    mod command_tests;
     #[path = "readiness.rs"]
     mod readiness_tests;
     #[path = "storage.rs"]
@@ -1106,6 +1132,7 @@ pub(crate) mod tests {
                 tick_budget_valid: true,
                 readiness: Default::default(),
                 storage_registry: Default::default(),
+                command_roots: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::world::ChunkManager::new(
@@ -1221,6 +1248,7 @@ pub(crate) mod tests {
                 tick_budget_valid: true,
                 readiness: Default::default(),
                 storage_registry: Default::default(),
+                command_roots: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1313,6 +1341,7 @@ pub(crate) mod tests {
             tick_budget_valid: true,
             readiness: Default::default(),
             storage_registry: Default::default(),
+            command_roots: Default::default(),
         };
         let mut world = bevy_ecs::world::World::new();
         world.insert_resource(crate::ecs::resources::TickCounter::default());

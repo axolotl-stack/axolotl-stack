@@ -143,7 +143,7 @@ impl PluginManager {
                                     }
                                 },
                             );
-                            players::finish_invocation(
+                            super::finish_invocation(
                                 plugin.store.data_mut(),
                                 world,
                                 result.is_ok(),
@@ -189,7 +189,7 @@ impl PluginManager {
                         failure.error,
                     )
                 });
-                players::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
+                super::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
                 if let Err(error) = result {
                     tracing::error!(plugin = %owner, %error, "Scheduled task failure callback failed");
                     if readiness.fail(&owner.0, &error.to_string()) {

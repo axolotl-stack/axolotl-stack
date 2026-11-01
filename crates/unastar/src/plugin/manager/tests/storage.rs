@@ -86,6 +86,7 @@ fn manager(
         tick_prepared: false,
         tick_budget_valid: true,
         readiness: Default::default(),
+        command_roots: Default::default(),
         storage_registry: registry,
     };
     manager.require_plugins(&["example.store".into()]);

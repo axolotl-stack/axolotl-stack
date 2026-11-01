@@ -103,7 +103,7 @@ pub(super) fn bytes(bodies: &[(&str, String)]) -> Vec<u8> {
             },
         );
         let body = bodies.iter().find(|(name, _)| *name == function.name).map(|(_, body)| body.clone()).unwrap_or_else(|| match function.name.as_str() {
-            "on-player-chat" | "on-block-break" | "on-block-place" | "on-player-interact-block" => "i32.const 1".into(),
+            "on-player-command" | "on-player-chat" | "on-block-break" | "on-block-place" | "on-player-interact-block" => "i32.const 1".into(),
             "on-player-damage" => "i32.const 32 i32.const 1 i32.store i32.const 36 local.get 5 f32.store i32.const 32".into(),
             "on-player-respawn" => "i32.const 64 i32.const 1 i32.store i32.const 72 local.get 2 f64.store i32.const 80 local.get 3 f64.store i32.const 88 local.get 4 f64.store i32.const 64".into(),
             _ => String::new(),

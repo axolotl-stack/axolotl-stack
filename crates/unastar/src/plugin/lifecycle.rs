@@ -90,6 +90,7 @@ impl PluginManager {
             .readiness
             .clone();
         world.insert_resource(readiness);
+        super::commands::install(manager.clone(), world);
         LifecycleBridge::install(manager, world);
     }
 
@@ -125,7 +126,7 @@ impl PluginManager {
     }
 
     /// Return subscribed plugin identities in a stable order for mutable decisions.
-    fn subscribers(&self, kind: EventKind) -> Vec<super::PluginId> {
+    pub(super) fn subscribers(&self, kind: EventKind) -> Vec<super::PluginId> {
         let mut ids: Vec<_> = self
             .plugins
             .iter()
@@ -273,7 +274,7 @@ impl PluginManager {
 }
 
 /// Scope handles to a single call and discard actions from a trapped callback.
-fn invoke<R>(
+pub(super) fn invoke<R>(
     plugin: &mut LoadedPlugin,
     world: &mut World,
     call: impl FnOnce(&mut Store<HostContext>, &UnastarPlugin) -> anyhow::Result<R>,
@@ -283,7 +284,7 @@ fn invoke<R>(
         prepare_invocation(store);
         call(store, &plugin.bindings)
     });
-    super::players::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
+    super::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
     let actions = std::mem::take(&mut plugin.store.data_mut().pending_actions);
     if result.is_ok() && !actions.is_empty() {
         for action in actions {

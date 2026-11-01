@@ -1,6 +1,6 @@
 //! Scoped Component Model example; build for `wasm32-wasip2`.
 
-use unastar_api::{BlockPos, Handler, LogLevel, PlayerContext, server};
+use unastar_api::{BlockPos, Handler, LogLevel, PlayerContext, commands, server};
 
 struct ExamplePlugin;
 
@@ -8,6 +8,10 @@ struct ExamplePlugin;
 impl Handler for ExamplePlugin {
     fn on_load() {
         server::log(LogLevel::Info, "Example component loaded");
+        let _ = commands::register_root(&commands::Root {
+            name: "greet".into(),
+            description: "Send a greeting".into(),
+        });
     }
     fn on_tick(tick_id: u64) {
         if tick_id.is_multiple_of(100)
@@ -21,6 +25,14 @@ impl Handler for ExamplePlugin {
     }
     fn on_player_join(ctx: &mut PlayerContext<'_>, username: String) {
         let _ = ctx.player().message(&format!("Welcome, {username}!"));
+    }
+    fn on_player_command(ctx: &mut PlayerContext<'_>, line: String, _request_id: Option<String>) {
+        if line.trim_start_matches('/').split_whitespace().next() == Some("greet") {
+            let _ = ctx
+                .player()
+                .message("Hello from an advertised component command");
+            ctx.cancel();
+        }
     }
     fn on_player_chat(ctx: &mut PlayerContext<'_>, message: String) {
         if message == "!hello" {

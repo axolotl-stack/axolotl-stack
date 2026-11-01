@@ -6,12 +6,17 @@ use std::path::PathBuf;
 use wit_parser::{Handle, Resolve, Type, TypeDefKind, WorldItem};
 
 fn main() -> Result<()> {
-    println!("cargo:rerun-if-changed=wit");
+    // Bind generated handlers and rebuild tracking to the owning package's WIT.
+    let wit_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?).join("wit");
+    println!("cargo:rerun-if-changed={}", wit_dir.display());
 
     let mut resolve = Resolve::default();
-    let (pkg_id, _) = resolve
-        .push_dir("wit")
+    let (pkg_id, sources) = resolve
+        .push_dir(&wit_dir)
         .context("failed to parse WIT directory")?;
+    for source in sources.paths() {
+        println!("cargo:rerun-if-changed={}", source.display());
+    }
     let world_id = resolve
         .select_world(&[pkg_id], Some("unastar-plugin"))
         .context("failed to select world")?;
