@@ -71,7 +71,7 @@ pub use goals::{
 };
 pub use hostile::{
     AttackConfig, BurnsInDaylightConfig, HurtByTargetGoal, MeleeBoxAttackGoal,
-    NearestAttackableTargetGoal,
+    NearestAttackableTargetGoal, UseKineticWeaponGoal,
 };
 pub use hurt_on_condition::{HurtCondition, HurtOnConditionConfig};
 pub use interact::{InteractConfig, Interaction, SpawnEggInteraction, SpawnItems};
@@ -147,12 +147,6 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
         "riding is not implemented: a baby zombie jockey has nothing to mount",
     ),
     (
-        ActorComponent::BehaviorUseKineticWeapon,
-        "kinetic (spear) weapon use: the item kinetic_weapon component and \
-         spear charge attacks are not implemented; a zombie holding a spear \
-         still attacks with behavior.melee_box_attack",
-    ),
-    (
         ActorComponent::DimensionBound,
         "keeps an arrow or trident out of portals, and changing dimension \
          is not implemented",
@@ -217,7 +211,6 @@ pub fn register_component_kinds(
     inert::<bodies::GameEventMovementTracking>(builder)?;
     inert::<bodies::BehaviorStompTurtleEgg>(builder)?;
     inert::<bodies::BehaviorFindMount>(builder)?;
-    inert::<bodies::BehaviorUseKineticWeapon>(builder)?;
     inert::<bodies::DimensionBound>(builder)?;
     // Spider lane.
     inert::<bodies::Addrider>(builder)?;

@@ -1,5 +1,6 @@
 //! Line of sight: whether a mob's eye sees a point (the native sensing
-//! check behind `must_see` targets and item pickup).
+//! check behind `must_see` targets and item pickup), and where a segment
+//! first meets a block (kinetic weapon hits, `mob::combat::kinetic`).
 
 use glam::{DVec3, IVec3};
 
@@ -10,22 +11,29 @@ use crate::registry::collision::Aabb;
 /// are visited along the segment (voxel traversal) and each block's boxes
 /// are tested against it; an unloaded block blocks sight.
 pub fn can_see(blocks: &impl BlockSource, from: DVec3, to: DVec3) -> bool {
+    trace(blocks, from, to, true).is_none()
+}
+
+/// The fraction of the segment `from`–`to` at which it first enters a block
+/// collision box (an unloaded block from where the segment enters it);
+/// `None` when it passes none.
+pub fn first_block_hit(blocks: &impl BlockSource, from: DVec3, to: DVec3) -> Option<f64> {
     trace(blocks, from, to, true)
 }
 
 /// Whether `from` sees the block at `cell`: the segment to the block's
 /// centre passes no other block's collision box.
 pub fn can_see_block(blocks: &impl BlockSource, from: DVec3, cell: IVec3) -> bool {
-    trace(blocks, from, cell.as_dvec3() + DVec3::splat(0.5), false)
+    trace(blocks, from, cell.as_dvec3() + DVec3::splat(0.5), false).is_none()
 }
 
-/// [`can_see`]; the boxes of the cell `to` lies in are tested only when
-/// `test_end`.
-fn trace(blocks: &impl BlockSource, from: DVec3, to: DVec3, test_end: bool) -> bool {
+/// [`first_block_hit`]; the boxes of the cell `to` lies in are tested only
+/// when `test_end`.
+fn trace(blocks: &impl BlockSource, from: DVec3, to: DVec3, test_end: bool) -> Option<f64> {
     let delta = to - from;
     let length = delta.length();
     if !length.is_finite() {
-        return false;
+        return Some(0.0);
     }
     let mut cell = from.floor().as_ivec3();
     let end = to.floor().as_ivec3();
@@ -56,53 +64,63 @@ fn trace(blocks: &impl BlockSource, from: DVec3, to: DVec3, test_end: bool) -> b
         (1.0 / delta.z).abs(),
     );
     let mut boxes = Vec::new();
+    // Segment parameter at which the ray entered `cell`.
+    let mut entered = 0.0;
     loop {
         if blocks.block_at(cell).is_none() {
-            return false;
+            return Some(entered);
         }
         if cell == end && !test_end {
-            return true;
+            return None;
         }
         let min = cell.as_dvec3();
         boxes.clear();
         collect_block_boxes(blocks, Aabb::new(min, min + DVec3::ONE), &mut boxes);
-        if boxes.iter().any(|b| segment_hits(from, delta, b)) {
-            return false;
+        if let Some(hit) = boxes
+            .iter()
+            .filter_map(|b| segment_entry(from, delta, b))
+            .min_by(f64::total_cmp)
+        {
+            return Some(hit);
         }
         if cell == end {
-            return true;
+            return None;
         }
         if next.x <= next.y && next.x <= next.z {
             if next.x > 1.0 {
-                return true;
+                return None;
             }
+            entered = next.x;
             cell.x += step.x;
             next.x += width.x;
         } else if next.y <= next.z {
             if next.y > 1.0 {
-                return true;
+                return None;
             }
+            entered = next.y;
             cell.y += step.y;
             next.y += width.y;
         } else {
             if next.z > 1.0 {
-                return true;
+                return None;
             }
+            entered = next.z;
             cell.z += step.z;
             next.z += width.z;
         }
     }
 }
 
-/// Whether `from + t·delta`, `t ∈ [0, 1]`, enters `aabb` (slab test).
-fn segment_hits(from: DVec3, delta: DVec3, aabb: &Aabb) -> bool {
+/// The smallest `t ∈ [0, 1]` at which `from + t·delta` is inside `aabb`
+/// (slab test); `None` when the segment misses it or only grazes it.
+pub(crate) fn segment_entry(from: DVec3, delta: DVec3, aabb: &Aabb) -> Option<f64> {
     let mut enter = 0.0f64;
     let mut exit = 1.0f64;
     for axis in 0..3 {
         let (origin, dir, min, max) = (from[axis], delta[axis], aabb.min[axis], aabb.max[axis]);
         if dir.abs() < 1.0e-12 {
             if origin <= min || origin >= max {
-                return false;
+                return None;
             }
             continue;
         }
@@ -111,10 +129,10 @@ fn segment_hits(from: DVec3, delta: DVec3, aabb: &Aabb) -> bool {
         enter = enter.max(near);
         exit = exit.min(far);
         if enter >= exit {
-            return false;
+            return None;
         }
     }
-    true
+    Some(enter)
 }
 
 #[cfg(test)]

@@ -828,6 +828,29 @@ pub const MOB_HEAD_ATTACH_RATIO: f64 = 0.85;
 /// casing is provisional, matching unastar's lowercase `attack`).
 pub const SWING_SOURCE_INTERACT: &str = "interact";
 
+// --- Kinetic weapons (`mob::ai::kinetic`, `mob::combat::kinetic`) ----------------
+
+/// A raised kinetic weapon hits the same actor again only once more than
+/// this many ticks passed since its last hit on it (confirmed against BDS).
+pub const KINETIC_REHIT_TICKS: u64 = 10;
+/// A kinetic weapon's `hitbox_margin` scaled by this grows each target's
+/// box on every side (confirmed against BDS; the BDS 1.26.51
+/// `zombie-spear-field` hits fit a 0.125 margin for the 0.25 of a spear).
+pub const KINETIC_HITBOX_MARGIN_SCALE: f64 = 0.5;
+/// A kinetic condition's `min_speed` or `min_relative_speed` (blocks per
+/// second) is only checked when its size is above this (confirmed against
+/// BDS: the single-precision epsilon).
+pub const KINETIC_MIN_SPEED_EPSILON: f32 = f32::EPSILON;
+/// `behavior.use_kinetic_weapon`: while backing off along a path, the path
+/// to the retreat position is searched again with this chance per tick once
+/// the path timer ran out (confirmed against BDS).
+pub const KINETIC_RETREAT_REPATH_CHANCE: f32 = 0.05;
+/// `behavior.use_kinetic_weapon`: the direction away from the target a
+/// retreat backs off along is turned by up to this share of `melee_fov`
+/// either way (provisional: the recordings back off straight, so the spread
+/// is not measured).
+pub const KINETIC_RETREAT_SPREAD_SCALE: f32 = 0.5;
+
 // --- Explosions (`world::explosion`) ----------------------------------------------
 
 /// Block rays leave the centre through every cell on the shell of a grid

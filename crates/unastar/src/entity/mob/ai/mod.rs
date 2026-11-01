@@ -14,6 +14,7 @@ mod break_door;
 mod control;
 mod eat_block;
 mod goals;
+mod kinetic;
 mod melee;
 mod nearby;
 mod path;
@@ -53,6 +54,7 @@ use self::goals::{Effects, GoalContext, GoalStates, goal_specs};
 use self::nearby::{ItemView, MobView, Nearby, PlayerView};
 use self::path::WalkPolicy;
 use super::MobKind;
+use super::combat::kinetic::DealKineticDamage;
 use super::components::follow_range::FollowRange;
 use super::components::hostile::OnTargetEscape;
 use super::components::{
@@ -280,6 +282,7 @@ pub fn tick_mob_ai(
                         world,
                         entity,
                         output,
+                        tick,
                         &mut scratch.eaten,
                         &mut scratch.attacks,
                         &mut scratch.gear,
@@ -389,6 +392,7 @@ fn think(
     if turn == Turn::Think(true) {
         // A rebuilt composition rebuilds the native goals.
         states.melee.reset();
+        states.kinetic.reset();
         states.targets.reset();
         states.ranged.reset();
     }
@@ -489,6 +493,7 @@ fn apply(
     world: &mut World,
     entity: Entity,
     output: Output,
+    tick: u64,
     eaten: &mut Vec<Entity>,
     attacks: &mut Vec<(Entity, Entity)>,
     gear: &mut Vec<(Entity, pickup::GearWork)>,
@@ -542,6 +547,17 @@ fn apply(
     }
     if let Some(facing) = effects.facing_target {
         set_flag(&mut mob, actor_flags::FACING_TARGET_TO_RANGE_ATTACK, facing);
+    }
+    match effects.kinetic {
+        Some(kinetic::KineticRequest::Raise(settings)) => {
+            mob.insert(DealKineticDamage::new(settings, tick));
+            set_flag(&mut mob, actor_flags::USINGITEM, true);
+        }
+        Some(kinetic::KineticRequest::Lower) => {
+            mob.remove::<DealKineticDamage>();
+            set_flag(&mut mob, actor_flags::USINGITEM, false);
+        }
+        None => {}
     }
     if let Some(avoiding) = effects.avoiding {
         set_flag(&mut mob, actor_flags::IS_AVOIDING_MOBS, avoiding);

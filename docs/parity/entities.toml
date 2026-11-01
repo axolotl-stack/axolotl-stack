@@ -835,7 +835,7 @@
 "minecraft:husk/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); husk cannot spawn yet" }
 "minecraft:husk/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
 "minecraft:husk/behavior.stomp_turtle_egg" = { status = "missing", gaps = "turtle eggs are not implemented, so there is nothing to stomp" }
-"minecraft:husk/behavior.use_kinetic_weapon" = { status = "missing", gaps = "kinetic (spear) weapons and charge attacks are not implemented; a mob holding a spear uses its melee attack" }
+"minecraft:husk/behavior.use_kinetic_weapon" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
 "minecraft:husk/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; husk cannot spawn yet" }
 "minecraft:husk/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; husk cannot spawn yet" }
 "minecraft:husk/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but husk cannot spawn yet" }
@@ -993,7 +993,7 @@
 "minecraft:piglin/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); piglin cannot spawn yet" }
 "minecraft:piglin/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
 "minecraft:piglin/behavior.ranged_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs (no charged crossbow attacks), but piglin cannot spawn yet" }
-"minecraft:piglin/behavior.use_kinetic_weapon" = { status = "missing", gaps = "kinetic (spear) weapons and charge attacks are not implemented; a mob holding a spear uses its melee attack" }
+"minecraft:piglin/behavior.use_kinetic_weapon" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
 "minecraft:piglin/block_sensor" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:piglin/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; piglin cannot spawn yet" }
 "minecraft:piglin/celebrate_hunt" = { status = "missing", gaps = "component behaviour not implemented" }
@@ -1620,7 +1620,7 @@
 "minecraft:zombie/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it)" }
 "minecraft:zombie/behavior.random_stroll" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::strolling_cow_walks_within_its_range_and_never_enters_blocks"] }
 "minecraft:zombie/behavior.stomp_turtle_egg" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: turtle eggs are not implemented, so there is nothing to stomp" }
-"minecraft:zombie/behavior.use_kinetic_weapon" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: kinetic (spear) weapons and charge attacks are not implemented; a mob holding a spear uses its melee attack" }
+"minecraft:zombie/behavior.use_kinetic_weapon" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spear.rs::spear_zombie_fight_in_the_open_matches_the_recording", "crates/unastar/src/entity/mob/tests/spear.rs::spear_zombie_at_a_closed_door_matches_the_recording", "crates/unastar/src/entity/mob/combat/kinetic.rs::tests::a_zombies_iron_spear_reaches_one_to_two_and_a_quarter_blocks"], notes = "hijack_mount_navigation and dismount_conditions only act while riding, which is not implemented; the retreat spread (± melee_fov / 2) is provisional (D12)." }
 "minecraft:zombie/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
 "minecraft:zombie/burns_in_daylight" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_burns_in_daylight_and_takes_fire_damage", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_does_not_burn_at_night_in_shade_in_water_or_with_a_helmet", "crates/unastar/src/entity/mob/tests/zombie.rs::a_torch_lit_zombie_follows_the_brightness_rules"] }
 "minecraft:zombie/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
@@ -1719,7 +1719,7 @@
 "minecraft:zombie_pigman/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); zombie_pigman cannot spawn yet" }
 "minecraft:zombie_pigman/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
 "minecraft:zombie_pigman/behavior.stomp_turtle_egg" = { status = "missing", gaps = "turtle eggs are not implemented, so there is nothing to stomp" }
-"minecraft:zombie_pigman/behavior.use_kinetic_weapon" = { status = "missing", gaps = "kinetic (spear) weapons and charge attacks are not implemented; a mob holding a spear uses its melee attack" }
+"minecraft:zombie_pigman/behavior.use_kinetic_weapon" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
 "minecraft:zombie_pigman/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; zombie_pigman cannot spawn yet" }
 "minecraft:zombie_pigman/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; zombie_pigman cannot spawn yet" }
 "minecraft:zombie_pigman/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_pigman cannot spawn yet" }
@@ -1809,7 +1809,7 @@
 "minecraft:zombie_villager_v2/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the goal runs, but no test exercises it (AI tests disable it); zombie_villager_v2 cannot spawn yet" }
 "minecraft:zombie_villager_v2/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
 "minecraft:zombie_villager_v2/behavior.stomp_turtle_egg" = { status = "missing", gaps = "turtle eggs are not implemented, so there is nothing to stomp" }
-"minecraft:zombie_villager_v2/behavior.use_kinetic_weapon" = { status = "missing", gaps = "kinetic (spear) weapons and charge attacks are not implemented; a mob holding a spear uses its melee attack" }
+"minecraft:zombie_villager_v2/behavior.use_kinetic_weapon" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
 "minecraft:zombie_villager_v2/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; zombie_villager_v2 cannot spawn yet" }
 "minecraft:zombie_villager_v2/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
 "minecraft:zombie_villager_v2/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; zombie_villager_v2 cannot spawn yet" }
