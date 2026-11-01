@@ -272,6 +272,33 @@ are errors. Capture rejects unavailable, incomplete or quarantined player state.
 This interface captures and reads state; it does not detach, fence or restore an
 actor, and it cannot recapture a pre-death inventory after drops have occurred.
 
+### Owned death-state archives
+
+An archive-capable component subscribed to `player-death` receives
+`DeathCommitted.state` as a typed result containing an owned `DeathState`.
+The engine captures complete raw state after death commits and its ordinary
+cleanup runs, before carried-item drops or experience clearing. Original item
+metadata, ender chest, raw life fields, temporary modes, effects and world facts
+remain owned even when an earlier native callback removes the source actor.
+
+`DeathState::facts()` exposes the explicit `CommittedBeforeDrops` phase, native
+cause, immutable launch attribution, fall distance and keep-inventory policy.
+Its opaque capture ID correlates uncertain archive installation with this exact
+owned capture across reload; it grants no actor access.
+`state_image()` returns detached historical state for typed inspection or edits.
+`archive(key)` durably installs the original complete capture with its death facts;
+detached edits leave that capture unchanged. `ArchivedPlayerState::death_facts()`
+preserves the phase and evidence across reload. This phase includes the carried
+items that ordinary death may already have dropped into the world.
+
+The owned value can be archived from a later callback without resolving a live
+player. Archive acknowledgement uses the existing create-only, checksum and
+durable namespace contract and survives later guest failure. Bounded native
+capture and per-component resource/byte limits return explicit errors for missing,
+malformed or oversized evidence. The committed native death remains observable
+when complete capture is unavailable. Actor creation and source retirement remain
+separate operations.
+
 ### Complete player-state handoff
 
 The separate `restore-player-state` capability exposes owned `PlayerStateImage`

@@ -136,6 +136,25 @@ interface types {
         fall-distance: option<f64>,
         keep-inventory: bool,
         inventory: result<death-inventory, access-error>,
+        state: result<death-state, access-error>,
+    }
+
+    enum death-capture-phase { committed-before-drops }
+    /// Immutable native death evidence remains separate from raw life-state adjustments.
+    record death-facts {
+        /// Opaque identity of this genuine capture; never a live actor or damage-operation handle.
+        capture-id: string,
+        phase: death-capture-phase,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        fall-distance: option<f64>,
+        keep-inventory: bool,
+    }
+    /// Genuine raw dead state captured before drops, usable after the source actor departs.
+    resource death-state {
+        facts: func() -> result<death-facts, access-error>;
+        state-image: func() -> result<player-state-image, access-error>;
+        archive: func(key: string) -> result<archive-reference, archive-error>;
     }
 
     /// Semantic native effect identifiers, independent of wire enum numbering.
@@ -672,6 +691,7 @@ interface types {
     /// Native full state remains host-owned, including unknown item metadata.
     /// This resource only reads immutable observations; restoration is a separate capability.
     resource archived-player-state {
+        death-facts: func() -> result<option<death-facts>, access-error>;
         state-image: func() -> result<player-state-image, access-error>;
         /// Reacquire only an existing exact native source hold in this transaction world.
         /// Absence never recreates an actor or grants a historical player capability.

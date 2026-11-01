@@ -691,6 +691,18 @@ impl PluginManager {
     fn initialize_pending(&mut self, world: &mut bevy_ecs::world::World) {
         let mut staged = Vec::new();
         for mut pending in self.pending.drain(..) {
+            if pending
+                .manifest
+                .subscriptions
+                .contains(&crate::ecs::events::EventKind::PlayerDeath)
+                && pending
+                    .manifest
+                    .capabilities
+                    .contains(&crate::plugin::manifest::PluginCapability::PlayerStateArchives)
+            {
+                self.readiness
+                    .request_death_capture(&pending.store.data().mechanics_owner);
+            }
             if pending.manifest.required {
                 self.readiness.require(&pending.manifest.id.0);
             }
@@ -1205,6 +1217,8 @@ pub(crate) mod tests {
     use wit_bindings::unastar::plugin::host::Host;
     #[path = "damage.rs"]
     mod damage_tests;
+    #[path = "death_archives.rs"]
+    mod death_archive_tests;
     #[path = "deaths.rs"]
     mod death_tests;
     mod fixture;

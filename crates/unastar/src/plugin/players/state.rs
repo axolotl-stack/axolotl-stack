@@ -203,6 +203,38 @@ fn put_values(
 }
 
 impl HostContext {
+    /// Death images are owned historical evidence, never fresh expected targets or live sources.
+    pub(super) fn state_from_death(
+        &mut self,
+        capture: &Arc<crate::server::game::player_state::death_capture::Capture>,
+        owner: wit::PlayerIdentity,
+    ) -> Result<Resource<wit::PlayerStateImage>, wit::AccessError> {
+        let bytes = capture
+            .bytes
+            .checked_add(4096)
+            .ok_or(wit::AccessError::LimitExceeded)?;
+        let reservation = self.resources.value_budget.reserve(bytes)?;
+        self.own_state_image(reservation.bind(Image {
+            binding: None,
+            expected: capture.snapshot.clone(),
+            candidate: capture.snapshot.clone(),
+            owner,
+            world: wit::ArchiveWorld {
+                uuid: capture.world.id.to_string(),
+                name: capture.world.name.clone(),
+                dimension: capture.world.dimension,
+            },
+            destination: None,
+            registry: capture.registry.clone(),
+            captured_tick: capture.tick,
+            provenance: provenance(&[
+                b"death",
+                self.plugin_id.0.as_bytes(),
+                capture.nonce.as_bytes(),
+            ]),
+            bytes,
+        }))
+    }
     /// Resource ownership is bounded even when multiple references share immutable buffers.
     pub(super) fn own_state_image(
         &mut self,

@@ -1,9 +1,9 @@
-//! Required component readiness shared by every world of one runtime.
+//! Component readiness and capture demand shared by every world of one runtime.
 
 use std::collections::BTreeSet;
 use std::io::Read;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 
 use bevy_ecs::prelude::*;
 
@@ -13,6 +13,7 @@ const MAX_CONFIG_BYTES: u64 = 1_048_576;
 
 #[derive(Default)]
 struct State {
+    death_captures: Vec<Weak<()>>,
     required: BTreeSet<String>,
     initialized: BTreeSet<String>,
     failure: Option<String>,
@@ -22,6 +23,14 @@ struct State {
 #[derive(Resource, Clone, Default)]
 pub(crate) struct PluginReadiness(Arc<Mutex<State>>);
 impl PluginReadiness {
+    /// A live subscribed instance requests capture in every world; unload expires its lease.
+    pub(super) fn request_death_capture(&self, owner: &Arc<()>) {
+        let mut state = self.0.lock().expect("component readiness lock");
+        state
+            .death_captures
+            .retain(|owner| owner.strong_count() > 0);
+        state.death_captures.push(Arc::downgrade(owner));
+    }
     /// Require an ID before discovery or instantiation can expose player state.
     pub(super) fn require(&self, id: &str) {
         self.0
@@ -85,6 +94,20 @@ impl PluginReadiness {
         }
         Ok(())
     }
+}
+
+/// Read runtime-wide archive demand without acquiring the component manager during simulation.
+pub(crate) fn death_capture_requested(world: &World) -> bool {
+    world
+        .get_resource::<PluginReadiness>()
+        .is_some_and(|readiness| {
+            readiness.0.lock().is_ok_and(|state| {
+                state
+                    .death_captures
+                    .iter()
+                    .any(|owner| owner.strong_count() > 0)
+            })
+        })
 }
 
 /// Native admission remains closed until every declared component is ready.

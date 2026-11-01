@@ -127,6 +127,7 @@ pub(super) fn die(
     let rules = world.resource::<GameRules>().clone();
     let inventory = hooks::PlayerDeathInventory::capture(world, player);
     let observation = hooks::DeathObservation::capture(world, player);
+    let state = crate::server::game::player_state::death_capture::capture(world, player);
     if rules.show_death_messages {
         broadcast_death_message(world, &message, player, cause.attacker);
     }
@@ -142,6 +143,7 @@ pub(super) fn die(
             keep_inventory: rules.keep_inventory,
             attribution,
             observation,
+            state,
         },
     );
     if world.get::<Dead>(player).is_none() || world.get::<Player>(player).is_none() {

@@ -236,6 +236,58 @@ fn semantic_corruption_and_future_native_versions_reject_namespace_open_instead_
 }
 
 #[test]
+fn malformed_owned_death_facts_reject_lookup_and_fresh_namespace_open() {
+    for variant in 0..4 {
+        let root = tempfile::tempdir().unwrap();
+        let mut original = record("sample.policy");
+        original.state.dead = true;
+        original.state.data.health = 0.0;
+        let original = original
+            .with_death(DeathFacts {
+                capture_id: uuid::Uuid::from_u128(3).to_string(),
+                phase: DeathPhase::CommittedBeforeDrops,
+                cause: unastar_data::actor_components::body::ActorDamageCause::Override.into(),
+                attribution: DeathAttribution {
+                    source_dimension: Some(0),
+                    source_world_lifetime: None,
+                    owner: None,
+                },
+                fall_distance: None,
+                keep_inventory: false,
+            })
+            .unwrap();
+        let mut json = serde_json::to_value(original).unwrap();
+        match variant {
+            0 => json["death"]["phase"] = serde_json::json!("after-drops"),
+            1 => json["death"]["cause"] = serde_json::json!("unknown-cause"),
+            2 => {
+                json["death"]["attribution"]["source_world_lifetime"] =
+                    serde_json::json!("not-a-world-lifetime")
+            }
+            _ => json["state"]["dead"] = serde_json::json!(false),
+        }
+        let mut registry = Registry::new(root.path().into(), storage::Limits::default());
+        let namespace = registry.namespace("sample.policy").unwrap();
+        namespace
+            .lock()
+            .unwrap()
+            .backend
+            .lock()
+            .unwrap()
+            .compare_exchange("broken", None, &serde_json::to_vec(&json).unwrap())
+            .unwrap();
+        assert_eq!(
+            namespace.lock().unwrap().lookup("broken"),
+            Err(ArchiveError::InvalidSnapshot)
+        );
+        drop(namespace);
+        drop(registry);
+        let mut reopened = Registry::new(root.path().into(), storage::Limits::default());
+        assert!(reopened.namespace("sample.policy").is_err());
+    }
+}
+
+#[test]
 fn quota_rejection_and_failed_installation_do_not_create_successful_references() {
     let root = tempfile::tempdir().unwrap();
     let limits = storage::Limits {
