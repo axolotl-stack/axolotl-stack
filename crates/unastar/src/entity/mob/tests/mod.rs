@@ -11,6 +11,7 @@ mod passive;
 mod pathing;
 mod sensors;
 mod spawn;
+mod spear;
 mod zombie;
 // Enderman lane.
 mod enderman;

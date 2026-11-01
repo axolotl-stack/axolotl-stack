@@ -39,10 +39,10 @@ const DOOR: IVec3 = IVec3::new(3, 64, 0);
 /// tick on which the crack starts.
 const BREAK_TICKS: u64 = 240 + 1;
 
-struct Harness {
-    server: GameServer,
-    player: Entity,
-    rx: mpsc::Receiver<McpePacket>,
+pub(super) struct Harness {
+    pub(super) server: GameServer,
+    pub(super) player: Entity,
+    pub(super) rx: mpsc::Receiver<McpePacket>,
     /// Block ids the wire audit checked so far.
     block_ids_checked: usize,
 }
@@ -119,7 +119,11 @@ fn harness_with_panel(seed: u64, door: &str, panel: Panel, difficulty: Difficult
 /// A grass floor at y = 63 over chunks -1..=1 × -1..=1 with the blocks
 /// `layout` gives at y = 63..=67 on top. One survival player stands at
 /// (8.5, 64, 0.5). Night, so a zombie does not burn.
-fn built(seed: u64, difficulty: Difficulty, layout: impl Fn(IVec3) -> Option<u32>) -> Harness {
+pub(super) fn built(
+    seed: u64,
+    difficulty: Difficulty,
+    layout: impl Fn(IVec3) -> Option<u32>,
+) -> Harness {
     let mut server = GameServer::with_config(ServerConfig {
         world: crate::world::WorldConfig::void_spawn_platform(1),
         ..ServerConfig::default()
@@ -185,7 +189,7 @@ fn built(seed: u64, difficulty: Difficulty, layout: impl Fn(IVec3) -> Option<u32
 }
 
 impl Harness {
-    fn world(&mut self) -> &mut World {
+    pub(super) fn world(&mut self) -> &mut World {
         self.server.ecs.world_mut()
     }
 
@@ -196,7 +200,7 @@ impl Harness {
     }
 
     /// [`Self::zombie`] with its feet at `feet`.
-    fn zombie_at(&mut self, feet: DVec3, breaker: bool) -> Entity {
+    pub(super) fn zombie_at(&mut self, feet: DVec3, breaker: bool) -> Entity {
         let world = self.world();
         let zombie = (0..400)
             .find_map(|_| {
@@ -781,7 +785,7 @@ fn zombie_never_hurts_the_player_through_an_iron_door() {
 
 /// A door half of `name` facing `direction` (`minecraft:cardinal_direction`),
 /// open or closed.
-fn door_facing(name: &str, direction: &'static str, open: bool, upper: bool) -> u32 {
+pub(super) fn door_facing(name: &str, direction: &'static str, open: bool, upper: bool) -> u32 {
     let entry = BlockRegistry::vanilla().get_by_name(name).unwrap();
     let set = |state, property, value| entry.with_state_value(state, property, value).unwrap();
     let state = set(
@@ -865,7 +869,7 @@ fn zombie_walks_through_an_open_doorway_to_the_player() {
     }
 }
 
-fn air() -> u32 {
+pub(super) fn air() -> u32 {
     BlockRegistry::vanilla()
         .default_state_id_by_name("minecraft:air")
         .unwrap()
