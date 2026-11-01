@@ -72,6 +72,7 @@ enum Entry {
     BlockEdit(world_blocks::Edit),
     BlockEditRequest(Arc<world_blocks::RequestState>),
     DurableBlockRequest(Arc<world_blocks::DurableState>),
+    ContainerPlan(world_blocks::ContainerPlan),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.

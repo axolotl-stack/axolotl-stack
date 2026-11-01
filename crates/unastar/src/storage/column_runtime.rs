@@ -68,6 +68,7 @@ pub(crate) struct ColumnBlockChange {
 #[derive(Default)]
 struct Mode {
     changes: Vec<ColumnBlockChange>,
+    containers: Vec<crate::server::game::container_creation::Creation>,
     durable: bool,
     unload: bool,
     id: Option<String>,
@@ -313,7 +314,7 @@ pub fn commit(
     capture: ColumnCapture,
     id: &str,
 ) -> Result<ColumnTicket, ColumnWriteError> {
-    commit_inner(world, capture, id, None, None, Vec::new())
+    commit_inner(world, capture, id, None, None, Vec::new(), Vec::new())
 }
 
 /// Bind accepted IO to the validated component owner and a stable typed intent.
@@ -325,7 +326,36 @@ pub(crate) fn commit_scoped(
     owner: Weak<()>,
     changes: Vec<ColumnBlockChange>,
 ) -> Result<ColumnTicket, ColumnWriteError> {
-    commit_inner(world, capture, id, Some(intent), Some(owner), changes)
+    commit_inner(
+        world,
+        capture,
+        id,
+        Some(intent),
+        Some(owner),
+        changes,
+        Vec::new(),
+    )
+}
+
+/// Creation has a distinct typed authority for its exact fresh block actors.
+pub(crate) fn commit_containers_scoped(
+    world: &mut World,
+    capture: ColumnCapture,
+    id: &str,
+    intent: [u8; 32],
+    owner: Weak<()>,
+    changes: Vec<ColumnBlockChange>,
+    containers: Vec<crate::server::game::container_creation::Creation>,
+) -> Result<ColumnTicket, ColumnWriteError> {
+    commit_inner(
+        world,
+        capture,
+        id,
+        Some(intent),
+        Some(owner),
+        changes,
+        containers,
+    )
 }
 
 /// Preserve existing native transactions while scoped callers add ownership guards.
@@ -336,17 +366,50 @@ fn commit_inner(
     intent: Option<[u8; 32]>,
     owner: Option<Weak<()>>,
     changes: Vec<ColumnBlockChange>,
+    containers: Vec<crate::server::game::container_creation::Creation>,
 ) -> Result<ColumnTicket, ColumnWriteError> {
     admission_capacity(world, &capture)?;
     if !valid_capture(world, &capture) || capture.columns.len() != capture.snapshots.len() {
         return Err(ColumnWriteError::Stale);
     }
+    let mut created = std::collections::HashSet::new();
+    for container in &containers {
+        if !created.insert(container.position) || !container.source_valid(world) {
+            return Err(ColumnWriteError::Stale);
+        }
+        for position in container.footprint() {
+            let coordinates = crate::world::ChunkPos::new(position.x >> 4, position.z >> 4);
+            if !capture
+                .columns
+                .iter()
+                .any(|column| column.position == coordinates)
+            {
+                return Err(ColumnWriteError::Invalid);
+            }
+        }
+    }
     for (candidate, source) in capture.columns.iter().zip(&capture.snapshots) {
         let original = source.column.as_ref().ok_or(ColumnWriteError::Stale)?;
+        let mut expected_actors = original.chunk.block_entities().to_vec();
+        for container in &containers {
+            if crate::world::ChunkPos::new(container.position.x >> 4, container.position.z >> 4)
+                == source.pos
+            {
+                let (x, y, z) = crate::world::ecs::world_to_local_coords(
+                    container.position.x,
+                    container.position.y,
+                    container.position.z,
+                );
+                if candidate.column.chunk.get_block(x, y, z) != container.state {
+                    return Err(ColumnWriteError::Invalid);
+                }
+                expected_actors.push(container.actor.clone());
+            }
+        }
         if candidate.position != source.pos
             || candidate.column.chunk.block_bounds() != original.chunk.block_bounds()
             || candidate.dimension != world.resource::<ChunkManager>().dimension()
-            || candidate.column.chunk.block_entities() != original.chunk.block_entities()
+            || candidate.column.chunk.block_entities() != expected_actors.as_slice()
             || candidate.column.actors != original.actors
             || candidate.column.removed_actors != original.removed_actors
         {
@@ -409,6 +472,7 @@ fn commit_inner(
                 identity,
                 owner,
                 changes,
+                containers,
                 ..Mode::default()
             },
         )),
@@ -497,6 +561,9 @@ pub(crate) fn poll(world: &mut World) {
                     if pending.mode.durable {
                         clear_fences(world, &pending);
                         pending.writer.release();
+                        for container in &pending.mode.containers {
+                            container.publish(world);
+                        }
                     }
                     set_status(&pending.ticket, ColumnOperationStatus::Applied(ack.receipt));
                 } else {
@@ -537,6 +604,14 @@ fn publish(world: &mut World, pending: &Pending, ack: &ColumnWriteAck) -> bool {
         .owner
         .as_ref()
         .is_some_and(|owner| owner.upgrade().is_none())
+    {
+        return false;
+    }
+    if pending
+        .mode
+        .containers
+        .iter()
+        .any(|container| !container.source_valid(world))
     {
         return false;
     }
@@ -584,6 +659,9 @@ fn publish(world: &mut World, pending: &Pending, ack: &ColumnWriteAck) -> bool {
             mark_saved(world, snapshot);
         }
     }
+    for container in &pending.mode.containers {
+        container.install(world);
+    }
     // Every terrain buffer is installed before native observers or packets
     // can expose a partial batch. Mutation fences remain held through this phase.
     for change in &pending.mode.changes {
@@ -620,6 +698,9 @@ fn publish(world: &mut World, pending: &Pending, ack: &ColumnWriteAck) -> bool {
             change.before,
             change.after,
         );
+    }
+    for container in &pending.mode.containers {
+        container.finish(world);
     }
     if pending.mode.unload {
         for snapshot in &pending.snapshots {
@@ -741,6 +822,9 @@ pub(crate) fn reconcile_scoped(
         }
         clear_fences(world, pending);
         pending.writer.release();
+        for container in &pending.mode.containers {
+            container.publish(world);
+        }
         set_status(
             &pending.ticket,
             ColumnOperationStatus::Applied(Some(receipt)),

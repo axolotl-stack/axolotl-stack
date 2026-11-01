@@ -11,6 +11,7 @@ mod chunks;
 #[cfg(test)]
 mod command_tests;
 mod commands;
+pub(crate) mod container_creation;
 pub mod container_mutation;
 mod container_mutations;
 mod containers;

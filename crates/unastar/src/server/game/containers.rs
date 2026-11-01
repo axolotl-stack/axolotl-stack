@@ -84,6 +84,8 @@ pub struct BlockContainers {
     /// Furnaces and hoppers to tick, in a stable order.
     ticking: BTreeSet<[i32; 3]>,
     tick: u64,
+    /// Only fresh acknowledged cache entries survive their ensuing block notification.
+    created: BTreeSet<[i32; 3]>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -151,7 +153,7 @@ pub(super) fn load(world: &mut World, pos: IVec3) -> Option<ContainerKind> {
         Some(Some(Ok(compound))) => {
             let items = &world.resource::<ItemRegistryResource>().0;
             let blocks = &world.resource::<BlockRegistryResource>().0;
-            BlockContainer::decode(kind, pos, compound, items, blocks)
+            BlockContainer::decode_checked(kind, pos, compound, items, blocks)?
         }
     };
     let mut containers = world.resource_mut::<BlockContainers>();
@@ -195,6 +197,41 @@ fn save(world: &mut World, pos: IVec3) {
 
 fn container(world: &World, pos: IVec3) -> Option<&BlockContainer> {
     world.resource::<BlockContainers>().live.get(&pos)
+}
+
+/// Creation requires an initialized cache with no obsolete inventory or viewers.
+pub(crate) fn creation_available(world: &World, position: IVec3) -> bool {
+    world
+        .get_resource::<BlockContainers>()
+        .is_some_and(|containers| {
+            !containers.live.contains_key(&position) && !containers.viewers.contains_key(&position)
+        })
+}
+
+/// Install an acknowledged typed actor before notifying native observers.
+pub(crate) fn install_created(world: &mut World, container: &BlockContainer) {
+    let mut containers = world.resource_mut::<BlockContainers>();
+    containers.ticking.remove(&container.position.to_array());
+    if container.kind.smelter().is_some() || container.kind == ContainerKind::Hopper {
+        containers.ticking.insert(container.position.to_array());
+    }
+    containers.created.insert(container.position.to_array());
+    containers
+        .live
+        .insert(container.position, container.clone());
+}
+
+/// The transient projection marker never escapes the publication phase.
+pub(crate) fn finish_created(world: &mut World, position: IVec3) {
+    world
+        .resource_mut::<BlockContainers>()
+        .created
+        .remove(&position.to_array());
+}
+
+/// Send the ordinary native actor projection only after its storage fence is released.
+pub(crate) fn publish_created(world: &mut World, position: IVec3) {
+    send_client_state(world, position);
 }
 
 /// Literal terrain replacements cannot discard an outstanding decoded inventory.
@@ -2034,6 +2071,14 @@ pub fn forget_replaced(
             .get_by_runtime_id(runtime_id)
             .and_then(|entry| ContainerKind::from_block(&entry.string_id))
     };
+    if containers.created.contains(&event.block_pos.to_array())
+        && containers
+            .live
+            .get(&event.block_pos)
+            .is_some_and(|container| Some(container.kind) == kind(event.new_block))
+    {
+        return;
+    }
     if kind(event.old_block) != kind(event.new_block) {
         containers.live.remove(&event.block_pos);
         containers.ticking.remove(&event.block_pos.to_array());

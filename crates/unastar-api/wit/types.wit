@@ -442,6 +442,11 @@ interface types {
         block-intent: func(edit: borrow<block-edit>) -> result<list<u8>, durable-block-error>;
         /// Stage a loaded-only whole batch; committed status requires disk ACK and native publication.
         commit-blocks: func(key: string, edit: borrow<block-edit>) -> result<durable-block-request, durable-block-error>;
+        /// Create only in an original actor-free loaded cell. Single chests also guard all
+        /// four horizontal neighbors and reject every adjacent actor/container family.
+        plan-container: func(expected: borrow<block-cell>, kind: container-create-kind, facing: block-face) -> result<container-plan, durable-block-error>;
+        container-intent: func(plan: borrow<container-plan>) -> result<list<u8>, durable-block-error>;
+        commit-container: func(key: string, plan: borrow<container-plan>) -> result<durable-block-request, durable-block-error>;
         /// Namespace is the current module and configured persistent world identity.
         block-receipt: func(key: string) -> result<option<durable-block-status>, durable-block-error>;
         /// Recover retained owner-lost work only from its actual receipt and original witnesses.
@@ -493,6 +498,12 @@ interface types {
     resource block-edit-request {
         status: func() -> result<block-edit-status, access-error>;
         cancel: func() -> result<bool, access-error>;
+    }
+
+    enum container-create-kind { barrel, single-chest }
+    /// Detached owned slot values, never a live container/window or raw actor buffer.
+    resource container-plan {
+        set-slot: func(slot: u8, item: borrow<stack>) -> result<_, durable-block-error>;
     }
 
     variant durable-block-error {

@@ -50,6 +50,7 @@ pub(in crate::plugin::manager) struct Work {
     id: String,
     digest: [u8; 32],
     cells: Vec<OwnedReplacement>,
+    creation: Option<Arc<values::Value<crate::server::game::container_creation::Creation>>>,
     owner: Weak<()>,
     ticket: Option<native::ColumnTicket>,
     _count: publication::Count,
@@ -190,7 +191,7 @@ fn framed(hash: &mut Sha256, bytes: &[u8]) {
     hash.update(bytes);
 }
 /// Compute a stable precondition/change digest before the guest persists its intent.
-fn digest(
+pub(super) fn digest(
     context: &HostContext,
     world: &World,
     cells: &[OwnedReplacement],
@@ -267,6 +268,21 @@ fn receipt(key: &str, record: &ColumnReceipt) -> Result<wit::DurableBlockReceipt
         intent: intent.to_vec(),
     })
 }
+/// Shared receipts do not grant permission to construct another operation family.
+fn receipt_access(context: &HostContext) -> Result<(), Failure> {
+    if context
+        .capabilities
+        .contains(&PluginCapability::WriteDurableBlocks)
+        || context
+            .capabilities
+            .contains(&PluginCapability::WriteDurableContainers)
+    {
+        Ok(())
+    } else {
+        Err(Failure::Access(wit::AccessError::PermissionDenied))
+    }
+}
+
 /// Read a real receipt or retained native state without waiting on IO.
 pub(in crate::plugin::manager) fn lookup(
     context: &mut HostContext,
@@ -274,9 +290,7 @@ pub(in crate::plugin::manager) fn lookup(
     key: &str,
 ) -> Result<Option<Status>, Failure> {
     context.transaction(tx).map_err(Failure::Access)?;
-    context
-        .require(PluginCapability::WriteDurableBlocks)
-        .map_err(Failure::Access)?;
+    receipt_access(context)?;
     let world = unsafe { context.world() };
     let id = namespace(context, world, key)?;
     if let Some(book) = world.get_resource::<Book>() {
@@ -309,6 +323,14 @@ fn own(
         .map(Resource::new_own)
         .map_err(Failure::Access)
 }
+/// One already-validated operation family supplies owned portable cells and payload.
+pub(super) struct Payload {
+    pub world: WorldReference,
+    pub cells: Vec<OwnedReplacement>,
+    pub creation: Option<Arc<values::Value<crate::server::game::container_creation::Creation>>>,
+    pub digest: [u8; 32],
+}
+
 /// Stable intent and existing receipt checks precede new live-state revalidation.
 pub(in crate::plugin::manager) fn stage(
     context: &mut HostContext,
@@ -320,15 +342,35 @@ pub(in crate::plugin::manager) fn stage(
     let Some(Entry::BlockEdit(edit)) = context.resources.entries.get(&edit_rep) else {
         unreachable!()
     };
+    let payload = Payload {
+        world: edit.world,
+        cells: edit.cells.clone(),
+        creation: None,
+        digest: digest(context, unsafe { context.world() }, &edit.cells)?,
+    };
+    let (resource, staged) = enqueue(context, key, payload)?;
+    if staged {
+        let Some(Entry::BlockEdit(edit)) = context.resources.entries.get_mut(&edit_rep) else {
+            unreachable!()
+        };
+        edit.staged = true;
+        edit.cells.clear();
+    }
+    Ok(resource)
+}
+
+/// Preserve a single native queue, actual receipts and quota ownership for typed families.
+pub(super) fn enqueue(
+    context: &mut HostContext,
+    key: &str,
+    payload: Payload,
+) -> Result<(Resource<wit::DurableBlockRequest>, bool), Failure> {
     let world = unsafe { context.world() };
     let id = namespace(context, world, key)?;
-    let digest = digest(context, world, &edit.cells)?;
     if let Some(record) = writer(world)?.peek_receipt(&id).map_err(failure)? {
-        if record.intent != Some(digest) {
+        if record.intent != Some(payload.digest) {
             return Err(Failure::Conflict);
         }
-        // An active native owner must publish/reconcile before a disk-only
-        // receipt can be interpreted as a committed in-memory result.
         if world
             .get_resource::<Book>()
             .is_some_and(|book| book.active.contains_key(&id))
@@ -341,12 +383,18 @@ pub(in crate::plugin::manager) fn stage(
         } else {
             Status::NotApplied(Failure::Conflict)
         });
-        return own(context, state);
+        return own(context, state).map(|resource| (resource, false));
     }
-    for cell in &edit.cells {
+    for cell in &payload.cells {
         cell.expected.current(world).map_err(Failure::Block)?;
     }
-    let scope_world = edit.world;
+    if payload
+        .creation
+        .as_ref()
+        .is_some_and(|creation| !creation.source_valid(world))
+    {
+        return Err(Failure::Conflict);
+    }
     let identity = world
         .get_resource::<WorldIdentity>()
         .ok_or(Failure::Access(wit::AccessError::Unavailable))?
@@ -364,25 +412,21 @@ pub(in crate::plugin::manager) fn stage(
     .map_err(Failure::Access)?;
     let state = Arc::new(State::new());
     let resource = own(context, state.clone())?;
-    let Some(Entry::BlockEdit(edit)) = context.resources.entries.get_mut(&edit_rep) else {
-        unreachable!()
-    };
-    edit.staged = true;
-    let cells = std::mem::take(&mut edit.cells);
     context.resources.durable_blocks += 1;
     context.pending_durable_blocks.push(Staged::New(Work {
         state,
-        world: scope_world,
+        world: payload.world,
         identity,
         key: key.into(),
         id,
-        digest,
-        cells,
+        digest: payload.digest,
+        cells: payload.cells,
+        creation: payload.creation,
         owner: Arc::downgrade(&context.command_owner),
         ticket: None,
         _count: count,
     }));
-    Ok(resource)
+    Ok((resource, true))
 }
 /// Resume only an operation still retained in this actual world, never a guessed
 /// reconstruction from newly moving actors or current cells.
@@ -392,15 +436,23 @@ pub(in crate::plugin::manager) fn resume(
     key: &str,
 ) -> Result<Resource<wit::DurableBlockRequest>, Failure> {
     let scope = context.transaction(tx).map_err(Failure::Access)?;
-    context
-        .require(PluginCapability::WriteDurableBlocks)
-        .map_err(Failure::Access)?;
+    receipt_access(context)?;
     let world = unsafe { context.world() };
     let id = namespace(context, world, key)?;
-    let recoverable = world
+    let retained = world
         .get_resource::<Book>()
-        .and_then(|book| book.active.get(&id))
-        .is_some_and(|work| matches!(work.state.get(), Status::RecoveryRequired));
+        .and_then(|book| book.active.get(&id));
+    if let Some(work) = retained {
+        context
+            .require(if work.creation.is_some() {
+                PluginCapability::WriteDurableContainers
+            } else {
+                PluginCapability::WriteDurableBlocks
+            })
+            .map_err(Failure::Access)?;
+    }
+    let recoverable =
+        retained.is_some_and(|work| matches!(work.state.get(), Status::RecoveryRequired));
     if !recoverable {
         return Err(Failure::RecoveryRequired);
     }
@@ -467,7 +519,7 @@ pub(in crate::plugin::manager) fn finish(
     }
 }
 /// Map exact native rejection classes without turning uncertainty into rollback.
-fn failure(error: ColumnWriteError) -> Failure {
+pub(super) fn failure(error: ColumnWriteError) -> Failure {
     match error {
         ColumnWriteError::Unsupported => Failure::UnsupportedProvider,
         ColumnWriteError::Invalid => Failure::Block(Error::Unsupported),
@@ -535,6 +587,29 @@ fn submit(world: &mut World, work: &Work) -> Result<native::ColumnTicket, Failur
                 after: replacement.proposed.primary,
             });
         }
+    }
+    if let Some(creation) = &work.creation {
+        if !creation.source_valid(world) {
+            return Err(Failure::Conflict);
+        }
+        let position =
+            crate::world::ChunkPos::new(creation.position.x >> 4, creation.position.z >> 4);
+        let column = captured
+            .columns
+            .iter_mut()
+            .find(|column| column.position == position)
+            .ok_or(Failure::Conflict)?;
+        column.column.chunk.set_block_entity(creation.actor.clone());
+        return native::commit_containers_scoped(
+            world,
+            captured,
+            &work.id,
+            work.digest,
+            work.owner.clone(),
+            changes,
+            vec![(**creation).clone()],
+        )
+        .map_err(failure);
     }
     native::commit_scoped(
         world,
@@ -638,7 +713,10 @@ impl wit::HostDurableBlockRequest for HostContext {
         request: Resource<wit::DurableBlockRequest>,
     ) -> Result<Status, wit::AccessError> {
         self.operation()?;
-        self.require(PluginCapability::WriteDurableBlocks)?;
+        receipt_access(self).map_err(|error| match error {
+            Failure::Access(error) => error,
+            _ => wit::AccessError::PermissionDenied,
+        })?;
         match self.resources.entries.get(&request.rep()) {
             Some(Entry::DurableBlockRequest(state)) => Ok(state.get()),
             _ => Err(wit::AccessError::InvalidArgument),
@@ -649,7 +727,10 @@ impl wit::HostDurableBlockRequest for HostContext {
         request: Resource<wit::DurableBlockRequest>,
     ) -> Result<bool, wit::AccessError> {
         self.operation()?;
-        self.require(PluginCapability::WriteDurableBlocks)?;
+        receipt_access(self).map_err(|error| match error {
+            Failure::Access(error) => error,
+            _ => wit::AccessError::PermissionDenied,
+        })?;
         match self.resources.entries.get(&request.rep()) {
             Some(Entry::DurableBlockRequest(state)) => Ok(state.cancel()),
             _ => Err(wit::AccessError::InvalidArgument),

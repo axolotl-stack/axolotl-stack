@@ -202,6 +202,7 @@ const MODELLED: &[&str] = &[
     "StoredXPInt",
     "StoredXP",
     "TransferCooldown",
+    "unastar:container-items",
 ];
 
 impl BlockContainer {
@@ -284,6 +285,53 @@ impl BlockContainer {
         container
     }
 
+    /// Host-owned instance extensions must restore completely; malformed extended
+    /// entries never turn into an empty usable container.
+    pub(crate) fn decode_checked(
+        kind: ContainerKind,
+        position: IVec3,
+        compound: tag::Compound,
+        items: &ItemRegistry,
+        blocks: &BlockRegistry,
+    ) -> Option<Self> {
+        let owned = match compound.0.get("unastar:container-items") {
+            None => false,
+            Some(NBTTag::Int(version)) if version.0 == 1 => true,
+            _ => return None,
+        };
+        let entries = match compound.0.get("Items") {
+            Some(NBTTag::List(entries)) => Some(entries),
+            None if !owned => None,
+            _ => return None,
+        };
+        if let Some(entries) = entries {
+            let extended = owned
+                || entries.0.iter().any(|entry| match entry {
+                    NBTTag::Compound(entry) => entry.0.contains_key("unastar:instance"),
+                    _ => false,
+                });
+            if extended {
+                let mut slots = std::collections::BTreeSet::new();
+                for entry in &entries.0 {
+                    let NBTTag::Compound(entry) = entry else {
+                        return None;
+                    };
+                    let Some(NBTTag::Byte(slot)) = entry.0.get("Slot") else {
+                        return None;
+                    };
+                    if usize::from(slot.0) >= kind.size()
+                        || !slots.insert(slot.0)
+                        || !entry.0.contains_key("unastar:instance")
+                        || item_from_nbt(entry, items, blocks).is_none()
+                    {
+                        return None;
+                    }
+                }
+            }
+        }
+        Some(Self::decode(kind, position, compound, items, blocks))
+    }
+
     /// Remove a pending loot table (`LootTable` path and `LootTableSeed`,
     /// Int or Long) so it is unpacked exactly once.
     pub fn take_loot_table(&mut self) -> Option<(String, i64)> {
@@ -357,6 +405,9 @@ impl BlockContainer {
                 );
             }
         }
+        if self.kind != ContainerKind::EnderChest {
+            out.insert("unastar:container-items".into(), NBTTag::Int(tag::Int(1)));
+        }
         tag::Compound(out)
     }
 }
@@ -410,6 +461,23 @@ pub fn item_to_nbt(stack: &ItemStack) -> tag::Compound {
     if let Some(user) = item_tag(stack) {
         out.insert("tag".into(), NBTTag::Compound(user));
     }
+    out.insert(
+        "unastar:instance".into(),
+        NBTTag::Compound(tag::Compound(
+            [
+                ("version".into(), NBTTag::Int(tag::Int(1))),
+                (
+                    "block-state".into(),
+                    NBTTag::Int(tag::Int(stack.runtime_id)),
+                ),
+                (
+                    "user-data".into(),
+                    NBTTag::ByteArray(tag::ByteArray(stack.user_data().to_vec())),
+                ),
+            ]
+            .into(),
+        )),
+    );
     tag::Compound(out)
 }
 
@@ -436,6 +504,34 @@ pub fn item_from_nbt(
     let stack = items
         .stack_with_block(&name.0, count, blocks)?
         .with_damage(damage);
+    if let Some(extension) = entry.0.get("unastar:instance") {
+        let NBTTag::Compound(extension) = extension else {
+            return None;
+        };
+        if extension.0.len() != 3 || extension.0.get("version") != Some(&NBTTag::Int(tag::Int(1))) {
+            return None;
+        }
+        let Some(NBTTag::Int(runtime)) = extension.0.get("block-state") else {
+            return None;
+        };
+        let Some(NBTTag::ByteArray(data)) = extension.0.get("user-data") else {
+            return None;
+        };
+        if runtime.0 < 0 || (runtime.0 != 0 && blocks.get_by_runtime_id(runtime.0 as u32).is_none())
+        {
+            return None;
+        }
+        let restored = stack.with_runtime_id(runtime.0).with_nbt(data.0.clone());
+        if restored.damage < 0
+            || restored
+                .item()
+                .is_none_or(|item| restored.count > item.max_stack_size())
+            || !crate::item::enchant::valid_user_data(&restored)
+        {
+            return None;
+        }
+        return Some(restored);
+    }
     Some(match entry.0.get("tag") {
         Some(NBTTag::Compound(user)) => with_item_tag(&stack, user.clone()),
         _ => stack,
@@ -588,5 +684,141 @@ mod tests {
         );
         assert!(!ContainerKind::EnderChest.pairs() && !ContainerKind::Barrel.pairs());
         assert_eq!(ContainerKind::Smoker.smelter().unwrap().cook_ticks, 100);
+    }
+}
+
+#[cfg(test)]
+mod instance_tests {
+    use super::*;
+    use crate::item::{
+        enchant,
+        test_support::{VANILLA, stack},
+    };
+
+    #[test]
+    fn native_container_storage_preserves_complete_instance_fields_and_fresh_slot_ids() {
+        let original = enchant::with_item_tag(
+            &stack("minecraft:shield", 1),
+            tag::Compound(
+                [
+                    (
+                        "nested".into(),
+                        NBTTag::List(tag::List(vec![NBTTag::Compound(tag::Compound(
+                            [
+                                ("float".into(), NBTTag::Float(tag::Float(1.25))),
+                                ("ints".into(), NBTTag::IntArray(tag::IntArray(vec![3, -7]))),
+                                (
+                                    "longs".into(),
+                                    NBTTag::LongArray(tag::LongArray(vec![i64::MIN, i64::MAX])),
+                                ),
+                            ]
+                            .into(),
+                        ))])),
+                    ),
+                    (
+                        "opaque".into(),
+                        NBTTag::ByteArray(tag::ByteArray(vec![0, 7, 255])),
+                    ),
+                ]
+                .into(),
+            ),
+        );
+        let original = enchant::with_block_lists(
+            &original,
+            &["minecraft:stone".into()],
+            &["minecraft:dirt".into()],
+        );
+        let mut data = original.user_data().to_vec();
+        let tail = data.len() - 8;
+        data[tail..].copy_from_slice(&99i64.to_le_bytes());
+        let original = original.with_nbt(data).with_net_id(923);
+        let encoded = item_to_nbt(&original);
+        let restored = item_from_nbt(&encoded, &VANILLA, BlockRegistry::vanilla()).unwrap();
+        assert_eq!(restored, original);
+        assert_eq!(restored.net_id, 0);
+        let block = stack("minecraft:obsidian", 7);
+        assert_eq!(
+            item_from_nbt(&item_to_nbt(&block), &VANILLA, BlockRegistry::vanilla()).unwrap(),
+            block
+        );
+    }
+
+    #[test]
+    fn malformed_owned_instance_metadata_never_becomes_an_empty_usable_container() {
+        let mut container = BlockContainer::new(ContainerKind::Barrel, IVec3::new(1, 20, 1));
+        container
+            .items
+            .set_item(0, stack("minecraft:obsidian", 7))
+            .unwrap();
+        let mut encoded = container.encode();
+        let Some(NBTTag::List(items)) = encoded.0.get_mut("Items") else {
+            panic!()
+        };
+        let NBTTag::Compound(item) = &mut items.0[0] else {
+            panic!()
+        };
+        let Some(NBTTag::Compound(instance)) = item.0.get_mut("unastar:instance") else {
+            panic!()
+        };
+        instance
+            .0
+            .insert("version".into(), NBTTag::Int(tag::Int(99)));
+        assert!(
+            BlockContainer::decode_checked(
+                ContainerKind::Barrel,
+                IVec3::new(1, 20, 1),
+                encoded,
+                &VANILLA,
+                BlockRegistry::vanilla()
+            )
+            .is_none()
+        );
+    }
+}
+
+#[cfg(test)]
+mod instance_integrity_tests {
+    use super::*;
+    use crate::item::test_support::{VANILLA, stack};
+    #[test]
+    fn owned_container_metadata_rejects_duplicate_slots_and_missing_item_envelopes() {
+        let mut container = BlockContainer::new(ContainerKind::Barrel, IVec3::new(1, 20, 1));
+        container
+            .items
+            .set_item(0, stack("minecraft:paper", 3))
+            .unwrap();
+        let mut duplicate = container.encode();
+        let Some(NBTTag::List(entries)) = duplicate.0.get_mut("Items") else {
+            panic!()
+        };
+        entries.0.push(entries.0[0].clone());
+        assert!(
+            BlockContainer::decode_checked(
+                ContainerKind::Barrel,
+                container.position,
+                duplicate,
+                &VANILLA,
+                BlockRegistry::vanilla()
+            )
+            .is_none()
+        );
+        let mut missing = container.encode();
+        let Some(NBTTag::List(entries)) = missing.0.get_mut("Items") else {
+            panic!()
+        };
+        let NBTTag::Compound(entry) = &mut entries.0[0] else {
+            panic!()
+        };
+        entry.0.remove("unastar:instance");
+        assert!(
+            BlockContainer::decode_checked(
+                ContainerKind::Barrel,
+                container.position,
+                missing,
+                &VANILLA,
+                BlockRegistry::vanilla()
+            )
+            .is_none()
+        );
     }
 }

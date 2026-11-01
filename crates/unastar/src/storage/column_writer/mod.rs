@@ -4,7 +4,7 @@
 //! their original epoch and ordering; they cannot adopt a later durable epoch.
 //! The native runtime owns publication and pins separately from disk completion.
 
-mod fingerprint;
+pub(crate) mod fingerprint;
 pub(crate) mod leveldb;
 #[cfg(test)]
 mod tests;

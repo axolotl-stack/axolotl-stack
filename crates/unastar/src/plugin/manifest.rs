@@ -292,6 +292,8 @@ pub enum PluginCapability {
     WriteBlocks,
     /// Submit receipt-backed loaded terrain mutations through the atomic provider writer.
     WriteDurableBlocks,
+    /// Atomically create filled loaded containers through the shared column writer.
+    WriteDurableContainers,
     /// Durably capture and read complete immutable host-owned player state.
     PlayerStateArchives,
     /// Construct and inspect bounded detached item values, without granting inventory writes.
