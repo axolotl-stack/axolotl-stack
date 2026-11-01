@@ -47,6 +47,13 @@ enum Command {
         name: String,
         #[arg(long)]
         description: String,
+        /// Leading steps that only set the scenario up; their server packets
+        /// are not compared.
+        #[arg(long, default_value_t = 0)]
+        setup_steps: usize,
+        /// Why those steps are setup (required with --setup-steps).
+        #[arg(long, default_value = "")]
+        setup_reason: String,
         #[arg(
             long,
             default_value = "Endstone capture world (tools/client-diff/endstone-capture): default superflat, fixed seed, spawn at feet (0.5, -60, 0.5), time 6000, clear weather; the bot's player is an operator."
@@ -137,6 +144,8 @@ async fn main() -> Result<()> {
             steps,
             name,
             description,
+            setup_steps,
+            setup_reason,
             setup,
             server,
             recorded,
@@ -152,6 +161,8 @@ async fn main() -> Result<()> {
                     steps,
                     dir: &dir,
                     description: &description,
+                    setup_steps,
+                    setup_reason: &setup_reason,
                     setup: &setup,
                     server: &server,
                     recorded: &recorded,

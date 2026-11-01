@@ -19,6 +19,7 @@ use client_diff::driver;
 use client_diff::parity::{Case, RuleValue, Side, WorldKind, scenarios_root, shared_script};
 use client_diff::scenario::ScenariosFile;
 use unastar::config::{GameRuleSetting, SpawnLocation, SpawnRule, UnastarConfig};
+use unastar::storage::{LevelDBPlayerProvider, PlayerData, PlayerProvider, StoredItemStack};
 use unastar::world::rules::Difficulty;
 
 /// One server at a time: the server works in the process's current directory.
@@ -97,6 +98,32 @@ fn config(case: &Case, port: u16, operator: &str, players: &Path) -> UnastarConf
     config
 }
 
+/// Saves the scenario player as a known player with the recording's
+/// enchanting seed (so enchanting offers can match) and the world's game
+/// mode; everything else is a fresh player's.
+fn seed_player(case: &Case, uuid: uuid::Uuid, players: &Path) {
+    let game_mode = match case.manifest.world.game_mode.as_str() {
+        "survival" => 0,
+        "creative" => 1,
+        "adventure" => 2,
+        other => panic!("{}: unknown game mode {other:?}", case.name),
+    };
+    let data = PlayerData {
+        uuid: uuid.to_string(),
+        position: [0.5, -60.0, 0.5],
+        game_mode,
+        inventory: vec![StoredItemStack::default(); 36],
+        ender_chest: vec![StoredItemStack::default(); 27],
+        enchantment_seed: Some(case.manifest.source.player_enchantment_seed as u32),
+        ..PlayerData::default()
+    };
+    let provider = LevelDBPlayerProvider::open(players.join("db")).unwrap();
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        provider.save(uuid, &data).await.unwrap();
+        provider.close().await.unwrap();
+    });
+}
+
 fn run_case(name: &str) {
     let _serial = SERIAL
         .lock()
@@ -106,6 +133,7 @@ fn run_case(name: &str) {
     let script = case.script(&file).unwrap();
     let directory = tempfile::tempdir().unwrap();
     std::env::set_current_dir(directory.path()).unwrap();
+    seed_player(&case, file.identity.uuid, &directory.path().join("players"));
     let port = free_port();
     let config = config(
         &case,
@@ -181,5 +209,27 @@ macro_rules! scenarios {
 }
 
 scenarios! {
+    anvil => "anvil",
+    bow_shot => "bow-shot",
+    brewing => "brewing",
+    drink_milk => "drink-milk",
     drink_water_bottle => "drink-water-bottle",
+    eat_food => "eat-food",
+    eat_stew => "eat-stew",
+    elytra => "elytra",
+    enchanting => "enchanting",
+    fishing => "fishing",
+    grid_repair => "grid-repair",
+    grindstone => "grindstone",
+    item_uses_misc => "item-uses-misc",
+    lead_name_tag => "lead-name-tag",
+    lingering_potion => "lingering-potion",
+    setup_commands => "setup-commands",
+    shield => "shield",
+    shulker_box => "shulker-box",
+    smithing_table => "smithing-table",
+    splash_potion => "splash-potion",
+    stonecutter_loom => "stonecutter-loom",
+    tipped_arrow => "tipped-arrow",
+    trident_throw => "trident-throw",
 }

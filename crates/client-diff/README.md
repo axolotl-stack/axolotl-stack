@@ -27,8 +27,9 @@ packets. Each retained scenario is a directory under `scenarios/`:
   source capture, server, protocol, the player's IDs, the window length and
   recording SHA-256, the world (`superflat`) and setup, the compared packet
   types, the timing and float tolerances, the masks (each with a reason), and
-  the listed differences: `known_failing` (unastar does not match yet) and
-  `accepted` (integrator-accepted), each with a reason.
+  the listed differences: `known_failing` (unastar does not match yet; each
+  names the `owner` lane of the fix) and `accepted` (integrator-accepted),
+  each with a reason.
 
 `crates/unastar/tests/bds_scenarios.rs` runs every retained scenario against
 unastar in-process: the BDS world (default superflat, bedrock at y=-64, dirt
@@ -69,7 +70,8 @@ feedback.
 7. Run it (loopback run: native lock):
    `cargo test -p unastar --test bds_scenarios <test_name>`.
 8. Fix unastar until it passes, or list each remaining difference under
-   `known_failing` with the reason; `accepted` needs the integrator.
+   `known_failing` with the owning lane and the reason; `accepted` needs the
+   integrator.
 9. `cargo test -p client-diff` checks every retained scenario's hashes and
    that each recording matches itself.
 10. Commit the scenario directory, the script change and the test line together.

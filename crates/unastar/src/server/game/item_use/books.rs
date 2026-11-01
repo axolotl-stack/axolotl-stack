@@ -150,9 +150,7 @@ pub fn edit(stack: &ItemStack, operation: &Operation, world: &World) -> Option<I
             let mut compound = item_tag(&with_pages(stack, &book)).unwrap_or_default();
             compound.0.insert("title".to_owned(), string_tag(&title));
             compound.0.insert("author".to_owned(), string_tag(&author));
-            compound
-                .0
-                .insert("xuid".to_owned(), string_tag(&sign.xuid));
+            compound.0.insert("xuid".to_owned(), string_tag(&sign.xuid));
             compound
                 .0
                 .insert("generation".to_owned(), NBTTag::Int(tag::Int(0)));

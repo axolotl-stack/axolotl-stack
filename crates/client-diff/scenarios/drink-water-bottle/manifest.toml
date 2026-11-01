@@ -1,7 +1,9 @@
 scenario = "item-use-potions"
-steps = 10
-steps_sha256 = "9cd73107684fea7138d3f8f115a16e1c6add92c1fdf1ae1dc465ad21326df67c"
-description = "Milestone 6: drink a water bottle (potion aux 0) in survival after /effect instant_health; the drink finishes 32 ticks after the use, leaving a glass bottle."
+steps = 62
+steps_sha256 = "9cfc03a3f946ebf56b52d8c4256de069baa1a37ad652fdc128c4af35d811d2fc"
+description = "Drink a water bottle: use, the drink completes 32 ticks later and leaves a glass bottle."
+setup_steps = 8
+setup_reason = "steps 0..8 are the setup commands (game mode, difficulty, clearing, giving items, placing blocks); their feedback is compared in setup-commands"
 known_failing = []
 accepted = []
 
@@ -12,8 +14,9 @@ protocol = 2193
 recorded = "2026-10-29"
 player_runtime_id = 1
 player_unique_id = -8589934591
-window_ms = 4823.0
-recording_sha256 = "2991419fae824513787270abd445be66c5819f2c573dc7e6714cead66b37f9dc"
+player_enchantment_seed = 1608972065
+window_ms = 34891.0
+recording_sha256 = "ccccdfdc2c08e8db7fab4d83ae897e96b70acf5033338c72c841e1bf6afa7cc2"
 
 [world]
 kind = "superflat"
