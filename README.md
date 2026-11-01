@@ -239,6 +239,48 @@ stay outside plugin filesystem preopens. Logical keys use up to 128 ASCII letter
 digits, dots, hyphens or underscores, excluding `.` and `..`.
 
 
+### Immutable player-state archives
+
+A component with `player-state-archives` can call scoped `Player::archive(key)` to
+persist a complete native player capture. The component receives an immutable
+reference containing its key, revision, fingerprint and original account identity;
+native encoded state never crosses the WASM boundary. Archives retain every
+inventory area, including cursor/crafting and ender chest data, unknown item
+metadata, life state and temporary mode state.
+
+`archives::lookup(key)` reconciles uncertain installation. `archives::read(reference)`
+validates the entire reference and returns an owned `ArchivedPlayerState` with
+historical typed facts and an inventory image. Those observations remain bound to
+their original account and persistent world identity. An archive does not become
+a live player or world capability; derived inventory candidates keep their
+historical origin.
+
+Archive success acknowledges a flushed file and directory independently of later
+callback success. Existing keys cannot be overwritten or reused, and there is no
+implicit eviction. A failed or trapping caller can read back its key without
+recapturing a newer player state. Uncertain installation must be reconciled;
+corrupt data, unsupported native formats, invalid references and exceeded quotas
+are errors. Capture rejects unavailable, incomplete or quarantined player state.
+This interface captures and reads state; it does not detach, fence or restore an
+actor, and it cannot recapture a pre-death inventory after drops have occurred.
+
+Archive files use a separately leased module namespace outside both guest byte
+storage and filesystem preopens. Configure its directory and encoded-file quotas
+under `[plugins.archives]`; `archives::limits()` reports the effective bounds.
+Snapshot files have a 16 MiB maximum; smaller operator limits are supported. Keys
+use the same bounded ASCII letters, digits, dots, hyphens and underscores as storage.
+Retained archive values share the instance's resource and native byte limits with
+owned item values and inventory images. Opening a component that requests the
+capability validates its complete archive namespace before initialization.
+
+```toml
+[plugins.archives]
+directory = "data/player-state-archives"
+max_value_bytes = 16777216
+max_namespace_bytes = 67108864
+max_keys = 1024
+```
+
 ### Scoped WASM player API
 
 API `0.4.0` replaces unscoped player access with callback transactions. Implement

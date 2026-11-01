@@ -4,6 +4,7 @@ world unastar-plugin {
     import types;
     import host;
     import storage;
+    import archives;
     import commands;
     import presentation;
     import views;

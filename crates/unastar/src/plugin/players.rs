@@ -14,6 +14,8 @@ use identity::{availability, observe, snapshot};
 pub(super) use identity::{ensure_identity, resolve};
 #[path = "players/admission.rs"]
 mod admission;
+#[path = "players/archive.rs"]
+mod archive;
 #[path = "players/host.rs"]
 mod host;
 #[path = "players/inventory.rs"]
@@ -51,6 +53,7 @@ enum Entry {
     Item(Arc<values::Value<crate::item::ItemStack>>),
     AdmissionHold(super::sessions::OwnedHold),
     InventoryImage(Arc<values::Value<inventory::Image>>),
+    ArchivedState(Arc<values::Value<archive::Archived>>),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.

@@ -4,6 +4,13 @@ use super::*;
 use crate::plugin::manifest::PluginCapability;
 
 impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
+    fn archive(
+        &mut self,
+        player: Resource<wit::Player>,
+        key: String,
+    ) -> Result<wit::ArchiveReference, wit::ArchiveError> {
+        self.capture_archive(player.rep(), key)
+    }
     fn inventory(
         &mut self,
         player: Resource<wit::Player>,

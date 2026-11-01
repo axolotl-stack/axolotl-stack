@@ -435,3 +435,58 @@ fn durable_component_storage_limits_roundtrip_and_reject_unusable_capacity() {
         );
     }
 }
+
+#[test]
+fn immutable_native_archives_require_positive_quotas_and_a_separate_private_root() {
+    let root = tempfile::tempdir().unwrap();
+    let valid = PluginConfig {
+        storage: PluginStorageConfig {
+            directory: root.path().join("raw"),
+            ..Default::default()
+        },
+        archives: PluginArchiveConfig {
+            directory: root.path().join("archives"),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    valid.validate().unwrap();
+    for directory in [
+        valid.storage.directory.clone(),
+        valid.storage.directory.join("nested"),
+        root.path().to_path_buf(),
+    ] {
+        let mut invalid = valid.clone();
+        invalid.archives.directory = directory;
+        assert!(invalid.validate().is_err());
+    }
+    for variant in 0..4 {
+        let mut invalid = valid.clone();
+        match variant {
+            0 => invalid.archives.max_keys = 0,
+            1 => invalid.archives.max_value_bytes = 0,
+            2 => invalid.archives.max_namespace_bytes = 0,
+            _ => {
+                invalid.archives.max_value_bytes =
+                    crate::plugin::archive_store::MAX_SNAPSHOT_BYTES + 1
+            }
+        }
+        assert!(invalid.validate().is_err());
+    }
+    assert_ne!(
+        PluginConfig::default().storage.directory,
+        PluginConfig::default().archives.directory
+    );
+}
+
+#[test]
+fn archive_quota_only_configuration_keeps_its_own_directory_default() {
+    let config: PluginConfig = toml_edit::de::from_str("[archives]\nmax_keys = 1\n").unwrap();
+    assert_eq!(config.archives.max_keys, 1);
+    assert_eq!(
+        config.archives.directory,
+        PluginArchiveConfig::default().directory
+    );
+    assert_ne!(config.archives.directory, config.storage.directory);
+    config.validate().unwrap();
+}

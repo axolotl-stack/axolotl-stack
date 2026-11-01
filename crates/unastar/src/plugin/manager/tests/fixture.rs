@@ -1,6 +1,6 @@
 //! Real canonical components generated from the current WIT with controlled callback bodies.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use wasm_encoder::reencode::{self, Reencode};
 use wasmparser::{ExternalKind, Parser, Payload, TypeRef};
@@ -49,7 +49,8 @@ impl Reencode for Bodies {
 }
 
 /// Compile a redistributable component with current resource types and real host imports.
-/// `@method-name@` tokens select generated imported function indices, never host pointers.
+/// Unique `@method-name@` or qualified `@storage.read@` tokens select generated
+/// imports; an ambiguous short name is never silently bound to another interface.
 pub(super) fn component(engine: &Engine, bodies: &[(&str, String)]) -> Component {
     Component::new(engine, bytes(bodies)).unwrap()
 }
@@ -75,6 +76,7 @@ fn bytes_with_start(bodies: &[(&str, String)], start: bool) -> Vec<u8> {
     let mangling = ManglingAndAbi::Standard32;
     let module = wit_component::dummy_module(&resolve, world, mangling);
     let mut imports = HashMap::new();
+    let mut ambiguous_imports = HashSet::new();
     let mut exports = HashMap::new();
     let mut imported_functions = 0;
     for payload in Parser::new(0).parse_all(&module) {
@@ -83,7 +85,27 @@ fn bytes_with_start(bodies: &[(&str, String)], start: bool) -> Vec<u8> {
                 for import in section.into_imports() {
                     let import = import.unwrap();
                     if matches!(import.ty, TypeRef::Func(_)) {
-                        imports.insert(import.name.to_owned(), imported_functions);
+                        let interface = import
+                            .module
+                            .rsplit('/')
+                            .next()
+                            .unwrap_or(import.module)
+                            .split('@')
+                            .next()
+                            .unwrap_or(import.module);
+                        for name in [
+                            import.name.to_owned(),
+                            format!("{interface}.{}", import.name),
+                            format!("{}#{}", import.module, import.name),
+                        ] {
+                            if ambiguous_imports.contains(&name) {
+                                continue;
+                            }
+                            if imports.insert(name.clone(), imported_functions).is_some() {
+                                imports.remove(&name);
+                                ambiguous_imports.insert(name);
+                            }
+                        }
                         imported_functions += 1;
                     }
                 }

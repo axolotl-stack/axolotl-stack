@@ -220,6 +220,8 @@ fn default_view_updates() -> u32 {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginCapability {
+    /// Durably capture and read complete immutable host-owned player state.
+    PlayerStateArchives,
     /// Construct and inspect bounded detached item values, without granting inventory writes.
     ItemValues,
     /// Capture complete owned inventory images for the current scoped player.

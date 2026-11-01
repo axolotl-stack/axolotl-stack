@@ -98,6 +98,7 @@ impl UnastarServer {
             .map_err(|e| format!("Failed to initialize plugin manager: {}", e))?;
         plugin_manager.require_plugins(&config.plugins.required);
         plugin_manager.configure_storage(&config.plugins.storage)?;
+        plugin_manager.configure_archives(&config.plugins.archives)?;
 
         // Load plugins from "plugins" directory relative to CWD
         let plugins_dir = std::env::current_dir()?.join("plugins");

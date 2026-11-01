@@ -25,6 +25,8 @@ pub mod bindings {
 pub use bindings::Guest;
 #[doc(hidden)]
 pub use bindings::export;
+/// Immutable native state archives owned by this module's manifest identity.
+pub use bindings::unastar::plugin::archives;
 /// Advertise owned command roots without replacing native builtin permissions.
 pub use bindings::unastar::plugin::commands;
 pub use bindings::unastar::plugin::host;
@@ -44,13 +46,14 @@ pub mod raw {
 }
 pub use raw::{
     AccessError, ActiveStatusEffect, AdmissionAcknowledgement, AdmissionDecision,
-    AdmissionResolution, AdmittedEvent, AuthenticatedDamageAccount, BlockPos, DamageAttribution,
-    DamageCause, DamageCommitted, DamageOwner, DamageProposal, DamageTuning, DeathCommitted,
-    DeathInventory, DisconnectDetail, DisconnectReason, EffectApplication, EffectKind, Enchantment,
-    GameMode, InventoryArea, InventoryImage, ItemValue, Knockback, LogLevel,
-    MechanicsAcknowledgement, MovementCommitted, PlayerAvailability, PlayerFlags, PlayerHandle,
-    PlayerIdentity, PlayerMechanicsState, PlayerSnapshot, QuitDisposition, QuitEvent, Task,
-    TaskStatus, Vec3, WorldHandle,
+    AdmissionResolution, AdmittedEvent, ArchiveError, ArchiveFacts, ArchiveLimits,
+    ArchiveReference, ArchiveWorld, ArchivedPlayerState, AuthenticatedDamageAccount, BlockPos,
+    DamageAttribution, DamageCause, DamageCommitted, DamageOwner, DamageProposal, DamageTuning,
+    DeathCommitted, DeathInventory, DisconnectDetail, DisconnectReason, EffectApplication,
+    EffectKind, Enchantment, GameMode, InventoryArea, InventoryImage, ItemValue, Knockback,
+    LogLevel, MechanicsAcknowledgement, MovementCommitted, PlayerAvailability, PlayerFlags,
+    PlayerHandle, PlayerIdentity, PlayerMechanicsState, PlayerSnapshot, QuitDisposition, QuitEvent,
+    Task, TaskStatus, Vec3, WorldHandle,
 };
 pub use raw::{
     BlockClick, BlockCommitted, BlockFace, BlockHeldItems, BlockOperationKind, BlockProperty,

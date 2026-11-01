@@ -198,6 +198,40 @@ pub struct PluginConfig {
     /// Manifest IDs, independent of directory names; an empty list requires none.
     pub required: Vec<String>,
     pub storage: PluginStorageConfig,
+    /// Immutable native snapshots remain separate from guest byte storage.
+    pub archives: PluginArchiveConfig,
+}
+
+/// Native archive files have an independent protected root and bounded snapshot size.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct PluginArchiveConfig {
+    pub directory: PathBuf,
+    pub max_value_bytes: usize,
+    pub max_namespace_bytes: u64,
+    pub max_keys: usize,
+}
+impl Default for PluginArchiveConfig {
+    /// Nested quota-only configuration preserves the archive-specific directory default.
+    fn default() -> Self {
+        let limits = crate::plugin::storage::Limits::default();
+        Self {
+            directory: PathBuf::from(crate::plugin::archive_store::DEFAULT_DIRECTORY),
+            max_value_bytes: limits.value_bytes,
+            max_namespace_bytes: limits.namespace_bytes,
+            max_keys: limits.keys,
+        }
+    }
+}
+impl PluginArchiveConfig {
+    /// Convert operator bounds without exposing native snapshot buffers to guests.
+    pub(crate) fn limits(&self) -> crate::plugin::storage::Limits {
+        crate::plugin::storage::Limits {
+            value_bytes: self.max_value_bytes,
+            namespace_bytes: self.max_namespace_bytes,
+            keys: self.max_keys,
+        }
+    }
 }
 
 /// Opaque component data is kept separately from filesystem capability preopens.
@@ -242,6 +276,17 @@ impl PluginConfig {
             return Err(
                 "`plugins.storage` requires a directory and positive non-overflowing limits".into(),
             );
+        }
+        if self.archives.directory.as_os_str().is_empty()
+            || self.archives.max_value_bytes > crate::plugin::archive_store::MAX_SNAPSHOT_BYTES
+            || self.archives.limits().validate().is_err()
+            || !crate::plugin::storage::directories_disjoint(
+                &self.storage.directory,
+                &self.archives.directory,
+            )
+            .map_err(|_| "component storage directories cannot be resolved".to_owned())?
+        {
+            return Err("`plugins.archives` requires positive limits and a directory disjoint from guest storage".into());
         }
         let unique: std::collections::BTreeSet<_> = self.required.iter().collect();
         if self.required.len() > 128

@@ -112,6 +112,11 @@ impl Registry {
         Ok(())
     }
 
+    /// Distinct typed stores cannot share or contain each other's private native files.
+    pub(super) fn disjoint_from(&self, other: &Self) -> Result<bool, StoreError> {
+        directories_disjoint(&self.root, &other.root)
+    }
+
     /// Share only an exact component identity, including across a staged reload.
     pub fn namespace(&mut self, plugin_id: &str) -> Result<SharedNamespace, StoreError> {
         if let Some(namespace) = self.namespaces.get(plugin_id).and_then(Weak::upgrade) {
@@ -128,6 +133,13 @@ impl Registry {
             .insert(plugin_id.into(), Arc::downgrade(&namespace));
         Ok(namespace)
     }
+}
+
+/// Resolve aliases before accepting two independently exposed storage roots.
+pub(crate) fn directories_disjoint(first: &Path, second: &Path) -> Result<bool, StoreError> {
+    let first = resolve_directory(first)?;
+    let second = resolve_directory(second)?;
+    Ok(!first.starts_with(&second) && !second.starts_with(&first))
 }
 
 /// Resolve existing symlinks while allowing a storage directory not yet created.
@@ -242,6 +254,35 @@ impl Namespace {
             return Err(StoreError::QuotaExceeded);
         }
         Ok(Some(blob))
+    }
+
+    /// Enumerate bounded, validated keys without exposing encoded value buffers.
+    /// Internal typed stores use this to validate every retained record on opening.
+    pub(super) fn keys(&mut self) -> Result<Vec<String>, StoreError> {
+        if self.uncertain {
+            sync_directory(&self.directory).map_err(|_| StoreError::Uncertain)?;
+            self.uncertain = false;
+        }
+        let mut keys = Vec::new();
+        for entry in fs::read_dir(&self.directory).map_err(io)? {
+            let entry = entry.map_err(io)?;
+            if entry.path().extension().is_none_or(|value| value != "blob") {
+                continue;
+            }
+            let (key, _) = decode(&self.read_file(&entry.path())?)?;
+            if entry.path() != self.path(&key)? || keys.len() >= self.limits.keys {
+                return Err(StoreError::IoError);
+            }
+            keys.push(key);
+        }
+        keys.sort_unstable();
+        Ok(keys)
+    }
+
+    /// Inject one write boundary for internal durable-store regression tests.
+    #[cfg(test)]
+    pub(super) fn inject_fault(&mut self, fault: Fault) {
+        self.fault = Some(fault);
     }
 
     /// Compare the last acknowledged revision before atomically replacing a value.
@@ -475,7 +516,7 @@ fn io(_: std::io::Error) -> StoreError {
 
 #[cfg(test)]
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Fault {
+pub(super) enum Fault {
     BeforeRename,
     AfterRename,
 }
