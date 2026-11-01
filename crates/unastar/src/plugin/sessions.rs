@@ -168,7 +168,7 @@ impl PluginManager {
                 active
                     .book
                     .reject(active.id, "Unable to complete connection setup.");
-                self.callback_failed(world, &owner, &error.to_string());
+                self.callback_failed(world, &owner, &super::wasm_failure_reason(&error));
                 break;
             }
             if matches!(active.book.status(world, active.id), Status::Rejected(_)) {
@@ -216,7 +216,7 @@ impl PluginManager {
                 Ok(wit::QuitDisposition::RetainEntity) => retain = true,
                 Ok(wit::QuitDisposition::Remove) => (),
                 Err(error) => {
-                    self.callback_failed(world, &owner, &error.to_string());
+                    self.callback_failed(world, &owner, &super::wasm_failure_reason(&error));
                     if self.readiness.check().is_err() {
                         return;
                     }
@@ -247,7 +247,7 @@ impl PluginManager {
             });
             super::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
             if let Err(error) = result {
-                self.callback_failed(world, &owner, &error.to_string());
+                self.callback_failed(world, &owner, &super::wasm_failure_reason(&error));
                 if self.readiness.check().is_err() {
                     break;
                 }

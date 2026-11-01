@@ -349,6 +349,12 @@ impl super::super::wit_bindings::unastar::plugin::host::Host for HostContext {
         }
         #[cfg(test)]
         self.test_logs.push(message.clone());
+        #[cfg(test)]
+        if let Some(engine) = &self.test_log_epoch_engine {
+            for _ in 0..3 {
+                engine.increment_epoch();
+            }
+        }
         match level {
             wit::LogLevel::Info => tracing::info!(plugin = %self.plugin_id, "{message}"),
             wit::LogLevel::Warn => tracing::warn!(plugin = %self.plugin_id, "{message}"),

@@ -74,6 +74,8 @@ pub struct HostContext {
     pending_command_roots: Vec<commands::Reservation>,
     #[cfg(test)]
     test_logs: Vec<String>,
+    #[cfg(test)]
+    test_log_epoch_engine: Option<Engine>,
     limits: wasmtime::StoreLimits,
     /// Immutable opaque bytes loaded before component instantiation.
     configuration: Vec<u8>,
@@ -122,6 +124,8 @@ impl HostContext {
             pending_command_roots: Vec::new(),
             #[cfg(test)]
             test_logs: Vec::new(),
+            #[cfg(test)]
+            test_log_epoch_engine: None,
             limits: wasmtime::StoreLimitsBuilder::new()
                 .memory_size(limits.max_memory)
                 .trap_on_grow_failure(true)
@@ -215,7 +219,7 @@ pub(super) fn finish_invocation(
     players::finish_invocation(context, world, succeeded);
 }
 
-/// Initialization and each plugin tick batch have one shared instruction budget.
+/// All worlds and callbacks in one plugin tick share an instruction budget.
 fn begin_fuel_budget(store: &mut Store<HostContext>, limits: &PluginLimits) -> anyhow::Result<()> {
     players::begin_budget(store.data_mut());
     store.set_fuel(limits.fuel_per_tick)
@@ -223,8 +227,43 @@ fn begin_fuel_budget(store: &mut Store<HostContext>, limits: &PluginLimits) -> a
 
 /// Wall-clock interruption is independent of the shared per-tick fuel budget.
 fn prepare_invocation(store: &mut Store<HostContext>) {
-    store.data_mut().io_budget.reset(std::time::Instant::now());
-    store.set_epoch_deadline(super::io_budget::INVOCATION_EPOCHS);
+    let timeout = store.data().api_limits.callback_timeout_ms;
+    prepare_deadline(store, timeout);
+}
+
+/// Set one bounded CPU allowance; only measured trusted storage time can extend it.
+fn prepare_deadline(store: &mut Store<HostContext>, timeout_ms: u32) {
+    let allowance = std::time::Duration::from_millis(u64::from(timeout_ms));
+    store
+        .data_mut()
+        .io_budget
+        .reset_with_allowance(std::time::Instant::now(), allowance);
+    let epochs =
+        u64::from(timeout_ms).div_ceil(super::io_budget::EPOCH_INTERVAL.as_millis() as u64);
+    store.set_epoch_deadline(epochs);
+}
+
+/// Instantiation and on-load share this single finite budget, never refreshed between them.
+fn begin_initialization_budget(
+    store: &mut Store<HostContext>,
+    limits: &PluginLimits,
+) -> anyhow::Result<()> {
+    limits.validate_execution()?;
+    players::begin_budget(store.data_mut());
+    store.set_fuel(limits.fuel_per_initialization)?;
+    prepare_deadline(store, limits.initialization_timeout_ms);
+    Ok(())
+}
+
+/// Preserve a useful coarse cause through layered Wasmtime call errors.
+pub(super) fn wasm_failure_reason(error: &anyhow::Error) -> String {
+    let category = match error.downcast_ref::<wasmtime::Trap>() {
+        Some(wasmtime::Trap::OutOfFuel) => "guest fuel exhausted",
+        Some(wasmtime::Trap::Interrupt) => "guest execution deadline exhausted",
+        Some(_) => "guest trapped",
+        None => "guest host call failed",
+    };
+    format!("{category}: {error}")
 }
 
 fn create_store(
@@ -233,6 +272,7 @@ fn create_store(
     plugin_id: PluginId,
     limits: &PluginLimits,
 ) -> anyhow::Result<Store<HostContext>> {
+    limits.validate_execution()?;
     let mut store = Store::new(engine, HostContext::new(wasi_ctx, plugin_id, limits));
     store.limiter(|ctx| &mut ctx.limits);
     store.epoch_deadline_callback(|context| {
@@ -243,7 +283,7 @@ fn create_store(
         {
             Ok(wasmtime::UpdateDeadline::Continue(1))
         } else {
-            Err(anyhow::anyhow!("component guest epoch deadline exhausted"))
+            Err(wasmtime::Trap::Interrupt.into())
         }
     });
     begin_fuel_budget(&mut store, limits)?;
@@ -499,11 +539,9 @@ impl PluginManager {
                 let mut linker = Linker::<HostContext>::new(&self.engine);
                 wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
                 UnastarPlugin::add_to_linker::<HostContext, HostContext>(&mut linker, |ctx| ctx)?;
-                begin_fuel_budget(store, &pending.manifest.limits)?;
-                prepare_invocation(store);
+                begin_initialization_budget(store, &pending.manifest.limits)?;
                 let bindings =
                     UnastarPlugin::instantiate(&mut *store, &pending.component, &linker)?;
-                prepare_invocation(store);
                 bindings.call_on_load(&mut *store)?;
                 Ok(bindings)
             });
@@ -529,7 +567,7 @@ impl PluginManager {
                     error!(id = %pending.manifest.id, %error, "Plugin initialization failed");
                     if self
                         .readiness
-                        .fail(&pending.manifest.id.0, &error.to_string())
+                        .fail(&pending.manifest.id.0, &wasm_failure_reason(&error))
                     {
                         break;
                     }
@@ -862,7 +900,7 @@ impl PluginManager {
             Err(e) => {
                 plugin.store.data_mut().pending_actions.clear();
                 error!(plugin = %plugin.manifest.id, error = %e, "Event dispatch failed");
-                if readiness.fail(&plugin.manifest.id.0, &e.to_string()) {
+                if readiness.fail(&plugin.manifest.id.0, &wasm_failure_reason(&e)) {
                     readiness::fence_world(world);
                 }
                 matches!(
@@ -1081,6 +1119,8 @@ pub(crate) mod tests {
 
     #[path = "commands.rs"]
     mod command_tests;
+    #[path = "execution.rs"]
+    mod execution_tests;
     #[path = "readiness.rs"]
     mod readiness_tests;
     #[path = "storage.rs"]

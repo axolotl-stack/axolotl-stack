@@ -249,7 +249,7 @@ impl PluginManager {
                 Ok(_) => return true,
                 Err(error) => {
                     tracing::error!(plugin = %id, %error, "Component command callback failed");
-                    self.callback_failed(world, &id, &error.to_string());
+                    self.callback_failed(world, &id, &super::wasm_failure_reason(&error));
                     return true;
                 }
             }

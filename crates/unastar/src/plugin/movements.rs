@@ -87,7 +87,7 @@ impl PluginManager {
                     break;
                 }
                 Err(error) => {
-                    self.callback_failed(world, &owner, &error.to_string());
+                    self.callback_failed(world, &owner, &super::wasm_failure_reason(&error));
                     event.cancel();
                     break;
                 }
@@ -123,7 +123,7 @@ impl PluginManager {
                 bindings.call_on_player_moved(store, tx, player, &record)
             });
             if let Err(error) = result {
-                self.callback_failed(world, &owner, &error.to_string());
+                self.callback_failed(world, &owner, &super::wasm_failure_reason(&error));
                 if self.readiness.check().is_err() {
                     break;
                 }

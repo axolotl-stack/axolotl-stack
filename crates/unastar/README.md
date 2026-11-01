@@ -945,15 +945,21 @@ with an iron pickaxe and shoots a cow with a bow through a real client
 Plugins are WebAssembly components implementing the `unastar-api` WIT world.
 `#[unastar_api_macros::plugin]` registers a typed `unastar_api::Plugin`
 implementation; build components with `--target wasm32-wasip2`.
-Discovery compiles components at startup. Instantiation and `on-load` run during
-the first game tick with a live world attached, so initialization host queries
-cannot dereference an absent world.
+Discovery compiles components at startup. Instantiation and `on-load` run before
+listeners open, with a live world attached. Required components must initialize
+successfully before the server accepts connections.
 
 Manifest `limits.max_memory` caps each linear memory at creation and growth;
 `limits.fuel_per_tick` is a shared instruction budget for the plugin's event
-batch each tick. Instantiation and `on-load` share a separate initialization
-budget of the same size. Epoch interruption is an independent wall-clock guard.
-Trapping plugin callbacks are logged, and cancellable callbacks fail closed.
+batch each tick (10 million by default). Instantiation and `on-load` share one
+separate `limits.fuel_per_initialization` budget (100 million by default), without
+a reset between them. Ordinary callbacks use `limits.callback_timeout_ms` (10 ms,
+range 1–1000); startup uses `limits.initialization_timeout_ms` (1000 ms, range
+1–60000). These wall-clock guards run independently of fuel. Only bounded time
+spent in trusted storage imports receives I/O credit; host queries cannot renew
+execution time. Startup allowances never enlarge subsequent callback budgets.
+Trapping plugin callbacks are logged with a coarse failure cause, and cancellable
+callbacks fail closed.
 
 ## Persistence
 
