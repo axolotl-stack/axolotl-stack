@@ -78,7 +78,6 @@ pub struct HostContext {
     generation: uuid::Uuid,
     pending_messages: Vec<players::BoundMessage>,
     pending_mechanics: Vec<players::MechanicsRequest>,
-    mechanics_accepted: bool,
     mechanics_owner: std::sync::Arc<()>,
     active_admission: Option<sessions::ActiveAdmission>,
     pending_admissions: Vec<sessions::StagedResolution>,
@@ -139,7 +138,6 @@ impl HostContext {
             generation: uuid::Uuid::new_v4(),
             pending_messages: Vec::new(),
             pending_mechanics: Vec::new(),
-            mechanics_accepted: true,
             mechanics_owner: std::sync::Arc::new(()),
             active_admission: None,
             pending_admissions: Vec::new(),
@@ -262,7 +260,7 @@ pub(super) fn finish_invocation(
     world: &mut bevy_ecs::world::World,
     succeeded: bool,
 ) {
-    players::finish_mechanics(context, world, succeeded && context.mechanics_accepted);
+    players::finish_mechanics(context, world, succeeded);
     commands::finish_invocation(context, succeeded);
     players::finish_admission_invocation(context, world, succeeded);
 
@@ -281,7 +279,6 @@ fn begin_fuel_budget(store: &mut Store<HostContext>, limits: &PluginLimits) -> a
 
 /// Wall-clock interruption is independent of the shared per-tick fuel budget.
 fn prepare_invocation(store: &mut Store<HostContext>) {
-    store.data_mut().mechanics_accepted = true;
     let timeout = store.data().api_limits.callback_timeout_ms;
     prepare_deadline(store, timeout);
 }
@@ -992,15 +989,6 @@ impl PluginManager {
             }
         });
 
-        if matches!(
-            event,
-            ServerEvent::BlockBreak { .. }
-                | ServerEvent::BlockPlace { .. }
-                | ServerEvent::PlayerInteractBlock { .. }
-        ) {
-            plugin.store.data_mut().mechanics_accepted =
-                result.as_ref().is_ok_and(|cancelled| !cancelled);
-        }
         finish_invocation(plugin.store.data_mut(), world, result.is_ok());
         match result {
             Ok(cancelled) => cancelled,

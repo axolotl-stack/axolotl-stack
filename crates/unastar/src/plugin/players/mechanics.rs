@@ -41,7 +41,7 @@ enum Mutation {
 #[derive(Resource, Default)]
 struct Pending(Vec<MechanicsRequest>);
 
-/// Discard failed/vetoed mechanics independently of message, command and task semantics.
+/// Commit successful explicit intents independently of the default action's cancellation.
 pub(in crate::plugin::manager) fn finish(
     context: &mut HostContext,
     world: &mut World,

@@ -162,8 +162,6 @@ impl PluginManager {
                     .decide(active.id, &owner.0, decision)
                     .map_err(|error| anyhow::anyhow!("invalid admission decision: {error:?}"))
             });
-            plugin.store.data_mut().mechanics_accepted =
-                !matches!(active.book.status(world, active.id), Status::Rejected(_));
             super::finish_invocation(plugin.store.data_mut(), world, decision.is_ok());
             plugin.store.data_mut().pending_actions.clear();
             if let Err(error) = decision {

@@ -1,6 +1,6 @@
 //! Full native block plans bridged into scoped component authorization and owned completion.
 
-use super::lifecycle::{invoke, invoke_decided};
+use super::lifecycle::invoke;
 use super::{HostContext, PluginManager, make_player_resource, make_world_tx, wit_types as wit};
 use crate::ecs::events::EventKind;
 use crate::registry::block::StateValue;
@@ -211,32 +211,26 @@ impl PluginManager {
                 break;
             }
             let player = event.player();
-            let result = invoke_decided(
-                plugin,
-                world,
-                |store, bindings| {
-                    let tx = make_world_tx(store)?;
-                    let player = make_player_resource(store, player)?;
-                    let (items, reps) = held_values(store.data_mut(), event.held(), None)
-                        .map_err(|error| anyhow::anyhow!("block item capture failed: {error:?}"))?;
-                    let proposal = wit::BlockProposal {
-                        operation_id: event.operation_id(),
-                        dimension,
-                        kind: kind(event.kind()),
-                        cells: cells.clone(),
-                        click: click(event.click()),
-                        held_slot: items.slot,
-                        held: items.before,
-                    };
-                    let result =
-                        bindings.call_on_block_transaction(&mut *store, tx, player, &proposal);
-                    if result.is_err() {
-                        discard(store.data_mut(), &reps);
-                    }
-                    result
-                },
-                |allow| *allow,
-            );
+            let result = invoke(plugin, world, |store, bindings| {
+                let tx = make_world_tx(store)?;
+                let player = make_player_resource(store, player)?;
+                let (items, reps) = held_values(store.data_mut(), event.held(), None)
+                    .map_err(|error| anyhow::anyhow!("block item capture failed: {error:?}"))?;
+                let proposal = wit::BlockProposal {
+                    operation_id: event.operation_id(),
+                    dimension,
+                    kind: kind(event.kind()),
+                    cells: cells.clone(),
+                    click: click(event.click()),
+                    held_slot: items.slot,
+                    held: items.before,
+                };
+                let result = bindings.call_on_block_transaction(&mut *store, tx, player, &proposal);
+                if result.is_err() {
+                    discard(store.data_mut(), &reps);
+                }
+                result
+            });
             match result {
                 Ok(true) => (),
                 Ok(false) => {

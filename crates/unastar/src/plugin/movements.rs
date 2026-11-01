@@ -1,6 +1,6 @@
 //! Scoped movement proposals and committed notifications at the native input boundary.
 
-use super::lifecycle::{invoke, invoke_decided, to_wit};
+use super::lifecycle::{invoke, invoke_validated, to_wit};
 use super::{PluginManager, make_player_resource, make_world_tx, players, wit_types as wit};
 use crate::ecs::events::EventKind;
 use crate::server::game::player_events::{
@@ -62,7 +62,7 @@ impl PluginManager {
             let plugin = self.plugins.get_mut(&owner).expect("subscribed component");
             let from = to_wit(event.from());
             let destination = to_wit(event.destination);
-            let result = invoke_decided(
+            let result = invoke_validated(
                 plugin,
                 world,
                 |store, bindings| {
@@ -71,7 +71,7 @@ impl PluginManager {
                     bindings.call_on_player_move(store, tx, player, from, destination)
                 },
                 |destination| {
-                    destination.as_ref().is_some_and(|position| {
+                    destination.as_ref().is_none_or(|position| {
                         let position = glam::DVec3::new(
                             position.x,
                             position.y + crate::entity::PLAYER_EYE_HEIGHT,

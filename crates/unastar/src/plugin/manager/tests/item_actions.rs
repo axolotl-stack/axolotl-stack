@@ -22,6 +22,15 @@ impl Harness {
     }
     /// Optional component traps also veto their operation, while required traps fence admission.
     async fn required(proposal: String, committed: String, required: bool) -> Self {
+        Self::with_capabilities(proposal, committed, required, &[]).await
+    }
+    /// Explicit mechanics are independent of a valid item-default decision.
+    async fn with_capabilities(
+        proposal: String,
+        committed: String,
+        required: bool,
+        extra: &[crate::plugin::manifest::PluginCapability],
+    ) -> Self {
         let mut router = DimensionRouter::new(GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..Default::default()
@@ -39,7 +48,9 @@ impl Harness {
                 crate::plugin::manifest::PluginCapability::ItemValues,
                 crate::plugin::manifest::PluginCapability::SendMessages,
             ]
-            .into(),
+            .into_iter()
+            .chain(extra.iter().cloned())
+            .collect(),
             subscriptions: [
                 EventKind::ItemAction,
                 EventKind::ItemActionCommitted,
@@ -488,7 +499,7 @@ async fn typed_custom_consumption_is_bounded_and_inert_pass_has_no_completion() 
             "{} i32.const 32 i32.const 2 i32.store8 i32.const 40 i64.const 87 i64.store i32.const 48 i32.const {consume} i32.store8 i32.const 32",
             layout.drop_proposal()
         );
-        let mut h = Harness::new(body, completion()).await;
+        let mut h = Harness::required(body, completion(), consume == 1).await;
         h.held("minecraft:paper", 3);
         h.air(crate::server::game::item_use::UseRequest::UseAir)
             .await
@@ -912,4 +923,117 @@ async fn unreachable_actor_input_is_rejected_before_the_item_callback_or_any_cos
             .get::<crate::entity::mob::state::InLove>(mob)
             .is_none()
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn denying_real_item_use_preserves_explicit_bounce_with_zero_default_cost_or_projectiles() {
+    let layout = Layout::new();
+    let player = layout.param("on-item-action", "player");
+    let body = format!(
+        "local.get 0 i32.load offset={player} f64.const 0.5 f64.const 0.25 f64.const 0 i32.const 64 call @[method]player.set-velocity@ i32.const 64 i32.load8_u if unreachable end {} i32.const 32 i32.const 1 i32.store8 i32.const 32",
+        layout.drop_proposal()
+    );
+    let mut h = Harness::with_capabilities(
+        body,
+        "unreachable".into(),
+        true,
+        &[crate::plugin::manifest::PluginCapability::PlayerMechanics],
+    )
+    .await;
+    h.held("minecraft:snowball", 2);
+    let before = h
+        .world()
+        .get::<crate::entity::components::Position>(h.player)
+        .unwrap()
+        .0;
+    while h._packets.try_recv().is_ok() {}
+    h.air(crate::server::game::item_use::UseRequest::UseAir)
+        .await
+        .unwrap();
+    assert_eq!(h.count(), 2);
+    assert_eq!(h.projectiles(), 0);
+    assert!(
+        h.world()
+            .get::<crate::server::game::item_use::ItemUsing>(h.player)
+            .is_none()
+    );
+    assert_eq!(
+        h.world()
+            .get::<crate::entity::components::Position>(h.player)
+            .unwrap()
+            .0,
+        before
+    );
+    assert_eq!(
+        h.world()
+            .get::<crate::entity::components::Velocity>(h.player)
+            .unwrap()
+            .0,
+        glam::DVec3::new(0.5, 0.25, 0.0)
+    );
+    assert!(
+        std::iter::from_fn(|| h._packets.try_recv().ok())
+            .any(|packet| matches!(packet.data, McpePacketData::SetActorMotionPacket(_)))
+    );
+    assert!(h.manager.lock().unwrap().readiness.check().is_ok());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn malformed_handled_counts_discard_replacements_and_never_consume_or_launch() {
+    for consume in [0, 9] {
+        let layout = Layout::new();
+        let player = layout.param("on-item-action", "player");
+        let body = format!(
+            "local.get 0 i32.load offset={player} f64.const 0.5 f64.const 0 f64.const 0 i32.const 64 call @[method]player.set-velocity@ i32.const 64 i32.load8_u if unreachable end i32.const 1100 i32.const 120 i32.store8 local.get 0 i32.load offset={player} i32.const 1100 i32.const 1 i32.const 80 call @[method]player.message@ i32.const 80 i32.load8_u if unreachable end {} i32.const 32 i32.const 2 i32.store8 i32.const 40 i64.const 87 i64.store i32.const 48 i32.const {consume} i32.store8 i32.const 32",
+            layout.drop_proposal()
+        );
+        let mut h = Harness::with_capabilities(
+            body,
+            "unreachable".into(),
+            false,
+            &[crate::plugin::manifest::PluginCapability::PlayerMechanics],
+        )
+        .await;
+        h.held("minecraft:paper", 3);
+        while h._packets.try_recv().is_ok() {}
+        h.air(crate::server::game::item_use::UseRequest::UseAir)
+            .await
+            .unwrap();
+        assert_eq!(h.count(), 3);
+        assert_eq!(h.projectiles(), 0);
+        assert!(
+            h.world()
+                .get::<crate::entity::components::Velocity>(h.player)
+                .is_none()
+        );
+        assert!(
+            !std::iter::from_fn(|| h._packets.try_recv().ok()).any(|packet| matches!(
+                packet.data,
+                McpePacketData::SetActorMotionPacket(_) | McpePacketData::TextPacket(_)
+            ))
+        );
+        assert!(h.manager.lock().unwrap().readiness.check().is_ok());
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn required_malformed_item_reply_uses_the_existing_terminal_callback_failure_policy() {
+    let layout = Layout::new();
+    let body = format!(
+        "{} i32.const 32 i32.const 2 i32.store8 i32.const 40 i64.const 87 i64.store i32.const 48 i32.const 0 i32.store8 i32.const 32",
+        layout.drop_proposal()
+    );
+    let mut h = Harness::new(body, "unreachable".into()).await;
+    h.held("minecraft:paper", 3);
+    assert!(
+        h.air(crate::server::game::item_use::UseRequest::UseAir)
+            .await
+            .is_err()
+    );
+    assert!(h.manager.lock().unwrap().readiness.check().is_err());
+    assert!(crate::server::game::inventory_effects::is_recovery_fenced(
+        h.world(),
+        h.player
+    ));
+    assert_eq!(h.projectiles(), 0);
 }

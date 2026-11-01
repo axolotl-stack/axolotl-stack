@@ -454,9 +454,12 @@ death and inventory quarantine can invalidate a staged intent. An optional
 effect source must be a real player in the same callback and remain valid when
 applied; it is never replaced with an invented actor.
 
-Traps discard that callback's mechanics. Returning a veto from movement, damage,
-respawn or block proposals, or rejecting admission, also discards its mechanics. A handled command or cancelled chat is a
-successful callback and can still send explicit replies and stage mechanics.
+Traps, ABI errors and malformed proposal results discard that callback's staged
+intents. A valid default-action veto is a successful callback: cancelling movement,
+damage, respawn, a block/item action or admission preserves explicit independently
+validated mechanics, just like handled-command replies, replaced chat, tasks and UI.
+For example, a component may cancel a move and explicitly stage a bounce without
+accepting the proposed destination.
 A successful proposal does not imply that later native observers accepted the
 underlying action; use committed movement or positive-health-loss callbacks when
 an effect depends on that outcome. Native effect authorization, precedence and
@@ -592,8 +595,10 @@ Return `Pass` for ordinary behavior or `Deny` to stop it. `ctx.cancel()` always
 wins over the returned decision. `Handled { correlation, consume }` suppresses
 ordinary behavior and asks the engine to consume a positive bounded count from the exact
 selected stack. The numeric correlation is only echoed; it dispatches no host
-behavior. Creative mode retains the normal zero-cost rule. Invalid or conflicting
-handling, callback traps and later native vetoes fail closed. Actor, selected item,
+behavior. Creative mode retains the normal zero-cost rule. A zero or over-held
+handled count is malformed callback data, rather than an ordinary `Deny`; it takes
+the existing callback-failure path. Conflicting handling, callback traps and later
+native vetoes fail closed. Actor, selected item,
 clicked before-state and known ammunition cells are revalidated after callbacks
 before default costs, wear or projectile creation. A passed gesture by itself is
 not a successful physical action. Each stage has its own world-lifetime action ID;

@@ -178,7 +178,7 @@ impl PluginManager {
             let plugin = self.plugins.get_mut(&id).expect("subscribed plugin exists");
             let player = event.player();
             let position = to_wit(event.position);
-            let result = invoke_decided(
+            let result = invoke_validated(
                 plugin,
                 world,
                 |store, bindings| {
@@ -187,7 +187,7 @@ impl PluginManager {
                     bindings.call_on_player_respawn(store, tx, player, position)
                 },
                 |position| {
-                    position.as_ref().is_some_and(|position| {
+                    position.as_ref().is_none_or(|position| {
                         let position = DVec3::new(
                             position.x,
                             position.y + crate::entity::PLAYER_EYE_HEIGHT,
@@ -255,22 +255,23 @@ pub(super) fn invoke<R>(
     world: &mut World,
     call: impl FnOnce(&mut Store<HostContext>, &UnastarPlugin) -> anyhow::Result<R>,
 ) -> anyhow::Result<R> {
-    invoke_decided(plugin, world, call, |_| true)
+    invoke_validated(plugin, world, call, |_| true)
 }
 
-/// Only mechanics staging observes proposal vetoes; handled commands and replaced chat remain successful.
-pub(super) fn invoke_decided<R>(
+/// Validate return data before committing any staged imports; ordinary default-action vetoes are valid results.
+pub(super) fn invoke_validated<R>(
     plugin: &mut LoadedPlugin,
     world: &mut World,
     call: impl FnOnce(&mut Store<HostContext>, &UnastarPlugin) -> anyhow::Result<R>,
-    accepted: impl FnOnce(&R) -> bool,
+    valid: impl FnOnce(&R) -> bool,
 ) -> anyhow::Result<R> {
     plugin.store.data_mut().pending_actions.clear();
     let result = with_guest_world(&mut plugin.store, world, |store| {
         prepare_invocation(store);
-        call(store, &plugin.bindings)
+        let result = call(store, &plugin.bindings)?;
+        anyhow::ensure!(valid(&result), "invalid component proposal");
+        Ok(result)
     });
-    plugin.store.data_mut().mechanics_accepted = result.as_ref().is_ok_and(accepted);
     super::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
     let actions = std::mem::take(&mut plugin.store.data_mut().pending_actions);
     if result.is_ok() && !actions.is_empty() {
