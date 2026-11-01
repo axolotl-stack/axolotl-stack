@@ -185,6 +185,53 @@ fn committed(incoming: f32, loss: f32) -> String {
     )
 }
 
+/// Exhaust the real shared guest budget between the proposal and actual positive-loss callback.
+struct ExhaustBeforeCommit(Arc<Mutex<PluginManager>>);
+impl crate::entity::player_life::hooks::PlayerLifecycleHandler for ExhaustBeforeCommit {
+    fn on_damage(&self, _: &mut bevy_ecs::prelude::World, _: &mut PlayerDamage) {
+        for plugin in self.0.lock().unwrap().plugins.values_mut() {
+            plugin.store.set_fuel(0).unwrap();
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn real_damage_callback_failures_keep_the_fuel_category_before_the_backtrace() {
+    for after_loss in [false, true] {
+        let mut harness = Harness::new(&[
+            ("on-player-damage", tuning("")),
+            ("on-player-damaged", committed(4.0, 4.0)),
+        ]);
+        if after_loss {
+            let manager = harness.manager.clone();
+            harness
+                .world()
+                .resource_mut::<crate::entity::player_life::hooks::PlayerLifecycleHooks>()
+                .register(ExhaustBeforeCommit(manager));
+        } else {
+            let manager = harness.manager.clone();
+            let mut manager = manager.lock().unwrap();
+            assert!(manager.begin_tick(harness.world()));
+            for plugin in manager.plugins.values_mut() {
+                plugin.store.set_fuel(0).unwrap();
+            }
+        }
+        assert_eq!(harness.hit(4.0), if after_loss { 4.0 } else { 0.0 });
+        let reason = harness
+            .manager
+            .lock()
+            .unwrap()
+            .check_required()
+            .unwrap_err();
+        assert!(reason.contains("guest fuel exhausted"), "{reason}");
+        assert!(
+            reason.len() < 2048,
+            "the bounded diagnostic must retain the category"
+        );
+        assert!(harness.logs().is_empty());
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_tuning_and_actual_health_loss_are_distinct_after_native_armour_multiplier() {
     let (base, _) = fixture::field_layout("on-player-damage", "proposal", &["tuning"]);
