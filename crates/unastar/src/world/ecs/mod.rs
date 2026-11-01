@@ -21,7 +21,6 @@
 //!
 //! ## Events
 //! - `BlockChanged` - Observer trigger for immediate game logic (physics, lighting)
-//! - `BlockBroadcastEvent` - Batched event for network broadcasting
 //! - `PlayerSpawnedEvent` - Batched event for player spawn broadcasting
 //! - `PlayerDespawnedEvent` - Batched event for player despawn broadcasting
 //!
@@ -41,7 +40,7 @@ pub use components::{
     ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingActorRestore, PendingChunkGenerations,
     PendingGeneration,
 };
-pub use events::{BlockBroadcastEvent, BlockChanged, PlayerDespawnedEvent, PlayerSpawnedEvent};
+pub use events::{BlockChanged, PlayerDespawnedEvent, PlayerSpawnedEvent};
 pub use loader::ChunkLoader;
 pub use manager::{ChunkManager, ChunkManagerWorldExt};
 pub use systems::{

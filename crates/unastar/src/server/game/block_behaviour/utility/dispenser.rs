@@ -67,11 +67,12 @@ use crate::entity::item_drop::PLAYER_EYE_HEIGHT;
 use crate::entity::mob::constants::{
     CLIMATE_VARIANT_PROPERTY, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
 };
-use crate::entity::mob::net::sound::{level_event, play_level_sound};
+use crate::entity::mob::net::sound::level_event;
 use crate::entity::mob::{SpawnCause, spawn_mob};
 use crate::entity::systems::BlockSource;
 use crate::item::ItemStack;
 use crate::registry::block::{BlockEntry, LiquidKind, StateValue};
+use crate::server::game::blocks::queue_level_sound;
 use crate::server::game::containers;
 
 /// Ticks between power appearing and the dispense.
@@ -180,7 +181,7 @@ fn eject(world: &mut World, at: DVec3, facing: i32, stack: ItemStack) {
         world.entity_mut(item).insert(Velocity(velocity));
     }
     let data = wire_at(world, at.floor().as_ivec3());
-    play_level_sound(world, None, at, "block.click", data);
+    queue_level_sound(world, None, at, "block.click", data);
 }
 
 /// The smoke of a dispense at `at` facing along `step`.
@@ -463,7 +464,7 @@ fn behaviour(
                 .entity_mut(projectile)
                 .insert(crate::entity::projectile::ProjectileItem(one));
         }
-        play_level_sound(world, None, at, "block.click", -1);
+        queue_level_sound(world, None, at, "block.click", -1);
         level_event(world, at, LEVEL_EVENT_LAUNCH, LAUNCH_DATA);
         return Dispensed::one_used(stack);
     }
@@ -478,7 +479,7 @@ fn behaviour(
         }
         "minecraft:bone_meal" => {
             if !super::super::fertilize(world, front) {
-                play_level_sound(world, None, at, "block.click.fail", FERTILIZE_FAIL_DATA);
+                queue_level_sound(world, None, at, "block.click.fail", FERTILIZE_FAIL_DATA);
                 return Dispensed::Failed;
             }
             Dispensed::one_used(stack)
@@ -490,7 +491,7 @@ fn behaviour(
         "minecraft:flint_and_steel" => {
             let lit = light(world, front, stack);
             if matches!(lit, Dispensed::Failed) {
-                play_level_sound(world, None, at, "block.click.fail", -1);
+                queue_level_sound(world, None, at, "block.click.fail", -1);
                 return lit;
             }
             lit
@@ -548,7 +549,7 @@ fn behaviour(
         } else {
             -1
         };
-        play_level_sound(world, None, at, "block.click", data);
+        queue_level_sound(world, None, at, "block.click", data);
     }
     used
 }
@@ -595,7 +596,7 @@ fn drop_from(
     eject(world, at, facing, stack.clone());
     smoke(world, at, step);
     let corner = crate::server::game::types::block_network_ids(world).to_wire(state) as i32;
-    play_level_sound(world, None, pos.as_dvec3(), "block.click", corner);
+    queue_level_sound(world, None, pos.as_dvec3(), "block.click", corner);
     let _ = slots.set_item(slot, stack.grow(-1));
     containers::set_contents(world, pos, &slots);
 }
@@ -612,7 +613,7 @@ fn fire(world: &mut World, pos: IVec3, state: u32) {
     };
     let Some(slot) = pick_slot(world, &slots) else {
         let wire = crate::server::game::types::block_network_ids(world).to_wire(state) as i32;
-        play_level_sound(world, None, pos.as_dvec3(), "block.click.fail", wire);
+        queue_level_sound(world, None, pos.as_dvec3(), "block.click.fail", wire);
         return;
     };
     if dropper {

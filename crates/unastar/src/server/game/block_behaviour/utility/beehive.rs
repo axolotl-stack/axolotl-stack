@@ -41,8 +41,8 @@ pub const HONEYCOMBS: u32 = 3;
 pub const SMOKE_REACH: i32 = 5;
 
 /// Play the harvest sound `name` at `(x + 1, y + 1, z + 1)` (data −1).
-fn sound(world: &World, pos: IVec3, name: &str) {
-    crate::entity::mob::net::sound::play_level_sound(
+fn sound(world: &mut World, pos: IVec3, name: &str) {
+    crate::server::game::blocks::queue_level_sound(
         world,
         None,
         (pos + IVec3::ONE).as_dvec3(),

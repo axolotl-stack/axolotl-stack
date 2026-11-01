@@ -72,9 +72,9 @@ use crate::server::broadcast::{
 use crate::storage::PlayerData;
 use crate::world::ChunkManager;
 use crate::world::ecs::{
-    AwaitingSpawnStatus, BlockBroadcastEvent, ChunkLoadConfig, ChunkLoader, ChunkPosition,
-    ChunkTickingState, LastPublisherState, PendingChunkGenerations, PlayerDespawnedEvent,
-    PlayerSpawnedEvent, on_block_changed, register_chunk_systems,
+    AwaitingSpawnStatus, ChunkLoadConfig, ChunkLoader, ChunkPosition, ChunkTickingState,
+    LastPublisherState, PendingChunkGenerations, PlayerDespawnedEvent, PlayerSpawnedEvent,
+    on_block_changed, register_chunk_systems,
 };
 
 // Re-export public types
@@ -362,7 +362,7 @@ impl GameServer {
         ecs.world_mut().init_resource::<PendingChunkGenerations>();
         ecs.world_mut().init_resource::<ChunkTickingState>();
         ecs.world_mut()
-            .init_resource::<bevy_ecs::message::Messages<BlockBroadcastEvent>>();
+            .init_resource::<blocks::PendingBlockUpdates>();
         ecs.world_mut()
             .init_resource::<bevy_ecs::message::Messages<PlayerSpawnedEvent>>();
         ecs.world_mut()
@@ -418,10 +418,10 @@ impl GameServer {
             )
                 .in_set(PacketApplySet),
         );
-        // Block changes actors made last tick go out first, before this
-        // tick's input and actors.
+        // The previous tick's block changes and their sounds go out first,
+        // before this tick's input and actors.
         ecs.schedule_mut().add_systems(
-            blocks::send_actor_block_changes
+            blocks::send_block_updates
                 .in_set(PacketApplySet)
                 .before(movement::apply_movement)
                 .before(blocks::apply_block_actions),
@@ -710,7 +710,6 @@ impl GameServer {
                 broadcast_despawn_system,
                 sync_actor_viewers,
                 crate::entity::mob::net::network::sync_mob_viewers,
-                crate::world::explosion::send_explosion_sounds,
             )
                 .chain()
                 .in_set(NetworkSendSet),

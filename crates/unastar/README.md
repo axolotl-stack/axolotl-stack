@@ -652,10 +652,11 @@ live in `server/game/block_behaviour/`, one module per behaviour family
 (doors, beds, torches/ladders/buttons/levers/vines, signs, trapdoors/fence
 gates, fences/walls/panes/stairs corners, crops/stems/nether wart/farmland,
 plants/sugar cane/cacti). Every block change goes through
-`blocks::set_block`, which sends one UpdateBlock in the session's block
-numbering (at once; a change an actor makes, such as a mob breaking a door,
-at the start of the next tick, as BDS sends it) and queues neighbour
-updates; a block that can no longer stay (lost support,
+`blocks::set_block`, which queues the change and queues neighbour updates;
+the tick's changes go out once at the start of the next tick, as BDS sends
+them (one UpdateBlock per sub-chunk with a single change, one
+UpdateSubChunkBlocks for several, then the changes' sounds); a block that
+can no longer stay (lost support,
 wrong soil, missing door half) breaks with its drops one tick later, as on
 BDS. Random ticks follow BDS's per-chunk budget (`(int)((top sub-chunk + 1) ×
 2.5) × randomtickspeed` positions in each chunk of a player's ticking diamond);

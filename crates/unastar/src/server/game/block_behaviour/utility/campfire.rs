@@ -268,7 +268,7 @@ fn set_fire(world: &mut World, pos: IVec3, state: u32, lit: bool, sound: &str) {
         StateValue::Byte(u8::from(!lit)),
     );
     set_block(world, pos, next, false);
-    crate::entity::mob::net::sound::play_level_sound(world, None, pos.as_dvec3(), sound, -1);
+    crate::server::game::blocks::queue_level_sound(world, None, pos.as_dvec3(), sound, -1);
 }
 
 /// Put out (`lit` false, `extinguish.fire`) or light (`ignite`) the campfire

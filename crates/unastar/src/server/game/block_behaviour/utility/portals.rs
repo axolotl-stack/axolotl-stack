@@ -223,8 +223,8 @@ pub fn breaking(world: &mut World, pos: IVec3, _state: u32) {
     });
 }
 
-fn level_sound(world: &World, at: DVec3, name: &str) {
-    crate::entity::mob::net::sound::play_level_sound(world, None, at, name, -1);
+fn level_sound(world: &mut World, at: DVec3, name: &str) {
+    crate::server::game::blocks::queue_level_sound(world, None, at, name, -1);
 }
 
 /// The direction a frame faces.
@@ -941,7 +941,6 @@ pub(super) mod capture {
             face,
             DVec3::new(number(&at[0]), number(&at[1]), number(&at[2])),
         );
-        crate::world::explosion::send_explosion_sounds(&mut h.world);
         h.packets()
     }
 

@@ -89,7 +89,7 @@ pub fn use_block(world: &mut World, player: Entity, pos: IVec3, state: u32) -> b
             None if lit => {
                 let out = with(&entry, state, LIT, StateValue::Byte(0));
                 set_block(world, pos, out, false);
-                crate::entity::mob::net::sound::play_level_sound(
+                crate::server::game::blocks::queue_level_sound(
                     world,
                     None,
                     centre(pos),
@@ -121,7 +121,7 @@ fn add_candle(
     else {
         return true;
     };
-    crate::entity::mob::net::sound::play_level_sound(
+    crate::server::game::blocks::queue_level_sound(
         world,
         None,
         pos.as_dvec3(),
@@ -182,7 +182,7 @@ pub fn bite(world: &mut World, player: Entity, pos: IVec3) -> bool {
         hunger.eat(NUTRITION, SATURATION_MODIFIER);
     }
     if let Some(eye) = world.get::<Position>(player).map(|p| p.0) {
-        crate::entity::mob::net::sound::play_level_sound(
+        crate::server::game::blocks::queue_level_sound(
             world,
             Some(player),
             eye - DVec3::new(0.0, 0.1, 0.0),

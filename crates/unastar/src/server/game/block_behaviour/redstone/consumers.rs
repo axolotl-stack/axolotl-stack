@@ -211,7 +211,7 @@ pub fn note_block_evaluate(world: &mut World, pos: IVec3) {
 
 /// Play the note of the note block at `pos` (nothing under a block): the
 /// `BlockEvent` and the `note` sound at the block's corner.
-pub fn play_note(world: &World, pos: IVec3) {
+pub fn play_note(world: &mut World, pos: IVec3) {
     if super::super::name_at(world, pos + IVec3::Y) != Some("minecraft:air") {
         return;
     }
@@ -227,7 +227,7 @@ pub fn play_note(world: &World, pos: IVec3) {
         event_value: pitch,
     });
     crate::entity::mob::net::sound::send_to_viewers(world, centre(pos), &packet);
-    crate::entity::mob::net::sound::play_level_sound(
+    crate::server::game::blocks::queue_level_sound(
         world,
         None,
         pos.as_dvec3(),

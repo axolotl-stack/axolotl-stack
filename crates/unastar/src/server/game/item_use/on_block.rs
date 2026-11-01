@@ -580,8 +580,6 @@ mod tests {
             items,
         )));
         world.insert_resource(EntityRandom::seeded(3));
-        world
-            .init_resource::<bevy_ecs::message::Messages<crate::world::ecs::BlockBroadcastEvent>>();
         let mut chunk = crate::world::chunk::Chunk::new(0, 0);
         chunk.set_block(1, 64, 1, state(block));
         let chunk = world.spawn(ChunkData::new(chunk)).id();

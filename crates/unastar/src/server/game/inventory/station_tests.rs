@@ -646,7 +646,10 @@ mod world {
             self.server.ecs.world_mut()
         }
 
+        /// Everything sent so far, with the block updates queued for the
+        /// next tick.
         fn packets(&mut self) -> Vec<McpePacketData> {
+            crate::server::game::blocks::send_block_updates(self.world());
             let mut out = Vec::new();
             while let Ok(packet) = self.rx.try_recv() {
                 out.push(packet.data);

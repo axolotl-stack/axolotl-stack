@@ -165,7 +165,7 @@ pub fn dispense(world: &mut World, at: DVec3) -> bool {
     if spawn_primed(world, cell, None, false).is_none() {
         return false;
     }
-    crate::entity::mob::net::sound::play_level_sound(world, None, at, "block.click", -1);
+    crate::server::game::blocks::queue_level_sound(world, None, at, "block.click", -1);
     crate::entity::mob::net::sound::level_event(world, at, LEVEL_EVENT_FUSE, 0);
     true
 }
@@ -392,7 +392,15 @@ pub(crate) mod tests {
                 .collect()
         }
 
+        /// Everything sent to the player so far, with the block updates
+        /// and block sounds queued for the next tick.
         pub(crate) fn packets(&mut self) -> Vec<McpePacketData> {
+            crate::server::game::blocks::send_block_updates(self.world());
+            self.received()
+        }
+
+        /// Only what was actually sent to the player so far.
+        pub(crate) fn received(&mut self) -> Vec<McpePacketData> {
             std::iter::from_fn(|| self.rx.try_recv().ok().map(|p| p.data)).collect()
         }
 

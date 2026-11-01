@@ -49,6 +49,18 @@ pub fn play_level_sound(
     sound: &str,
     data: i32,
 ) {
+    let packet = level_sound_packet(world, source, position, sound, data);
+    send_to_viewers(world, position, &packet);
+}
+
+/// The `LevelSoundEvent` [`play_level_sound`] sends.
+pub fn level_sound_packet(
+    world: &World,
+    source: Option<Entity>,
+    position: DVec3,
+    sound: &str,
+    data: i32,
+) -> McpePacket {
     let identifier = source.and_then(|actor| {
         world
             .get::<MobKind>(actor)
@@ -68,7 +80,7 @@ pub fn play_level_sound(
                 .get(jolyne::valentine::actor_flags::BABY)
                 .unwrap_or(false)
         });
-    let packet = McpePacket::from(LevelSoundEventPacket {
+    McpePacket::from(LevelSoundEventPacket {
         sound_event: sound.into(),
         position: wire(position),
         data,
@@ -77,8 +89,7 @@ pub fn play_level_sound(
         is_global: false,
         actor_unique_id: unique_id.unwrap_or(-1),
         fire_at_position: None,
-    });
-    send_to_viewers(world, position, &packet);
+    })
 }
 
 /// Broadcast `LevelEvent(event_id, data)` at `position`.

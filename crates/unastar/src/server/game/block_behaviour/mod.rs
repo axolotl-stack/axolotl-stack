@@ -11,9 +11,9 @@
 //! # One change path
 //!
 //! Every block change goes through [`super::blocks::set_block`]: it writes
-//! the chunk, sends the chunk's viewers one UpdateBlock in the session's
-//! block numbering (an actor's change at the start of the next tick, see
-//! [`super::blocks::changed_by_actor`]) and then calls [`block_changed`],
+//! the chunk, queues the change for the chunk's viewers (sent once, in the
+//! session's block numbering, at the start of the next tick by
+//! [`super::blocks::send_block_updates`]) and then calls [`block_changed`],
 //! which queues a neighbour
 //! update for each of the six neighbours (down, up, north, south, west,
 //! east). Updates drain breadth-first from one queue: a change made while
@@ -859,8 +859,9 @@ pub fn destroy_block(world: &mut World, pos: IVec3, drops: bool) {
 }
 
 /// Play the `LevelSoundEvent` `name` at the centre of `pos` for its
-/// viewers, carrying the wire id of `state`.
-pub fn sound(world: &World, pos: IVec3, name: &str, state: u32) {
+/// viewers, carrying the wire id of `state`; it goes out with the next
+/// tick's block updates ([`super::blocks::queue_block_sound`]).
+pub fn sound(world: &mut World, pos: IVec3, name: &str, state: u32) {
     let wire = super::types::block_network_ids(world).to_wire(state);
     let packet = jolyne::valentine::McpePacket::from(jolyne::valentine::LevelSoundEventPacket {
         sound_event: name.into(),
@@ -876,7 +877,7 @@ pub fn sound(world: &World, pos: IVec3, name: &str, state: u32) {
         actor_unique_id: 0,
         fire_at_position: None,
     });
-    crate::entity::mob::net::sound::send_to_viewers(world, centre(pos), &packet);
+    super::blocks::queue_block_sound(world, centre(pos), packet);
 }
 
 /// Send the viewers of `pos` the destroy particles `event` of `state`.

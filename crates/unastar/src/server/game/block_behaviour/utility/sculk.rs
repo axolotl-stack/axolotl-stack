@@ -319,9 +319,9 @@ fn back(entry: &BlockEntry, state: u32) -> Option<IVec3> {
 
 /// Play `name` at the corner of the sensor at `pos` unless it is
 /// waterlogged.
-fn corner_sound(world: &World, pos: IVec3, name: &str) {
+fn corner_sound(world: &mut World, pos: IVec3, name: &str) {
     if !super::super::gravity::holds_water(world, pos) {
-        crate::entity::mob::net::sound::play_level_sound(world, None, pos.as_dvec3(), name, -1);
+        crate::server::game::blocks::queue_level_sound(world, None, pos.as_dvec3(), name, -1);
     }
 }
 
@@ -716,7 +716,7 @@ fn receive(world: &mut World, pos: IVec3, vibration: Vibration) {
                 centre(pos),
                 &generic_event(LEVEL_EVENT_SHRIEK, &fields),
             );
-            crate::entity::mob::net::sound::play_level_sound(
+            crate::server::game::blocks::queue_level_sound(
                 world,
                 None,
                 pos.as_dvec3(),

@@ -438,9 +438,7 @@ fn douse_fire(world: &mut World, at: DVec3) {
                 )
             });
         if burning {
-            crate::server::game::blocks::changed_by_actor(world, |world| {
-                crate::server::game::set_block(world, pos, air, false);
-            });
+            crate::server::game::set_block(world, pos, air, false);
         }
     }
 }

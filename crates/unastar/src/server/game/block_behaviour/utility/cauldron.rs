@@ -259,8 +259,8 @@ fn change(world: &mut World, pos: IVec3, before: Contents, after: Contents, id: 
 }
 
 /// Play the LevelSoundEvent `name` at the centre of `pos` (data −1).
-fn sound(world: &World, pos: IVec3, name: &str) {
-    crate::entity::mob::net::sound::play_level_sound(world, None, centre(pos), name, -1);
+fn sound(world: &mut World, pos: IVec3, name: &str) {
+    crate::server::game::blocks::queue_level_sound(world, None, centre(pos), name, -1);
 }
 
 /// Destroy the contents of the cauldron at `pos` (mixing what does not

@@ -4,9 +4,9 @@
 //! Measured (BDS 1.26.51): filling a 3×3×3 box answers
 //! `commands.fill.success [27]` (success count 1), both with glass over air
 //! and with air over that glass; a box over 32768 blocks answers
-//! `commands.fill.tooManyBlocks [<volume>, 32768]`. BDS sends the changes as
-//! `UpdateSubChunkBlocks`; unastar's block path sends one `UpdateBlock` per
-//! block.
+//! `commands.fill.tooManyBlocks [<volume>, 32768]`. The changes go out with
+//! update flags 2 (network only), batched per sub-chunk into
+//! `UpdateSubChunkBlocks` by the block path, as BDS sends them.
 //!
 //! [INFERENCE] The count is the number of blocks that changed, and a fill
 //! that changes nothing answers `commands.fill.failed`. A replace filter
@@ -14,7 +14,9 @@
 
 use super::setblock::{BlockSpec, box_loaded, volume};
 use crate::command::prelude::*;
-use crate::server::game::blocks::{block_at, destroy_block, set_block};
+use crate::server::game::blocks::{
+    UPDATE_FLAGS_NETWORK, block_at, destroy_block, set_block_with_flags,
+};
 use crate::world::chunk::blocks::AIR;
 
 /// The most blocks one `/fill` may cover.
@@ -177,7 +179,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: FillArgs) -> CommandResult {
                     destroy_block(ctx.world, pos);
                 }
                 if block_at(ctx.world, (x, y, z)) != Some(new) {
-                    set_block(ctx.world, pos, new, false);
+                    set_block_with_flags(ctx.world, pos, new, false, UPDATE_FLAGS_NETWORK);
                 }
                 changed += 1;
             }

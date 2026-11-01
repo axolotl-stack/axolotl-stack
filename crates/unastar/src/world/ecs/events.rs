@@ -1,16 +1,14 @@
 //! Block change events for the ECS world.
 //!
-//! This module provides two event types for block modifications:
+//! This module provides the block change trigger:
 //! - `BlockChanged`: Immediate trigger for game logic (physics, lighting, redstone)
-//! - `BlockBroadcastEvent`: a change whose UpdateBlock waits for the next tick
 //!
 //! ## Architecture
 //!
 //! Block changes follow a three-consumer pattern:
 //! 1. **Game Logic** (immediate): Observers react to `BlockChanged` synchronously
-//! 2. **Network**: `blocks::set_block` sends UpdateBlock at once; changes made
-//!    by actors (and plugins) are `BlockBroadcastEvent`s sent at the start of
-//!    the next tick (`blocks::send_actor_block_changes`)
+//! 2. **Network**: `blocks::set_block` queues the change; `blocks::send_block_updates`
+//!    sends the tick's changes at the start of the next tick
 //! 3. **Persistence** (lazy): ChunkStateFlags::DIRTY marked for eventual save
 
 use bevy_ecs::prelude::*;
@@ -35,20 +33,6 @@ pub struct BlockChanged {
     /// Previous block runtime ID (before the change).
     pub old_block: u32,
     /// New block runtime ID (after the change).
-    pub new_block: u32,
-}
-
-/// A block change made by an actor or a plugin during the tick: its
-/// UpdateBlock goes to the chunk's viewers at the start of the next tick
-/// (`blocks::send_actor_block_changes`), as BDS 1.26.51 sends actor-made
-/// block changes. Every other change is sent at once by `blocks::set_block`.
-#[derive(Message, Debug, Clone)]
-pub struct BlockBroadcastEvent {
-    /// The chunk entity containing this block.
-    pub chunk_entity: Entity,
-    /// World position of the changed block.
-    pub block_pos: IVec3,
-    /// New block runtime ID.
     pub new_block: u32,
 }
 
@@ -109,17 +93,6 @@ mod tests {
         assert_eq!(event.block_pos.x, 10);
         assert_eq!(event.old_block, 1);
         assert_eq!(event.new_block, 0);
-    }
-
-    #[test]
-    fn test_block_broadcast_event() {
-        let event = BlockBroadcastEvent {
-            chunk_entity: Entity::PLACEHOLDER,
-            block_pos: IVec3::new(5, 32, 15),
-            new_block: 42,
-        };
-        assert_eq!(event.block_pos.y, 32);
-        assert_eq!(event.new_block, 42);
     }
 
     #[test]

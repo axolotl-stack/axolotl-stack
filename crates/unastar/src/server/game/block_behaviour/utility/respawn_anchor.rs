@@ -187,8 +187,8 @@ pub fn tell(world: &World, player: Entity, key: &str) {
 }
 
 /// Play the level sound `name` at the centre of `pos`, data −1.
-fn anchor_sound(world: &World, pos: IVec3, name: &str) {
-    crate::entity::mob::net::sound::play_level_sound(world, None, centre(pos), name, -1);
+fn anchor_sound(world: &mut World, pos: IVec3, name: &str) {
+    crate::server::game::blocks::queue_level_sound(world, None, centre(pos), name, -1);
 }
 
 fn charge_of(entry: &BlockEntry, state: u32) -> i32 {

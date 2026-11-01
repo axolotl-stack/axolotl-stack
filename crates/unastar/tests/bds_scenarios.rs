@@ -79,11 +79,13 @@ fn config(case: &Case, port: u16, operator: &str, players: &Path) -> UnastarConf
     match world.kind {
         WorldKind::Superflat => {
             config.world.generator = unastar::world::WorldGenerator::VanillaFlat;
+            // Spawn locations are eye positions: feet at y=-60, as on BDS
+            // (whose StartGame and MovePlayer carry the eye height).
             config.spawn_rules = vec![SpawnRule {
                 always_at_location: true,
                 location: Some(SpawnLocation {
                     x: 0.5,
-                    y: -60.0,
+                    y: -60.0 + 1.62,
                     z: 0.5,
                     ..SpawnLocation::default()
                 }),

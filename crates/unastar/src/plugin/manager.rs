@@ -1187,7 +1187,7 @@ mod tests {
         use crate::entity::components::{GameMode, HeldSlot, MainInventory, Position};
         use crate::server::game::types::{BlockRegistryResource, ItemRegistryResource};
         use crate::world::chunk::{Chunk, blocks};
-        use crate::world::ecs::{BlockBroadcastEvent, ChunkData, ChunkManager, ChunkPosition};
+        use crate::world::ecs::{ChunkData, ChunkManager, ChunkPosition};
         use std::sync::Arc;
         for (allow, subscription) in [
             (false, EventKind::BlockPlace),
@@ -1217,7 +1217,7 @@ mod tests {
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
             world.insert_resource(crate::ecs::events::ActionQueue::default());
-            world.insert_resource(bevy_ecs::message::Messages::<BlockBroadcastEvent>::default());
+            world.insert_resource(crate::server::game::blocks::PendingBlockUpdates::default());
             world.insert_resource(ChunkManager::new(
                 crate::world::WorldConfig::void_spawn_platform(1),
             ));

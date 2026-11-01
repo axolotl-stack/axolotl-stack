@@ -371,7 +371,7 @@ fn switch(
 ) {
     crate::server::game::blocks::set_block(world, pos, next, false);
     let wire = crate::server::game::types::block_network_ids(world).to_wire(next);
-    crate::entity::mob::net::sound::play_level_sound(world, None, centre(pos), sound, wire as i32);
+    crate::server::game::blocks::queue_level_sound(world, None, centre(pos), sound, wire as i32);
     game_event(world, centre(pos), event, source, None);
 }
 

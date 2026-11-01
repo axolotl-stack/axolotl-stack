@@ -147,7 +147,7 @@ pub fn use_block(world: &mut World, player: Entity, pos: IVec3, _state: u32) -> 
         total_pages: pages(&stack),
     };
     store_book(world, pos, Some(&laid));
-    crate::entity::mob::net::sound::play_level_sound(
+    crate::server::game::blocks::queue_level_sound(
         world,
         None,
         pos.as_dvec3(),

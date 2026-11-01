@@ -44,8 +44,8 @@ pub const READY_DELAY: u64 = 20;
 pub const LEVEL_EVENT_COMPOSTED: i32 = 2005;
 
 /// Play the LevelSoundEvent `name` at the centre of `pos` (data −1).
-fn sound(world: &World, pos: IVec3, name: &str) {
-    crate::entity::mob::net::sound::play_level_sound(world, None, centre(pos), name, -1);
+fn sound(world: &mut World, pos: IVec3, name: &str) {
+    crate::server::game::blocks::queue_level_sound(world, None, centre(pos), name, -1);
 }
 
 /// Composting chance (percent) of the items without a

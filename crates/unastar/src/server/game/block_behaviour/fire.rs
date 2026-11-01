@@ -571,7 +571,7 @@ pub fn punch(world: &mut World, pos: IVec3, face: u8) -> bool {
     if !is_fire(&registry, state) {
         return false;
     }
-    crate::entity::mob::net::sound::play_level_sound(
+    crate::server::game::blocks::queue_level_sound(
         world,
         None,
         super::centre(target),

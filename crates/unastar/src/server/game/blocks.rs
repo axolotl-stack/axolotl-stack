@@ -12,7 +12,7 @@ use super::packet_queues::{BlockAction, BlockPacketQueue};
 use crate::ecs::events::{EventBuffer, ServerEvent};
 use crate::entity::components::{BreakingState, PlayerSession, PlayerUuid};
 use crate::world::chunk::blocks;
-use crate::world::ecs::{BlockBroadcastEvent, BlockChanged, ChunkManager, ChunkViewers};
+use crate::world::ecs::{BlockChanged, ChunkManager, ChunkViewers};
 use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
 use jolyne::valentine::types::{BlockPos, EnumsPlayerActionType, Vec3};
 use jolyne::valentine::{LevelEventPacket, McpePacket};
@@ -447,6 +447,27 @@ fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
     }
 }
 
+/// The block each player clicked for its pending placement, read when the
+/// placement commits ([`resync_placement`]).
+#[derive(Resource, Debug, Default)]
+pub(crate) struct PlacementClicks(std::collections::HashMap<Entity, (i32, i32, i32)>);
+
+/// After a placement, the placing player gets the clicked block and the
+/// placed one at once, each with the blocks above and below it (six
+/// UpdateBlocks, as BDS 1.26.51 answers every placement), before the
+/// viewers' update of the next tick.
+fn resync_placement(world: &mut World, entity: Entity, placed: (i32, i32, i32)) {
+    let clicked = world
+        .get_resource_mut::<PlacementClicks>()
+        .and_then(|mut clicks| clicks.0.remove(&entity))
+        .unwrap_or(placed);
+    for (x, y, z) in [clicked, placed] {
+        for dy in [0, 1, -1] {
+            correct_block(world, entity, (x, y + dy, z));
+        }
+    }
+}
+
 /// Called only after the plugin manager has accepted this queued intent.
 /// Revalidation closes races between packet processing and plugin dispatch.
 pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
@@ -512,13 +533,13 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                 *item = item.grow(-1);
             }
             super::inventory::resync_inventory(world, *entity);
-            correct_block(world, *entity, *position);
+            resync_placement(world, *entity, *position);
         }
         _ => {}
     }
 }
 
-pub(crate) fn reject_block_event(world: &World, event: &ServerEvent) {
+pub(crate) fn reject_block_event(world: &mut World, event: &ServerEvent) {
     match event {
         ServerEvent::BlockBreak {
             entity, position, ..
@@ -528,6 +549,11 @@ pub(crate) fn reject_block_event(world: &World, event: &ServerEvent) {
         } => {
             correct_block(world, *entity, *position);
             super::inventory::resync_inventory(world, *entity);
+            if let ServerEvent::BlockPlace { .. } = event
+                && let Some(mut clicks) = world.get_resource_mut::<PlacementClicks>()
+            {
+                clicks.0.remove(entity);
+            }
         }
         _ => {}
     }
@@ -650,11 +676,12 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
     }
 }
 
-/// Broadcast block break effects (particles, sound) to viewers; the
-/// breaking player also gets the UpdateBlock when it does not view the
-/// chunk ([`set_block`] already sent it to the viewers).
+/// Broadcast block break effects to viewers: the particles at once, the
+/// sound with the block's update ([`queue_block_sound`]); the breaking
+/// player also gets the UpdateBlock at once when it does not view the
+/// chunk (the viewers get it from [`send_block_updates`]).
 fn broadcast_block_break(
-    world: &World,
+    world: &mut World,
     breaking_player: Entity,
     chunk_entity: Entity,
     x: i32,
@@ -697,29 +724,27 @@ fn broadcast_block_break(
         fire_at_position: None,
     };
 
-    if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
-        let mut sent_to = std::collections::HashSet::new();
-
-        for viewer_entity in chunk_viewers.iter() {
-            if let Some(session) = world.get::<PlayerSession>(viewer_entity) {
-                let _ = session.send(McpePacket::from(particle_packet.clone()));
-                let _ = session.send(McpePacket::from(sound_packet.clone()));
-                sent_to.insert(viewer_entity);
-            }
+    let viewers: Vec<Entity> = world
+        .get::<ChunkViewers>(chunk_entity)
+        .map(|viewers| viewers.iter().collect())
+        .unwrap_or_default();
+    for viewer in &viewers {
+        if let Some(session) = world.get::<PlayerSession>(*viewer) {
+            let _ = session.send(McpePacket::from(particle_packet.clone()));
         }
-
-        if !sent_to.contains(&breaking_player)
-            && let Some(session) = world.get::<PlayerSession>(breaking_player)
-        {
-            let _ = session.send(McpePacket::from(update_packet));
-            let _ = session.send(McpePacket::from(particle_packet));
-            let _ = session.send(McpePacket::from(sound_packet));
-        }
-    } else if let Some(session) = world.get::<PlayerSession>(breaking_player) {
+    }
+    if !viewers.contains(&breaking_player)
+        && let Some(session) = world.get::<PlayerSession>(breaking_player)
+    {
         let _ = session.send(McpePacket::from(update_packet));
         let _ = session.send(McpePacket::from(particle_packet));
-        let _ = session.send(McpePacket::from(sound_packet));
+        let _ = session.send(McpePacket::from(sound_packet.clone()));
     }
+    queue_block_sound(
+        world,
+        glam::DVec3::new(f64::from(x) + 0.5, f64::from(y) + 0.5, f64::from(z) + 0.5),
+        McpePacket::from(sound_packet),
+    );
 }
 
 /// The stack in the player's selected hotbar slot, if any.
@@ -976,6 +1001,10 @@ pub(super) fn handle_block_click(
         .get::<PlayerUuid>(entity)
         .map(|id| id.0.to_string())
         .unwrap_or_default();
+    world
+        .get_resource_or_init::<PlacementClicks>()
+        .0
+        .insert(entity, clicked);
     if let Some(mut events) = world.get_resource_mut::<EventBuffer>() {
         events.push(ServerEvent::BlockPlace {
             entity,
@@ -1053,17 +1082,29 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
     set_block(world, IVec3::new(x, y, z), block_runtime_id, true);
 }
 
+/// Update flags of an ordinary block change: neighbours and network.
+pub(crate) const UPDATE_FLAGS: u32 = BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK;
+/// Update flags of a `/fill` change: network only.
+pub(crate) const UPDATE_FLAGS_NETWORK: u32 = BLOCK_UPDATE_NETWORK;
+
 /// Set a block at world coordinates: the one path every block change takes.
-/// Writes the chunk, sends the chunk's viewers one UpdateBlock (with the
-/// place sound when `place_sound`), schedules gravity checks for the block
-/// and the one above it, then runs the neighbour updates of
-/// [`super::block_behaviour`] (attached blocks that lost their support
-/// break, connections recompute).
-///
-/// The UpdateBlock goes out at once, except for a change an actor makes
-/// ([`changed_by_actor`]): that one waits for the start of the next tick
-/// ([`send_actor_block_changes`]).
+/// Writes the chunk, queues the change (and the place sound when
+/// `place_sound`) for the chunk's viewers ([`send_block_updates`]),
+/// schedules gravity checks for the block and the one above it, then runs
+/// the neighbour updates of [`super::block_behaviour`] (attached blocks that
+/// lost their support break, connections recompute).
 pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    set_block_with_flags(world, pos, block_runtime_id, place_sound, UPDATE_FLAGS);
+}
+
+/// [`set_block`] with the update `flags` the viewers receive.
+pub(crate) fn set_block_with_flags(
+    world: &mut World,
+    pos: IVec3,
+    block_runtime_id: u32,
+    place_sound: bool,
+    flags: u32,
+) {
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
@@ -1106,32 +1147,11 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
         new_block: block_runtime_id,
     });
 
-    let by_actor = world
-        .get_resource::<ActorBlockChanges>()
-        .is_some_and(|changes| changes.0 > 0);
-    if by_actor {
-        world.write_message(BlockBroadcastEvent {
-            chunk_entity,
-            block_pos: IVec3::new(x, y, z),
-            new_block: block_runtime_id,
-        });
-    }
-
+    queue_block_update(world, chunk_entity, pos, block_runtime_id, flags);
     super::falling::schedule_gravity_checks(world, pos);
-
-    // Broadcast to viewers
-    if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
-        use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
-
+    if place_sound && world.get::<ChunkViewers>(chunk_entity).is_some() {
         let wire_block = super::types::block_network_ids(world).to_wire(block_runtime_id);
-        let update_packet = UpdateBlockPacket {
-            block_position: BlockPos { x, y, z },
-            block_runtime_id: wire_block,
-            flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
-            layer: 0,
-        };
-
-        let sound_packet = place_sound.then(|| LevelSoundEventPacket {
+        let packet = McpePacket::from(jolyne::valentine::LevelSoundEventPacket {
             sound_event: "place".into(),
             position: Vec3 {
                 x: x as f32 + 0.5,
@@ -1145,17 +1165,7 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
             actor_unique_id: 0,
             fire_at_position: None,
         });
-
-        for viewer_entity in chunk_viewers.iter() {
-            if let Some(session) = world.get::<PlayerSession>(viewer_entity) {
-                if !by_actor {
-                    let _ = session.send(McpePacket::from(update_packet.clone()));
-                }
-                if let Some(sound) = &sound_packet {
-                    let _ = session.send(McpePacket::from(sound.clone()));
-                }
-            }
-        }
+        queue_block_sound(world, pos.as_dvec3() + glam::DVec3::splat(0.5), packet);
     }
 
     if old_block_id != block_runtime_id {
@@ -1163,57 +1173,151 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
     }
 }
 
-/// Nesting depth of [`changed_by_actor`]: above zero, [`set_block`] queues
-/// the UpdateBlock for the next tick.
+/// Block changes and block sounds waiting for [`send_block_updates`]. BDS
+/// 1.26.51 sends every block change once, at the start of the tick after
+/// the change (whether a player's action, a command, a block tick or an
+/// actor made it): a command's UpdateBlock arrives a tick after its
+/// feedback, a placement's a tick after the placing player's resync, a
+/// zombie's door break a tick after its crash event. The sounds of block
+/// changes go out with them, after the tick's block updates.
 #[derive(Resource, Debug, Default)]
-pub(crate) struct ActorBlockChanges(u32);
-
-/// Run `change`, a block change an actor makes during the entity tick (a
-/// mob breaking a door, a projectile putting out fire). BDS 1.26.51 sends
-/// those changes with the next tick's block updates, before that tick's
-/// actors move (measured: a zombie's door break reaches the client one
-/// tick after its crash event, as the next tick's first packet), so their
-/// UpdateBlocks wait for [`send_actor_block_changes`]. Sounds and particles
-/// still go out at once.
-pub(crate) fn changed_by_actor<R>(world: &mut World, change: impl FnOnce(&mut World) -> R) -> R {
-    world.get_resource_or_init::<ActorBlockChanges>().0 += 1;
-    let result = change(world);
-    world.resource_mut::<ActorBlockChanges>().0 -= 1;
-    result
+pub(crate) struct PendingBlockUpdates {
+    changes: Vec<PendingChange>,
+    sounds: Vec<(glam::DVec3, McpePacket)>,
 }
 
-/// Exclusive system (start of `PacketApplySet`, before the tick's actors):
-/// send the block changes actors (and plugins) made during the previous
-/// tick, one UpdateBlock each, in the order they were made.
-pub fn send_actor_block_changes(world: &mut World) {
-    let changes: Vec<BlockBroadcastEvent> =
-        match world.get_resource_mut::<bevy_ecs::message::Messages<BlockBroadcastEvent>>() {
-            Some(mut messages) => messages.drain().collect(),
-            None => return,
-        };
-    if changes.is_empty() {
+#[derive(Debug, Clone, Copy)]
+struct PendingChange {
+    chunk: Entity,
+    pos: IVec3,
+    state: u32,
+    flags: u32,
+}
+
+impl PendingBlockUpdates {
+    /// Queue the change of the block at `pos` (in the chunk `chunk`) to
+    /// `state`, sent with update `flags`.
+    pub(crate) fn push(&mut self, chunk: Entity, pos: IVec3, state: u32, flags: u32) {
+        self.changes.push(PendingChange {
+            chunk,
+            pos,
+            state,
+            flags,
+        });
+    }
+}
+
+/// Queue a block change for the chunk's viewers (see [`PendingBlockUpdates`]).
+pub(crate) fn queue_block_update(
+    world: &mut World,
+    chunk: Entity,
+    pos: IVec3,
+    state: u32,
+    flags: u32,
+) {
+    world
+        .get_resource_or_init::<PendingBlockUpdates>()
+        .push(chunk, pos, state, flags);
+}
+
+/// Queue a block's level sound `packet` for the viewers of `position`; it
+/// follows the block updates of the next [`send_block_updates`].
+pub(crate) fn queue_block_sound(world: &mut World, position: glam::DVec3, packet: McpePacket) {
+    world
+        .get_resource_or_init::<PendingBlockUpdates>()
+        .sounds
+        .push((position, packet));
+}
+
+/// Queue the level sound `sound` at `position` made by a block (or by
+/// `source`), as [`crate::entity::mob::net::sound::play_level_sound`]
+/// builds it.
+pub(crate) fn queue_level_sound(
+    world: &mut World,
+    source: Option<Entity>,
+    position: glam::DVec3,
+    sound: &str,
+    data: i32,
+) {
+    let packet =
+        crate::entity::mob::net::sound::level_sound_packet(world, source, position, sound, data);
+    queue_block_sound(world, position, packet);
+}
+
+/// Exclusive system (start of `PacketApplySet`, before the tick's input and
+/// actors): send the block changes of the previous tick, then their sounds.
+/// Each sub-chunk with one change gets an UpdateBlock; one with several gets
+/// a single UpdateSubChunkBlocks listing them in the order they were made.
+/// Sub-chunks go out in the order of their first change.
+pub fn send_block_updates(world: &mut World) {
+    let Some(mut pending) = world.get_resource_mut::<PendingBlockUpdates>() else {
+        return;
+    };
+    if pending.changes.is_empty() && pending.sounds.is_empty() {
         return;
     }
+    let changes = std::mem::take(&mut pending.changes);
+    let sounds = std::mem::take(&mut pending.sounds);
     let ids = super::types::block_network_ids(world);
+    let mut groups: Vec<((Entity, IVec3), Vec<PendingChange>)> = Vec::new();
     for change in changes {
-        let Some(viewers) = world.get::<ChunkViewers>(change.chunk_entity) else {
+        let key = (
+            change.chunk,
+            IVec3::new(
+                change.pos.x.div_euclid(16),
+                change.pos.y.div_euclid(16),
+                change.pos.z.div_euclid(16),
+            ),
+        );
+        match groups.iter_mut().find(|(group, _)| *group == key) {
+            Some((_, members)) => members.push(change),
+            None => groups.push((key, vec![change])),
+        }
+    }
+    let block_pos = |pos: IVec3| BlockPos {
+        x: pos.x,
+        y: pos.y,
+        z: pos.z,
+    };
+    for ((chunk, sub_chunk), members) in groups {
+        let Some(viewers) = world.get::<ChunkViewers>(chunk) else {
             continue;
         };
-        let packet = McpePacket::from(jolyne::valentine::UpdateBlockPacket {
-            block_position: BlockPos {
-                x: change.block_pos.x,
-                y: change.block_pos.y,
-                z: change.block_pos.z,
-            },
-            block_runtime_id: ids.to_wire(change.new_block),
-            flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
-            layer: 0,
-        });
+        let packet = match members.as_slice() {
+            [change] => McpePacket::from(jolyne::valentine::UpdateBlockPacket {
+                block_position: block_pos(change.pos),
+                block_runtime_id: ids.to_wire(change.state),
+                flags: change.flags,
+                layer: 0,
+            }),
+            _ => McpePacket::from(jolyne::valentine::UpdateSubChunkBlocksPacket {
+                sub_chunk_block_position: block_pos(sub_chunk * 16),
+                blocks_changed: jolyne::valentine::types::UpdateSubChunkBlocksChangedInfo {
+                    blocks_changed_standards: members
+                        .iter()
+                        .map(
+                            |change| jolyne::valentine::types::UpdateSubChunkNetworkBlockInfo {
+                                pos: block_pos(change.pos),
+                                runtime_id: ids.to_wire(change.state),
+                                update_flags: change.flags,
+                                // No actor sync message: BDS sends -1 and 0.
+                                sync_message_entity_unique_id: u64::MAX,
+                                sync_message_message: 0,
+                            },
+                        )
+                        .collect(),
+                    blocks_changed_extras: Vec::new(),
+                },
+            }),
+        };
         for viewer in viewers.iter() {
             if let Some(session) = world.get::<PlayerSession>(viewer) {
                 let _ = session.send(packet.clone());
             }
         }
+    }
+    for (position, packet) in sounds {
+        crate::entity::mob::net::sound::send_to_viewers(world, position, &packet);
     }
 }
 
@@ -1273,7 +1377,7 @@ mod tests {
         world.insert_resource(super::super::types::BlockRegistryResource(
             std::sync::Arc::new(crate::registry::BlockRegistry::vanilla().clone()),
         ));
-        world.insert_resource(Messages::<BlockBroadcastEvent>::default());
+        world.insert_resource(PendingBlockUpdates::default());
         let mut chunk = crate::world::chunk::Chunk::new(0, 0);
         chunk.set_block(1, 64, 1, *blocks::STONE);
         let chunk = world.spawn(ChunkData::new(chunk)).id();

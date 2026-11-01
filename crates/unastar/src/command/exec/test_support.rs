@@ -92,8 +92,10 @@ impl Harness {
         execute(world, source, line)
     }
 
-    /// Everything sent to `player` so far.
+    /// Everything sent to `player` so far, with the block updates queued
+    /// for the next tick.
     pub fn sent(&mut self, player: Entity) -> Vec<McpePacketData> {
+        crate::server::game::blocks::send_block_updates(self.world());
         let rx = self.receivers.get_mut(&player).expect("a harness player");
         let mut out = Vec::new();
         while let Ok(packet) = rx.try_recv() {

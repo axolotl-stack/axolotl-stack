@@ -136,7 +136,7 @@ pub fn ring(world: &mut World, pos: IVec3, swing: Horizontal) {
         .0
         .insert("Direction".into(), NBTTag::Int(tag::Int(swing.legacy())));
     actors::store(world, pos, actor);
-    crate::entity::mob::net::sound::play_level_sound(
+    crate::server::game::blocks::queue_level_sound(
         world,
         None,
         pos.as_dvec3(),
