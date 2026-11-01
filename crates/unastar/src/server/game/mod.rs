@@ -5,17 +5,25 @@
 
 pub mod attributes;
 mod block_drops;
+pub mod block_interaction;
 pub(crate) mod blocks;
 mod chunks;
 #[cfg(test)]
 mod command_tests;
 mod commands;
+pub(crate) mod container_creation;
+pub mod container_mutation;
+mod container_mutations;
 mod containers;
 pub mod durability;
 pub mod effects;
 mod falling;
+pub mod flight;
 pub mod hunger;
 mod inventory;
+pub mod inventory_effects;
+pub mod item_actions;
+pub(crate) mod item_grants;
 pub mod item_use;
 mod items;
 pub(crate) mod join;
@@ -27,21 +35,30 @@ mod packet_domains;
 mod packet_queues;
 mod packets;
 mod placement;
+pub mod player_events;
+pub mod player_state;
 mod plugins;
+pub mod potions;
+pub(crate) mod travel_authorization;
 pub mod types;
 
 use bevy_ecs::prelude::*;
 pub(crate) use block_drops::{drop_block_items, loot_stacks};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use commands::ConsoleCommands;
+pub(crate) use container_mutations::area_locked as container_area_locked;
+pub use container_mutations::{ContainerMutationLocks, complete_container_mutations};
+pub(crate) use containers::has_decoded_state as container_has_decoded_state;
+pub(crate) use containers::mutation_locked as container_cell_locked;
 pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
 pub(crate) use join::send_inventory_contents;
 use jolyne::WorldTemplate;
-use jolyne::valentine::EnumsGameType;
-use jolyne::valentine::types::{BlockPos, Vec3};
+use jolyne::valentine::GameTypejson;
+use jolyne::valentine::types::Vec3;
 pub(crate) use loot::{LootContext, LootLevel};
+pub use placement::is_replaceable;
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -63,9 +80,8 @@ use crate::entity::systems::{
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
 use crate::server::broadcast::{
-    EntityGrid, broadcast_block_updates, broadcast_despawn_system, broadcast_movement_system,
-    broadcast_spawn_system, cleanup_despawned_entities, sync_actor_viewers, sync_spatial_chunks,
-    tick_block_breaking,
+    EntityGrid, broadcast_block_updates, broadcast_spawn_system, cleanup_despawned_entities,
+    sync_actor_viewers, sync_spatial_chunks, tick_block_breaking,
 };
 use crate::storage::PlayerData;
 use crate::world::ChunkManager;
@@ -99,15 +115,62 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
     }
 }
 
-/// The stored state of a player. A player saved while dead is stored as it
-/// will respawn (respawn position, full health, fresh hunger), so it never
-/// reloads with zero health.
-fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
+/// Ordinary captures retain the current canonical death until a real new life begins.
+/// Legacy deaths without a native terminal witness use their next respawn state.
+pub(super) fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
+    if crate::plugin::manager::sessions::blocks_publication(world, entity)
+        || player_state::source_actors::admission_blocked(world, entity)
+        || player_state::source_actors::pending(world, entity)
+        || inventory_effects::grant_pending(world, entity)
+        || inventory_effects::grant_death_pending(world, entity)
+        || (world
+            .get::<crate::entity::player_life::Dead>(entity)
+            .is_some()
+            && world
+                .get::<player_state::source_actors::unowned_terminal::Witness>(entity)
+                .is_some())
+    {
+        return None;
+    }
+    if world
+        .get::<player_state::source_actors::ManagedSource>(entity)
+        .is_some()
+    {
+        return player_state::source_actors::active_record(world, entity);
+    }
+    transaction_player_record(world, entity)
+}
+
+/// Explicit validated initialization transactions are distinct from ordinary autosaves.
+/// Preserve the same durable base mode and dead-state normalization without publishing.
+pub(super) fn transaction_player_record(
+    world: &World,
+    entity: Entity,
+) -> Option<(uuid::Uuid, PlayerData)> {
+    if world.get::<player_events::DetachedPlayer>(entity).is_some() {
+        return None;
+    }
+    let (uuid, mut data) = capture_player_record(world, entity, true)?;
+    data.game_mode = game_mode_to_storage_id(crate::command::exec::base_game_mode(world, entity)?);
+    Some((uuid, data))
+}
+
+/// Capture authoritative gameplay state, optionally normalizing a dead player's
+/// ordinary persisted record to the state used at its next respawn.
+pub(super) fn capture_player_record(
+    world: &World,
+    entity: Entity,
+    normalize_dead: bool,
+) -> Option<(uuid::Uuid, PlayerData)> {
+    if inventory_effects::is_quarantined(world, entity) {
+        return None;
+    }
     use crate::entity::components::{Experience, Health, Hunger};
     let uuid = world.get::<PlayerUuid>(entity)?.0;
-    let dead = world
-        .get::<crate::entity::player_life::Dead>(entity)
-        .is_some();
+    let dead = normalize_dead
+        && world
+            .get::<crate::entity::player_life::Dead>(entity)
+            .is_some();
     let position = if dead {
         crate::entity::player_life::respawn::respawn_position(world, entity)
     } else {
@@ -141,6 +204,32 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
             exhaustion: hunger.exhaustion,
             experience: experience.level,
             experience_progress: experience.progress,
+            cold_exposure: if dead {
+                0.0
+            } else {
+                world
+                    .get::<crate::entity::freezing::FreezingState>(entity)
+                    .map_or(0.0, |state| state.strength())
+            },
+            age_ticks: world
+                .get::<crate::entity::components::Age>(entity)
+                .map_or(0, |age| age.0),
+            restoration_checkpoint: None,
+            source_actor: None,
+            native_terminal: None,
+            death_occurrence: {
+                let persisted = world
+                    .get::<inventory_effects::InventoryPersistence>(entity)
+                    .and_then(|state| state.death_occurrence());
+                let current = world.get::<crate::entity::player_life::death::NativeDeathId>(entity);
+                match (current, persisted) {
+                    (Some(current), Some(persisted)) if current.1.id == persisted.id => {
+                        Some(persisted.clone())
+                    }
+                    (Some(current), _) => Some((*current.1).clone()),
+                    (None, persisted) => persisted.cloned(),
+                }
+            },
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -157,6 +246,17 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
                 .get::<PlayerUi>(entity)
                 .map(|ui| ui.cursor().into())
                 .unwrap_or_default(),
+            ui: world
+                .get::<PlayerUi>(entity)
+                .map(|ui| ui.0.slots().iter().map(Into::into).collect())
+                .unwrap_or_default(),
+            inventory_revision: world
+                .get::<inventory_effects::InventoryPersistence>(entity)
+                .map_or(0, |state| state.revision()),
+            inventory_effects: world
+                .get::<inventory_effects::InventoryPersistence>(entity)
+                .map(|state| state.receipts().clone())
+                .unwrap_or_default(),
             held_slot: world
                 .get::<HeldSlot>(entity)
                 .map(|slot| slot.0)
@@ -167,6 +267,20 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
                 .unwrap_or_default(),
         },
     ))
+}
+
+/// Close source-world container ownership and discard queued local inputs after
+/// an accepted migration, without invoking a disconnect or another join.
+pub(crate) fn prepare_world_departure(world: &mut World, player: Entity) {
+    if let Some(crate::entity::components::ScreenKind::Block(screen)) = world
+        .get::<ContainerWindows>(player)
+        .map(|windows| windows.screen())
+    {
+        containers::stop_viewing(world, player, screen);
+    }
+    player_events::discard_input(world, player);
+    crate::server::worlds::loading::detach_chunk_viewer(world, player);
+    crate::server::broadcast::player_views::forget_world_player(world, player);
 }
 
 /// Resolve every saved slot before assigning identities or publishing player state.
@@ -218,8 +332,17 @@ fn restore_items(
             .expect("four saved armour slots");
     }
     let offhand = OffhandSlot(offhand.into_slot());
-    let mut ui = PlayerUi::default();
-    ui.set_cursor(cursor);
+    let ui = if saved.ui.is_empty() {
+        let mut ui = PlayerUi::default();
+        ui.set_cursor(cursor);
+        ui
+    } else {
+        let slots = std::mem::take(&mut saved.ui)
+            .into_iter()
+            .map(|item| item.restore(items))
+            .collect::<crate::storage::StorageResult<Vec<_>>>()?;
+        PlayerUi(Inventory::from_slots(slots))
+    };
     Ok((
         main,
         armour,
@@ -268,14 +391,14 @@ impl GameServer {
         world_template
             .start_game_template
             .settings
-            .default_spawn_block_position = BlockPos { x: 0, y: 17, z: 0 };
+            .default_spawn_block_position = jolyne::valentine::BlockPosjson { x: 0, y: 17, z: 0 };
         world_template
             .start_game_template
             .settings
             .spawn_settings
             .dimension = config.world.dimension;
-        world_template.start_game_template.game_type = EnumsGameType::Survival;
-        world_template.start_game_template.settings.game_type = EnumsGameType::Survival;
+        world_template.start_game_template.game_type = GameTypejson::Survival;
+        world_template.start_game_template.settings.game_type = GameTypejson::Survival;
         world_template
             .start_game_template
             .enable_item_stack_net_manager = true;
@@ -309,6 +432,10 @@ impl GameServer {
         let world_template = Arc::new(world_template);
         let world_config = config.world;
         let mut ecs = UnastarEcs::new();
+        ecs.world_mut()
+            .init_resource::<crate::entity::damage::DamageWorldLifetime>();
+        ecs.world_mut()
+            .init_resource::<player_events::PlayerEventHooks>();
 
         // Insert all game state as ECS Resources
         ecs.world_mut().insert_resource(definitions);
@@ -335,6 +462,8 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<crate::command::CommandRegistry>();
         ecs.world_mut().init_resource::<commands::PendingCommands>();
+        ecs.world_mut()
+            .init_resource::<block_interaction::BlockInteractionHooks>();
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
             .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
@@ -467,6 +596,9 @@ impl GameServer {
             (
                 crate::entity::definition::apply_pending_definitions,
                 crate::entity::mob::derive_mob_state,
+                crate::entity::mob::step::update_step_heights,
+                crate::entity::mob::life::anger::tick_anger,
+                crate::entity::mob::teleport::tick_teleports,
                 tick_physics,
             )
                 .chain()
@@ -474,7 +606,11 @@ impl GameServer {
         );
         // Projectiles fly after the living bodies moved.
         ecs.schedule_mut().add_systems(
-            crate::entity::projectile::tick_projectiles
+            (
+                crate::entity::projectile::tick_projectiles,
+                crate::entity::projectile::cloud::tick_clouds,
+            )
+                .chain()
                 .in_set(PhysicsSet)
                 .after(tick_physics),
         );
@@ -484,10 +620,11 @@ impl GameServer {
             (
                 crate::entity::mob::ai::tick_mob_ai,
                 crate::entity::mob::ai::push_mobs,
+                crate::entity::mob::native::motion::tick_native_motion,
             )
                 .chain()
                 .in_set(PhysicsSet)
-                .after(crate::entity::mob::derive_mob_state)
+                .after(crate::entity::mob::teleport::tick_teleports)
                 .before(tick_physics),
         );
 
@@ -545,6 +682,7 @@ impl GameServer {
                 crate::entity::mob::combat::hurt_on_condition,
                 crate::entity::mob::combat::fire::burn_in_daylight,
                 crate::entity::mob::combat::fire::burn_mobs,
+                crate::entity::freezing::tick,
                 crate::entity::mob::combat::death::die_at_zero_health,
                 crate::entity::mob::combat::death::tick_dying,
                 crate::entity::xp_orb::tick_xp_orbs,
@@ -645,8 +783,6 @@ impl GameServer {
             (
                 sync_spatial_chunks,
                 broadcast_spawn_system,
-                broadcast_movement_system,
-                broadcast_despawn_system,
                 broadcast_block_updates,
                 sync_actor_viewers,
                 crate::entity::mob::net::network::sync_mob_viewers,
@@ -654,6 +790,8 @@ impl GameServer {
                 .chain()
                 .in_set(NetworkSendSet),
         );
+        ecs.schedule_mut()
+            .add_systems(flight::sync.in_set(NetworkSendSet));
         ecs.schedule_mut()
             .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
 
@@ -687,7 +825,21 @@ impl GameServer {
         saved
     }
 
+    /// Compatibility count-returning save; failures are logged and never clear
+    /// rejected buffers. Use `try_save_all_chunks` when completion is mandatory.
     pub async fn save_all_chunks(&mut self) -> usize {
+        match self.try_save_all_chunks().await {
+            Ok(saved) => saved,
+            Err(error) => {
+                warn!(%error, "Failed to save all chunks");
+                0
+            }
+        }
+    }
+
+    /// Save all current terrain, reporting a rejected or uncertain set as an
+    /// error. Shutdown must not acknowledge buffers that storage did not accept.
+    pub async fn try_save_all_chunks(&mut self) -> crate::storage::StorageResult<usize> {
         let Some((provider, dimension)) =
             self.ecs
                 .world()
@@ -698,8 +850,44 @@ impl GameServer {
                         .map(|provider| (provider, manager.dimension()))
                 })
         else {
-            return 0;
+            return Ok(0);
         };
+
+        if provider.column_writer().is_some() {
+            crate::storage::column_runtime::settle(self.ecs.world_mut()).await?;
+            let chunks: Vec<Entity> = {
+                let world = self.ecs.world_mut();
+                let mut query = world.query_filtered::<Entity, With<ChunkPosition>>();
+                query.iter(world).collect()
+            };
+            let mut saved = 0;
+            for chunks in chunks.chunks(crate::storage::column_writer::MAX_COLUMNS) {
+                let Some(capture) =
+                    crate::storage::column_runtime::capture_changed(self.ecs.world_mut(), chunks)?
+                else {
+                    continue;
+                };
+                let changed_count = capture.columns.len();
+                let ticket =
+                    crate::storage::column_runtime::save(self.ecs.world_mut(), capture, false)?;
+                loop {
+                    crate::storage::column_runtime::poll(self.ecs.world_mut());
+                    match ticket.status() {
+                        crate::storage::column_runtime::ColumnOperationStatus::Pending => {
+                            tokio::time::sleep(std::time::Duration::from_millis(1)).await
+                        }
+                        crate::storage::column_runtime::ColumnOperationStatus::Applied(_) => {
+                            saved += changed_count;
+                            break;
+                        }
+                        crate::storage::column_runtime::ColumnOperationStatus::Failed(error) => {
+                            return Err(error.into());
+                        }
+                    }
+                }
+            }
+            return Ok(saved);
+        }
 
         // Every chunk with something to write: dirty terrain, mobs standing in
         // it, or actors stored with it earlier.
@@ -720,11 +908,11 @@ impl GameServer {
                     saved += 1;
                     crate::entity::mob::persistence::mark_saved(self.ecs.world_mut(), &snapshot);
                 }
-                Err(e) => warn!(chunk = ?snapshot.pos, error = %e, "Failed to save chunk"),
+                Err(error) => return Err(error),
             }
         }
 
-        saved
+        Ok(saved)
     }
 
     pub async fn save_player(&mut self, session_id: SessionId) -> bool {
@@ -741,7 +929,8 @@ impl GameServer {
         self.save_player_record(uuid, &data).await
     }
 
-    async fn save_player_record(&self, uuid: uuid::Uuid, data: &PlayerData) -> bool {
+    /// Acknowledge all configured account/last-position stores before publication.
+    pub(crate) async fn save_player_record(&self, uuid: uuid::Uuid, data: &PlayerData) -> bool {
         let provider = self
             .ecs
             .world()
@@ -779,11 +968,29 @@ impl GameServer {
     }
 
     pub fn spawn_player(&mut self, data: PlayerSpawnData) -> crate::storage::StorageResult<Entity> {
+        if !crate::plugin::manager::readiness::admission_allowed(self.ecs.world()) {
+            return Err(crate::storage::StorageError::RequiredComponentUnavailable);
+        }
         let player_uuid = data
             .uuid
             .as_ref()
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(uuid::Uuid::new_v4);
+        inventory_effects::allow_spawn(self.ecs.world(), player_uuid)?;
+        if player_state::restoration::account_pending(
+            self.ecs.world(),
+            player_uuid,
+            data.xuid.as_deref(),
+        ) {
+            return Err(crate::storage::StorageError::PlayerRecoveryRequired);
+        }
+        if inventory_effects::recovery_account_fenced(
+            self.ecs.world(),
+            player_uuid,
+            data.xuid.as_deref(),
+        ) {
+            return Err(crate::storage::StorageError::PlayerRecoveryRequired);
+        }
         let player_name = data.display_name.clone();
         let position = Position(data.position);
         let runtime_id = data.runtime_id;
@@ -812,9 +1019,22 @@ impl GameServer {
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;
         let mut saved_data = data.saved_data;
+        if let Some(saved) = &saved_data {
+            saved.validate(player_uuid)?;
+        }
+        let canonical_initial = saved_data.as_ref().map(|saved| Arc::new(saved.clone()));
+        let restore_checkpoint = saved_data
+            .as_ref()
+            .filter(|data| data.restoration_checkpoint.is_some())
+            .cloned();
+        let source_checkpoint = saved_data
+            .as_ref()
+            .filter(|data| data.source_actor.is_some())
+            .cloned();
+        let inventory_persistence =
+            inventory_effects::InventoryPersistence::from_record(saved_data.as_ref());
         let (main_inventory, armour, offhand, ui, ender_chest) = match saved_data.as_mut() {
             Some(saved) => {
-                saved.validate(player_uuid)?;
                 let items = &self.ecs.world().resource::<types::ItemRegistryResource>().0;
                 restore_items(saved, items)?
             }
@@ -830,6 +1050,8 @@ impl GameServer {
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
         let mut experience = crate::entity::components::Experience::default();
+        let mut cold = crate::entity::freezing::FreezingState::default();
+        let mut age = crate::entity::components::Age::default();
         if let Some(saved) = saved_data {
             rotation = Rotation::new(saved.rotation[0], saved.rotation[1]);
             game_mode = match saved.game_mode {
@@ -847,6 +1069,9 @@ impl GameServer {
             hunger.exhaustion = saved.exhaustion;
             experience.level = saved.experience;
             experience.progress = saved.experience_progress;
+            cold = crate::entity::freezing::FreezingState::from_strength(saved.cold_exposure)
+                .expect("saved cold exposure was validated before spawning");
+            age.0 = saved.age_ticks;
         }
 
         let entity = self
@@ -895,6 +1120,9 @@ impl GameServer {
         // systems send it after the player's first view and chunks.
         let (health_sent, hunger_sent) = (health.clone(), hunger.clone());
         self.ecs.world_mut().entity_mut(entity).insert((
+            inventory_persistence,
+            age,
+            cold,
             health,
             hunger,
             experience,
@@ -917,32 +1145,147 @@ impl GameServer {
             session_map.insert(data.session_id, entity);
         }
 
-        self.ecs.world_mut().write_message(PlayerSpawnedEvent {
-            entity,
-            position: data.position,
-            runtime_id,
-        });
-        self.send_join_packets(entity);
+        if let Some(record) = canonical_initial
+            && let Err(error) =
+                player_state::remember_initial_record(self.ecs.world_mut(), entity, record)
+        {
+            self.ecs
+                .world_mut()
+                .resource_mut::<SessionEntityMap>()
+                .remove(data.session_id);
+            self.ecs.world_mut().despawn(entity);
+            return Err(crate::storage::StorageError::Deserialization(
+                error.to_string(),
+            ));
+        }
+
+        if let Some(checkpoint) = restore_checkpoint
+            && let Err(error) =
+                player_state::resume_checkpoint(self.ecs.world_mut(), entity, checkpoint)
+        {
+            self.ecs
+                .world_mut()
+                .resource_mut::<SessionEntityMap>()
+                .remove(data.session_id);
+            self.ecs.world_mut().despawn(entity);
+            return Err(crate::storage::StorageError::Deserialization(
+                error.to_string(),
+            ));
+        }
+
+        if let Some(checkpoint) = source_checkpoint
+            && let Err(error) =
+                player_state::source_actors::resume(self.ecs.world_mut(), entity, &checkpoint)
+        {
+            self.ecs
+                .world_mut()
+                .resource_mut::<SessionEntityMap>()
+                .remove(data.session_id);
+            self.ecs.world_mut().despawn(entity);
+            return Err(crate::storage::StorageError::Deserialization(
+                error.to_string(),
+            ));
+        }
+        player_events::joined(self.ecs.world_mut(), entity);
+        if self.ecs.world().get::<PlayerSession>(entity).is_some() {
+            if !player_events::initial_state_pending(self.ecs.world(), entity) {
+                if self.send_join_packets(entity) {
+                    self.ecs.world_mut().write_message(PlayerSpawnedEvent {
+                        entity,
+                        position: data.position,
+                        runtime_id,
+                    });
+                    player_events::mark_initial_state_published(self.ecs.world_mut(), entity);
+                    crate::plugin::manager::sessions::published(self.ecs.world_mut(), entity);
+                } else {
+                    player_events::defer_initial_state(self.ecs.world_mut(), entity);
+                    player_events::release_initial_state(self.ecs.world_mut(), entity);
+                }
+            }
+        } else if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>()
+            && map.get(data.session_id) == Some(entity)
+        {
+            map.remove(data.session_id);
+        }
         info!(session_id = data.session_id, "Player spawned as ECS entity");
         Ok(entity)
     }
 
-    pub fn despawn_player(&mut self, session_id: SessionId) {
-        let entity = {
-            if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
-                map.remove(session_id)
-            } else {
-                None
-            }
+    /// Attach only observations owned by the current session's actual transport.
+    pub(crate) fn attach_network_metrics(
+        &mut self,
+        session_id: SessionId,
+        metrics: crate::entity::components::PlayerNetworkMetrics,
+    ) -> bool {
+        let world = self.ecs.world_mut();
+        let Some(entity) = world
+            .get_resource::<SessionEntityMap>()
+            .and_then(|map| map.get(session_id))
+        else {
+            return false;
         };
-        if let Some(entity) = entity {
-            self.ecs.world_mut().despawn(entity);
-            info!(session_id, "Player despawned");
+        if !world
+            .get::<PlayerSession>(entity)
+            .is_some_and(|session| metrics.matches(session))
+        {
+            return false;
         }
+        world.entity_mut(entity).insert(metrics);
+        true
+    }
+
+    /// Run departure policy before native persistence without tearing down its live source.
+    pub(crate) fn prepare_disconnect(&mut self, session_id: SessionId) -> bool {
+        let world = self.ecs.world_mut();
+        let Some(entity) = world.resource::<SessionEntityMap>().get(session_id) else {
+            return false;
+        };
+        player_events::prepare_quit(world, entity)
+            && world.resource::<SessionEntityMap>().get(session_id) == Some(entity)
+    }
+
+    pub fn despawn_player(&mut self, session_id: SessionId) {
+        player_events::disconnect(self.ecs.world_mut(), session_id);
     }
 
     pub fn tick(&mut self) {
+        if !crate::plugin::manager::readiness::admission_allowed(self.ecs.world()) {
+            return;
+        }
         self.ecs.tick();
+        crate::plugin::manager::players::apply_mechanics(self.ecs.world_mut());
+        self.publish_initial_states();
+    }
+
+    /// Publish explicitly released state once, including native world arrivals.
+    pub(crate) fn publish_initial_states(&mut self) {
+        crate::plugin::manager::sessions::reconcile(self.ecs.world_mut());
+        for entity in player_events::ready_initial_states(self.ecs.world_mut()) {
+            let Some(position) = self.ecs.world().get::<Position>(entity).copied() else {
+                continue;
+            };
+            let Some(runtime) = self.ecs.world().get::<RuntimeEntityId>(entity).copied() else {
+                continue;
+            };
+            if self.ecs.world().get::<PlayerSession>(entity).is_some() {
+                if !self.send_deferred_join_packets(entity) {
+                    player_events::defer_initial_state(self.ecs.world_mut(), entity);
+                    player_events::release_initial_state(self.ecs.world_mut(), entity);
+                    continue;
+                }
+                if let Some(session) = self.ecs.world().get::<PlayerSession>(entity) {
+                    session.release_initial_packets();
+                }
+                player_state::note_live_initial_sent(self.ecs.world_mut(), entity);
+            }
+            self.ecs.world_mut().write_message(PlayerSpawnedEvent {
+                entity,
+                position: position.0,
+                runtime_id: runtime.0,
+            });
+            player_events::mark_initial_state_published(self.ecs.world_mut(), entity);
+            crate::plugin::manager::sessions::published(self.ecs.world_mut(), entity);
+        }
     }
 
     fn build_creative_content(

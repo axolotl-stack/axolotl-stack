@@ -76,6 +76,8 @@ pub enum ArchetypeError {
     /// What the projectile spawns on hit is not spawnable.
     #[error(transparent)]
     Projectile(#[from] ProjectileError),
+    #[error(transparent)]
+    Ranged(#[from] super::components::ranged::RangedError),
 }
 
 /// Why the mob registry cannot be built at all (as opposed to one
@@ -111,13 +113,16 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::InLava
         | BuiltinTest::IsBaby
         | BuiltinTest::IsDifficulty
+        | BuiltinTest::IsGameRule
         | BuiltinTest::BoolProperty
         | BuiltinTest::IntProperty
         | BuiltinTest::RiderCount => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
         BuiltinTest::IsFamily
+        | BuiltinTest::IsRiding
         | BuiltinTest::HasEquipment
         | BuiltinTest::EnumProperty
+        | BuiltinTest::InContactWithWater
         | BuiltinTest::InWater
         | BuiltinTest::IsUnderwater
         | BuiltinTest::IsVehicleFamily => {
@@ -284,8 +289,17 @@ impl MobArchetype {
 fn attribute_seed(
     identifier: &str,
 ) -> Result<(AttributeLayout, Box<[AttributeValue]>), ArchetypeError> {
-    let observed = unastar_data::actor_wire::get(identifier)
-        .ok_or_else(|| ArchetypeError::NoAttributeObservation(identifier.to_owned()))?;
+    let Some(observed) = unastar_data::actor_wire::get(identifier) else {
+        if additional_attribute_profile(identifier) == Some(&[]) {
+            return Ok((
+                AttributeLayout::new(std::iter::empty::<Arc<str>>())?,
+                Box::new([]),
+            ));
+        }
+        return Err(ArchetypeError::NoAttributeObservation(
+            identifier.to_owned(),
+        ));
+    };
     let layout = AttributeLayout::new(
         observed
             .attributes
@@ -302,6 +316,19 @@ fn attribute_seed(
         })
         .collect();
     Ok((layout, values))
+}
+
+/// Explicit protocol-2193 attribute profiles absent from summonable actors.
+/// A known empty profile is distinct from an unsupported identifier.
+fn additional_attribute_profile(identifier: &str) -> Option<&'static [AttributeValue]> {
+    match identifier {
+        "minecraft:small_fireball"
+        | "minecraft:ender_pearl"
+        | "minecraft:splash_potion"
+        | "minecraft:lingering_potion"
+        | "minecraft:area_effect_cloud" => Some(&[]),
+        _ => None,
+    }
 }
 
 fn format_before(version: &str, limit: [u32; 3]) -> bool {
@@ -348,22 +375,32 @@ impl MobRegistry {
                 }
             }
         }
-        // What a projectile spawns on hit must itself be spawnable; checked
-        // once every archetype is compiled.
-        let broken: Vec<(Arc<str>, ArchetypeError)> = archetypes
-            .iter()
-            .filter(|(_, archetype)| archetype.projectile)
-            .filter_map(|(id, archetype)| {
-                projectile::check_spawns(archetype, items, |name| {
-                    archetypes.get(name).map(Arc::clone)
+        // Required references close to a fixed point: removing an unsupported
+        // projectile also invalidates shooters that require that actor.
+        loop {
+            let broken: Vec<(Arc<str>, ArchetypeError)> = archetypes
+                .iter()
+                .filter_map(|(id, archetype)| {
+                    let result = projectile::check_spawns(archetype, items, |name| {
+                        archetypes.get(name).map(Arc::clone)
+                    })
+                    .map_err(ArchetypeError::from)
+                    .and_then(|()| {
+                        super::components::ranged::check_projectiles(archetype, items, |name| {
+                            archetypes.get(name).map(Arc::clone)
+                        })
+                        .map_err(ArchetypeError::from)
+                    });
+                    result.err().map(|error| (Arc::clone(id), error))
                 })
-                .err()
-                .map(|error| (Arc::clone(id), error.into()))
-            })
-            .collect();
-        for (id, reason) in broken {
-            archetypes.remove(&id);
-            unsupported.insert(id, Arc::new(reason));
+                .collect();
+            if broken.is_empty() {
+                break;
+            }
+            for (id, reason) in broken {
+                archetypes.remove(&id);
+                unsupported.insert(id, Arc::new(reason));
+            }
         }
         Ok(Self {
             archetypes: Arc::new(archetypes),
@@ -392,5 +429,29 @@ impl MobRegistry {
 
     pub fn identifiers(&self) -> impl Iterator<Item = &str> {
         self.archetypes.keys().map(AsRef::as_ref)
+    }
+}
+
+#[cfg(test)]
+mod projectile_profile_tests {
+    use super::*;
+
+    #[test]
+    fn explicit_empty_actor_profiles_do_not_authorize_unknown_layouts() {
+        for identifier in [
+            "minecraft:small_fireball",
+            "minecraft:ender_pearl",
+            "minecraft:splash_potion",
+            "minecraft:lingering_potion",
+            "minecraft:area_effect_cloud",
+        ] {
+            let (layout, values) = attribute_seed(identifier).unwrap();
+            assert!(layout.is_empty(), "{identifier}");
+            assert!(values.is_empty(), "{identifier}");
+        }
+        assert!(matches!(
+            attribute_seed("minecraft:unknown_projectile"),
+            Err(ArchetypeError::NoAttributeObservation(_))
+        ));
     }
 }

@@ -10,9 +10,7 @@ use tracing::warn;
 use unastar_data::actor_identifiers::ActorType;
 
 use super::{ProjectileConfig, ProjectileFlight, ThrowQueue};
-use crate::entity::components::{
-    GameMode, Health, HeldSlot, MainInventory, Position, Rotation, Velocity,
-};
+use crate::entity::components::{GameMode, Player, Position, Rotation, Velocity};
 use crate::entity::definition::components::{PhysicsConfig, RawCollisionBox, ScaleConfig};
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
@@ -25,13 +23,18 @@ use crate::entity::mob::net::sound::play_level_sound;
 use crate::entity::mob::{MobSpawnError, SpawnCause, spawn_mob};
 use crate::entity::systems::physics::move_aabb;
 use crate::registry::collision::Aabb;
-use crate::server::game::send_slot;
 
 /// Why a throw produced no projectile.
 #[derive(Debug, Error)]
 pub enum LaunchError {
     #[error("the thrower has no position or rotation")]
     NoThrowerPosition,
+    #[error("the projectile aim or launch parameters are invalid")]
+    InvalidAim,
+    #[error("the shooter has no geometry for the selected launch anchor")]
+    NoAnchorGeometry,
+    #[error("actor-owned projectile damage randomization is unsupported")]
+    UnsupportedDamageRandomization,
     #[error("spawning the projectile: {0}")]
     Spawn(#[source] MobSpawnError),
     #[error("{0} has no minecraft:projectile component")]
@@ -43,6 +46,12 @@ pub enum LaunchError {
 /// The projectile actor and its climate variant label an item throws when
 /// used, if it is a throwable item.
 pub fn thrown_by(item: &str) -> Option<(ActorType, Option<&'static str>)> {
+    match item {
+        "minecraft:ender_pearl" => return Some((ActorType::EnderPearl, None)),
+        "minecraft:splash_potion" => return Some((ActorType::SplashPotion, None)),
+        "minecraft:lingering_potion" => return Some((ActorType::LingeringPotion, None)),
+        _ => {}
+    }
     if item == "minecraft:snowball" {
         return Some((ActorType::Snowball, None));
     }
@@ -100,35 +109,79 @@ pub fn apply_throws(world: &mut World) {
 }
 
 fn throw_held(world: &mut World, player: Entity) {
-    let Some((actor, climate)) = held_item(world, player).and_then(|s| thrown_by(s.item_id()))
+    let Some((actor, climate)) =
+        held_item(world, player).and_then(|stack| thrown_by(stack.item_id()))
     else {
         return;
     };
+    let Some((slot, stack)) = crate::server::game::item_use::held(world, player) else {
+        return;
+    };
+    let Some(permit) = crate::server::game::item_actions::authorize(
+        world,
+        player,
+        crate::server::game::item_actions::ItemActionKind::Launch,
+    ) else {
+        return;
+    };
+    let potion = if matches!(actor, ActorType::SplashPotion | ActorType::LingeringPotion) {
+        let Some(potion) =
+            crate::server::game::potions::ProjectilePotion::from_stack(world, &stack)
+        else {
+            return;
+        };
+        Some(potion)
+    } else {
+        None
+    };
     let mode = world.get::<GameMode>(player).copied().unwrap_or_default();
-    if mode == GameMode::Spectator || world.get::<Health>(player).is_some_and(Health::is_dead) {
+    let projectile = match launch_with(
+        world,
+        player,
+        actor,
+        climate,
+        LaunchSpec {
+            throw_sound: false,
+            ..LaunchSpec::default()
+        },
+    ) {
+        Ok(projectile) => projectile,
+        Err(error) => {
+            warn!(%error,actor=actor.name(),"Throwing a projectile failed");
+            return;
+        }
+    };
+    if !permit.is_current(world) {
+        world.despawn(projectile);
         return;
     }
-    if mode != GameMode::Creative
-        && let Some(slot) = world.get::<HeldSlot>(player).map(|s| usize::from(s.0))
-    {
-        let used = world
-            .get_mut::<MainInventory>(player)
-            .and_then(|mut inventory| {
-                let held = inventory.0.item_mut(slot)?;
-                *held = held.grow(-1);
-                Some(held.clone())
-            });
-        if let Some(stack) = used {
-            send_slot(world, player, slot, &stack);
-        }
+    if let Some(potion) = potion {
+        world
+            .get_mut::<EntityMetadata>(projectile)
+            .expect("spawned projectile metadata")
+            .set_short(ids::AUX_VALUE_DATA, potion.aux);
+        world.entity_mut(projectile).insert(potion);
     }
-    if let Err(error) = launch(world, player, actor, climate) {
-        warn!(%error, actor = actor.name(), "Throwing a projectile failed");
+    if mode != GameMode::Creative {
+        crate::server::game::item_use::set_slot(world, player, slot, stack.grow(-1));
     }
+    if let Some(eye) = world.get::<Position>(player).map(|position| position.0) {
+        play_level_sound(
+            world,
+            Some(player),
+            eye - DVec3::Y * THROW_SOUND_EYE_DROP,
+            THROW_SOUND,
+            -1,
+        );
+    }
+    permit.commit(
+        world,
+        crate::server::game::item_actions::ItemActionOutcome::Launched { projectile },
+    );
 }
 
 /// The unit view vector of a rotation (degrees; Bedrock yaw/pitch).
-fn view_direction(yaw: f32, pitch: f32) -> DVec3 {
+pub(super) fn view_direction(yaw: f32, pitch: f32) -> DVec3 {
     let (yaw, pitch) = (f64::from(yaw).to_radians(), f64::from(pitch).to_radians());
     DVec3::new(
         -yaw.sin() * pitch.cos(),
@@ -202,12 +255,73 @@ pub fn launch_with(
     climate: Option<&str>,
     spec: LaunchSpec,
 ) -> Result<Entity, LaunchError> {
+    launch_internal(world, thrower, actor, climate, spec, None)
+}
+
+/// Launch an actor-owned projectile at an authoritative world-space target.
+/// The definition chooses the shooter anchor, offset and difficulty-adjusted
+/// spread; `spec.inaccuracy` adds extra spread. Player item throwing
+/// continues to use [`launch_with`], whose origin is supplied by the item lane.
+pub fn launch_aimed(
+    world: &mut World,
+    thrower: Entity,
+    actor: ActorType,
+    target: DVec3,
+    spec: LaunchSpec,
+) -> Result<Entity, LaunchError> {
+    if !target.is_finite() {
+        return Err(LaunchError::InvalidAim);
+    }
+    launch_internal(world, thrower, actor, None, spec, Some(target))
+}
+
+/// Resolve an authored anchor without treating a mob's feet as player eyes.
+fn anchor(
+    world: &World,
+    actor: Entity,
+    kind: unastar_data::actor_components::body::ProjectileAnchor,
+) -> Result<DVec3, LaunchError> {
+    use unastar_data::actor_components::body::ProjectileAnchor;
+    let feet = crate::entity::geometry::feet_position(world, actor)
+        .ok_or(LaunchError::NoThrowerPosition)?;
+    match kind {
+        ProjectileAnchor::Origin => Ok(feet),
+        ProjectileAnchor::EyeHeight if world.get::<Player>(actor).is_some() => {
+            Ok(feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT)
+        }
+        ProjectileAnchor::EyeHeight => Err(LaunchError::NoAnchorGeometry),
+        ProjectileAnchor::Middle => crate::entity::geometry::collision_box(world, actor)
+            .map(|bounds| DVec3::new(feet.x, (bounds.min.y + bounds.max.y) * 0.5, feet.z))
+            .ok_or(LaunchError::NoAnchorGeometry),
+    }
+}
+
+/// Shared spawn path; an absent target preserves item-supplied eye origin.
+fn launch_internal(
+    world: &mut World,
+    thrower: Entity,
+    actor: ActorType,
+    climate: Option<&str>,
+    spec: LaunchSpec,
+    target: Option<DVec3>,
+) -> Result<Entity, LaunchError> {
+    if !spec.inaccuracy.is_finite()
+        || spec.inaccuracy < 0.0
+        || spec
+            .speed
+            .is_some_and(|speed| !speed.is_finite() || speed <= 0.0)
+    {
+        return Err(LaunchError::InvalidAim);
+    }
     let (Some(eye), Some(look)) = (
         world.get::<Position>(thrower).map(|p| p.0),
         world.get::<Rotation>(thrower).copied(),
     ) else {
         return Err(LaunchError::NoThrowerPosition);
     };
+    if !eye.is_finite() || !look.yaw.is_finite() || !look.pitch.is_finite() {
+        return Err(LaunchError::InvalidAim);
+    }
     let projectile = spawn_mob(world, actor.name(), eye, look.yaw, SpawnCause::Spawned)
         .map_err(LaunchError::Spawn)?;
     let Some(rules) = world
@@ -217,6 +331,15 @@ pub fn launch_with(
         world.despawn(projectile);
         return Err(LaunchError::NotProjectile(actor.name()));
     };
+    if target.is_some()
+        && rules.impact_damage.as_ref().is_some_and(|impact| {
+            impact.difficulty_randomization
+                != unastar_data::actor_components::body::ImpactDamageDifficultyRandomization::None
+        })
+    {
+        world.despawn(projectile);
+        return Err(LaunchError::UnsupportedDamageRandomization);
+    }
     if let Some(climate) = climate
         && let Some(mut properties) = world.get_mut::<ActorProperties>(projectile)
         && let Err(error) =
@@ -225,7 +348,21 @@ pub fn launch_with(
         world.despawn(projectile);
         return Err(LaunchError::Climate(error));
     }
-    let mut feet = eye;
+    let mut feet = if target.is_some() {
+        match anchor(world, thrower, rules.anchor) {
+            Ok(position) => position,
+            Err(error) => {
+                world.despawn(projectile);
+                return Err(error);
+            }
+        }
+    } else {
+        eye
+    };
+    if !feet.is_finite() {
+        world.despawn(projectile);
+        return Err(LaunchError::InvalidAim);
+    }
     if rules.offset != DVec3::ZERO {
         let (sin, cos) = f64::from(look.yaw).to_radians().sin_cos();
         let offset = DVec3::new(
@@ -245,20 +382,48 @@ pub fn launch_with(
         );
         feet = moved.aabb.feet();
     }
-    let pitch = look.pitch + rules.angle_offset * f64::from(look.pitch).to_radians().cos() as f32;
-    let mut direction = view_direction(look.yaw, pitch);
+    let (yaw, base_pitch) = match target {
+        Some(target) if target.distance_squared(feet) > 1e-12 => {
+            crate::entity::geometry::look_at(feet, target)
+        }
+        Some(_) => {
+            world.despawn(projectile);
+            return Err(LaunchError::InvalidAim);
+        }
+        None => (look.yaw, look.pitch),
+    };
+    let pitch = base_pitch + rules.angle_offset * f64::from(base_pitch).to_radians().cos() as f32;
+    let mut direction = view_direction(yaw, pitch);
     direction /= direction.length().max(0.001);
-    if spec.inaccuracy > 0.0 {
+    let authored_spread = if target.is_some() {
+        let difficulty = world
+            .get_resource::<crate::world::rules::Difficulty>()
+            .copied()
+            .unwrap_or_default();
+        (rules.uncertainty_base - f64::from(difficulty.wire()) * rules.uncertainty_multiplier)
+            .max(0.0)
+    } else {
+        0.0
+    };
+    let inaccuracy = spec.inaccuracy + authored_spread;
+    if inaccuracy > 0.0 {
         let rng = &mut world
             .get_resource_or_init::<crate::entity::EntityRandom>()
             .0;
-        let spread = 0.0172275 * spec.inaccuracy;
+        let spread = 0.0172275 * inaccuracy;
         direction += DVec3::new(gaussian(rng), gaussian(rng), gaussian(rng)) * spread;
     }
     let velocity = direction * spec.speed.unwrap_or(rules.power);
+    if !velocity.is_finite() {
+        world.despawn(projectile);
+        return Err(LaunchError::InvalidAim);
+    }
     let (yaw, pitch) = heading(velocity);
+    let attribution =
+        crate::entity::damage::DamageAttribution::capture(world, Some(projectile), Some(thrower));
     let mut entity = world.entity_mut(projectile);
     entity.insert((
+        attribution,
         Position(feet),
         Velocity(velocity),
         Rotation::new(yaw, pitch),

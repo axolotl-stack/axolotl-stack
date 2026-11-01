@@ -31,7 +31,11 @@ pub fn process_plugin_actions(
     block_registry: Res<super::types::BlockRegistryResource>,
     config: Res<super::types::ServerConfigResource>,
     chunk_manager: Res<ChunkManager>,
-    mut chunks: Query<(&mut ChunkData, &mut ChunkStateFlags)>,
+    mut chunks: Query<(
+        &mut ChunkData,
+        &mut ChunkStateFlags,
+        Has<crate::storage::column_runtime::ColumnWriteFence>,
+    )>,
     mut block_events: ResMut<bevy_ecs::message::Messages<BlockBroadcastEvent>>,
     mut players: Query<(
         &mut Position,
@@ -149,7 +153,7 @@ pub fn process_plugin_actions(
                             slot: empty_slot as u32,
                             full_container_name: Some(FullContainerName {
                                 container_name:
-                                    EnumsContainerEnumName::Combinedhotbarandinventorycontainer,
+                                    EnumsContainerEnumName::CombinedHotbarAndInventoryContainer,
                                 dynamic_id: None,
                             }),
                             storage_item: Some(protocol_item.clone()),
@@ -193,7 +197,12 @@ pub fn process_plugin_actions(
                 };
 
                 let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
-                if let Ok((mut chunk_data, mut state_flags)) = chunks.get_mut(chunk_entity) {
+                if let Ok((mut chunk_data, mut state_flags, reserved)) =
+                    chunks.get_mut(chunk_entity)
+                {
+                    if reserved {
+                        continue;
+                    }
                     chunk_data
                         .inner
                         .set_block(local_x, local_y, local_z, block_id);

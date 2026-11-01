@@ -145,7 +145,7 @@ impl CommandOutput {
     }
 }
 
-/// The `Textobject` message BDS sends a command's target alongside the
+/// The `TextObject` message BDS sends a command's target alongside the
 /// command output (`gameMode.changed`, `commands.give.successRecipient`,
 /// `commands.tp.successVictim`): a rawtext translation with text parameters.
 pub fn translation_text(key: &str, params: &[String]) -> TextPacket {
@@ -159,7 +159,7 @@ pub fn translation_text(key: &str, params: &[String]) -> TextPacket {
     TextPacket {
         localize: false,
         body: TextPacketBody::MessageOnly(TextPacketPayloadMessageOnly {
-            message_type: EnumsTextPacketType::Textobject,
+            message_type: EnumsTextPacketType::TextObject,
             message: format!("{rawtext}\n").into(),
         }),
         senders_xuid: "".into(),

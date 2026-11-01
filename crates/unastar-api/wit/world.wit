@@ -1,27 +1,79 @@
-package unastar:plugin@0.2.0;
+package unastar:plugin@0.4.0;
 
 world unastar-plugin {
     import types;
     import host;
+    import storage;
+    import archives;
+    import commands;
+    import presentation;
+    import views;
+    use presentation.{form-response, form-close-reason};
 
-    use types.{player, vec3, block-pos};
+    use types.{world-tx, player, vec3, block-pos, access-error, admission-decision, quit-event, quit-disposition, admitted-event, movement-committed, damage-proposal, damage-tuning, damage-committed, death-committed};
+    use types.{block-proposal, block-committed};
+    use types.{item-action-proposal, item-action-decision, item-action-committed};
+    use types.{travel-result, source-rebind-result};
+    use types.{travel-proposal, travel-committed};
 
     export on-load: func();
     export on-unload: func();
     export on-tick: func(tick-id: u64);
-    export on-player-join: func(player: borrow<player>, username: string);
-    export on-player-quit: func(player: borrow<player>);
-    export on-player-chat: func(player: borrow<player>, message: string) -> bool;
-    export on-block-break: func(player: borrow<player>, position: block-pos, block-id: u32) -> bool;
-    export on-block-place: func(player: borrow<player>, position: block-pos, block-id: u32) -> bool;
-    export on-player-move: func(player: borrow<player>, old-position: vec3, new-position: vec3);
-    export on-player-jump: func(player: borrow<player>);
-    export on-player-toggle-sneak: func(player: borrow<player>, is-sneaking: bool);
-    export on-player-toggle-sprint: func(player: borrow<player>, is-sprinting: bool);
-    export on-player-held-slot-change: func(player: borrow<player>, old-slot: u8, new-slot: u8);
-    export on-player-start-break: func(player: borrow<player>, position: block-pos, face: u8);
-    export on-player-interact-block: func(player: borrow<player>, position: block-pos, face: u8) -> bool;
-    export on-player-item-use: func(player: borrow<player>);
-    export on-player-swing: func(player: borrow<player>);
-    export on-timer: func(timer-id: u64);
+    /// Owned outcome of this component instance's accepted relocation request.
+    /// Schedule a retained player/world handle for fresh scoped follow-up work.
+    export on-player-travel-result: func(event: travel-result);
+    export on-source-rebind-result: func(event: source-rebind-result);
+    /// Final destination authorization before native persistence or movement.
+    /// False rejects the actual selected destination, including ordinary projectile teleports.
+    export on-player-travel: func(tx: borrow<world-tx>, player: borrow<player>, proposal: travel-proposal) -> bool;
+    /// Owned actual native movement, including ordinary item teleports without a queued request.
+    export on-player-travelled: func(event: travel-committed);
+    export on-player-admission: func(tx: borrow<world-tx>, player: borrow<player>) -> admission-decision;
+    export on-player-admitted: func(event: admitted-event);
+    export on-player-quit: func(tx: borrow<world-tx>, event: quit-event) -> quit-disposition;
+    /// False handles the request and suppresses native execution. The optional
+    /// client-supplied request identifier is opaque, not permission or uniqueness.
+    export on-player-command: func(tx: borrow<world-tx>, player: borrow<player>, line: string, request-id: option<string>) -> bool;
+    export on-player-chat: func(tx: borrow<world-tx>, player: borrow<player>, message: string) -> bool;
+    /// One veto rejects the entire actual planned batch before ordinary effects.
+    export on-block-transaction: func(tx: borrow<world-tx>, player: borrow<player>, proposal: block-proposal) -> bool;
+    /// Owned completed changes never manufacture a live player after departure.
+    export on-block-committed: func(tx: borrow<world-tx>, event: block-committed);
+    export on-block-break: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, block-id: u32) -> bool;
+    export on-block-place: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, block-id: u32) -> bool;
+    /// Return none to reject, or a feet-coordinate destination subject to final native validation.
+    export on-player-move: func(tx: borrow<world-tx>, player: borrow<player>, old-position: vec3, new-position: vec3) -> option<vec3>;
+    /// Invoked after accepted movement, never after veto, invalid input or a stale connection.
+    export on-player-moved: func(tx: borrow<world-tx>, player: borrow<player>, movement: movement-committed);
+    export on-player-jump: func(tx: borrow<world-tx>, player: borrow<player>);
+    export on-player-toggle-sneak: func(tx: borrow<world-tx>, player: borrow<player>, is-sneaking: bool);
+    export on-player-toggle-sprint: func(tx: borrow<world-tx>, player: borrow<player>, is-sprinting: bool);
+    export on-player-held-slot-change: func(tx: borrow<world-tx>, player: borrow<player>, old-slot: u8, new-slot: u8);
+    export on-player-start-break: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, face: u8);
+    export on-player-interact-block: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, face: u8) -> bool;
+    /// Proposal supersedes the scalar item-use callback for the same subscriber.
+    /// Target is a borrowed player only when the actual resolved native target is a player.
+    export on-item-action: func(tx: borrow<world-tx>, player: borrow<player>, target: option<borrow<player>>, proposal: item-action-proposal) -> item-action-decision;
+    /// Only physical native completions, not inventory persistence receipts.
+    export on-item-action-committed: func(tx: borrow<world-tx>, event: item-action-committed);
+    export on-player-item-use: func(tx: borrow<world-tx>, player: borrow<player>);
+    export on-player-swing: func(tx: borrow<world-tx>, player: borrow<player>);
+    export on-timer: func(tx: borrow<world-tx>, timer-id: u64);
+    /// Return none to cancel, or tuning subject to final native rules. Origin facts are immutable.
+    export on-player-damage: func(tx: borrow<world-tx>, player: borrow<player>, attacker: option<borrow<player>>, proposal: damage-proposal) -> option<damage-tuning>;
+    /// A notification of actual positive health loss; it cannot cancel committed effects.
+    export on-player-damaged: func(tx: borrow<world-tx>, player: borrow<player>, damage: damage-committed);
+    /// This notification cannot cancel a death or reverse its ordinary drops.
+    export on-player-death: func(tx: borrow<world-tx>, death: death-committed);
+    /// Return none to remain dead, or a feet-coordinate destination to respawn at.
+    export on-player-respawn: func(tx: borrow<world-tx>, player: borrow<player>, position: vec3) -> option<vec3>;
+    export on-player-respawned: func(tx: borrow<world-tx>, player: borrow<player>, position: vec3);
+    /// An accepted, bounded response to this component's exact current request.
+    export on-player-form-response: func(tx: borrow<world-tx>, player: borrow<player>, request-id: u64, callback-id: u64, response: form-response);
+    /// Lifetime closures carry no fabricated live player or transaction.
+    export on-form-closed: func(request-id: u64, callback-id: u64, reason: form-close-reason);
+    /// Scheduled callbacks always receive fresh scope and identity validation.
+    export on-world-task: func(tx: borrow<world-tx>, task-id: u64, callback-id: u64);
+    export on-player-task: func(tx: borrow<world-tx>, player: borrow<player>, task-id: u64, callback-id: u64);
+    export on-task-failed: func(task-id: u64, callback-id: u64, error: access-error);
 }

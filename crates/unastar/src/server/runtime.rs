@@ -3,24 +3,27 @@
 //! Provides the `UnastarServer` struct that ties together configuration,
 //! networking, and the game server tick loop.
 
-use jolyne::proto::packs::ServerPacks;
-use jolyne::status::StaticStatus;
+use jolyne::listener::RawListener;
+use jolyne::status::{ServerStatus, StatusGameMode, StatusProvider};
 use jolyne::{BedrockListener, BedrockListenerConfig, FlushMode};
 use p384::SecretKey;
 use rand::thread_rng;
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::{Semaphore, broadcast, mpsc};
-use tokio_raknet::RaknetListener;
+use tokio::task::{JoinHandle, JoinSet};
 use tracing::{error, info, trace, warn};
 
 use crate::config::{PlayerDataStore, UnastarConfig};
-use crate::network::{NetworkEvent, run_network_loop};
+use crate::network::{NetworkEvent, run_network_loop_with_metrics};
 use crate::plugin::PluginManager;
-use crate::server::connect::{accept_join_sequence, spawn_to_dvec3};
+use crate::server::connect::{JoinWorldTemplate, accept_join_sequence_in_worlds, spawn_to_dvec3};
+use crate::server::worlds::DimensionRouter;
 use crate::server::{GameServer, PlayerSpawnData};
 use crate::storage::LevelDBPlayerProvider;
+mod configured_worlds;
 
 /// Tick rate (20 TPS = 50ms per tick).
 const TICK_DURATION: Duration = Duration::from_millis(50);
@@ -40,14 +43,15 @@ const MAX_PACKET_EVENTS_PER_SESSION_PER_TICK: u32 = 64;
 pub struct UnastarServer {
     config: Arc<UnastarConfig>,
     player_data_store: Arc<PlayerDataStore>,
-    server: GameServer,
+    server: DimensionRouter,
     server_key: SecretKey,
-    plugin_manager: PluginManager,
 }
 
 impl UnastarServer {
     /// Create a new server instance from config.
     pub async fn new(config: Arc<UnastarConfig>) -> Result<Self, Box<dyn std::error::Error>> {
+        config.validate().map_err(std::io::Error::other)?;
+        configured_worlds::validate_directories(&config)?;
         let player_data_store = Arc::new(PlayerDataStore::new(config.players.data_dir.clone()));
 
         // Create ECS-based game server
@@ -58,69 +62,31 @@ impl UnastarServer {
             );
         }
 
-        // Initialize LevelDB player provider (if enabled)
         if config.players.leveldb_enabled {
             let player_db_path = config.players.data_dir.join("db");
-            match LevelDBPlayerProvider::open(&player_db_path) {
-                Ok(provider) => {
-                    info!(path = %player_db_path.display(), "Opened player LevelDB");
-                    server.ecs.world_mut().insert_resource(
-                        crate::server::game::types::PlayerProviderResource(Arc::new(provider)),
-                    );
-                }
-                Err(e) => {
-                    warn!(error = %e, "Failed to open player LevelDB, persistence disabled");
-                }
-            }
+            let provider = LevelDBPlayerProvider::open(&player_db_path)?;
+            server.ecs.world_mut().insert_resource(
+                crate::server::game::types::PlayerProviderResource(Arc::new(provider)),
+            );
+            crate::server::game::inventory_effects::prepare_shared_writer(server.ecs.world_mut())?;
         }
-
-        // Initialize world provider based on config
-        let world_db_path = std::path::PathBuf::from("worlds")
-            .join("default")
-            .join("db");
-        let dimension = config.server_config().world.dimension;
-        let storage_provider = config.server_config().world.storage_provider;
-
-        let provider: Option<Arc<dyn crate::storage::WorldProvider>> = match storage_provider {
-            crate::world::StorageProvider::LevelDb => {
-                match crate::storage::LevelDBWorldProvider::open(&world_db_path, dimension) {
-                    Ok(provider) => {
-                        info!(path = %world_db_path.display(), "Opened world LevelDB");
-                        Some(Arc::new(provider))
-                    }
-                    Err(e) => {
-                        warn!(error = %e, "Failed to open world LevelDB, chunk persistence disabled");
-                        None
-                    }
-                }
+        let primary_id =
+            configured_worlds::install(&mut server, &config.world_storage, config.world)?;
+        let mut server = DimensionRouter::new(server);
+        let mut identities = std::collections::BTreeSet::from([primary_id]);
+        for entry in &config.secondary_worlds {
+            let mut native = config.server_config();
+            native.world = entry.world;
+            let mut world = server.create_world(native)?;
+            let id = configured_worlds::install(&mut world, &entry.storage(), entry.world)?;
+            if !identities.insert(id) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "configured worlds have duplicate durable identities",
+                )
+                .into());
             }
-            crate::world::StorageProvider::BlazeDb => {
-                let cache_capacity = config.server_config().world.blazedb_cache_chunks;
-                let blaze_config = crate::storage::blazedb::BlazeConfig {
-                    cache_capacity,
-                    ..Default::default()
-                };
-                match crate::storage::BlazeDBProvider::open(&world_db_path, Some(blaze_config)) {
-                    Ok(provider) => {
-                        info!(path = %world_db_path.display(), cache_capacity, "Opened world BlazeDB");
-                        Some(provider as Arc<dyn crate::storage::WorldProvider>)
-                    }
-                    Err(e) => {
-                        warn!(error = %e, "Failed to open world BlazeDB, chunk persistence disabled");
-                        None
-                    }
-                }
-            }
-        };
-
-        if let Some(provider) = provider {
-            // Set provider on ChunkManager resource for load-before-generate
-            let world = server.ecs.world_mut();
-            if let Some(mut chunk_manager) =
-                world.get_resource_mut::<crate::world::ecs::ChunkManager>()
-            {
-                chunk_manager.set_provider(provider);
-            }
+            server.add(world)?;
         }
 
         // Server key for encryption
@@ -129,22 +95,56 @@ impl UnastarServer {
         // Initialize Plugin Manager
         let mut plugin_manager = PluginManager::new()
             .map_err(|e| format!("Failed to initialize plugin manager: {}", e))?;
+        plugin_manager.require_plugins(&config.plugins.required);
+        plugin_manager.configure_storage(&config.plugins.storage)?;
+        plugin_manager.configure_archives(&config.plugins.archives)?;
 
         // Load plugins from "plugins" directory relative to CWD
         let plugins_dir = std::env::current_dir()?.join("plugins");
         info!(path = %plugins_dir.display(), "Loading plugins from directory");
-        if let Err(e) = plugin_manager.load_plugins(&plugins_dir) {
-            warn!(error = %e, "Failed to load plugins");
+        if let Err(error) = plugin_manager.load_plugins(&plugins_dir) {
+            plugin_manager
+                .check_required()
+                .map_err(std::io::Error::other)?;
+            warn!(%error, "Optional component discovery failed");
         }
 
+        let plugin_manager = Arc::new(Mutex::new(plugin_manager));
+        for (_, world) in server.iter_mut() {
+            PluginManager::attach_to_world(Arc::clone(&plugin_manager), world.ecs.world_mut());
+        }
+        server.set_plugin_manager(plugin_manager.clone());
         info!("Plugin manager initialized, creating server struct");
         Ok(Self {
             config,
             player_data_store,
             server,
             server_key,
-            plugin_manager,
         })
+    }
+
+    /// Access the initialized game server and its ECS state.
+    pub fn game_server(&self) -> &GameServer {
+        &self.server
+    }
+
+    /// Configure the initialized game server before starting the network loop.
+    ///
+    /// Native extensions can insert ECS resources and observers or add systems to
+    /// the existing tick schedule. These changes are retained by [`Self::run`].
+    pub fn game_server_mut(&mut self) -> &mut GameServer {
+        &mut self.server
+    }
+
+    /// Read the real dimension worlds and current session routing.
+    pub fn worlds(&self) -> &DimensionRouter {
+        &self.server
+    }
+
+    /// Register and configure additional worlds before starting the listener.
+    /// Each world needs its own terrain provider and native application resources.
+    pub fn worlds_mut(&mut self) -> &mut DimensionRouter {
+        &mut self.server
     }
 
     /// Run the server main loop.
@@ -153,61 +153,103 @@ impl UnastarServer {
     pub async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         info!("run() called, starting server initialization");
 
+        self.config
+            .validate_network()
+            .map_err(std::io::Error::other)?;
+        let resource_packs = super::resource_packs::load(
+            &self.config.resource_packs,
+            self.config.server.require_resource_packs,
+        )?;
+        for (_, world) in self.server.iter_mut() {
+            world
+                .ecs
+                .world_mut()
+                .insert_resource(super::resource_packs::ConfiguredPacks(
+                    resource_packs.clone(),
+                ));
+        }
+        self.server.initialize_plugins()?;
+        let status = Arc::new(RuntimeStatus::new(&self.config));
+
         // Build listener config from server settings
         let listener_config = BedrockListenerConfig {
             online_mode: self.config.server.online_mode,
             allow_legacy_auth: self.config.server.allow_legacy_auth,
             encryption_enabled: self.config.server.encryption_enabled,
-            resource_packs: Arc::new(ServerPacks {
-                required: self.config.server.require_resource_packs,
-                ..ServerPacks::default()
-            }),
+            resource_packs,
             // Advertise the configured MOTD, live player count and limit
             // (protocol and game version come from jolyne's pinned surface).
             max_players: self.config.server.max_players as usize,
-            status: Some(Arc::new(StaticStatus::new(
-                self.config.server.motd.clone(),
-                "Unastar",
-            ))),
+            status: Some(status.clone()),
             ..Default::default()
         };
 
         // Bind listener
         let listener = BedrockListener::raknet()
             .addr(&self.config.server.bind_address)
-            .config(listener_config)
+            .config(listener_config.clone())
             .bind()
             .await?;
 
         let local_addr = listener.local_addr();
         info!("Listening on {:?}", local_addr);
+        let mut network_tasks = NetworkTasks::default();
+        let nethernet = if let Some(endpoint) = &self.config.server.nethernet {
+            let (handler, nethernet) = bind_nethernet(
+                endpoint,
+                listener_config,
+                tokio_nethernet::TransportConfig::default(),
+            )
+            .await?;
+            info!(address = ?handler.local_addr(), "NetherNet HTTP signaling listening");
+            network_tasks.endpoint = Some(handler);
+            Some(nethernet)
+        } else {
+            None
+        };
 
         // Where dead players respawn: the configured or generated world
         // spawn (no player's previous position).
-        let world_spawn = {
-            let template = self
-                .server
+        for (_, server) in self.server.iter_mut() {
+            let template = server
                 .ecs
                 .world()
                 .resource::<crate::server::game::types::ServerWorldTemplate>()
                 .0
                 .clone();
-            crate::server::resolve_spawn_location(
-                &self.config,
+            let mut config = (*self.config).clone();
+            config.spawn_rules = self
+                .config
+                .spawn_rules_for(
+                    server
+                        .ecs
+                        .world()
+                        .resource::<crate::world::ecs::ChunkManager>()
+                        .dimension(),
+                )
+                .unwrap_or(&self.config.spawn_rules)
+                .to_vec();
+            config.world = *server
+                .ecs
+                .world()
+                .resource::<crate::world::ecs::ChunkManager>()
+                .world_config();
+            let spawn = crate::server::resolve_spawn_location(
+                &config,
                 None,
                 &template,
                 &self.player_data_store,
                 None,
             )
-            .await
-        };
-        self.server.ecs.world_mut().insert_resource(
-            crate::entity::player_life::respawn::WorldSpawn(glam::DVec3::new(
-                f64::from(world_spawn.x),
-                f64::from(world_spawn.y),
-                f64::from(world_spawn.z),
-            )),
-        );
+            .await;
+            server.ecs.world_mut().insert_resource(
+                crate::entity::player_life::respawn::WorldSpawn(glam::DVec3::new(
+                    f64::from(spawn.x),
+                    f64::from(spawn.y),
+                    f64::from(spawn.z),
+                )),
+            );
+        }
 
         // Consolidated bounded event channel. This is the main inbound
         // backpressure point between network tasks and the 20 TPS game loop.
@@ -225,37 +267,57 @@ impl UnastarServer {
         ));
 
         // Spawn accept loop
-        spawn_accept_loop(
-            listener,
-            AcceptLoopState {
-                template: self
-                    .server
-                    .ecs
-                    .world()
-                    .get_resource::<crate::server::game::types::ServerWorldTemplate>()
-                    .unwrap()
-                    .0
-                    .clone(),
-                world_state: self
-                    .server
-                    .ecs
-                    .world()
-                    .resource::<crate::world::rules::StartGameWorldState>()
-                    .clone(),
-                key: self.server_key.clone(),
-                config: self.config.clone(),
-                player_data_store: self.player_data_store.clone(),
-                player_provider: self
-                    .server
-                    .ecs
-                    .world()
-                    .get_resource::<crate::server::game::types::PlayerProviderResource>()
-                    .map(|resource| resource.0.clone()),
-                event_tx,
-                tick_tx: tick_tx.clone(),
-                connection_gate,
-            },
-        );
+        let accept_state = AcceptLoopState {
+            worlds: self
+                .server
+                .iter()
+                .map(|(dimension, server)| {
+                    (
+                        dimension,
+                        JoinWorldTemplate {
+                            template: server
+                                .ecs
+                                .world()
+                                .resource::<crate::server::game::types::ServerWorldTemplate>()
+                                .0
+                                .clone(),
+                            state: server
+                                .ecs
+                                .world()
+                                .resource::<crate::world::rules::StartGameWorldState>()
+                                .clone(),
+                            world_config: *server
+                                .ecs
+                                .world()
+                                .resource::<crate::world::ecs::ChunkManager>()
+                                .world_config(),
+                        },
+                    )
+                })
+                .collect(),
+            primary: self.server.primary_dimension(),
+            key: self.server_key.clone(),
+            config: self.config.clone(),
+            player_data_store: self.player_data_store.clone(),
+            player_provider: self
+                .server
+                .ecs
+                .world()
+                .get_resource::<crate::server::game::types::PlayerProviderResource>()
+                .map(|resource| resource.0.clone()),
+            event_tx,
+            tick_tx: tick_tx.clone(),
+            connection_gate,
+            next_session_id: Arc::new(AtomicU64::new(1)),
+        };
+        network_tasks
+            .tasks
+            .push(spawn_accept_loop(listener, accept_state.clone()));
+        if let Some(nethernet) = nethernet {
+            network_tasks
+                .tasks
+                .push(spawn_accept_loop(nethernet, accept_state));
+        }
 
         // Main tick loop
         let mut interval = tokio::time::interval(TICK_DURATION);
@@ -270,6 +332,7 @@ impl UnastarServer {
         info!("Server ready, entering tick loop");
 
         let mut tick_count: u64 = 0;
+        let mut join_dimensions = HashMap::new();
 
         // TPS tracking
         let mut tps_tick_count: u32 = 0;
@@ -296,13 +359,7 @@ impl UnastarServer {
 
                     // Log TPS every 5 seconds
                     if last_tps_log.elapsed().as_secs() >= 5 {
-                        let player_count = self
-                            .server
-                            .ecs
-                            .world()
-                            .get_resource::<crate::server::game::SessionEntityMap>()
-                            .map(|m| m.len())
-                            .unwrap_or(0);
+                        let player_count: usize = self.server.iter().map(|(_,server)|server.ecs.world().resource::<crate::server::game::SessionEntityMap>().len()).sum();
                         info!(
                             tps = format!("{:.1}", current_tps),
                             players = player_count,
@@ -320,6 +377,9 @@ impl UnastarServer {
                     while let Ok(event) = event_rx.try_recv() {
                         events_processed += 1;
                         match event {
+                            NetworkEvent::WorldSelected { session_id, dimension } => {
+                                join_dimensions.insert(session_id, dimension);
+                            }
                             NetworkEvent::Joined {
                                 session_id,
                                 display_name,
@@ -343,7 +403,8 @@ impl UnastarServer {
                                     outbound_tx,
                                     chunk_radius,
                                 };
-                                if let Err(error) = self.server.spawn_player(spawn_data) {
+                                let dimension = join_dimensions.remove(&session_id).unwrap_or(self.server.primary_dimension());
+                                if let Err(error) = self.server.spawn_player_in(dimension, spawn_data) {
                                     use jolyne::valentine::{
                                         DisconnectPacket, DisconnectPacketMessages,
                                         DisconnectPacketMessagesUnion, EnumsConnectionDisconnectFailReason, McpePacket,
@@ -378,7 +439,21 @@ impl UnastarServer {
                                 }
                                 self.server.route_packet(session_id, packet_args, *packet);
                             }
+                            NetworkEvent::MetricsReady { session_id, metrics } => {
+                                self.server.attach_network_metrics(session_id, metrics);
+                            }
+                            NetworkEvent::Departed { session_id, metrics } => {
+                                if !record_departure(&mut self.server, session_id, &metrics) { continue; }
+                                join_dimensions.remove(&session_id);
+                                if !self.server.prepare_disconnect(session_id) { continue; }
+                                self.server.check_plugins()?;
+                                if self.config.players.save_on_disconnect { self.server.save_player(session_id).await; }
+                                self.server.despawn_player(session_id);
+                            }
                             NetworkEvent::Disconnected { session_id } => {
+                                join_dimensions.remove(&session_id);
+                                if !self.server.prepare_disconnect(session_id) { continue; }
+                                self.server.check_plugins()?;
                                 if self.config.players.save_on_disconnect {
                                     let saved = self.server.save_player(session_id).await;
                                     if saved {
@@ -392,12 +467,14 @@ impl UnastarServer {
 
                     let events_elapsed = tick_start.elapsed();
 
+                    status.players.store(
+                        self.server.iter().map(|(_, server)| server.ecs.world().resource::<crate::server::game::SessionEntityMap>().len()).sum(),
+                        Ordering::Relaxed,
+                    );
                     // Run game tick (this queues packets to broadcast systems)
                     let tick_logic_start = std::time::Instant::now();
-                    self.server.tick();
+                    self.server.tick().await?;
 
-                    // Run plugin tick
-                    self.plugin_manager.tick(self.server.ecs.world_mut());
                     let tick_logic_elapsed = tick_logic_start.elapsed();
 
                     // Signal all network tasks to flush their buffers
@@ -423,13 +500,15 @@ impl UnastarServer {
                             "SLOW TICK detected"
                         );
                     }
-                    if self.server.ecs.world().contains_resource::<crate::command::exec::StopRequested>() {
+                    if self.server.stop_requested() {
                         info!("Stop requested by command, saving data...");
+                        network_tasks.stop().await;
                         return self.shutdown().await;
                     }
                 }
                 _ = &mut shutdown => {
                     info!("Shutdown signal received, saving data...");
+                    network_tasks.stop().await;
                     return self.shutdown().await;
                 }
             }
@@ -438,18 +517,69 @@ impl UnastarServer {
 
     /// Saves players and chunks before the process exits.
     async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let sessions: Vec<_> = self
+            .server
+            .iter()
+            .flat_map(|(_, server)| {
+                server
+                    .ecs
+                    .world()
+                    .resource::<crate::server::game::SessionEntityMap>()
+                    .iter()
+                    .map(|(session, _)| session)
+            })
+            .collect();
+        for session in sessions {
+            if let Some((dimension, player)) = self.server.locate_session(session) {
+                self.server
+                    .world_mut(dimension)
+                    .expect("located world")
+                    .ecs
+                    .world_mut()
+                    .entity_mut(player)
+                    .insert(crate::network::departure::QuitCause::ServerShutdown);
+                self.server.prepare_disconnect(session);
+                self.server.check_plugins()?;
+            }
+        }
         let players_saved = self.server.save_all_players().await;
         info!(players = players_saved, "Player data saved");
-        let chunks_saved = self.server.save_all_chunks().await;
+        let chunks_saved = self.server.try_save_all_chunks().await?;
+        self.server.flush_worlds().await?;
         info!(chunks = chunks_saved, "Chunk data saved");
         info!("Server shutdown complete");
         Ok(())
     }
 }
 
+/// Reject a delayed observation from a different connection, even when its session ID was reused.
+fn record_departure(
+    router: &mut DimensionRouter,
+    session: u64,
+    metrics: &crate::entity::components::PlayerNetworkMetrics,
+) -> bool {
+    let Some((dimension, player)) = router.locate_session(session) else {
+        return false;
+    };
+    let world = router
+        .world_mut(dimension)
+        .expect("located world")
+        .ecs
+        .world_mut();
+    let Some(cause) = world
+        .get::<crate::entity::components::PlayerSession>(player)
+        .and_then(|session| metrics.departure(session))
+    else {
+        return false;
+    };
+    world.entity_mut(player).insert(cause);
+    true
+}
+
+#[derive(Clone)]
 struct AcceptLoopState {
-    template: Arc<jolyne::WorldTemplate>,
-    world_state: crate::world::rules::StartGameWorldState,
+    worlds: BTreeMap<i32, JoinWorldTemplate>,
+    primary: i32,
     key: SecretKey,
     config: Arc<UnastarConfig>,
     player_data_store: Arc<PlayerDataStore>,
@@ -457,15 +587,22 @@ struct AcceptLoopState {
     event_tx: mpsc::Sender<NetworkEvent>,
     tick_tx: broadcast::Sender<()>,
     connection_gate: Arc<Semaphore>,
+    next_session_id: Arc<AtomicU64>,
 }
 
 /// Spawn the accept loop as a background task.
-fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: AcceptLoopState) {
+fn spawn_accept_loop<L: RawListener + Sync + 'static>(
+    mut listener: BedrockListener<L>,
+    state: AcceptLoopState,
+) -> JoinHandle<()>
+where
+    L::Transport: 'static,
+{
     tokio::spawn(async move {
-        let mut next_session_id: u64 = 1;
+        let mut connections = JoinSet::new();
         let AcceptLoopState {
-            template,
-            world_state,
+            worlds,
+            primary,
             key,
             config,
             player_data_store,
@@ -473,10 +610,15 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
             event_tx,
             tick_tx,
             connection_gate,
+            next_session_id,
         } = state;
 
         loop {
-            match listener.accept().await {
+            let accepted = tokio::select! {
+                result = listener.accept() => result,
+                Some(_) = connections.join_next(), if !connections.is_empty() => continue,
+            };
+            match accepted {
                 Ok(handshake_stream) => {
                     let addr = handshake_stream.peer_addr();
                     info!(%addr, "Connection accepted");
@@ -493,34 +635,50 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                         }
                     };
 
-                    let template = template.clone();
-                    let world_state = world_state.clone();
+                    let worlds = worlds.clone();
                     let key = key.clone();
                     let config = config.clone();
                     let player_data_store = player_data_store.clone();
                     let player_provider = player_provider.clone();
                     let event_tx = event_tx.clone();
                     let tick_rx = tick_tx.subscribe();
-                    let session_id = next_session_id;
-                    next_session_id += 1;
+                    let session_id = match next_session_id.fetch_update(
+                        Ordering::Relaxed,
+                        Ordering::Relaxed,
+                        |id| (id < i64::MAX as u64).then_some(id + 1),
+                    ) {
+                        Ok(id) => id,
+                        Err(_) => {
+                            error!("Session identity space exhausted");
+                            break;
+                        }
+                    };
 
-                    tokio::spawn(async move {
+                    connections.spawn(async move {
                         let _connection_permit = permit;
-                        match accept_join_sequence(
-                            crate::server::connect::JoinWorld {
-                                template: &template,
-                                state: &world_state,
-                            },
-                            &key,
-                            &config,
-                            &player_data_store,
-                            player_provider.as_deref(),
-                            session_id,
-                            handshake_stream,
+                        let timeout = Duration::from_secs(config.server.handshake_timeout_seconds);
+                        match tokio::time::timeout(
+                            timeout,
+                            accept_join_sequence_in_worlds(
+                                &worlds,
+                                primary,
+                                &key,
+                                &config,
+                                &player_data_store,
+                                player_provider.as_deref(),
+                                session_id,
+                                handshake_stream,
+                            ),
                         )
                         .await
                         {
-                            Ok((mut play_stream, identity, initial_position, saved_data)) => {
+                            Ok(Ok((
+                                mut play_stream,
+                                identity,
+                                initial_position,
+                                saved_data,
+                                dimension,
+                            ))) => {
                                 let display_name = identity.display_name().to_string();
 
                                 info!(%addr, name = %display_name, "Player joined");
@@ -545,6 +703,16 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                 let (outbound_tx, outbound_rx) =
                                     mpsc::channel(OUTBOUND_CHANNEL_CAPACITY);
 
+                                if event_tx
+                                    .send(NetworkEvent::WorldSelected {
+                                        session_id,
+                                        dimension,
+                                    })
+                                    .await
+                                    .is_err()
+                                {
+                                    return;
+                                }
                                 // Send joined event
                                 if event_tx
                                     .send(NetworkEvent::Joined {
@@ -564,25 +732,180 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                     return; // Server shutting down
                                 }
 
-                                run_network_loop(
+                                let (metrics, publisher) =
+                                    crate::entity::components::PlayerNetworkMetrics::bind(
+                                        session_id,
+                                        &outbound_tx,
+                                    );
+                                if event_tx
+                                    .send(NetworkEvent::MetricsReady {
+                                        session_id,
+                                        metrics,
+                                    })
+                                    .await
+                                    .is_err()
+                                {
+                                    return;
+                                }
+                                run_network_loop_with_metrics(
                                     play_stream,
                                     session_id,
                                     event_tx,
                                     outbound_rx,
                                     tick_rx,
+                                    Some(publisher),
                                 )
                                 .await;
                             }
-                            Err(e) => {
+                            Ok(Err(e)) => {
                                 error!(%addr, "Handshake failed: {:?}", e);
+                            }
+                            Err(_) => {
+                                warn!(%addr, "Bedrock join timed out");
                             }
                         }
                     });
                 }
                 Err(e) => {
                     error!("Accept failed: {:?}", e);
+                    break;
                 }
             }
         }
-    });
+    })
+}
+
+/// Shared advertised totals across every native transport listener.
+struct RuntimeStatus {
+    name: String,
+    max: usize,
+    mode: StatusGameMode,
+    players: AtomicUsize,
+}
+impl RuntimeStatus {
+    /// Build the shared status independently of each listener's transport slots.
+    fn new(config: &UnastarConfig) -> Self {
+        let mode = match config.server.default_gamemode.to_ascii_lowercase().as_str() {
+            "creative" => StatusGameMode::Creative,
+            "adventure" => StatusGameMode::Adventure,
+            "spectator" => StatusGameMode::Spectator,
+            _ => StatusGameMode::Survival,
+        };
+        Self {
+            name: config.server.motd.clone(),
+            max: config.server.max_players as usize,
+            mode,
+            players: AtomicUsize::new(0),
+        }
+    }
+}
+impl StatusProvider for RuntimeStatus {
+    fn status(&self, _player_count: usize, _max_players: usize) -> ServerStatus {
+        ServerStatus {
+            server_name: self.name.clone(),
+            sub_name: "Unastar".into(),
+            player_count: self.players.load(Ordering::Relaxed),
+            max_players: self.max,
+            game_mode: self.mode,
+        }
+    }
+}
+
+/// Runtime-owned tasks never outlive their server or a failed startup.
+#[derive(Default)]
+struct NetworkTasks {
+    tasks: Vec<JoinHandle<()>>,
+    endpoint: Option<Arc<tokio_nethernet::endpoint::Handler>>,
+}
+impl NetworkTasks {
+    /// Stop accepting and cancel active network pumps before ordinary saves.
+    async fn stop(&mut self) {
+        if let Some(endpoint) = self.endpoint.take() {
+            endpoint.close();
+        }
+        for task in &self.tasks {
+            task.abort();
+        }
+        for task in self.tasks.drain(..) {
+            let _ = task.await;
+        }
+    }
+}
+impl Drop for NetworkTasks {
+    fn drop(&mut self) {
+        if let Some(endpoint) = &self.endpoint {
+            endpoint.close();
+        }
+        for task in &self.tasks {
+            task.abort();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;
+
+/// Bind the real HTTP signaling and identity-verifying transport together.
+/// A failed bind closes its HTTP listener instead of leaving a partial service.
+async fn bind_nethernet(
+    endpoint: &crate::config::NetherNetConfig,
+    config: BedrockListenerConfig,
+    mut transport: tokio_nethernet::TransportConfig,
+) -> Result<
+    (
+        Arc<tokio_nethernet::endpoint::Handler>,
+        BedrockListener<tokio_nethernet::NetherNetListener>,
+    ),
+    Box<dyn std::error::Error>,
+> {
+    let signing_key = endpoint
+        .signing_key_path
+        .as_ref()
+        .map(tokio_nethernet::identity::ServerSigningKey::load_or_create)
+        .transpose()?
+        .map(Arc::new);
+    let timeout = Duration::from_secs(endpoint.negotiation_timeout_seconds);
+    let handler = tokio_nethernet::endpoint::HandlerConfig {
+        negotiation_timeout: timeout,
+        ..Default::default()
+    }
+    .serve(endpoint.bind_address)
+    .await?;
+    transport.relay_only = endpoint.relay_only;
+    let result = BedrockListener::nethernet()
+        .endpoint(
+            handler.clone(),
+            tokio_nethernet::NetherNetListenerConfig {
+                signing_key,
+                connection_timeout: timeout,
+                max_pending_connections: endpoint.max_pending_connections,
+                ice_servers: endpoint
+                    .ice_servers
+                    .iter()
+                    .map(|server| tokio_nethernet::IceServer {
+                        urls: server.urls.clone(),
+                        username: server.username.clone(),
+                        password: server.password.clone(),
+                    })
+                    .collect(),
+                transport,
+                // Login authenticates the account and binds its key to the signed
+                // SDP assertion already verified against the DTLS fingerprint.
+                allow_identityless_client: false,
+                ..Default::default()
+            },
+        )
+        .config(BedrockListenerConfig {
+            encryption_enabled: false,
+            ..config
+        })
+        .bind()
+        .await;
+    match result {
+        Ok(listener) => Ok((handler, listener)),
+        Err(error) => {
+            handler.close();
+            Err(error.into())
+        }
+    }
 }

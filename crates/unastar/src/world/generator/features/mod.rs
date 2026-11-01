@@ -169,6 +169,9 @@ impl<'r, 'a, S: NativeStructureSource> RegionWorld<'r, 'a, S> {
 }
 
 impl<S: NativeStructureSource> FeatureWorld for RegionWorld<'_, '_, S> {
+    fn template_features_enabled(&self) -> bool {
+        self.source.template_features_enabled()
+    }
     fn min_y(&self) -> i32 {
         self.region.min_y()
     }

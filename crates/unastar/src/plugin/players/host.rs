@@ -1,0 +1,725 @@
+//! Typed WIT imports, with no unscoped native actor mutations.
+
+use super::*;
+use crate::plugin::manifest::PluginCapability;
+
+impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
+    fn grant_items(
+        &mut self,
+        player: Resource<wit::Player>,
+        request: String,
+        plan: Resource<wit::GrantPlan>,
+    ) -> Result<Resource<wit::InventoryOperation>, wit::InventoryError> {
+        self.grant_player_items(player.rep(), request, plan.rep())
+    }
+    fn grant_receipt(
+        &mut self,
+        player: Resource<wit::Player>,
+        request: String,
+    ) -> Result<Option<wit::InventoryReceipt>, wit::InventoryError> {
+        self.grant_receipt(player.rep(), request)
+    }
+
+    fn vitals(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::PlayerVitals, wit::AccessError> {
+        self.vitals_state(player.rep())
+    }
+    fn heal(
+        &mut self,
+        player: Resource<wit::Player>,
+        amount: f32,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_heal(player.rep(), amount)
+    }
+    fn set_food_policy(
+        &mut self,
+        player: Resource<wit::Player>,
+        policy: Option<wit::FoodPolicy>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_food_policy(player.rep(), policy)
+    }
+    fn inventory_stack(
+        &mut self,
+        player: Resource<wit::Player>,
+        area: wit::InventoryArea,
+        index: u32,
+    ) -> Result<Resource<wit::Stack>, wit::AccessError> {
+        self.inventory_mechanics_stack(player.rep(), area, index)
+    }
+    fn reorder_hotbar(
+        &mut self,
+        player: Resource<wit::Player>,
+        order: Vec<u8>,
+    ) -> Result<Resource<wit::InventoryMechanicsOperation>, wit::AccessError> {
+        self.stage_hotbar(player.rep(), order)
+    }
+    fn consume_selected(
+        &mut self,
+        player: Resource<wit::Player>,
+        expected: Resource<wit::Stack>,
+        count: u8,
+    ) -> Result<Resource<wit::InventoryMechanicsOperation>, wit::AccessError> {
+        self.stage_consumption(player.rep(), expected.rep(), count)
+    }
+    fn repair_item(
+        &mut self,
+        player: Resource<wit::Player>,
+        area: wit::InventoryArea,
+        index: u32,
+        expected: Resource<wit::Stack>,
+        points: u32,
+    ) -> Result<Resource<wit::InventoryMechanicsOperation>, wit::AccessError> {
+        self.stage_repair(player.rep(), area, index, expected.rep(), points)
+    }
+    fn state_image(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Resource<wit::PlayerStateImage>, wit::AccessError> {
+        self.capture_state_image(player.rep())
+    }
+    fn checkpoint_source(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Resource<wit::SourceActorOperation>, wit::StateError> {
+        self.checkpoint_live_source(player.rep())
+    }
+    fn checkpoint_terminal_source(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Resource<wit::SourceActorOperation>, wit::StateError> {
+        self.checkpoint_terminal_native_source(player.rep())
+    }
+    fn fence_state(
+        &mut self,
+        player: Resource<wit::Player>,
+        expected: Resource<wit::PlayerStateImage>,
+    ) -> Result<Resource<wit::SourceFence>, wit::StateError> {
+        self.stage_state_fence(player.rep(), expected.rep())
+    }
+    fn submit_state(
+        &mut self,
+        player: Resource<wit::Player>,
+        request_id: String,
+        expected: Resource<wit::PlayerStateImage>,
+        desired: Resource<wit::PlayerStateImage>,
+        source: Option<Resource<wit::SourceFence>>,
+    ) -> Result<Resource<wit::StateOperation>, wit::StateError> {
+        self.submit_player_state(
+            player.rep(),
+            request_id,
+            expected.rep(),
+            desired.rep(),
+            source.map(|source| source.rep()),
+        )
+    }
+    fn state_receipt(
+        &mut self,
+        player: Resource<wit::Player>,
+        request_id: String,
+    ) -> Result<Option<wit::InventoryReceipt>, wit::StateError> {
+        self.state_receipt(player.rep(), request_id)
+    }
+    fn archive(
+        &mut self,
+        player: Resource<wit::Player>,
+        key: String,
+    ) -> Result<wit::ArchiveReference, wit::ArchiveError> {
+        self.capture_archive(player.rep(), key)
+    }
+    fn submit_inventory(
+        &mut self,
+        player: Resource<wit::Player>,
+        request_id: String,
+        image: Resource<wit::InventoryImage>,
+    ) -> Result<Resource<wit::InventoryOperation>, wit::InventoryError> {
+        self.submit_player_inventory(player.rep(), request_id, image.rep())
+    }
+    fn inventory_receipt(
+        &mut self,
+        player: Resource<wit::Player>,
+        request_id: String,
+    ) -> Result<Option<wit::InventoryReceipt>, wit::InventoryError> {
+        self.player_inventory_receipt(player.rep(), request_id)
+    }
+    fn relocate(
+        &mut self,
+        player: Resource<wit::Player>,
+        destination: Resource<wit::WorldHandle>,
+        feet: wit::Vec3,
+        radius: u16,
+        correlation: u64,
+    ) -> Result<wit::TravelAcknowledgement, wit::AccessError> {
+        self.stage_travel(player.rep(), destination.rep(), feet, radius, correlation)
+    }
+    fn inventory(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Resource<wit::InventoryImage>, wit::AccessError> {
+        self.capture_inventory(player.rep())
+    }
+    fn inventory_busy(&mut self, player: Resource<wit::Player>) -> Result<bool, wit::AccessError> {
+        let (_, player) = self.live_player(player.rep())?;
+        self.require(PluginCapability::ReadInventory)?;
+        Ok(crate::server::game::inventory_effects::inventory_busy(
+            unsafe { self.world() },
+            player,
+        ))
+    }
+    fn mechanics(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::PlayerMechanicsState, wit::AccessError> {
+        self.mechanics_state(player.rep())
+    }
+    fn apply_effect(
+        &mut self,
+        player: Resource<wit::Player>,
+        effect: wit::EffectApplication,
+        source: Option<Resource<wit::Player>>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_effect(player.rep(), effect, source.map(|source| source.rep()))
+    }
+    fn remove_effect(
+        &mut self,
+        player: Resource<wit::Player>,
+        kind: wit::EffectKind,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_remove(player.rep(), kind)
+    }
+    fn apply_infinite_effect(
+        &mut self,
+        player: Resource<wit::Player>,
+        effect: wit::InfiniteEffectApplication,
+        source: Option<Resource<wit::Player>>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_infinite_effect(player.rep(), effect, source.map(|source| source.rep()))
+    }
+    fn clear_effects(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_clear(player.rep())
+    }
+    fn set_velocity(
+        &mut self,
+        player: Resource<wit::Player>,
+        velocity: wit::Vec3,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_velocity(player.rep(), velocity)
+    }
+    fn set_game_mode(
+        &mut self,
+        player: Resource<wit::Player>,
+        mode: wit::GameMode,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_mode(player.rep(), mode)
+    }
+    fn set_mode_override(
+        &mut self,
+        player: Resource<wit::Player>,
+        mode: Option<wit::GameMode>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_mode_override(player.rep(), mode)
+    }
+    fn set_flight_override(
+        &mut self,
+        player: Resource<wit::Player>,
+        allowed: Option<bool>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_flight(player.rep(), allowed)
+    }
+
+    fn disconnect(
+        &mut self,
+        player: Resource<wit::Player>,
+        reason: wit::ConnectionCloseReason,
+    ) -> Result<Resource<wit::ConnectionCloseRequest>, wit::ConnectionControlError> {
+        super::connection_control::stage(self, player.rep(), reason)
+    }
+    fn to_handle(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Resource<wit::PlayerHandle>, wit::AccessError> {
+        let (reference, _) = self.live_player(player.rep())?;
+        self.own_player(reference)
+    }
+    fn identity(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::PlayerIdentity, wit::AccessError> {
+        self.live_player(player.rep())
+            .map(|(reference, _)| reference.identity)
+    }
+    fn runtime_identity(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Option<wit::RuntimeIdentity>, wit::AccessError> {
+        let (_, actor) = self.live_player(player.rep())?;
+        Ok(
+            crate::entity::player_life::occurrence::runtime_identity(
+                unsafe { self.world() },
+                actor,
+            )
+            .as_ref()
+            .map(super::occurrences::runtime),
+        )
+    }
+    fn position(&mut self, player: Resource<wit::Player>) -> Result<wit::Vec3, wit::AccessError> {
+        self.live_snapshot(player.rep())
+            .map(|snapshot| snapshot.position)
+    }
+    fn rotation(&mut self, player: Resource<wit::Player>) -> Result<(f32, f32), wit::AccessError> {
+        self.live_snapshot(player.rep())
+            .map(|snapshot| snapshot.rotation)
+    }
+    fn health(&mut self, player: Resource<wit::Player>) -> Result<f32, wit::AccessError> {
+        self.live_snapshot(player.rep())
+            .map(|snapshot| snapshot.health)
+    }
+    fn max_health(&mut self, player: Resource<wit::Player>) -> Result<f32, wit::AccessError> {
+        self.live_snapshot(player.rep())
+            .map(|snapshot| snapshot.max_health)
+    }
+    fn game_mode(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::GameMode, wit::AccessError> {
+        self.live_snapshot(player.rep())
+            .map(|snapshot| snapshot.game_mode)
+    }
+    fn effective_game_mode(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::GameMode, wit::AccessError> {
+        self.live_snapshot(player.rep())
+            .map(|snapshot| snapshot.effective_game_mode)
+    }
+    fn flags(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::PlayerFlags, wit::AccessError> {
+        self.live_snapshot(player.rep())
+            .map(|snapshot| snapshot.flags)
+    }
+    fn availability(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::PlayerAvailability, wit::AccessError> {
+        let (_, player) = self.live_player(player.rep())?;
+        Ok(availability(unsafe { self.world() }, player))
+    }
+    fn configured_admin(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<bool, wit::AccessError> {
+        self.live_snapshot(player.rep())
+            .map(|snapshot| snapshot.configured_admin)
+    }
+    fn snapshot(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::PlayerSnapshot, wit::AccessError> {
+        self.live_snapshot(player.rep())
+    }
+    fn initial_state_ready(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<bool, wit::AccessError> {
+        let (_, player) = self.live_player(player.rep())?;
+        Ok(crate::server::game::player_events::initial_state_ready(
+            unsafe { self.world() },
+            player,
+        ))
+    }
+    fn defer_admission(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Resource<wit::AdmissionHold>, wit::AccessError> {
+        self.admission_hold(player.rep())
+    }
+    fn message(
+        &mut self,
+        player: Resource<wit::Player>,
+        text: String,
+    ) -> Result<(), wit::AccessError> {
+        let (reference, player) = self.live_player(player.rep())?;
+        self.require(PluginCapability::SendMessages)?;
+        if text.len() > self.api_limits.max_message_bytes as usize
+            || text.chars().any(|ch| ch.is_control() && ch != '\n')
+        {
+            return Err(wit::AccessError::InvalidArgument);
+        }
+        if unsafe { self.world() }
+            .get::<crate::entity::components::PlayerSession>(player)
+            .is_none()
+        {
+            return Err(wit::AccessError::Unavailable);
+        }
+        if self.resources.messages >= self.api_limits.max_messages_per_tick {
+            return Err(wit::AccessError::LimitExceeded);
+        }
+        self.resources.messages += 1;
+        let scope = self.resources.scope.ok_or(wit::AccessError::ExpiredScope)?;
+        self.pending_messages.push(BoundMessage {
+            reference,
+            scope,
+            text,
+        });
+        Ok(())
+    }
+    fn drop(&mut self, player: Resource<wit::Player>) -> wasmtime::Result<()> {
+        self.resources.entries.remove(&player.rep());
+        Ok(())
+    }
+}
+
+impl super::super::wit_bindings::unastar::plugin::types::HostWorldTx for HostContext {
+    fn grant_plan(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+    ) -> Result<Resource<wit::GrantPlan>, wit::InventoryError> {
+        self.new_grant_plan(tx.rep())
+    }
+
+    fn block(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        position: wit::BlockPos,
+    ) -> Result<Resource<wit::BlockCell>, wit::WorldBlockError> {
+        world_blocks::capture(self, tx.rep(), position)
+    }
+    fn edit_blocks(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+    ) -> Result<Resource<wit::BlockEdit>, wit::WorldBlockError> {
+        world_blocks::edit(self, tx.rep())
+    }
+    fn apply_blocks(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        edit: Resource<wit::BlockEdit>,
+    ) -> Result<Resource<wit::BlockEditRequest>, wit::WorldBlockError> {
+        world_blocks::stage(self, tx.rep(), edit.rep())
+    }
+    fn block_intent(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        edit: Resource<wit::BlockEdit>,
+    ) -> Result<Vec<u8>, wit::DurableBlockError> {
+        world_blocks::durable_intent(self, tx.rep(), edit.rep())
+    }
+    fn commit_blocks(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        key: String,
+        edit: Resource<wit::BlockEdit>,
+    ) -> Result<Resource<wit::DurableBlockRequest>, wit::DurableBlockError> {
+        world_blocks::durable_stage(self, tx.rep(), &key, edit.rep())
+    }
+    fn plan_container(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        expected: Resource<wit::BlockCell>,
+        kind: wit::ContainerCreateKind,
+        facing: wit::BlockFace,
+    ) -> Result<Resource<wit::ContainerPlan>, wit::DurableBlockError> {
+        world_blocks::plan_container(self, tx.rep(), expected.rep(), kind, facing)
+    }
+    fn container_intent(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        plan: Resource<wit::ContainerPlan>,
+    ) -> Result<Vec<u8>, wit::DurableBlockError> {
+        world_blocks::container_intent(self, tx.rep(), plan.rep())
+    }
+    fn commit_container(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        key: String,
+        plan: Resource<wit::ContainerPlan>,
+    ) -> Result<Resource<wit::DurableBlockRequest>, wit::DurableBlockError> {
+        world_blocks::stage_container(self, tx.rep(), &key, plan.rep())
+    }
+    fn block_receipt(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        key: String,
+    ) -> Result<Option<wit::DurableBlockStatus>, wit::DurableBlockError> {
+        world_blocks::durable_lookup(self, tx.rep(), &key)
+    }
+    fn resume_blocks(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        key: String,
+    ) -> Result<Resource<wit::DurableBlockRequest>, wit::DurableBlockError> {
+        world_blocks::durable_resume(self, tx.rep(), &key)
+    }
+    fn item(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        identifier: String,
+        count: u8,
+    ) -> Result<Resource<wit::Stack>, wit::AccessError> {
+        self.create_item(tx.rep(), &identifier, count)
+    }
+    fn world(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+    ) -> Result<Resource<wit::WorldHandle>, wit::AccessError> {
+        let scope = self.transaction(tx.rep())?;
+        self.own_world(scope.world)
+    }
+    fn players(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+    ) -> Result<Vec<Resource<wit::PlayerHandle>>, wit::AccessError> {
+        self.transaction(tx.rep())?;
+        self.require(PluginCapability::ReadPlayers)?;
+        let world = self.world_mut();
+        let count = world
+            .query_filtered::<Entity, With<crate::entity::components::Player>>()
+            .iter(world)
+            .count();
+        let mut observed = observe(world);
+        if observed.len() != count {
+            return Err(wit::AccessError::InvalidIdentity);
+        }
+        observed.sort_by_key(|actor| actor.reference.uuid);
+        if self.resources.entries.len() + observed.len()
+            > self.api_limits.max_owned_resources as usize
+        {
+            return Err(wit::AccessError::LimitExceeded);
+        }
+        observed
+            .into_iter()
+            .map(|actor| self.own_player(actor.reference))
+            .collect()
+    }
+    fn player(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        handle: Resource<wit::PlayerHandle>,
+    ) -> Result<Resource<wit::Player>, wit::AccessError> {
+        self.validate_transaction(tx.rep())?;
+        let scope = self.resources.scope.ok_or(wit::AccessError::ExpiredScope)?;
+        self.require(PluginCapability::ReadPlayers)?;
+        let reference = self.stored_player(handle.rep())?;
+        resolve(self.world_mut(), &reference)?;
+        self.resources
+            .allocate(
+                Entry::Player {
+                    reference,
+                    scope,
+                    transient: false,
+                },
+                self.api_limits.max_owned_resources,
+            )
+            .map(Resource::new_own)
+    }
+    fn drop(&mut self, tx: Resource<wit::WorldTx>) -> wasmtime::Result<()> {
+        self.resources.entries.remove(&tx.rep());
+        Ok(())
+    }
+}
+
+impl super::super::wit_bindings::unastar::plugin::types::HostPlayerHandle for HostContext {
+    fn identity(
+        &mut self,
+        handle: Resource<wit::PlayerHandle>,
+    ) -> Result<wit::PlayerIdentity, wit::AccessError> {
+        self.operation()?;
+        self.stored_player(handle.rep())
+            .map(|reference| reference.identity)
+    }
+    fn snapshot(
+        &mut self,
+        handle: Resource<wit::PlayerHandle>,
+    ) -> Result<wit::PlayerSnapshot, wit::AccessError> {
+        self.operation()?;
+        self.require(PluginCapability::ReadPlayers)?;
+        self.resources.scope.ok_or(wit::AccessError::ExpiredScope)?;
+        let reference = self.stored_player(handle.rep())?;
+        if let Ok(player) = resolve(self.world_mut(), &reference) {
+            return snapshot(unsafe { self.world() }, player, &reference);
+        }
+        let directory = unsafe { self.world() }
+            .get_resource::<ComponentDirectory>()
+            .ok_or(wit::AccessError::StalePlayer)?;
+        let actor = directory.actor(&reference)?;
+        // A cached observation must not revive a stale actor in this same world.
+        if actor.world.matches(unsafe { self.world() }) {
+            return Err(wit::AccessError::StalePlayer);
+        }
+        actor.snapshot.clone()
+    }
+    fn schedule(
+        &mut self,
+        handle: Resource<wit::PlayerHandle>,
+        callback_id: u64,
+    ) -> Result<Resource<wit::Task>, wit::AccessError> {
+        self.operation()?;
+        let target =
+            super::super::tasks::TaskTarget::Player(Box::new(self.stored_player(handle.rep())?));
+        self.schedule_task(target, callback_id)
+    }
+    fn drop(&mut self, handle: Resource<wit::PlayerHandle>) -> wasmtime::Result<()> {
+        self.resources.entries.remove(&handle.rep());
+        Ok(())
+    }
+}
+
+impl super::super::wit_bindings::unastar::plugin::types::HostWorldHandle for HostContext {
+    fn dimension(&mut self, handle: Resource<wit::WorldHandle>) -> Result<i32, wit::AccessError> {
+        self.operation()?;
+        self.stored_world(handle.rep()).map(|world| world.dimension)
+    }
+    fn schedule(
+        &mut self,
+        handle: Resource<wit::WorldHandle>,
+        callback_id: u64,
+    ) -> Result<Resource<wit::Task>, wit::AccessError> {
+        self.operation()?;
+        let target = super::super::tasks::TaskTarget::World(self.stored_world(handle.rep())?);
+        self.schedule_task(target, callback_id)
+    }
+    fn drop(&mut self, handle: Resource<wit::WorldHandle>) -> wasmtime::Result<()> {
+        self.resources.entries.remove(&handle.rep());
+        Ok(())
+    }
+}
+
+impl super::super::wit_bindings::unastar::plugin::types::HostTask for HostContext {
+    fn id(&mut self, task: Resource<wit::Task>) -> Result<u64, wit::AccessError> {
+        self.operation()?;
+        match self.resources.entries.get(&task.rep()) {
+            Some(Entry::Task(task)) => Ok(task.id),
+            _ => Err(wit::AccessError::InvalidArgument),
+        }
+    }
+    fn status(&mut self, task: Resource<wit::Task>) -> Result<wit::TaskStatus, wit::AccessError> {
+        self.operation()?;
+        match self.resources.entries.get(&task.rep()) {
+            Some(Entry::Task(task)) => Ok(task.status()),
+            _ => Err(wit::AccessError::InvalidArgument),
+        }
+    }
+    fn cancel(&mut self, task: Resource<wit::Task>) -> Result<bool, wit::AccessError> {
+        self.operation()?;
+        match self.resources.entries.get(&task.rep()) {
+            Some(Entry::Task(task)) => Ok(task.cancel()),
+            _ => Err(wit::AccessError::InvalidArgument),
+        }
+    }
+    fn drop(&mut self, task: Resource<wit::Task>) -> wasmtime::Result<()> {
+        self.resources.entries.remove(&task.rep());
+        Ok(())
+    }
+}
+
+impl super::super::wit_bindings::unastar::plugin::types::Host for HostContext {}
+
+impl super::super::wit_bindings::unastar::plugin::host::Host for HostContext {
+    fn resource_packs(
+        &mut self,
+    ) -> Result<
+        super::super::wit_bindings::unastar::plugin::host::ResourcePackOffer,
+        wit::AccessError,
+    > {
+        self.operation()?;
+        let packs = unsafe { self.world() }
+            .get_resource::<crate::server::resource_packs::ConfiguredPacks>()
+            .ok_or(wit::AccessError::Unavailable)?;
+        use super::super::wit_bindings::unastar::plugin::host::{ResourcePack, ResourcePackOffer};
+        Ok(ResourcePackOffer {
+            required: packs.0.required,
+            packs: packs
+                .0
+                .packs
+                .iter()
+                .map(|pack| ResourcePack {
+                    uuid: pack.uuid.to_string(),
+                    version: pack.version.clone(),
+                    sha256: pack.sha256().to_vec(),
+                })
+                .collect(),
+        })
+    }
+    fn configuration(&mut self) -> Vec<u8> {
+        self.configuration.clone()
+    }
+    fn get_tick_id(&mut self) -> u64 {
+        unsafe { self.world() }
+            .get_resource::<crate::ecs::resources::TickCounter>()
+            .map_or(0, |tick| tick.current)
+    }
+    fn unix_time_seconds(&mut self) -> u64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_secs())
+    }
+    fn players(&mut self) -> Result<Vec<Resource<wit::PlayerHandle>>, wit::AccessError> {
+        self.operation()?;
+        self.require(PluginCapability::ReadPlayers)?;
+        self.resources.scope.ok_or(wit::AccessError::ExpiredScope)?;
+        let current = observe(self.world_mut());
+        let mut actors = unsafe { self.world() }
+            .get_resource::<ComponentDirectory>()
+            .map(|directory| directory.actors.clone())
+            .unwrap_or_default();
+        let world_id = unsafe { self.world() }.id();
+        actors.retain(|actor| actor.world.id != world_id);
+        actors.extend(current);
+        actors.sort_by_key(|actor| (actor.world.dimension, actor.reference.uuid));
+        if self.resources.entries.len() + actors.len()
+            > self.api_limits.max_owned_resources as usize
+        {
+            return Err(wit::AccessError::LimitExceeded);
+        }
+        actors
+            .into_iter()
+            .map(|actor| self.own_player(actor.reference))
+            .collect()
+    }
+    fn worlds(&mut self) -> Result<Vec<Resource<wit::WorldHandle>>, wit::AccessError> {
+        self.operation()?;
+        self.require(PluginCapability::ReadPlayers)?;
+        self.resources.scope.ok_or(wit::AccessError::ExpiredScope)?;
+        let mut worlds = unsafe { self.world() }
+            .get_resource::<ComponentDirectory>()
+            .map(|directory| directory.worlds.clone())
+            .unwrap_or_default();
+        let current = WorldReference::of(unsafe { self.world() })?;
+        if !worlds.contains(&current) {
+            worlds.push(current);
+        }
+        if self.resources.entries.len() + worlds.len()
+            > self.api_limits.max_owned_resources as usize
+        {
+            return Err(wit::AccessError::LimitExceeded);
+        }
+        worlds
+            .into_iter()
+            .map(|world| self.own_world(world))
+            .collect()
+    }
+    fn log(&mut self, level: wit::LogLevel, message: String) {
+        if self.operation().is_err() || message.len() > self.api_limits.max_message_bytes as usize {
+            return;
+        }
+        #[cfg(test)]
+        self.test_logs.push(message.clone());
+        #[cfg(test)]
+        if let Some(engine) = &self.test_log_epoch_engine {
+            for _ in 0..3 {
+                engine.increment_epoch();
+            }
+        }
+        match level {
+            wit::LogLevel::Info => tracing::info!(plugin = %self.plugin_id, "{message}"),
+            wit::LogLevel::Warn => tracing::warn!(plugin = %self.plugin_id, "{message}"),
+            wit::LogLevel::Error => tracing::error!(plugin = %self.plugin_id, "{message}"),
+        }
+    }
+}

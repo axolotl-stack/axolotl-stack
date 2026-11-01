@@ -141,15 +141,18 @@ impl SentAttributes {
 /// it in order with its own prediction.
 #[allow(clippy::type_complexity)]
 pub fn sync_player_attributes(
-    mut players: Query<(
-        &RuntimeEntityId,
-        &PlayerSession,
-        &PlayerInput,
-        &Health,
-        &Hunger,
-        Option<&Absorption>,
-        &mut SentAttributes,
-    )>,
+    mut players: Query<
+        (
+            &RuntimeEntityId,
+            &PlayerSession,
+            &PlayerInput,
+            &Health,
+            &Hunger,
+            Option<&Absorption>,
+            &mut SentAttributes,
+        ),
+        Without<super::player_events::PendingInitialState>,
+    >,
 ) {
     for (runtime_id, session, input, health, hunger, absorb, mut sent) in &mut players {
         let changed = sent.diff(health, hunger, absorb.map_or(0.0, |a| a.0));

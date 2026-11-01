@@ -1,6 +1,4 @@
 use super::*;
-use jolyne::valentine::AddActorPacket;
-use valentine::bedrock::codec::BedrockCodec;
 
 #[test]
 fn changes_coalesce_without_mutating_an_earlier_snapshot() {
@@ -149,10 +147,7 @@ fn living_metadata_matches_native_chicken_control() {
 }
 
 fn assert_living_metadata_control(identifier: &str, bytes: &[u8]) {
-    assert_eq!(bytes[0], 0x0d);
-    let mut input = &bytes[1..];
-    let native = AddActorPacket::decode(&mut input, ()).unwrap();
-    assert!(input.is_empty());
+    let native = crate::entity::test_support::legacy_actor(bytes);
     let definition = unastar_data::actor_definitions::get(identifier).unwrap();
     let collision = &definition.components["minecraft:collision_box"];
     let body = PhysicsBody::living(

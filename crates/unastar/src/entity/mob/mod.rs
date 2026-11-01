@@ -23,6 +23,7 @@
 
 pub mod ai;
 pub mod archetype;
+pub mod carry;
 pub mod combat;
 pub mod components;
 pub mod constants;
@@ -35,6 +36,8 @@ pub mod native;
 pub mod net;
 pub mod persistence;
 pub mod state;
+pub mod step;
+pub mod teleport;
 
 #[cfg(test)]
 mod tests;
@@ -174,23 +177,33 @@ fn spawn_unattached(
             .update(actor_flags::USES_LEGACY_FRICTION, true)
             .expect("catalogue flag index");
     }
-    let metadata = if archetype.projectile {
-        // Projectiles are spawned invisible (shown from their second tick).
-        flags
-            .update(actor_flags::INVISIBLE, true)
-            .expect("catalogue flag index");
-        EntityMetadata::actor_base()
-    } else {
-        let mut metadata = EntityMetadata::living_base();
-        metadata.set_float(
-            jolyne::valentine::actor_data_i_ds::AMBIENT_SOUND_INTERVAL,
-            archetype.native.ambient_sound_interval,
-        );
-        if let Some(kind) = archetype.native.aux_value {
-            metadata.set_short(jolyne::valentine::actor_data_i_ds::AUX_VALUE_DATA, kind);
-        }
-        metadata
-    };
+    let metadata =
+        if archetype.actor_type == unastar_data::actor_identifiers::ActorType::AreaEffectCloud {
+            EntityMetadata::actor_base()
+        } else if archetype.projectile {
+            // Projectiles are spawned invisible (shown from their second tick).
+            flags
+                .update(actor_flags::INVISIBLE, true)
+                .expect("catalogue flag index");
+            EntityMetadata::actor_base()
+        } else {
+            let mut metadata = EntityMetadata::living_base();
+            if archetype.native.carried_block_display {
+                metadata.set_int(
+                    jolyne::valentine::actor_data_i_ds::DEPRECATED_CARRY_BLOCK_RUNTIME_ID,
+                    crate::server::game::types::block_network_ids(world)
+                        .to_wire(*crate::world::chunk::blocks::AIR) as i32,
+                );
+            }
+            metadata.set_float(
+                jolyne::valentine::actor_data_i_ds::AMBIENT_SOUND_INTERVAL,
+                archetype.native.ambient_sound_interval,
+            );
+            if let Some(kind) = archetype.native.aux_value {
+                metadata.set_short(jolyne::valentine::actor_data_i_ds::AUX_VALUE_DATA, kind);
+            }
+            metadata
+        };
     let launched_tick = world
         .get_resource::<crate::ecs::resources::TickCounter>()
         .map_or(0, |tick| tick.current);
@@ -219,7 +232,7 @@ fn spawn_unattached(
                 critical: false,
             },
         ));
-    } else {
+    } else if archetype.actor_type != unastar_data::actor_identifiers::ActorType::AreaEffectCloud {
         entity.insert((
             Mob,
             Living,
@@ -228,6 +241,9 @@ fn spawn_unattached(
             FallDistance::default(),
             ai::MobBrain::default(),
         ));
+    }
+    if archetype.native.hover {
+        entity.insert(native::motion::HoverState::default());
     }
     Ok(entity.id())
 }

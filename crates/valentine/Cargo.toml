@@ -10,6 +10,7 @@ bytes.workspace = true
 uuid.workspace = true
 valentine_bedrock_core.workspace = true
 valentine_bedrock_1_26_51 = { path = "bedrock_versions/v1_26_51", optional = true }
+valentine_bedrock_1_26_60 = { path = "bedrock_versions/v1_26_60", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "time"] }
@@ -20,11 +21,12 @@ flate2.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true
 criterion.workspace = true
-protocolgen-contract = { package = "bedrock-protocol-1-26-51", path = "../valentine_gen/protocolgen/generated/1.26.51/rust-contract" }
+protocolgen-contract = { package = "bedrock-protocol-contract-1-26-51", path = "../valentine_gen/protocolgen/generated/1.26.51/rust-contract" }
 
 [features]
 default = ["bedrock_1_26_51"]
 bedrock_1_26_51 = ["dep:valentine_bedrock_1_26_51"]
+bedrock_1_26_60 = ["dep:valentine_bedrock_1_26_60"]
 
 [[bench]]
 name = "codec"

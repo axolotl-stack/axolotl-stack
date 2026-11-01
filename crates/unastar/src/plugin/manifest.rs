@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 use crate::ecs::events::EventKind;
 
@@ -24,6 +25,12 @@ pub struct PluginManifest {
     pub version: String,
     /// Required host API version.
     pub api_version: String,
+    /// Initialization and callback failures stop the runtime instead of being optional.
+    #[serde(default)]
+    pub required: bool,
+    /// Optional opaque configuration file, relative to the plugin directory.
+    #[serde(default)]
+    pub config: Option<PathBuf>,
     /// Requested capabilities.
     #[serde(default)]
     pub capabilities: HashSet<PluginCapability>,
@@ -38,24 +45,170 @@ pub struct PluginManifest {
 /// Resource limits for a plugin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginLimits {
+    /// Maximum literal block batches staged per shared component cycle, hard-capped at 128.
+    #[serde(default = "default_block_edits")]
+    pub max_block_edits_per_tick: u32,
+    /// Maximum outstanding literal batches, including requests whose guest ticket was dropped.
+    #[serde(default = "default_pending_block_edits")]
+    pub max_pending_block_edits: u32,
+    /// Maximum durable block intents staged per shared cycle, hard-capped at 32.
+    #[serde(default = "default_durable_block_writes")]
+    pub max_durable_block_writes_per_tick: u32,
+    /// Accepted storage ownership remains charged after guest request drops.
+    #[serde(default = "default_pending_durable_block_writes")]
+    pub max_pending_durable_block_writes: u32,
+    /// Maximum UTF-8 bytes in a connection termination notice, also capped at 4096 by the host.
+    #[serde(default = "default_connection_reason_bytes")]
+    pub max_connection_reason_bytes: u32,
+    /// Maximum new termination requests accepted in one shared component cycle.
+    #[serde(default = "default_connection_requests")]
+    pub max_connection_requests_per_tick: u32,
+    /// Maximum outstanding requests across callback staging and backpressure retries.
+    #[serde(default = "default_pending_connection_requests")]
+    pub max_pending_connection_requests: u32,
+    /// Maximum affected cells lifted for one block authorization/completion.
+    #[serde(default = "default_block_cells")]
+    pub max_block_cells: u32,
     /// Wasmtime instruction fuel shared by all event exports in one server tick.
-    /// Instantiation and on-load share a separate initialization budget of this size.
     /// Defaults to 10M; epoch interruption remains an independent per-call limit.
+    /// Zero opts out of a finite instruction cap; time allowances are independent.
     #[serde(default = "default_fuel")]
     pub fuel_per_tick: u64,
+    /// One instruction budget for instantiation and on-load together, before admission.
+    /// Zero opts out of that instruction cap; initialization time is configured separately.
+    #[serde(default = "default_initialization_fuel")]
+    pub fuel_per_initialization: u64,
+    /// Optional non-storage wall allowance for instantiation and on-load together.
+    /// Zero (the default) disables that duration limit.
+    #[serde(default = "default_initialization_timeout")]
+    pub initialization_timeout_ms: u32,
+    /// Optional non-storage wall allowance per ordinary callback; it does not renew cycle fuel.
+    /// Zero (the default) disables that duration limit.
+    #[serde(default = "default_callback_timeout")]
+    pub callback_timeout_ms: u32,
+    /// Optional cumulative trusted storage/archive I/O allowance per invocation.
+    /// Zero (the default) disables the time limit, independently of call/byte quotas.
+    #[serde(default)]
+    pub host_io_timeout_ms: u32,
     /// Maximum bytes per Wasm linear memory, enforced at creation and growth.
     /// Exceeding this limit traps. Defaults to 64MB.
     #[serde(default = "default_memory")]
     pub max_memory: usize,
+    /// Maximum live component resources, including expired capabilities retained by a guest.
+    #[serde(default = "default_owned_resources")]
+    pub max_owned_resources: u32,
+    /// Aggregate host calls in one shared tick budget.
+    #[serde(default = "default_host_operations")]
+    pub max_host_operations_per_tick: u32,
+    /// Maximum scheduled jobs accepted per shared tick.
+    #[serde(default = "default_tasks_per_tick")]
+    pub max_tasks_per_tick: u32,
+    /// Maximum unexecuted jobs retained by one component instance.
+    #[serde(default = "default_pending_tasks")]
+    pub max_pending_tasks: u32,
+    /// Maximum UTF-8 bytes in one message or diagnostic.
+    #[serde(default = "default_message_bytes")]
+    pub max_message_bytes: u32,
+    /// Maximum direct messages staged in one shared tick.
+    #[serde(default = "default_messages")]
+    pub max_messages_per_tick: u32,
+    /// Maximum owned command roots, including provisional registrations.
+    #[serde(default = "default_command_roots")]
+    pub max_command_roots: u32,
+    /// Maximum owned UI widget slots, including provisional callback updates.
+    #[serde(default = "default_ui_widgets")]
+    pub max_ui_widgets: u32,
+    /// Maximum staged widget updates per shared component tick.
+    #[serde(default = "default_ui_updates")]
+    pub max_ui_updates_per_tick: u32,
+    /// Maximum owned subject/viewer pairs, including provisional updates.
+    #[serde(default = "default_view_pairs")]
+    pub max_view_pairs: u32,
+    /// Maximum viewer projection writes per shared component tick.
+    #[serde(default = "default_view_updates")]
+    pub max_view_updates_per_tick: u32,
+    /// Maximum outstanding staged or provider-owned inventory writes per instance.
+    #[serde(default = "default_pending_inventory_operations")]
+    pub max_pending_inventory_operations: u32,
 }
 
 impl Default for PluginLimits {
     fn default() -> Self {
         Self {
+            max_block_edits_per_tick: default_block_edits(),
+            max_pending_block_edits: default_pending_block_edits(),
+            max_durable_block_writes_per_tick: default_durable_block_writes(),
+            max_pending_durable_block_writes: default_pending_durable_block_writes(),
+            max_connection_reason_bytes: default_connection_reason_bytes(),
+            max_connection_requests_per_tick: default_connection_requests(),
+            max_pending_connection_requests: default_pending_connection_requests(),
+            max_block_cells: default_block_cells(),
             fuel_per_tick: default_fuel(),
+            fuel_per_initialization: default_initialization_fuel(),
+            initialization_timeout_ms: default_initialization_timeout(),
+            callback_timeout_ms: default_callback_timeout(),
+            host_io_timeout_ms: 0,
             max_memory: default_memory(),
+            max_owned_resources: default_owned_resources(),
+            max_host_operations_per_tick: default_host_operations(),
+            max_tasks_per_tick: default_tasks_per_tick(),
+            max_pending_tasks: default_pending_tasks(),
+            max_message_bytes: default_message_bytes(),
+            max_messages_per_tick: default_messages(),
+            max_command_roots: default_command_roots(),
+            max_ui_widgets: default_ui_widgets(),
+            max_ui_updates_per_tick: default_ui_updates(),
+            max_view_pairs: default_view_pairs(),
+            max_view_updates_per_tick: default_view_updates(),
+            max_pending_inventory_operations: default_pending_inventory_operations(),
         }
     }
+}
+
+/// Keep per-cycle native publication work bounded independently of guest fuel.
+fn default_block_edits() -> u32 {
+    32
+}
+/// Pending work retains its reservation until cancellation, rejection or actual application.
+fn default_pending_block_edits() -> u32 {
+    128
+}
+
+impl PluginLimits {
+    /// Reject invalid execution deadlines before instantiating a guest.
+    pub(crate) fn validate_execution(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.initialization_timeout_ms <= 60_000,
+            "initialization timeout must be zero or at most 60000 ms"
+        );
+        anyhow::ensure!(
+            self.callback_timeout_ms <= 1000,
+            "callback timeout must be zero or at most 1000 ms"
+        );
+        anyhow::ensure!(
+            self.host_io_timeout_ms <= 60_000,
+            "host I/O timeout must be zero or at most 60000 ms"
+        );
+        Ok(())
+    }
+}
+
+/// Stateful initialization has a separate finite allowance from simulation callbacks.
+fn default_initialization_fuel() -> u64 {
+    100_000_000
+}
+/// Time limits are explicit component configuration, independently of instruction caps.
+fn default_initialization_timeout() -> u32 {
+    0
+}
+/// Ordinary callback time limits also opt in separately.
+fn default_callback_timeout() -> u32 {
+    0
+}
+
+/// Cover bounded native multi-cell growth while rejecting unbounded lifting.
+fn default_block_cells() -> u32 {
+    512
 }
 
 fn default_fuel() -> u64 {
@@ -65,10 +218,123 @@ fn default_memory() -> usize {
     64 * 1024 * 1024
 }
 
+/// Bound resource references independently of Wasm linear memory.
+fn default_owned_resources() -> u32 {
+    4096
+}
+/// Limit cheap imported operations in addition to Wasm instruction fuel.
+fn default_host_operations() -> u32 {
+    20_000
+}
+/// Keep deferred work finite even when every callback schedules more work.
+fn default_tasks_per_tick() -> u32 {
+    256
+}
+/// Bound jobs independently of how many task handles the guest drops.
+fn default_pending_tasks() -> u32 {
+    1024
+}
+/// Allow formatted messages without unbounded host allocations.
+fn default_message_bytes() -> u32 {
+    4096
+}
+/// Bound a component's packet-producing direct message calls.
+fn default_messages() -> u32 {
+    256
+}
+
+/// Keep termination display text bounded independently of general chat messages.
+fn default_connection_reason_bytes() -> u32 {
+    1024
+}
+/// Bound accepted termination calls without replenishing during nested callbacks.
+fn default_connection_requests() -> u32 {
+    64
+}
+/// Bound backpressured transport requests independently of retained ticket resources.
+fn default_pending_connection_requests() -> u32 {
+    128
+}
+
+/// Bound metadata retained by component-owned command declarations.
+fn default_command_roots() -> u32 {
+    64
+}
+
+/// Bound owned widgets independently of network speed or guest handle retention.
+fn default_ui_widgets() -> u32 {
+    512
+}
+/// Bound callback-stage allocations independently of committed widget count.
+fn default_ui_updates() -> u32 {
+    512
+}
+
+/// Keep pairwise formatting memory finite independently of player count.
+fn default_view_pairs() -> u32 {
+    4096
+}
+/// Bound projection recomputation independently of guest fuel.
+fn default_view_updates() -> u32 {
+    4096
+}
+
+/// Bound accepted asynchronous writes independently of guest resource drops.
+fn default_pending_inventory_operations() -> u32 {
+    64
+}
+
+/// Limit synchronous staging independently from accepted native storage work.
+fn default_durable_block_writes() -> u32 {
+    4
+}
+/// Keep pending ownership bounded across worlds and component resource drops.
+fn default_pending_durable_block_writes() -> u32 {
+    16
+}
+
 /// Capabilities a plugin can request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginCapability {
+    ReadBlocks,
+    WriteBlocks,
+    /// Submit receipt-backed loaded terrain mutations through the atomic provider writer.
+    WriteDurableBlocks,
+    /// Atomically create filled loaded containers through the shared column writer.
+    WriteDurableContainers,
+    /// Durably capture and read complete immutable host-owned player state.
+    PlayerStateArchives,
+    /// Construct and inspect bounded detached item values, without granting inventory writes.
+    ItemValues,
+    /// Capture complete owned inventory images for the current scoped player.
+    ReadInventory,
+    /// Permute existing hotbar stacks, consume exact selected items and repair bounded wear.
+    InventoryMechanics,
+    /// Stage bounded native status, motion, mode and flight changes.
+    PlayerMechanics,
+    /// Replace exact inventory images through durable idempotent transactions.
+    WriteInventory,
+    /// Exact-quantity inventory grants with persistent overflow item ownership.
+    GrantItems,
+    /// Request bounded native durable relocations through owned world handles.
+    PlayerTravel,
+    /// Install typed full player state with canonical receipts and real source ownership.
+    RestorePlayerState,
+    /// Read typed actor references and current-world observations.
+    ReadPlayers,
+    /// Advertise owned command roots; handling still uses explicit subscriptions.
+    Commands,
+    /// Manage typed self UI bound to scoped player and world capabilities.
+    Presentation,
+    /// Restrict and format one player's representation to an exact scoped viewer.
+    PlayerViews,
+    /// Send bounded direct messages to exact current connections.
+    SendMessages,
+    /// Terminate exact admitted connections without granting admission publication or live state writes.
+    ConnectionControl,
+    /// Schedule bounded work on world owners with fresh transaction scopes.
+    ScheduleTasks,
     /// Access to the filesystem (scoped).
     Filesystem,
     /// Access to network (http/sockets).

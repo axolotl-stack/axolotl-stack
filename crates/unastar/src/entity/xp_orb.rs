@@ -175,6 +175,7 @@ pub fn add_actor_packet(
         actor_data: xp_orb_metadata(orb.value).snapshot(),
         synched_properties: Default::default(),
         actor_links: Vec::new(),
+        passenger_block_data: None,
     }
 }
 
@@ -249,7 +250,10 @@ pub fn tick_xp_orbs(
             Option<&PlayerSession>,
             Option<&PlayerInput>,
         ),
-        With<Player>,
+        (
+            With<Player>,
+            Without<crate::server::game::player_events::PendingInitialState>,
+        ),
     >,
 ) {
     let range_sq = constants::XP_ORB_FOLLOW_RANGE * constants::XP_ORB_FOLLOW_RANGE;
@@ -309,7 +313,6 @@ mod tests {
     use crate::world::chunk::{Chunk, blocks};
     use crate::world::ecs::{ChunkData, ChunkPosition, ChunkViewers};
     use jolyne::valentine::McpePacketData;
-    use valentine::bedrock::codec::BedrockCodec;
 
     #[test]
     fn amounts_split_into_the_largest_native_orb_sizes() {
@@ -340,9 +343,7 @@ mod tests {
     fn orb_add_actor_matches_the_native_summon() {
         let bytes =
             include_bytes!("../../../bds-extractor/captures/1.26.51/operator/summons/xp_orb.bin");
-        assert_eq!(bytes[0], 0x0d);
-        let mut input = &bytes[1..];
-        let native = AddActorPacket::decode(&mut input, ()).unwrap();
+        let native = crate::entity::test_support::legacy_actor(bytes);
         let ours = add_actor_packet(
             7,
             DVec3::new(105.5, 136.0, -25.5),

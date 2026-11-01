@@ -26,7 +26,8 @@ use unastar_data::actor_components::body::ActorDamageCause;
 
 use super::{Hit, hurt_mob};
 use crate::ecs::resources::TickCounter;
-use crate::entity::components::{PhysicsBody, Position};
+use crate::entity::components::{GameMode, Health, PhysicsBody, Player, Position};
+use crate::entity::conditions::fire_immune;
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::mob::MobKind;
 use crate::entity::mob::components::{BurnsInDaylightConfig, KnockbackPower};
@@ -59,12 +60,6 @@ pub fn is_burning(world: &World, mob: Entity) -> bool {
     world.get::<Burning>(mob).is_some()
 }
 
-fn fire_immune(world: &World, mob: Entity) -> bool {
-    world
-        .get::<ActorFlags>(mob)
-        .is_some_and(|flags| flags.get(actor_flags::FIRE_IMMUNE).unwrap_or(false))
-}
-
 fn set_on_fire_flag(world: &mut World, mob: Entity, on_fire: bool) {
     if let Some(mut flags) = world.get_mut::<ActorFlags>(mob) {
         flags
@@ -94,6 +89,27 @@ pub fn ignite(world: &mut World, mob: Entity, ticks: u64) {
     set_on_fire_flag(world, mob, true);
 }
 
+/// Ignite a living target through its ordinary player or mob fire lane.
+/// Dead, fire-immune, creative and spectator actors cannot acquire this fire.
+pub fn ignite_living(world: &mut World, target: Entity, ticks: u64) {
+    if ticks == 0
+        || world.get::<Dead>(target).is_some()
+        || world.get::<Health>(target).is_none_or(Health::is_dead)
+        || matches!(
+            world.get::<GameMode>(target),
+            Some(GameMode::Creative | GameMode::Spectator)
+        )
+    {
+        return;
+    }
+    if world.get::<Player>(target).is_some() {
+        let now = world.resource::<TickCounter>().current;
+        crate::entity::player_life::environment::ignite_player(world, target, now, ticks);
+    } else {
+        ignite(world, target, ticks);
+    }
+}
+
 /// Put out `mob`'s fire.
 pub fn extinguish(world: &mut World, mob: Entity) {
     if world.entity_mut(mob).take::<Burning>().is_some() {
@@ -121,7 +137,10 @@ pub fn burn_mobs(
         )
     }));
     for (mob, burning, aabb) in due.drain(..) {
-        if now >= burning.until_tick || living_liquid(world, aabb) == Some(LiquidKind::Water) {
+        if now >= burning.until_tick
+            || fire_immune(world, mob)
+            || living_liquid(world, aabb) == Some(LiquidKind::Water)
+        {
             extinguish(world, mob);
             continue;
         }

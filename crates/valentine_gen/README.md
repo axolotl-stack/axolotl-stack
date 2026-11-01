@@ -12,16 +12,16 @@ git submodule update --init --recursive
 ```
 
 The pinned protocolgen submodule is the default source. This command regenerates
-the checked-in stable Bedrock 26.51 protocol (protocolgen schema label
-`1.26.51`, network protocol `2193`) from its canonical manifest:
+the checked-in stable Bedrock 26.60 protocol (protocolgen schema label
+`1.26.60`, network protocol `2225`) from its canonical manifest:
 
 ```bash
 cargo run -p valentine_gen -- --latest
 cargo fmt --all
 ```
 
-Minecraft's player-facing version numbering uses the year prefix (`26.51`).
-Protocolgen manifests retain the `1.26.51` schema label used for generated
+Minecraft's player-facing version numbering uses the year prefix (`26.60`).
+Protocolgen manifests retain the `1.26.60` schema label used for generated
 module/feature names. The `1.26.50` manifest in protocolgen is Preview 25,
 protocol 2187; it is not the stable 26.50 release (protocol 2193).
 
@@ -29,15 +29,13 @@ An alternate canonical manifest may be selected with
 `--protocolgen-manifest <FILE>`. Protocolgen provides protocol schemas only.
 Prismarine remains the source for block, item, entity, and biome data.
 
-The canonical input also carries non-wire actor reference symbols. Protocolgen
-extracts `ActorDataIDs` and `ActorFlags` from the pinned Mojang
-`bedrock-protocol-docs/html/enums.html`, retaining that catalog's
-1.26.40-beta.0 / protocol2168 source version separately from target2193.
-Valentine emits the values into `symbols.rs` using the existing identifier
-naming helpers, `quote`/`syn` and `prettyplease`; raw metadata IDs remain open
-integers. Reserved names are preserved, not replaced with semantic guesses.
-See [protocolgen's source and regeneration contract](protocolgen/docs/outputs.md#actor-metadata-reference-symbols).
-
+The retained `v1_26_51` crate also provides numeric actor reference symbols.
+Their comments record the Mojang catalog's original source version
+(1.26.40-beta.0, protocol 2168). Jolyne reexports these non-wire names separately
+from its current packet codec; selecting protocol 2225 does not relabel that
+catalog. Raw metadata IDs remain open integers, and reserved names remain
+reserved rather than receiving inferred meanings. The current manifest does
+not supply a replacement symbol catalog.
 
 Legacy protocol frontends are selected explicitly. Mojang generation requires a
 scratch output directory, so it cannot overwrite the checked-in version crates:
@@ -78,10 +76,16 @@ changelog before using a schema as a release target.
 
 ## Mojang version mapping and pin policy
 
-The only supported target is Bedrock 26.51 (protocolgen schema label
-`1.26.51`, network protocol 2193). The canonical manifest and its source
-fingerprints are pinned under `protocolgen/generated/1.26.51/`, from the
-`cinnabar-mc/protocolgen` submodule. Older Valentine version crates (1.26.0,
+The default generator input and Jolyne runtime target Bedrock 26.60 (schema label
+`1.26.60`, network protocol 2225). Its canonical manifest and source
+fingerprints are pinned under `protocolgen/generated/1.26.60/`, from the
+`cinnabar-mc/protocolgen` submodule. The generated `v1_26_51` crate remains
+available behind `bedrock_1_26_51` for explicit protocol 2193 decoding; the
+low-level Valentine crate retains `bedrock_1_26_51` as its default feature,
+while Jolyne explicitly selects `bedrock_1_26_60`. The runtime does not negotiate
+simultaneous versions. The retained crate's non-wire actor symbol
+vocabulary retains its documented source version independently of the selected
+codec. Older Valentine version crates (1.26.0,
 1.26.40, 1.26.44) have been removed; regenerate from their protocolgen
 manifests if a compatibility crate is ever needed again.
 
@@ -229,3 +233,17 @@ cargo run -p valentine_gen -- --latest --log debug
 
 When behavior must survive regeneration, change the parser, IR analysis, or
 emitter rather than generated Rust.
+
+## Score entry variants
+
+Protocol 2193 `SetScorePacket` contains a counted list of entry variants, without
+an outer action byte. Each row carries a varuint variant and action string.
+Removal rows have an optional objective and no score; other rows carry their
+score and player, entity or fake-player identity. The standard schema generator
+emits these owned and borrowed types directly.
+
+The literal fixtures in `valentine/tests/scoreboard_wire.rs` cover mixed variants,
+optional removal objectives, negative scores, truncation and packet dispatch.
+They follow the version-matched [Gophertunnel v1.62.0 codec](https://github.com/Sandertv/gophertunnel/blob/v1.62.0/minecraft/protocol/scoreboard.go)
+and [Mojang protocol 2193 schema](https://mojang.github.io/bedrock-protocol-docs/1.26.51/packets/set-score-packet/).
+The [Gophertunnel MIT notice](licenses/gophertunnel-MIT.txt) is retained.

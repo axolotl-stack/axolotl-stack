@@ -105,3 +105,7 @@ impl DespawnTimer {
         self.ticks_remaining == 0
     }
 }
+
+/// Native persisted item ownership. Construction and mutation belong to its durable writer.
+#[derive(Component, Clone)]
+pub struct PersistentWorldItem(pub(crate) crate::storage::item_grants::PersistentItem);

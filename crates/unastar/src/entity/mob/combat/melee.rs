@@ -45,10 +45,14 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
     ) else {
         return;
     };
-    if world.get::<Dead>(attacker).is_some() || !alive(world, target) {
+    if world.get::<Dead>(attacker).is_some()
+        || !crate::entity::mob::ai::combat_candidate(world, attacker, target)
+    {
         return;
     }
     let holding = gear::mainhand(world, attacker).is_some();
+    let fire_ticks =
+        gear::mainhand(world, attacker).map_or(0, crate::item::enchant::fire_aspect_ticks);
     send_actor_event(world, attacker, EnumsActorEvent::StartAttacking, 0);
     if holding {
         send_actor_event(world, attacker, EnumsActorEvent::StartAttacking, 0);
@@ -70,6 +74,7 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
         hurt_mob(world, target, hit)
     };
     if dealt > 0.0 {
+        fire::ignite_living(world, target, fire_ticks);
         after_hurt(world, attacker, target, &goal, holding, is_player);
     }
     if let Some(effect) = attack.effect

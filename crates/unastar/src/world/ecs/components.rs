@@ -37,6 +37,7 @@ bitflags! {
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct ChunkStateFlags {
     pub flags: ChunkFlags,
+    dirty_generation: u64,
 }
 
 impl ChunkStateFlags {
@@ -53,7 +54,16 @@ impl ChunkStateFlags {
     }
 
     pub fn mark_dirty(&mut self) {
+        self.dirty_generation = self
+            .dirty_generation
+            .checked_add(1)
+            .expect("chunk dirty generation exhausted");
         self.flags.insert(ChunkFlags::DIRTY);
+    }
+
+    /// Generation of the last dirty mark, retained across successful saves.
+    pub fn dirty_generation(&self) -> u64 {
+        self.dirty_generation
     }
 
     pub fn clear_dirty(&mut self) {

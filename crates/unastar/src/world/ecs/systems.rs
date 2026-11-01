@@ -108,7 +108,7 @@ pub fn send_spawn_status(
             continue; // the view comes first
         }
         let spawned = session.send(McpePacket::from(PlayStatusPacket {
-            status: PlayStatusPacketStatus::Playerspawn,
+            status: PlayStatusPacketStatus::PlayerSpawn,
         }));
         if spawned {
             debug!(player = ?player_entity, "Sent PlayStatus(PlayerSpawn)");
@@ -322,8 +322,12 @@ pub fn process_chunk_load_queues(
                     // Existing chunk - read from ChunkData component
                     chunks.get(chunk_entity).ok().map(|(_, chunk_data)| {
                         (
-                            chunk_data.inner.encode_biomes(),
-                            chunk_data.inner.highest_subchunk(),
+                            chunk_data
+                                .inner
+                                .encode_biomes_for_dimension(config.dimension),
+                            chunk_data
+                                .inner
+                                .highest_subchunk_for_dimension(config.dimension),
                         )
                     })
                 };
@@ -365,6 +369,7 @@ pub fn process_chunk_load_queues(
                 cache_enabled: false,
                 cache_metadata: vec![],
                 serialized_chunk_data: payload.into(),
+                is_client_biome_update: false,
             }));
 
             if !send_result {
@@ -476,8 +481,12 @@ pub fn request_chunk_generation(
             if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) {
                 // Chunk exists - send it immediately
                 if let Ok(chunk_data) = chunks.get(chunk_entity) {
-                    let payload = chunk_data.inner.encode_biomes();
-                    let highest_subchunk = chunk_data.inner.highest_subchunk();
+                    let payload = chunk_data
+                        .inner
+                        .encode_biomes_for_dimension(config.dimension);
+                    let highest_subchunk = chunk_data
+                        .inner
+                        .highest_subchunk_for_dimension(config.dimension);
 
                     let packet = LevelChunkPacket {
                         chunk_position: ChunkPos { x: cx, z: cz },
@@ -489,6 +498,7 @@ pub fn request_chunk_generation(
                         cache_enabled: false,
                         cache_metadata: vec![],
                         serialized_chunk_data: payload.into(),
+                        is_client_biome_update: false,
                     };
 
                     if session.send(McpePacket::from(packet)) {
@@ -590,8 +600,10 @@ pub fn process_completed_generations(
         let viewers = chunk_manager.complete_generation(x, z).unwrap_or_default();
 
         // Encode BEFORE spawning to avoid clone
-        let biome_data = column.chunk.encode_biomes();
-        let highest_subchunk = column.chunk.highest_subchunk();
+        let biome_data = column.chunk.encode_biomes_for_dimension(config.dimension);
+        let highest_subchunk = column
+            .chunk
+            .highest_subchunk_for_dimension(config.dimension);
 
         // Spawn chunk entity; stored actors are restored by `restore_chunk_actors`.
         let pos = ChunkPosition::new(x, z);
@@ -619,6 +631,7 @@ pub fn process_completed_generations(
                     cache_enabled: false,
                     cache_metadata: vec![],
                     serialized_chunk_data: biome_data.clone().into(),
+                    is_client_biome_update: false,
                 };
 
                 if session.send(McpePacket::from(packet)) {
@@ -714,6 +727,7 @@ pub fn cancel_chunk_unloads(
 /// standing in it (when anything changed), then the mobs and the chunk are
 /// removed from the world.
 pub fn process_chunk_unloads(world: &mut World) {
+    crate::storage::column_runtime::poll(world);
     let mut pending = world.query::<(Entity, &mut ChunkPendingUnload)>();
     let expired: Vec<Entity> = pending
         .iter_mut(world)
@@ -726,16 +740,34 @@ pub fn process_chunk_unloads(world: &mut World) {
         let chunk_manager = world.resource::<ChunkManager>();
         (chunk_manager.provider(), chunk_manager.dimension())
     };
-    for snapshot in snapshot_chunks(world, &expired, true) {
+    let expired: Vec<_> = expired
+        .into_iter()
+        .filter(|&entity| !crate::storage::column_runtime::pinned(world, entity))
+        .collect();
+    if provider
+        .as_ref()
+        .is_some_and(|provider| provider.column_writer().is_some())
+    {
+        for chunks in expired.chunks(crate::storage::column_writer::MAX_COLUMNS) {
+            match crate::storage::column_runtime::capture(world, chunks)
+                .and_then(|capture| crate::storage::column_runtime::save(world, capture, true))
+            {
+                Ok(_) => {}
+                Err(error) => tracing::debug!(%error, "Chunk unload write deferred"),
+            }
+        }
+        return;
+    }
+    for snapshot in snapshot_chunks(world, &expired, false) {
         let pos = snapshot.pos;
-        if let (Some(column), Some(provider)) = (snapshot.column, provider.clone()) {
+        if let (Some(column), Some(provider)) = (&snapshot.column, provider.clone()) {
+            let column = column.clone();
             match block_on_storage(async move { provider.save_column(pos, dim, &column).await }) {
                 Ok(()) => debug!(chunk = ?(pos.x, pos.z), "Saved chunk before unload"),
-                Err(e) => warn!(
-                    chunk = ?(pos.x, pos.z),
-                    error = %e,
-                    "Failed to save chunk before unload"
-                ),
+                Err(e) => {
+                    warn!(chunk = ?(pos.x, pos.z), error = %e, "Failed to save chunk before unload");
+                    continue;
+                }
             }
         }
         for mob in snapshot.mobs {

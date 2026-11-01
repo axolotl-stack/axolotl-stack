@@ -336,6 +336,9 @@ pub fn hurt_players_by_environment(
 
 /// Set `player` alight for at least `ticks` from `now`.
 pub fn ignite_player(world: &mut World, player: Entity, now: u64, ticks: u64) {
+    if ticks == 0 || crate::entity::conditions::fire_immune(world, player) {
+        return;
+    }
     let burning = match world.get::<Burning>(player).copied() {
         Some(burning) => Burning {
             until_tick: burning.until_tick.max(now + ticks),
@@ -355,7 +358,7 @@ fn burn(world: &mut World, player: Entity, now: u64) {
     let Some(burning) = world.get::<Burning>(player).copied() else {
         return;
     };
-    if now >= burning.until_tick {
+    if now >= burning.until_tick || crate::entity::conditions::fire_immune(world, player) {
         world.entity_mut(player).remove::<Burning>();
         return;
     }

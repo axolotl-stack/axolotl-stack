@@ -6,12 +6,17 @@ use std::path::PathBuf;
 use wit_parser::{Handle, Resolve, Type, TypeDefKind, WorldItem};
 
 fn main() -> Result<()> {
-    println!("cargo:rerun-if-changed=wit");
+    // Bind generated handlers and rebuild tracking to the owning package's WIT.
+    let wit_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?).join("wit");
+    println!("cargo:rerun-if-changed={}", wit_dir.display());
 
     let mut resolve = Resolve::default();
-    let (pkg_id, _) = resolve
-        .push_dir("wit")
+    let (pkg_id, sources) = resolve
+        .push_dir(&wit_dir)
         .context("failed to parse WIT directory")?;
+    for source in sources.paths() {
+        println!("cargo:rerun-if-changed={}", source.display());
+    }
     let world_id = resolve
         .select_world(&[pkg_id], Some("unastar-plugin"))
         .context("failed to select world")?;
@@ -54,8 +59,8 @@ fn main() -> Result<()> {
     for func in &funcs {
         let name = func.name.replace('-', "_");
         let params = params_str(&resolve, func, false);
-        let ret = return_str(&resolve, func);
-        let default = default_body(func);
+        let ret = return_str(&resolve, func, false);
+        let default = default_body(&resolve, func);
         writeln!(out, "    fn {name}({params}){ret} {{ {default} }}")?;
     }
 
@@ -81,7 +86,7 @@ fn main() -> Result<()> {
         let name = func.name.replace('-', "_");
         let params = params_str(&resolve, func, true);
         let args = arg_names(func);
-        let ret = return_str(&resolve, func);
+        let ret = return_str(&resolve, func, true);
         writeln!(out, "            fn {name}({params}){ret} {{")?;
         writeln!(
             out,
@@ -95,6 +100,8 @@ fn main() -> Result<()> {
     writeln!(out, "        $crate::export!(__UnastarPluginBridge);")?;
     writeln!(out, "    }};")?;
     writeln!(out, "}}")?;
+
+    generate_handler(&mut out, &resolve, &funcs)?;
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
     fs::write(out_dir.join("plugin_api.rs"), out)?;
@@ -126,22 +133,39 @@ fn arg_names(func: &wit_parser::Function) -> String {
 }
 
 /// Build the `-> Type` suffix, or empty string for void functions.
-fn return_str(resolve: &Resolve, func: &wit_parser::Function) -> String {
+fn return_str(resolve: &Resolve, func: &wit_parser::Function, in_macro: bool) -> String {
     match &func.result {
-        Some(ty) => format!(" -> {}", type_to_rust(resolve, ty, false)),
+        Some(ty) => format!(" -> {}", type_to_rust(resolve, ty, in_macro)),
         None => String::new(),
     }
 }
 
-/// Default body for trait methods: `true` for bool returns, empty otherwise.
-fn default_body(func: &wit_parser::Function) -> &'static str {
+/// Preserve matching inputs for optional decisions; allow boolean decisions.
+fn default_body(resolve: &Resolve, func: &wit_parser::Function) -> String {
     match &func.result {
-        Some(Type::Bool) => "true",
-        Some(_) => panic!(
-            "unsupported default for non-bool return type in `{}`",
-            func.name
-        ),
-        None => "",
+        Some(Type::Bool) => "true".into(),
+        Some(Type::Id(id)) => {
+            if func.name == "on-player-damage" {
+                return "Some(proposal.tuning)".into();
+            }
+            if func.name == "on-player-move" {
+                return "Some(new_position)".into();
+            }
+            match resolve.types[*id].name.as_deref() {
+                Some("admission-decision") => return "AdmissionDecision::Allow".into(),
+                Some("quit-disposition") => return "QuitDisposition::Remove".into(),
+                Some("item-action-decision") => return "ItemActionDecision::Pass".into(),
+                _ => (),
+            }
+            if let TypeDefKind::Option(inner) = &resolve.types[*id].kind
+                && let Some(param) = func.params.iter().find(|param| param.ty == *inner)
+            {
+                return format!("Some({})", param.name.replace('-', "_"));
+            }
+            panic!("unsupported default return type in `{}`", func.name)
+        }
+        Some(_) => panic!("unsupported default return type in `{}`", func.name),
+        None => String::new(),
     }
 }
 
@@ -168,17 +192,17 @@ fn type_to_rust(resolve: &Resolve, ty: &Type, in_macro: bool) -> String {
                 TypeDefKind::Handle(Handle::Borrow(inner_id)) => {
                     let name = resolve_type_name(resolve, *inner_id);
                     if in_macro {
-                        format!("&$crate::{name}")
+                        format!("&$crate::raw::{name}")
                     } else {
-                        format!("&{name}")
+                        format!("&raw::{name}")
                     }
                 }
                 TypeDefKind::Handle(Handle::Own(inner_id)) => {
                     let name = resolve_type_name(resolve, *inner_id);
                     if in_macro {
-                        format!("$crate::{name}")
+                        format!("$crate::raw::{name}")
                     } else {
-                        name
+                        format!("raw::{name}")
                     }
                 }
                 TypeDefKind::List(inner) => {
@@ -234,4 +258,207 @@ fn to_pascal_case(s: &str) -> String {
             }
         })
         .collect()
+}
+
+/// Whether a callback owns a transaction-scoped player argument.
+fn has_player(func: &wit_parser::Function) -> bool {
+    func.params.iter().any(|param| param.name == "player")
+}
+
+/// Translate canonical callback parameters into lifetime-bound Handler contexts.
+fn handler_params(resolve: &Resolve, func: &wit_parser::Function) -> String {
+    let player = has_player(func);
+    let mut params = Vec::new();
+    if player {
+        params.push("ctx: &mut PlayerContext<'_>".into());
+    } else if func.params.iter().any(|param| param.name == "tx") {
+        params.push("tx: &WorldTx<'_>".into());
+    }
+    for param in &func.params {
+        if param.name == "tx" || param.name == "player" {
+            continue;
+        }
+        let name = param.name.replace('-', "_");
+        let ty = if matches!(name.as_str(), "attacker" | "target") {
+            "Option<&Player<'_>>".into()
+        } else if matches!(
+            func.name.as_str(),
+            "on-player-damage" | "on-block-transaction" | "on-item-action" | "on-player-travel"
+        ) && name == "proposal"
+        {
+            if func.name == "on-player-damage" {
+                "&DamageProposal".into()
+            } else if func.name == "on-block-transaction" {
+                "&BlockProposal".into()
+            } else if func.name == "on-item-action" {
+                "&ItemActionProposal".into()
+            } else {
+                "&TravelProposal".into()
+            }
+        } else if (func.name == "on-player-respawn" && name == "position")
+            || (func.name == "on-player-move" && name == "new_position")
+        {
+            "&mut Vec3".into()
+        } else {
+            type_to_rust(resolve, &param.ty, false)
+        };
+        params.push(format!("{name}: {ty}"));
+    }
+    if func.name == "on-player-damage" {
+        params.push("tuning: &mut DamageTuning".into());
+    }
+    params.join(", ")
+}
+
+/// Generate static Handler methods and a canonical Guest bridge with isolated cancellation.
+fn generate_handler(
+    out: &mut String,
+    resolve: &Resolve,
+    funcs: &[&wit_parser::Function],
+) -> Result<()> {
+    writeln!(
+        out,
+        "/// Dragonfly-style scoped handlers. Store handles rather than live players or transactions."
+    )?;
+    writeln!(out, "#[allow(unused_variables)] pub trait Handler {{")?;
+    for func in funcs {
+        writeln!(
+            out,
+            "fn {}({}){} {{ {} }}",
+            func.name.replace('-', "_"),
+            handler_params(resolve, func),
+            if matches!(
+                func.name.as_str(),
+                "on-player-admission" | "on-player-quit" | "on-item-action"
+            ) {
+                return_str(resolve, func, false)
+            } else {
+                String::new()
+            },
+            if matches!(
+                func.name.as_str(),
+                "on-player-admission" | "on-player-quit" | "on-item-action"
+            ) {
+                default_body(resolve, func)
+            } else {
+                String::new()
+            }
+        )?;
+    }
+    writeln!(out, "}}")?;
+    writeln!(out, "/// Export one scoped Handler as a component.")?;
+    writeln!(
+        out,
+        "#[macro_export] macro_rules! export_handler {{ ($t:ty) => {{ struct __UnastarHandlerBridge; impl $crate::Guest for __UnastarHandlerBridge {{"
+    )?;
+    for func in funcs {
+        let method = func.name.replace('-', "_");
+        writeln!(
+            out,
+            "fn {method}({}){} {{",
+            params_str(resolve, func, true),
+            return_str(resolve, func, true)
+        )?;
+        let has_tx = func.params.iter().any(|param| param.name == "tx");
+        let has_player = has_player(func);
+        if has_tx {
+            writeln!(out, "let tx = $crate::WorldTx::__from_borrowed(tx);")?;
+        }
+        let cancellable = func.result.is_some();
+        if has_player {
+            writeln!(
+                out,
+                "let player = $crate::Player::__from_borrowed(player, &tx); let mut ctx = $crate::PlayerContext::__new(&tx, &player, {cancellable});"
+            )?;
+        }
+        for name in ["attacker", "target"] {
+            if func.params.iter().any(|param| param.name == name) {
+                writeln!(
+                    out,
+                    "let {name} = {name}.map(|raw| $crate::Player::__from_borrowed(raw, &tx));"
+                )?;
+            }
+        }
+        if func.name == "on-player-damage" {
+            writeln!(out, "let mut tuning = proposal.tuning;")?;
+        }
+        if func.name == "on-player-respawn" {
+            writeln!(out, "let mut position = position;")?;
+        }
+        if func.name == "on-player-move" {
+            writeln!(out, "let mut new_position = new_position;")?;
+        }
+        let mut args = Vec::new();
+        if has_player {
+            args.push("&mut ctx".to_string());
+        } else if has_tx {
+            args.push("&tx".to_string());
+        }
+        for param in &func.params {
+            if param.name == "tx" || param.name == "player" {
+                continue;
+            }
+            let name = param.name.replace('-', "_");
+            args.push(if matches!(name.as_str(), "attacker" | "target") {
+                format!("{name}.as_ref()")
+            } else if (func.name == "on-player-respawn" && name == "position")
+                || (func.name == "on-player-move" && name == "new_position")
+            {
+                format!("&mut {name}")
+            } else if matches!(
+                func.name.as_str(),
+                "on-player-damage" | "on-block-transaction" | "on-item-action" | "on-player-travel"
+            ) && name == "proposal"
+            {
+                "&proposal".into()
+            } else {
+                name
+            });
+        }
+        if func.name == "on-player-damage" {
+            args.push("&mut tuning".into());
+        }
+        writeln!(
+            out,
+            "{}<$t as $crate::Handler>::{method}({});",
+            if matches!(
+                func.name.as_str(),
+                "on-player-admission" | "on-player-quit" | "on-item-action"
+            ) {
+                "let decision = "
+            } else {
+                ""
+            },
+            args.join(", ")
+        )?;
+        match &func.result {
+            Some(Type::Bool) => writeln!(out, "!ctx.is_cancelled()")?,
+            Some(_) if func.name == "on-player-damage" => writeln!(
+                out,
+                "if ctx.is_cancelled() {{ None }} else {{ Some(tuning) }}"
+            )?,
+            Some(_) if func.name == "on-player-respawn" => writeln!(
+                out,
+                "if ctx.is_cancelled() {{ None }} else {{ Some(position) }}"
+            )?,
+            Some(_) if func.name == "on-player-move" => writeln!(
+                out,
+                "if ctx.is_cancelled() {{ None }} else {{ Some(new_position) }}"
+            )?,
+            Some(_) if func.name == "on-player-admission" => writeln!(
+                out,
+                "if ctx.is_cancelled() {{ $crate::AdmissionDecision::Reject(\"Connection denied.\".into()) }} else {{ decision }}"
+            )?,
+            Some(_) if func.name == "on-item-action" => writeln!(
+                out,
+                "if ctx.is_cancelled() {{ $crate::ItemActionDecision::Deny }} else {{ decision }}"
+            )?,
+            Some(_) if func.name == "on-player-quit" => writeln!(out, "decision")?,
+            Some(_) => anyhow::bail!("unsupported Handler result for {}", func.name),
+            None => {}
+        }
+        writeln!(out, "}}")?;
+    }
+    writeln!(out, "}} $crate::export!(__UnastarHandlerBridge); }}; }}")?;
+    Ok(())
 }

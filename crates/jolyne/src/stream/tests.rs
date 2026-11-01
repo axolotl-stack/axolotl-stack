@@ -167,7 +167,7 @@ async fn streamed_spawn_completes_on_the_play_receive_path() {
         assert_eq!(play.chunk_radius(), Some(16));
         play.send_packet(
             PlayStatusPacket {
-                status: PlayStatusPacketStatus::Playerspawn,
+                status: PlayStatusPacketStatus::PlayerSpawn,
             }
             .into(),
         )

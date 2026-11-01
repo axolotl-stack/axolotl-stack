@@ -16,7 +16,7 @@ use crate::entity::definition::apply_pending_definitions;
 use crate::entity::mob::combat::{Hit, hurt_mob, knockback_power_of};
 use crate::entity::mob::constants::{ICONCRACK_ITEM_SHIFT, PROJECTILE_PARTICLE_LEVEL_EVENT};
 use crate::entity::mob::events::{MobFacts, fire_event};
-use crate::entity::mob::net::sound::{level_event, play_level_sound};
+use crate::entity::mob::net::sound::{level_event_from, play_level_sound};
 use crate::entity::mob::{MobKind, MobRegistry, SpawnCause, derive_entity, spawn_mob};
 use crate::entity::systems::physics::collect_block_boxes;
 use crate::registry::collision::Aabb;
@@ -31,17 +31,111 @@ pub(super) fn on_hit(
     rules: &ProjectileRules,
     at: DVec3,
     target: Target,
+    collision_at: DVec3,
 ) -> bool {
+    if let Target::Actor(actor) = target
+        && crate::entity::mob::teleport::projectile_escape(world, actor, projectile)
+    {
+        return false;
+    }
+    let target_kind = match target {
+        Target::Block(_) => super::hooks::ProjectileImpactTarget::Block,
+        Target::Actor(actor) => super::hooks::ProjectileImpactTarget::Entity(actor),
+    };
+    if !super::hooks::impact(world, projectile, owner, target_kind, collision_at) {
+        return true;
+    }
+    if let Target::Actor(actor) = target
+        && super::reflect::from_projectile(world, actor, projectile)
+    {
+        return rules.remove_on_hit;
+    }
+    if rules.teleport_owner {
+        super::pearl::teleport_owner(world, projectile, owner, collision_at);
+    }
+    if world.get_entity(projectile).is_err() {
+        return true;
+    }
+    let potion = world
+        .get::<crate::server::game::potions::ProjectilePotion>(projectile)
+        .cloned();
+    if rules.douse_fire && potion.as_ref().is_some_and(|potion| potion.aux == 0) {
+        super::potions::douse(world, projectile, collision_at);
+        super::potions::douse_actors(world, projectile, collision_at);
+    }
+    if world.get_entity(projectile).is_err() {
+        return true;
+    }
+    if let Some(aux) = rules.thrown_potion {
+        let potion = if aux == -1 {
+            potion.clone()
+        } else {
+            i16::try_from(aux).ok().and_then(|aux| {
+                crate::server::game::potions::ProjectilePotion::from_aux(world, aux)
+            })
+        };
+        if let Some(potion) = potion {
+            let direct = match target {
+                Target::Actor(actor) => Some(actor),
+                Target::Block(_) => None,
+            };
+            super::potions::splash(world, projectile, &potion, collision_at, direct, 1.0);
+        }
+    }
+    if world.get_entity(projectile).is_err() {
+        return true;
+    }
+    if let Some(cloud) = &rules.cloud {
+        let potion = if cloud.potion == -1 {
+            potion
+        } else {
+            i16::try_from(cloud.potion).ok().and_then(|aux| {
+                crate::server::game::potions::ProjectilePotion::from_aux(world, aux)
+            })
+        };
+        if let Some(potion) = potion {
+            let direct = match target {
+                Target::Actor(actor) => Some(actor),
+                Target::Block(_) => None,
+            };
+            super::potions::splash(world, projectile, &potion, collision_at, direct, 0.25);
+            if world.get_entity(projectile).is_ok() {
+                super::cloud::spawn(world, projectile, owner, collision_at, potion, cloud);
+            }
+        }
+    }
+    if let Some(potion) = world.get::<crate::server::game::potions::ProjectilePotion>(projectile) {
+        level_event_from(
+            world,
+            Some(projectile),
+            collision_at,
+            2002,
+            (potion.profile.color | 0xff000000) as i32,
+        );
+    }
     let mut removed = false;
+    if let (Target::Block(position), Some(fire)) = (target, rules.block_fire) {
+        super::fire::block(world, owner, position, fire);
+    }
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
-        let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);
+        let flame_ticks = super::enchantments::flame_ticks(world, projectile);
+        let (destroyed, applied) = impact_damage(world, projectile, impact, at, actor);
         removed |= destroyed;
+        if applied > 0.0 {
+            if impact.catch_fire {
+                super::fire::actor(world, actor, rules.fire_ticks);
+            }
+            if let Some(fire) = rules.block_fire {
+                super::fire::actor(world, actor, fire.entity_fire_ticks);
+            }
+            super::fire::actor(world, actor, flame_ticks);
+        }
         if !destroyed {
             rebound(world, projectile, rules, applied);
         }
     }
-    if let (Target::Block, Some(shake)) = (target, rules.stick_in_ground) {
-        stick(world, projectile, at, shake);
+    if let (Target::Block(_), Some(shake)) = (target, rules.stick_in_ground) {
+        stick(world, projectile, collision_at, shake);
     }
     if let Some(particle) = &rules.particle {
         emit_particles(world, projectile, particle, at, target);
@@ -55,7 +149,7 @@ pub(super) fn on_hit(
             .hit_sound
             .as_ref()
             .filter(|_| world.get::<GameMode>(actor) != Some(&GameMode::Creative)),
-        Target::Block => rules.hit_ground_sound.as_ref().or(rules.hit_sound.as_ref()),
+        Target::Block(_) => rules.hit_ground_sound.as_ref().or(rules.hit_sound.as_ref()),
     };
     if let Some(sound) = sound {
         play_level_sound(world, Some(projectile), at, sound, -1);
@@ -73,7 +167,6 @@ pub(super) fn on_hit(
 fn impact_damage(
     world: &mut World,
     projectile: Entity,
-    owner: Option<Entity>,
     impact: &ImpactDamage,
     at: DVec3,
     actor: Entity,
@@ -92,7 +185,8 @@ fn impact_damage(
         let speed = world
             .get::<crate::entity::components::Velocity>(projectile)
             .map_or(0.0, |v| v.0.length() as f32);
-        let mut damage = speed * impact.power_multiplier;
+        let mut damage =
+            speed * (impact.power_multiplier + super::enchantments::power_bonus(world, projectile));
         if impact.ceil_pre_critical {
             damage = damage.ceil();
         }
@@ -115,21 +209,22 @@ fn impact_damage(
     } else {
         impact.min
     };
-    let owner = owner.filter(|owner| world.get_entity(*owner).is_ok());
+    let attribution = crate::entity::damage::DamageAttribution::for_source(world, Some(projectile));
+    let owner = attribution.live_owner(world);
     let names_attacker = damage > 0.0 || !impact.last_hurt_requires_damage;
     let attacker = owner.filter(|_| names_attacker);
     let hit = Hit {
         damage,
         cause: ActorDamageCause::Projectile,
         attacker,
-        by_player: attacker.is_some_and(|owner| world.get::<Player>(owner).is_some()),
+        by_player: names_attacker && attribution.owner().is_some_and(|owner| owner.is_player()),
         knockback_from: impact.knockback.then_some(at),
         knockback_power: knockback_power_of(world, projectile),
     };
     // Players take hits through the player hurt path (game mode, armour,
     // death); mobs through the mob one.
     let applied = if world.get::<Player>(actor).is_some() {
-        crate::entity::player_life::hurt_player(world, actor, &hit)
+        crate::entity::player_life::hurt_player_attributed(world, actor, &hit, attribution)
     } else {
         hurt_mob(world, actor, hit)
     };
@@ -182,7 +277,7 @@ fn emit_particles(
 ) {
     let wanted = match target {
         Target::Actor(_) => particle.on_entity_hit,
-        Target::Block => particle.on_other_hit,
+        Target::Block(_) => particle.on_other_hit,
     };
     if !wanted || particle.count == 0 {
         return;
@@ -213,7 +308,13 @@ fn emit_particles(
         particle.particle
     };
     for _ in 0..particle.count {
-        level_event(world, at, PROJECTILE_PARTICLE_LEVEL_EVENT, data);
+        level_event_from(
+            world,
+            Some(projectile),
+            at,
+            PROJECTILE_PARTICLE_LEVEL_EVENT,
+            data,
+        );
     }
 }
 

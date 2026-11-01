@@ -2,6 +2,41 @@ use super::*;
 use crate::entity::mob::state::LastHurt;
 use crate::entity::player_life::environment::Burning;
 
+#[test]
+fn a_fire_immune_player_takes_no_lava_damage_and_cannot_burn() {
+    use crate::entity::definition::flags::ActorFlags;
+    use jolyne::valentine::actor_flags;
+    let mut h = harness(Difficulty::Normal);
+    let player = h.player;
+    let mut flags = ActorFlags::default();
+    flags.update(actor_flags::FIRE_IMMUNE, true).unwrap();
+    h.world().entity_mut(player).insert(flags);
+    h.set_block(HOME.floor().as_ivec3(), *blocks::LAVA);
+    h.ticks(25);
+    assert_eq!(h.health(), 20.0);
+    assert!(h.world().get::<Burning>(player).is_none());
+    assert!(
+        h.world()
+            .get::<crate::entity::mob::combat::HurtTimer>(player)
+            .is_none()
+    );
+    h.world()
+        .get_mut::<ActorFlags>(player)
+        .unwrap()
+        .update(actor_flags::FIRE_IMMUNE, false)
+        .unwrap();
+    h.tick();
+    assert_eq!(h.health(), 16.0);
+    assert!(h.world().get::<Burning>(player).is_some());
+    h.world()
+        .get_mut::<ActorFlags>(player)
+        .unwrap()
+        .update(actor_flags::FIRE_IMMUNE, true)
+        .unwrap();
+    h.tick();
+    assert!(h.world().get::<Burning>(player).is_none());
+}
+
 fn last_cause(h: &mut Harness) -> ActorDamageCause {
     let player = h.player;
     h.world().get::<LastHurt>(player).unwrap().cause

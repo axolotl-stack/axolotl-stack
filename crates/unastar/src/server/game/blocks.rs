@@ -8,6 +8,9 @@ use bevy_ecs::prelude::*;
 use glam::IVec3;
 use tracing::{debug, trace, warn};
 
+use super::block_interaction::{
+    self, BlockClick, BlockCommit, BlockInteractionKind, ScopedBlockDispatcher,
+};
 use super::packet_queues::{BlockAction, BlockPacketQueue};
 use crate::ecs::events::{EventBuffer, ServerEvent};
 use crate::entity::components::{BreakingState, PlayerSession, PlayerUuid};
@@ -43,6 +46,9 @@ pub fn apply_block_actions(world: &mut World) {
 
     let _span = tracing::info_span!("apply_block_actions", count = actions.len()).entered();
     for (entity, action) in actions {
+        if super::inventory_effects::is_quarantined(world, entity) {
+            continue;
+        }
         match action {
             BlockAction::AuthInputActions(block_actions) => {
                 process_auth_input_block_actions(world, entity, &block_actions);
@@ -76,7 +82,7 @@ fn process_auth_input_block_actions(
         if !can_interact(world, player_entity, (x, y, z))
             && !matches!(
                 action_item.player_action_type,
-                EnumsPlayerActionType::Abortdestroyblock | EnumsPlayerActionType::Stopdestroyblock
+                EnumsPlayerActionType::AbortDestroyBlock | EnumsPlayerActionType::StopDestroyBlock
             )
         {
             correct_block(world, player_entity, (x, y, z));
@@ -84,12 +90,12 @@ fn process_auth_input_block_actions(
         }
 
         match action_item.player_action_type {
-            EnumsPlayerActionType::Predictdestroyblock
-            | EnumsPlayerActionType::Creativedestroyblock => {
+            EnumsPlayerActionType::PredictDestroyBlock
+            | EnumsPlayerActionType::CreativeDestroyBlock => {
                 trace!(pos = ?(x, y, z), "Creative/Predict block break");
                 break_block(world, player_entity, x, y, z);
             }
-            EnumsPlayerActionType::Startdestroyblock => {
+            EnumsPlayerActionType::StartDestroyBlock => {
                 let is_creative = world
                     .get::<crate::entity::components::GameMode>(player_entity)
                     .map(|gm| gm.instant_break())
@@ -119,7 +125,7 @@ fn process_auth_input_block_actions(
                     broadcast_block_crack_start(world, x, y, z, break_time_ticks);
                 }
             }
-            EnumsPlayerActionType::Crackblock | EnumsPlayerActionType::Continuedestroyblock => {
+            EnumsPlayerActionType::CrackBlock | EnumsPlayerActionType::ContinueDestroyBlock => {
                 let needs_start = world
                     .get::<BreakingState>(player_entity)
                     .map(|b| b.position.is_none())
@@ -144,7 +150,7 @@ fn process_auth_input_block_actions(
                     }
                 }
             }
-            EnumsPlayerActionType::Stopdestroyblock => {
+            EnumsPlayerActionType::StopDestroyBlock => {
                 trace!("StopBreak received");
                 let instant_break = world
                     .get::<crate::entity::components::GameMode>(player_entity)
@@ -181,7 +187,7 @@ fn process_auth_input_block_actions(
                     broadcast_block_crack_stop(world, x, y, z);
                 }
             }
-            EnumsPlayerActionType::Abortdestroyblock => {
+            EnumsPlayerActionType::AbortDestroyBlock => {
                 debug!(pos = ?(x, y, z), "AbortBreak");
 
                 if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
@@ -281,7 +287,10 @@ pub(crate) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> 
 
 /// Reach is measured from server-tracked position to the target block's box.
 /// Missing/non-finite player state and non-building modes fail closed.
-fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> bool {
+pub(crate) fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> bool {
+    if super::inventory_effects::is_quarantined(world, entity) {
+        return false;
+    }
     use crate::entity::components::{GameMode, Position};
     let Some(mode) = world.get::<GameMode>(entity) else {
         return false;
@@ -311,6 +320,47 @@ fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> boo
 enum BlockUse {
     Workbench,
     Container,
+}
+
+/// Resolve reciprocal container halves without requiring container resources in
+/// small worlds that only contain ordinary blocks.
+fn container_positions(world: &mut World, position: (i32, i32, i32)) -> Vec<(i32, i32, i32)> {
+    if world.contains_resource::<super::containers::BlockContainers>() {
+        super::containers::authorization_positions(
+            world,
+            IVec3::new(position.0, position.1, position.2),
+        )
+        .into_iter()
+        .map(|pos| (pos.x, pos.y, pos.z))
+        .collect()
+    } else {
+        vec![position]
+    }
+}
+
+/// Add any neighbour whose container metadata would change with this placement.
+fn placement_positions(
+    world: &mut World,
+    position: (i32, i32, i32),
+    state: u32,
+    upper: Option<(IVec3, u32)>,
+) -> Vec<(i32, i32, i32)> {
+    let mut positions = if world.contains_resource::<super::containers::BlockContainers>() {
+        super::containers::placement_authorization_positions(
+            world,
+            IVec3::new(position.0, position.1, position.2),
+            state,
+        )
+        .into_iter()
+        .map(|pos| (pos.x, pos.y, pos.z))
+        .collect()
+    } else {
+        vec![position]
+    };
+    if let Some((above, _)) = upper {
+        positions.push((above.x, above.y, above.z));
+    }
+    positions
 }
 
 /// An interactive block's `use` (crafting table, container) runs before item
@@ -365,7 +415,7 @@ fn held_block(world: &World, entity: Entity) -> Option<(u32, &crate::item::ItemS
     Some((block.default_state_id, stack, item.network_id()))
 }
 
-fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
+pub(crate) fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
     let Some(block_runtime_id) = block_at(world, position) else {
         return;
     };
@@ -386,6 +436,29 @@ fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
 /// Called only after the plugin manager has accepted this queued intent.
 /// Revalidation closes races between packet processing and plugin dispatch.
 pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
+    commit_block_event_with(world, event, None);
+}
+
+/// A manager-owned queued commit uses its existing scoped dispatcher without reentry.
+pub(crate) fn commit_block_event_with(
+    world: &mut World,
+    event: &ServerEvent,
+    inline: Option<&mut dyn ScopedBlockDispatcher>,
+) {
+    let id = match event {
+        ServerEvent::BlockPlace { click, .. } => click.as_ref().and_then(|click| click.item_action),
+        _ => None,
+    };
+    commit_block_event_inner(world, event, inline);
+    super::item_actions::discard_block(world, id);
+}
+
+/// Keep all early native failure paths inside the transient-correlation cleanup boundary.
+fn commit_block_event_inner(
+    world: &mut World,
+    event: &ServerEvent,
+    mut inline: Option<&mut dyn ScopedBlockDispatcher>,
+) {
     match event {
         ServerEvent::BlockBreak {
             entity,
@@ -393,10 +466,62 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             block_id,
             ..
         } => {
-            if can_interact(world, *entity, *position)
+            let positions = container_positions(world, *position);
+            if *block_id != *blocks::AIR
+                && can_interact(world, *entity, *position)
                 && block_at(world, *position) == Some(*block_id)
+                && can_interact(world, *entity, *position)
+                && block_at(world, *position) == Some(*block_id)
+                && container_positions(world, *position) == positions
             {
-                apply_break_block(world, *entity, position.0, position.1, position.2);
+                let updates: Vec<_> = positions
+                    .iter()
+                    .filter_map(|&(x, y, z)| {
+                        Some((
+                            IVec3::new(x, y, z),
+                            if (x, y, z) == *position {
+                                *blocks::AIR
+                            } else {
+                                block_at(world, (x, y, z))?
+                            },
+                        ))
+                    })
+                    .collect();
+                let Some(committed) = authorize_block_plan(
+                    world,
+                    *entity,
+                    BlockInteractionKind::Break,
+                    &updates,
+                    Some(BlockClick {
+                        item_action: None,
+                        position: IVec3::new(position.0, position.1, position.2),
+                        face: None,
+                        offset: None,
+                    }),
+                    inline
+                        .as_mut()
+                        .map(|handler| &mut **handler as &mut dyn ScopedBlockDispatcher),
+                ) else {
+                    reject_block_event(world, event);
+                    return;
+                };
+                if !can_interact(world, *entity, *position)
+                    || container_positions(world, *position) != positions
+                {
+                    reject_block_event(world, event);
+                    return;
+                }
+                apply_break_block(
+                    world,
+                    *entity,
+                    position.0,
+                    position.1,
+                    position.2,
+                    committed,
+                    inline
+                        .as_mut()
+                        .map(|handler| &mut **handler as &mut dyn ScopedBlockDispatcher),
+                );
             } else {
                 reject_block_event(world, event);
             }
@@ -405,6 +530,7 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             entity,
             position,
             block_id,
+            click,
             ..
         } => {
             let upper = if can_interact(world, *entity, *position) {
@@ -416,6 +542,47 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                 reject_block_event(world, event);
                 return;
             };
+            let positions = placement_positions(world, *position, *block_id, upper);
+            let updates: Option<Vec<_>> = positions
+                .iter()
+                .map(|&(x, y, z)| {
+                    let pos = IVec3::new(x, y, z);
+                    let state = if (x, y, z) == *position {
+                        *block_id
+                    } else if let Some((above, state)) = upper.filter(|(above, _)| *above == pos) {
+                        let _ = above;
+                        state
+                    } else {
+                        block_at(world, (x, y, z))?
+                    };
+                    Some((pos, state))
+                })
+                .collect();
+            let Some(committed) = updates.and_then(|updates| {
+                authorize_block_plan(
+                    world,
+                    *entity,
+                    BlockInteractionKind::Place,
+                    &updates,
+                    click.clone(),
+                    inline
+                        .as_mut()
+                        .map(|handler| &mut **handler as &mut dyn ScopedBlockDispatcher),
+                )
+            }) else {
+                reject_block_event(world, event);
+                return;
+            };
+            if !can_interact(world, *entity, *position)
+                || placement_upper(world, *entity, *position, *block_id) != Some(upper)
+                || placement_positions(world, *position, *block_id, upper) != positions
+            {
+                for position in positions {
+                    correct_block(world, *entity, position);
+                }
+                super::inventory::resync_inventory(world, *entity);
+                return;
+            }
             place_block(world, position.0, position.1, position.2, *block_id);
             if let Some((above, upper_state)) = upper {
                 place_block(world, above.x, above.y, above.z, upper_state);
@@ -423,21 +590,13 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             super::containers::placed(world, IVec3::new(position.0, position.1, position.2));
             if world.get::<crate::entity::components::GameMode>(*entity)
                 == Some(&crate::entity::components::GameMode::Survival)
+                && let Some(held) = committed.held()
             {
-                let slot = usize::from(
-                    world
-                        .get::<crate::entity::components::HeldSlot>(*entity)
-                        .unwrap()
-                        .0,
-                );
-                let mut inventory = world
-                    .get_mut::<crate::entity::components::MainInventory>(*entity)
-                    .unwrap();
-                let item = inventory.0.item_mut(slot).unwrap();
-                *item = item.grow(-1);
+                committed.replace_source(world, held.stack.grow(-1));
             }
             super::inventory::resync_inventory(world, *entity);
             correct_block(world, *entity, *position);
+            committed.finish_with(world, inline);
         }
         _ => {}
     }
@@ -456,6 +615,93 @@ pub(crate) fn reject_block_event(world: &World, event: &ServerEvent) {
         }
         _ => {}
     }
+}
+
+/// Session identity retained across callbacks without holding its ECS borrow.
+struct InteractionSession {
+    session_id: u64,
+    xuid: Option<String>,
+    uuid: Option<String>,
+    outbound: tokio::sync::mpsc::Sender<McpePacket>,
+}
+
+impl InteractionSession {
+    /// Capture the authenticated session and connection used by this operation.
+    fn capture(session: &PlayerSession) -> Self {
+        Self {
+            session_id: session.session_id,
+            xuid: session.xuid.clone(),
+            uuid: session.uuid.clone(),
+            outbound: session.outbound_tx.clone(),
+        }
+    }
+
+    /// Require the same account and connection after extension callbacks.
+    fn matches(&self, session: &PlayerSession) -> bool {
+        self.session_id == session.session_id
+            && self.xuid == session.xuid
+            && self.uuid == session.uuid
+            && self.outbound.same_channel(&session.outbound_tx)
+    }
+}
+
+/// Authorize immutable target snapshots and reject callback changes to ownership,
+/// selected inventory, game mode or any affected block before committing effects.
+pub(crate) fn authorize_block_operation(
+    world: &mut World,
+    player: Entity,
+    kind: BlockInteractionKind,
+    positions: &[(i32, i32, i32)],
+) -> bool {
+    let updates: Option<Vec<_>> = positions
+        .iter()
+        .map(|&(x, y, z)| Some((IVec3::new(x, y, z), block_at(world, (x, y, z))?)))
+        .collect();
+    updates.is_some_and(|updates| {
+        authorize_block_plan(world, player, kind, &updates, None, None).is_some()
+    })
+}
+
+/// Authorize a complete planned batch and capture its original source for commit.
+pub(super) fn authorize_block_plan(
+    world: &mut World,
+    player: Entity,
+    kind: BlockInteractionKind,
+    updates: &[(IVec3, u32)],
+    click: Option<BlockClick>,
+    inline: Option<&mut dyn ScopedBlockDispatcher>,
+) -> Option<BlockCommit> {
+    if updates
+        .iter()
+        .any(|(position, _)| super::containers::mutation_locked(world, *position))
+    {
+        return None;
+    }
+    let mode = world
+        .get::<crate::entity::components::GameMode>(player)
+        .copied();
+    let held = super::item_use::held(world, player);
+    let player_uuid = world.get::<PlayerUuid>(player).map(|uuid| uuid.0);
+    let session = world
+        .get::<PlayerSession>(player)
+        .map(InteractionSession::capture);
+    let committed = block_interaction::plan(world, player, kind, updates, click, inline)?;
+    (updates
+        .iter()
+        .all(|(position, _)| !super::containers::mutation_locked(world, *position))
+        && world.get_entity(player).is_ok()
+        && world
+            .get::<crate::entity::components::GameMode>(player)
+            .copied()
+            == mode
+        && super::item_use::held(world, player) == held
+        && world.get::<PlayerUuid>(player).map(|uuid| uuid.0) == player_uuid
+        && match (session.as_ref(), world.get::<PlayerSession>(player)) {
+            (Some(expected), Some(current)) => expected.matches(current),
+            (None, None) => true,
+            _ => false,
+        })
+    .then_some(committed)
 }
 
 /// Validate and queue a break intent. Plugin dispatch owns the commit boundary.
@@ -500,7 +746,18 @@ fn break_block(world: &mut World, player: Entity, x: i32, y: i32, z: i32) {
 }
 
 /// Apply an already approved break; never called before cancellable dispatch.
-fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32, z: i32) {
+fn apply_break_block(
+    world: &mut World,
+    breaking_player: Entity,
+    x: i32,
+    y: i32,
+    z: i32,
+    committed: BlockCommit,
+    inline: Option<&mut dyn ScopedBlockDispatcher>,
+) {
+    if super::containers::mutation_locked(world, IVec3::new(x, y, z)) {
+        return;
+    }
     debug!(pos = ?(x, y, z), "Committing block break");
 
     let (cx, cz) = world_to_chunk_coords(x, z);
@@ -522,6 +779,14 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         .get::<crate::world::ecs::ChunkData>(chunk_entity)
         .map(|cd| cd.inner.get_block(local_x, local_y, local_z))
         .unwrap_or(0);
+
+    let instant_break = world
+        .get::<crate::entity::components::GameMode>(breaking_player)
+        .is_some_and(|mode| mode.instant_break());
+    let tool = committed
+        .held()
+        .map(|held| held.stack.clone())
+        .filter(|stack| !stack.is_empty());
 
     // A container hands its contents over before its actor goes with the block.
     let broken = super::containers::breaking(world, IVec3::new(x, y, z));
@@ -558,20 +823,17 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
 
     // Survival breaks drop the block's items as real item entities and wear
     // the tool.
-    if original_block_id != *blocks::AIR
-        && !world
-            .get::<crate::entity::components::GameMode>(breaking_player)
-            .is_some_and(|mode| mode.instant_break())
-    {
-        let tool = held_item(world, breaking_player);
+    if original_block_id != *blocks::AIR && !instant_break {
         super::block_drops::drop_block_items(
             world,
             IVec3::new(x, y, z),
             original_block_id,
             tool.as_ref(),
         );
-        wear_held_tool(world, breaking_player, original_block_id);
-        super::hunger::exhaust_player(world, breaking_player, |values| values.mine);
+        wear_held_tool(world, original_block_id, &committed);
+        if committed.same_actor(world) {
+            super::hunger::exhaust_player(world, breaking_player, |values| values.mine);
+        }
     }
 
     // Broadcast update to viewers
@@ -587,6 +849,7 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
     if let Some(broken) = broken {
         super::containers::drop_contents(world, IVec3::new(x, y, z), broken);
     }
+    committed.finish_with(world, inline);
 }
 
 /// Broadcast block break effects (UpdateBlock, particles, sound) to viewers.
@@ -715,24 +978,84 @@ fn player_break_ticks(world: &World, player: Entity, position: (i32, i32, i32)) 
     super::mining::break_ticks(block, tool.as_ref(), mining_conditions(world, player))
 }
 
-/// Apply mining wear to the held tool after breaking `block_runtime_id`
-/// (shared durability rules; see `durability`).
-fn wear_held_tool(world: &mut World, player: Entity, block_runtime_id: u32) {
-    let Some(tool) = held_item(world, player) else {
+/// Apply mining wear to the captured original source after a completed break.
+fn wear_held_tool(world: &mut World, block_runtime_id: u32, committed: &BlockCommit) {
+    let Some(tool) = committed
+        .held()
+        .map(|held| &held.stack)
+        .filter(|stack| !stack.is_empty())
+    else {
         return;
     };
     let Some(block) = world
         .get_resource::<super::types::BlockRegistryResource>()
-        .and_then(|r| r.0.get_by_runtime_id(block_runtime_id).cloned())
+        .and_then(|r| r.0.get_by_runtime_id(block_runtime_id))
     else {
         return;
     };
-    let wear = super::mining::mining_wear(&block, &tool);
-    super::durability::wear_held(world, player, wear);
+    committed.wear_source(world, super::mining::mining_wear(block, tool));
+}
+
+/// Retain only finite, bounded local hit coordinates from an actual click packet.
+fn click_offset(
+    data: &jolyne::valentine::types::ItemUseInventoryTransaction,
+) -> Option<glam::DVec3> {
+    let offset = glam::DVec3::new(
+        f64::from(data.click_position.x),
+        f64::from(data.click_position.y),
+        f64::from(data.click_position.z),
+    );
+    (offset.is_finite()
+        && offset.cmpge(glam::DVec3::ZERO).all()
+        && offset.cmple(glam::DVec3::ONE).all())
+    .then_some(offset)
 }
 
 /// Handle block click from InventoryTransaction ItemUse::ClickBlock.
+/// Authorize the actual selected item before any block default effect; an inert pass emits nothing.
 fn handle_block_click(
+    world: &mut World,
+    entity: Entity,
+    data: &jolyne::valentine::types::ItemUseInventoryTransaction,
+) {
+    let clicked = IVec3::new(data.position.x, data.position.y, data.position.z);
+    if data.face > 5 || !can_interact(world, entity, clicked.into()) {
+        handle_block_click_default(world, entity, data);
+        return;
+    }
+    let main_hand = data.hand == jolyne::valentine::EnumsHandSlot::Mainhand
+        && world
+            .get::<crate::entity::components::HeldSlot>(entity)
+            .is_some_and(|slot| data.slot == i32::from(slot.0));
+    if !main_hand {
+        handle_block_click_default(world, entity, data);
+        return;
+    }
+    let target = super::item_actions::ItemTarget::Block(super::item_actions::ItemBlockTarget {
+        position: clicked,
+        face: data.face,
+        offset: click_offset(data),
+        state: block_at(world, clicked.into()),
+    });
+    let Some(permit) = super::item_actions::authorize_target(
+        world,
+        entity,
+        super::item_actions::ItemActionKind::Use,
+        target,
+        None,
+    ) else {
+        super::inventory::resync_inventory(world, entity);
+        return;
+    };
+    let Some(id) = super::item_actions::begin_block(world, permit) else {
+        return;
+    };
+    handle_block_click_default(world, entity, data);
+    super::item_actions::end_block(world, id);
+}
+
+/// Preserve ordinary validation, corrective packets and default block behavior after item permission.
+fn handle_block_click_default(
     world: &mut World,
     entity: Entity,
     data: &jolyne::valentine::types::ItemUseInventoryTransaction,
@@ -765,6 +1088,46 @@ fn handle_block_click(
         super::inventory::resync_inventory(world, entity);
         return;
     }
+    let use_kind = block_use(world, entity, clicked);
+    let use_positions = if use_kind == Some(BlockUse::Container) {
+        container_positions(world, clicked)
+    } else {
+        vec![clicked]
+    };
+    let use_commit = if use_kind.is_some() {
+        let updates: Option<Vec<_>> = use_positions
+            .iter()
+            .map(|&(x, y, z)| Some((IVec3::new(x, y, z), block_at(world, (x, y, z))?)))
+            .collect();
+        let committed = updates.and_then(|updates| {
+            authorize_block_plan(
+                world,
+                entity,
+                BlockInteractionKind::Use,
+                &updates,
+                Some(BlockClick {
+                    item_action: None,
+                    position: IVec3::new(clicked.0, clicked.1, clicked.2),
+                    face: Some(data.face),
+                    offset: click_offset(data),
+                }),
+                None,
+            )
+        });
+        if committed.is_none()
+            || !can_interact(world, entity, clicked)
+            || block_use(world, entity, clicked) != use_kind
+            || (use_kind == Some(BlockUse::Container)
+                && container_positions(world, clicked) != use_positions)
+        {
+            correct_block(world, entity, clicked);
+            super::inventory::resync_inventory(world, entity);
+            return;
+        }
+        committed
+    } else {
+        None
+    };
     // A valid placement follows this interaction immediately in EventBuffer.
     // PluginManager carries interaction cancellation to the paired placement.
     if let Some(mut events) = world.get_resource_mut::<EventBuffer>() {
@@ -774,16 +1137,24 @@ fn handle_block_click(
             face: data.face,
         });
     }
-    match block_use(world, entity, clicked) {
-        Some(BlockUse::Workbench) => {
-            super::inventory::open_workbench(world, entity, clicked);
-            return;
+    if let Some(use_kind) = use_kind {
+        let committed = use_commit.expect("authorized native use plan");
+        let before = world
+            .get::<crate::entity::components::ContainerWindows>(entity)
+            .and_then(|windows| windows.open_id());
+        match use_kind {
+            BlockUse::Workbench => super::inventory::open_workbench(world, entity, clicked),
+            BlockUse::Container => {
+                super::containers::open(world, entity, IVec3::new(clicked.0, clicked.1, clicked.2));
+            }
         }
-        Some(BlockUse::Container) => {
-            super::containers::open(world, entity, IVec3::new(clicked.0, clicked.1, clicked.2));
-            return;
+        let after = world
+            .get::<crate::entity::components::ContainerWindows>(entity)
+            .and_then(|windows| windows.open_id());
+        if before.is_none() && after.is_some() {
+            committed.finish(world);
         }
-        None => {}
+        return;
     }
     // Spawn eggs spawn their mob on the clicked face instead of placing.
     let main_hand_selected = data.hand == jolyne::valentine::EnumsHandSlot::Mainhand
@@ -793,23 +1164,61 @@ fn handle_block_click(
     // Tools, bone meal, buckets and fire starters act on the clicked block
     // instead of placing anything.
     if main_hand_selected
-        && super::item_use::on_block::use_on_block(
+        && super::item_use::on_block::use_on_block_with_click(
             world,
             entity,
             IVec3::new(clicked.0, clicked.1, clicked.2),
             data.face,
+            click_offset(data),
         )
     {
         return;
     }
-    if main_hand_selected
-        && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR)
-        && crate::entity::mob::interaction::interact::use_spawn_egg_on_block(
+    let spawn_egg = main_hand_selected
+        && super::item_use::held(world, entity).is_some_and(|(_, stack)| {
+            crate::entity::mob::interaction::interact::spawn_egg_actor(stack.item_id()).is_some()
+        })
+        && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR);
+    if spawn_egg {
+        let updates: Option<Vec<_>> = [clicked, position]
+            .into_iter()
+            .map(|(x, y, z)| Some((IVec3::new(x, y, z), block_at(world, (x, y, z))?)))
+            .collect();
+        let committed = updates.and_then(|updates| {
+            authorize_block_plan(
+                world,
+                entity,
+                BlockInteractionKind::Use,
+                &updates,
+                Some(BlockClick {
+                    item_action: None,
+                    position: IVec3::new(clicked.0, clicked.1, clicked.2),
+                    face: Some(data.face),
+                    offset: click_offset(data),
+                }),
+                None,
+            )
+        });
+        let Some(committed) = committed.filter(|_| can_interact(world, entity, clicked)) else {
+            correct_block(world, entity, clicked);
+            correct_block(world, entity, position);
+            super::inventory::resync_inventory(world, entity);
+            return;
+        };
+        if crate::entity::mob::interaction::interact::spawn_egg_on_block(
             world,
             entity,
             IVec3::new(position.0, position.1, position.2),
-        )
-    {
+        ) == Some(true)
+        {
+            if world.get::<crate::entity::components::GameMode>(entity)
+                != Some(&crate::entity::components::GameMode::Creative)
+                && let Some(held) = committed.held()
+            {
+                committed.replace_source(world, held.stack.grow(-1));
+            }
+            committed.finish(world);
+        }
         return;
     }
     let held = held_block(world, entity);
@@ -886,8 +1295,16 @@ fn handle_block_click(
         .get::<PlayerUuid>(entity)
         .map(|id| id.0.to_string())
         .unwrap_or_default();
+    let item_action = super::item_actions::active_block(world);
+    super::item_actions::queue_block(world, item_action);
     if let Some(mut events) = world.get_resource_mut::<EventBuffer>() {
         events.push(ServerEvent::BlockPlace {
+            click: Some(BlockClick {
+                item_action,
+                position: IVec3::new(clicked.0, clicked.1, clicked.2),
+                face: Some(data.face),
+                offset: click_offset(data),
+            }),
             entity,
             player_id,
             position: target,
@@ -966,47 +1383,65 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 /// viewers (with the place sound when `place_sound`) and schedule gravity
 /// checks for the block and the one above it.
 pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    let _ = try_set_block(world, pos, block_runtime_id, place_sound);
+}
+
+/// Why a native block replacement did not commit any physical changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BlockWriteError {
+    Reserved,
+    Unavailable,
+    OutsideHeight,
+}
+
+/// Replace a loaded cell and return its previous state only after the write
+/// succeeds. Callers transferring material into or out of an actor must retain
+/// that ownership when this returns an error.
+pub(crate) fn try_set_block(
+    world: &mut World,
+    pos: IVec3,
+    block_runtime_id: u32,
+    place_sound: bool,
+) -> Result<u32, BlockWriteError> {
+    if super::containers::mutation_locked(world, pos) {
+        return Err(BlockWriteError::Reserved);
+    }
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
 
     let chunk_entity = {
         let Some(chunk_manager) = world.get_resource::<ChunkManager>() else {
-            return;
+            return Err(BlockWriteError::Unavailable);
         };
         chunk_manager.get_by_coords(cx, cz)
     };
 
     let Some(chunk_entity) = chunk_entity else {
         debug!(chunk = ?(cx, cz), "place_block: chunk not found");
-        return;
+        return Err(BlockWriteError::Unavailable);
     };
 
-    let old_block_id = world
-        .get::<crate::world::ecs::ChunkData>(chunk_entity)
-        .map(|cd| cd.inner.get_block(local_x, local_y, local_z))
-        .unwrap_or(0);
-
-    // Update chunk data
-    if let Some(mut chunk_data) = world.get_mut::<crate::world::ecs::ChunkData>(chunk_entity) {
+    let old_block_id = {
+        let Some(mut chunk_data) = world.get_mut::<crate::world::ecs::ChunkData>(chunk_entity)
+        else {
+            return Err(BlockWriteError::Unavailable);
+        };
+        if !chunk_data.inner.block_bounds().contains(&pos.y) {
+            return Err(BlockWriteError::OutsideHeight);
+        }
         chunk_data
             .inner
-            .set_block(local_x, local_y, local_z, block_runtime_id);
-    } else {
-        return;
-    }
+            .set_block(local_x, local_y, local_z, block_runtime_id)
+            .ok_or(BlockWriteError::OutsideHeight)?
+    };
 
     if let Some(mut state_flags) = world.get_mut::<crate::world::ecs::ChunkStateFlags>(chunk_entity)
     {
         state_flags.mark_needs_rebroadcast();
     }
 
-    world.trigger(BlockChanged {
-        chunk_entity,
-        block_pos: IVec3::new(x, y, z),
-        old_block: old_block_id,
-        new_block: block_runtime_id,
-    });
+    notify_block_change(world, chunk_entity, pos, old_block_id, block_runtime_id);
 
     world.write_message(BlockBroadcastEvent {
         chunk_entity,
@@ -1014,9 +1449,37 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
         new_block: block_runtime_id,
     });
 
-    super::falling::schedule_gravity_checks(world, pos);
+    broadcast_block_state(world, chunk_entity, pos, block_runtime_id, place_sound);
+    Ok(old_block_id)
+}
 
-    // Broadcast to viewers
+/// Notify observers of an actual installed change and schedule ordinary gravity.
+pub(crate) fn notify_block_change(
+    world: &mut World,
+    chunk_entity: Entity,
+    pos: IVec3,
+    previous: u32,
+    current: u32,
+) {
+    world.trigger(BlockChanged {
+        chunk_entity,
+        block_pos: pos,
+        old_block: previous,
+        new_block: current,
+    });
+    super::falling::schedule_gravity_checks(world, pos);
+}
+
+/// Send an already installed state; callers may publish a whole batch before
+/// notifying native observers that can author additional changes.
+pub(crate) fn broadcast_block_state(
+    world: &World,
+    chunk_entity: Entity,
+    pos: IVec3,
+    block_runtime_id: u32,
+    place_sound: bool,
+) {
+    let (x, y, z) = (pos.x, pos.y, pos.z);
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
         use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
@@ -1059,6 +1522,9 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
 /// air, and its tool-less drops and any container contents fall as items
 /// (BDS's order: `LevelEvent` 2001, `UpdateBlock`, `AddItemActor`).
 pub(crate) fn destroy_block(world: &mut World, pos: IVec3) {
+    if super::containers::mutation_locked(world, pos) {
+        return;
+    }
     let Some(original) = block_at(world, (pos.x, pos.y, pos.z)) else {
         return;
     };
@@ -1099,6 +1565,130 @@ mod tests {
     use crate::entity::components::{GameMode, HeldSlot, MainInventory, Position};
     use crate::world::ecs::{ChunkData, ChunkPosition};
     use glam::DVec3;
+
+    use super::super::block_interaction::{
+        BlockInteraction, BlockInteractionHandler, BlockInteractionHooks,
+    };
+
+    /// Veto one kind of operation, optionally only when it affects a target.
+    struct Veto {
+        kind: BlockInteractionKind,
+        position: Option<IVec3>,
+    }
+
+    impl BlockInteractionHandler for Veto {
+        fn on_interaction(&self, _world: &mut World, event: &mut BlockInteraction) {
+            if event.kind() == self.kind
+                && self
+                    .position
+                    .is_none_or(|position| event.positions().contains(&position))
+            {
+                event.cancel();
+            }
+        }
+    }
+
+    /// Remove the source during a callback to exercise post-callback validation.
+    struct DespawnSource;
+
+    impl BlockInteractionHandler for DespawnSource {
+        fn on_interaction(&self, world: &mut World, event: &mut BlockInteraction) {
+            world.despawn(event.player());
+        }
+    }
+
+    /// Alter a target during a callback so the original operation becomes stale.
+    struct ReplaceTarget(Entity);
+
+    impl BlockInteractionHandler for ReplaceTarget {
+        fn on_interaction(&self, world: &mut World, _event: &mut BlockInteraction) {
+            world
+                .get_mut::<ChunkData>(self.0)
+                .unwrap()
+                .inner
+                .set_block(1, 64, 1, *blocks::DIRT);
+        }
+    }
+
+    /// Swap authenticated account components without changing reach or inventory.
+    struct ChangeIdentity {
+        change_uuid: bool,
+    }
+
+    impl BlockInteractionHandler for ChangeIdentity {
+        fn on_interaction(&self, world: &mut World, event: &mut BlockInteraction) {
+            if self.change_uuid {
+                world
+                    .entity_mut(event.player())
+                    .insert(PlayerUuid(uuid::Uuid::from_u128(2)));
+            } else if let Some(mut session) = world.get_mut::<PlayerSession>(event.player()) {
+                session.xuid = Some("replacement-account".into());
+            }
+        }
+    }
+
+    /// Install a native callback without requiring the complete runtime fixture.
+    fn hook(world: &mut World, handler: impl BlockInteractionHandler) {
+        world.init_resource::<BlockInteractionHooks>();
+        world
+            .resource_mut::<BlockInteractionHooks>()
+            .register(handler);
+    }
+
+    /// Install a reservation from the last native authorization stage.
+    struct ReservePlacement;
+    impl BlockInteractionHandler for ReservePlacement {
+        fn on_interaction(&self, world: &mut World, event: &mut BlockInteraction) {
+            if event.kind() == BlockInteractionKind::Place {
+                world.init_resource::<super::super::ContainerMutationLocks>();
+                assert!(
+                    world
+                        .resource_mut::<super::super::ContainerMutationLocks>()
+                        .acquire("operation", event.positions().iter().copied())
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn late_native_reservation_rejects_placement_before_world_or_item_cost() {
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.0, 64.0, 1.0));
+        let data = placement(&mut world);
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
+            .unwrap();
+        hook(&mut world, ReservePlacement);
+        handle_block_click(&mut world, player, &data);
+        let event = world.resource_mut::<EventBuffer>().drain().pop().unwrap();
+        commit_block_event(&mut world, &event);
+        assert!(
+            world
+                .resource::<super::super::ContainerMutationLocks>()
+                .is_locked(IVec3::new(1, 65, 1))
+        );
+        assert_eq!(
+            world
+                .get::<ChunkData>(chunk)
+                .unwrap()
+                .inner
+                .get_block(1, 65, 1),
+            *blocks::AIR
+        );
+        assert_eq!(
+            world
+                .get::<MainInventory>(player)
+                .unwrap()
+                .0
+                .item(0)
+                .unwrap()
+                .count,
+            2
+        );
+    }
 
     fn block_world(mode: GameMode, position: DVec3) -> (World, Entity, Entity) {
         let mut world = World::new();
@@ -1185,6 +1775,180 @@ mod tests {
                 .get_block(1, 64, 1),
             *blocks::STONE
         );
+    }
+
+    #[test]
+    fn native_break_veto_preserves_block_tool_and_inventory() {
+        let (mut world, player, _) = block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(
+                0,
+                crate::item::test_support::stack("minecraft:iron_pickaxe", 1),
+            )
+            .unwrap();
+        hook(
+            &mut world,
+            Veto {
+                kind: BlockInteractionKind::Break,
+                position: None,
+            },
+        );
+        let before = super::super::item_use::held(&world, player);
+        commit_block_event(
+            &mut world,
+            &ServerEvent::BlockBreak {
+                entity: player,
+                player_id: String::new(),
+                position: (1, 64, 1),
+                block_id: *blocks::STONE,
+            },
+        );
+        assert_eq!(block_at(&world, (1, 64, 1)), Some(*blocks::STONE));
+        assert_eq!(super::super::item_use::held(&world, player), before);
+        assert_eq!(world.entities().len(), 2);
+    }
+
+    #[test]
+    fn native_placement_veto_authorizes_both_door_halves_without_consuming() {
+        let (mut world, player, _) = block_world(GameMode::Survival, DVec3::new(3.5, 64.0, 1.5));
+        let door = crate::registry::BlockRegistry::vanilla()
+            .get_by_name("minecraft:wooden_door")
+            .unwrap();
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(
+                0,
+                crate::item::test_support::stack("minecraft:wooden_door", 1)
+                    .with_runtime_id(door.default_state_id as i32),
+            )
+            .unwrap();
+        hook(
+            &mut world,
+            Veto {
+                kind: BlockInteractionKind::Place,
+                position: Some(IVec3::new(1, 66, 1)),
+            },
+        );
+        let before = super::super::item_use::held(&world, player);
+        commit_block_event(
+            &mut world,
+            &ServerEvent::BlockPlace {
+                click: None,
+                entity: player,
+                player_id: String::new(),
+                position: (1, 65, 1),
+                block_id: door.default_state_id,
+            },
+        );
+        assert_eq!(block_at(&world, (1, 65, 1)), Some(*blocks::AIR));
+        assert_eq!(block_at(&world, (1, 66, 1)), Some(*blocks::AIR));
+        assert_eq!(super::super::item_use::held(&world, player), before);
+    }
+
+    #[test]
+    fn native_use_veto_prevents_early_workbench_open_and_queued_interaction() {
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        let data = placement(&mut world);
+        let table = crate::registry::BlockRegistry::vanilla()
+            .default_state_id_by_name("minecraft:crafting_table")
+            .unwrap();
+        world
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block(1, 64, 1, table);
+        hook(
+            &mut world,
+            Veto {
+                kind: BlockInteractionKind::Use,
+                position: None,
+            },
+        );
+        handle_block_click(&mut world, player, &data);
+        assert_eq!(block_at(&world, (1, 64, 1)), Some(table));
+        assert!(world.resource_mut::<EventBuffer>().drain().is_empty());
+        assert!(
+            world
+                .get::<crate::entity::components::PlayerUi>(player)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn native_callback_despawn_cannot_commit_a_stale_placement() {
+        let (mut world, player, _) = block_world(GameMode::Survival, DVec3::new(3.5, 64.0, 1.5));
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
+            .unwrap();
+        hook(&mut world, DespawnSource);
+        commit_block_event(
+            &mut world,
+            &ServerEvent::BlockPlace {
+                click: None,
+                entity: player,
+                player_id: String::new(),
+                position: (1, 65, 1),
+                block_id: *blocks::STONE,
+            },
+        );
+        assert!(world.get_entity(player).is_err());
+        assert_eq!(block_at(&world, (1, 65, 1)), Some(*blocks::AIR));
+    }
+
+    #[test]
+    fn native_callback_block_change_cannot_break_the_replacement() {
+        let (mut world, player, chunk) =
+            block_world(GameMode::Creative, DVec3::new(1.5, 65.62, 1.5));
+        hook(&mut world, ReplaceTarget(chunk));
+        commit_block_event(
+            &mut world,
+            &ServerEvent::BlockBreak {
+                entity: player,
+                player_id: String::new(),
+                position: (1, 64, 1),
+                block_id: *blocks::STONE,
+            },
+        );
+        assert_eq!(block_at(&world, (1, 64, 1)), Some(*blocks::DIRT));
+    }
+
+    #[test]
+    fn native_callback_account_swap_cannot_commit_under_stale_authorization() {
+        for change_uuid in [true, false] {
+            let (mut world, player, _) =
+                block_world(GameMode::Creative, DVec3::new(1.5, 65.62, 1.5));
+            let (tx, _rx) = tokio::sync::mpsc::channel(8);
+            world.entity_mut(player).insert((
+                PlayerUuid(uuid::Uuid::from_u128(1)),
+                PlayerSession::new(
+                    1,
+                    "player".into(),
+                    Some("original-account".into()),
+                    None,
+                    tx,
+                ),
+            ));
+            hook(&mut world, ChangeIdentity { change_uuid });
+            commit_block_event(
+                &mut world,
+                &ServerEvent::BlockBreak {
+                    entity: player,
+                    player_id: String::new(),
+                    position: (1, 64, 1),
+                    block_id: *blocks::STONE,
+                },
+            );
+            assert_eq!(block_at(&world, (1, 64, 1)), Some(*blocks::STONE));
+        }
     }
 
     #[test]
@@ -1530,12 +2294,14 @@ mod tests {
             player,
             crate::item::test_support::stack("minecraft:iron_pickaxe", 1),
         );
-        wear_held_tool(&mut world, player, *blocks::STONE);
+        let committed = BlockCommit::capture(&world, player, BlockInteractionKind::Break, []);
+        wear_held_tool(&mut world, *blocks::STONE, &committed);
         let held = held_item(&world, player).unwrap();
         assert_eq!(durability_damage(&held), 1);
 
         give(&mut world, player, with_durability_damage(&held, 249));
-        wear_held_tool(&mut world, player, *blocks::STONE);
+        let committed = BlockCommit::capture(&world, player, BlockInteractionKind::Break, []);
+        wear_held_tool(&mut world, *blocks::STONE, &committed);
         assert!(
             held_item(&world, player).is_none(),
             "iron pickaxe has 250 uses"
@@ -1747,6 +2513,371 @@ mod tests {
                 *blocks::AIR,
                 "nothing placed"
             );
+        }
+    }
+    /// Record the immutable final facts from a real native operation.
+    struct RecordCommitted(
+        std::sync::Arc<
+            std::sync::Mutex<Vec<super::super::block_interaction::PlayerBlockCommitted>>,
+        >,
+    );
+
+    impl BlockInteractionHandler for RecordCommitted {
+        fn on_committed(
+            &self,
+            _world: &mut World,
+            event: &super::super::block_interaction::PlayerBlockCommitted,
+        ) {
+            self.0.lock().unwrap().push(event.clone());
+        }
+    }
+
+    /// Give a small world a real connection identity and a final-event recorder.
+    fn committed_records(
+        world: &mut World,
+        player: Entity,
+    ) -> std::sync::Arc<std::sync::Mutex<Vec<super::super::block_interaction::PlayerBlockCommitted>>>
+    {
+        let (tx, _rx) = tokio::sync::mpsc::channel(128);
+        world.entity_mut(player).insert((
+            PlayerUuid(uuid::Uuid::from_u128(17)),
+            PlayerSession::new(
+                41,
+                "actor".into(),
+                Some("account".into()),
+                Some("uuid".into()),
+                tx,
+            ),
+        ));
+        let records = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        hook(world, RecordCommitted(records.clone()));
+        records
+    }
+
+    /// A direct placement intent still passes all native final validation.
+    fn committed_place(player: Entity, block_id: u32) -> ServerEvent {
+        ServerEvent::BlockPlace {
+            click: None,
+            entity: player,
+            player_id: String::new(),
+            position: (1, 65, 1),
+            block_id,
+        }
+    }
+
+    #[test]
+    fn committed_place_keeps_last_owned_item_after_cost_and_never_reports_replay() {
+        let (mut world, player, _) = block_world(GameMode::Survival, DVec3::new(1.0, 64.0, 1.0));
+        placement(&mut world);
+        let original =
+            crate::item::test_support::stack("minecraft:stone", 1).with_nbt(vec![10, 0, 0, 0]);
+        give(&mut world, player, original.clone());
+        let records = committed_records(&mut world, player);
+        let event = committed_place(player, *blocks::STONE);
+        commit_block_event(&mut world, &event);
+        commit_block_event(&mut world, &event);
+        let records = records.lock().unwrap();
+        assert_eq!(records.len(), 1);
+        let event = &records[0];
+        assert_eq!(event.player(), player);
+        assert_eq!(event.identity().session_id(), 41);
+        assert_eq!(event.identity().xuid(), Some("account"));
+        assert_eq!(event.kind(), BlockInteractionKind::Place);
+        assert_eq!(event.held_before().unwrap().stack, original);
+        assert!(event.held_after().unwrap().stack.is_empty());
+        assert_eq!(event.changes().len(), 1);
+        assert_eq!(event.changes()[0].position, IVec3::new(1, 65, 1));
+        assert_eq!(event.changes()[0].before.runtime_id, *blocks::AIR);
+        assert_eq!(
+            event.changes()[0].after.as_ref().unwrap().runtime_id,
+            *blocks::STONE
+        );
+    }
+
+    #[test]
+    fn committed_door_place_includes_both_actual_halves() {
+        let (mut world, player, _) = block_world(GameMode::Survival, DVec3::new(3.5, 64.0, 1.5));
+        let door = crate::registry::BlockRegistry::vanilla()
+            .get_by_name("minecraft:wooden_door")
+            .unwrap();
+        give(
+            &mut world,
+            player,
+            crate::item::test_support::stack("minecraft:wooden_door", 1)
+                .with_runtime_id(door.default_state_id as i32),
+        );
+        let records = committed_records(&mut world, player);
+        commit_block_event(&mut world, &committed_place(player, door.default_state_id));
+        let records = records.lock().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].changes().len(), 2);
+        for change in records[0].changes() {
+            assert_eq!(change.before.runtime_id, *blocks::AIR);
+            assert_eq!(
+                door.state_value(change.after.as_ref().unwrap().runtime_id, "upper_block_bit"),
+                Some(crate::registry::block::StateValue::Byte(u8::from(
+                    change.position.y == 66
+                )))
+            );
+        }
+    }
+
+    #[test]
+    fn committed_break_owns_removed_actor_and_follows_drops_and_tool_wear() {
+        use crate::world::block_entity::BlockEntity;
+        use zuri_nbt::{NBTTag, tag::Compound};
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        let mut items = crate::registry::ItemRegistry::new();
+        items.load_vanilla();
+        world.insert_resource(super::super::types::ItemRegistryResource(
+            std::sync::Arc::new(items),
+        ));
+        give(
+            &mut world,
+            player,
+            crate::item::test_support::stack("minecraft:iron_pickaxe", 1),
+        );
+        let actor = BlockEntity::from_bedrock_compound(
+            Compound::builder()
+                .with_string("id", "Example")
+                .with_int("x", 1)
+                .with_int("y", 64)
+                .with_int("z", 1)
+                .with_string("opaque", "retained")
+                .build(),
+        )
+        .unwrap();
+        let bytes = actor.network_nbt().0.to_vec();
+        world
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block_entity(actor);
+        let records = committed_records(&mut world, player);
+        world.add_observer(
+            move |event: On<super::super::block_interaction::PlayerBlockCommitted>,
+                  items: Query<&crate::entity::components::ItemEntityStack>| {
+                assert_eq!(event.kind(), BlockInteractionKind::Break);
+                assert!(
+                    items
+                        .iter()
+                        .any(|stack| stack.0.item_id() == "minecraft:cobblestone")
+                );
+            },
+        );
+        commit_block_event(
+            &mut world,
+            &ServerEvent::BlockBreak {
+                entity: player,
+                player_id: String::new(),
+                position: (1, 64, 1),
+                block_id: *blocks::STONE,
+            },
+        );
+        let records = records.lock().unwrap();
+        assert_eq!(records.len(), 1);
+        let change = &records[0].changes()[0];
+        assert_eq!(change.before.block_actor.as_ref(), Some(&bytes));
+        assert_eq!(change.after.as_ref().unwrap().runtime_id, *blocks::AIR);
+        assert!(change.after.as_ref().unwrap().block_actor.is_none());
+        assert_eq!(
+            crate::item::enchant::durability_damage(&records[0].held_after().unwrap().stack),
+            1
+        );
+        assert_eq!(
+            BlockEntity::from_network_nbt(jolyne::valentine::bedrock::codec::Nbt(
+                change.before.block_actor.clone().unwrap().into()
+            ))
+            .unwrap()
+            .bedrock_compound()
+            .unwrap()
+            .unwrap()
+            .get("opaque"),
+            Some(&NBTTag::String("retained".into()))
+        );
+    }
+
+    #[test]
+    fn committed_notifications_exclude_veto_and_revalidated_stale_identity() {
+        for stale in [false, true] {
+            let (mut world, player, _) =
+                block_world(GameMode::Creative, DVec3::new(1.5, 65.62, 1.5));
+            let records = committed_records(&mut world, player);
+            if stale {
+                hook(&mut world, ChangeIdentity { change_uuid: false });
+            } else {
+                world.add_observer(|mut event: On<BlockInteraction>| event.cancel());
+            }
+            commit_block_event(
+                &mut world,
+                &ServerEvent::BlockBreak {
+                    entity: player,
+                    player_id: String::new(),
+                    position: (1, 64, 1),
+                    block_id: *blocks::STONE,
+                },
+            );
+            assert!(records.lock().unwrap().is_empty());
+            assert_eq!(block_at(&world, (1, 64, 1)), Some(*blocks::STONE));
+        }
+    }
+
+    #[test]
+    fn committed_event_keeps_identity_after_deferred_block_observer_despawns_source() {
+        let (mut world, player, _) = block_world(GameMode::Survival, DVec3::new(1.0, 64.0, 1.0));
+        placement(&mut world);
+        give(
+            &mut world,
+            player,
+            crate::item::test_support::stack("minecraft:stone", 1),
+        );
+        let records = committed_records(&mut world, player);
+        world.add_observer(move |_: On<BlockChanged>, mut commands: Commands| {
+            commands.entity(player).despawn();
+        });
+        commit_block_event(&mut world, &committed_place(player, *blocks::STONE));
+        world.flush();
+        assert!(world.get_entity(player).is_err());
+        let records = records.lock().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].identity().name(), "actor");
+        assert_eq!(records[0].held_before().unwrap().stack.count, 1);
+        assert!(records[0].held_after().unwrap().stack.is_empty());
+    }
+
+    #[test]
+    fn committed_cost_charges_original_slot_after_reentrant_selection_change() {
+        let (mut world, player, _) = block_world(GameMode::Survival, DVec3::new(1.0, 64.0, 1.0));
+        placement(&mut world);
+        give(
+            &mut world,
+            player,
+            crate::item::test_support::stack("minecraft:stone", 1),
+        );
+        let other = crate::item::test_support::stack("minecraft:diamond", 3);
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(1, other.clone())
+            .unwrap();
+        let records = committed_records(&mut world, player);
+        world.add_observer(
+            move |_: On<BlockChanged>, mut slots: Query<&mut HeldSlot>| {
+                slots.get_mut(player).unwrap().0 = 1;
+            },
+        );
+        commit_block_event(&mut world, &committed_place(player, *blocks::STONE));
+        assert_eq!(
+            world.get::<MainInventory>(player).unwrap().0.item(1),
+            Some(&other)
+        );
+        assert!(
+            world
+                .get::<MainInventory>(player)
+                .unwrap()
+                .0
+                .item(0)
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(records.lock().unwrap()[0].held_after().unwrap().slot, 0);
+    }
+
+    #[test]
+    fn committed_use_reports_real_window_open_once_with_empty_hand() {
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        let data = placement(&mut world);
+        world
+            .entity_mut(player)
+            .insert(crate::entity::components::ContainerWindows::default());
+        let table = crate::registry::BlockRegistry::vanilla()
+            .default_state_id_by_name("minecraft:crafting_table")
+            .unwrap();
+        world
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block(1, 64, 1, table);
+        let records = committed_records(&mut world, player);
+        handle_block_click(&mut world, player, &data);
+        handle_block_click(&mut world, player, &data);
+        let records = records.lock().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].kind(), BlockInteractionKind::Use);
+        assert!(records[0].held_before().unwrap().stack.is_empty());
+        assert_eq!(
+            records[0].changes()[0].before,
+            *records[0].changes()[0].after.as_ref().unwrap()
+        );
+    }
+
+    #[test]
+    fn committed_spawn_egg_reports_only_actual_spawn_after_source_cost() {
+        for supported in [false, true] {
+            let mut world = if supported {
+                let mut server =
+                    super::super::GameServer::with_config(super::super::ServerConfig {
+                        world: crate::world::WorldConfig::void_spawn_platform(1),
+                        ..Default::default()
+                    });
+                std::mem::take(server.ecs.world_mut())
+            } else {
+                block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5)).0
+            };
+            world.insert_resource(crate::entity::EntityRandom::seeded(11));
+            let mut column = crate::world::chunk::Chunk::new(0, 0);
+            column.set_block(1, 64, 1, *blocks::STONE);
+            let chunk = world.spawn(ChunkData::new(column)).id();
+            world
+                .resource_mut::<ChunkManager>()
+                .insert(ChunkPosition::new(0, 0), chunk);
+            let player = world
+                .spawn((
+                    GameMode::Survival,
+                    Position(DVec3::new(1.5, 65.62, 1.5)),
+                    MainInventory::default(),
+                    HeldSlot(0),
+                ))
+                .id();
+            give(
+                &mut world,
+                player,
+                crate::item::test_support::stack("minecraft:cow_spawn_egg", 1),
+            );
+            let records = committed_records(&mut world, player);
+            handle_block_click(
+                &mut world,
+                player,
+                &jolyne::valentine::types::ItemUseInventoryTransaction {
+                    position: BlockPos { x: 1, y: 64, z: 1 },
+                    face: 1,
+                    slot: 0,
+                    ..Default::default()
+                },
+            );
+            let records = records.lock().unwrap();
+            if supported {
+                assert_eq!(records.len(), 1);
+                assert_eq!(records[0].kind(), BlockInteractionKind::Use);
+                assert_eq!(
+                    records[0].held_before().unwrap().stack.item_id(),
+                    "minecraft:cow_spawn_egg"
+                );
+                assert!(records[0].held_after().unwrap().stack.is_empty());
+                assert_eq!(
+                    world
+                        .query::<&crate::entity::mob::MobKind>()
+                        .iter(&world)
+                        .count(),
+                    1
+                );
+            } else {
+                assert!(records.is_empty());
+                assert_eq!(held_item(&world, player).unwrap().count, 1);
+            }
         }
     }
 }

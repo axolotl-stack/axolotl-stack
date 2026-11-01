@@ -1,44 +1,34 @@
-//! `minecraft:projectile`: thrown actors (the egg).
+//! Authored projectile launch, collision, reflection and hit effects.
 //!
-//! Launch ([`launch`]): the projectile actor is created at the thrower's eye,
-//! moved by the definition's `offset` (x/z turned by the thrower's yaw,
-//! stopped by blocks) and sent along the thrower's view direction (pitch
-//! plus `angle_offset × cos(pitch)`) at `power` blocks per tick; the
-//! thrower's own velocity is not added. Every projectile actor starts
-//! invisible and shows from its second tick of flight.
+//! Player items supply their eye origin through [`launch_with`]. Actor-owned
+//! [`launch_aimed`] resolves the authored origin, player eye or bounding-box
+//! middle, applies the local offset and difficulty-adjusted Gaussian spread,
+//! then launches at an authoritative world-space target. Mob eye anchors and
+//! non-default actor-shot damage randomization are explicitly unsupported.
 //!
-//! Flight ([`tick_projectiles`]): each tick the segment from the position to
-//! position + velocity is tested against block collision boxes and against
-//! the boxes of mobs and players, grown by `(ticks in flight - 2) × 0.05`
-//! (at most 0.3). The thrower is never hit: only a bounced or reflected
-//! projectile may hit its owner, and neither is implemented. Hits run
-//! nearest first, only the first unless `multiple_targets`. Then the
-//! projectile moves by its velocity without collision, its velocity is
-//! scaled by `inertia` (`liquid_inertia` in water) and loses `gravity`, and
-//! its rotation turns 20 % of the way to its heading.
+//! Flight sweeps block and actor collision boxes nearest first. Collision hooks
+//! can veto impacts before teleportation, potion effects, reflection or damage.
+//! Configured launch immunity permits an owner to be hit later; reflection
+//! changes ownership and direction without replacing the actor or adding living
+//! physics. Stuck projectiles remain at the actual segment contact point.
 //!
-//! On a hit the `on_hit` effects run in alphabetical order:
-//! - `impact_damage`: a hit mob takes the rolled damage (cause projectile,
-//!   even 0), pushed away from the projectile by the projectile's knockback
-//!   rules; players have no hurt path on this server and only stop the
-//!   projectile.
-//! - `particle_on_hit`: level events at the projectile.
-//! - `remove_on_hit`.
-//! - `spawn_chance`: one roll for the first group and, only when that
-//!   succeeded, one for the second; the spawns appear at the projectile
-//!   (raised out of a block it is inside, turned to its yaw) and get the
-//!   `on_spawn` events whose filters pass, with the projectile as `other`.
-//!
-//! Then the hit sound plays and a removed projectile despawns.
-//!
-//! Layout: [`config`] compiles the component, [`launch`] throws,
-//! [`flight`] moves and collides, [`hit`] runs the `on_hit` effects.
+//! Impact damage uses the ordinary player and mob damage lanes. Accepted
+//! damaging fire impacts ignite through immunity-aware handlers. Block ignition
+//! affects the air cell outside the struck face and honors configured mob
+//! griefing. Unsupported hit subcomponents fail compilation.
 
+pub mod cloud;
 pub mod config;
+pub(crate) mod enchantments;
+mod fire;
 pub mod flight;
 pub mod hit;
+pub mod hooks;
 pub mod launch;
+mod pearl;
 pub mod pickup;
+pub(crate) mod potions;
+pub(crate) mod reflect;
 
 use bevy_ecs::prelude::*;
 
@@ -51,7 +41,9 @@ pub use flight::tick_projectiles;
 #[cfg(test)]
 pub(crate) use hit::spawn_count;
 pub(crate) use launch::derive_projectile;
-pub use launch::{LaunchError, LaunchSpec, apply_throws, launch, launch_with, thrown_by};
+pub use launch::{
+    LaunchError, LaunchSpec, apply_throws, launch, launch_aimed, launch_with, thrown_by,
+};
 pub use pickup::pick_up_stuck_projectiles;
 
 /// Flight state of a projectile actor.
@@ -83,3 +75,6 @@ pub struct ProjectileItem(pub crate::item::ItemStack);
 /// system, thrown by [`apply_throws`]).
 #[derive(Resource, Default)]
 pub struct ThrowQueue(pub Vec<Entity>);
+
+#[cfg(test)]
+mod tests;

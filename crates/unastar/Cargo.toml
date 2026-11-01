@@ -19,19 +19,20 @@ worldgen-coverage = ["unastar_noise/worldgen-coverage"]
 
 [dependencies]
 bytes.workspace = true
-jolyne = { workspace = true, features = ["server", "raknet"] }
+jolyne = { workspace = true, features = ["server", "raknet", "endpoint"] }
 unastar_noise.workspace = true
 unastar-packs = { path = "../unastar-packs" }
 unastar-data.workspace = true
 unastar-rules = { path = "../unastar-rules" }
 tokio = { workspace = true, features = ["full"] }
 tokio-raknet.workspace = true
+tokio-nethernet = { workspace = true, features = ["endpoint"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 p384.workspace = true
 rand.workspace = true
 zuri_nbt.workspace = true
-valentine = { workspace = true, default-features = false, features = ["bedrock_1_26_51"] }
+valentine = { workspace = true, default-features = false, features = ["bedrock_1_26_60"] }
 serde.workspace = true
 thiserror.workspace = true
 toml_edit = { workspace = true, features = ["serde"] }
@@ -42,8 +43,12 @@ bevy_tasks.workspace = true
 async-trait.workspace = true
 bleveldb.workspace = true
 serde_json.workspace = true
+semver = "1.0"
+zip = { version = "7.2", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+serde_ignored = "0.1"
 sha2.workspace = true
 anyhow = "1.0"
+fs2 = "0.4"
 smallvec = { version = "1.15", optional = true }
 
 # BlazeDB dependencies
@@ -64,6 +69,12 @@ bitflags = "2.6"
 unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen", optional = true }
 
 [dev-dependencies]
+tokio-util.workspace = true
+wit-parser = "0.245"
+wit-component = { version = "0.245", features = ["dummy-module"] }
+wasm-encoder = { version = "0.245", features = ["wasmparser"] }
+wasmparser = "0.245"
+wat = "1.245"
 jolyne = { workspace = true, features = ["client", "raknet"] }
 flate2.workspace = true
 crc32c = "0.6"

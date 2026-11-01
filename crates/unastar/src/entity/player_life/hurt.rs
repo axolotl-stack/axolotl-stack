@@ -34,7 +34,7 @@ use unastar_data::actor_components::body::ActorDamageCause;
 use bevy_ecs::prelude::*;
 
 use super::death::{self, DeathCause};
-use super::{Dead, send_to_player_and_viewers};
+use super::{Dead, hooks, send_to_player_and_viewers};
 use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
 use crate::entity::components::{
@@ -42,7 +42,6 @@ use crate::entity::components::{
 };
 use crate::entity::mob::combat::{Hit, HurtTimer, knockback_velocity};
 use crate::entity::mob::components::KnockbackPower;
-use crate::entity::mob::constants::HURT_TICKS;
 use crate::entity::mob::state::LastHurt;
 use crate::world::rules::{Difficulty, GameRules};
 
@@ -50,6 +49,17 @@ use crate::world::rules::{Difficulty, GameRules};
 /// hit was ignored).
 pub fn hurt_player(world: &mut World, player: Entity, hit: &Hit) -> f32 {
     apply_hit(world, player, hit, None)
+}
+
+/// Apply a hit with a captured projectile/effect origin, while the Hit attacker
+/// remains only a real actor in this current world.
+pub fn hurt_player_attributed(
+    world: &mut World,
+    player: Entity,
+    hit: &Hit,
+    attribution: crate::entity::damage::DamageAttribution,
+) -> f32 {
+    apply_hit_result_attributed(world, player, hit, None, attribution).0
 }
 
 /// [`hurt_player`] for a landing after falling `fall_distance` blocks (the
@@ -60,37 +70,58 @@ pub(super) fn apply_hit(
     hit: &Hit,
     fall_distance: Option<f64>,
 ) -> f32 {
-    if hit.damage < 0.0
-        || world.get::<Player>(player).is_none()
-        || world.get::<Dead>(player).is_some()
+    apply_hit_result(world, player, hit, fall_distance).0
+}
+
+/// Apply one hit and retain its committed death outcome across immediate respawn.
+pub(super) fn apply_hit_result(
+    world: &mut World,
+    player: Entity,
+    hit: &Hit,
+    fall_distance: Option<f64>,
+) -> (f32, bool) {
+    let attribution =
+        crate::entity::damage::DamageAttribution::capture(world, hit.attacker, hit.attacker);
+    apply_hit_result_attributed(world, player, hit, fall_distance, attribution)
+}
+
+/// Preserve immutable origin across native pre-damage callbacks and committed loss.
+fn apply_hit_result_attributed(
+    world: &mut World,
+    player: Entity,
+    hit: &Hit,
+    fall_distance: Option<f64>,
+    attribution: crate::entity::damage::DamageAttribution,
+) -> (f32, bool) {
+    if !eligible_hit(world, player, hit) {
+        return (0.0, false);
+    }
+    let Some(action_id) = super::damage_action::next() else {
+        return (0.0, false);
+    };
+    let mut event = hooks::PlayerDamage::new(action_id, player, *hit, attribution);
+    hooks::damage(world, &mut event);
+    if event.is_cancelled()
+        || !eligible_hit(world, player, &event.hit)
+        || !event.post_armour_multiplier.is_finite()
+        || event.post_armour_multiplier < 0.0
     {
-        return 0.0;
+        return (0.0, false);
     }
-    if world.get::<Health>(player).is_none_or(Health::is_dead) {
-        return 0.0;
-    }
-    let mode = world.get::<GameMode>(player).copied().unwrap_or_default();
-    if !mode.allows_damage()
-        && !matches!(
-            hit.cause,
-            ActorDamageCause::Void | ActorDamageCause::Override
-        )
-    {
-        return 0.0;
-    }
-    if !allowed_by_rules(world.resource::<GameRules>(), hit.cause) {
-        return 0.0;
-    }
+    let hit = &event.hit;
     let damage = if hit.attacker.is_some() && !hit.by_player {
         let scaled = scale_for_difficulty(*world.resource::<Difficulty>(), hit.damage);
         if scaled <= 0.0 {
-            return 0.0;
+            return (0.0, false);
         }
         scaled
     } else {
         hit.damage
     };
 
+    if !damage.is_finite() {
+        return (0.0, false);
+    }
     let ignores_timer = matches!(
         hit.cause,
         ActorDamageCause::Override | ActorDamageCause::SelfDestruct
@@ -99,18 +130,26 @@ pub(super) fn apply_hit(
     let (dealt, until_tick, full) = match world.get::<HurtTimer>(player).copied() {
         Some(timer) if now < timer.until_tick && !ignores_timer => {
             if damage <= timer.last_damage {
-                return 0.0;
+                return (0.0, false);
             }
             (damage - timer.last_damage, timer.until_tick, false)
         }
-        _ => (damage, now + u64::from(HURT_TICKS), true),
+        _ => (
+            damage,
+            now.saturating_add(u64::from(event.hurt_ticks)),
+            true,
+        ),
     };
-    let dealt = if reduced_by_armour(hit.cause) {
+    let dealt = if !event.bypass_armour && reduced_by_armour(hit.cause) {
         let (defence, toughness) = worn_armour(world, player);
         unastar_data::armour::damage_after_armour(dealt, defence, toughness)
     } else {
         dealt
     };
+    let dealt = dealt * event.post_armour_multiplier;
+    if !dealt.is_finite() {
+        return (0.0, false);
+    }
 
     let (applied, dead) = {
         let mut entity = world.entity_mut(player);
@@ -143,6 +182,16 @@ pub(super) fn apply_hit(
         if crate::server::game::durability::armour_wears_from(hit.cause) {
             crate::server::game::hunger::exhaust_player(world, player, |values| values.damage);
         }
+        hooks::damaged(
+            world,
+            hooks::PlayerDamaged {
+                action_id,
+                player,
+                hit: *hit,
+                damage: applied,
+                attribution,
+            },
+        );
     }
     if dead {
         death::die(
@@ -153,9 +202,61 @@ pub(super) fn apply_hit(
                 attacker: hit.attacker,
                 fall_distance,
             },
+            attribution,
         );
     }
-    applied
+    (applied, dead)
+}
+
+/// Validate an incoming or extension-adjusted hit against current player state.
+/// This is repeated after callbacks, which may change or remove that state.
+fn eligible_hit(world: &World, player: Entity, hit: &Hit) -> bool {
+    if crate::server::game::player_state::source_actors::admission_blocked(world, player)
+        || crate::server::game::inventory_effects::is_quarantined(world, player)
+    {
+        return false;
+    }
+    if crate::entity::conditions::rejects_fire_damage(world, player, hit.cause) {
+        return false;
+    }
+    let power = hit.knockback_power;
+    if !hit.damage.is_finite()
+        || hit.damage < 0.0
+        || hit
+            .knockback_from
+            .is_some_and(|from| !from.is_finite() || !from.as_vec3().is_finite())
+        || [
+            power.horizontal,
+            power.vertical,
+            power.vertical_cap,
+            power.retain,
+        ]
+        .into_iter()
+        .any(|value| !value.is_finite() || !(value as f32).is_finite() || value < 0.0)
+        || world.get::<Player>(player).is_none()
+        || hit.knockback_from.is_some()
+            && world
+                .get::<Position>(player)
+                .is_none_or(|position| !position.0.is_finite() || !position.0.as_vec3().is_finite())
+        || world.get::<Dead>(player).is_some()
+        || world.get::<Health>(player).is_none_or(|health| {
+            !health.current.is_finite() || !health.max.is_finite() || health.is_dead()
+        })
+    {
+        return false;
+    }
+    let mode = world.get::<GameMode>(player).copied().unwrap_or_default();
+    if !mode.allows_damage()
+        && !matches!(
+            hit.cause,
+            ActorDamageCause::Void | ActorDamageCause::Override
+        )
+    {
+        return false;
+    }
+    world
+        .get_resource::<GameRules>()
+        .is_some_and(|rules| allowed_by_rules(rules, hit.cause))
 }
 
 /// Whether the game rules let `cause` hurt players.
@@ -260,6 +361,18 @@ fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPo
             .0
             .gen_range(0.0..std::f64::consts::TAU);
         away = DVec2::from_angle(angle);
+    }
+    if world.get::<PlayerSession>(player).is_none()
+        && world
+            .get::<crate::server::game::player_state::source_actors::ManagedSource>(player)
+            .is_some_and(|managed| {
+                managed.record.phase == crate::storage::source::SourcePhase::Active
+            })
+    {
+        if let Some(mut actual) = world.get_mut::<crate::entity::components::Velocity>(player) {
+            actual.0 = knockback_velocity(actual.0, away.normalize(), power);
+        }
+        return;
     }
     let velocity = knockback_velocity(DVec3::ZERO, away.normalize(), power);
     let (Some(session), Some(runtime_id)) = (

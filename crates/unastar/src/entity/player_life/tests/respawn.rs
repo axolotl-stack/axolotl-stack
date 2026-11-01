@@ -94,7 +94,7 @@ fn the_client_ready_respawn_restores_the_player_at_the_world_spawn() {
             y: 0.0,
             z: 0.0,
         },
-        state: EnumsPlayerRespawnState::Clientreadytospawn,
+        state: EnumsPlayerRespawnState::ClientReadyToSpawn,
         player_runtime_id: ActorRuntimeId {
             actor_runtime_id: SESSION,
         },
@@ -103,7 +103,7 @@ fn the_client_ready_respawn_restores_the_player_at_the_world_spawn() {
     let packets = h.drain();
     assert_eq!(
         respawns(&packets),
-        [(EnumsPlayerRespawnState::Readytospawn, world_spawn(&mut h))]
+        [(EnumsPlayerRespawnState::ReadyToSpawn, world_spawn(&mut h))]
     );
     assert_respawned(&mut h, &packets);
 
@@ -114,7 +114,7 @@ fn the_client_ready_respawn_restores_the_player_at_the_world_spawn() {
             y: 0.0,
             z: 0.0,
         },
-        state: EnumsPlayerRespawnState::Clientreadytospawn,
+        state: EnumsPlayerRespawnState::ClientReadyToSpawn,
         player_runtime_id: ActorRuntimeId {
             actor_runtime_id: SESSION,
         },

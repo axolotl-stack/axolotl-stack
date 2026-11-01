@@ -56,6 +56,19 @@ pub struct ProjectileConfig(pub Arc<ProjectileRules>);
 #[derive(Debug)]
 pub struct ProjectileRules {
     pub power: f64,
+    /// Authoritative actor reference used by aimed launches.
+    pub anchor: ProjectileAnchor,
+    /// Gaussian spread for definition-owned shots before difficulty adjustment.
+    pub uncertainty_base: f64,
+    pub uncertainty_multiplier: f64,
+    /// Projectiles may be redirected by accepted attacks after this delay.
+    pub reflect_on_hurt: bool,
+    pub reflect_immunity_ticks: u64,
+    pub owner_immunity_ticks: u64,
+    /// Entity ignition duration used by impact and legacy catch-fire rules.
+    pub fire_ticks: u64,
+    /// Optional block ignition, with mob-griefing policy owned by the host.
+    pub block_fire: Option<BlockFire>,
     pub gravity: f64,
     pub inertia: f64,
     pub liquid_inertia: f64,
@@ -71,6 +84,13 @@ pub struct ProjectileRules {
     pub particle: Option<ParticleOnHit>,
     pub remove_on_hit: bool,
     pub spawn_chance: Option<SpawnChance>,
+    /// Teleport the owner to a collision-free impact destination.
+    pub teleport_owner: bool,
+    /// Extinguish water-bottle targets before ordinary potion effects.
+    pub douse_fire: bool,
+    /// Authored aux override; -1 uses the projectile's captured contents.
+    pub thrown_potion: Option<i32>,
+    pub cloud: Option<CloudRules>,
     /// `on_hit.stick_in_ground`: stays where it hit a block, shaking for
     /// this many ticks.
     pub stick_in_ground: Option<u32>,
@@ -81,12 +101,34 @@ pub struct ProjectileRules {
     pub stop_on_hurt: bool,
 }
 
+/// Authored area-effect-cloud lifetime and per-recipient reuse parameters.
+#[derive(Clone, Debug)]
+pub struct CloudRules {
+    pub duration_ticks: u32,
+    pub radius: f64,
+    pub radius_on_use: f64,
+    pub reapplication_delay: u32,
+    pub affect_owner: bool,
+    /// -1 uses the projectile's captured potion contents.
+    pub potion: i32,
+}
+
+/// Block ignition configured by `on_hit.catch_fire`.
+#[derive(Debug, Clone, Copy)]
+pub struct BlockFire {
+    pub affected_by_griefing: bool,
+    pub entity_fire_ticks: u64,
+}
+
 /// `on_hit.impact_damage`.
 #[derive(Debug, Clone)]
 pub struct ImpactDamage {
     pub min: f32,
     pub max: f32,
     pub knockback: bool,
+    pub catch_fire: bool,
+    /// Non-default randomization remains unsupported for actor-owned shots.
+    pub difficulty_randomization: body::ImpactDamageDifficultyRandomization,
     pub destroy_on_hit: bool,
     pub destroy_requires_damage: bool,
     /// Without damage the hit does not name the attacker.
@@ -153,21 +195,25 @@ fn reject(unsupported: bool, what: &'static str) -> Result<(), ProjectileError> 
 }
 
 fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules, ProjectileError> {
-    // Fields with no effect on this server's projectiles: `isolated_physics`
-    // only removes mob travel, which projectiles never have; `particle`,
-    // `on_fire_time`, `reflect_immunity`, `shoot_target` and `splash_range`
-    // only matter to the features rejected below.
-    // `eye_height` launches from the thrower's eye, which is where every
-    // launch starts (only players throw on this server; their position is
-    // the eye).
-    reject(
-        !matches!(
-            b.anchor,
-            ProjectileAnchor::Origin | ProjectileAnchor::EyeHeight
-        ),
-        "anchor",
-    )?;
-    reject(b.catch_fire, "catch_fire")?;
+    let ticks = |seconds: f32| -> Result<u64, ProjectileError> {
+        if !seconds.is_finite() || !(0.0..=86_400.0).contains(&seconds) {
+            return Err(ProjectileError::Unsupported("invalid duration"));
+        }
+        Ok((f64::from(seconds) * 20.0).ceil() as u64)
+    };
+    for value in [
+        b.power,
+        b.gravity,
+        b.inertia,
+        b.liquid_inertia,
+        b.uncertainty_base,
+        b.uncertainty_multiplier,
+    ] {
+        if !value.is_finite() || value < 0.0 {
+            return Err(ProjectileError::Unsupported("invalid flight parameter"));
+        }
+    }
+    reject(b.catch_fire, "legacy catch_fire")?;
     reject(b.crit_particle_on_hurt, "crit_particle_on_hurt")?;
     reject(b.destroy_on_hurt, "destroy_on_hurt")?;
     reject(b.hit_nearest_passenger, "hit_nearest_passenger")?;
@@ -176,7 +222,6 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
     reject(b.is_dangerous, "is_dangerous")?;
     reject(b.lightning, "lightning")?;
     reject(b.potion_effect != -1, "potion_effect")?;
-    reject(b.reflect_on_hurt, "reflect_on_hurt")?;
     reject(!b.shoot_sound.is_empty(), "shoot_sound")?;
     reject(
         !matches!(
@@ -198,9 +243,22 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         body::Vec3::Array([x, y, z]) => DVec3::new(f64::from(x), f64::from(y), f64::from(z)),
         body::Vec3::Vec3Object(v) => DVec3::new(f64::from(v.x), f64::from(v.y), f64::from(v.z)),
     };
+    if !offset.is_finite() || !b.angle_offset.is_finite() {
+        return Err(ProjectileError::Unsupported("invalid launch offset"));
+    }
     let sound = |name: String| (!name.is_empty()).then(|| Arc::from(name.as_str()));
     let mut rules = ProjectileRules {
         power: f64::from(b.power),
+        anchor: b.anchor,
+        uncertainty_base: f64::from(b.uncertainty_base),
+        uncertainty_multiplier: f64::from(b.uncertainty_multiplier),
+        reflect_on_hurt: b.reflect_on_hurt,
+        reflect_immunity_ticks: ticks(b.reflect_immunity)?,
+        // The pinned component schema predates this authored field; retain the
+        // native five-tick launch default until that schema exposes overrides.
+        owner_immunity_ticks: 5,
+        fire_ticks: ticks(b.on_fire_time)?,
+        block_fire: None,
         gravity: f64::from(b.gravity),
         inertia: f64::from(b.inertia),
         liquid_inertia: f64::from(b.liquid_inertia),
@@ -214,6 +272,10 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         particle: None,
         remove_on_hit: false,
         spawn_chance: None,
+        teleport_owner: false,
+        douse_fire: false,
+        thrown_potion: None,
+        cloud: None,
         stick_in_ground: None,
         bounce_without_damage: b.should_bounce == ShouldBounce::IfNoDamageDealt,
         stop_on_hurt: b.stop_on_hurt,
@@ -222,26 +284,35 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         return Ok(rules);
     };
     for (present, name) in [
-        (on_hit.catch_fire.is_some(), "catch_fire"),
         (on_hit.definition_event.is_some(), "definition_event"),
-        (on_hit.douse_fire.is_some(), "douse_fire"),
         (on_hit.freeze_on_hit.is_some(), "freeze_on_hit"),
         (on_hit.grant_xp.is_some(), "grant_xp"),
         (on_hit.hurt_owner.is_some(), "hurt_owner"),
         (on_hit.ignite.is_some(), "ignite"),
         (on_hit.mob_effect.is_some(), "mob_effect"),
-        (on_hit.spawn_aoe_cloud.is_some(), "spawn_aoe_cloud"),
-        (on_hit.teleport_owner.is_some(), "teleport_owner"),
-        (
-            on_hit.thrown_potion_effect.is_some(),
-            "thrown_potion_effect",
-        ),
         (on_hit.wind_burst_on_hit.is_some(), "wind_burst_on_hit"),
     ] {
         if present {
             return Err(ProjectileError::OnHit(name));
         }
     }
+    rules.block_fire = on_hit
+        .catch_fire
+        .map(|fire| {
+            Ok::<_, ProjectileError>(BlockFire {
+                affected_by_griefing: fire.fire_affected_by_griefing,
+                entity_fire_ticks: if fire.on_fire_time == 0.0 {
+                    rules.fire_ticks
+                } else {
+                    ticks(fire.on_fire_time)?
+                },
+            })
+        })
+        .transpose()?;
+    rules.teleport_owner = on_hit.teleport_owner.is_some();
+    rules.douse_fire = on_hit.douse_fire.is_some();
+    rules.thrown_potion = on_hit.thrown_potion_effect.map(|value| value.effect);
+    rules.cloud = on_hit.spawn_aoe_cloud.map(compile_cloud).transpose()?;
     rules.impact_damage = on_hit.impact_damage.map(compile_impact).transpose()?;
     rules.particle = on_hit
         .particle_on_hit
@@ -257,21 +328,67 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
     Ok(rules)
 }
 
+/// Compile finite, bounded cloud values without silently accepting unsupported particles.
+fn compile_cloud(
+    value: body::SpawnAoECloudSubcomponentDefinition,
+) -> Result<CloudRules, ProjectileError> {
+    reject(
+        value.particle != ParticleType::Mobspellambient,
+        "cloud particle",
+    )?;
+    let seconds = match value.duration {
+        body::EffectDuration::Int(value) => f64::from(value),
+        body::EffectDuration::String(value) => value
+            .parse::<f64>()
+            .map_err(|_| ProjectileError::Unsupported("cloud duration"))?,
+    };
+    reject(
+        !seconds.is_finite() || seconds < 0.0 || seconds > f64::from(i32::MAX) / 20.0,
+        "cloud duration",
+    )?;
+    reject(
+        !value.radius.is_finite() || value.radius < 0.0 || value.radius > 128.0,
+        "cloud radius",
+    )?;
+    reject(
+        !value.radius_on_use.is_finite() || value.radius_on_use.abs() > 128.0,
+        "cloud radius_on_use",
+    )?;
+    reject(value.reapplication_delay < 0, "cloud reapplication_delay")?;
+    Ok(CloudRules {
+        duration_ticks: (seconds * 20.0).round() as u32,
+        radius: f64::from(value.radius),
+        radius_on_use: if value.radius_on_use == -1.0 {
+            0.0
+        } else {
+            f64::from(value.radius_on_use)
+        },
+        reapplication_delay: value.reapplication_delay as u32,
+        affect_owner: value.affect_owner,
+        potion: value.potion,
+    })
+}
+
 fn compile_impact(
     b: body::ImpactDamageSubcomponentDefinition,
 ) -> Result<ImpactDamage, ProjectileError> {
     // Shield blocking and critical hits do not exist for this server's
     // targets, so `apply_knockback_to_blocking_targets` and the critical
     // damage clamps never apply.
-    reject(b.catch_fire, "impact_damage catch_fire")?;
     reject(b.channeling, "impact_damage channeling")?;
-    // `difficulty_randomization` varies the damage of mob shots by
-    // difficulty; only players shoot on this server, so it never applies.
+    if [b.damage.min, b.damage.max, b.power_multiplier]
+        .iter()
+        .any(|value| !value.is_finite() || *value < 0.0)
+    {
+        return Err(ProjectileError::Unsupported("invalid impact damage"));
+    }
 
     Ok(ImpactDamage {
         min: b.damage.min,
         max: b.damage.max.max(b.damage.min),
         knockback: b.knockback,
+        catch_fire: b.catch_fire,
+        difficulty_randomization: b.difficulty_randomization,
         destroy_on_hit: b.destroy_on_hit,
         destroy_requires_damage: b.destroy_on_hit_requires_damage,
         last_hurt_requires_damage: b.set_last_hurt_requires_damage,
@@ -354,8 +471,34 @@ fn compile_spawn_chance(
     })
 }
 
+/// Validate that an actor-owned shooter can use this complete projectile body.
+pub(crate) fn check_aimed(
+    archetype: &MobArchetype,
+    items: &ItemRegistry,
+) -> Result<(), ProjectileError> {
+    let source = archetype
+        .source
+        .components
+        .get(ActorComponent::Projectile.name())
+        .ok_or(ProjectileError::Unsupported("missing projectile behavior"))?;
+    let body = decode::<body::Projectile>(source).map_err(ProjectileError::Decode)?;
+    let rules = compile(body, items)?;
+    if rules.anchor == ProjectileAnchor::EyeHeight {
+        return Err(ProjectileError::Unsupported("nonplayer eye anchor"));
+    }
+    if rules.impact_damage.as_ref().is_some_and(|impact| {
+        impact.difficulty_randomization != body::ImpactDamageDifficultyRandomization::None
+    }) {
+        return Err(ProjectileError::Unsupported(
+            "actor-shot damage randomization",
+        ));
+    }
+    Ok(())
+}
+
 /// Startup check, once every archetype is compiled: what a projectile's
-/// `spawn_chance` spawns must be spawnable and define its `on_spawn` events.
+/// `spawn_chance` targets that are available must define their `on_spawn` events.
+/// An unavailable optional actor fails only that runtime spawn attempt.
 pub(crate) fn check_spawns(
     archetype: &MobArchetype,
     items: &ItemRegistry,
@@ -375,7 +518,9 @@ pub(crate) fn check_spawns(
         return Ok(());
     };
     let name = spawn.definition.name();
-    let target = get(name).ok_or(ProjectileError::SpawnDefinition(name))?;
+    let Some(target) = get(name) else {
+        return Ok(());
+    };
     for trigger in spawn.on_spawn.iter() {
         if target.events.event(&trigger.event).is_none() {
             return Err(ProjectileError::SpawnEvent(
@@ -385,4 +530,89 @@ pub(crate) fn check_spawns(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ecs::resources::TickCounter;
+    use crate::entity::components::{Position, Rotation, Velocity};
+    use crate::entity::projectile::{ProjectileFlight, reflect};
+    use crate::server::game::types::ItemRegistryResource;
+    use crate::server::game::{GameServer, ServerConfig};
+
+    /// Decode the actual authored projectile body before applying a test override.
+    fn body() -> body::Projectile {
+        decode(
+            unastar_data::actor_definitions::get("minecraft:small_fireball")
+                .unwrap()
+                .components
+                .get("minecraft:projectile")
+                .unwrap(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn reflection_duration_boundary_uses_a_compiled_authored_delay() {
+        let mut server = GameServer::with_config(ServerConfig {
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            ..Default::default()
+        });
+        let world = server.ecs.world_mut();
+        let mut source = body();
+        source.reflect_immunity = 0.5;
+        let rules = compile(source, &world.resource::<ItemRegistryResource>().0).unwrap();
+        assert_eq!(rules.reflect_immunity_ticks, 10);
+        let target = world
+            .spawn((
+                ProjectileConfig(Arc::new(rules)),
+                ProjectileFlight {
+                    owner: None,
+                    launched_tick: 0,
+                    critical: false,
+                },
+                Position(DVec3::ZERO),
+                Velocity(DVec3::Z),
+            ))
+            .id();
+        let attacker = world.spawn(Rotation::default()).id();
+        world.resource_mut::<TickCounter>().current = 9;
+        assert!(!reflect::from_attack(world, target, Some(attacker)));
+        assert_eq!(world.get::<ProjectileFlight>(target).unwrap().owner, None);
+        world.resource_mut::<TickCounter>().current = 10;
+        assert!(reflect::from_attack(world, target, Some(attacker)));
+        assert_eq!(
+            world.get::<ProjectileFlight>(target).unwrap().owner,
+            Some(attacker)
+        );
+    }
+
+    #[test]
+    fn malformed_flight_impact_and_duration_values_are_rejected_by_the_factory() {
+        let server = GameServer::with_config(ServerConfig {
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            ..Default::default()
+        });
+        let items = &server.ecs.world().resource::<ItemRegistryResource>().0;
+        for value in [f32::NAN, f32::INFINITY, -1.0] {
+            let mut source = body();
+            source.power = value;
+            assert!(compile(source, items).is_err());
+            let mut source = body();
+            source.reflect_immunity = value;
+            assert!(compile(source, items).is_err());
+            let mut source = body();
+            source
+                .on_hit
+                .as_mut()
+                .unwrap()
+                .impact_damage
+                .as_mut()
+                .unwrap()
+                .damage
+                .min = value;
+            assert!(compile(source, items).is_err());
+        }
+    }
 }

@@ -40,7 +40,7 @@ use unastar_rules::molang::{BuiltinQuery, QueryId};
 use super::constants::FALL_ACCIDENT_DISTANCE;
 use super::environment::{Burning, PlayerFall};
 use super::rules::PlayerRules;
-use super::{Dead, attributes, respawn};
+use super::{Dead, attributes, hooks, respawn};
 use crate::entity::components::{
     ArmourInventory, Experience, Health, MainInventory, OffhandSlot, Player, PlayerName,
     PlayerSession, PlayerUi, Position,
@@ -70,7 +70,7 @@ pub struct DeathMessage {
 
 /// Kill `player` as `/kill` does: override damage of its whole health that
 /// ignores the hurt timer, armour and game-mode immunity, then the normal
-/// death. Returns whether the player was alive.
+/// death. Returns whether this hit committed a death, including immediate respawn.
 pub fn kill_player(world: &mut World, player: Entity) -> bool {
     let Some(health) = world.get::<Health>(player).map(|health| health.current) else {
         return false;
@@ -78,7 +78,7 @@ pub fn kill_player(world: &mut World, player: Entity) -> bool {
     if health <= 0.0 || world.get::<Dead>(player).is_some() {
         return false;
     }
-    super::hurt_player(
+    super::hurt::apply_hit_result(
         world,
         player,
         &Hit {
@@ -89,21 +89,80 @@ pub fn kill_player(world: &mut World, player: Entity) -> bool {
             knockback_from: None,
             knockback_power: KnockbackPower::DEFAULT,
         },
-    );
-    world.get::<Dead>(player).is_some()
+        None,
+    )
+    .1
 }
 
+/// One actual engine death, preserved while its durable continuation is pending.
+#[derive(Component, Clone)]
+pub(crate) struct NativeDeathId(
+    pub(crate) uuid::Uuid,
+    pub(crate) std::sync::Arc<super::occurrence::NativeDeathOccurrence>,
+);
+
 /// The death of `player`, whose health just reached zero.
-pub(super) fn die(world: &mut World, player: Entity, cause: DeathCause) {
+pub(super) fn die(
+    world: &mut World,
+    player: Entity,
+    cause: DeathCause,
+    attribution: crate::entity::damage::DamageAttribution,
+) {
     if world.get::<Dead>(player).is_some() || world.get::<Player>(player).is_none() {
         return;
     }
+    // Capture a genuine engine generation even before the first component callback.
+    let _ = crate::plugin::manager::players::ensure_identity(world, player);
+    let id = uuid::Uuid::new_v4();
+    let occurrence = super::occurrence::NativeDeathOccurrence::capture(
+        world,
+        player,
+        id,
+        cause,
+        &attribution,
+        world.resource::<GameRules>().keep_inventory,
+    );
     world
         .entity_mut(player)
-        .insert(Dead)
+        .insert((Dead, NativeDeathId(id, std::sync::Arc::new(occurrence))))
         .remove::<(Burning, HurtTimer)>();
     if let Some(mut fall) = world.get_mut::<PlayerFall>(player) {
         *fall = PlayerFall::default();
+    }
+    if crate::server::game::inventory_effects::defer_grant_death(world, player, cause, attribution)
+        || crate::server::game::player_state::source_actors::defer_death(
+            world,
+            player,
+            cause,
+            attribution,
+        )
+    {
+        return;
+    }
+    finish_death(world, player, cause, attribution);
+}
+
+/// Resume the actual native death pipeline only after a managed source terminal write acknowledges.
+pub(crate) fn finish_death(
+    world: &mut World,
+    player: Entity,
+    cause: DeathCause,
+    attribution: crate::entity::damage::DamageAttribution,
+) {
+    let rules = world.resource::<GameRules>().clone();
+    finish_death_with_rules(world, player, cause, attribution, rules);
+}
+
+/// A deferred native death keeps its original drop disposition through the durable barrier.
+pub(crate) fn finish_death_with_rules(
+    world: &mut World,
+    player: Entity,
+    cause: DeathCause,
+    attribution: crate::entity::damage::DamageAttribution,
+    rules: GameRules,
+) {
+    if world.get::<Dead>(player).is_none() || world.get::<Player>(player).is_none() {
+        return;
     }
     super::hurt::send_player_event(world, player, EnumsActorEvent::Death);
 
@@ -118,15 +177,38 @@ pub(super) fn die(world: &mut World, player: Entity, cause: DeathCause) {
                 .collect(),
         }));
     }
-    let rules = world.resource::<GameRules>().clone();
+    let inventory = hooks::PlayerDeathInventory::capture(world, player);
+    let observation = hooks::DeathObservation::capture(world, player);
+    let state = crate::server::game::player_state::death_capture::capture(world, player);
     if rules.show_death_messages {
-        broadcast_death_message(world, &message);
+        broadcast_death_message(world, &message, player, cause.attacker);
     }
     if !rules.keep_inventory {
         drop_everything(world, player);
     }
+    hooks::death(
+        world,
+        hooks::PlayerDeath {
+            player,
+            cause,
+            inventory,
+            keep_inventory: rules.keep_inventory,
+            attribution,
+            observation,
+            state,
+        },
+    );
+    if world.get::<Dead>(player).is_none() || world.get::<Player>(player).is_none() {
+        return;
+    }
     respawn::open_respawn_screen(world, player);
-    if rules.do_immediate_respawn {
+    if rules.do_immediate_respawn
+        && world.get::<PlayerSession>(player).is_some()
+        && !crate::server::game::player_state::source_actors::pending(world, player)
+        && world
+            .get::<crate::server::game::player_state::source_actors::ManagedSource>(player)
+            .is_none()
+    {
         respawn::respawn(world, player);
     }
 }
@@ -229,7 +311,12 @@ fn actor_name(world: &World, actor: Entity) -> String {
 }
 
 /// Send the death message to every player's chat.
-fn broadcast_death_message(world: &mut World, message: &DeathMessage) {
+fn broadcast_death_message(
+    world: &mut World,
+    message: &DeathMessage,
+    player: Entity,
+    attacker: Option<Entity>,
+) {
     let packet = McpePacket::from(TextPacket {
         localize: true,
         body: TextPacketBody::MessageAndParams(TextPacketPayloadMessageAndParams {
@@ -245,9 +332,15 @@ fn broadcast_death_message(world: &mut World, message: &DeathMessage) {
         platform_id: "".into(),
         filtered_message: None,
     });
-    let mut sessions = world.query_filtered::<&PlayerSession, With<Player>>();
-    for session in sessions.iter(world) {
-        let _ = session.send(packet.clone());
+    let mut sessions = world.query_filtered::<(Entity, &PlayerSession), With<Player>>();
+    for (viewer, session) in sessions.iter(world) {
+        if crate::server::broadcast::player_views::audience_allows(world, player, viewer)
+            && attacker.is_none_or(|attacker| {
+                crate::server::broadcast::player_views::audience_allows(world, attacker, viewer)
+            })
+        {
+            let _ = session.send(packet.clone());
+        }
     }
 }
 

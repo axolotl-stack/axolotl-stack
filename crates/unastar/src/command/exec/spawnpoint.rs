@@ -3,7 +3,7 @@
 //! Measured on BDS 1.26.51: both answer with the block position
 //! (`commands.setworldspawn.success` x, y, z;
 //! `commands.spawnpoint.success.single` name, x, y, z) and send
-//! `SetSpawnPosition` (`Worldspawn` / `Playerrespawn`, dimension 0,
+//! `SetSpawnPosition` (`WorldSpawn` / `PlayerRespawn`, dimension 0,
 //! `spawn_block_pos` all `i32::MIN`).
 //!
 //! The world spawn is the [`WorldSpawn`] players respawn at; a player's spawn
@@ -43,7 +43,7 @@ pub fn run_setworldspawn(ctx: &mut CommandContext<'_>, args: SetWorldSpawnArgs) 
     }
     let block = ctx.position(spawn_point).floor().as_ivec3();
     ctx.world.insert_resource(WorldSpawn(standing_in(block)));
-    ctx.broadcast(spawn_packet(EnumsSpawnPositionType::Worldspawn, block));
+    ctx.broadcast(spawn_packet(EnumsSpawnPositionType::WorldSpawn, block));
     success!("commands.setworldspawn.success", block.x, block.y, block.z)
 }
 
@@ -60,7 +60,7 @@ pub fn run_spawnpoint(ctx: &mut CommandContext<'_>, args: SpawnPointArgs) -> Com
             .insert(PlayerSpawnPoint(standing_in(block)));
         ctx.send(
             player,
-            spawn_packet(EnumsSpawnPositionType::Playerrespawn, block),
+            spawn_packet(EnumsSpawnPositionType::PlayerRespawn, block),
         );
     }
     let [x, y, z] = [block.x, block.y, block.z].map(|c| c.to_string());
@@ -146,7 +146,7 @@ mod tests {
             assert_eq!(packets.len(), 1);
             assert_eq!(
                 packets[0],
-                spawn_packet(EnumsSpawnPositionType::Worldspawn, IVec3::new(5, 70, 5))
+                spawn_packet(EnumsSpawnPositionType::WorldSpawn, IVec3::new(5, 70, 5))
             );
             assert_eq!(packets[0].spawn_block_pos.x, i32::MIN);
         }
@@ -177,7 +177,7 @@ mod tests {
         assert_eq!(
             packets,
             [spawn_packet(
-                EnumsSpawnPositionType::Playerrespawn,
+                EnumsSpawnPositionType::PlayerRespawn,
                 IVec3::new(10, 80, 10)
             )]
         );

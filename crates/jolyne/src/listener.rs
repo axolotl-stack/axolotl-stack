@@ -47,6 +47,8 @@ pub struct BedrockListener<L: RawListener> {
     slots: PlayerSlots,
     status: Arc<dyn StatusProvider>,
     next_refresh: tokio::time::Instant,
+    #[cfg(feature = "endpoint")]
+    endpoint: Option<Arc<tokio_nethernet::endpoint::Handler>>,
     #[cfg(feature = "discovery")]
     lan: Option<Arc<tokio_nethernet::discovery::DiscoveryListener>>,
 }
@@ -64,6 +66,8 @@ impl<L: RawListener> BedrockListener<L> {
             config: Arc::new(config),
             status,
             next_refresh: tokio::time::Instant::now(),
+            #[cfg(feature = "endpoint")]
+            endpoint: None,
             #[cfg(feature = "discovery")]
             lan: None,
         }
@@ -78,6 +82,12 @@ impl<L: RawListener> BedrockListener<L> {
     pub async fn refresh_status(&self) -> Result<(), JolyneError> {
         let status = self.status();
         self.inner.publish_status(&status)?;
+        #[cfg(feature = "endpoint")]
+        if let Some(endpoint) = &self.endpoint {
+            endpoint
+                .set_status(status.endpoint_status())
+                .map_err(|error| JolyneError::Io(std::io::Error::other(error.to_string())))?;
+        }
         #[cfg(feature = "discovery")]
         if let Some(lan) = &self.lan {
             lan.set_server_data(status.lan_server_data()).await;
@@ -253,7 +263,7 @@ enum NetherNetSignaling {
     #[cfg(feature = "endpoint")]
     Endpoint {
         handler: Arc<tokio_nethernet::endpoint::Handler>,
-        config: tokio_nethernet::NetherNetListenerConfig,
+        config: Box<tokio_nethernet::NetherNetListenerConfig>,
     },
     #[cfg(feature = "xbox-signaling")]
     Xbox {
@@ -281,7 +291,10 @@ impl NetherNetBuilder {
         handler: Arc<tokio_nethernet::endpoint::Handler>,
         config: tokio_nethernet::NetherNetListenerConfig,
     ) -> Self {
-        self.signaling = NetherNetSignaling::Endpoint { handler, config };
+        self.signaling = NetherNetSignaling::Endpoint {
+            handler,
+            config: Box::new(config),
+        };
         self
     }
 
@@ -331,6 +344,8 @@ impl NetherNetBuilder {
     ) -> Result<BedrockListener<tokio_nethernet::NetherNetListener>, JolyneError> {
         #[cfg(feature = "discovery")]
         let lan: Option<Arc<tokio_nethernet::discovery::DiscoveryListener>>;
+        #[cfg(feature = "endpoint")]
+        let endpoint;
         let inner = match self.signaling {
             NetherNetSignaling::None => {
                 return Err(JolyneError::Io(std::io::Error::new(
@@ -340,6 +355,10 @@ impl NetherNetBuilder {
             }
             #[cfg(feature = "discovery")]
             NetherNetSignaling::Lan { addr } => {
+                #[cfg(feature = "endpoint")]
+                {
+                    endpoint = None;
+                }
                 use tokio_nethernet::discovery::{DiscoveryListener, DiscoveryListenerConfig};
                 use tokio_nethernet::{NetherNetListener, NetherNetListenerConfig};
                 let discovery = DiscoveryListener::bind(&addr, DiscoveryListenerConfig::default())
@@ -367,7 +386,8 @@ impl NetherNetBuilder {
                 if let Some(monitor) = self.signal_monitor_config {
                     config.signal_monitor = Some(SignalMonitor::new_with_cleanup(monitor));
                 }
-                NetherNetListener::bind_with_signaling(handler, config)
+                endpoint = Some(Arc::clone(&handler));
+                NetherNetListener::bind_with_signaling(handler, *config)
             }
             #[cfg(feature = "xbox-signaling")]
             NetherNetSignaling::Xbox {
@@ -375,6 +395,10 @@ impl NetherNetBuilder {
                 nethernet_id,
                 mc_token,
             } => {
+                #[cfg(feature = "endpoint")]
+                {
+                    endpoint = None;
+                }
                 use tokio_nethernet::{NetherNetListener, NetherNetListenerConfig, XboxSignaling};
                 #[cfg(feature = "discovery")]
                 {
@@ -396,6 +420,10 @@ impl NetherNetBuilder {
         #[cfg(feature = "discovery")]
         {
             listener.lan = lan;
+        }
+        #[cfg(feature = "endpoint")]
+        {
+            listener.endpoint = endpoint;
         }
         listener.refresh_status().await?;
         Ok(listener)

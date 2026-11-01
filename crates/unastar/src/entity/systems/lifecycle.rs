@@ -6,6 +6,9 @@ use glam::DVec3;
 use crate::entity::components::*;
 use crate::registry::collision::Aabb;
 
+type TransientDrops = (With<DroppedItem>, Without<PersistentWorldItem>);
+type TransientPhysics = (With<PhysicsBody>, Without<PersistentWorldItem>);
+
 /// System: Tick entity age.
 pub fn tick_age(mut query: Query<&mut Age>) {
     for mut age in query.iter_mut() {
@@ -37,7 +40,7 @@ pub fn tick_item_pickup_delay(mut query: Query<&mut PickupDelay, With<DroppedIte
 /// System: Tick item despawn timer.
 pub fn tick_item_despawn(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut DespawnTimer), With<DroppedItem>>,
+    mut query: Query<(Entity, &mut DespawnTimer), TransientDrops>,
 ) {
     for (entity, mut timer) in query.iter_mut() {
         timer.tick();
@@ -72,7 +75,7 @@ pub fn merge_item_entities(
             &mut DespawnTimer,
             &Age,
         ),
-        With<DroppedItem>,
+        TransientDrops,
     >,
 ) {
     let searchers: Vec<(Entity, DVec3)> = items
@@ -142,7 +145,7 @@ pub const OUT_OF_WORLD_DEPTH: f64 = 64.0;
 /// System: remove physics bodies that fell out of the world.
 pub fn despawn_out_of_world(
     mut commands: Commands,
-    query: Query<(Entity, &Position), With<PhysicsBody>>,
+    query: Query<(Entity, &Position), TransientPhysics>,
 ) {
     let floor = f64::from(crate::world::chunk::MIN_Y) - OUT_OF_WORLD_DEPTH;
     for (entity, position) in query.iter() {

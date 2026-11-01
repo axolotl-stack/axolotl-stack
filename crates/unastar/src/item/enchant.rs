@@ -19,11 +19,14 @@ use super::ItemStack;
 #[repr(i16)]
 pub enum Enchantment {
     AquaAffinity = 8,
+    FireAspect = 13,
     Looting = 14,
     Efficiency = 15,
     SilkTouch = 16,
     Unbreaking = 17,
     Fortune = 18,
+    Power = 19,
+    Flame = 21,
     Infinity = 22,
 }
 
@@ -32,11 +35,14 @@ impl Enchantment {
     pub fn from_name(name: &str) -> Option<Self> {
         Some(match name.strip_prefix("minecraft:").unwrap_or(name) {
             "aqua_affinity" => Self::AquaAffinity,
+            "fire_aspect" => Self::FireAspect,
             "looting" => Self::Looting,
             "efficiency" => Self::Efficiency,
             "silk_touch" => Self::SilkTouch,
             "unbreaking" => Self::Unbreaking,
             "fortune" => Self::Fortune,
+            "power" => Self::Power,
+            "flame" => Self::Flame,
             "infinity" => Self::Infinity,
             _ => return None,
         })
@@ -98,6 +104,43 @@ fn read_block_list(bytes: &[u8]) -> Option<(Vec<String>, &[u8])> {
         rest = rest.get(2 + len..)?;
     }
     Some((names, rest))
+}
+
+/// Validate the complete network user-data envelope before restoring stored items.
+pub(crate) fn valid_user_data(stack: &ItemStack) -> bool {
+    let buffer = stack.user_data();
+    if buffer.len() > 131_072 || buffer.len() < 2 {
+        return false;
+    }
+    let marker = i16::from_le_bytes([buffer[0], buffer[1]]);
+    if !matches!(marker, 0 | NBT_PRESENT) {
+        return false;
+    }
+    let Some((_, mut tail)) = split_user_data(&buffer) else {
+        return false;
+    };
+    for _ in 0..2 {
+        let Some(count) = tail
+            .get(..4)
+            .and_then(|bytes| <[u8; 4]>::try_from(bytes).ok())
+            .map(i32::from_le_bytes)
+        else {
+            return false;
+        };
+        if count < 0 {
+            return false;
+        }
+        let Some((_, rest)) = read_block_list(tail) else {
+            return false;
+        };
+        tail = rest;
+    }
+    tail.len()
+        == if stack.item_id() == "minecraft:shield" {
+            8
+        } else {
+            0
+        }
 }
 
 fn write_block_list(out: &mut Vec<u8>, blocks: &[String]) {
@@ -201,6 +244,18 @@ pub fn enchantment_ids(stack: &ItemStack) -> Vec<(i16, u8)> {
             _ => None,
         })
         .collect()
+}
+
+/// Fire Aspect burn duration from a captured sword stack, in server ticks.
+/// Other weapon classes do not acquire sword behavior from arbitrary NBT.
+pub fn fire_aspect_ticks(stack: &ItemStack) -> u64 {
+    if stack
+        .item()
+        .is_none_or(|item| item.tool_info().kind != Some(crate::registry::item::ToolKind::Sword))
+    {
+        return 0;
+    }
+    u64::from(enchantment_level(stack, Enchantment::FireAspect)) * 80
 }
 
 /// Tool wear (`Damage`) of `stack`.

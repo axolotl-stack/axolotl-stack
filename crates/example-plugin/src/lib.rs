@@ -1,82 +1,172 @@
-//! WIT Component Model example. Build with:
-//! `cargo build -p example_plugin --target wasm32-wasip2`.
-//! Install the target first with `rustup target add wasm32-wasip2`.
-//!
-//! The registration attribute exports the WIT-generated `Guest` bridge;
-//! implement only the typed `Plugin` callbacks needed by this component.
+//! Scoped Component Model example; build for `wasm32-wasip2`.
 
-use unastar_api::{BlockPos, LogLevel, Player, Plugin, Vec3, host};
+use unastar_api::{
+    AdmissionDecision, AdmittedEvent, BlockCommitted, BlockProposal, DeathCommitted, FormResponse,
+    Handler, LogLevel, NameTagVisibility, PlayerContext, PlayerProjection, Sidebar, SidebarLine,
+    SimpleForm, WorldTx, commands, server,
+};
 
 struct ExamplePlugin;
 
 #[unastar_api_macros::plugin]
-impl Plugin for ExamplePlugin {
+impl Handler for ExamplePlugin {
     fn on_load() {
-        host::log(LogLevel::Info, "Example plugin loaded!");
+        server::log(LogLevel::Info, "Example component loaded");
+        let _ = commands::register_root(&commands::Root {
+            name: "depart".into(),
+            description: "Request your connection to close".into(),
+        });
+        let _ = commands::register_root(&commands::Root {
+            name: "greet".into(),
+            description: "Send a greeting".into(),
+        });
     }
-
     fn on_tick(tick_id: u64) {
-        if tick_id.is_multiple_of(100) {
-            let count = host::get_player_count();
-            host::log(
+        if tick_id.is_multiple_of(100)
+            && let Ok(players) = server::players()
+        {
+            server::log(
                 LogLevel::Info,
-                &format!("Tick {}: {} players online", tick_id, count),
+                &format!("Tick {tick_id}: {} player actors", players.len()),
             );
         }
     }
-
-    fn on_player_join(player: &Player, username: String) {
-        host::log(LogLevel::Info, &format!("Player {} joined!", username));
-        player.send_message(&format!("Welcome, {}!", username));
+    fn on_player_admission(_ctx: &mut PlayerContext<'_>) -> AdmissionDecision {
+        AdmissionDecision::Allow
     }
-
-    fn on_player_quit(player: &Player) {
-        let name = player.get_name();
-        host::log(LogLevel::Info, &format!("Player {} quit", name));
+    fn on_player_admitted(event: AdmittedEvent) {
+        server::log(
+            LogLevel::Info,
+            &format!("{} entered the world", event.observation.identity.name),
+        );
     }
-
-    fn on_player_chat(player: &Player, message: String) -> bool {
+    fn on_player_death(_tx: &WorldTx<'_>, event: DeathCommitted) {
+        if let Ok(identity) = event.identity {
+            server::log(
+                LogLevel::Info,
+                &format!("Observed {}'s committed death", identity.name),
+            );
+        }
+        // Owned item values release normally when the event leaves this scope.
+    }
+    fn on_player_command(ctx: &mut PlayerContext<'_>, line: String, _request_id: Option<String>) {
+        if line.trim_start_matches('/').split_whitespace().next() == Some("depart") {
+            let _ = ctx
+                .player()
+                .disconnect(&unastar_api::ConnectionCloseReason {
+                    kind: unastar_api::ConnectionCloseKind::Requested,
+                    message: "Example connection closed".into(),
+                });
+            ctx.cancel();
+            return;
+        }
+        if line.trim_start_matches('/').split_whitespace().next() == Some("greet") {
+            let _ = ctx
+                .player()
+                .message("Hello from an advertised component command");
+            let _ = ctx.tx().sidebar(
+                ctx.player(),
+                Some(&Sidebar {
+                    title: "Example".into(),
+                    lines: vec![SidebarLine {
+                        key: "status".into(),
+                        text: "Scoped widgets are active".into(),
+                    }],
+                }),
+            );
+            let _ = ctx.tx().show_form(
+                ctx.player(),
+                &SimpleForm {
+                    title: "Greeting".into(),
+                    content: "Choose a response".into(),
+                    buttons: vec!["Hello".into(), "Clear sidebar".into()],
+                },
+                1,
+            );
+            let _ = ctx.tx().project_player(
+                ctx.player(),
+                ctx.player(),
+                Some(&PlayerProjection {
+                    name_tag: Some("Example viewer".into()),
+                    name_tag_visibility: Some(NameTagVisibility::Always),
+                    invisible: None,
+                    actor_visible: None,
+                    equipment_visible: None,
+                    armour_visible: None,
+                }),
+            );
+            ctx.cancel();
+        }
+    }
+    fn on_player_form_response(
+        ctx: &mut PlayerContext<'_>,
+        _request_id: u64,
+        callback_id: u64,
+        response: FormResponse,
+    ) {
+        if callback_id == 1 {
+            match response {
+                FormResponse::Selected(0) => {
+                    let _ = ctx.tx().action_bar(ctx.player(), Some("Hello!"));
+                }
+                FormResponse::Selected(1) => {
+                    let _ = ctx.tx().sidebar(ctx.player(), None);
+                }
+                _ => {}
+            }
+        }
+    }
+    fn on_player_chat(ctx: &mut PlayerContext<'_>, message: String) {
         if message == "!hello" {
-            player.send_message("Hello from Component Model plugin!");
-            return true;
+            let _ = ctx
+                .player()
+                .message("Hello from a scoped component handler");
+            ctx.cancel();
+        } else if message == "!later" {
+            if let Ok(handle) = ctx.player().handle() {
+                let _ = handle.schedule(1);
+            }
+            ctx.cancel();
+        } else if message.starts_with("!cancel") {
+            ctx.cancel();
         }
-
-        if message == "!up" {
-            let pos = player.get_position();
-            player.teleport(Vec3 {
-                x: pos.x,
-                y: pos.y + 5.0,
-                z: pos.z,
-            });
-            player.send_message("Whoosh!");
-            return true;
-        }
-
-        if message == "!spawn" {
-            let spawn = host::get_spawn();
-            player.teleport(spawn);
-            player.send_message("Teleported to spawn!");
-            return true;
-        }
-
-        if message == "!players" {
-            let players = host::list_players();
-            player.send_message(&format!("Online: {}", players.join(", ")));
-            return true;
-        }
-
-        if message.starts_with("!cancel") {
-            return false;
-        }
-
-        true
     }
-
-    fn on_block_break(player: &Player, pos: BlockPos, _block_id: u32) -> bool {
-        if pos.x == 0 && pos.z == 0 && pos.y < 20 {
-            player.send_message("Cannot break blocks at spawn!");
-            return false;
+    fn on_player_task(ctx: &mut PlayerContext<'_>, _task_id: u64, callback_id: u64) {
+        if callback_id == 1 {
+            let _ = ctx
+                .player()
+                .message("Scheduled work resolved a fresh player scope");
         }
-        true
+    }
+    fn on_block_transaction(ctx: &mut PlayerContext<'_>, proposal: &BlockProposal) {
+        if proposal
+            .cells
+            .iter()
+            .any(|cell| cell.position.x == 0 && cell.position.z == 0 && cell.position.y < 20)
+        {
+            let _ = ctx.player().message("This column is protected");
+            ctx.cancel();
+        }
+    }
+    fn on_block_committed(_tx: &WorldTx<'_>, event: BlockCommitted) {
+        if let Ok(cells) = event.cells {
+            server::log(
+                LogLevel::Info,
+                &format!("Committed {} affected block cells", cells.len()),
+            );
+        }
+    }
+    fn on_item_action(
+        ctx: &mut PlayerContext<'_>,
+        _target: Option<&unastar_api::Player<'_>>,
+        proposal: &unastar_api::ItemActionProposal,
+    ) -> unastar_api::ItemActionDecision {
+        if proposal.stage == unastar_api::ItemActionStage::Launch
+            && proposal.selected.identifier().as_deref() == Ok("minecraft:ender_pearl")
+        {
+            let _ = ctx.player().message("Throwing this item is disabled here");
+            ctx.cancel();
+        }
+        unastar_api::ItemActionDecision::Pass
     }
 }

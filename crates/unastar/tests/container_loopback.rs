@@ -87,8 +87,8 @@ fn creative_to_hotbar(id: i32, creative: u32, hotbar: u8) -> ItemStackRequestPac
             }),
             Action::TakeActionData(ItemStackRequestCerealTakeActionData {
                 amount: 1,
-                source: slot(EnumsContainerEnumName::Createdoutputcontainer, 50, id),
-                destination: slot(EnumsContainerEnumName::Hotbarcontainer, hotbar, 0),
+                source: slot(EnumsContainerEnumName::CreatedOutputContainer, 50, id),
+                destination: slot(EnumsContainerEnumName::HotbarContainer, hotbar, 0),
                 ..Default::default()
             }),
         ],
@@ -209,7 +209,7 @@ fn chest_open_move_close_over_loopback() {
         send(
             &mut client,
             InteractPacket {
-                action: EnumsInteractPacketPayloadAction::Openinventory,
+                action: EnumsInteractPacketPayloadAction::OpenInventory,
                 ..Default::default()
             },
         )
@@ -341,8 +341,8 @@ fn chest_open_move_close_over_loopback() {
                 vec![Action::TakeActionData(
                     ItemStackRequestCerealTakeActionData {
                         amount: 1,
-                        source: slot(EnumsContainerEnumName::Hotbarcontainer, 1, cobble_net),
-                        destination: slot(EnumsContainerEnumName::Levelentitycontainer, 13, 0),
+                        source: slot(EnumsContainerEnumName::HotbarContainer, 1, cobble_net),
+                        destination: slot(EnumsContainerEnumName::LevelEntityContainer, 13, 0),
                         ..Default::default()
                     },
                 )],
@@ -357,7 +357,7 @@ fn chest_open_move_close_over_loopback() {
         assert_eq!(response.result, EnumsItemStackNetResult::Success);
         let containers = response.containers.unwrap();
         assert!(containers.iter().any(|c| {
-            c.full_container_name.container_name == EnumsContainerEnumName::Levelentitycontainer
+            c.full_container_name.container_name == EnumsContainerEnumName::LevelEntityContainer
                 && c.slots[0].slot == 13
                 && c.slots[0].amount == 1
         }));

@@ -33,11 +33,16 @@ pub enum PluginAction {
 pub enum EventKind {
     Tick,
     PlayerJoin,
+    PlayerAdmitted,
     PlayerChat,
+    PlayerCommand,
     BlockBreak,
     BlockPlace,
+    BlockTransaction,
+    BlockCommitted,
     Timer,
     PlayerMove,
+    PlayerMoved,
     PlayerJump,
     PlayerToggleSneak,
     PlayerToggleSprint,
@@ -46,7 +51,16 @@ pub enum EventKind {
     PlayerStartBreak,
     PlayerInteractBlock,
     PlayerItemUse,
+    ItemAction,
+    ItemActionCommitted,
     PlayerSwing,
+    PlayerDamage,
+    PlayerDamaged,
+    PlayerDeath,
+    PlayerRespawn,
+    PlayerRespawned,
+    PlayerTravel,
+    PlayerTravelled,
 }
 
 /// Internal event representation carrying Entity references.
@@ -77,6 +91,7 @@ pub enum ServerEvent {
         player_id: String,
         position: (i32, i32, i32),
         block_id: u32,
+        click: Option<crate::server::game::block_interaction::BlockClick>,
     },
     Timer {
         id: u64,
@@ -160,6 +175,27 @@ impl EventBuffer {
 
     pub fn drain(&mut self) -> Vec<ServerEvent> {
         std::mem::take(&mut self.events)
+    }
+
+    /// Discard queued input from a connection that has left before dispatch.
+    pub(crate) fn discard_player(&mut self, player: Entity) {
+        self.events.retain(|event| match event {
+            ServerEvent::Tick { .. } | ServerEvent::Timer { .. } => true,
+            ServerEvent::PlayerJoin { entity, .. }
+            | ServerEvent::PlayerChat { entity, .. }
+            | ServerEvent::BlockBreak { entity, .. }
+            | ServerEvent::BlockPlace { entity, .. }
+            | ServerEvent::PlayerMove { entity, .. }
+            | ServerEvent::PlayerJump { entity }
+            | ServerEvent::PlayerToggleSneak { entity, .. }
+            | ServerEvent::PlayerToggleSprint { entity, .. }
+            | ServerEvent::PlayerQuit { entity }
+            | ServerEvent::PlayerHeldSlotChange { entity, .. }
+            | ServerEvent::PlayerStartBreak { entity, .. }
+            | ServerEvent::PlayerInteractBlock { entity, .. }
+            | ServerEvent::PlayerItemUse { entity }
+            | ServerEvent::PlayerSwing { entity } => *entity != player,
+        });
     }
 }
 

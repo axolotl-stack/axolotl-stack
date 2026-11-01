@@ -9,3 +9,5 @@
 #![allow(clippy::manual_flatten)]
 #[cfg(feature = "bedrock_1_26_51")]
 pub use valentine_bedrock_1_26_51 as v1_26_51;
+#[cfg(feature = "bedrock_1_26_60")]
+pub use valentine_bedrock_1_26_60 as v1_26_60;

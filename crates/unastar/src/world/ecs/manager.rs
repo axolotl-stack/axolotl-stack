@@ -10,7 +10,7 @@ use super::components::{
 };
 use super::generation_worker::{ChunkGenerationWorker, generation_threads};
 use crate::storage::{ChunkColumn, WorldProvider};
-use crate::world::generator::ChunkPipeline;
+use crate::world::generator::{ChunkPipeline, Generator};
 use crate::world::{Chunk, ChunkPos, WorldConfig};
 
 /// Run a storage future to completion from synchronous ECS code. It runs on a
@@ -106,8 +106,22 @@ impl ChunkManager {
     ///
     /// Generators that use the generation pool must be created inside a tokio runtime.
     pub fn new(world_config: WorldConfig) -> Self {
-        let pipeline = Arc::new(ChunkPipeline::new(world_config.generator.build()));
-        let generation_worker = world_config.generator.uses_generation_pool().then(|| {
+        let generator = world_config.generator.build();
+        let background = world_config.generator.uses_generation_pool();
+        Self::with_generator(world_config, generator, background)
+    }
+
+    /// Construct an empty world manager with an application-supplied generator.
+    /// The explicit generator replaces the config's generator selection, while
+    /// dimension, bounds, worker count and storage behavior retain their normal
+    /// contracts. Background generation requires an active Tokio runtime.
+    pub fn with_generator(
+        world_config: WorldConfig,
+        generator: Arc<dyn Generator>,
+        background: bool,
+    ) -> Self {
+        let pipeline = Arc::new(ChunkPipeline::new(generator));
+        let generation_worker = background.then(|| {
             ChunkGenerationWorker::spawn(
                 pipeline.clone(),
                 generation_threads(world_config.generation_threads),
@@ -228,21 +242,34 @@ impl ChunkManager {
     /// was loaded from disk (true, with its stored actors) or newly generated
     /// (false).
     pub fn load_or_generate_chunk(&self, x: i32, z: i32) -> (ChunkColumn, bool) {
+        self.try_load_or_generate_chunk(x, z)
+            .expect("chunk storage read failed; refusing to generate replacement terrain")
+    }
+
+    /// Load authoritative storage before generation, preserving read failures.
+    /// Callers coordinating a cross-world operation can reject it safely rather
+    /// than replacing unavailable saved terrain or panicking the runtime.
+    pub fn try_load_or_generate_chunk(
+        &self,
+        x: i32,
+        z: i32,
+    ) -> crate::storage::StorageResult<(ChunkColumn, bool)> {
         let pos = ChunkPos::new(x, z);
         let dim = self.world_config.dimension;
-
-        // Try to load from provider if available
         if let Some(provider) = &self.provider {
             let provider = provider.clone();
-            let column = block_on_storage(async move { provider.load_column(pos, dim).await })
-                .expect("chunk storage read failed; refusing to generate replacement terrain");
-            if let Some(column) = column {
-                return (column, true);
+            if let Some(mut column) =
+                block_on_storage(async move { provider.load_column(pos, dim).await })?
+            {
+                column
+                    .chunk
+                    .set_block_bounds(crate::world::dimension_block_bounds(dim));
+                return Ok((column, true));
             }
         }
-
-        // Fall through to generation
-        (ChunkColumn::new(self.generate_chunk(x, z)), false)
+        let mut chunk = self.generate_chunk(x, z);
+        chunk.set_block_bounds(crate::world::dimension_block_bounds(dim));
+        Ok((ChunkColumn::new(chunk), false))
     }
 
     /// Get or create a chunk entity using deferred Commands.
@@ -276,8 +303,10 @@ impl ChunkManager {
 
         // Encode BEFORE spawning to avoid clone (Phase 3 optimization)
         // This saves ~200KB allocation per new chunk
-        let encoded_biomes = column.chunk.encode_biomes();
-        let highest_subchunk = column.chunk.highest_subchunk();
+        let encoded_biomes = column.chunk.encode_biomes_for_dimension(self.dimension());
+        let highest_subchunk = column
+            .chunk
+            .highest_subchunk_for_dimension(self.dimension());
 
         // Newly generated (not loaded from disk) chunks are dirty for
         // persistence; stored actors are restored by the chunk systems.
@@ -369,24 +398,30 @@ pub trait ChunkManagerWorldExt {
     /// Unlike get_or_create(), this spawns immediately without deferral and
     /// restores the chunk's stored actors before returning.
     fn get_or_create_chunk(&mut self, x: i32, z: i32) -> Entity;
+    /// Fallible authoritative load; storage errors create no replacement entity.
+    fn try_get_or_create_chunk(&mut self, x: i32, z: i32) -> crate::storage::StorageResult<Entity>;
 }
 
 impl ChunkManagerWorldExt for bevy_ecs::world::World {
     fn get_or_create_chunk(&mut self, x: i32, z: i32) -> Entity {
+        self.try_get_or_create_chunk(x, z)
+            .expect("chunk storage read failed; refusing to generate replacement terrain")
+    }
+    fn try_get_or_create_chunk(&mut self, x: i32, z: i32) -> crate::storage::StorageResult<Entity> {
         // Check if entity already exists
         {
             let chunk_manager = self
                 .get_resource::<ChunkManager>()
                 .expect("ChunkManager must exist");
             if let Some(entity) = chunk_manager.get_by_coords(x, z) {
-                return entity;
+                return Ok(entity);
             }
         }
 
         let (column, was_loaded) = self
             .get_resource::<ChunkManager>()
             .expect("ChunkManager must exist")
-            .load_or_generate_chunk(x, z);
+            .try_load_or_generate_chunk(x, z)?;
         let pos = ChunkPosition::new(x, z);
         let (components, actors) = chunk_entity_components(pos, column, was_loaded);
         let mut spawned = self.spawn(components);
@@ -402,7 +437,7 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
         chunk_manager.insert(pos, entity);
 
         crate::entity::mob::persistence::restore_actors_of_chunk(self, entity);
-        entity
+        Ok(entity)
     }
 }
 
@@ -458,5 +493,74 @@ mod tests {
 
         let positions: Vec<_> = manager.positions().collect();
         assert_eq!(positions.len(), 2);
+    }
+    #[test]
+    fn supplied_generator_controls_finished_terrain_and_spawn_instead_of_config_selection() {
+        let manager = ChunkManager::with_generator(
+            WorldConfig::void_spawn_platform(1),
+            Arc::new(crate::world::generator::FlatGenerator),
+            false,
+        );
+        let chunk = manager.generate_chunk(0, 0);
+        assert_eq!(
+            chunk.get_block(0, 3, 0),
+            *crate::world::chunk::blocks::GRASS_BLOCK
+        );
+        assert_eq!(chunk.get_block(0, 4, 0), *crate::world::chunk::blocks::AIR);
+        assert_eq!(manager.pipeline().find_spawn().y, 4);
+        assert!(!manager.has_async_generation());
+    }
+
+    #[tokio::test]
+    async fn supplied_generator_uses_the_normal_background_completion_path() {
+        let mut manager = ChunkManager::with_generator(
+            WorldConfig {
+                generation_threads: 1,
+                ..WorldConfig::void_spawn_platform(1)
+            },
+            Arc::new(crate::world::generator::FlatGenerator),
+            true,
+        );
+        let mut world = World::new();
+        let viewer = world.spawn_empty().id();
+        let receiver = manager.request_generation(2, -3, viewer).unwrap();
+        let generated = receiver.await.unwrap().unwrap();
+        assert_eq!(
+            generated.0.chunk.get_block(0, 3, 0),
+            *crate::world::chunk::blocks::GRASS_BLOCK
+        );
+        assert_eq!(manager.complete_generation(2, -3), Some(vec![viewer]));
+        assert!(manager.has_async_generation());
+    }
+    #[tokio::test]
+    async fn supplied_generator_loads_saved_columns_before_generating_new_terrain() {
+        let directory = tempfile::tempdir().unwrap();
+        let provider =
+            Arc::new(crate::storage::LevelDBWorldProvider::open(directory.path(), 0).unwrap());
+        let mut saved = Chunk::new(2, -3);
+        saved.set_block(0, 3, 0, *crate::world::chunk::blocks::STONE);
+        provider
+            .save_column(ChunkPos::new(2, -3), 0, &ChunkColumn::new(saved))
+            .await
+            .unwrap();
+        provider.flush().await.unwrap();
+        let mut manager = ChunkManager::with_generator(
+            WorldConfig::void_spawn_platform(1),
+            Arc::new(crate::world::generator::FlatGenerator),
+            false,
+        );
+        manager.set_provider(provider);
+        let (column, loaded) = manager.load_or_generate_chunk(2, -3);
+        assert!(loaded);
+        assert_eq!(
+            column.chunk.get_block(0, 3, 0),
+            *crate::world::chunk::blocks::STONE
+        );
+        let (column, loaded) = manager.load_or_generate_chunk(3, -3);
+        assert!(!loaded);
+        assert_eq!(
+            column.chunk.get_block(0, 3, 0),
+            *crate::world::chunk::blocks::GRASS_BLOCK
+        );
     }
 }

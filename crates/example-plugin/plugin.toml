@@ -1,16 +1,22 @@
 id = "axolotl.example"
 name = "Example Plugin"
-version = "0.2.0"
-api_version = "0.2.0"
+version = "0.4.0"
+api_version = "0.4.0"
+capabilities = ["connection-control", "read-players", "send-messages", "schedule-tasks", "commands", "item-values", "presentation", "player-views"]
 subscriptions = [
+    "item_action",
+    "player_join",
     "player_chat",
+    "player_command",
     "tick",
-    "block_break",
+    "block_transaction",
+    "block_committed",
     "player_move",
     "player_jump",
     "player_toggle_sneak",
     "player_toggle_sprint",
     "player_quit",
+    "player_death",
     "player_held_slot_change",
     "player_start_break",
     "player_interact_block",

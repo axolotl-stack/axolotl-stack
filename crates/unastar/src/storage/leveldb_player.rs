@@ -19,6 +19,8 @@ use crate::storage::provider::{PlayerData, PlayerProvider, StorageError, Storage
 pub struct LevelDBPlayerProvider {
     /// Thread-safe database handle.
     db: Arc<DB>,
+    items: Arc<std::sync::Mutex<super::item_grants::ItemLedger>>,
+    items_uncertain: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl LevelDBPlayerProvider {
@@ -37,12 +39,112 @@ impl LevelDBPlayerProvider {
         let db =
             DB::open(path.as_ref(), &options).map_err(|e| StorageError::Database(e.to_string()))?;
 
-        Ok(Self { db: Arc::new(db) })
+        let items = super::item_grants::ItemLedger::open(&db)?;
+        Ok(Self {
+            db: Arc::new(db),
+            items: Arc::new(std::sync::Mutex::new(items)),
+            items_uncertain: Arc::default(),
+        })
     }
 }
 
 #[async_trait]
 impl PlayerProvider for LevelDBPlayerProvider {
+    fn atomic_durable_items(&self) -> bool {
+        true
+    }
+
+    async fn world_items(
+        &self,
+        world: Uuid,
+        dimension: i32,
+    ) -> StorageResult<Vec<super::item_grants::PersistentItem>> {
+        if self
+            .items_uncertain
+            .load(std::sync::atomic::Ordering::Acquire)
+        {
+            return Err(StorageError::PlayerRecoveryRequired);
+        }
+        self.items
+            .lock()
+            .map(|items| items.world(world, dimension))
+            .map_err(|_| StorageError::PlayerRecoveryRequired)
+    }
+
+    async fn retire_world_item(
+        &self,
+        expected: &super::item_grants::PersistentItem,
+    ) -> StorageResult<()> {
+        let db = self.db.clone();
+        let items = self.items.clone();
+        let uncertain = self.items_uncertain.clone();
+        let mutation = super::item_grants::ItemMutation::Take {
+            expected: expected.clone(),
+            remaining: 0,
+        };
+        task::spawn_blocking(move || {
+            let mut ledger = items
+                .lock()
+                .map_err(|_| StorageError::PlayerRecoveryRequired)?;
+            if uncertain.load(std::sync::atomic::Ordering::Acquire) {
+                return Err(StorageError::PlayerRecoveryRequired);
+            }
+            let prepared = ledger.prepare(&mutation)?;
+            let mut batch = bleveldb::WriteBatch::new();
+            prepared.append(&mut batch);
+            let options = WriteOptions::new();
+            options.sync(true);
+            if let Err(error) = batch.write(&db, &options) {
+                uncertain.store(true, std::sync::atomic::Ordering::Release);
+                return Err(StorageError::Database(error));
+            }
+            ledger.acknowledge(prepared);
+            Ok(())
+        })
+        .await
+        .map_err(|error| StorageError::Database(error.to_string()))?
+    }
+
+    async fn save_with_items(
+        &self,
+        uuid: Uuid,
+        data: &PlayerData,
+        mutation: &super::item_grants::ItemMutation,
+    ) -> StorageResult<()> {
+        data.validate(uuid)?;
+        let db = self.db.clone();
+        let items = self.items.clone();
+        let uncertain = self.items_uncertain.clone();
+        let mutation = mutation.clone();
+        let value = serde_json::to_vec(data)
+            .map_err(|error| StorageError::Serialization(error.to_string()))?;
+        task::spawn_blocking(move || {
+            let mut ledger = items
+                .lock()
+                .map_err(|_| StorageError::PlayerRecoveryRequired)?;
+            if uncertain.load(std::sync::atomic::Ordering::Acquire) {
+                return Err(StorageError::PlayerRecoveryRequired);
+            }
+            let prepared = ledger.prepare(&mutation)?;
+            let mut batch = bleveldb::WriteBatch::new();
+            batch.put(uuid.as_bytes(), &value);
+            prepared.append(&mut batch);
+            let options = WriteOptions::new();
+            options.sync(true);
+            if let Err(error) = batch.write(&db, &options) {
+                uncertain.store(true, std::sync::atomic::Ordering::Release);
+                return Err(StorageError::Database(error));
+            }
+            ledger.acknowledge(prepared);
+            Ok(())
+        })
+        .await
+        .map_err(|error| StorageError::Database(error.to_string()))?
+    }
+    fn atomic_durable_records(&self) -> bool {
+        true
+    }
+
     async fn load(&self, uuid: Uuid) -> StorageResult<Option<PlayerData>> {
         let db = self.db.clone();
         let key = uuid.as_bytes().to_vec();
@@ -71,6 +173,7 @@ impl PlayerProvider for LevelDBPlayerProvider {
 
         task::spawn_blocking(move || {
             let write_opts = WriteOptions::new();
+            write_opts.sync(true);
             db.put(&key, &value, &write_opts)
                 .map_err(|e| StorageError::Database(e.to_string()))?;
             Ok(())

@@ -7,14 +7,13 @@ use crate::entity::components::{
     ArmourInventory, Experience, GameMode, Health, HeldSlot, Hunger, MainInventory, OffhandSlot,
     PlayerSession, PlayerUi, RuntimeEntityId,
 };
-use crate::entity::player_life::attributes::player_attributes;
 use crate::world::clock;
 use crate::world::rules::{Difficulty, GameRules, WorldTime};
 use bevy_ecs::prelude::{Entity, World};
 use jolyne::valentine::types::{
     ActorRuntimeId, CerealizerNetworkItemStackDescriptorSerializedData, DataItemEntry,
     DataItemEntryPayload, DataItemFloatPayload, DataItemInt64Payload, DataItemShortPayload,
-    EnumsCommandPermissionLevel, EnumsDataItemType, EnumsGameType, EnumsPlayerPermissionLevel,
+    EnumsCommandPermissionLevel, EnumsDataItemType, EnumsPlayerPermissionLevel, GameTypejson,
     PropertySyncData, SerializedAbilitiesData, SerializedAbilitiesDataSerializedLayer,
     SynchedActorDataCopyableDataList,
 };
@@ -107,7 +106,7 @@ pub(crate) fn abilities_packet(
                 EnumsPlayerPermissionLevel::Member
             },
             command_permissions: if operator {
-                EnumsCommandPermissionLevel::Gamedirectors
+                EnumsCommandPermissionLevel::GameDirectors
             } else {
                 EnumsCommandPermissionLevel::Any
             },
@@ -116,14 +115,22 @@ pub(crate) fn abilities_packet(
     }
 }
 
+/// Owned packet construction is separate from atomic channel reservation.
+pub(crate) struct InitialBatch {
+    pub(crate) packets: Vec<McpePacket>,
+    pub(crate) stamp: crate::plugin::manager::commands::InitialStamp,
+}
+
 impl GameServer {
     /// Send all join packets to a newly spawned player.
-    pub(super) fn send_join_packets(&self, entity: bevy_ecs::entity::Entity) {
+    /// Construct the real actor's initial projection without publishing a partial batch.
+    pub(crate) fn initial_packet_batch(&self, entity: Entity) -> Option<InitialBatch> {
         let world = self.ecs.world();
-        let session = match world.get::<PlayerSession>(entity) {
-            Some(s) => s,
-            None => return,
-        };
+        world.get::<PlayerSession>(entity)?;
+        if !super::player_events::initial_state_ready(world, entity) {
+            return None;
+        }
+        let mut packets = Vec::new();
         let runtime_id = world
             .get::<RuntimeEntityId>(entity)
             .map(|r| r.0)
@@ -139,37 +146,37 @@ impl GameServer {
             .resource::<crate::entity::definition::properties::ActorPropertyRegistry>()
             .packets()
         {
-            let _ = session.send(McpePacket::from(packet.clone()));
+            packets.push(McpePacket::from(packet.clone()));
         }
 
         // The world clock registry, then the difficulty (BDS join order).
-        let _ = session.send(McpePacket::from(clock::clock_registry_packet(
+        packets.push(McpePacket::from(clock::clock_registry_packet(
             *world.resource::<WorldTime>(),
         )));
-        let _ = session.send(McpePacket::from(SetDifficultyPacket {
+        packets.push(McpePacket::from(SetDifficultyPacket {
             difficulty: world.resource::<Difficulty>().wire(),
         }));
         // [INFERENCE] Ongoing weather as the `/weather` events (BDS's join
         // order for them is not measured).
         for event in crate::world::weather::join_packets(world) {
-            let _ = session.send(McpePacket::from(event));
+            packets.push(McpePacket::from(event));
         }
 
         // Send gamemode to client (hides hunger bar in creative, etc.)
-        let _ = session.send(McpePacket::from(SetPlayerGameTypePacket {
+        packets.push(McpePacket::from(SetPlayerGameTypePacket {
             player_game_type: game_type(game_mode),
         }));
         debug!("Sent SetPlayerGameType: {:?}", game_mode);
 
         let operator = world.get::<crate::command::Operator>(entity).is_some();
         // BDS sends SetCommandsEnabled right before the join's abilities.
-        let _ = session.send(McpePacket::from(SetCommandsEnabledPacket {
+        packets.push(McpePacket::from(SetCommandsEnabledPacket {
             commands_enabled: true,
         }));
-        let _ = session.send(McpePacket::from(abilities_packet(
-            runtime_id, game_mode, operator,
+        packets.push(McpePacket::from(super::flight::packet_for(
+            world, entity, runtime_id, game_mode, operator,
         )));
-        let _ = session.send(McpePacket::from(GameRulesChangedPacket {
+        packets.push(McpePacket::from(GameRulesChangedPacket {
             rule_data: world.resource::<GameRules>().packet_data(),
         }));
 
@@ -179,44 +186,96 @@ impl GameServer {
         let absorption = world
             .get::<super::attributes::Absorption>(entity)
             .map_or(0.0, |a| a.0);
-        let _ = session.send(McpePacket::from(UpdateAttributesPacket {
+        packets.push(McpePacket::from(UpdateAttributesPacket {
             target_runtime_id: ActorRuntimeId {
                 actor_runtime_id: runtime_id as u64,
             },
-            attribute_list: player_attributes(&health, &hunger, absorption, &experience),
+            attribute_list: crate::entity::player_life::attributes::player_attributes_with_cold(
+                &health,
+                &hunger,
+                absorption,
+                &experience,
+                world
+                    .get::<crate::entity::freezing::FreezingState>(entity)
+                    .copied()
+                    .unwrap_or_default(),
+            ),
             tick: input_tick.clone(),
         }));
 
-        let actor_data = initial_player_actor_data();
+        let mut actor_data = initial_player_actor_data();
+        crate::entity::freezing::player_actor_data(world, entity, &mut actor_data);
 
-        let _ = session.send(McpePacket::from(SetActorDataPacket {
+        let initial = McpePacket::from(SetActorDataPacket {
             target_runtime_id: ActorRuntimeId {
                 actor_runtime_id: runtime_id as u64,
             },
             actor_data: SynchedActorDataCopyableDataList { data: actor_data },
             synched_properties: PropertySyncData::default(),
             tick: input_tick,
-        }));
+        });
+        packets.push(crate::server::broadcast::player_views::project_packet(
+            world, entity, entity, &initial,
+        ));
 
         // Send inventory contents to enable inventory UI
         // Without these packets, the client won't allow opening the inventory
-        send_inventory_contents(world, entity);
+        packets.extend(inventory_contents_packets(world, entity));
         let crafting = world
             .resource::<super::types::CraftingCatalogResource>()
             .0
             .wire_packet(super::types::block_network_ids(world));
-        let _ = session.send(McpePacket::from(crafting));
+        packets.push(McpePacket::from(crafting));
         // BDS ends the join with its command list (identical for every
         // permission level; the client filters by UpdateAbilities).
-        let commands = world
-            .resource::<crate::command::CommandRegistry>()
-            .schema()
-            .packet()
-            .clone();
-        let _ = session.send(McpePacket::from(commands));
+        let (commands, stamp) = crate::plugin::manager::commands::initial_packet(
+            world,
+            world
+                .resource::<crate::command::CommandRegistry>()
+                .schema()
+                .clone(),
+        );
+        packets.push(McpePacket::from(commands));
 
         // Creative content is sent via WorldTemplate during the StartGame sequence
         // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.
+        Some(InitialBatch { packets, stamp })
+    }
+
+    pub(super) fn send_join_packets(&self, entity: Entity) -> bool {
+        let Some(batch) = self.initial_packet_batch(entity) else {
+            return false;
+        };
+        self.enqueue_initial_batch(entity, batch)
+    }
+
+    /// Deferred initialization publishes the raw projection in the same reserved native batch.
+    pub(super) fn send_deferred_join_packets(&self, entity: Entity) -> bool {
+        let Some(mut batch) = self.initial_packet_batch(entity) else {
+            return false;
+        };
+        let Ok(raw) = super::player_state::deferred_initial_packets(self.ecs.world(), entity)
+        else {
+            return false;
+        };
+        batch.packets.extend(raw);
+        self.enqueue_initial_batch(entity, batch)
+    }
+
+    /// Channel capacity is reserved for every packet before exposing any of this state.
+    fn enqueue_initial_batch(&self, entity: Entity, batch: InitialBatch) -> bool {
+        let world = self.ecs.world();
+        let Some(session) = world.get::<PlayerSession>(entity) else {
+            return false;
+        };
+        let Ok(permits) = session.outbound_tx.try_reserve_many(batch.packets.len()) else {
+            return false;
+        };
+        for (permit, packet) in permits.zip(batch.packets) {
+            permit.send(packet);
+        }
+        crate::plugin::manager::commands::note_initial_packet(world, entity, batch.stamp);
+        true
     }
 }
 
@@ -227,12 +286,23 @@ impl GameServer {
 /// Initial item state matches BDS: main 36, armour 5, UI 54, offhand 1,
 /// then the selected hotbar slot. The fifth armour slot is empty for players.
 pub(crate) fn send_inventory_contents(world: &World, entity: Entity) {
-    use super::inventory::{
-        ARMOR_WINDOW, INVENTORY_WINDOW, OFFHAND_WINDOW, UI_WINDOW, UNNAMED_CONTAINER, wire_item,
-    };
+    if super::player_events::initial_state_pending(world, entity) {
+        return;
+    }
     let Some(session) = world.get::<PlayerSession>(entity) else {
         return;
     };
+    for packet in inventory_contents_packets(world, entity) {
+        let _ = session.send(packet);
+    }
+}
+
+/// Build owned inventory packets for atomic initial queue reservation.
+fn inventory_contents_packets(world: &World, entity: Entity) -> Vec<McpePacket> {
+    use super::inventory::{
+        ARMOR_WINDOW, INVENTORY_WINDOW, OFFHAND_WINDOW, UI_WINDOW, UNNAMED_CONTAINER, wire_item,
+    };
+    let mut packets = Vec::new();
     let block_ids = super::types::block_network_ids(world);
     let encode = |stack: &crate::item::ItemStack| {
         wire_item(stack, block_ids).expect("registered player stack has encodable fields")
@@ -256,7 +326,7 @@ pub(crate) fn send_inventory_contents(world: &World, entity: Entity) {
         (UI_WINDOW, ui.0.slots().iter().map(&encode).collect()),
         (OFFHAND_WINDOW, vec![encode(&offhand.0)]),
     ] {
-        let _ = session.send(McpePacket::from(InventoryContentPacket {
+        packets.push(McpePacket::from(InventoryContentPacket {
             container_id: container_id.into(),
             slots,
             full_container_name: UNNAMED_CONTAINER,
@@ -264,20 +334,21 @@ pub(crate) fn send_inventory_contents(world: &World, entity: Entity) {
         }));
     }
     let held_slot = world.get::<HeldSlot>(entity).expect("player held slot").0;
-    let _ = session.send(McpePacket::from(jolyne::valentine::PlayerHotbarPacket {
+    packets.push(McpePacket::from(jolyne::valentine::PlayerHotbarPacket {
         selected_slot: u32::from(held_slot),
         container_id: INVENTORY_WINDOW,
         shouldselectslot: true,
     }));
+    packets
 }
 
 /// A game mode as the wire names it.
-pub(crate) fn game_type(game_mode: GameMode) -> EnumsGameType {
+pub(crate) fn game_type(game_mode: GameMode) -> GameTypejson {
     match game_mode {
-        GameMode::Survival => EnumsGameType::Survival,
-        GameMode::Creative => EnumsGameType::Creative,
-        GameMode::Adventure => EnumsGameType::Adventure,
-        GameMode::Spectator => EnumsGameType::Spectator,
+        GameMode::Survival => GameTypejson::Survival,
+        GameMode::Creative => GameTypejson::Creative,
+        GameMode::Adventure => GameTypejson::Adventure,
+        GameMode::Spectator => GameTypejson::Spectator,
     }
 }
 

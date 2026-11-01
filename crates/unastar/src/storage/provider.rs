@@ -1,6 +1,7 @@
 //! Provider traits for world and player persistence.
 
 use async_trait::async_trait;
+use std::collections::BTreeMap;
 use std::io;
 use uuid::Uuid;
 
@@ -24,8 +25,23 @@ pub enum StorageError {
     #[error("Deserialization error: {0}")]
     Deserialization(String),
 
+    #[error(transparent)]
+    ColumnWrite(#[from] super::column_writer::ColumnWriteError),
+
+    #[error("durable item ownership quota is exhausted")]
+    ItemQuotaExceeded,
+
     #[error("Not found")]
     NotFound,
+
+    #[error("player inventory revision conflicts with durable state")]
+    PlayerRevisionConflict,
+
+    #[error("player state requires recovery before further persistence")]
+    PlayerRecoveryRequired,
+
+    #[error("required component initialization or recovery is incomplete")]
+    RequiredComponentUnavailable,
 }
 
 /// One saved actor: its unique ID and its Bedrock actor NBT (a rooted,
@@ -74,6 +90,12 @@ pub trait WorldProvider: Send + Sync + 'static {
     /// Save a chunk column to storage.
     async fn save_column(&self, pos: ChunkPos, dim: i32, col: &ChunkColumn) -> StorageResult<()>;
 
+    /// Optional provider-wide atomic column writer. Unsupported providers must
+    /// not claim durable whole-set effects through their ordinary save method.
+    fn column_writer(&self) -> Option<std::sync::Arc<super::column_writer::ColumnWriter>> {
+        None
+    }
+
     /// Flush any pending writes to disk.
     async fn flush(&self) -> StorageResult<()>;
 
@@ -82,7 +104,7 @@ pub trait WorldProvider: Send + Sync + 'static {
 }
 
 /// Player data for persistence.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PlayerData {
     /// Player UUID.
     pub uuid: String,
@@ -109,6 +131,9 @@ pub struct PlayerData {
     pub offhand: StoredItemStack,
     #[serde(default)]
     pub cursor: StoredItemStack,
+    /// Full UI inventory, including crafting inputs. Empty on older records.
+    #[serde(default)]
+    pub ui: Vec<StoredItemStack>,
     #[serde(default)]
     pub held_slot: u8,
     /// Ender chest slots in order. Missing on records saved before ender chests.
@@ -122,6 +147,31 @@ pub struct PlayerData {
     pub exhaustion: f32,
     #[serde(default)]
     pub experience_progress: f32,
+    /// Inventory-effect epoch; ordinary saves must retain the loaded value.
+    #[serde(default)]
+    pub inventory_revision: u64,
+    /// Effects atomically committed with this record's inventory.
+    #[serde(default)]
+    pub inventory_effects: BTreeMap<String, InventoryEffectRecord>,
+    /// Cold exposure carried across saves and raw actor snapshots.
+    #[serde(default)]
+    pub cold_exposure: f32,
+    /// Lifetime tick phase used by periodic actor conditions.
+    #[serde(default)]
+    pub age_ticks: u64,
+    /// One-shot full-state handoff data, atomically bound to its canonical receipt.
+    /// Ordinary captures omit this field after genuine live state was installed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restoration_checkpoint: Option<super::RestorationCheckpoint>,
+    /// Native source ownership is canonical engine state, never supplied by a state image.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_actor: Option<super::source::SourceActorRecord>,
+    /// Exact native post-drop proof; a later ordinary capture retires this one-shot evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_terminal: Option<super::terminal::NativeTerminalRecord>,
+    /// Recorded native event in this captured frame; descriptive, never restoration authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub death_occurrence: Option<super::NativeDeathOccurrence>,
 }
 
 impl Default for PlayerData {
@@ -139,12 +189,21 @@ impl Default for PlayerData {
             armour: Default::default(),
             offhand: Default::default(),
             cursor: Default::default(),
+            ui: Vec::new(),
             held_slot: 0,
             ender_chest: Vec::new(),
             max_health: default_max_health(),
             saturation: default_saturation(),
             exhaustion: 0.0,
             experience_progress: 0.0,
+            inventory_revision: 0,
+            inventory_effects: BTreeMap::new(),
+            cold_exposure: 0.0,
+            age_ticks: 0,
+            restoration_checkpoint: None,
+            source_actor: None,
+            native_terminal: None,
+            death_occurrence: None,
         }
     }
 }
@@ -157,13 +216,29 @@ fn default_saturation() -> f32 {
 }
 
 /// Stable persistence representation, independent of ECS inventory internals.
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StoredItemStack {
     pub item_id: String,
     pub runtime_id: i32,
     pub count: u8,
     pub damage: i16,
     pub nbt: Option<Vec<u8>>,
+}
+
+/// Durable proof that one inventory effect committed with a particular payload.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct InventoryEffectRecord {
+    pub revision: u64,
+    pub request_hash: [u8; 32],
+}
+
+/// Bound stable effect identifiers accepted by native persistence APIs.
+pub fn valid_inventory_effect_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'_' | b'-' | b'.'))
 }
 
 impl From<&crate::item::ItemStack> for StoredItemStack {
@@ -210,12 +285,47 @@ impl StoredItemStack {
 impl PlayerData {
     /// Validate structural state; typed item resolution occurs atomically at spawn.
     pub fn validate(&self, uuid: Uuid) -> StorageResult<()> {
+        if self
+            .death_occurrence
+            .as_ref()
+            .is_some_and(|event| !event.valid() || !event.matches_history(self))
+        {
+            return Err(StorageError::Deserialization(
+                "invalid native death occurrence".into(),
+            ));
+        }
+        if let Some(terminal) = &self.native_terminal {
+            terminal.validate(self)?;
+        }
+        if let Some(source) = &self.source_actor {
+            source.validate(self)?;
+        }
+        if let Some(checkpoint) = &self.restoration_checkpoint {
+            checkpoint.validate(self)?;
+        }
         if self.uuid != uuid.to_string()
             || !self.position.iter().all(|n| n.is_finite())
             || !self.rotation.iter().all(|n| n.is_finite())
             || !matches!(self.game_mode, 0 | 1 | 2 | 6)
             || self.inventory.len() > 36
             || self.ender_chest.len() > crate::entity::components::ENDER_CHEST_SIZE
+            || (!self.ui.is_empty()
+                && (self.ui.len() != crate::entity::components::PLAYER_UI_SIZE
+                    || self.ui.first() != Some(&self.cursor)))
+            || self.inventory_effects.len() > 65_536
+            || self.inventory_revision != self.inventory_effects.len() as u64
+            || self.inventory_effects.iter().any(|(id, record)| {
+                !valid_inventory_effect_id(id)
+                    || record.revision == 0
+                    || record.revision > self.inventory_revision
+            })
+            || self
+                .inventory_effects
+                .values()
+                .map(|record| record.revision)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                != self.inventory_effects.len()
             || self.held_slot > 8
             || !self.health.is_finite()
             || !self.max_health.is_finite()
@@ -226,6 +336,7 @@ impl PlayerData {
             || !self.saturation.is_finite()
             || !self.exhaustion.is_finite()
             || !(0.0..=1.0).contains(&self.experience_progress)
+            || crate::entity::freezing::FreezingState::from_strength(self.cold_exposure).is_err()
         {
             return Err(StorageError::Deserialization("invalid player state".into()));
         }
@@ -238,6 +349,50 @@ impl PlayerData {
 /// Shared across all worlds (player data is global).
 #[async_trait]
 pub trait PlayerProvider: Send + Sync + 'static {
+    /// Explicit support for atomic canonical-account and persistent world-item changes.
+    fn atomic_durable_items(&self) -> bool {
+        false
+    }
+
+    /// Load the current native item ownership rows for one persistent world.
+    async fn world_items(
+        &self,
+        _world: Uuid,
+        _dimension: i32,
+    ) -> StorageResult<Vec<super::item_grants::PersistentItem>> {
+        Err(StorageError::Database(
+            "durable world items are unsupported".into(),
+        ))
+    }
+
+    /// Retire one exact world item without granting its contents to an account.
+    async fn retire_world_item(
+        &self,
+        _expected: &super::item_grants::PersistentItem,
+    ) -> StorageResult<()> {
+        Err(StorageError::Database(
+            "durable world items are unsupported".into(),
+        ))
+    }
+
+    /// Persist the account, its receipt and all conditional item rows in one durable batch.
+    async fn save_with_items(
+        &self,
+        _uuid: Uuid,
+        _data: &PlayerData,
+        _mutation: &super::item_grants::ItemMutation,
+    ) -> StorageResult<()> {
+        Err(StorageError::Database(
+            "durable world items are unsupported".into(),
+        ))
+    }
+    /// Whether successful saves atomically replace one complete record durably.
+    /// Durable inventory effects require this explicit contract. Errors may still
+    /// be ambiguous and are handled conservatively by the serialized writer.
+    fn atomic_durable_records(&self) -> bool {
+        false
+    }
+
     /// Load player data.
     ///
     /// Returns `Ok(None)` if the player doesn't exist.

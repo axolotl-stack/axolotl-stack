@@ -168,7 +168,20 @@ impl FilterContext for MobFacts<'_> {
             }
             BuiltinTest::InLava => Fact::Bool(self.in_liquid(entity, true)?),
             BuiltinTest::InWater => Fact::Bool(self.in_liquid(entity, false)?),
+            BuiltinTest::InContactWithWater => {
+                let feet = self.feet(entity)?;
+                let body = self.world.get::<PhysicsBody>(entity)?;
+                let aabb =
+                    crate::registry::collision::Aabb::from_feet(feet, body.width, body.height);
+                Fact::Bool(
+                    crate::entity::systems::physics::living_liquid(self.world, aabb)
+                        == Some(crate::registry::block::LiquidKind::Water),
+                )
+            }
             BuiltinTest::IsUnderwater => Fact::Bool(self.under_water(entity)?),
+            BuiltinTest::IsRiding => {
+                Fact::Bool(crate::entity::conditions::is_riding(self.world, entity))
+            }
             // Riding is not implemented: no actor ever has a vehicle.
             BuiltinTest::IsVehicleFamily => Fact::Matches(false),
             BuiltinTest::IsBaby => Fact::Bool(
@@ -211,6 +224,17 @@ impl FilterContext for MobFacts<'_> {
                     .get::<PlayerState>(entity)
                     .is_some_and(|state| state.sneaking),
             ),
+            BuiltinTest::IsGameRule => {
+                match self
+                    .world
+                    .get_resource::<crate::world::rules::GameRules>()?
+                    .value(test.domain_str()?)?
+                    .1
+                {
+                    unastar_data::game_rules::GameRuleValue::Bool(value) => Fact::Bool(value),
+                    _ => return None,
+                }
+            }
             BuiltinTest::IsDifficulty => {
                 let want = test.value.as_str()?;
                 Fact::Matches(world_difficulty(self.world)? == want)
@@ -224,13 +248,27 @@ impl FilterContext for MobFacts<'_> {
                         self.world, entity, slots, &want,
                     )));
                 }
-                if !matches!(domain, "hand" | "any") {
-                    return None;
-                }
-                let stack = held_item(self.world, entity);
-                Fact::Matches(
-                    stack.is_some_and(|stack| want.matches(stack.item_id(), stack.damage)),
-                )
+                let slots = super::gear::domain_slots(domain)?;
+                let armour = self
+                    .world
+                    .get::<crate::entity::components::ArmourInventory>(entity);
+                Fact::Matches(slots.iter().any(|slot| {
+                    use super::gear::GearSlot;
+                    let stack = match slot {
+                        GearSlot::Mainhand => held_item(self.world, entity),
+                        GearSlot::Offhand => self
+                            .world
+                            .get::<crate::entity::components::OffhandSlot>(entity)
+                            .map(|slot| &slot.0),
+                        GearSlot::Head => armour.map(|slots| slots.helmet()),
+                        GearSlot::Chest => armour.map(|slots| slots.chestplate()),
+                        GearSlot::Legs => armour.map(|slots| slots.leggings()),
+                        GearSlot::Feet => armour.map(|slots| slots.boots()),
+                    };
+                    stack.is_some_and(|stack| {
+                        !stack.is_empty() && want.matches(stack.item_id(), stack.damage)
+                    })
+                }))
             }
             _ => return None,
         })

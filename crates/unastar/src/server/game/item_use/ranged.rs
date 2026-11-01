@@ -227,16 +227,47 @@ fn shoot_bow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, tic
         item: returned,
         throw_sound: false,
     };
-    if let Err(error) = launch_with(world, player, ActorType::Arrow, None, spec) {
-        tracing::warn!(%error, "Shooting an arrow failed");
+    let ammo_witness = ammo.and_then(|ammo| {
+        crate::server::game::item_actions::AmmoSnapshot::capture(
+            world,
+            player,
+            match ammo {
+                Ammo::Offhand => None,
+                Ammo::Main(slot) => Some(slot),
+            },
+        )
+    });
+    let Some(permit) = crate::server::game::item_actions::authorize_target(
+        world,
+        player,
+        crate::server::game::item_actions::ItemActionKind::Launch,
+        crate::server::game::item_actions::ItemTarget::Air,
+        ammo_witness,
+    ) else {
+        return;
+    };
+    let projectile = match launch_with(world, player, ActorType::Arrow, None, spec) {
+        Ok(projectile) => projectile,
+        Err(error) => {
+            tracing::warn!(%error, "Shooting an arrow failed");
+            return;
+        }
+    };
+    if !permit.is_current(world) {
+        world.despawn(projectile);
         return;
     }
+    crate::entity::projectile::enchantments::capture(world, projectile, stack);
     if let (Some(ammo), false, false) = (ammo, creative, infinity) {
         take_arrow(world, player, ammo);
     }
     let _ = slot;
     wear_held(world, player, 1);
     sound(world, player, "bow");
+    permit.commit(
+        world,
+        crate::server::game::item_actions::ItemActionOutcome::Launched { projectile },
+    );
 }
 
 /// System step (from `tick_using`): crossbow loading sounds and, at 25
@@ -253,7 +284,6 @@ pub fn tick_crossbow(
         5 => sound(world, player, "crossbow.loading.start"),
         15 => sound(world, player, "crossbow.loading.middle"),
         CROSSBOW_LOAD_TICKS.. => {
-            sound(world, player, "crossbow.loading.end");
             load_crossbow(world, player, slot, stack);
         }
         _ => {}
@@ -261,14 +291,40 @@ pub fn tick_crossbow(
 }
 
 fn load_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack) {
-    stop_using(world, player);
     let creative = creative(world, player);
-    match find_arrow(world, player) {
-        Some(ammo) if !creative => take_arrow(world, player, ammo),
-        None if !creative => return,
-        _ => {}
+    let ammo = find_arrow(world, player);
+    if ammo.is_none() && !creative {
+        stop_using(world, player);
+        return;
+    }
+    let witness = ammo.and_then(|ammo| {
+        crate::server::game::item_actions::AmmoSnapshot::capture(
+            world,
+            player,
+            match ammo {
+                Ammo::Offhand => None,
+                Ammo::Main(slot) => Some(slot),
+            },
+        )
+    });
+    let Some(permit) = crate::server::game::item_actions::authorize_target(
+        world,
+        player,
+        crate::server::game::item_actions::ItemActionKind::Charge,
+        crate::server::game::item_actions::ItemTarget::Air,
+        witness,
+    ) else {
+        return;
+    };
+    if !permit.is_current(world) {
+        return;
+    }
+    stop_using(world, player);
+    if let (Some(ammo), false) = (ammo, creative) {
+        take_arrow(world, player, ammo);
     }
     set_slot(world, player, slot, with_charge(stack, true));
+    sound(world, player, "crossbow.loading.end");
     crate::entity::mob::combat::send_actor_event(
         world,
         player,
@@ -278,6 +334,10 @@ fn load_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack)
     if let Some(entry) = stack.item() {
         super::completed(world, player, entry.network_id(), super::UseMethod::None);
     }
+    permit.commit(
+        world,
+        crate::server::game::item_actions::ItemActionOutcome::Charged,
+    );
 }
 
 fn fire_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack) {
@@ -291,13 +351,31 @@ fn fire_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack)
         item: returned,
         throw_sound: false,
     };
-    if let Err(error) = launch_with(world, player, ActorType::Arrow, None, spec) {
-        tracing::warn!(%error, "Firing a crossbow failed");
+    let Some(permit) = crate::server::game::item_actions::authorize(
+        world,
+        player,
+        crate::server::game::item_actions::ItemActionKind::Launch,
+    ) else {
+        return;
+    };
+    let projectile = match launch_with(world, player, ActorType::Arrow, None, spec) {
+        Ok(projectile) => projectile,
+        Err(error) => {
+            tracing::warn!(%error, "Firing a crossbow failed");
+            return;
+        }
+    };
+    if !permit.is_current(world) {
+        world.despawn(projectile);
         return;
     }
     set_slot(world, player, slot, with_charge(stack, false));
     wear_held(world, player, 1);
     sound(world, player, "crossbow.shoot");
+    permit.commit(
+        world,
+        crate::server::game::item_actions::ItemActionOutcome::Launched { projectile },
+    );
 }
 
 /// What `tick_using` does for a drawn item each tick.
@@ -464,8 +542,8 @@ mod tests {
     fn arrows_stick_in_the_ground_and_come_back() {
         let mut r = range(&[("minecraft:bow", 1), ("minecraft:arrow", 2)]);
         let player = r.player;
-        // Look down at the floor in front.
-        r.world().get_mut::<Rotation>(player).unwrap().pitch = 60.0;
+        // Land beyond pickup reach so sticking is observed before walking over.
+        r.world().get_mut::<Rotation>(player).unwrap().pitch = 30.0;
         r.send(UseRequest::UseAir);
         r.ticks(24);
         r.send(UseRequest::Release);
@@ -540,4 +618,6 @@ mod tests {
         assert!(charged(&loaded));
         assert!(!charged(&with_charge(&loaded, false)));
     }
+
+    mod enchantments;
 }

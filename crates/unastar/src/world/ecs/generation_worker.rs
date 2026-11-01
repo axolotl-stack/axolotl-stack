@@ -105,18 +105,22 @@ impl ChunkGenerationWorker {
             let pos = req.pos;
             let result = (|| {
                 if let Some(provider) = req.provider
-                    && let Some(column) =
+                    && let Some(mut column) =
                         runtime.block_on(provider.load_column(pos, req.dimension))?
                 {
                     tracing::debug!(chunk = ?(pos.x, pos.z), dimension = req.dimension, "Loaded chunk from storage");
+                    column
+                        .chunk
+                        .set_block_bounds(crate::world::dimension_block_bounds(req.dimension));
                     return Ok((column, true));
                 }
                 tracing::debug!(chunk = ?(pos.x, pos.z), dimension = req.dimension, "Generating missing chunk");
-                let chunk = pipeline.generate(pos).map_err(|error| {
+                let mut chunk = pipeline.generate(pos).map_err(|error| {
                     crate::storage::StorageError::Serialization(format!(
                         "chunk {pos:?}: native Bedrock adaptation failed: {error}"
                     ))
                 })?;
+                chunk.set_block_bounds(crate::world::dimension_block_bounds(req.dimension));
                 Ok((ChunkColumn::new(chunk), false))
             })();
             let _ = req.response_tx.send(result);

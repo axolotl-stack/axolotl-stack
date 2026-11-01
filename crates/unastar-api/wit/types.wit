@@ -1,4 +1,4 @@
-package unastar:plugin@0.2.0;
+package unastar:plugin@0.4.0;
 
 interface types {
     record vec3 {
@@ -11,6 +11,282 @@ interface types {
         x: s32,
         y: s32,
         z: s32,
+    }
+
+    /// Semantic damage sources, independent of host enum discriminants.
+    enum damage-cause {
+        none,
+        override,
+        contact,
+        entity-attack,
+        projectile,
+        suffocation,
+        fall,
+        fire,
+        fire-tick,
+        lava,
+        drowning,
+        block-explosion,
+        entity-explosion,
+        void,
+        self-destruct,
+        magic,
+        wither,
+        starve,
+        anvil,
+        thorns,
+        falling-block,
+        piston,
+        fly-into-wall,
+        magma,
+        fireworks,
+        lightning,
+        charging,
+        temperature,
+        freezing,
+        stalactite,
+        stalagmite,
+        ram-attack,
+        sonic-boom,
+        campfire,
+        soul-campfire,
+        mace-smash,
+        all,
+    }
+
+    /// Authenticated account facts captured at the native launch or deflection boundary.
+    record authenticated-damage-account {
+        uuid: string,
+        xuid: u64,
+    }
+
+    /// Descriptive origin facts never authorize live access or substitute a reconnected player.
+    record damage-owner {
+        is-player: bool,
+        uuid: option<string>,
+        authenticated: option<authenticated-damage-account>,
+        connection-id: option<u64>,
+        dimension: option<s32>,
+        world-lifetime: option<string>,
+        feet: option<vec3>,
+    }
+
+    record damage-attribution {
+        source-dimension: option<s32>,
+        source-world-lifetime: option<string>,
+        owner: option<damage-owner>,
+    }
+
+    /// Descriptive native generations, never account, connection or restoration authority.
+    record runtime-identity {
+        lineage: string,
+        world-lifetime: string,
+    }
+    /// A receipt bound by the actual canonical post-drop writer.
+    record death-receipt {
+        request-id: string,
+        receipt: inventory-receipt,
+    }
+    /// Original native boundary facts. Missing legacy time or generations remain unknown.
+    /// Loading historical state cannot create another occurrence or rewind this metadata.
+    record death-occurrence {
+        id: string,
+        unix-time-millis: option<u64>,
+        runtime: option<runtime-identity>,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        fall-distance: option<f64>,
+        keep-inventory: bool,
+        post-drop: option<death-receipt>,
+    }
+
+    record knockback {
+        horizontal: f64,
+        vertical: f64,
+        vertical-cap: f64,
+        retain: f64,
+    }
+
+    /// Only these proposal fields may be adjusted; attribution and cause remain immutable.
+    record damage-tuning {
+        damage: f32,
+        knockback: knockback,
+        hurt-ticks: u32,
+        bypass-armour: bool,
+        post-armour-multiplier: f32,
+    }
+
+    record damage-proposal {
+        /// Opaque nonzero native invocation identity. Shared by all subscribers and
+        /// its positive-loss notification, never an account grant or a durable receipt.
+        /// Unique within the running host process; it is not preserved across restart.
+        action-id: u64,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        tuning: damage-tuning,
+    }
+
+    /// Positive actual health loss after native immunity, timer and armour rules.
+    record damage-committed {
+        /// The unchanged action-id from the native proposal that produced this loss.
+        action-id: u64,
+        identity: player-identity,
+        dimension: s32,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        incoming-damage: f32,
+        actual-health-loss: f32,
+        knockback: knockback,
+    }
+
+    /// Detached item values retain exact native slot positions and instance properties.
+    record death-inventory {
+        main: list<stack>,
+        armour: list<stack>,
+        offhand: stack,
+        ui: list<stack>,
+        held-slot: u8,
+    }
+
+    /// Owned facts after committed death, including carried values captured before drops.
+    /// Incomplete source evidence and item-value quota failures remain explicit errors.
+    record death-committed {
+        identity: result<player-identity, access-error>,
+        dimension: option<s32>,
+        feet: option<vec3>,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        fall-distance: option<f64>,
+        keep-inventory: bool,
+        inventory: result<death-inventory, access-error>,
+        state: result<death-state, access-error>,
+    }
+
+    enum death-capture-phase { committed-before-drops }
+    /// Immutable native death evidence remains separate from raw life-state adjustments.
+    record death-facts {
+        /// Opaque identity of this genuine capture; never a live actor or damage-operation handle.
+        capture-id: string,
+        phase: death-capture-phase,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        fall-distance: option<f64>,
+        keep-inventory: bool,
+    }
+    /// Genuine raw dead state captured before drops, usable after the source actor departs.
+    resource death-state {
+        death-occurrence: func() -> result<option<death-occurrence>, access-error>;
+        facts: func() -> result<death-facts, access-error>;
+        state-image: func() -> result<player-state-image, access-error>;
+        archive: func(key: string) -> result<archive-reference, archive-error>;
+    }
+
+    /// Semantic native effect identifiers, independent of wire enum numbering.
+    enum effect-kind {
+        speed,
+        slowness,
+        haste,
+        mining-fatigue,
+        strength,
+        instant-health,
+        instant-damage,
+        jump-boost,
+        nausea,
+        regeneration,
+        resistance,
+        fire-resistance,
+        water-breathing,
+        invisibility,
+        blindness,
+        night-vision,
+        hunger,
+        weakness,
+        poison,
+        wither,
+        health-boost,
+        absorption,
+        saturation,
+        levitation,
+        fatal-poison,
+        conduit-power,
+        slow-falling,
+        bad-omen,
+        village-hero,
+        darkness,
+        trial-omen,
+        wind-charged,
+        weaving,
+        oozing,
+        infested,
+        raid-omen,
+    }
+
+    /// Owned current native state; infinite effects keep their native pulse counter.
+    record active-status-effect {
+        kind: effect-kind,
+        amplifier: u8,
+        duration-ticks: u32,
+        ambient: bool,
+        show-particles: bool,
+        infinite: bool,
+    }
+
+    /// Finite application intent; ordinary native effect precedence and authorization still apply.
+    record effect-application {
+        kind: effect-kind,
+        amplifier: u8,
+        duration-ticks: u32,
+        ambient: bool,
+        show-particles: bool,
+    }
+
+    /// Explicit native permanence; no large finite duration is substituted.
+    record infinite-effect-application {
+        kind: effect-kind,
+        amplifier: u8,
+        ambient: bool,
+        show-particles: bool,
+    }
+
+    /// Per-actor native food processing; none restores the ordinary policy.
+    record food-policy {
+        exhaustion: bool,
+        food-drain: bool,
+        natural-regeneration: bool,
+        starvation: bool,
+    }
+
+    /// Current physical values; staged mechanics are not projected into observations.
+    record player-vitals {
+        health: f32,
+        max-health: f32,
+        absorption: f32,
+        food-level: s32,
+        saturation: f32,
+        exhaustion: f32,
+        food-policy-override: option<food-policy>,
+        captured-tick: u64,
+    }
+
+    record player-mechanics-state {
+        effects: list<active-status-effect>,
+        /// Actual embedded player fall history, or standalone native body history.
+        /// None means no native fall component exists; it never means a guessed zero.
+        fall-distance: option<f64>,
+        /// Stored server motion; none when a client-driven player has no native motion vector.
+        velocity: option<vec3>,
+        base-game-mode: game-mode,
+        effective-game-mode: game-mode,
+        mode-override: option<game-mode>,
+        flight-override: option<bool>,
+        flight-allowed: bool,
+        flying: bool,
+        captured-tick: u64,
+    }
+
+    /// Queued intent; subsequent native validation can reject it. This is not a physical acknowledgement.
+    enum mechanics-acknowledgement {
+        staged,
     }
 
     enum game-mode {
@@ -31,17 +307,812 @@ interface types {
         count: u8,
     }
 
+    /// Registered block state values, independent of protocol runtime IDs or NBT codecs.
+    variant block-property-value { byte(u8), integer(s32), text(string) }
+    record block-property { name: string, value: block-property-value }
+    record block-value { identifier: string, properties: list<block-property> }
+    enum block-operation-kind { break, place, %use }
+    enum block-face { down, up, north, south, west, east }
+    record block-click { position: block-pos, face: option<block-face>, offset: option<vec3> }
+    record planned-block-cell {
+        position: block-pos,
+        before: block-value,
+        proposed: block-value,
+    }
+    /// Operation IDs correlate only within the current actual world lifetime.
+    record block-proposal {
+        operation-id: u64,
+        dimension: s32,
+        kind: block-operation-kind,
+        cells: list<planned-block-cell>,
+        click: option<block-click>,
+        held-slot: option<u8>,
+        held: option<stack>,
+    }
+    record committed-block-cell {
+        position: block-pos,
+        before: block-value,
+        /// Missing only when a native callback removed the loaded cell after commit.
+        after: option<block-value>,
+    }
+    record block-held-items { slot: option<u8>, before: option<stack>, after: option<stack> }
+    record block-committed {
+        operation-id: u64,
+        dimension: s32,
+        player: player-identity,
+        kind: block-operation-kind,
+        /// A failed value conversion is explicit, never a fabricated empty batch.
+        cells: result<list<committed-block-cell>, access-error>,
+        click: option<block-click>,
+        held-items: result<block-held-items, access-error>,
+    }
+
+    /// Scope and identity failures never return fabricated player values.
+    enum access-error {
+        expired-scope,
+        stale-player,
+        wrong-world,
+        world-closed,
+        invalid-identity,
+        invalid-argument,
+        permission-denied,
+        limit-exceeded,
+        unavailable,
+        callback-failed,
+        cancelled,
+    }
+
+    enum player-availability {
+        ready,
+        initializing,
+        quarantined,
+        recovering,
+        loading,
+        retained,
+        dead,
+        incomplete,
+    }
+
+    record player-identity {
+        authenticated-xuid: option<u64>,
+        uuid: string,
+        name: string,
+        connection-id: option<u64>,
+    }
+
+    record player-flags {
+        on-ground: option<bool>,
+        sneaking: bool,
+        sprinting: bool,
+        swimming: bool,
+        gliding: bool,
+        flying: bool,
+        invisible: bool,
+        burning: bool,
+        dead: bool,
+    }
+
+    /// An owned read-only observation. Position is feet, never eye height.
+    /// Global observations describe the last refreshed world directory;
+    /// resolve a handle inside a world transaction before acting on live state.
+    record player-snapshot {
+        identity: player-identity,
+        dimension: s32,
+        position: vec3,
+        rotation: tuple<f32, f32>,
+        health: f32,
+        max-health: f32,
+        game-mode: game-mode,
+        effective-game-mode: game-mode,
+        %flags: player-flags,
+        availability: player-availability,
+        configured-admin: bool,
+        captured-tick: u64,
+    }
+
+    /// Admission proposals have no initial-publication side effects.
+    variant admission-decision {
+        allow,
+        reject(string),
+        deferred,
+    }
+
+    variant admission-resolution {
+        allow,
+        reject(string),
+    }
+
+    /// Acknowledgement is staged until this callback succeeds; it is not publication.
+    enum admission-acknowledgement {
+        staged,
+    }
+
+    resource admission-hold {
+        /// Read the genuine loaded initialization row in this hold's exact world transaction.
+        death-occurrence: func(tx: borrow<world-tx>) -> result<option<death-occurrence>, access-error>;
+        /// Checkpoint real live source ownership while keeping it physically active.
+        rebind-source: func(tx: borrow<world-tx>, source: borrow<source-actor-operation>, correlation: u64) -> result<source-rebind-operation, state-error>;
+        submit-state: func(tx: borrow<world-tx>, request-id: string, expected: borrow<player-state-image>, desired: borrow<player-state-image>, source: option<borrow<source-fence>>) -> result<state-operation, state-error>;
+        resolve: func(tx: borrow<world-tx>, decision: admission-resolution) -> result<admission-acknowledgement, access-error>;
+        /// Call in a fresh transaction after Deferred admission has finished evaluating.
+        /// The owning hold authorizes only its exact initializing actor.
+        submit-inventory: func(tx: borrow<world-tx>, request-id: string, image: borrow<inventory-image>) -> result<inventory-operation, inventory-error>;
+    }
+
+    enum quit-disposition {
+        remove,
+        retain-entity,
+    }
+
+    /// Protocol reason is observational metadata, never a command or packet capability.
+    record disconnect-detail {
+        protocol-code: option<s32>,
+        message: option<string>,
+    }
+
+    variant disconnect-reason {
+        unknown,
+        peer-closed,
+        peer-request(disconnect-detail),
+        server-request(disconnect-detail),
+        server-shutdown,
+        overloaded,
+        transport-failure(disconnect-detail),
+    }
+
+    /// Owned departure facts captured while the original actor still exists.
+    /// Missing native state stays an explicit error, never invented player values.
+    record quit-event {
+        identity: player-identity,
+        dimension: s32,
+        observation: result<player-snapshot, access-error>,
+        reason: disconnect-reason,
+        previously-admitted: bool,
+    }
+
+    /// Emitted only after the actual initial packet batch was accepted for delivery.
+    record admitted-event {
+        observation: player-snapshot,
+    }
+
+    /// Owned feet-coordinate facts from a movement that actually committed.
+    record movement-committed {
+        identity: player-identity,
+        dimension: s32,
+        %from: vec3,
+        to: vec3,
+    }
+
+    variant task-status {
+        pending,
+        running,
+        completed,
+        failed(access-error),
+    }
+
+    resource task {
+        id: func() -> result<u64, access-error>;
+        status: func() -> result<task-status, access-error>;
+        cancel: func() -> result<bool, access-error>;
+    }
+
+    /// A storable actor reference. Transfers preserve it; reconnects do not.
+    resource player-handle {
+        identity: func() -> result<player-identity, access-error>;
+        snapshot: func() -> result<player-snapshot, access-error>;
+        schedule: func(callback-id: u64) -> result<task, access-error>;
+    }
+
+    /// A storable world reference; scheduling never borrows a foreign live world.
+    resource world-handle {
+        dimension: func() -> result<s32, access-error>;
+        schedule: func(callback-id: u64) -> result<task, access-error>;
+    }
+
+    /// Valid only during its supplying callback. The SDK prevents escape;
+    /// the host independently rejects expired transaction epochs.
+    resource world-tx {
+        %world: func() -> result<world-handle, access-error>;
+        players: func() -> result<list<player-handle>, access-error>;
+        /// The returned capability expires with this callback, even if retained.
+        player: func(handle: borrow<player-handle>) -> result<player, access-error>;
+        /// Construct a detached value using this world's frozen item/block registries.
+        item: func(identifier: string, count: u8) -> result<stack, access-error>;
+        grant-plan: func() -> result<grant-plan, inventory-error>;
+        /// Observe an already loaded native cell without loading or generating terrain.
+        block: func(position: block-pos) -> result<block-cell, world-block-error>;
+        edit-blocks: func() -> result<block-edit, world-block-error>;
+        /// Stage a literal replacement batch. Publication occurs after the callback succeeds.
+        apply-blocks: func(edit: borrow<block-edit>) -> result<block-edit-request, world-block-error>;
+        /// Stable typed intent, before submitting IO; guests may persist this digest with their key.
+        block-intent: func(edit: borrow<block-edit>) -> result<list<u8>, durable-block-error>;
+        /// Stage a loaded-only whole batch; committed status requires disk ACK and native publication.
+        commit-blocks: func(key: string, edit: borrow<block-edit>) -> result<durable-block-request, durable-block-error>;
+        /// Create only in an original actor-free loaded cell. Single chests also guard all
+        /// four horizontal neighbors and reject every adjacent actor/container family.
+        plan-container: func(expected: borrow<block-cell>, kind: container-create-kind, facing: block-face) -> result<container-plan, durable-block-error>;
+        container-intent: func(plan: borrow<container-plan>) -> result<list<u8>, durable-block-error>;
+        commit-container: func(key: string, plan: borrow<container-plan>) -> result<durable-block-request, durable-block-error>;
+        /// Namespace is the current module and configured persistent world identity.
+        block-receipt: func(key: string) -> result<option<durable-block-status>, durable-block-error>;
+        /// Recover retained owner-lost work only from its actual receipt and original witnesses.
+        resume-blocks: func(key: string) -> result<durable-block-request, durable-block-error>;
+    }
+
+    variant world-block-error {
+        access(access-error),
+        unloaded,
+        out-of-bounds,
+        reserved,
+        unsupported,
+        conflict,
+        empty-batch,
+        already-staged,
+    }
+    /// Support is an authored host capability, not a claim about every vanilla block.
+    enum block-edit-support { supported, unsupported-family, block-actor }
+    record block-layers { primary: block-value, secondary: block-value }
+    /// Material/definition flags and actual actor presence at capture time.
+    record block-facts {
+        solid: bool,
+        blocks-motion: bool,
+        liquid: bool,
+        replaceable: bool,
+        actor-present: bool,
+        edit-support: block-edit-support,
+    }
+    /// An owned observation with an inaccessible native world/chunk/state witness.
+    /// Its getters remain historical observations after the world changes.
+    resource block-cell {
+        position: func() -> result<block-pos, access-error>;
+        layers: func() -> result<block-layers, access-error>;
+        facts: func() -> result<block-facts, access-error>;
+    }
+    /// Detached bounded edits; adding a cell never changes authoritative terrain.
+    resource block-edit {
+        replace: func(expected: borrow<block-cell>, proposed: block-layers) -> result<_, world-block-error>;
+    }
+    record block-edit-applied { checked: u32, changed: u32 }
+    /// Applied describes a physical replacement; it is not a storage or client acknowledgement.
+    variant block-edit-status {
+        staged,
+        pending,
+        applied(block-edit-applied),
+        cancelled,
+        failed(world-block-error),
+    }
+    resource block-edit-request {
+        status: func() -> result<block-edit-status, access-error>;
+        cancel: func() -> result<bool, access-error>;
+    }
+
+    enum container-create-kind { barrel, single-chest }
+    /// Detached owned slot values, never a live container/window or raw actor buffer.
+    resource container-plan {
+        set-slot: func(slot: u8, item: borrow<stack>) -> result<_, durable-block-error>;
+    }
+
+    variant durable-block-error {
+        access(access-error),
+        block(world-block-error),
+        invalid-key,
+        unsupported-provider,
+        conflict,
+        capacity,
+        recovery-required,
+    }
+    /// Host-validated receipt; intent is a 32-byte stable requested-cell digest.
+    record durable-block-receipt { key: string, epoch: u64, intent: list<u8> }
+    /// Committed requires storage ACK and native publication/restart reconciliation,
+    /// never a client ACK.
+    /// RecoveryRequired is neither successful application nor proven rollback.
+    variant durable-block-status {
+        staged,
+        pending,
+        committed(durable-block-receipt),
+        not-applied(durable-block-error),
+        recovery-required,
+    }
+    /// Owned historical observation. Dropping it never cancels accepted native IO.
+    resource durable-block-request {
+        status: func() -> result<durable-block-status, access-error>;
+        /// Cancellation succeeds only while status is Staged.
+        cancel: func() -> result<bool, access-error>;
+    }
+
+    /// Instance properties use typed values; encoded item or packet buffers are not exposed.
+    variant item-value {
+        byte(u8),
+        short(s16),
+        int(s32),
+        long(s64),
+        text(string),
+        bytes(list<u8>),
+    }
+
+    record enchantment {
+        id: s16,
+        level: s16,
+    }
+
+    /// An owned detached value. Changing it never mutates authoritative inventory slots.
+    /// Unchanged metadata is preserved; changed properties encode deterministically.
+    resource stack {
+        identifier: func() -> result<string, access-error>;
+        count: func() -> result<u8, access-error>;
+        max-count: func() -> result<u8, access-error>;
+        /// Exact non-empty native item contents, including opaque metadata; ignores count and wire tracking IDs.
+        same-item: func(other: borrow<stack>) -> result<bool, access-error>;
+        /// Exact matching contents that native rules allow to share a stack; capacity is checked separately.
+        stackable-with: func(other: borrow<stack>) -> result<bool, access-error>;
+        damage: func() -> result<u16, access-error>;
+        with-count: func(count: u8) -> result<stack, access-error>;
+        with-damage: func(damage: u16) -> result<stack, access-error>;
+        name: func() -> result<option<string>, access-error>;
+        with-name: func(name: option<string>) -> result<stack, access-error>;
+        lore: func() -> result<list<string>, access-error>;
+        with-lore: func(lines: list<string>) -> result<stack, access-error>;
+        enchantments: func() -> result<list<enchantment>, access-error>;
+        with-enchantments: func(enchantments: list<enchantment>) -> result<stack, access-error>;
+        value: func(path: list<string>) -> result<option<item-value>, access-error>;
+        with-value: func(path: list<string>, value: option<item-value>) -> result<stack, access-error>;
+    }
+
+    /// Positional strategies fill only an empty requested slot, then drop any remainder.
+    /// An occupied requested slot sends the whole quantity to world drops, even if compatible.
+    variant grant-placement { any-inventory-or-drop, empty-main-or-drop(u8), empty-armour-or-drop(u8), empty-offhand-or-drop }
+    /// Exact quantities are independent of the prototype stack count, split by native maximums.
+    resource grant-plan {
+        /// Exact logical hash used by the eventual account-scoped grant receipt.
+        request-hash: func() -> result<list<u8>, access-error>;
+        with-item: func(item: borrow<stack>, quantity: u32, placement: grant-placement) -> result<grant-plan, access-error>;
+    }
+
+    enum inventory-area {
+        main,
+        armour,
+        offhand,
+        ui,
+        ender-chest,
+    }
+
+    /// Owned observations retain their original account, connection and world binding.
+    /// Deriving a candidate does not change any live player slots.
+    resource inventory-image {
+        identity: func() -> result<player-identity, access-error>;
+        dimension: func() -> result<s32, access-error>;
+        revision: func() -> result<u64, access-error>;
+        held-slot: func() -> result<u8, access-error>;
+        slot-count: func(area: inventory-area) -> result<u32, access-error>;
+        slot: func(area: inventory-area, index: u32) -> result<stack, access-error>;
+        with-slot: func(area: inventory-area, index: u32, item: borrow<stack>) -> result<inventory-image, access-error>;
+        with-held-slot: func(slot: u8) -> result<inventory-image, access-error>;
+        /// Candidate fingerprint used by durable receipts; excludes the source revision.
+        request-hash: func() -> result<list<u8>, access-error>;
+    }
+
+    variant inventory-error {
+        access(access-error),
+        not-installed,
+        unsupported-provider,
+        busy,
+        conflict,
+        invalid-image,
+        invalid-identifier,
+        not-applied,
+        recovery-required,
+    }
+
+    record inventory-receipt {
+        revision: u64,
+        request-hash: list<u8>,
+    }
+
+    record inventory-commit {
+        receipt: inventory-receipt,
+        already-committed: bool,
+        live-applied: bool,
+    }
+
+    /// Only committed carries an acknowledged durable receipt; queued is not delivery.
+    variant inventory-status {
+        staged,
+        queued,
+        committed(inventory-commit),
+        rejected(inventory-error),
+        uncertain,
+        cancelled,
+    }
+
+    /// Dropping a reference cannot cancel a write already accepted by storage.
+    resource inventory-operation {
+        status: func() -> result<inventory-status, access-error>;
+    }
+
+    /// Callback-boundary physical changes; these are not storage acknowledgements.
+    variant inventory-mechanics-status {
+        staged,
+        applied,
+        rejected(access-error),
+        cancelled,
+    }
+    resource inventory-mechanics-operation {
+        status: func() -> result<inventory-mechanics-status, access-error>;
+    }
+
+    /// Original persistent world identity, not a capability for a live world.
+    record archive-world {
+        uuid: string,
+        name: string,
+        dimension: s32,
+    }
+
+    /// Immutable, module-owned reference. It grants no authority for a current actor.
+    record archive-reference {
+        key: string,
+        revision: u64,
+        fingerprint: string,
+        owner: player-identity,
+    }
+
+    variant archive-error {
+        access(access-error),
+        invalid-key,
+        conflict,
+        not-found,
+        invalid-reference,
+        invalid-snapshot,
+        quota-exceeded,
+        io-error,
+        uncertain,
+    }
+
+    record archive-limits {
+        max-snapshot-bytes: u64,
+        max-namespace-bytes: u64,
+        max-snapshots: u64,
+    }
+
+    /// Historical observations. Position is feet; no live availability is inferred.
+    record archive-facts {
+        owner: player-identity,
+        source-world: archive-world,
+        captured-tick: u64,
+        position: vec3,
+        rotation: tuple<f32, f32>,
+        velocity: vec3,
+        health: f32,
+        max-health: f32,
+        absorption: f32,
+        food: u8,
+        saturation: f32,
+        exhaustion: f32,
+        experience: u32,
+        experience-progress: f32,
+        base-game-mode: game-mode,
+        effective-game-mode: game-mode,
+        dead: bool,
+    }
+
+    /// Native full state remains host-owned, including unknown item metadata.
+    /// This resource only reads immutable observations; restoration is a separate capability.
+    resource archived-player-state {
+        death-occurrence: func() -> result<option<death-occurrence>, access-error>;
+        death-facts: func() -> result<option<death-facts>, access-error>;
+        state-image: func() -> result<player-state-image, access-error>;
+        /// Reacquire only an existing exact native source hold in this transaction world.
+        /// Absence never recreates an actor or grants a historical player capability.
+        source-fence: func(tx: borrow<world-tx>) -> result<option<source-fence>, state-error>;
+        /// Inspect exact canonical source ownership; an absent ledger is unowned, never consumed.
+        source: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+        rebind: func(tx: borrow<world-tx>, request-id: string) -> result<source-rebind-operation, state-error>;
+        reference: func() -> result<archive-reference, access-error>;
+        facts: func() -> result<archive-facts, access-error>;
+        inventory: func() -> result<inventory-image, access-error>;
+    }
+
+    /// Semantic termination reasons are independent of protocol discriminants.
+    enum connection-close-kind { requested, kicked }
+    /// Display text is bounded by the component limit and the host's fixed ceiling.
+    record connection-close-reason { kind: connection-close-kind, message: string }
+    variant connection-control-error { access(access-error), not-connected, admission-pending, already-pending, timed-out }
+    /// Queued means accepted by the exact transport's outbound channel, never client acknowledgement.
+    variant connection-close-status { staged, pending, queued, failed(connection-control-error) }
+    resource connection-close-request {
+        status: func() -> result<connection-close-status, access-error>;
+    }
+
+    /// Live access is transaction scoped. Store player-handle instead of player.
     resource player {
-        get-name: func() -> string;
-        get-uuid: func() -> string;
-        get-position: func() -> vec3;
-        get-rotation: func() -> tuple<f32, f32>;
-        get-health: func() -> f32;
-        get-max-health: func() -> f32;
-        get-game-mode: func() -> game-mode;
-        send-message: func(message: string);
-        teleport: func(position: vec3);
-        give-item: func(item-id: string, count: u8);
-        kick: func(reason: string);
+        /// Available while an inventory write is pending; neither string grants another actor.
+        runtime-identity: func() -> result<option<runtime-identity>, access-error>;
+        /// Stage a native durable relocation, not a movement acknowledgement.
+        /// Destination is one actual world lifetime; coordinates are player feet.
+        relocate: func(destination: borrow<world-handle>, feet: vec3, safe-y-radius: u16, correlation: u64) -> result<travel-acknowledgement, access-error>;
+        state-image: func() -> result<player-state-image, access-error>;
+        /// Stage a point-in-time durable checkpoint of this genuine retained source.
+        /// Native simulation continues during persistence; Staged is not an ACK.
+        checkpoint-source: func() -> result<source-actor-operation, state-error>;
+        /// Adopt only the exact current native post-drop terminal witness of a real retained body.
+        checkpoint-terminal-source: func() -> result<source-actor-operation, state-error>;
+        fence-state: func(expected: borrow<player-state-image>) -> result<source-fence, state-error>;
+        submit-state: func(request-id: string, expected: borrow<player-state-image>, desired: borrow<player-state-image>, source: option<borrow<source-fence>>) -> result<state-operation, state-error>;
+        state-receipt: func(request-id: string) -> result<option<inventory-receipt>, state-error>;
+        /// Capture current authoritative state; pending requests are not reflected here.
+        mechanics: func() -> result<player-mechanics-state, access-error>;
+        vitals: func() -> result<player-vitals, access-error>;
+        /// Stage finite nonnegative native healing, clamped to current maximum health.
+        /// Dead, held, incomplete and recovery-fenced actors cannot be revived by this import.
+        heal: func(amount: f32) -> result<mechanics-acknowledgement, access-error>;
+        /// Transient native processing policy; does not reset food values or native timers.
+        set-food-policy: func(policy: option<food-policy>) -> result<mechanics-acknowledgement, access-error>;
+        apply-effect: func(effect: effect-application, source: option<borrow<player>>) -> result<mechanics-acknowledgement, access-error>;
+        apply-infinite-effect: func(effect: infinite-effect-application, source: option<borrow<player>>) -> result<mechanics-acknowledgement, access-error>;
+        remove-effect: func(kind: effect-kind) -> result<mechanics-acknowledgement, access-error>;
+        clear-effects: func() -> result<mechanics-acknowledgement, access-error>;
+        /// Server-assigned velocity, in blocks per simulation tick.
+        set-velocity: func(velocity: vec3) -> result<mechanics-acknowledgement, access-error>;
+        set-game-mode: func(mode: game-mode) -> result<mechanics-acknowledgement, access-error>;
+        set-mode-override: func(mode: option<game-mode>) -> result<mechanics-acknowledgement, access-error>;
+        set-flight-override: func(allowed: option<bool>) -> result<mechanics-acknowledgement, access-error>;
+        to-handle: func() -> result<player-handle, access-error>;
+        identity: func() -> result<player-identity, access-error>;
+        position: func() -> result<vec3, access-error>;
+        rotation: func() -> result<tuple<f32, f32>, access-error>;
+        health: func() -> result<f32, access-error>;
+        max-health: func() -> result<f32, access-error>;
+        game-mode: func() -> result<game-mode, access-error>;
+        effective-game-mode: func() -> result<game-mode, access-error>;
+        %flags: func() -> result<player-flags, access-error>;
+        availability: func() -> result<player-availability, access-error>;
+        configured-admin: func() -> result<bool, access-error>;
+        snapshot: func() -> result<player-snapshot, access-error>;
+        inventory: func() -> result<inventory-image, access-error>;
+        /// A write-lane fact, independent of the actor's physical availability and life.
+        inventory-busy: func() -> result<bool, access-error>;
+        /// Exact physical stack observation, retaining its private native slot identity.
+        inventory-stack: func(area: inventory-area, index: u32) -> result<stack, access-error>;
+        /// Destination slot i receives original hotbar slot order[i]; exactly nine distinct indices.
+        reorder-hotbar: func(order: list<u8>) -> result<inventory-mechanics-operation, access-error>;
+        /// Consume only the exact captured selected stack, including its native slot identity.
+        consume-selected: func(expected: borrow<stack>, count: u8) -> result<inventory-mechanics-operation, access-error>;
+        /// Repair an exact main/armour/offhand stack by at most points, without changing other data.
+        repair-item: func(area: inventory-area, index: u32, expected: borrow<stack>, points: u32) -> result<inventory-mechanics-operation, access-error>;
+        /// Persist one complete current capture. Success is durable even if this callback traps.
+        /// Existing keys are never overwritten; reconcile uncertain results with archives.lookup.
+        archive: func(key: string) -> result<archive-reference, archive-error>;
+        submit-inventory: func(request-id: string, image: borrow<inventory-image>) -> result<inventory-operation, inventory-error>;
+        inventory-receipt: func(request-id: string) -> result<option<inventory-receipt>, inventory-error>;
+        /// A committed result proves acknowledged canonical inventory + overflow ownership.
+        /// Native destination corrections remain pending until their own atomic writes acknowledge.
+        /// Replay never reapplies an old inventory or respawns already picked-up items.
+        grant-items: func(request-id: string, plan: borrow<grant-plan>) -> result<inventory-operation, inventory-error>;
+        /// None is unknown, never proof of non-application. Pending/uncertain live corrections mask readback.
+        grant-receipt: func(request-id: string) -> result<option<inventory-receipt>, inventory-error>;
+        message: func(message: string) -> result<_, access-error>;
+        /// Stage exact admitted-connection termination; initial admission uses reject/hold resolution.
+        disconnect: func(reason: connection-close-reason) -> result<connection-close-request, connection-control-error>;
+        /// Native physical-plan completeness is independent of availability/permission.
+        initial-state-ready: func() -> result<bool, access-error>;
+        /// Valid only in this player's admission callback; retain the owned hold for Deferred.
+        defer-admission: func() -> result<admission-hold, access-error>;
+    }
+    enum travel-acknowledgement { staged }
+    record travel-location { dimension: s32, feet: vec3 }
+    enum travel-cause { command, projectile, chorus-fruit, world-transfer }
+    /// The native selected destination after safe-Y selection and ordinary native rewrites.
+    /// The transaction is the actual source world; destination facts grant no live world borrow.
+    record travel-proposal {
+        cause: travel-cause,
+        origin: travel-location,
+        destination: travel-location,
+        origin-world-lifetime: string,
+        destination-world-lifetime: string,
+        /// Only the originating component instance sees its request's opaque correlation.
+        correlation: option<u64>,
+    }
+    /// Actual native movement, independent of durable queued-request receipts or client acknowledgement.
+    /// No live player/world capability is retained by this record.
+    record travel-committed {
+        identity: result<player-identity, access-error>,
+        cause: travel-cause,
+        origin: travel-location,
+        destination: travel-location,
+        origin-world-lifetime: option<string>,
+        destination-world-lifetime: option<string>,
+        captured-tick: option<u64>,
+        /// Present only for the component instance that originated an actual queued request.
+        correlation: option<u64>,
+    }
+    enum travel-error {
+        cancelled, source-closed, destination-closed, stale-source,
+        unavailable, unsafe-destination, rejected, pending, invalid-request,
+        incompatible-worlds, unsupported-state, backpressure, timeout, persistence,
+    }
+    record travel-moved {
+        /// Actual feet before the accepted native move, which may follow loading.
+        %from: vec3,
+        destination: travel-location,
+    }
+    variant travel-outcome {
+        /// Native canonical player storage acknowledged before actual movement.
+        moved(travel-moved),
+        /// No movement or potentially successful canonical write occurred.
+        not-applied(travel-error),
+        /// Storage may have changed; the native account is terminally fenced.
+        uncertain,
+    }
+    /// Owned facts; no live player is manufactured after departure or world closure.
+    /// Correlation is echoed only and does not authorize or identify host behavior.
+    record travel-result {
+        correlation: u64,
+        identity: player-identity,
+        origin: travel-location,
+        requested: travel-location,
+        outcome: travel-outcome,
+    }
+    /// Detached raw state. Account identity and receipt lineage are never editable.
+    record state-values {
+        position: vec3,
+        rotation: tuple<f32,f32>,
+        head-yaw: f32,
+        velocity: vec3,
+        health: f32,
+        max-health: f32,
+        absorption: f32,
+        food: u8,
+        saturation: f32,
+        exhaustion: f32,
+        food-policy: option<food-policy>,
+        food-ticks: u32,
+        food-regeneration: u32,
+        experience: u32,
+        experience-progress: f32,
+        base-mode: game-mode,
+        mode-override: option<game-mode>,
+        flight-override: option<bool>,
+        air-current: u32,
+        air-max: u32,
+        on-fire-ticks: u32,
+        burning-remaining: u64,
+        burning-next: u64,
+        effects: list<active-status-effect>,
+        age-ticks: u64,
+        cold-exposure: f32,
+        dead: bool,
+    }
+    resource player-state-image {
+        values: func() -> result<state-values, access-error>;
+        with-values: func(values: state-values) -> result<player-state-image, access-error>;
+        /// Select the actual current transaction world, without moving any actor.
+        at: func(tx: borrow<world-tx>, feet: vec3, rotation: tuple<f32,f32>) -> result<player-state-image, access-error>;
+        dimension: func() -> result<s32, access-error>;
+        inventory: func() -> result<inventory-image, access-error>;
+        with-inventory: func(inventory: borrow<inventory-image>) -> result<player-state-image, access-error>;
+        fingerprint: func() -> result<string, access-error>;
+    }
+    variant state-error {
+        access(access-error), invalid-image, wrong-account, conflict, busy,
+        not-installed, unsupported-provider, invalid-identifier, not-applied,
+        recovery-required, source-gone, unsafe-position, timed-out,
+    }
+    enum source-fence-status { staged, held, consumed, gone, cancelled, released }
+    /// Dropping this observer never reactivates an accepted native source hold.
+    resource source-fence {
+        status: func() -> result<source-fence-status, access-error>;
+        state-image: func() -> result<player-state-image, access-error>;
+        archive: func(key: string) -> result<archive-reference, archive-error>;
+        /// Requires the actual accepted native hold and waits for a canonical source checkpoint.
+        checkpoint: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+    }
+    enum source-actor-phase { frozen, active, retired, transferred, terminal }
+    enum source-actor-physical { unavailable, absent, held, present }
+    record source-actor-observation { phase: source-actor-phase, generation: u64, live-applied: bool, physical: source-actor-physical }
+    variant source-actor-status {
+        staged, queued, observed(source-actor-observation), unowned,
+        rejected(state-error), uncertain, cancelled,
+    }
+    /// Owned canonical observations do not synthesize a scoped player or a past connection.
+    resource source-actor-operation {
+        /// Only an observed canonical generation supplies facts, never a provisional archive.
+        death-occurrence: func() -> result<option<death-occurrence>, access-error>;
+        status: func() -> result<source-actor-status, access-error>;
+        state-image: func() -> result<player-state-image, access-error>;
+        archive: func(key: string) -> result<archive-reference, archive-error>;
+        player: func(tx: borrow<world-tx>) -> result<option<player-handle>, state-error>;
+        source-fence: func(tx: borrow<world-tx>) -> result<source-fence, state-error>;
+        recreate: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+        activate: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+        retire: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+    }
+    record source-rebind-commit {
+        receipt: inventory-receipt,
+        live-applied: bool,
+    }
+    record source-rebind-failure { receipt: inventory-receipt, reason: state-error }
+    variant source-rebind-status {
+        staged, queued, acknowledged(source-rebind-commit), rebound(source-rebind-commit),
+        terminal(source-rebind-commit), retired(source-rebind-commit), failed(source-rebind-failure), unowned, rejected(state-error), uncertain, cancelled,
+    }
+    record source-rebind-result {
+        request-id: string,
+        correlation: u64,
+        source: player-identity,
+        target: player-identity,
+        status: source-rebind-status,
+    }
+    /// Durable acknowledgement and actual publication are separate observations.
+    resource source-rebind-operation {
+        request-id: func() -> result<string, access-error>;
+        status: func() -> result<source-rebind-status, access-error>;
+        /// Request publication only after the caller has durably accepted the ACK.
+        /// Other unresolved admission owners and transport backpressure still hold it closed.
+        publish: func(tx: borrow<world-tx>) -> result<admission-acknowledgement, state-error>;
+        /// Explicitly retire the exact still-present unpublished source after ownership ACK.
+        retire: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+        player: func(tx: borrow<world-tx>) -> result<option<player-handle>, state-error>;
+    }
+    record state-commit {
+        receipt: inventory-receipt,
+        already-committed: bool,
+        live-applied: bool,
+    }
+    /// Only committed contains durable proof; live-applied refers to the original actor.
+    variant state-status {
+        staged, queued, committed(state-commit), rejected(state-error), uncertain, cancelled,
+    }
+    resource state-operation { status: func() -> result<state-status, access-error>; }
+    /// Each stage is independently authorized before its native costs and effects.
+    /// Punch reports an accepted player input's missed swing, not a resolved hit
+    /// or an animation. Passing it has no default physical effect or completion.
+    enum item-action-stage { %use, release, consume, charge, launch, punch }
+    record item-block-target { click: block-click, block: result<block-value, access-error> }
+    record item-actor-target { identifier: string, feet: vec3, player: result<option<player-identity>, access-error> }
+    variant item-action-target { air, block(item-block-target), actor(item-actor-target) }
+    record item-action-proposal {
+        action-id: u64,
+        dimension: s32,
+        stage: item-action-stage,
+        slot: u8,
+        selected: stack,
+        target: item-action-target,
+    }
+    /// Correlation is echoed only. It does not name or dispatch host behavior.
+    /// Consume must be positive and within the captured selected count.
+    record handled-item-action { correlation: u64, consume: u8 }
+    variant item-action-decision {
+        pass,
+        deny,
+        /// Positive, bounded consumption. Zero is malformed; use the explicit nonconsuming case.
+        handled(handled-item-action),
+        /// Suppress the default with zero consumption and an instance-owned correlation echo.
+        handled-without-consumption(u64),
+    }
+    record launched-item-actor { identifier: string, feet: vec3 }
+    record custom-item-outcome { correlation: option<u64>, consumed: u8 }
+    variant item-action-outcome {
+        started,
+        consumed(u8),
+        charged,
+        launched(result<launched-item-actor, access-error>),
+        interacted,
+        block(u64),
+        custom(custom-item-outcome),
+    }
+    /// Only the native selected cell and known ammunition cell are observed.
+    /// This is not a complete inventory diff or a durable inventory acknowledgement.
+    record item-ammunition-change { main-slot: option<u32>, before: stack, after: option<stack> }
+    record item-action-items { selected-before: stack, selected-after: option<stack>, ammunition: option<item-ammunition-change> }
+    /// A completed native item action, never a durable inventory receipt.
+    /// Explicit custom handling may consume nothing; vetoed or stale actions never complete.
+    record item-action-committed {
+        action-id: u64,
+        dimension: s32,
+        player: player-identity,
+        stage: item-action-stage,
+        slot: u8,
+        target: item-action-target,
+        items: result<item-action-items, access-error>,
+        outcome: item-action-outcome,
     }
 }

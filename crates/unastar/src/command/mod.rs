@@ -72,8 +72,29 @@ pub const FLAG_NOT_CHEAT: u16 = 0x80;
 /// source's permission level answer `commands.generic.error.permissions`, as
 /// BDS does. An output without messages (`/say`, `/me`) is not sent.
 pub fn execute(world: &mut World, source: CommandSource, line: &str) -> CommandOutput {
+    execute_with_request_id(world, source, line, None)
+}
+
+/// Preserve real request metadata without treating it as command authority.
+pub(crate) fn execute_with_request_id(
+    world: &mut World,
+    mut source: CommandSource,
+    line: &str,
+    request_id: Option<&str>,
+) -> CommandOutput {
     if !world.contains_resource::<CommandRegistry>() {
         world.insert_resource(CommandRegistry::vanilla());
+    }
+    if let Some(player) = source.entity()
+        && crate::plugin::manager::commands::installed(world)
+    {
+        if crate::plugin::manager::commands::dispatch(world, player, line, request_id) {
+            return CommandOutput::default();
+        }
+        let Some(current) = CommandSource::player(world, player) else {
+            return CommandOutput::default();
+        };
+        source = current;
     }
     world.resource_scope(|world, registry: Mut<CommandRegistry>| {
         dispatch(world, &registry, source, line)

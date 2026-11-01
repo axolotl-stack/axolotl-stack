@@ -118,6 +118,12 @@ pub fn run(ctx: &mut CommandContext<'_>, args: CloneArgs) -> CommandResult {
     if !box_loaded(ctx.world, min, max) || !box_loaded(ctx.world, dest_min, dest_max) {
         return failure!("commands.generic.outOfWorld");
     }
+    if crate::server::game::container_area_locked(ctx.world, dest_min, dest_max)
+        || (clone_mode == CloneMode::Move
+            && crate::server::game::container_area_locked(ctx.world, min, max))
+    {
+        return failure!("commands.clone.failed");
+    }
     let overlap = min.cmple(dest_max).all() && dest_min.cmple(max).all();
     if overlap && clone_mode != CloneMode::Force {
         return failure!("commands.clone.noOverlap");

@@ -15,6 +15,7 @@
 pub mod ambient;
 pub mod body;
 pub mod breeding;
+pub mod carry;
 pub mod color;
 pub mod common;
 pub mod damage_sensor;
@@ -28,9 +29,13 @@ pub mod interact;
 pub mod knockback;
 pub mod loot;
 pub mod movement;
+pub mod ranged;
+pub mod reactive;
 pub mod sensors;
 pub mod shearing;
 pub mod spawn_entity;
+pub mod teleport;
+pub mod triggers;
 
 use std::sync::Arc;
 
@@ -59,6 +64,7 @@ pub use interact::{InteractConfig, Interaction, SpawnEggInteraction, SpawnItems}
 pub use knockback::{KnockbackPower, KnockbackRules};
 pub use loot::{ExperienceRewardConfig, LootConfig};
 pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
+pub use ranged::{RangedAttackGoal, ShooterConfig, TargetNearbySensor};
 pub use sensors::{EnvironmentSensorConfig, Timer};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
 
@@ -150,6 +156,9 @@ pub fn register_component_kinds(
 ) -> Result<(), DefinitionError> {
     goals::register_component_kinds(builder)?;
     movement::register_component_kinds(builder)?;
+    reactive::register_component_kinds(builder)?;
+    carry::register_component_kinds(builder)?;
+    teleport::register_component_kinds(builder)?;
     body::register_component_kinds(builder)?;
     hurt_on_condition::register_component_kinds(builder)?;
     despawn::register_component_kinds(builder)?;
@@ -180,5 +189,8 @@ pub fn register_component_kinds(
     ambient::register_component_kinds(builder)?;
     spawn_entity::register_component_kinds(builder, items)?;
     equipment::register_component_kinds(builder)?;
-    knockback::register_component_kinds(builder)
+    knockback::register_component_kinds(builder)?;
+    ranged::register_component_kinds(builder)?;
+    triggers::register_component_kinds(builder)?;
+    crate::entity::freezing::register_component_kinds(builder)
 }

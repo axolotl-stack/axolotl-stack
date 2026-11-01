@@ -27,6 +27,7 @@ pub struct TestWorld {
     pub height: i32,
     pub has_skylight: bool,
     pub block_entities: Vec<(BlockPos, super::eval::BlockEntityData)>,
+    pub template_features: bool,
 }
 
 impl Default for TestWorld {
@@ -47,6 +48,7 @@ impl Default for TestWorld {
             height: 384,
             has_skylight: true,
             block_entities: Vec::new(),
+            template_features: true,
         }
     }
 }
@@ -67,6 +69,9 @@ impl TestWorld {
 }
 
 impl FeatureWorld for TestWorld {
+    fn template_features_enabled(&self) -> bool {
+        self.template_features
+    }
     fn min_y(&self) -> i32 {
         self.min_y
     }

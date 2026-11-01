@@ -31,6 +31,7 @@ type DeriveInputs<'a> = (
     Option<&'a Health>,
     Option<&'a MovementConfig>,
     Option<&'a AirSupply>,
+    Option<&'a crate::entity::freezing::FreezingState>,
 );
 
 /// Derived state of one mob from its composition.
@@ -50,7 +51,7 @@ struct Derived {
 }
 
 fn derive(
-    (kind, collision, scale, physics, walk, health, movement, air): DeriveInputs<'_>,
+    (kind, collision, scale, physics, walk, health, movement, air, cold): DeriveInputs<'_>,
 ) -> Derived {
     let scale = scale.map_or(1.0, |s| s.value);
     // Published rule: negative collision dimensions count as zero.
@@ -70,7 +71,7 @@ fn derive(
         collision: has_collision,
         can_walk: walk.is_some_and(|w| w.can_walk),
         health: health.map(|h| (h.current, h.max)),
-        movement: movement.map(|m| m.value),
+        movement: movement.map(|m| cold.map_or(m.value, |cold| cold.movement(m.value))),
         air: air.map(|a| (a.current_ticks as i16, a.max_ticks as i16)),
     }
 }
@@ -144,6 +145,7 @@ type DeriveTrigger = Or<(
     Changed<DefinitionState>,
     Changed<Health>,
     Changed<AirSupply>,
+    Changed<crate::entity::freezing::FreezingState>,
 )>;
 
 /// System: re-derive body, flags, metadata and attributes of mobs whose

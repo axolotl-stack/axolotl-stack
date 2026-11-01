@@ -12,7 +12,10 @@
 
 pub mod bundles;
 pub mod components;
+pub mod conditions;
+pub mod damage;
 pub mod definition;
+pub mod freezing;
 pub mod geometry;
 pub(crate) mod goal_selector;
 pub mod item_drop;
@@ -28,3 +31,6 @@ pub use bundles::*;
 pub use components::*;
 pub use definition::metadata::EntityMetadata;
 pub use item_drop::{EntityRandom, PLAYER_EYE_HEIGHT, spawn_item_drop};
+
+#[cfg(test)]
+pub(crate) mod test_support;

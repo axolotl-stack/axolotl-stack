@@ -42,14 +42,21 @@ impl GameServer {
         // Disconnect is immediate (not queued) — despawn must happen now
         if packet.packet_id() == McpePacketName::DisconnectPacket {
             info!(session_id, "Client sent disconnect packet");
-            if let Some(mut event_buffer) = self
-                .ecs
-                .world_mut()
-                .get_resource_mut::<crate::ecs::events::EventBuffer>()
-            {
-                event_buffer.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
+            if let Ok(owned) = packet.into_owned(packet_args) {
+                let cause = crate::network::departure::incoming(&owned);
+                self.ecs.world_mut().entity_mut(entity).insert(cause);
             }
             self.despawn_player(session_id);
+            return;
+        }
+
+        if crate::server::worlds::loading::intercept(self.ecs.world_mut(), entity, &packet) {
+            return;
+        }
+
+        if super::inventory_effects::is_quarantined(self.ecs.world(), entity)
+            || super::player_events::initial_state_pending(self.ecs.world(), entity)
+        {
             return;
         }
 
@@ -57,6 +64,32 @@ impl GameServer {
         let world = self.ecs.world_mut();
 
         match packet {
+            BorrowedMcpePacket {
+                data: BorrowedMcpePacketData::ModalFormResponsePacket(response),
+                ..
+            } => {
+                // Bound borrowed bytes before allocating application-owned text.
+                if response
+                    .json_response
+                    .as_ref()
+                    .is_some_and(|data| data.as_bytes().len() > 65536)
+                {
+                    return;
+                }
+                let cancelled =
+                    response.form_cancel_reason.is_some() || response.json_response.is_none();
+                let data = response
+                    .json_response
+                    .map(|data| data.to_string_lossy().into_owned());
+                super::player_events::form_response(
+                    world,
+                    entity,
+                    session_id,
+                    response.form_id,
+                    data,
+                    cancelled,
+                );
+            }
             // ── Movement ──────────────────────────────────────────────────
             BorrowedMcpePacket {
                 data: BorrowedMcpePacketData::PlayerActionPacket(pk),
@@ -200,7 +233,7 @@ impl GameServer {
             }
             McpePacketData::RespawnPacket(pk) => {
                 // Only the client-ready state is the client's to send.
-                if pk.state == jolyne::valentine::types::EnumsPlayerRespawnState::Clientreadytospawn
+                if pk.state == jolyne::valentine::types::EnumsPlayerRespawnState::ClientReadyToSpawn
                     && let Some(mut q) = world
                         .get_resource_mut::<crate::entity::player_life::respawn::RespawnQueue>()
                 {

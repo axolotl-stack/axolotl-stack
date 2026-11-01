@@ -112,6 +112,7 @@ pub struct JavaGenerator {
     /// Structure starts and noise-only column heights (Java-style structures).
     structures: super::structures::JavaStructures,
     options: JavaGenerationOptions,
+    template_features: bool,
     backend: TerrainBackend,
     /// Native source chunks cache their first carver-biome lookup. AOT verifies
     /// equal carver lists across each preset, so only cache presence is needed.
@@ -125,6 +126,20 @@ impl JavaGenerator {
     /// Create a new Java-style generator with the given seed.
     pub fn new(seed: i64) -> Self {
         Self::with_options(seed, JavaGenerationOptions::default())
+    }
+
+    /// Select portable biome decoration independently of optional embedded templates.
+    pub(crate) fn portable(seed: i64, dimension: JavaDimension) -> Self {
+        let mut generator = Self::with_options(
+            seed,
+            JavaGenerationOptions {
+                dimension,
+                generate_structures: false,
+                biome_features: true,
+            },
+        );
+        generator.template_features = false;
+        generator
     }
 
     /// Construct with explicit native placement inputs, before any chunk cache
@@ -179,6 +194,7 @@ impl JavaGenerator {
             ore_random,
             structures: super::structures::JavaStructures::new(options.dimension),
             options,
+            template_features: true,
             backend,
             carver_biomes: Mutex::new(HashSet::new()),
         }

@@ -87,6 +87,9 @@ fn handle_subchunk_request(
     chunk_data_q: &Query<&ChunkData>,
     chunk_viewers_q: &mut Query<&mut ChunkViewers>,
 ) {
+    if req.dimension_type.value != chunk_manager.dimension() {
+        return;
+    }
     let session_id = sessions.get(entity).map(|s| s.session_id).unwrap_or(0);
 
     let origin = &req.center_pos;
@@ -118,14 +121,15 @@ fn handle_subchunk_request(
 
         served_chunks.insert((target_chunk_x, target_chunk_z));
 
-        let min_sub_y = crate::world::chunk::MIN_Y >> 4;
-        let max_sub_y = min_sub_y + (crate::world::SUBCHUNK_COUNT as i32) - 1;
+        let bounds = crate::world::dimension_block_bounds(chunk_manager.dimension());
+        let min_sub_y = bounds.start >> 4;
+        let max_sub_y = (bounds.end >> 4) - 1;
 
         if sub_y < min_sub_y || sub_y > max_sub_y {
             entries.push(SubChunkPacketPayloadSubChunkPacketData {
                 sub_chunk_pos_offset: offset.clone(),
                 sub_chunk_request_result:
-                    EnumsSubChunkPacketPayloadSubChunkRequestResult::Indexoutofbounds,
+                    EnumsSubChunkPacketPayloadSubChunkRequestResult::IndexOutOfBounds,
                 serialized_sub_chunk: None,
                 height_map_data: empty_height_map_data(),
                 blob_id: None,
@@ -139,7 +143,7 @@ fn handle_subchunk_request(
             entries.push(SubChunkPacketPayloadSubChunkPacketData {
                 sub_chunk_pos_offset: offset.clone(),
                 sub_chunk_request_result:
-                    EnumsSubChunkPacketPayloadSubChunkRequestResult::Successallair,
+                    EnumsSubChunkPacketPayloadSubChunkRequestResult::SuccessAllAir,
                 serialized_sub_chunk: None,
                 height_map_data: empty_height_map_data(),
                 blob_id: None,
@@ -152,7 +156,7 @@ fn handle_subchunk_request(
             entries.push(SubChunkPacketPayloadSubChunkPacketData {
                 sub_chunk_pos_offset: offset.clone(),
                 sub_chunk_request_result:
-                    EnumsSubChunkPacketPayloadSubChunkRequestResult::Levelchunkdoesntexist,
+                    EnumsSubChunkPacketPayloadSubChunkRequestResult::LevelChunkDoesntExist,
                 serialized_sub_chunk: None,
                 height_map_data: empty_height_map_data(),
                 blob_id: None,
@@ -175,19 +179,19 @@ fn handle_subchunk_request(
 
         let (ht, hm) = chunk_data.inner.get_subchunk_heightmap(sub_y);
         let hm_type = match ht {
-            HeightMapType::TooHigh => EnumsSubChunkPacketPayloadHeightMapDataType::Alltoohigh,
-            HeightMapType::TooLow => EnumsSubChunkPacketPayloadHeightMapDataType::Alltoolow,
-            HeightMapType::HasData => EnumsSubChunkPacketPayloadHeightMapDataType::Hasdata,
+            HeightMapType::TooHigh => EnumsSubChunkPacketPayloadHeightMapDataType::AllTooHigh,
+            HeightMapType::TooLow => EnumsSubChunkPacketPayloadHeightMapDataType::AllTooLow,
+            HeightMapType::HasData => EnumsSubChunkPacketPayloadHeightMapDataType::HasData,
         };
         let render_hm_type = match ht {
             HeightMapType::TooHigh => {
-                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::Alltoohigh
+                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::AllTooHigh
             }
             HeightMapType::TooLow => {
-                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::Alltoolow
+                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::AllTooLow
             }
             HeightMapType::HasData => {
-                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::Hasdata
+                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::HasData
             }
         };
         let height_map_data = SubChunkPacketPayloadHeightmapData {
@@ -198,7 +202,7 @@ fn handle_subchunk_request(
         };
 
         let result = if is_empty {
-            EnumsSubChunkPacketPayloadSubChunkRequestResult::Successallair
+            EnumsSubChunkPacketPayloadSubChunkRequestResult::SuccessAllAir
         } else {
             EnumsSubChunkPacketPayloadSubChunkRequestResult::Success
         };
@@ -245,9 +249,9 @@ fn handle_subchunk_request(
 
 fn empty_height_map_data() -> SubChunkPacketPayloadHeightmapData {
     SubChunkPacketPayloadHeightmapData {
-        height_map_type: EnumsSubChunkPacketPayloadHeightMapDataType::Alltoolow,
+        height_map_type: EnumsSubChunkPacketPayloadHeightMapDataType::AllTooLow,
         subchunk_height_map: None,
-        render_height_map_type: SubChunkPacketPayloadHeightmapDataRenderHeightMapType::Alltoolow,
+        render_height_map_type: SubChunkPacketPayloadHeightmapDataRenderHeightMapType::AllTooLow,
         subchunk_render_height_map: None,
     }
 }

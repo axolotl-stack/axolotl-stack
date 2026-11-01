@@ -10,6 +10,10 @@ use crate::world::WorldConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
+mod resource_packs;
+mod worlds;
+pub use resource_packs::ResourcePackConfig;
+pub use worlds::{SecondaryWorldConfig, WorldStorageConfig};
 
 #[cfg(test)]
 mod tests;
@@ -34,8 +38,12 @@ where
 #[serde(default, deny_unknown_fields)]
 pub struct UnastarConfig {
     pub server: ServerConfigFile,
+    pub resource_packs: ResourcePackConfig,
     pub world: WorldConfig,
+    pub world_storage: WorldStorageConfig,
+    pub secondary_worlds: Vec<SecondaryWorldConfig>,
     pub players: PlayerStorageConfig,
+    pub plugins: PluginConfig,
     #[serde(alias = "spawn")]
     pub spawn_rules: Vec<SpawnRule>,
 }
@@ -44,8 +52,12 @@ impl Default for UnastarConfig {
     fn default() -> Self {
         Self {
             server: ServerConfigFile::default(),
+            resource_packs: ResourcePackConfig::default(),
             world: WorldConfig::default(),
+            world_storage: WorldStorageConfig::default(),
+            secondary_worlds: Vec::new(),
             players: PlayerStorageConfig::default(),
+            plugins: PluginConfig::default(),
             spawn_rules: vec![SpawnRule::default()],
         }
     }
@@ -80,6 +92,60 @@ impl UnastarConfig {
         Ok(cfg)
     }
 
+    /// Validate listener resource bounds independently of world-generator setup.
+    pub(crate) fn validate_network(&self) -> Result<(), String> {
+        self.resource_packs.validate()?;
+        if !(1..=300).contains(&self.server.handshake_timeout_seconds) {
+            return Err("`server.handshake_timeout_seconds` must be in 1..=300".into());
+        }
+        if let Some(endpoint) = &self.server.nethernet {
+            if endpoint
+                .signing_key_path
+                .as_ref()
+                .is_some_and(|path| path.as_os_str().is_empty() || path.file_name().is_none())
+            {
+                return Err("`server.nethernet.signing_key_path` requires a file path".into());
+            }
+            if !(1..=120).contains(&endpoint.negotiation_timeout_seconds) {
+                return Err(
+                    "`server.nethernet.negotiation_timeout_seconds` must be in 1..=120".into(),
+                );
+            }
+            if endpoint.ice_servers.len() > 16
+                || endpoint.ice_servers.iter().any(|server| {
+                    server.urls.is_empty()
+                        || server.urls.len() > 16
+                        || server.username.len() > 1024
+                        || server.password.len() > 4096
+                        || server.urls.iter().any(|url| {
+                            url.len() > 2048
+                                || !["stun:", "stuns:", "turn:", "turns:"]
+                                    .iter()
+                                    .any(|scheme| url.starts_with(scheme))
+                        })
+                })
+            {
+                return Err(
+                    "`server.nethernet.ice_servers` requires bounded STUN/TURN service URLs".into(),
+                );
+            }
+            if endpoint.relay_only
+                && !endpoint
+                    .ice_servers
+                    .iter()
+                    .any(|server| server.urls.iter().any(|url| url.starts_with("turn:")))
+            {
+                return Err("`server.nethernet.relay_only` requires a UDP TURN service".into());
+            }
+            if !(1..=4096).contains(&endpoint.max_pending_connections) {
+                return Err(
+                    "`server.nethernet.max_pending_connections` must be in 1..=4096".into(),
+                );
+            }
+        }
+        Ok(())
+    }
+
     pub fn server_config(&self) -> ServerConfig {
         let defaults = ServerConfig::default();
 
@@ -109,13 +175,9 @@ impl UnastarConfig {
     }
 
     pub fn validate(&self) -> Result<(), String> {
-        #[cfg(not(feature = "bedrock-worldgen"))]
-        if matches!(
-            self.world.generator,
-            crate::world::WorldGenerator::Bedrock { .. }
-        ) {
-            return Err(crate::world::BEDROCK_BUILD_REQUIREMENT.to_owned());
-        }
+        self.validate_network()?;
+        self.validate_worlds()?;
+        self.plugins.validate()?;
         if self.spawn_rules.is_empty() {
             return Err("config requires at least one `[[spawn_rules]]` rule".into());
         }
@@ -130,16 +192,118 @@ impl UnastarConfig {
                 "`server.default_chunk_radius` cannot exceed `server.max_chunk_radius`".into(),
             );
         }
-        if matches!(
-            self.world.generator,
-            crate::world::WorldGenerator::Java { .. }
-        ) && !unastar_noise::structures::template_data::TEMPLATES_EMBEDDED
+        Ok(())
+    }
+}
+
+/// Components whose absence or failure prevents player admission.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct PluginConfig {
+    /// Manifest IDs, independent of directory names; an empty list requires none.
+    pub required: Vec<String>,
+    pub storage: PluginStorageConfig,
+    /// Immutable native snapshots remain separate from guest byte storage.
+    pub archives: PluginArchiveConfig,
+}
+
+/// Native archive files have an independent protected root and bounded snapshot size.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct PluginArchiveConfig {
+    pub directory: PathBuf,
+    pub max_value_bytes: usize,
+    pub max_namespace_bytes: u64,
+    pub max_keys: usize,
+}
+impl Default for PluginArchiveConfig {
+    /// Nested quota-only configuration preserves the archive-specific directory default.
+    fn default() -> Self {
+        let limits = crate::plugin::storage::Limits::default();
+        Self {
+            directory: PathBuf::from(crate::plugin::archive_store::DEFAULT_DIRECTORY),
+            max_value_bytes: limits.value_bytes,
+            max_namespace_bytes: limits.namespace_bytes,
+            max_keys: limits.keys,
+        }
+    }
+}
+impl PluginArchiveConfig {
+    /// Convert operator bounds without exposing native snapshot buffers to guests.
+    pub(crate) fn limits(&self) -> crate::plugin::storage::Limits {
+        crate::plugin::storage::Limits {
+            value_bytes: self.max_value_bytes,
+            namespace_bytes: self.max_namespace_bytes,
+            keys: self.max_keys,
+        }
+    }
+}
+
+/// Opaque component data is kept separately from filesystem capability preopens.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct PluginStorageConfig {
+    pub directory: PathBuf,
+    pub max_value_bytes: usize,
+    pub max_namespace_bytes: u64,
+    pub max_keys: usize,
+}
+
+impl Default for PluginStorageConfig {
+    /// Share defaults with the actual durable namespace implementation.
+    fn default() -> Self {
+        let limits = crate::plugin::storage::Limits::default();
+        Self {
+            directory: PathBuf::from(crate::plugin::storage::DEFAULT_DIRECTORY),
+            max_value_bytes: limits.value_bytes,
+            max_namespace_bytes: limits.namespace_bytes,
+            max_keys: limits.keys,
+        }
+    }
+}
+
+impl PluginStorageConfig {
+    /// Convert operator limits to the internal storage contract.
+    pub(crate) fn limits(&self) -> crate::plugin::storage::Limits {
+        crate::plugin::storage::Limits {
+            value_bytes: self.max_value_bytes,
+            namespace_bytes: self.max_namespace_bytes,
+            keys: self.max_keys,
+        }
+    }
+}
+impl PluginConfig {
+    /// Reject ambiguous, empty or unbounded required component identities.
+    pub(crate) fn validate(&self) -> Result<(), String> {
+        if self.storage.directory.as_os_str().is_empty()
+            || self.storage.limits().validate().is_err()
         {
             return Err(
-                "the Java-style generator (`world.generator.kind = \"java\"`) needs structure templates \
-                 from the Java server jar: build with `--features java-worldgen` and \
-                 UNASTAR_JAVA_SERVER_JAR=<path to the Java Edition 1.21.11 server.jar>"
-                    .into(),
+                "`plugins.storage` requires a directory and positive non-overflowing limits".into(),
+            );
+        }
+        if self.archives.directory.as_os_str().is_empty()
+            || self.archives.max_value_bytes > crate::plugin::archive_store::MAX_SNAPSHOT_BYTES
+            || self.archives.limits().validate().is_err()
+            || !crate::plugin::storage::directories_disjoint(
+                &self.storage.directory,
+                &self.archives.directory,
+            )
+            .map_err(|_| "component storage directories cannot be resolved".to_owned())?
+        {
+            return Err("`plugins.archives` requires positive limits and a directory disjoint from guest storage".into());
+        }
+        let unique: std::collections::BTreeSet<_> = self.required.iter().collect();
+        if self.required.len() > 128
+            || unique.len() != self.required.len()
+            || self.required.iter().any(|id| {
+                id.is_empty()
+                    || id.len() > 128
+                    || id.chars().any(|ch| ch.is_control() || ch.is_whitespace())
+            })
+        {
+            return Err(
+                "`plugins.required` requires at most 128 unique bounded manifest IDs".into(),
             );
         }
         Ok(())
@@ -149,6 +313,10 @@ impl UnastarConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ServerConfigFile {
+    /// Optional HTTP signaling listener. Omit the table to disable NetherNet.
+    pub nethernet: Option<NetherNetConfig>,
+    /// Maximum duration of the complete Bedrock join, on either transport.
+    pub handshake_timeout_seconds: u64,
     pub bind_address: String,
     pub motd: String,
     pub max_players: u32,
@@ -177,9 +345,59 @@ pub struct ServerConfigFile {
     pub operators: Vec<String>,
 }
 
+/// HTTP signaling and bounded negotiation settings for a NetherNet listener.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NetherNetConfig {
+    /// Optional PKCS#8 P-384 server key, loaded or created before the listener binds.
+    /// Omission retains one generated key per listener lifetime.
+    pub signing_key_path: Option<std::path::PathBuf>,
+    /// HTTP listener address. TLS can be terminated by a reverse proxy.
+    pub bind_address: std::net::SocketAddr,
+    /// Deadline for an HTTP offer and its WebRTC connection establishment.
+    pub negotiation_timeout_seconds: u64,
+    /// Maximum simultaneously tracked WebRTC negotiations/connections.
+    pub max_pending_connections: usize,
+    /// Explicit STUN/TURN servers; empty uses reachable host candidates only.
+    pub ice_servers: Vec<IceServerConfig>,
+    /// Advertise and use TURN relay candidates only.
+    pub relay_only: bool,
+}
+
+/// Static ICE service configuration. Secrets are omitted from Debug output.
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct IceServerConfig {
+    pub urls: Vec<String>,
+    pub username: String,
+    pub password: String,
+}
+impl std::fmt::Debug for IceServerConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IceServerConfig")
+            .field("url_count", &self.urls.len())
+            .finish_non_exhaustive()
+    }
+}
+
+impl Default for NetherNetConfig {
+    fn default() -> Self {
+        Self {
+            signing_key_path: None,
+            bind_address: std::net::SocketAddr::from(([127, 0, 0, 1], 18086)),
+            negotiation_timeout_seconds: 15,
+            max_pending_connections: 64,
+            ice_servers: Vec::new(),
+            relay_only: false,
+        }
+    }
+}
+
 impl Default for ServerConfigFile {
     fn default() -> Self {
         Self {
+            nethernet: None,
+            handshake_timeout_seconds: 30,
             bind_address: "127.0.0.1:19132".into(),
             motd: "Unastar Server".into(),
             max_players: 20,
@@ -315,11 +533,33 @@ impl PlayerDataStore {
         let contents =
             toml_edit::ser::to_string_pretty(state).map_err(PlayerDataError::Serialize)?;
 
-        tokio::fs::write(&path, contents)
-            .await
-            .map_err(|source| PlayerDataError::Write { path, source })?;
-
-        Ok(())
+        // A complete acknowledged position must survive a dimension migration;
+        // never expose a truncated TOML file or acknowledge buffered data only.
+        let temporary = self
+            .root
+            .join(format!(".{}.{}.pending", uuid, uuid::Uuid::new_v4()));
+        let result = async {
+            use tokio::io::AsyncWriteExt;
+            let mut file = tokio::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temporary)
+                .await?;
+            file.write_all(contents.as_bytes()).await?;
+            file.sync_all().await?;
+            drop(file);
+            tokio::fs::rename(&temporary, &path).await?;
+            let root = self.root.clone();
+            tokio::task::spawn_blocking(move || std::fs::File::open(root)?.sync_all())
+                .await
+                .map_err(std::io::Error::other)??;
+            Ok::<(), std::io::Error>(())
+        }
+        .await;
+        if result.is_err() {
+            let _ = tokio::fs::remove_file(temporary).await;
+        }
+        result.map_err(|source| PlayerDataError::Write { path, source })
     }
 }
 

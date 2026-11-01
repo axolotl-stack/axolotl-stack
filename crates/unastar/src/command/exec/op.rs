@@ -12,7 +12,6 @@
 use crate::command::Operator;
 use crate::command::prelude::*;
 use crate::entity::components::{GameMode, PlayerSession, RuntimeEntityId};
-use crate::server::game::join::abilities_packet;
 use bevy_ecs::prelude::Resource;
 
 /// Who is an operator: names (ASCII case-insensitive) or XUIDs, initialized
@@ -122,7 +121,14 @@ fn resend_abilities(ctx: &mut CommandContext<'_>, player: Entity, operator: bool
         .get::<GameMode>(player)
         .copied()
         .unwrap_or(GameMode::Survival);
-    ctx.broadcast(abilities_packet(runtime_id, mode, operator));
+    let packet =
+        crate::server::game::flight::packet_for(ctx.world, player, runtime_id, mode, operator);
+    let mut sessions = ctx.world.query::<(Entity, &PlayerSession)>();
+    for (viewer, session) in sessions.iter(ctx.world) {
+        if crate::server::broadcast::player_views::can_receive_actor(ctx.world, player, viewer) {
+            let _ = session.send(packet.clone().into());
+        }
+    }
 }
 
 #[cfg(test)]
@@ -146,6 +152,23 @@ mod tests {
                 _ => None,
             })
             .collect()
+    }
+
+    #[test]
+    fn restricted_operator_updates_do_not_publish_abilities_to_excluded_viewers() {
+        let mut h = Harness::new();
+        let bob = h.player("Bob", false);
+        let alice = h.player("Alice", false);
+        h.sent(alice);
+        h.world()
+            .entity_mut(bob)
+            .insert(crate::entity::components::ActorAudience::only([]));
+        assert!(console(&mut h, "/op Bob").is_success());
+        assert!(abilities(&mut h, alice).is_empty());
+        assert_eq!(
+            abilities(&mut h, bob),
+            [EnumsCommandPermissionLevel::GameDirectors]
+        );
     }
 
     #[test]
@@ -176,7 +199,7 @@ mod tests {
         let sent = h.sent(bob);
         assert!(sent.iter().any(|p| matches!(p,
             McpePacketData::UpdateAbilitiesPacket(p)
-                if p.data.command_permissions == EnumsCommandPermissionLevel::Gamedirectors)));
+                if p.data.command_permissions == EnumsCommandPermissionLevel::GameDirectors)));
         assert!(
             sent.iter()
                 .any(|p| matches!(p, McpePacketData::TextPacket(t)

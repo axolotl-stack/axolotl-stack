@@ -43,6 +43,42 @@ fn kinds() -> Arc<ComponentKinds> {
 }
 
 #[test]
+fn condition_marker_groups_update_and_remove_both_flag_words() {
+    use crate::entity::definition::flags::{self, ActorFlags};
+    use jolyne::valentine::actor_flags;
+
+    let mut kinds = ComponentKindsBuilder::default();
+    flags::register_component_kinds(&mut kinds).unwrap();
+    let definition = CompiledDefinition::compile(
+        &source(
+            json!({}),
+            json!({"conditions": {
+                "minecraft:fire_immune": {},
+                "minecraft:renders_when_invisible": {}
+            }}),
+        ),
+        kinds.freeze(),
+    )
+    .unwrap();
+    let group = definition.group("conditions").unwrap();
+    let mut world = World::new();
+    let actor = world.spawn_empty().id();
+    attach_definition(&mut world, actor, definition).unwrap();
+    queue_group_change(&mut world, actor, GroupChange::Add(group.clone())).unwrap();
+    apply_pending_definitions(&mut world);
+    let flags = world.get::<ActorFlags>(actor).unwrap();
+    assert!(flags.get(actor_flags::FIRE_IMMUNE).unwrap());
+    assert!(flags.get(actor_flags::RENDERS_WHEN_INVISIBLE).unwrap());
+    assert_ne!(flags.snapshot().words()[0], 0);
+    assert_ne!(flags.snapshot().words()[1], 0);
+    queue_group_change(&mut world, actor, GroupChange::Remove(group)).unwrap();
+    apply_pending_definitions(&mut world);
+    let flags = world.get::<ActorFlags>(actor).unwrap();
+    assert!(!flags.get(actor_flags::FIRE_IMMUNE).unwrap());
+    assert!(!flags.get(actor_flags::RENDERS_WHEN_INVISIBLE).unwrap());
+}
+
+#[test]
 fn native_destructive_group_removal_reaches_actual_ecs_state() {
     let kinds = kinds();
     let baby = kinds.resolve(ActorComponent::IsBaby).unwrap();

@@ -8,8 +8,18 @@
 //! - LevelDB (default) - standard Bedrock-compatible storage
 //! - BlazeDB - high-performance with spatial indexing
 
+pub mod column_runtime;
+pub mod column_writer;
+pub mod item_grants;
 mod keys;
+pub mod player_writer;
 mod provider;
+mod restoration;
+pub use restoration::{
+    RestorationCheckpoint, RestorationEffect, RestorationFoodPolicy, RestorationSupplement,
+};
+pub mod source;
+pub mod terminal;
 
 // LevelDB implementations
 mod leveldb_player;
@@ -20,6 +30,7 @@ pub mod blazedb;
 pub mod cache;
 pub mod morton;
 
+pub use crate::entity::player_life::occurrence::NativeDeathOccurrence;
 pub use blazedb::BlazeDBProvider;
 pub use keys::*;
 pub use leveldb_player::LevelDBPlayerProvider;

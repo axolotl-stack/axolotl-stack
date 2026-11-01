@@ -74,6 +74,21 @@ const SYSTEMS: &[(&str, &str, &str)] = &[
     ("world", "world.world_border", "world border limits"),
     (
         "world",
+        "world.configured_dimension_worlds",
+        "declarative startup dimensions, isolated providers and durable world identities",
+    ),
+    (
+        "world",
+        "world.atomic_column_writes",
+        "serialized column persistence with durable epochs and atomic effect receipts",
+    ),
+    (
+        "world",
+        "world.portable_terrain_configuration",
+        "portable generator preset configuration and built-in biome decoration",
+    ),
+    (
+        "world",
         "world.difficulty",
         "difficulty and regional difficulty effects",
     ),

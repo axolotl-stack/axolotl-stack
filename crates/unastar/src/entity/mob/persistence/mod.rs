@@ -20,6 +20,12 @@
 //! | `Age` | Int | baby age: negative ticks until grown, when growing |
 //! | `GrowthPaused` | Byte | baby growth paused |
 //! | `entries` | List of Compound | `minecraft:spawn_entity` timers by rule: `SpawnTimer` (Int, ticks until the rule fires, 0 = roll a new wait) and `StopSpawning` (Byte, a fired single-use rule) |
+//! | `UnastarTeleportWaits` | List of 2 Long | remaining minimum/random wait ticks (server extension) |
+//! | `UnastarCarriedBlock` | Compound | carried block name and typed states (server extension) |
+//! | `UnastarHoverOffset` | Float | preferred target-relative vertical offset (server extension) |
+//! | `UnastarHoverTicks` | Int | active ticks until that offset changes, at most 100 (server extension) |
+//! | `UnastarAngerTicks` | Long | remaining timed anger ticks (server extension) |
+//! | `UnastarAngerCalmed` | Byte | whether the timer already completed (server extension) |
 //! | `Mainhand`, `Offhand` | List of 1 item Compound | held items ([`crate::entity::mob::gear::persist`]: `Name`, `Count`, `Damage`, `WasPickedUp`, optional `tag`) |
 //! | `Armor` | List of 4 item Compounds | head, chest, legs, feet |
 //! | `SlotDropChances` | List of Compound | authored drop chances: `Slot` (String: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) and `DropChance` (Float) |
@@ -45,7 +51,9 @@ use bevy_ecs::prelude::*;
 use bevy_ecs::world::DeferredWorld;
 
 pub use load::{ActorDecodeError, RestoreError, restore_mob};
+#[cfg(test)]
 use save::encode_mob;
+use save::encode_mob_at;
 
 use crate::entity::components::Position;
 use crate::entity::mob::MobKind;
@@ -167,6 +175,9 @@ pub fn restore_chunk_actors(world: &mut World) {
 pub struct ChunkSnapshot {
     pub chunk: Entity,
     pub pos: ChunkPos,
+    pub(crate) dirty_generation: u64,
+    pub(crate) captured_tick: u64,
+    pub(crate) terrain_witness: Option<(uuid::Uuid, u64)>,
     /// The column to write, or `None` when storage is already up to date
     /// (clean terrain, no mobs, no actors stored before).
     pub column: Option<ChunkColumn>,
@@ -183,6 +194,17 @@ pub fn snapshot_chunks(
     chunks: &[Entity],
     take_terrain: bool,
 ) -> Vec<ChunkSnapshot> {
+    snapshot_at_tick(world, chunks, take_terrain, save::current_tick(world))
+}
+
+/// Re-encode unchanged absolute actor timers against the original capture
+/// clock; actual component mutations remain visible in the saved values.
+pub(crate) fn snapshot_at_tick(
+    world: &mut World,
+    chunks: &[Entity],
+    take_terrain: bool,
+    captured_tick: u64,
+) -> Vec<ChunkSnapshot> {
     let mut index = HashMap::with_capacity(chunks.len());
     for (slot, &chunk) in chunks.iter().enumerate() {
         if let Some(pos) = world.get::<ChunkPosition>(chunk) {
@@ -193,10 +215,12 @@ pub fn snapshot_chunks(
     let mut live = HashSet::new();
     // Projectiles in flight are not stored or unloaded with the chunk:
     // their flight state (owner, ticks in flight) has no saved form here, so
-    // they stay in memory, frozen until their chunk loads again.
+    // they stay in memory, frozen until their chunk loads again. Clouds are
+    // also transient; their bounded lifetime continues in memory.
     let mut mobs = world.query_filtered::<(Entity, &Position, Has<Dead>, Option<&MobUniqueId>), (
         With<MobKind>,
         Without<crate::entity::components::Projectile>,
+        Without<crate::entity::projectile::cloud::AreaEffectCloud>,
     )>();
     for (mob, position, dead, id) in mobs.iter(world) {
         if !dead && let Some(id) = id {
@@ -225,10 +249,10 @@ pub fn snapshot_chunks(
                 continue;
             }
             let unique_id = unique_id(world, mob);
-            let nbt = encode_mob(world, mob, unique_id);
+            let nbt = encode_mob_at(world, mob, unique_id, captured_tick);
             actors.push(StoredActor { unique_id, nbt });
         }
-        let (stored, dirty) = {
+        let (stored, dirty, dirty_generation) = {
             let store = world.get::<ChunkActorStore>(chunk);
             if let Some(store) = store {
                 actors.extend(store.foreign.iter().cloned());
@@ -238,6 +262,9 @@ pub fn snapshot_chunks(
                 world
                     .get::<ChunkStateFlags>(chunk)
                     .is_some_and(ChunkStateFlags::is_dirty),
+                world
+                    .get::<ChunkStateFlags>(chunk)
+                    .map_or(0, ChunkStateFlags::dirty_generation),
             )
         };
         let column = if dirty || !actors.is_empty() || !stored.is_empty() {
@@ -268,6 +295,11 @@ pub fn snapshot_chunks(
         snapshots.push(ChunkSnapshot {
             chunk,
             pos,
+            dirty_generation,
+            captured_tick,
+            terrain_witness: column
+                .as_ref()
+                .map(|column| column.chunk.mutation_witness()),
             column,
             mobs,
         });
@@ -290,8 +322,18 @@ pub fn mark_saved(world: &mut World, snapshot: &ChunkSnapshot) {
             .stored
             .extend(column.actors.iter().map(|actor| actor.unique_id));
     }
+    let same_terrain = chunk
+        .get::<ChunkData>()
+        .map(|data| data.inner.mutation_witness())
+        == snapshot.terrain_witness;
     if let Some(mut flags) = chunk.get_mut::<ChunkStateFlags>() {
-        flags.clear_dirty();
+        if same_terrain && flags.dirty_generation() == snapshot.dirty_generation {
+            flags.clear_dirty();
+        } else if !same_terrain && !flags.is_dirty() {
+            // Preserve a mutation even if its caller only changed terrain and
+            // did not mark the ECS persistence flag.
+            flags.mark_dirty();
+        }
     }
 }
 

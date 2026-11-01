@@ -5,6 +5,8 @@ pub mod chunk;
 pub mod clock;
 pub mod ecs;
 pub mod generator;
+mod identity;
+pub use identity::WorldIdentity;
 pub mod regional_difficulty;
 pub mod rules;
 pub mod weather;
@@ -78,6 +80,11 @@ pub enum WorldGenerator {
     VoidSpawnPlatform { platform_radius_chunks: u32 },
     /// Java-style terrain (Java Edition 1.21.11 parity target).
     Java { seed: i64 },
+    /// Built-in terrain and biome features, excluding authored structures and template features.
+    JavaTerrain {
+        seed: i64,
+        preset: generator::JavaDimension,
+    },
     /// Bedrock-style worldgen from a local BDS 1.26.51 install.
     Bedrock { seed: i64 },
 }
@@ -93,6 +100,9 @@ impl WorldGenerator {
                 platform_radius_chunks,
             }),
             Self::Java { seed } => std::sync::Arc::new(generator::JavaGenerator::new(seed)),
+            Self::JavaTerrain { seed, preset } => {
+                std::sync::Arc::new(generator::JavaGenerator::portable(seed, preset))
+            }
             Self::Bedrock { seed } => {
                 #[cfg(feature = "bedrock-worldgen")]
                 {
@@ -112,7 +122,7 @@ impl WorldGenerator {
     pub fn uses_generation_pool(&self) -> bool {
         match self {
             Self::SuperFlat | Self::VoidSpawnPlatform { .. } => false,
-            Self::Java { .. } | Self::Bedrock { .. } => true,
+            Self::Java { .. } | Self::JavaTerrain { .. } | Self::Bedrock { .. } => true,
         }
     }
 
@@ -188,5 +198,15 @@ impl WorldConfig {
             },
             ..Self::default()
         }
+    }
+}
+
+/// Vanilla protocol dimension block bounds, with an exclusive upper limit.
+/// The physical chunk storage accommodates the union of these ranges.
+pub fn dimension_block_bounds(dimension: i32) -> std::ops::Range<i32> {
+    match dimension {
+        1 => 0..128,
+        2 => 0..256,
+        _ => -64..320,
     }
 }

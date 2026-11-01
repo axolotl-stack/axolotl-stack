@@ -9,6 +9,7 @@ pub mod containers;
 mod creative_tests;
 pub mod engine;
 mod pick;
+mod staged;
 
 use crate::registry::block::BlockNetworkIds;
 
@@ -84,8 +85,6 @@ pub(crate) mod test_support {
     }
 }
 
-use std::time::Instant;
-
 use bevy_ecs::prelude::*;
 use bevy_ecs::query::QueryData;
 use bevy_ecs::system::SystemState;
@@ -145,7 +144,28 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
     let actions = std::mem::take(&mut world.resource_mut::<InventoryPacketQueue>().0);
     let _span = tracing::info_span!("apply_inventory", count = actions.len()).entered();
     for (entity, action) in actions {
-        if world.get::<FatalInventoryRequest>(entity).is_some() {
+        if super::inventory_effects::is_quarantined(world, entity)
+            || world.get::<FatalInventoryRequest>(entity).is_some()
+        {
+            continue;
+        }
+        if let InventoryAction::ItemStackRequest(packet) = &action
+            && (super::inventory_effects::grant_pending(world, entity)
+                || !authorize_container_request(world, entity))
+        {
+            reject_container_requests(world, entity, packet);
+            continue;
+        }
+        if let InventoryAction::ItemStackRequest(packet) = &action {
+            staged::apply(world, entity, packet);
+            continue;
+        }
+        if super::inventory_effects::grant_pending(world, entity)
+            && (matches!(&action, InventoryAction::BlockPick(_))
+                || matches!(&action, InventoryAction::Transaction(packet)
+                    if matches!(&packet.transaction, InventoryTransactionPacketTransaction::NormalTransactionData(_))))
+        {
+            super::send_inventory_contents(world, entity);
             continue;
         }
         let can_drop = world
@@ -163,34 +183,15 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
             Some(ScreenKind::Block(screen)) => Some(screen),
             _ => None,
         };
-        let mut block_window = match (&action, block_screen) {
-            (InventoryAction::ItemStackRequest(_), Some(screen)) => {
-                super::containers::window_slots(world, entity, screen)
-                    .map(|slots| (screen, slots.clone(), slots))
-            }
-            _ => None,
-        };
         let closing = matches!(action, InventoryAction::ContainerClose(_));
         let mut drops = Vec::new();
-        let mut fatal = false;
         {
-            let (items, crafting, world_template, config, mut players, mut events) =
+            let (items, _crafting, _world_template, config, mut players, mut events) =
                 state.get_mut(world);
             let block_ids = config.0.block_network_ids;
             match action {
-                InventoryAction::ItemStackRequest(pk) => {
-                    if let Ok(mut player) = players.get_mut(entity) {
-                        (drops, fatal) = handle_item_stack_request(
-                            &pk,
-                            &items.0,
-                            &crafting.0,
-                            &world_template,
-                            block_ids,
-                            &mut player,
-                            can_drop,
-                            block_window.as_mut().map(|(_, _, slots)| slots),
-                        );
-                    }
+                InventoryAction::ItemStackRequest(_) => {
+                    unreachable!("stack requests use the owned staging path")
                 }
                 InventoryAction::ContainerClose(pk) => {
                     if let Ok(mut player) = players.get_mut(entity) {
@@ -226,9 +227,6 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                 }
             }
         }
-        if let Some((screen, before, after)) = block_window {
-            super::containers::commit_window(world, entity, screen, &before, after);
-        }
         if closing && let Some(screen) = block_screen {
             super::containers::stop_viewing(world, entity, screen);
         }
@@ -244,85 +242,130 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                 "exclusive drop commit preserves validated thrower components"
             );
         }
-        if fatal {
-            world.entity_mut(entity).insert(FatalInventoryRequest);
-        }
     }
 }
 
-/// One response packet per incoming packet, in request order. The returned
-/// drops belong only to committed frames and are spawned by the exclusive
-/// caller before the next input packet can mutate the thrower.
-#[allow(clippy::too_many_arguments)]
-fn handle_item_stack_request(
-    pk: &jolyne::valentine::ItemStackRequestPacket,
-    items: &ItemRegistry,
-    crafting: &crate::crafting::execution::CraftingExecutor,
-    world_template: &super::types::ServerWorldTemplate,
-    block_ids: BlockNetworkIds,
-    player: &mut PlayerInventoryItem<'_, '_>,
-    can_drop: bool,
-    mut block: Option<&mut Inventory>,
-) -> (Vec<ItemStack>, bool) {
-    let creative_item = |net_id: u32| creative_stack(items, world_template, net_id, block_ids);
-    let ctx = engine::Context {
-        screen: player.windows.screen(),
-        creative: *player.mode == GameMode::Creative,
-        can_drop,
-        now: Instant::now(),
-        creative_item: &creative_item,
-        crafting,
+/// Reauthorize retained block windows before copying slots or borrowing inventory
+/// state. This prevents a permission change from leaving old windows writable.
+fn authorize_container_request(world: &mut World, player: Entity) -> bool {
+    let Some((window, ScreenKind::Block(screen))) = world
+        .get::<ContainerWindows>(player)
+        .and_then(|windows| Some((windows.open_id()?, windows.screen())))
+    else {
+        return true;
     };
-    let mut responses = Vec::with_capacity(pk.requests.len());
-    let mut drops = Vec::new();
-    let mut fatal = false;
-    for request in &pk.requests {
-        let mut stores = engine::Stores {
-            main: &mut player.main.0,
-            armor: &mut player.armor,
-            offhand: &mut player.offhand.0,
-            ui: &mut player.ui.0,
-            block: block.as_deref_mut(),
+    let positions = super::containers::authorization_positions(world, screen.at);
+    let coordinates: Vec<_> = positions.iter().map(|pos| (pos.x, pos.y, pos.z)).collect();
+    let allowed = super::blocks::authorize_block_operation(
+        world,
+        player,
+        super::block_interaction::BlockInteractionKind::Use,
+        &coordinates,
+    ) && world
+        .get::<ContainerWindows>(player)
+        .is_some_and(|windows| {
+            windows.open_id() == Some(window) && windows.screen() == ScreenKind::Block(screen)
+        })
+        && super::containers::authorization_positions(world, screen.at) == positions;
+    if !allowed {
+        close_denied_window(world, player, screen);
+    }
+    allowed
+}
+
+/// Close a rejected window without moving cursor stacks or changing inventory.
+/// Missing source components are expected when a callback despawned its player.
+fn close_denied_window(
+    world: &mut World,
+    player: Entity,
+    previous: crate::entity::components::BlockScreen,
+) {
+    let current = world
+        .get::<ContainerWindows>(player)
+        .map(|windows| (windows.open_id(), windows.screen()));
+    if let Some((Some(window), screen)) = current {
+        if let Some(mut windows) = world.get_mut::<ContainerWindows>(player) {
+            windows.close();
+        }
+        let kind = match screen {
+            ScreenKind::Block(block) => block.kind.wire_type() as u8,
+            _ => WireContainerType::None.byte(),
         };
-        let outcome = engine::process(request, &mut stores, &mut player.request_ids, &ctx);
-        if outcome.fatal_invalid_id {
+        if let Some(session) = world.get::<PlayerSession>(player) {
+            session.send(
+                ContainerClosePacket {
+                    container_id: window,
+                    container_type: kind,
+                    server_initiated_close: true,
+                }
+                .into(),
+            );
+        }
+        if let ScreenKind::Block(block) = screen
+            && block != previous
+        {
+            super::containers::stop_viewing(world, player, block);
+        }
+    }
+    super::containers::stop_viewing(world, player, previous);
+}
+
+/// Reject every frame without passing its actions into the mutation engine, then
+/// send authoritative player/UI slots so predicted transfers cannot remain shown.
+fn reject_container_requests(
+    world: &mut World,
+    player: Entity,
+    packet: &jolyne::valentine::ItemStackRequestPacket,
+) {
+    let Some(session) = world.get::<PlayerSession>(player) else {
+        return;
+    };
+    let mut responses = Vec::new();
+    let mut fatal = false;
+    for request in &packet.requests {
+        let id = request.client_request_id.id;
+        if id >= 0 || id % 2 == 0 {
             fatal = true;
             break;
         }
-        send_equipment_updates(
-            &outcome.equipment,
-            &player.armor,
-            &player.offhand.0,
-            player.session,
-            block_ids,
-        );
-        drops.extend(outcome.drops);
-        responses.extend(outcome.response);
+        responses.push(jolyne::valentine::ItemStackResponseInfo {
+            result: jolyne::valentine::EnumsItemStackNetResult::Error,
+            client_request_id:
+                jolyne::valentine::TypedClientNetIdstructItemStackRequestIdTagint32T0 { id },
+            containers: None,
+        });
     }
     if !responses.is_empty() {
-        let _ = player.session.send(McpePacket::from(
-            jolyne::valentine::ItemStackResponsePacket { responses },
-        ));
+        session.send(jolyne::valentine::ItemStackResponsePacket { responses }.into());
     }
     if fatal {
-        let _ = player
-            .session
-            .send(McpePacket::from(invalid_request_warning()));
+        session.send(invalid_request_warning().into());
     }
-    (drops, fatal)
+    resync_inventory(world, player);
+    if let Some(ui) = world.get::<PlayerUi>(player) {
+        send_window(
+            UI_WINDOW,
+            &ui.0,
+            session,
+            super::types::block_network_ids(world),
+        );
+    }
+    if fatal && let Ok(mut entity) = world.get_entity_mut(player) {
+        entity.insert(FatalInventoryRequest);
+    }
 }
 
 /// BDS 1.26.51, entity-player-drop-20261026-v4 seq 468/471: positive ID 1
 /// receives this terminating warning, then RakNet closes. There is no
 /// Minecraft Disconnect packet. The network loop owns flushing the warning
-/// and closing the transport when it sees Terminatingconnection.
+/// and closing the transport when it sees TerminatingConnection.
 fn invalid_request_warning() -> jolyne::valentine::PacketViolationWarningPacket {
     use jolyne::valentine::{
         EnumsPacketViolationSeverity, EnumsPacketViolationType, PacketViolationWarningPacket,
     };
     PacketViolationWarningPacket {
-        violation_type: EnumsPacketViolationType::Packetmalformed,
-        violation_severity: EnumsPacketViolationSeverity::Terminatingconnection,
+        violation_type: EnumsPacketViolationType::PacketMalformed,
+        violation_severity: EnumsPacketViolationSeverity::TerminatingConnection,
         violation_packet_id: 147,
         violation_context:
             "expected a valid ItemStackRequestId\nreadNoHeader failed! packetId: 147".into(),
@@ -400,7 +443,7 @@ pub(crate) const UI_WINDOW: u8 = 124;
 /// windows: the zero value (`AnvilInputContainer`, no dynamic ID).
 pub(crate) const UNNAMED_CONTAINER: jolyne::valentine::FullContainerName =
     jolyne::valentine::FullContainerName {
-        container_name: EnumsContainerEnumName::Anvilinputcontainer,
+        container_name: EnumsContainerEnumName::AnvilInputContainer,
         dynamic_id: None,
     };
 
@@ -550,7 +593,7 @@ fn handle_interact(entity: Entity, pk: &InteractPacket, player: &mut PlayerInven
     debug!(entity = ?entity, action = ?pk.action, "Interact packet");
 
     match pk.action {
-        EnumsInteractPacketPayloadAction::Openinventory => {
+        EnumsInteractPacketPayloadAction::OpenInventory => {
             // A second ContainerOpen for an open window crashes the client.
             if player.windows.open_id().is_some() {
                 debug!(entity = ?entity, "Window already open, skipping");
@@ -572,7 +615,7 @@ fn handle_interact(entity: Entity, pk: &InteractPacket, player: &mut PlayerInven
                 },
             }));
         }
-        EnumsInteractPacketPayloadAction::Interactupdate => {}
+        EnumsInteractPacketPayloadAction::InteractUpdate => {}
         _ => {
             debug!(entity = ?entity, action = ?pk.action, "Unhandled Interact action");
         }
@@ -696,7 +739,7 @@ fn apply_normal_actions(
         return false;
     }
     for action in actions {
-        if action.source.source_type != EnumsInventorySourceType::Containerinventory
+        if action.source.source_type != EnumsInventorySourceType::ContainerInventory
             || action.source.container_id != Some(0)
             || action.source.bit_flags.is_some()
         {
@@ -824,7 +867,7 @@ mod tests {
     fn action(slot: u32, from: u16, to: u16) -> jolyne::valentine::InventoryAction {
         jolyne::valentine::InventoryAction {
             source: jolyne::valentine::InventorySource {
-                source_type: EnumsInventorySourceType::Containerinventory,
+                source_type: EnumsInventorySourceType::ContainerInventory,
                 container_id: Some(0),
                 ..Default::default()
             },
@@ -914,7 +957,7 @@ mod tests {
             },
             {
                 let mut a = action(1, 0, 1);
-                a.source.source_type = EnumsInventorySourceType::Worldinteraction;
+                a.source.source_type = EnumsInventorySourceType::WorldInteraction;
                 a
             },
             action(99, 0, 1),
@@ -1045,7 +1088,7 @@ mod tests {
                     // The client names created output by its request ID.
                     source: ItemStackRequestCerealSlotInfoData {
                         fullcontainername: FullContainerName {
-                            container_name: EnumsContainerEnumName::Createdoutputcontainer,
+                            container_name: EnumsContainerEnumName::CreatedOutputContainer,
                             dynamic_id: None,
                         },
                         slot: 50,
@@ -1054,7 +1097,7 @@ mod tests {
                     destination: ItemStackRequestCerealSlotInfoData {
                         fullcontainername: FullContainerName {
                             container_name:
-                                EnumsContainerEnumName::Combinedhotbarandinventorycontainer,
+                                EnumsContainerEnumName::CombinedHotbarAndInventoryContainer,
                             dynamic_id: None,
                         },
                         ..Default::default()
@@ -1132,7 +1175,7 @@ mod tests {
             (
                 GameMode::Creative,
                 0,
-                EnumsItemStackNetResult::Invalidadjustedamount,
+                EnumsItemStackNetResult::InvalidAdjustedAmount,
             ),
             (GameMode::Survival, 16, EnumsItemStackNetResult::Error),
         ] {
@@ -1179,7 +1222,7 @@ mod tests {
         *world.get_mut::<ContainerWindows>(entity).unwrap() = ContainerWindows::default();
         let open = || {
             super::InventoryAction::Interact(InteractPacket {
-                action: EnumsInteractPacketPayloadAction::Openinventory,
+                action: EnumsInteractPacketPayloadAction::OpenInventory,
                 ..Default::default()
             })
         };
@@ -1456,7 +1499,7 @@ mod drop_tests {
         }
         let source = ItemStackRequestCerealSlotInfoData {
             fullcontainername: FullContainerName {
-                container_name: EnumsContainerEnumName::Combinedhotbarandinventorycontainer,
+                container_name: EnumsContainerEnumName::CombinedHotbarAndInventoryContainer,
                 dynamic_id: None,
             },
             slot: 0,
@@ -1556,7 +1599,7 @@ mod drop_tests {
         };
         assert_eq!(
             packet.responses[0].result,
-            EnumsItemStackNetResult::Invalidadjustedamount
+            EnumsItemStackNetResult::InvalidAdjustedAmount
         );
         assert!(packet.responses[0].containers.is_none());
         assert!(rx.try_recv().is_err());
@@ -1581,7 +1624,7 @@ mod drop_tests {
         };
         assert_eq!(
             packet.responses[0].result,
-            EnumsItemStackNetResult::Cannotdropitem
+            EnumsItemStackNetResult::CannotDropItem
         );
     }
 
@@ -1741,7 +1784,7 @@ mod real_player_drop_test {
                                         source: ItemStackRequestCerealSlotInfoData {
                                             fullcontainername: FullContainerName {
                                                 container_name:
-                                                    EnumsContainerEnumName::Hotbarcontainer,
+                                                    EnumsContainerEnumName::HotbarContainer,
                                                 dynamic_id: None,
                                             },
                                             slot: 0,
@@ -1871,7 +1914,7 @@ mod grid_transaction_tests {
             actions.push(Action::DropActionData(
                 ItemStackRequestCerealDropActionData {
                     amount: 2,
-                    source: slot(Name::Combinedhotbarandinventorycontainer, 0, drop_id),
+                    source: slot(Name::CombinedHotbarAndInventoryContainer, 0, drop_id),
                     ..Default::default()
                 },
             ));
@@ -1886,20 +1929,20 @@ mod grid_transaction_tests {
             }),
             Action::ConsumeActionData(ItemStackRequestCerealConsumeActionData {
                 amount: 1,
-                source: slot(Name::Craftinginputcontainer, 28, input_id),
+                source: slot(Name::CraftingInputContainer, 28, input_id),
                 ..Default::default()
             }),
             take(
                 4,
-                slot(Name::Createdoutputcontainer, 50, -1),
-                slot(Name::Combinedhotbarandinventorycontainer, 1, 0),
+                slot(Name::CreatedOutputContainer, 50, -1),
+                slot(Name::CombinedHotbarAndInventoryContainer, 1, 0),
             ),
         ]);
         if late_failure {
             actions.push(take(
                 0,
-                slot(Name::Combinedhotbarandinventorycontainer, 1, -1),
-                slot(Name::Combinedhotbarandinventorycontainer, 2, 0),
+                slot(Name::CombinedHotbarAndInventoryContainer, 1, -1),
+                slot(Name::CombinedHotbarAndInventoryContainer, 2, 0),
             ));
         }
         let mut requests = vec![ItemStackRequestPacketDataRequestData {
@@ -1912,8 +1955,8 @@ mod grid_transaction_tests {
                 client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 { id: -3 },
                 actions: vec![take(
                     4,
-                    slot(Name::Combinedhotbarandinventorycontainer, 1, -1),
-                    slot(Name::Combinedhotbarandinventorycontainer, 2, 0),
+                    slot(Name::CombinedHotbarAndInventoryContainer, 1, -1),
+                    slot(Name::CombinedHotbarAndInventoryContainer, 2, 0),
                 )],
                 ..Default::default()
             });
@@ -2006,7 +2049,7 @@ mod grid_transaction_tests {
         assert_eq!(packet.responses.len(), 1);
         assert_eq!(
             packet.responses[0].result,
-            EnumsItemStackNetResult::Invalidadjustedamount
+            EnumsItemStackNetResult::InvalidAdjustedAmount
         );
         assert!(packet.responses[0].containers.is_none());
         assert!(rx.try_recv().is_err());

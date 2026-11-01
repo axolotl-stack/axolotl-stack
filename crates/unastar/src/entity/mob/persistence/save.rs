@@ -22,7 +22,14 @@ pub(super) fn list<T: Into<NBTTag>>(values: impl IntoIterator<Item = T>) -> NBTT
 }
 
 /// Encode one mob as Bedrock actor NBT. `mob` must be a mob entity.
+#[cfg(test)]
 pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> {
+    encode_mob_at(world, mob, unique_id, current_tick(world))
+}
+
+/// Encode against a fixed capture clock for late physical-state comparisons;
+/// unchanged absolute deadlines must not look like new actor mutations.
+pub(super) fn encode_mob_at(world: &World, mob: Entity, unique_id: i64, now: u64) -> Vec<u8> {
     let archetype = &world.get::<MobKind>(mob).expect("saved actors are mobs").0;
     let state = world
         .get::<DefinitionState>(mob)
@@ -105,7 +112,38 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
     if let Some(colour) = crate::entity::mob::components::color::color_of(world, mob) {
         put("Color", NBTTag::Byte(colour.into()));
     }
-    let now = current_tick(world);
+    if let Some(hover) = world.get::<crate::entity::mob::native::motion::HoverState>(mob) {
+        put("UnastarHoverOffset", NBTTag::Float(hover.offset.into()));
+        put(
+            "UnastarHoverTicks",
+            NBTTag::Int(i32::from(hover.remaining).into()),
+        );
+    }
+    if let Some(teleport) = world.get::<crate::entity::mob::components::teleport::Teleport>(mob) {
+        put(
+            "UnastarTeleportWaits",
+            list(
+                [teleport.earliest_random_tick, teleport.next_random_tick].map(|deadline| {
+                    tag::Long(i64::try_from(deadline.saturating_sub(now)).unwrap_or(i64::MAX))
+                }),
+            ),
+        );
+    }
+    if let Some(anger) = world.get::<crate::entity::mob::components::reactive::Angry>(mob) {
+        let remaining = if anger.calmed {
+            0
+        } else {
+            anger.until_tick.saturating_sub(now)
+        };
+        put(
+            "UnastarAngerTicks",
+            NBTTag::Long(i64::try_from(remaining).unwrap_or(i64::MAX).into()),
+        );
+        put(
+            "UnastarAngerCalmed",
+            NBTTag::Byte(u8::from(anger.calmed).into()),
+        );
+    }
     if let Some(love) = world.get::<InLove>(mob)
         && love.until_tick > now
     {
@@ -137,6 +175,9 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
     }
     for (name, value) in crate::entity::mob::gear::persist::save(world, mob) {
         put(name, value);
+    }
+    if let Some(carried) = crate::entity::mob::carry::save(world, mob) {
+        put("UnastarCarriedBlock", carried);
     }
 
     let mut out = Vec::new();

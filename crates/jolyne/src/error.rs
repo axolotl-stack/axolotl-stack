@@ -521,19 +521,19 @@ impl JolyneError {
             | Self::LoginRefused(_)
             // Refusals are answered by the phase itself (PlayStatus or Kicked).
             | Self::Refused(_) => return None,
-            Self::Auth(_) => R::Notauthenticated,
+            Self::Auth(_) => R::NotAuthenticated,
             Self::Protocol(ProtocolError::IncompatibleProtocol { .. }) => return None,
             Self::Protocol(ProtocolError::Timeout(HandshakePhase::Spawn)) => {
-                R::Loadingstatetimeout
+                R::LoadingStateTimeout
             }
             Self::Protocol(ProtocolError::Timeout(_)) => R::Timeout,
-            Self::Protocol(ProtocolError::Pack(_)) => R::Resourcepackproblem,
-            Self::Protocol(ProtocolError::UnknownPacket(_)) => R::Unknownpacket,
+            Self::Protocol(ProtocolError::Pack(_)) => R::ResourcePackProblem,
+            Self::Protocol(ProtocolError::UnknownPacket(_)) => R::UnknownPacket,
             Self::Protocol(_)
             | Self::Decode(_)
             | Self::PacketDecode { .. }
             | Self::PacketTrailingBytes { .. }
-            | Self::NonValentinePacket(_) => R::Badpacket,
+            | Self::NonValentinePacket(_) => R::BadPacket,
         })
     }
 
@@ -543,12 +543,12 @@ impl JolyneError {
     pub fn disconnect_message(&self) -> &'static str {
         use EnumsConnectionDisconnectFailReason as R;
         match self.disconnect_reason() {
-            Some(R::Notauthenticated) => "Authentication failed.",
-            Some(R::Loadingstatetimeout) => "Timed out while joining the world.",
+            Some(R::NotAuthenticated) => "Authentication failed.",
+            Some(R::LoadingStateTimeout) => "Timed out while joining the world.",
             Some(R::Timeout) => "Connection timed out.",
-            Some(R::Resourcepackproblem) => "Resource pack negotiation failed.",
-            Some(R::Unknownpacket) => "Received an unknown packet.",
-            Some(R::Badpacket) => "Received an invalid packet.",
+            Some(R::ResourcePackProblem) => "Resource pack negotiation failed.",
+            Some(R::UnknownPacket) => "Received an unknown packet.",
+            Some(R::BadPacket) => "Received an invalid packet.",
             _ => "Disconnected.",
         }
     }
