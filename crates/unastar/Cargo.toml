@@ -45,6 +45,7 @@ bleveldb.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 anyhow = "1.0"
+fs2 = "0.4"
 smallvec = { version = "1.15", optional = true }
 
 # BlazeDB dependencies

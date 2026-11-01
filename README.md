@@ -90,9 +90,63 @@ Java Edition 1.21.11 `server.jar` (its structure templates are read at build tim
 UNASTAR_JAVA_SERVER_JAR=/path/to/server.jar cargo run --release -p unastar --features java-worldgen
 ```
 
-Without that jar, set `[world.generator] kind = "super_flat"` in `unastar.toml` and run
-`cargo run --release -p unastar`. The Bedrock-style generator (`kind = "bedrock"`) instead needs
+Without that jar, choose `super_flat`, `void_spawn_platform`, or the portable `java_terrain`
+generator and run `cargo run --release -p unastar`. The portable generator keeps built-in terrain,
+ores and vegetation; it excludes authored structures and template-backed fossils, including when
+the binary has optional templates. Choose the preset matching the world's dimension:
+
+```toml
+[world]
+dimension = 0
+[world.generator]
+kind = "java_terrain"
+seed = 12345
+preset = "overworld" # nether for dimension 1, end for dimension 2
+```
+
+The existing `java` selection keeps its full template requirement and generation semantics.
+The Bedrock-style generator (`kind = "bedrock"`) instead needs
 `--features bedrock-worldgen` and `UNASTAR_BDS_DIR` pointing at a local BDS 1.26.51 server directory.
+
+### Configured dimension worlds
+
+The ordinary server keeps its primary world at `worlds/default/db`. Configure its name and
+directory with `[world_storage]`; add up to two `[[secondary_worlds]]` entries for the other
+protocol dimensions. Each world has separate terrain, actors, containers and persistence, while
+all worlds share one serialized player database. Only one world per dimension 0, 1 or 2 is supported.
+
+```toml
+[world_storage]
+name = "default"
+data_dir = "worlds/default"
+
+[[secondary_worlds]]
+name = "lower"
+data_dir = "worlds/lower"
+[secondary_worlds.world]
+dimension = 1
+[secondary_worlds.world.generator]
+kind = "java_terrain"
+seed = 12345
+preset = "nether"
+[[secondary_worlds.spawn_rules]]
+name = "prepared-exit"
+previous_position = true
+always_at_location = true
+location = { x = 0.5, y = 65.62, z = 0.5 }
+```
+
+Choose an already prepared spawn location in each additional world; configuration does not
+construct platforms or check its floor. Returning players retain their actual saved dimension
+when that world's spawn rules request previous positions. Additional worlds require
+`players.leveldb_enabled = true`.
+
+Each storage directory has a synced `world.toml` recording its UUID, name, dimension, generator,
+seed, bounds and provider. Startup rejects changed settings, malformed metadata, overlapping
+directories and storage failures. Existing unmanifested data requires one explicit
+`adopt_existing = true` after verifying the original settings; adoption never bypasses an existing
+manifest's guard or rewrites chunks. Keep this manifest with the database when moving or backing
+up a world. The `WorldIdentity` resource exposes these validated facts to runtime adapters.
 
 ### Tests
 CI (`.github/workflows/test.yml`) runs `cargo fmt --all -- --check`,

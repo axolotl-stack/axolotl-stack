@@ -88,13 +88,40 @@ mode = "infinite"
 # max_z = 64
 
 [world.generator]
-# kinds: "super_flat" | "void_spawn_platform" | "java" | "bedrock" (edition-style kinds require seed)
+# kinds: "super_flat" | "void_spawn_platform" | "java" | "java_terrain" | "bedrock"
+# java_terrain needs no game files: set preset to overworld, nether or end,
+# matching world.dimension. It includes built-in biome features, excludes
+# authored structures/template fossils, and does not change the full java kind.
+# kind = "java_terrain"
+# preset = "overworld"
 # "bedrock" needs --features bedrock-worldgen and UNASTAR_BDS_DIR at build time.
 kind = "java"
 seed = 12345
 # For void worlds (kind = "void_spawn_platform"), generate a stone platform at chunk
 # coords [-r..r]:
 # platform_radius_chunks = 1
+
+[world_storage]
+# Primary identity and storage. Keep the directory and world.toml with world data.
+name = "default"
+data_dir = "worlds/default"
+# Only for operator-verified legacy data with no manifest; not a force-reset option.
+adopt_existing = false
+
+# Additional dimension example. Each needs its own directory and fixed spawn fallback.
+# [[secondary_worlds]]
+# name = "lower"
+# data_dir = "worlds/lower"
+# [secondary_worlds.world]
+# dimension = 1
+# [secondary_worlds.world.generator]
+# kind = "java_terrain"
+# seed = 12345
+# preset = "nether"
+# [[secondary_worlds.spawn_rules]]
+# previous_position = true
+# always_at_location = true
+# location = { x = 0.5, y = 65.62, z = 0.5 }
 
 [players]
 # Where Unastar stores per-player files (e.g. last known position).

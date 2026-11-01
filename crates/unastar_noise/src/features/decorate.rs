@@ -146,6 +146,34 @@ mod tests {
     }
 
     #[test]
+    fn portable_decoration_keeps_actual_ores_grass_and_forest_trees() {
+        let mut world = plains_world();
+        world.template_features = false;
+        world.biome = biome_index("minecraft:forest").unwrap();
+        decorate(&mut world);
+        assert!(world.count(states::COAL_ORE) > 0);
+        assert!(world.count(states::IRON_ORE) > 0);
+        assert!(
+            world
+                .blocks
+                .values()
+                .any(|state| state.is(super::super::java_blocks::blocks::OAK_LOG)
+                    || state.is(super::super::java_blocks::blocks::BIRCH_LOG))
+        );
+        assert!(
+            world
+                .blocks
+                .values()
+                .any(|state| state.is(super::super::java_blocks::blocks::SHORT_GRASS))
+        );
+        let mut repeated = plains_world();
+        repeated.template_features = false;
+        repeated.biome = world.biome;
+        decorate(&mut repeated);
+        assert_eq!(world.blocks, repeated.blocks);
+    }
+
+    #[test]
     fn different_seeds_decorate_differently() {
         let mut a = plains_world();
         decorate(&mut a);

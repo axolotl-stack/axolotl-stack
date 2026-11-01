@@ -187,6 +187,10 @@ fn strict_world_variants_still_load_valid_options() {
                 platform_radius_chunks: 2,
             },
             WorldGenerator::Java { seed: 42 },
+            WorldGenerator::JavaTerrain {
+                seed: 42,
+                preset: crate::world::generator::JavaDimension::Overworld,
+            },
             WorldGenerator::Bedrock { seed: 42 },
         ] {
             let world = WorldConfig {
@@ -199,6 +203,39 @@ fn strict_world_variants_still_load_valid_options() {
             assert_eq!(decoded, world);
         }
     }
+}
+
+#[test]
+fn portable_presets_load_without_template_features_and_validate_the_dimension() {
+    let file = ConfigFile::new();
+    for (dimension, preset) in [(0, "overworld"), (1, "nether"), (2, "end")] {
+        std::fs::write(&file.0, format!("[world]\ndimension={dimension}\n[world.generator]\nkind='java_terrain'\nseed=7\npreset='{preset}'\n")).unwrap();
+        let config = UnastarConfig::load_or_create(&file.0).unwrap();
+        assert!(config.world.generator.uses_generation_pool());
+        let source = toml_edit::ser::to_string(&config).unwrap();
+        let decoded: UnastarConfig = toml_edit::de::from_str(&source).unwrap();
+        assert_eq!(decoded.world, config.world);
+    }
+    for source in [
+        "[world.generator]\nkind='java_terrain'\nseed=7\npreset='moon'",
+        "[world.generator]\nkind='java_terrain'\nseed=7",
+        "[world.generator]\nkind='java_terrain'\nseed=7\npreset='overworld'\ntemplates=false",
+    ] {
+        std::fs::write(&file.0, source).unwrap();
+        assert!(matches!(
+            UnastarConfig::load_or_create(&file.0),
+            Err(ConfigError::Parse { .. })
+        ));
+    }
+    std::fs::write(
+        &file.0,
+        "[world]\ndimension=1\n[world.generator]\nkind='java_terrain'\nseed=7\npreset='end'",
+    )
+    .unwrap();
+    assert!(matches!(
+        UnastarConfig::load_or_create(&file.0),
+        Err(ConfigError::Validation(_))
+    ));
 }
 
 #[test]

@@ -146,7 +146,12 @@ pub(crate) async fn accept_join_sequence_in_worlds<T: Transport>(
     let mut saved_data = try_load_player_data(player_provider, Some(&uuid))
         .await
         .map_err(|error| JolyneError::Io(std::io::Error::other(error.to_string())))?;
-    let last = if config.spawn_rules.iter().any(|rule| rule.previous_position) {
+    let last = if config.spawn_rules.iter().any(|rule| rule.previous_position)
+        || config
+            .secondary_worlds
+            .iter()
+            .any(|world| world.spawn_rules.iter().any(|rule| rule.previous_position))
+    {
         match player_data_store.load_last_position(&uuid).await {
             Ok(last) => last,
             Err(error) if saved_data.is_none() => {
@@ -174,6 +179,10 @@ pub(crate) async fn accept_join_sequence_in_worlds<T: Transport>(
         state: &selected.state,
     };
     let mut selected_config = config.clone();
+    selected_config.spawn_rules = config
+        .spawn_rules_for(dimension)
+        .unwrap_or(&config.spawn_rules)
+        .to_vec();
     selected_config.world = selected.world_config;
     let spawn = resolve_spawn_location(
         &selected_config,
@@ -373,7 +382,11 @@ pub(crate) fn select_join_dimension(
     saved: Option<i32>,
     last: Option<i32>,
 ) -> i32 {
-    for rule in &config.spawn_rules {
+    let rules = saved
+        .or(last)
+        .and_then(|dimension| config.spawn_rules_for(dimension))
+        .unwrap_or(&config.spawn_rules);
+    for rule in rules {
         if rule.previous_position
             && let Some(dimension) = saved.or(last)
         {
