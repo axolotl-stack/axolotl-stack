@@ -8,6 +8,9 @@ use crate::storage::{PlayerProvider, source::SourceProof};
 use parking_lot::Mutex;
 use std::sync::{Arc, mpsc};
 
+mod live;
+pub(crate) use live::{LiveSource, pending, pending_account};
+
 /// Definite rejection is distinct from a write whose durable result must be reconciled.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Error {
@@ -117,8 +120,21 @@ pub(crate) struct Operation {
     pub registry: Arc<crate::registry::ItemRegistry>,
     pub world_name: String,
     pub tick: u64,
+    live: Option<Arc<live::State>>,
 }
 impl Operation {
+    /// A departure that removes its body cannot commit a request requiring retention.
+    pub(crate) fn live_for(&self, player: Entity) -> bool {
+        self.live
+            .as_ref()
+            .is_some_and(|state| state.player == player)
+    }
+    /// Provisional history is not canonical source authority.
+    pub(crate) fn provisional(&self) -> Option<Arc<PlayerSnapshot>> {
+        (!matches!(self.status(), Status::Cancelled))
+            .then(|| self.live.as_ref().map(|live| live.snapshot.clone()))
+            .flatten()
+    }
     /// Reading completion never requires a live or fabricated player context.
     pub(crate) fn status(&self) -> Status {
         self.progress.lock().status.clone()
@@ -194,6 +210,12 @@ pub(crate) enum Action {
     Retire,
 }
 pub(crate) enum Intent {
+    Live {
+        player: Entity,
+        lineage: crate::plugin::manager::players::PlayerLineage,
+        snapshot: Arc<PlayerSnapshot>,
+        reference: Reference,
+    },
     Seal {
         player: Entity,
         hold: quarantine::Handle,
@@ -239,7 +261,8 @@ pub(crate) fn prepare(
         return Err(Error::NotInstalled);
     }
     let reference = match &intent {
-        Intent::Seal { reference, .. }
+        Intent::Live { reference, .. }
+        | Intent::Seal { reference, .. }
         | Intent::Inspect(reference)
         | Intent::Terminal { reference, .. } => reference.clone(),
         Intent::Continue { observed, .. } => {
@@ -255,8 +278,22 @@ pub(crate) fn prepare(
     if identity.id != reference.world || identity.dimension != reference.dimension {
         return Err(Error::WrongWorld);
     }
+    let live = match &intent {
+        Intent::Live {
+            player,
+            lineage,
+            snapshot,
+            ..
+        } => Some(Arc::new(live::State::new(
+            *player,
+            lineage.clone(),
+            snapshot.clone(),
+        ))),
+        _ => None,
+    };
     let operation = Arc::new(Operation {
         reference,
+        live,
         world: world.id(),
         progress: Mutex::new(Progress {
             status: Status::Staged,
@@ -296,11 +333,13 @@ struct Completion {
     result: Result<Arc<Observation>, Failure>,
     remaining: u16,
 }
+#[derive(Clone)]
 struct Failure {
     error: Error,
     uncertain: bool,
 }
 enum Apply {
+    Live,
     Inspect,
     Seal {
         player: Entity,
@@ -363,7 +402,14 @@ pub(crate) fn install(
 /// Requests enter the router only after every guest borrow and manager guard has been released.
 pub(crate) fn submit(world: &mut World, prepared: Prepared) {
     let operation = prepared.operation.clone();
+    if operation.live.is_some()
+        && let Err(error) = live::accept(world, &operation)
+    {
+        operation.reject(error);
+        return;
+    }
     if !crate::server::worlds::queue_router_request(world, move |router, _| run(router, prepared)) {
+        live::reject_pending(world, &operation);
         operation.reject(Error::Busy);
     }
 }
@@ -434,6 +480,18 @@ impl Reply {
 impl Drop for Reply {
     fn drop(&mut self) {
         if let Some(action) = self.action.take() {
+            if matches!(action, Apply::Live)
+                && let Some(live) = &self.operation.live
+            {
+                let mut result = live.result.lock();
+                if result.is_none() {
+                    *result = Some(Err(Failure {
+                        error: Error::RecoveryRequired,
+                        uncertain: true,
+                    }));
+                    live.ready.notify_waiters();
+                }
+            }
             if !action.read_only() {
                 self.writer.require_recovery(self.operation.reference.uuid);
                 self.operation.progress.lock().status = Status::Uncertain;
@@ -448,12 +506,19 @@ impl Drop for Reply {
 fn body(world: &World, observed: &Operation) -> Result<(Entity, Arc<Observation>), Error> {
     let observation = observed.observation().ok_or(Error::Conflict)?;
     let player = observed.player(world).ok_or(Error::SourceGone)?;
+    if live::pending(world, player) {
+        return Err(Error::Busy);
+    }
     Ok((player, observation))
 }
 
 /// All synchronous validation precedes the first account worker or physical application.
 fn run(router: &mut crate::server::worlds::DimensionRouter, prepared: Prepared) {
     let operation = prepared.operation.clone();
+    if operation.live.is_some() {
+        live::run(router, prepared);
+        return;
+    }
     let dimension = operation.reference.dimension;
     let allowed = match &prepared.intent {
         Intent::Seal { player, .. } | Intent::Terminal { player, .. } => {
@@ -523,6 +588,7 @@ fn run(router: &mut crate::server::worlds::DimensionRouter, prepared: Prepared) 
 }
 
 enum Work {
+    Live(Arc<PlayerSnapshot>, Option<SourceProof>),
     Inspect,
     Seal(Arc<PlayerSnapshot>, Option<SourceProof>),
     Transition {
@@ -540,6 +606,7 @@ enum Work {
 /// Active retirement freezes the genuine current state before the durable write starts.
 fn prepare_work(world: &mut World, intent: &Intent) -> Result<(Work, Apply), Error> {
     match intent {
+        Intent::Live { .. } => Err(Error::InvalidState),
         Intent::Terminal {
             player,
             hold,
@@ -654,7 +721,7 @@ fn prepare_work(world: &mut World, intent: &Intent) -> Result<(Work, Apply), Err
                     Apply::RetireAbsent,
                 ));
             };
-            if world.get::<TerminalPending>(player).is_some() {
+            if world.get::<TerminalPending>(player).is_some() || live::pending(world, player) {
                 return Err(Error::Busy);
             }
             if !data.source.phase.unresolved() {
@@ -736,6 +803,11 @@ fn prepare_work(world: &mut World, intent: &Intent) -> Result<(Work, Apply), Err
             ))
         }
     }
+}
+
+/// Charge provisional history before any additional retained serialization copies.
+pub(crate) fn snapshot_bytes(snapshot: &PlayerSnapshot) -> Result<usize, Error> {
+    bytes(&snapshot.data)
 }
 
 /// Borrowed sizing precedes retained copies of provider-owned state.
@@ -858,7 +930,7 @@ impl Work {
             .map_or(Some(1), |source| source.generation.checked_add(1))
             .ok_or_else(|| fail(Error::Conflict))?;
         let size = match &self {
-            Self::Seal(snapshot, _) => bytes(&snapshot.data),
+            Self::Seal(snapshot, _) | Self::Live(snapshot, _) => bytes(&snapshot.data),
             Self::Terminal { snapshot, .. } => bytes(&snapshot.data),
             Self::Transition {
                 snapshot: Some(snapshot),
@@ -873,6 +945,47 @@ impl Work {
         )
         .map_err(fail)?;
         let (mut candidate, mut source, expected, label) = match self {
+            Self::Live(snapshot, proof) => {
+                let mut data = snapshot.data.clone();
+                data.game_mode = snapshot.base_game_mode.unwrap_or(data.game_mode);
+                let source = if let Some(proof) = &proof {
+                    let actual = current.as_ref().ok_or_else(|| fail(Error::NotOwned))?;
+                    let mut previous = validate_reference(actual, reference).map_err(fail)?;
+                    if !previous.matches(proof)
+                        || previous.phase != SourcePhase::Active
+                        || snapshot.data.inventory_revision != actual.inventory_revision
+                    {
+                        return Err(fail(Error::Conflict));
+                    }
+                    data.inventory_effects = actual.inventory_effects.clone();
+                    previous.generation = generation;
+                    previous.sample = 0;
+                    previous.supplement = Some(snapshot.supplement());
+                    previous
+                } else {
+                    if current
+                        .as_ref()
+                        .and_then(|data| data.source_actor.as_ref())
+                        .is_some_and(SourceActorRecord::requires_handoff)
+                    {
+                        return Err(fail(Error::Busy));
+                    }
+                    SourceActorRecord {
+                        version: 1,
+                        module: reference.module.clone(),
+                        nonce: reference.nonce.clone(),
+                        generation,
+                        sample: 0,
+                        name: reference.name.clone(),
+                        world: reference.world.to_string(),
+                        dimension: reference.dimension,
+                        phase: SourcePhase::Active,
+                        supplement: Some(snapshot.supplement()),
+                        handoff: None,
+                    }
+                };
+                (data, source, proof, "checkpoint")
+            }
             Self::Seal(snapshot, proof) => {
                 if let Some(proof) = &proof {
                     let actual = current.as_ref().ok_or_else(|| fail(Error::NotOwned))?;
@@ -1087,6 +1200,9 @@ pub(crate) fn defer_death(
     cause: crate::entity::player_life::death::DeathCause,
     attribution: crate::entity::damage::DamageAttribution,
 ) -> bool {
+    if live::defer_death(world, player, cause, attribution) {
+        return true;
+    }
     let Some(managed) = world.get::<ManagedSource>(player) else {
         return false;
     };
@@ -1179,9 +1295,24 @@ fn poll(world: &mut World) {
 /// Apply only to the original native lifetime after definitive canonical acknowledgement.
 fn apply(router: &mut crate::server::worlds::DimensionRouter, mut completion: Completion) {
     let operation = completion.operation.clone();
+    if matches!(completion.action, Apply::Live)
+        && operation
+            .live
+            .as_ref()
+            .is_some_and(|live| live.terminal.load(std::sync::atomic::Ordering::Acquire))
+    {
+        return;
+    }
     let observed = match &completion.result {
         Ok(observed) => observed.clone(),
         Err(failure) => {
+            if !failure.uncertain
+                && matches!(completion.action, Apply::Live)
+                && let Some(server) = router.world_mut(operation.reference.dimension)
+                && server.ecs.world().id() == operation.world
+            {
+                live::reject_pending(server.ecs.world_mut(), &operation);
+            }
             if !failure.uncertain
                 && let Apply::Retire {
                     player,
@@ -1244,6 +1375,11 @@ fn apply(router: &mut crate::server::worlds::DimensionRouter, mut completion: Co
     }
     let mut actor = None;
     let applied = match completion.action {
+        Apply::Live => {
+            let (actual, applied) = live::apply(world, &operation, &observed);
+            actor = actual;
+            applied
+        }
         Apply::Inspect => {
             let mut query = world.query::<(Entity, &ManagedSource)>();
             actor = query.iter(world).find_map(|(player, managed)| {
@@ -1361,6 +1497,7 @@ fn apply(router: &mut crate::server::worlds::DimensionRouter, mut completion: Co
                 );
                 if let Ok(mut actor) = world.get_entity_mut(player) {
                     actor.remove::<TerminalPending>();
+                    actor.remove::<live::Pending>();
                 }
                 actor = world.get_entity(player).is_ok().then_some(player);
                 true

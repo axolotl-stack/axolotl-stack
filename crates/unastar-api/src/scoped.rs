@@ -259,6 +259,11 @@ impl<'scope> Player<'scope> {
     pub fn state_image(&self) -> Result<crate::PlayerStateImage, AccessError> {
         self.raw().state_image()
     }
+    /// Stage point-in-time source ownership without freezing its native simulation.
+    /// Only the operation's observed status establishes canonical acknowledgement.
+    pub fn checkpoint_source(&self) -> Result<crate::SourceActorOperation, crate::StateError> {
+        self.raw().checkpoint_source()
+    }
     /// Stage native ownership of this genuine old source. Dropping the returned
     /// observer cannot reactivate an accepted source hold.
     pub fn fence_state(

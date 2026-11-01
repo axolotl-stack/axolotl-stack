@@ -787,6 +787,9 @@ interface types {
         /// Destination is one actual world lifetime; coordinates are player feet.
         relocate: func(destination: borrow<world-handle>, feet: vec3, safe-y-radius: u16, correlation: u64) -> result<travel-acknowledgement, access-error>;
         state-image: func() -> result<player-state-image, access-error>;
+        /// Stage a point-in-time durable checkpoint of this genuine retained source.
+        /// Native simulation continues during persistence; Staged is not an ACK.
+        checkpoint-source: func() -> result<source-actor-operation, state-error>;
         fence-state: func(expected: borrow<player-state-image>) -> result<source-fence, state-error>;
         submit-state: func(request-id: string, expected: borrow<player-state-image>, desired: borrow<player-state-image>, source: option<borrow<source-fence>>) -> result<state-operation, state-error>;
         state-receipt: func(request-id: string) -> result<option<inventory-receipt>, state-error>;

@@ -7,6 +7,18 @@ use crate::server::game::player_state::source_actors as native;
 #[derive(Default)]
 pub(in crate::plugin::manager) struct Pending(Vec<native::Prepared>);
 
+/// A remove disposition leaves ordinary native departure persistence authoritative.
+pub(in crate::plugin::manager) fn cancel_live_departure(context: &mut HostContext, player: Entity) {
+    context.source_actors.0.retain(|prepared| {
+        if prepared.operation.live_for(player) {
+            prepared.operation.cancel();
+            false
+        } else {
+            true
+        }
+    });
+}
+
 /// Successful explicit requests commit independently of a veto of the callback's default action.
 pub(in crate::plugin::manager) fn finish(
     context: &mut HostContext,
@@ -70,6 +82,95 @@ impl HostContext {
         );
         let prepared =
             native::prepare(unsafe { self.world() }, intent, lease, reserve).map_err(error)?;
+        let resource = self
+            .resources
+            .allocate(
+                Entry::SourceActorOperation(prepared.operation.clone()),
+                self.api_limits.max_owned_resources,
+            )
+            .map_err(wit::StateError::Access)?;
+        self.source_actors.0.push(prepared);
+        Ok(Resource::new_own(resource))
+    }
+
+    /// Capture a real source without withholding its physics, damage, food or effects.
+    pub(super) fn checkpoint_live_source(
+        &mut self,
+        player: u32,
+    ) -> Result<Resource<wit::SourceActorOperation>, wit::StateError> {
+        self.require(PluginCapability::RestorePlayerState)
+            .map_err(wit::StateError::Access)?;
+        let (lineage, actor) = self.live_player(player).map_err(wit::StateError::Access)?;
+        let world = unsafe { self.world() };
+        let retained = world
+            .get::<crate::server::game::player_events::DetachedPlayer>(actor)
+            .is_some()
+            && world
+                .get::<crate::entity::components::PlayerSession>(actor)
+                .is_none();
+        if !retained && self.active_departure != Some(actor) {
+            return Err(wit::StateError::SourceGone);
+        }
+        if crate::server::game::inventory_effects::is_quarantined(world, actor)
+            || native::pending(world, actor)
+            || world
+                .get::<crate::entity::player_life::Dead>(actor)
+                .is_some()
+            || crate::server::game::player_events::initial_state_pending(world, actor)
+        {
+            return Err(wit::StateError::Busy);
+        }
+        let nonce = if let Some(managed) = world.get::<native::ManagedSource>(actor) {
+            if managed.record.module != self.plugin_id.0
+                || managed.record.phase != crate::storage::source::SourcePhase::Active
+            {
+                return Err(wit::StateError::Conflict);
+            }
+            managed.record.nonce.clone()
+        } else if let Some(live) = world.get::<native::LiveSource>(actor) {
+            if live.0.reference.module != self.plugin_id.0 {
+                return Err(wit::StateError::Conflict);
+            }
+            live.0.reference.nonce.clone()
+        } else {
+            uuid::Uuid::new_v4().to_string()
+        };
+        let image_resource = self
+            .capture_state_image(player)
+            .map_err(wit::StateError::Access)?;
+        let image = self
+            .state_image(image_resource.rep())
+            .map_err(wit::StateError::Access)?;
+        self.resources.entries.remove(&image_resource.rep());
+        let reference = native::Reference {
+            module: self.plugin_id.0.clone(),
+            uuid: uuid::Uuid::parse_str(&image.expected.data.uuid)
+                .map_err(|_| wit::StateError::InvalidImage)?,
+            xuid: image.expected.xuid.clone(),
+            name: image.owner.name.clone(),
+            nonce,
+            world: uuid::Uuid::parse_str(&image.world.uuid)
+                .map_err(|_| wit::StateError::InvalidImage)?,
+            dimension: image.world.dimension,
+        };
+        let intent = native::Intent::Live {
+            player: actor,
+            lineage,
+            snapshot: image.expected.clone(),
+            reference,
+        };
+        // The charged capture must outlive a dropped guest operation and its worker.
+        let budget = self.resources.value_budget.clone();
+        let reserve = Arc::new(
+            move |bytes| -> Result<Arc<dyn Send + Sync>, native::Error> {
+                budget
+                    .own((), bytes)
+                    .map(|lease| lease as Arc<dyn Send + Sync>)
+                    .map_err(|_| native::Error::LimitExceeded)
+            },
+        );
+        let prepared =
+            native::prepare(unsafe { self.world() }, intent, image, reserve).map_err(error)?;
         let resource = self
             .resources
             .allocate(
@@ -234,12 +335,16 @@ impl super::super::wit_bindings::unastar::plugin::types::HostSourceActorOperatio
         let operation = self
             .source_operation(operation.rep())
             .map_err(wit::ArchiveError::Access)?;
-        let observed = operation
-            .observation()
-            .ok_or(wit::ArchiveError::Access(wit::AccessError::Unavailable))?;
-        let bytes = observed
-            .retained_bytes()
-            .map_err(|_| wit::ArchiveError::Access(wit::AccessError::LimitExceeded))?;
+        let observed = operation.observation();
+        let provisional = operation.provisional();
+        let bytes = match (&observed, &provisional) {
+            (Some(observed), _) => observed
+                .retained_bytes()
+                .map_err(|_| wit::ArchiveError::Access(wit::AccessError::LimitExceeded))?,
+            (_, Some(snapshot)) => native::snapshot_bytes(snapshot)
+                .map_err(|_| wit::ArchiveError::Access(wit::AccessError::LimitExceeded))?,
+            _ => return Err(wit::ArchiveError::Access(wit::AccessError::Unavailable)),
+        };
         let _lease = self
             .resources
             .value_budget
@@ -249,9 +354,12 @@ impl super::super::wit_bindings::unastar::plugin::types::HostSourceActorOperatio
                     .ok_or(wit::ArchiveError::Access(wit::AccessError::LimitExceeded))?,
             )
             .map_err(wit::ArchiveError::Access)?;
-        let raw = observed
-            .snapshot()
-            .map_err(|_| wit::ArchiveError::InvalidSnapshot)?;
+        let raw = match &observed {
+            Some(observed) => observed
+                .snapshot()
+                .map_err(|_| wit::ArchiveError::InvalidSnapshot)?,
+            None => (*provisional.ok_or(wit::ArchiveError::InvalidSnapshot)?).clone(),
+        };
         let record = archive_store::Record::new(
             &self.plugin_id.0,
             archive_store::Owner {
@@ -272,9 +380,13 @@ impl super::super::wit_bindings::unastar::plugin::types::HostSourceActorOperatio
         .with_source_fence(
             uuid::Uuid::parse_str(&operation.reference.nonce)
                 .map_err(|_| wit::ArchiveError::InvalidSnapshot)?,
-        )
-        .with_source_actor(observed.source.clone())
-        .map_err(|_| wit::ArchiveError::InvalidSnapshot)?;
+        );
+        let record = match observed {
+            Some(observed) => record
+                .with_source_actor(observed.source.clone())
+                .map_err(|_| wit::ArchiveError::InvalidSnapshot)?,
+            None => record,
+        };
         let reference = self.archive_call(true, |namespace| namespace.capture(&key, &record))?;
         Ok(wit::ArchiveReference {
             key: reference.key,

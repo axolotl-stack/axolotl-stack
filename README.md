@@ -347,14 +347,32 @@ not authorize a replacement generation or an unrelated component namespace.
 Read-only inspection reports `live_applied = false`, even when a real body is
 present; its separate physical observation describes that body's availability.
 
+`Player::checkpoint_source` stages a point-in-time ownership checkpoint of a
+real retained actor, or the exact departing actor when that callback returns
+`RetainEntity`. It does not acquire a source fence or remove any simulation
+components: damage, movement, food, cold, effects and age continue during I/O.
+Its acknowledgement installs ownership and receipt metadata only, leaving newer
+physical state untouched. A provisional operation archive may be persisted before
+callback completion; its acknowledgement alone establishes no canonical ownership.
+Its derived state image also requires the exact real source fence before a full
+state install; historical provisional values alone cannot authorize a handoff.
+A trapped initial callback leaves that reference `Unowned`. An uncertain write
+requires reconciliation without silently freezing the living actor. Ordinary
+active saves and repeated checkpoints preserve the latest actual native samples;
+a point-in-time acknowledgement does not promise durability of later unsaved ticks.
+A death during initial ownership work holds only the genuinely dead body until a
+post-drop terminal row is acknowledged; a late live acknowledgement cannot undo it.
+
 Explicit `recreate` uses the latest acknowledged canonical state to create a new
 native, sessionless retained actor. It starts held and has no historical network
 session or chunk-viewing client. Explicit `activate` acknowledges the transition
 before releasing its real state; complete source checkpoints preserve native
 food policy and timer phase. Ordinary captures of an active source advance its
 current canonical physical sample. `retire` acknowledges a tombstone before
-removing the held actor and supports idempotent replay. An uncertain writer or
-closed world leaves the source fenced for reconciliation.
+removing the held actor and supports idempotent replay. Retired raw recovery
+values remain unavailable to ordinary admission/saves until an explicit complete
+state handoff acknowledges their replacement. Frozen operations remain held on
+uncertain writes or source-world closure.
 
 An active source's death withholds native drops until its canonical terminal
 record contains the actual post-drop inventory. A `CommittedBeforeDrops` death

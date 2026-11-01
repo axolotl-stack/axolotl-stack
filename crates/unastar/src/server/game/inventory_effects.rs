@@ -456,7 +456,7 @@ fn submit_with_retention(
     if !valid_inventory_effect_id(&effect.id) {
         return Err(EffectError::InvalidIdentifier);
     }
-    if is_quarantined(world, player) {
+    if is_quarantined(world, player) || super::player_state::source_actors::pending(world, player) {
         return Err(EffectError::Busy);
     }
     let handle = tokio::runtime::Handle::try_current().map_err(|_| EffectError::MissingRuntime)?;

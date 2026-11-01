@@ -11,15 +11,19 @@ struct Residents(BTreeMap<Entity, BTreeSet<(i32, i32)>>);
 /// Keep only each real source's physical cells loaded, and release its references after retirement.
 pub(super) fn update(world: &mut World) {
     let bodies: Vec<_> = world
-        .query::<(
+        .query_filtered::<(
             Entity,
-            &ManagedSource,
+            Option<&ManagedSource>,
+            Option<&LiveSource>,
             Option<&Position>,
             Option<&Velocity>,
             Option<&SourceBody>,
-        )>()
+        ), Or<(With<ManagedSource>, With<LiveSource>)>>()
         .iter(world)
-        .filter_map(|(actor, _, position, velocity, held)| {
+        .filter_map(|(actor, managed, live, position, velocity, held)| {
+            if managed.is_none() && live.is_none() {
+                return None;
+            }
             let eyes = position.map(|position| position.0).or_else(|| {
                 held.and_then(|held| {
                     quarantine::source_snapshot(world, &held.0)
@@ -87,7 +91,8 @@ pub(super) fn motion(
     rules: Res<crate::entity::player_life::PlayerRules>,
     mut bodies: Query<
         (
-            &ManagedSource,
+            Option<&ManagedSource>,
+            Option<&LiveSource>,
             &mut Position,
             &mut Velocity,
             &Age,
@@ -98,14 +103,19 @@ pub(super) fn motion(
         ),
         (
             With<crate::server::game::player_events::DetachedPlayer>,
+            Or<(With<ManagedSource>, With<LiveSource>)>,
             Without<PlayerSession>,
             Without<Dead>,
         ),
     >,
 ) {
     let body = PhysicsBody::living(rules.width, rules.height);
-    for (managed, mut position, mut velocity, age, mut fall, mode, state, ground) in &mut bodies {
-        if managed.record.phase != SourcePhase::Active {
+    for (managed, live, mut position, mut velocity, age, mut fall, mode, state, ground) in
+        &mut bodies
+    {
+        if managed.is_none_or(|managed| managed.record.phase != SourcePhase::Active)
+            && live.is_none()
+        {
             continue;
         }
         let feet = position.0 - DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT;

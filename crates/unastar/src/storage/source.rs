@@ -14,7 +14,7 @@ pub enum SourcePhase {
     Terminal,
 }
 impl SourcePhase {
-    /// Only these states may still own an old body or block normal account publication.
+    /// These phases may own a source body; closed raw rows can still require a target handoff.
     pub(crate) fn unresolved(self) -> bool {
         matches!(self, Self::Frozen | Self::Active)
     }
@@ -47,6 +47,11 @@ pub struct SourceHandoff {
     pub request_hash: [u8; 32],
 }
 impl SourceActorRecord {
+    /// Canonical raw recovery values require an explicit acknowledged state handoff.
+    pub(crate) fn requires_handoff(&self) -> bool {
+        self.phase.unresolved() || (self.supplement.is_some() && self.handoff.is_none())
+    }
+
     /// Reject malformed authority before startup, a provider operation or any actor creation.
     pub(crate) fn validate(&self, data: &PlayerData) -> StorageResult<()> {
         self.validate_mode(data, data.game_mode)

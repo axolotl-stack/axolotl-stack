@@ -208,8 +208,12 @@ impl PluginManager {
             let result = with_guest_world(&mut plugin.store, world, |store| -> anyhow::Result<_> {
                 prepare_invocation(store);
                 let tx = make_world_tx(store)?;
+                store.data_mut().active_departure = Some(event.player());
                 plugin.bindings.call_on_player_quit(store, tx, &record)
             });
+            if matches!(result, Ok(wit::QuitDisposition::Remove)) {
+                players::cancel_live_departure(plugin.store.data_mut(), event.player());
+            }
             super::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
             plugin.store.data_mut().pending_actions.clear();
             match result {

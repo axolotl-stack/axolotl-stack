@@ -50,7 +50,7 @@ impl Plugin for Fixture {
         }));
         STATE.with_borrow_mut(|state| {
             state.mode = server::configuration().first().copied().unwrap_or(0);
-            if state.mode >= 2 && !matches!(state.mode, 11 | 13) {
+            if state.mode >= 2 && !matches!(state.mode, 11 | 13 | 30 | 31 | 32 | 34) {
                 state.world = server::worlds()
                     .unwrap()
                     .into_iter()
@@ -61,7 +61,7 @@ impl Plugin for Fixture {
     }
     fn on_player_admission(_tx: &raw::WorldTx, player: &raw::Player) -> AdmissionDecision {
         STATE.with_borrow_mut(|state| {
-            if matches!(state.mode, 6 | 10) {
+            if matches!(state.mode, 6 | 10 | 38) {
                 state.admission = Some(player.defer_admission().unwrap());
                 state.target = Some(player.to_handle().unwrap());
                 AdmissionDecision::Deferred
@@ -92,6 +92,21 @@ impl Plugin for Fixture {
                 log("source:ordinary-departure");
                 return QuitDisposition::Remove;
             }
+            if matches!(state.mode, 30 | 31 | 32 | 34) {
+                let operation = player.checkpoint_source().unwrap();
+                assert!(matches!(operation.status(), Ok(SourceActorStatus::Staged)));
+                drop(operation.archive("origin").unwrap());
+                if state.mode == 31 {
+                    panic!("controlled provisional live failure");
+                }
+                if state.mode == 34 {
+                    return QuitDisposition::Remove;
+                }
+                state.operation = Some(operation);
+                state.phase = 70;
+                log("source:live-staged");
+                return QuitDisposition::RetainEntity;
+            }
             let image = player.state_image().unwrap();
             let source = player.fence_state(&image).unwrap();
             assert!(matches!(
@@ -110,7 +125,7 @@ impl Plugin for Fixture {
     }
     fn on_tick(_tick: u64) {
         STATE.with_borrow(|state| {
-            if !matches!(state.phase, 12 | 22 | 24 | 32 | 42 | 52)
+            if !matches!(state.phase, 12 | 22 | 24 | 32 | 42 | 52 | 74)
                 && let Some(world) = &state.world
             {
                 drop(world.schedule(100).unwrap());
@@ -119,6 +134,35 @@ impl Plugin for Fixture {
     }
     fn on_world_task(tx: &raw::WorldTx, _task: u64, _callback: u64) {
         STATE.with_borrow_mut(|state| match state.phase {
+            0 if state.mode == 38 => {
+                let desired = archive("origin")
+                    .state_image()
+                    .unwrap()
+                    .at(
+                        tx,
+                        raw::Vec3 {
+                            x: 0.5,
+                            y: 16.0,
+                            z: 0.5,
+                        },
+                        (0.0, 0.0),
+                    )
+                    .unwrap();
+                let player = tx.player(state.target.as_ref().unwrap()).unwrap();
+                let expected = player.state_image().unwrap();
+                assert!(matches!(
+                    state.admission.as_ref().unwrap().submit_state(
+                        tx,
+                        "unowned-provisional",
+                        &expected,
+                        &desired,
+                        None
+                    ),
+                    Err(raw::StateError::Conflict)
+                ));
+                state.phase = 22;
+                log("source:provisional-install-rejected");
+            }
             0 if state.mode == 12 => {
                 assert!(matches!(
                     archive("unheld").source(tx),
@@ -127,7 +171,73 @@ impl Plugin for Fixture {
                 state.phase = 22;
                 log("source:unheld-rejected");
             }
-            0 if state.mode >= 2 && !matches!(state.mode, 11 | 13) => inspect(tx, state),
+            0 if state.mode >= 2 && !matches!(state.mode, 11 | 13 | 30 | 31 | 32 | 34) => {
+                inspect(tx, state)
+            }
+            70 => match state.operation.as_ref().unwrap().status().unwrap() {
+                SourceActorStatus::Staged | SourceActorStatus::Queued => {
+                    let player = tx.player(state.original.as_ref().unwrap()).unwrap();
+                    assert!(matches!(
+                        player.checkpoint_source(),
+                        Err(raw::StateError::Busy)
+                    ));
+                    if let Ok(image) = player.state_image() {
+                        assert!(matches!(
+                            player.fence_state(&image),
+                            Err(raw::StateError::Busy)
+                        ));
+                    }
+                }
+                SourceActorStatus::Observed(observation) => {
+                    assert!(matches!(
+                        observation.phase,
+                        SourceActorPhase::Active | SourceActorPhase::Terminal
+                    ));
+                    assert!(observation.live_applied);
+                    if observation.phase == SourceActorPhase::Active {
+                        assert_eq!(observation.physical, SourceActorPhysical::Present);
+                        log("source:live-ack");
+                    } else {
+                        log("source:live-terminal");
+                    }
+                    drop(
+                        state
+                            .operation
+                            .as_ref()
+                            .unwrap()
+                            .archive(if state.mode == 32 {
+                                "live-first"
+                            } else {
+                                "sealed"
+                            })
+                            .unwrap(),
+                    );
+                    state.phase = 72;
+                }
+                other => panic!("live ownership: {other:?}"),
+            },
+            72 if state.mode == 32 => {
+                let handle = state
+                    .operation
+                    .as_ref()
+                    .unwrap()
+                    .player(tx)
+                    .unwrap()
+                    .unwrap();
+                let player = tx.player(&handle).unwrap();
+                state.operation = Some(player.checkpoint_source().unwrap());
+                state.phase = 73;
+            }
+            73 => match state.operation.as_ref().unwrap().status().unwrap() {
+                SourceActorStatus::Staged | SourceActorStatus::Queued => (),
+                SourceActorStatus::Observed(observation) => {
+                    assert_eq!(observation.phase, SourceActorPhase::Active);
+                    drop(state.operation.as_ref().unwrap().archive("sealed").unwrap());
+                    state.phase = 74;
+                    log("source:live-latest");
+                }
+                other => panic!("live second checkpoint: {other:?}"),
+            },
             10 => {
                 let source = state.source.as_ref().unwrap();
                 assert!(matches!(source.status(), Ok(raw::SourceFenceStatus::Held)));

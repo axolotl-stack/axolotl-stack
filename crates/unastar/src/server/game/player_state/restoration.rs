@@ -148,6 +148,7 @@ pub(crate) fn install(
 /// A held account remains unavailable to concurrent admission until native acknowledgement.
 pub(crate) fn account_pending(world: &World, uuid: uuid::Uuid, xuid: Option<&str>) -> bool {
     quarantine::account_pending(world, uuid, xuid)
+        || super::source_actors::pending_account(world, uuid, xuid)
         || world
             .get_resource::<Coordinator>()
             .is_some_and(|coordinator| {

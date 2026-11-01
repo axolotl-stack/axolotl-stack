@@ -285,6 +285,13 @@ impl HostContext {
         {
             return Err(wit::StateError::Conflict);
         }
+        // Historical provisional source values do not establish a native holder or
+        // canonical source ACK. Only the exact real fence may supply that authority.
+        if let Some(nonce) = desired.provisional_source
+            && source.as_ref().is_none_or(|source| source.id != nonce)
+        {
+            return Err(wit::StateError::Conflict);
+        }
         let counter = self.states.pending.clone();
         counter
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |value| {

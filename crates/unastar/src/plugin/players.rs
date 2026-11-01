@@ -43,7 +43,9 @@ mod source_actors;
 mod state;
 #[path = "players/state_sources.rs"]
 mod state_sources;
-pub(super) use source_actors::{Pending as SourceActorRequests, finish as finish_source_actors};
+pub(super) use source_actors::{
+    Pending as SourceActorRequests, cancel_live_departure, finish as finish_source_actors,
+};
 #[path = "players/state_transactions.rs"]
 mod state_transactions;
 #[path = "players/travel.rs"]

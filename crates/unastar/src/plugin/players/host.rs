@@ -63,6 +63,12 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
     ) -> Result<Resource<wit::PlayerStateImage>, wit::AccessError> {
         self.capture_state_image(player.rep())
     }
+    fn checkpoint_source(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Resource<wit::SourceActorOperation>, wit::StateError> {
+        self.checkpoint_live_source(player.rep())
+    }
     fn fence_state(
         &mut self,
         player: Resource<wit::Player>,

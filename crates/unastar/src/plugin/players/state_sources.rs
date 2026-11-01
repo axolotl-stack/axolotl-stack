@@ -241,6 +241,12 @@ impl HostContext {
         let (reference, player) = self
             .live_player(player_rep)
             .map_err(wit::StateError::Access)?;
+        if crate::server::game::player_state::source_actors::pending(
+            unsafe { self.world() },
+            player,
+        ) {
+            return Err(wit::StateError::Busy);
+        }
         if !matches!(
             availability(unsafe { self.world() }, player),
             wit::PlayerAvailability::Ready
@@ -325,6 +331,9 @@ pub(in crate::plugin::manager) fn finish(
             continue;
         }
         let result = resolve(world, &source.reference).and_then(|player| {
+            if crate::server::game::player_state::source_actors::pending(world, player) {
+                return Err(wit::AccessError::Unavailable);
+            }
             quarantine::hold(
                 world,
                 player,

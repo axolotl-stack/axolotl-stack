@@ -96,6 +96,7 @@ pub struct HostContext {
     block_edit_count: std::sync::Arc<std::sync::atomic::AtomicU32>,
     connection_close_count: std::sync::Arc<std::sync::atomic::AtomicU32>,
     active_admission: Option<sessions::ActiveAdmission>,
+    active_departure: Option<bevy_ecs::entity::Entity>,
     pending_admissions: Vec<sessions::StagedResolution>,
     inventories: players::InventoryRequests,
     pending_tasks: Vec<tasks::TaskRequest>,
@@ -171,6 +172,7 @@ impl HostContext {
             block_edit_count: Default::default(),
             connection_close_count: Default::default(),
             active_admission: None,
+            active_departure: None,
             pending_admissions: Vec::new(),
             inventories: Default::default(),
             pending_tasks: Vec::new(),
@@ -268,6 +270,7 @@ fn with_world<R>(
             ctx.world_ptr = std::ptr::null_mut();
             ctx.resources.end_scope();
             ctx.active_admission = None;
+            ctx.active_departure = None;
         }
     }
     store.data_mut().world_ptr = world;

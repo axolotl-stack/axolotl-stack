@@ -7,8 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 mod coordinator;
 mod residency;
 pub(crate) use coordinator::{
-    Action, Error, Intent, Operation, Phase, Physical, Prepared, Reference, Status, defer_death,
-    install, prepare, submit,
+    Action, Error, Intent, LiveSource, Operation, Phase, Physical, Prepared, Reference, Status,
+    defer_death, install, pending, pending_account, prepare, snapshot_bytes, submit,
 };
 
 /// The same actual source hold stays owned by its native actor after guest resources disappear.
@@ -118,14 +118,14 @@ pub(crate) fn resume(
     if !super::super::player_events::defer_initial_state(world, player) {
         return Err(SnapshotError::MissingPlayer);
     }
-    if record.phase.unresolved() {
+    if record.requires_handoff() {
         world.entity_mut(player).insert(SourceAdmissionBlocked);
     }
     if let Some(supplement) = &record.supplement {
         let raw = PlayerSnapshot::from_supplement(data.clone(), supplement)?;
         restore(world, player, &raw)?;
     }
-    if !record.phase.unresolved()
+    if !record.requires_handoff()
         && !super::super::player_events::release_initial_state(world, player)
     {
         return Err(SnapshotError::MissingPlayer);

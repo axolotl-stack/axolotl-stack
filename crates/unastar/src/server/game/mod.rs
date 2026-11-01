@@ -120,6 +120,7 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 pub(super) fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
     if crate::plugin::manager::sessions::blocks_publication(world, entity)
         || player_state::source_actors::admission_blocked(world, entity)
+        || player_state::source_actors::pending(world, entity)
     {
         return None;
     }

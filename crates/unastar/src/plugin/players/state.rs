@@ -19,6 +19,7 @@ pub(super) struct Image {
     pub(super) registry: Arc<crate::registry::ItemRegistry>,
     pub(super) captured_tick: u64,
     pub(super) canonical: Option<Arc<crate::storage::PlayerData>>,
+    pub(super) provisional_source: Option<uuid::Uuid>,
     provenance: [u8; 32],
     bytes: usize,
 }
@@ -274,6 +275,7 @@ impl HostContext {
                 registry: operation.registry.clone(),
                 captured_tick: operation.tick,
                 canonical: Some(observed.data.clone()),
+                provisional_source: None,
                 provenance: provenance(&[
                     b"canonical-source",
                     self.plugin_id.0.as_bytes(),
@@ -312,6 +314,7 @@ impl HostContext {
             registry: capture.registry.clone(),
             captured_tick: capture.tick,
             canonical: None,
+            provisional_source: None,
             provenance: provenance(&[
                 b"death",
                 self.plugin_id.0.as_bytes(),
@@ -412,6 +415,7 @@ impl HostContext {
             registry,
             captured_tick,
             canonical: None,
+            provisional_source: None,
             provenance: proof,
             bytes,
         }))
@@ -439,6 +443,18 @@ impl HostContext {
             .canonical_source()
             .map_err(|_| wit::AccessError::InvalidArgument)?
             .map(Arc::new);
+        let provisional_source = if archive.loaded.record.source_actor.is_none() {
+            archive
+                .loaded
+                .record
+                .source_fence
+                .as_deref()
+                .map(uuid::Uuid::parse_str)
+                .transpose()
+                .map_err(|_| wit::AccessError::InvalidArgument)?
+        } else {
+            None
+        };
         let native = Arc::new(archive.loaded.record.state.clone());
         let source = &archive.loaded.record.world;
         let reference = &archive.loaded.reference;
@@ -463,6 +479,7 @@ impl HostContext {
             registry: archive.registry.clone(),
             captured_tick: archive.loaded.record.captured_tick,
             canonical,
+            provisional_source,
             provenance: proof,
             bytes,
         }))
@@ -499,6 +516,7 @@ impl HostContext {
             registry: image.registry.clone(),
             captured_tick: image.captured_tick,
             canonical: image.canonical.clone(),
+            provisional_source: image.provisional_source,
             provenance: image.provenance,
             bytes,
         }))

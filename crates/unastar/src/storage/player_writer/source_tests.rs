@@ -334,3 +334,59 @@ async fn initialization_canonical_baseline_cannot_replace_newer_same_epoch_physi
     assert!(!result.resume_source);
     assert_eq!(writer.load(uuid).await.unwrap().unwrap().health, 3.0);
 }
+
+/// Explicit retirement preserves raw recovery until a genuine target state handoff ACK.
+#[tokio::test]
+async fn retired_raw_source_recovery_cannot_be_erased_by_ordinary_admission_save() {
+    let directory = tempfile::tempdir().unwrap();
+    let (uuid, before, mut source) = fresh();
+    source.phase = SourcePhase::Active;
+    let writer = writer(directory.path());
+    let active = writer
+        .commit_source(uuid, "source:live", [31; 32], before, None, source.clone())
+        .await
+        .unwrap();
+    let mut retired = source.clone();
+    retired.phase = SourcePhase::Retired;
+    retired.generation = 2;
+    let acknowledged = writer
+        .commit_source(
+            uuid,
+            "source:retire",
+            [32; 32],
+            active.data,
+            Some((&source).into()),
+            retired.clone(),
+        )
+        .await
+        .unwrap();
+    let mut ordinary = acknowledged.data.clone();
+    ordinary.source_actor = None;
+    assert!(matches!(
+        writer.save(uuid, &ordinary).await,
+        Err(StorageError::PlayerRevisionConflict)
+    ));
+    let reloaded = writer.load(uuid).await.unwrap().unwrap();
+    assert_eq!(reloaded.source_actor, Some(retired));
+    let restored = writer
+        .commit_state_effect(
+            uuid,
+            "target:retired-restore",
+            [33; 32],
+            ordinary,
+            supplement(),
+            StateOrigin {
+                source: None,
+                baseline: Some(Arc::new(reloaded)),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(restored.record.revision, 3);
+    let reloaded = writer.load(uuid).await.unwrap().unwrap();
+    assert_eq!(
+        reloaded.source_actor.as_ref().unwrap().phase,
+        SourcePhase::Transferred
+    );
+    assert!(reloaded.source_actor.as_ref().unwrap().supplement.is_none());
+}

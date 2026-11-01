@@ -399,7 +399,7 @@ fn ordinary_source(
             Ok(Some(next.clone()))
         }
         Some(old) => {
-            if candidate.source_actor.is_some() {
+            if old.requires_handoff() || candidate.source_actor.is_some() {
                 return Err(StorageError::PlayerRevisionConflict);
             }
             let mut tombstone = old.clone();
@@ -464,11 +464,11 @@ fn source_update(
                         && (old.phase.unresolved() || desired.phase == SourcePhase::Retired)
                 }
                 (Some(old), None) => {
-                    !old.phase.unresolved()
+                    !old.requires_handoff()
                         && old.nonce != desired.nonce
-                        && desired.phase == SourcePhase::Frozen
+                        && matches!(desired.phase, SourcePhase::Frozen | SourcePhase::Active)
                 }
-                (None, None) => desired.phase == SourcePhase::Frozen,
+                (None, None) => matches!(desired.phase, SourcePhase::Frozen | SourcePhase::Active),
                 _ => false,
             };
             if !valid_old
