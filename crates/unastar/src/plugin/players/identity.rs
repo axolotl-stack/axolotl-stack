@@ -16,6 +16,18 @@ pub(crate) struct PlayerLineage {
     connection: Option<ConnectionIdentity>,
 }
 impl PlayerLineage {
+    /// Account for strings cloned into a retained value, including its exact connection binding.
+    pub(super) fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.identity.name.len()
+            + self.identity.uuid.len()
+            + self.connection.as_ref().map_or(0, |connection| {
+                connection.name().len()
+                    + connection.xuid().map_or(0, str::len)
+                    + connection.uuid().map_or(0, str::len)
+            })
+    }
+
     /// Require the same engine actor and exact transport, or its retained sessionless actor.
     pub(super) fn matches(&self, world: &World, player: Entity) -> bool {
         world.get::<Player>(player).is_some()

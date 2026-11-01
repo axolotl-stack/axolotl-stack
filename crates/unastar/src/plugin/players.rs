@@ -15,8 +15,12 @@ use identity::{availability, ensure_identity, observe, resolve, snapshot};
 mod admission;
 #[path = "players/host.rs"]
 mod host;
+#[path = "players/inventory.rs"]
+mod inventory;
 #[path = "players/items.rs"]
 mod items;
+#[path = "players/values.rs"]
+mod values;
 
 /// One callback's authority; tokens are invalidated before another callback can run.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -39,8 +43,9 @@ enum Entry {
     },
     WorldHandle(WorldReference),
     Task(Arc<super::tasks::TaskState>),
-    Item(crate::item::ItemStack),
+    Item(Arc<values::Value<crate::item::ItemStack>>),
     AdmissionHold(super::sessions::OwnedHold),
+    InventoryImage(Arc<values::Value<inventory::Image>>),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.
@@ -53,7 +58,7 @@ pub(super) struct PlayerResources {
     pub(super) operations: u32,
     pub(super) messages: u32,
     pub(super) tasks: u32,
-    pub(super) item_value_bytes: usize,
+    pub(super) value_budget: values::Budget,
 }
 impl PlayerResources {
     /// Attach a fresh scope without invalidating storable owned handles.

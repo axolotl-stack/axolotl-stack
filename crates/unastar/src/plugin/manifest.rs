@@ -136,6 +136,8 @@ fn default_command_roots() -> u32 {
 pub enum PluginCapability {
     /// Construct and inspect bounded detached item values, without granting inventory writes.
     ItemValues,
+    /// Capture complete owned inventory images for the current scoped player.
+    ReadInventory,
     /// Read typed actor references and current-world observations.
     ReadPlayers,
     /// Advertise owned command roots; handling still uses explicit subscriptions.

@@ -9,7 +9,6 @@ use zuri_nbt::{NBTTag, tag};
 #[path = "items/metadata.rs"]
 mod metadata;
 
-const MAX_VALUE_BYTES: usize = 16 * 1024 * 1024;
 const MAX_ITEM_BYTES: usize = 131_072;
 const MAX_PROPERTY_BYTES: usize = 4096;
 const MAX_LORE: usize = 64;
@@ -52,17 +51,20 @@ impl HostContext {
     }
 
     /// Clone cheap immutable data without requiring a world pointer or a live player.
-    fn item_value(&mut self, rep: u32) -> Result<Stack, wit::AccessError> {
+    pub(super) fn item_value(&mut self, rep: u32) -> Result<Stack, wit::AccessError> {
         self.operation()?;
         self.require(PluginCapability::ItemValues)?;
         match self.resources.entries.get(&rep) {
-            Some(Entry::Item(stack)) => Ok(stack.clone()),
+            Some(Entry::Item(stack)) => Ok(Stack::clone(stack)),
             _ => Err(wit::AccessError::InvalidArgument),
         }
     }
 
     /// Charge resource and retained-byte limits before exposing an owned value.
-    fn own_item(&mut self, stack: Stack) -> Result<Resource<wit::Stack>, wit::AccessError> {
+    pub(super) fn own_item(
+        &mut self,
+        stack: Stack,
+    ) -> Result<Resource<wit::Stack>, wit::AccessError> {
         let stack = if stack.is_empty() {
             Stack::empty()
         } else {
@@ -82,16 +84,10 @@ impl HostContext {
             return Err(wit::AccessError::InvalidArgument);
         }
         let bytes = size(&stack);
-        let total = self
-            .resources
-            .item_value_bytes
-            .checked_add(bytes)
-            .filter(|total| *total <= MAX_VALUE_BYTES)
-            .ok_or(wit::AccessError::LimitExceeded)?;
+        let value = self.resources.value_budget.own(stack, bytes)?;
         let rep = self
             .resources
-            .allocate(Entry::Item(stack), self.api_limits.max_owned_resources)?;
-        self.resources.item_value_bytes = total;
+            .allocate(Entry::Item(value), self.api_limits.max_owned_resources)?;
         Ok(Resource::new_own(rep))
     }
 
@@ -415,10 +411,7 @@ impl super::super::wit_bindings::unastar::plugin::types::HostStack for HostConte
         ) {
             anyhow::bail!("invalid item value resource");
         }
-        if let Some(Entry::Item(value)) = self.resources.entries.remove(&item.rep()) {
-            self.resources.item_value_bytes =
-                self.resources.item_value_bytes.saturating_sub(size(&value));
-        }
+        self.resources.entries.remove(&item.rep());
         Ok(())
     }
 }

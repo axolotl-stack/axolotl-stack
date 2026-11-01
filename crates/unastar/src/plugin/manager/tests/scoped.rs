@@ -181,7 +181,8 @@ async fn actual_component_item_values_survive_callbacks_without_changing_invento
             .store
             .data()
             .resources
-            .item_value_bytes,
+            .value_budget
+            .used(),
         0
     );
 }
@@ -220,7 +221,8 @@ async fn actual_component_item_constructor_requires_its_capability() {
             .store
             .data()
             .resources
-            .item_value_bytes,
+            .value_budget
+            .used(),
         0
     );
 }
@@ -476,3 +478,6 @@ async fn replaced_world_with_same_dimension_reports_typed_world_closed_failure()
     router.tick().await.unwrap();
     assert_eq!(logs(&manager), ["x"]);
 }
+
+#[path = "inventory.rs"]
+mod inventory_tests;

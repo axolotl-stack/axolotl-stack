@@ -159,6 +159,10 @@ impl<'scope> Player<'scope> {
     pub fn snapshot(&self) -> Result<PlayerSnapshot, AccessError> {
         self.raw().snapshot()
     }
+    /// Capture a complete owned inventory image without granting a live inventory borrow.
+    pub fn inventory(&self) -> Result<crate::InventoryImage, AccessError> {
+        self.raw().inventory()
+    }
     /// Stage a bounded message for this exact connection after callback success.
     pub fn message(&self, message: &str) -> Result<(), AccessError> {
         self.raw().message(message)

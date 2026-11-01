@@ -271,6 +271,27 @@ interface types {
         with-value: func(path: list<string>, value: option<item-value>) -> result<stack, access-error>;
     }
 
+    enum inventory-area {
+        main,
+        armour,
+        offhand,
+        ui,
+        ender-chest,
+    }
+
+    /// Owned observations retain their original account, connection and world binding.
+    /// Deriving a candidate does not change any live player slots.
+    resource inventory-image {
+        identity: func() -> result<player-identity, access-error>;
+        dimension: func() -> result<s32, access-error>;
+        revision: func() -> result<u64, access-error>;
+        held-slot: func() -> result<u8, access-error>;
+        slot-count: func(area: inventory-area) -> result<u32, access-error>;
+        slot: func(area: inventory-area, index: u32) -> result<stack, access-error>;
+        with-slot: func(area: inventory-area, index: u32, item: borrow<stack>) -> result<inventory-image, access-error>;
+        with-held-slot: func(slot: u8) -> result<inventory-image, access-error>;
+    }
+
     /// Live access is transaction scoped. Store player-handle instead of player.
     resource player {
         to-handle: func() -> result<player-handle, access-error>;
@@ -285,6 +306,7 @@ interface types {
         availability: func() -> result<player-availability, access-error>;
         configured-admin: func() -> result<bool, access-error>;
         snapshot: func() -> result<player-snapshot, access-error>;
+        inventory: func() -> result<inventory-image, access-error>;
         message: func(message: string) -> result<_, access-error>;
         /// Native physical-plan completeness is independent of availability/permission.
         initial-state-ready: func() -> result<bool, access-error>;

@@ -226,7 +226,7 @@ fn resource_limits_and_released_values_do_not_reuse_old_representations() {
     assert_eq!(HostStack::count(&mut host, borrow(first)).unwrap(), 1);
     HostStack::drop(&mut host, Resource::new_own(third)).unwrap();
     HostStack::drop(&mut host, Resource::new_own(first)).unwrap();
-    assert_eq!(host.resources.item_value_bytes, 0);
+    assert_eq!(host.resources.value_budget.used(), 0);
 }
 
 #[test]

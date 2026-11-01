@@ -283,6 +283,24 @@ per-item data bound and a 16 MiB aggregate retained-value budget per component,
 alongside its owned-resource and operation limits. Dropping values releases the
 retained-byte budget. Inventory mutation requires a separate authoritative operation.
 
+### Owned WASM inventory images
+
+With `read-players` and `read-inventory`, scoped `Player::inventory()` captures
+one complete owned image of main inventory, armour, offhand, UI slots, ender chest,
+held slot and inventory revision. Missing areas return an error; they never become
+empty replacement storage. The image retains the captured player identity and
+dimension and remains readable after that actor leaves.
+
+`slot_count(area)` reports the exact size of a semantic area. Reading a slot as a
+typed `ItemStack` also requires `item-values`. `with_slot` and `with_held_slot`
+derive detached candidates while retaining the original image. They do not change
+live inventories. Native container IDs and encoded item buffers are not exposed.
+
+Images and item values share the component's 16 MiB retained-value allowance.
+Resource allocation and byte reservations fail atomically; capacity is released
+only after the last owner of a retained value drops. This layer provides observations
+and candidate construction; it does not submit inventory writes.
+
 ### Component command handlers
 
 Request the `commands` capability and call
