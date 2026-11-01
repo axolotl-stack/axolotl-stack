@@ -545,6 +545,17 @@ interface types {
         status: func() -> result<inventory-status, access-error>;
     }
 
+    /// Callback-boundary physical changes; these are not storage acknowledgements.
+    variant inventory-mechanics-status {
+        staged,
+        applied,
+        rejected(access-error),
+        cancelled,
+    }
+    resource inventory-mechanics-operation {
+        status: func() -> result<inventory-mechanics-status, access-error>;
+    }
+
     /// Original persistent world identity, not a capability for a live world.
     record archive-world {
         uuid: string,
@@ -647,6 +658,14 @@ interface types {
         configured-admin: func() -> result<bool, access-error>;
         snapshot: func() -> result<player-snapshot, access-error>;
         inventory: func() -> result<inventory-image, access-error>;
+        /// Exact physical stack observation, retaining its private native slot identity.
+        inventory-stack: func(area: inventory-area, index: u32) -> result<stack, access-error>;
+        /// Destination slot i receives original hotbar slot order[i]; exactly nine distinct indices.
+        reorder-hotbar: func(order: list<u8>) -> result<inventory-mechanics-operation, access-error>;
+        /// Consume only the exact captured selected stack, including its native slot identity.
+        consume-selected: func(expected: borrow<stack>, count: u8) -> result<inventory-mechanics-operation, access-error>;
+        /// Repair an exact main/armour/offhand stack by at most points, without changing other data.
+        repair-item: func(area: inventory-area, index: u32, expected: borrow<stack>, points: u32) -> result<inventory-mechanics-operation, access-error>;
         /// Persist one complete current capture. Success is durable even if this callback traps.
         /// Existing keys are never overwritten; reconcile uncertain results with archives.lookup.
         archive: func(key: string) -> result<archive-reference, archive-error>;

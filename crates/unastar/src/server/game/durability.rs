@@ -140,6 +140,11 @@ pub(super) fn wear_slot(
             .get::<MainInventory>(player)
             .and_then(|inv| inv.0.item(slot))
             != Some(stack)
+        || world
+            .get::<MainInventory>(player)
+            .and_then(|inv| inv.0.item(slot))
+            .map(|current| current.net_id)
+            != Some(stack.net_id)
     {
         return false;
     }

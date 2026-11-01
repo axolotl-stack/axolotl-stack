@@ -133,6 +133,8 @@ pub fn player_attack(
     if applied > 0.0
         && world.get::<HeldSlot>(player).map(|slot| slot.0) == selected_slot
         && held_item(world, player) == held.as_ref()
+        && held_item(world, player).map(|stack| stack.net_id)
+            == held.as_ref().map(|stack| stack.net_id)
         && let Some(entry) = held.as_ref().and_then(|stack| stack.item())
     {
         let wear = crate::server::game::durability::attack_wear(entry);

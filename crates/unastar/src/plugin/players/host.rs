@@ -4,6 +4,39 @@ use super::*;
 use crate::plugin::manifest::PluginCapability;
 
 impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
+    fn inventory_stack(
+        &mut self,
+        player: Resource<wit::Player>,
+        area: wit::InventoryArea,
+        index: u32,
+    ) -> Result<Resource<wit::Stack>, wit::AccessError> {
+        self.inventory_mechanics_stack(player.rep(), area, index)
+    }
+    fn reorder_hotbar(
+        &mut self,
+        player: Resource<wit::Player>,
+        order: Vec<u8>,
+    ) -> Result<Resource<wit::InventoryMechanicsOperation>, wit::AccessError> {
+        self.stage_hotbar(player.rep(), order)
+    }
+    fn consume_selected(
+        &mut self,
+        player: Resource<wit::Player>,
+        expected: Resource<wit::Stack>,
+        count: u8,
+    ) -> Result<Resource<wit::InventoryMechanicsOperation>, wit::AccessError> {
+        self.stage_consumption(player.rep(), expected.rep(), count)
+    }
+    fn repair_item(
+        &mut self,
+        player: Resource<wit::Player>,
+        area: wit::InventoryArea,
+        index: u32,
+        expected: Resource<wit::Stack>,
+        points: u32,
+    ) -> Result<Resource<wit::InventoryMechanicsOperation>, wit::AccessError> {
+        self.stage_repair(player.rep(), area, index, expected.rep(), points)
+    }
     fn archive(
         &mut self,
         player: Resource<wit::Player>,

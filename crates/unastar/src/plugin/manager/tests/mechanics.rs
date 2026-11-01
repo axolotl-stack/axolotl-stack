@@ -70,6 +70,7 @@ impl Harness {
             EventKind::PlayerJump,
             EventKind::PlayerChat,
             EventKind::PlayerDamage,
+            EventKind::PlayerDamaged,
             EventKind::PlayerMove,
             EventKind::PlayerQuit,
         ]
@@ -181,6 +182,8 @@ impl Harness {
 
 #[path = "mechanics/extension.rs"]
 mod extension;
+#[path = "mechanics/inventory.rs"]
+mod inventory;
 
 /// Lower a finite effect and assert that the host returned only Staged.
 fn effect(kind: u8, amplifier: u8, duration: u32, ambient: bool, particles: bool) -> String {
