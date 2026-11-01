@@ -3,6 +3,7 @@ package unastar:plugin@0.3.0;
 world unastar-plugin {
     import types;
     import host;
+    import storage;
 
     use types.{player, vec3, block-pos, damage-cause};
 

@@ -18,6 +18,7 @@ fn manager() -> PluginManager {
         tick_prepared: false,
         tick_budget_valid: true,
         readiness: Default::default(),
+        storage_registry: Default::default(),
     }
 }
 /// A minimal world that supplies the host imports used during initialization.

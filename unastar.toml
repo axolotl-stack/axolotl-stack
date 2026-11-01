@@ -142,3 +142,10 @@ always_at_location = false
 # Required manifest IDs must be present and initialize before listeners start.
 # A runtime callback failure stops simulation and fences connected player state.
 required = []
+
+[plugins.storage]
+# Durable namespaces are separate from plugin filesystem capability preopens.
+directory = "data/plugins"
+max_value_bytes = 16777216
+max_namespace_bytes = 67108864
+max_keys = 1024

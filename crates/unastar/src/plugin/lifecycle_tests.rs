@@ -76,6 +76,7 @@ impl Harness {
             tick_prepared: false,
             tick_budget_valid: true,
             readiness: Default::default(),
+            storage_registry: Default::default(),
         }));
         let mut world = World::new();
         world.insert_resource(TickCounter { current: 42 });
@@ -263,6 +264,7 @@ fn old_api_manifest_is_rejected_before_reading_or_compiling_wasm() {
         tick_prepared: false,
         tick_budget_valid: true,
         readiness: Default::default(),
+        storage_registry: Default::default(),
     };
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(

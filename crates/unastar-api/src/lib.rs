@@ -22,6 +22,7 @@ pub use bindings::Guest;
 #[doc(hidden)]
 pub use bindings::export;
 pub use bindings::unastar::plugin::host;
+pub use bindings::unastar::plugin::storage;
 pub use bindings::unastar::plugin::types::*;
 
 // Plugin trait + export_plugin! macro are generated from WIT by build.rs

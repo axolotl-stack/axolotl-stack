@@ -3,6 +3,9 @@ package unastar:plugin@0.3.0;
 interface host {
     use types.{vec3, block-pos, log-level};
 
+    /// Immutable operator-provided bytes, cached before component initialization.
+    configuration: func() -> list<u8>;
+
     get-tick-id: func() -> u64;
     get-tps: func() -> f32;
     get-player-count: func() -> u32;

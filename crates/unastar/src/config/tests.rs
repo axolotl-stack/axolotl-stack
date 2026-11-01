@@ -328,7 +328,14 @@ fn required_component_identities_are_validated_and_samples_default_to_optional()
         vec!["x".repeat(129)],
         vec!["many".into(); 129],
     ] {
-        assert!(PluginConfig { required: ids }.validate().is_err());
+        assert!(
+            PluginConfig {
+                required: ids,
+                ..Default::default()
+            }
+            .validate()
+            .is_err()
+        );
     }
     let config: UnastarConfig =
         toml_edit::de::from_str("[plugins]\nrequired = ['example.policy']\n").unwrap();
@@ -340,5 +347,54 @@ fn required_component_identities_are_validated_and_samples_default_to_optional()
     ] {
         let config: UnastarConfig = toml_edit::de::from_str(sample).unwrap();
         assert!(config.plugins.required.is_empty());
+    }
+}
+
+#[test]
+fn durable_component_storage_limits_roundtrip_and_reject_unusable_capacity() {
+    let config: UnastarConfig = toml_edit::de::from_str(
+        "[plugins.storage]\ndirectory = 'component-data'\nmax_value_bytes = 4096\nmax_namespace_bytes = 16384\nmax_keys = 4\n",
+    )
+    .unwrap();
+    config.plugins.validate().unwrap();
+    let encoded = toml_edit::ser::to_string(&config).unwrap();
+    let restored: UnastarConfig = toml_edit::de::from_str(&encoded).unwrap();
+    assert_eq!(
+        restored.plugins.storage.directory,
+        PathBuf::from("component-data")
+    );
+    assert_eq!(restored.plugins.storage.max_value_bytes, 4096);
+    assert_eq!(restored.plugins.storage.max_namespace_bytes, 16384);
+    assert_eq!(restored.plugins.storage.max_keys, 4);
+    for storage in [
+        PluginStorageConfig {
+            directory: PathBuf::new(),
+            ..Default::default()
+        },
+        PluginStorageConfig {
+            max_value_bytes: 0,
+            ..Default::default()
+        },
+        PluginStorageConfig {
+            max_namespace_bytes: 0,
+            ..Default::default()
+        },
+        PluginStorageConfig {
+            max_keys: 0,
+            ..Default::default()
+        },
+        PluginStorageConfig {
+            max_value_bytes: usize::MAX,
+            ..Default::default()
+        },
+    ] {
+        assert!(
+            PluginConfig {
+                storage,
+                ..Default::default()
+            }
+            .validate()
+            .is_err()
+        );
     }
 }
