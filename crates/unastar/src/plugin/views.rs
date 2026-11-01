@@ -25,6 +25,7 @@ pub(crate) struct Projection {
     pub invisible: bool,
     pub hide_actor: bool,
     pub hide_equipment: bool,
+    pub hide_armour: bool,
 }
 #[derive(Clone)]
 struct Owner {
@@ -188,6 +189,7 @@ impl super::wit_bindings::unastar::plugin::views::Host for HostContext {
                     invisible: value.invisible == Some(true),
                     hide_actor: value.actor_visible == Some(false),
                     hide_equipment: value.equipment_visible == Some(false),
+                    hide_armour: value.armour_visible == Some(false),
                 })
             })
             .transpose()?

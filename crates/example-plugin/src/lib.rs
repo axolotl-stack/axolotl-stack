@@ -92,6 +92,7 @@ impl Handler for ExamplePlugin {
                     invisible: None,
                     actor_visible: None,
                     equipment_visible: None,
+                    armour_visible: None,
                 }),
             );
             ctx.cancel();

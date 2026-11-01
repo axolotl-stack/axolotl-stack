@@ -284,8 +284,45 @@ pub(super) fn field_layout(export: &str, parameter: &str, fields: &[&str]) -> (u
             .wasm_signature(wit_parser::abi::AbiVariant::GuestExport, function)
             .indirect_params
     );
+    parameter_layout(&resolve, function, parameter, fields)
+}
+
+/// Locate actual indirect import arguments without assuming the old flat parameter threshold.
+pub(super) fn import_field_layout(
+    interface: &str,
+    name: &str,
+    parameter: &str,
+    fields: &[&str],
+) -> (usize, usize) {
+    let mut resolve = Resolve::default();
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../unastar-api/wit");
+    resolve.push_dir(path).unwrap();
+    let function = resolve
+        .interfaces
+        .iter()
+        .find_map(|(_, item)| {
+            (item.name.as_deref() == Some(interface))
+                .then(|| item.functions.get(name))
+                .flatten()
+        })
+        .expect("canonical import");
+    assert!(
+        resolve
+            .wasm_signature(wit_parser::abi::AbiVariant::GuestImport, function)
+            .indirect_params
+    );
+    parameter_layout(&resolve, function, parameter, fields)
+}
+
+/// Traverse canonical records and tagged payloads for either imported or exported parameters.
+fn parameter_layout(
+    resolve: &Resolve,
+    function: &wit_parser::Function,
+    parameter: &str,
+    fields: &[&str],
+) -> (usize, usize) {
     let mut sizes = wit_parser::SizeAlign::default();
-    sizes.fill(&resolve);
+    sizes.fill(resolve);
     let mut offset = 0usize;
     for param in &function.params {
         offset = offset.next_multiple_of(sizes.align(&param.ty).align_wasm32());
@@ -293,7 +330,7 @@ pub(super) fn field_layout(export: &str, parameter: &str, fields: &[&str]) -> (u
             let mut ty = param.ty;
             for name in fields {
                 if *name == "ok" {
-                    let wit_parser::Type::Id(id) = unalias(&resolve, ty) else {
+                    let wit_parser::Type::Id(id) = unalias(resolve, ty) else {
                         panic!("not a result")
                     };
                     let wit_parser::TypeDefKind::Result(result) = &resolve.types[id].kind else {
@@ -304,7 +341,7 @@ pub(super) fn field_layout(export: &str, parameter: &str, fields: &[&str]) -> (u
                     continue;
                 }
                 if *name == "some" {
-                    let wit_parser::Type::Id(id) = unalias(&resolve, ty) else {
+                    let wit_parser::Type::Id(id) = unalias(resolve, ty) else {
                         panic!("not an option")
                     };
                     let wit_parser::TypeDefKind::Option(inner) = resolve.types[id].kind else {
@@ -314,7 +351,7 @@ pub(super) fn field_layout(export: &str, parameter: &str, fields: &[&str]) -> (u
                     ty = inner;
                     continue;
                 }
-                let wit_parser::Type::Id(id) = unalias(&resolve, ty) else {
+                let wit_parser::Type::Id(id) = unalias(resolve, ty) else {
                     panic!("not a record")
                 };
                 let wit_parser::TypeDefKind::Record(record) = &resolve.types[id].kind else {

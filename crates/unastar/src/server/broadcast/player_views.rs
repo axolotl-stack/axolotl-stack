@@ -530,7 +530,7 @@ pub fn sync_player_views(world: &mut World) {
                 .expect("captured live viewer");
             let key = (viewer, view.actor);
             let projection = crate::plugin::manager::views::projection(world, view.actor, viewer);
-            let equipment = if projection
+            let mut equipment = if projection
                 .as_ref()
                 .is_some_and(|value| value.hide_equipment)
             {
@@ -538,6 +538,9 @@ pub fn sync_player_views(world: &mut World) {
             } else {
                 view.equipment.clone()
             };
+            if projection.as_ref().is_some_and(|value| value.hide_armour) {
+                equipment[2..].fill(WireItem::default());
+            }
             let projected = projections::metadata(world, view.actor, viewer, &view.metadata);
             if cache.known.get(&key).is_some_and(|known| {
                 known.runtime_id != view.runtime_id

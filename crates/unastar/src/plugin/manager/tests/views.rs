@@ -200,40 +200,93 @@ fn scoped(body: &str) -> String {
     "#
     )
 }
-/// A complete optional projection, with explicit false values that must not reveal native state.
-fn project(tag: &str, invisible: bool, actor: bool, equipment: bool) -> String {
+/// Store a typed canonical import argument below the allocator's independent arena.
+fn projection_argument(
+    parameter: &str,
+    fields: &[&str],
+    extra: usize,
+    value: &str,
+    word: bool,
+) -> String {
+    let (offset, _) = fixture::import_field_layout("views", "project-player", parameter, fields);
     format!(
-        r#"
-        {}
-        local.get 0 i32.const 84 i32.load local.get 1
-        i32.const 1
-        i32.const 1 i32.const 1000 i32.const {}
-        i32.const 1 i32.const 2
-        i32.const 1 i32.const {}
-        i32.const 1 i32.const {}
-        i32.const 1 i32.const {}
-        i32.const 128 call @project-player@
-        i32.const 128 i32.load8_u if unreachable end
-    "#,
-        literal(1000, tag),
-        tag.len(),
-        u8::from(invisible),
-        u8::from(actor),
-        u8::from(equipment)
+        "i32.const {} {value} {} ",
+        2048 + offset + extra,
+        if word { "i32.store" } else { "i32.store8" }
     )
 }
-/// Clear this exact owned pair through the public typed import.
-fn clear() -> &'static str {
-    r#"local.get 0 i32.const 84 i32.load local.get 1
-        i32.const 0
-        i32.const 0 i32.const 0 i32.const 0
-        i32.const 0 i32.const 0
-        i32.const 0 i32.const 0
-        i32.const 0 i32.const 0
-        i32.const 0 i32.const 0
-        i32.const 128 call @project-player@
-        i32.const 128 i32.load8_u if unreachable end"#
+/// Start one complete indirect argument record without retaining callback-scoped resources.
+fn projection_arguments() -> String {
+    format!(
+        "i32.const 2048 i32.const 0 i32.const 128 memory.fill {}{}{}",
+        projection_argument("tx", &[], 0, "local.get 0", true),
+        projection_argument("subject", &[], 0, "i32.const 84 i32.load", true),
+        projection_argument("viewer", &[], 0, "local.get 1", true)
+    )
 }
+/// The complete optional record uses the current WIT's actual indirect layout.
+fn project(tag: &str, invisible: bool, actor: bool, equipment: bool) -> String {
+    project_armour(tag, invisible, actor, equipment, None)
+}
+/// Armour visibility remains independent of hands and the outer equipment restriction.
+fn project_armour(
+    tag: &str,
+    invisible: bool,
+    actor: bool,
+    equipment: bool,
+    armour: Option<bool>,
+) -> String {
+    let mut body = format!("{} {}", literal(1000, tag), projection_arguments());
+    body += &projection_argument("value", &[], 0, "i32.const 1", false);
+    body += &projection_argument("value", &["some", "name-tag"], 0, "i32.const 1", false);
+    body += &projection_argument(
+        "value",
+        &["some", "name-tag", "some"],
+        0,
+        "i32.const 1000",
+        true,
+    );
+    body += &projection_argument(
+        "value",
+        &["some", "name-tag", "some"],
+        4,
+        &format!("i32.const {}", tag.len()),
+        true,
+    );
+    for (field, value) in [
+        ("name-tag-visibility", Some(2)),
+        ("invisible", Some(u8::from(invisible))),
+        ("actor-visible", Some(u8::from(actor))),
+        ("equipment-visible", Some(u8::from(equipment))),
+        ("armour-visible", armour.map(u8::from)),
+    ] {
+        body += &projection_argument(
+            "value",
+            &["some", field],
+            0,
+            &format!("i32.const {}", u8::from(value.is_some())),
+            false,
+        );
+        if let Some(value) = value {
+            body += &projection_argument(
+                "value",
+                &["some", field, "some"],
+                0,
+                &format!("i32.const {value}"),
+                false,
+            );
+        }
+    }
+    body + "i32.const 2048 i32.const 128 call @project-player@ i32.const 128 i32.load8_u if unreachable end"
+}
+/// Clear this exact owned pair through the same current canonical import layout.
+fn clear() -> String {
+    projection_arguments()
+        + "i32.const 2048 i32.const 128 call @project-player@ i32.const 128 i32.load8_u if unreachable end"
+}
+
+#[path = "views/armour.rs"]
+mod armour;
 /// Extract only the subject's real initial actor metadata.
 fn initial(packets: &[McpePacketData]) -> &[DataItemEntry] {
     packets
