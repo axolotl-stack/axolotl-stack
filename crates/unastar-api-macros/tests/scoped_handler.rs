@@ -24,6 +24,7 @@ impl Handler for Scoped {
         unastar_api::AdmissionDecision::Allow
     }
     fn on_player_chat(ctx: &mut PlayerContext<'_>, _message: String) {
+        let _ = ctx.player().kick("Example");
         ctx.cancel();
     }
     fn on_player_move(

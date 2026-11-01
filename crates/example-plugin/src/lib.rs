@@ -12,6 +12,10 @@ impl Handler for ExamplePlugin {
     fn on_load() {
         server::log(LogLevel::Info, "Example component loaded");
         let _ = commands::register_root(&commands::Root {
+            name: "depart".into(),
+            description: "Request your connection to close".into(),
+        });
+        let _ = commands::register_root(&commands::Root {
             name: "greet".into(),
             description: "Send a greeting".into(),
         });
@@ -36,6 +40,16 @@ impl Handler for ExamplePlugin {
         );
     }
     fn on_player_command(ctx: &mut PlayerContext<'_>, line: String, _request_id: Option<String>) {
+        if line.trim_start_matches('/').split_whitespace().next() == Some("depart") {
+            let _ = ctx
+                .player()
+                .disconnect(&unastar_api::ConnectionCloseReason {
+                    kind: unastar_api::ConnectionCloseKind::Requested,
+                    message: "Example connection closed".into(),
+                });
+            ctx.cancel();
+            return;
+        }
         if line.trim_start_matches('/').split_whitespace().next() == Some("greet") {
             let _ = ctx
                 .player()

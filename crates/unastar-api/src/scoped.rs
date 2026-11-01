@@ -159,6 +159,25 @@ impl<'scope> Player<'scope> {
     pub fn snapshot(&self) -> Result<PlayerSnapshot, AccessError> {
         self.raw().snapshot()
     }
+    /// Stage termination for this exact admitted connection after callback success.
+    /// The returned ticket distinguishes staged/pending/queued delivery from failure;
+    /// queued delivery is not a client acknowledgement.
+    pub fn disconnect(
+        &self,
+        reason: &crate::ConnectionCloseReason,
+    ) -> Result<crate::ConnectionCloseRequest, crate::ConnectionControlError> {
+        self.raw().disconnect(reason)
+    }
+    /// Request removal using the semantic kicked reason; inspect the returned delivery ticket.
+    pub fn kick(
+        &self,
+        message: &str,
+    ) -> Result<crate::ConnectionCloseRequest, crate::ConnectionControlError> {
+        self.disconnect(&crate::ConnectionCloseReason {
+            kind: crate::ConnectionCloseKind::Kicked,
+            message: message.into(),
+        })
+    }
     /// Stage a bounded message for this exact connection after callback success.
     pub fn message(&self, message: &str) -> Result<(), AccessError> {
         self.raw().message(message)

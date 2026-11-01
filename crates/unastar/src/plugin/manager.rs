@@ -10,6 +10,8 @@ use crate::ecs::events::{PluginAction, ServerEvent};
 
 #[path = "commands.rs"]
 pub(crate) mod commands;
+#[path = "connection_control.rs"]
+pub(crate) mod connection_control;
 #[path = "lifecycle.rs"]
 mod lifecycle;
 #[path = "players.rs"]
@@ -69,6 +71,8 @@ pub struct HostContext {
     capabilities: HashSet<crate::plugin::manifest::PluginCapability>,
     generation: uuid::Uuid,
     pending_messages: Vec<players::BoundMessage>,
+    pending_connection_closes: Vec<connection_control::Request>,
+    connection_close_count: std::sync::Arc<std::sync::atomic::AtomicU32>,
     active_admission: Option<sessions::ActiveAdmission>,
     pending_admissions: Vec<sessions::StagedResolution>,
     pending_tasks: Vec<tasks::TaskRequest>,
@@ -117,6 +121,8 @@ impl HostContext {
             capabilities: HashSet::new(),
             generation: uuid::Uuid::new_v4(),
             pending_messages: Vec::new(),
+            pending_connection_closes: Vec::new(),
+            connection_close_count: Default::default(),
             active_admission: None,
             pending_admissions: Vec::new(),
             pending_tasks: Vec::new(),
@@ -218,6 +224,7 @@ pub(super) fn finish_invocation(
 ) {
     commands::finish_invocation(context, succeeded);
     players::finish_admission_invocation(context, world, succeeded);
+    connection_control::finish(context, world, succeeded);
     players::finish_invocation(context, world, succeeded);
 }
 
@@ -1126,6 +1133,8 @@ pub(crate) mod tests {
     mod block_tests;
     #[path = "commands.rs"]
     mod command_tests;
+    #[path = "connection_control.rs"]
+    mod connection_control_tests;
     #[path = "item_actions.rs"]
     mod item_action_tests;
     #[path = "readiness.rs"]

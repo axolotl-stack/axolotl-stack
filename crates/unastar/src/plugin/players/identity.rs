@@ -17,7 +17,7 @@ pub(crate) struct PlayerLineage {
 }
 impl PlayerLineage {
     /// Require the same engine actor and exact transport, or its retained sessionless actor.
-    pub(super) fn matches(&self, world: &World, player: Entity) -> bool {
+    pub(in crate::plugin::manager) fn matches(&self, world: &World, player: Entity) -> bool {
         world.get::<Player>(player).is_some()
             && world
                 .get::<PlayerLineage>(player)
@@ -64,7 +64,7 @@ impl WorldReference {
         })
     }
     /// Reject a closed/replaced world even if it uses the same dimension.
-    pub(super) fn matches(self, world: &World) -> bool {
+    pub(in crate::plugin::manager) fn matches(self, world: &World) -> bool {
         Self::of(world).is_ok_and(|current| current == self)
     }
 }
