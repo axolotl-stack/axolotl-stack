@@ -1,7 +1,9 @@
 //! Scoped Component Model example; build for `wasm32-wasip2`.
 
 use unastar_api::{
-    AdmissionDecision, AdmittedEvent, BlockPos, DeathCommitted, FormResponse, Handler, LogLevel, NameTagVisibility, PlayerContext, PlayerProjection, Sidebar, SidebarLine, SimpleForm, WorldTx, commands, server,
+    AdmissionDecision, AdmittedEvent, BlockCommitted, BlockProposal, DeathCommitted, FormResponse,
+    Handler, LogLevel, NameTagVisibility, PlayerContext, PlayerProjection, Sidebar, SidebarLine,
+    SimpleForm, WorldTx, commands, server,
 };
 
 struct ExamplePlugin;
@@ -121,10 +123,22 @@ impl Handler for ExamplePlugin {
                 .message("Scheduled work resolved a fresh player scope");
         }
     }
-    fn on_block_break(ctx: &mut PlayerContext<'_>, position: BlockPos, _block_id: u32) {
-        if position.x == 0 && position.z == 0 && position.y < 20 {
+    fn on_block_transaction(ctx: &mut PlayerContext<'_>, proposal: &BlockProposal) {
+        if proposal
+            .cells
+            .iter()
+            .any(|cell| cell.position.x == 0 && cell.position.z == 0 && cell.position.y < 20)
+        {
             let _ = ctx.player().message("This column is protected");
             ctx.cancel();
+        }
+    }
+    fn on_block_committed(_tx: &WorldTx<'_>, event: BlockCommitted) {
+        if let Ok(cells) = event.cells {
+            server::log(
+                LogLevel::Info,
+                &format!("Committed {} affected block cells", cells.len()),
+            );
         }
     }
 }

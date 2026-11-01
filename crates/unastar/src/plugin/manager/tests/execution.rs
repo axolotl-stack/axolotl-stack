@@ -55,6 +55,8 @@ fn manager(engine: Engine, component: Component, limits: PluginLimits) -> Plugin
         readiness: Default::default(),
         storage_registry: Default::default(),
         command_roots: Default::default(),
+        ui_registry: Default::default(),
+        view_registry: Default::default(),
     }
 }
 

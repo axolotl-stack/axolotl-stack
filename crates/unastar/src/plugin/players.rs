@@ -20,10 +20,10 @@ mod host;
 mod inventory;
 #[path = "players/items.rs"]
 mod items;
-#[path = "players/values.rs"]
-mod values;
 #[path = "players/mechanics.rs"]
 mod mechanics;
+#[path = "players/values.rs"]
+mod values;
 pub(crate) use mechanics::apply_pending as apply_mechanics;
 pub(super) use mechanics::{MechanicsRequest, finish as finish_mechanics};
 

@@ -24,6 +24,32 @@ pub enum BlockInteractionKind {
     Use,
 }
 
+/// An actual input face, retained only when the native operation has that fact.
+#[derive(Clone, Debug, PartialEq)]
+pub struct BlockClick {
+    pub position: IVec3,
+    pub face: Option<u8>,
+    pub offset: Option<glam::DVec3>,
+}
+
+/// One complete planned cell. Unchanged reciprocal actors remain explicit.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct PlannedBlockCell {
+    pub position: IVec3,
+    pub before: BlockStateSnapshot,
+    pub proposed_runtime_id: u32,
+    actor_before: Option<crate::world::block_entity::BlockEntity>,
+}
+
+/// Scoped component dispatch can run inline without reacquiring its own manager.
+pub(crate) trait ScopedBlockDispatcher {
+    fn proposed(&mut self, world: &mut World, event: &mut BlockInteraction);
+    fn committed(&mut self, world: &mut World, event: &PlayerBlockCommitted);
+}
+
+#[derive(Resource, Default)]
+struct OperationSequence(u64);
+
 /// A block operation whose mutations, item costs and normal effects have not run.
 ///
 /// Positions include every block affected by the operation, including upper
@@ -36,9 +62,34 @@ pub struct BlockInteraction {
     kind: BlockInteractionKind,
     positions: Vec<IVec3>,
     cancelled: bool,
+    operation_id: u64,
+    cells: Vec<PlannedBlockCell>,
+    click: Option<BlockClick>,
+    held: Option<HeldItemSnapshot>,
+    inline: bool,
 }
 
 impl BlockInteraction {
+    /// Correlate proposal and completion only within this actual world lifetime.
+    pub(crate) fn operation_id(&self) -> u64 {
+        self.operation_id
+    }
+    /// Read every captured cell and its exact planned block state.
+    pub(crate) fn cells(&self) -> &[PlannedBlockCell] {
+        &self.cells
+    }
+    /// Read native click facts; unavailable packet fields remain absent.
+    pub(crate) fn click(&self) -> Option<&BlockClick> {
+        self.click.as_ref()
+    }
+    /// Read the owned original selected item, including an empty hand.
+    pub(crate) fn held(&self) -> Option<&HeldItemSnapshot> {
+        self.held.as_ref()
+    }
+    /// Only the internal managed commit path supplies its own scoped dispatcher.
+    pub(crate) fn inline(&self) -> bool {
+        self.inline
+    }
     /// Identify the player attempting this operation.
     pub fn player(&self) -> Entity {
         self.player
@@ -106,9 +157,29 @@ pub struct PlayerBlockCommitted {
     changes: Vec<PlayerBlockChange>,
     held_before: Option<HeldItemSnapshot>,
     held_after: Option<HeldItemSnapshot>,
+    operation_id: u64,
+    actor_uuid: Option<uuid::Uuid>,
+    click: Option<BlockClick>,
+    inline: bool,
 }
 
 impl PlayerBlockCommitted {
+    /// Correlate with the exact accepted native proposal in this world lifetime.
+    pub(crate) fn operation_id(&self) -> u64 {
+        self.operation_id
+    }
+    /// Read the original authoritative UUID even if its actor was removed later.
+    pub(crate) fn actor_uuid(&self) -> Option<uuid::Uuid> {
+        self.actor_uuid
+    }
+    /// Read retained input facts without inventing unavailable click fields.
+    pub(crate) fn click(&self) -> Option<&BlockClick> {
+        self.click.as_ref()
+    }
+    /// Internal managed commits already notify their borrowed scoped dispatcher.
+    pub(crate) fn inline(&self) -> bool {
+        self.inline
+    }
     /// Read the originating entity, which may have been despawned by a callback.
     pub fn player(&self) -> Entity {
         self.player
@@ -140,12 +211,17 @@ impl PlayerBlockCommitted {
 /// Sessionless test or trusted actors still execute normally but cannot emit an
 /// authenticated player notification.
 pub(super) struct BlockCommit {
+    world: bevy_ecs::world::WorldId,
+    dimension: Option<i32>,
     player: Entity,
     identity: Option<ConnectionIdentity>,
     uuid: Option<uuid::Uuid>,
     kind: BlockInteractionKind,
     before: Vec<(IVec3, BlockStateSnapshot)>,
     held: Option<HeldItemSnapshot>,
+    operation_id: u64,
+    click: Option<BlockClick>,
+    inline: bool,
 }
 
 impl BlockCommit {
@@ -165,18 +241,30 @@ impl BlockCommit {
             }
         }
         Self {
+            world: world.id(),
+            dimension: world
+                .get_resource::<ChunkManager>()
+                .map(|manager| manager.dimension()),
             player,
             identity: ConnectionIdentity::capture(world, player),
             uuid: world.get::<PlayerUuid>(player).map(|uuid| uuid.0),
             kind,
             before,
             held: held_snapshot(world, player),
+            operation_id: 0,
+            click: None,
+            inline: false,
         }
     }
 
     /// Prevent post-mutation item effects from charging a replacement account.
     pub(super) fn same_actor(&self, world: &World) -> bool {
-        world.get_entity(self.player).is_ok()
+        world.id() == self.world
+            && world
+                .get_resource::<ChunkManager>()
+                .map(|manager| manager.dimension())
+                == self.dimension
+            && world.get_entity(self.player).is_ok()
             && match &self.identity {
                 Some(identity) => identity.matches(world, self.player),
                 None => {
@@ -232,6 +320,15 @@ impl BlockCommit {
     /// Dispatch after all ordinary effects; registry mutations affect the next
     /// dispatch, and no registry borrow remains while callbacks run.
     pub(super) fn finish(self, world: &mut World) {
+        self.finish_with(world, None);
+    }
+
+    /// Deliver an actual completion through the caller's existing manager borrow when required.
+    pub(super) fn finish_with(
+        self,
+        world: &mut World,
+        inline: Option<&mut dyn ScopedBlockDispatcher>,
+    ) {
         let held_after = self
             .held
             .as_ref()
@@ -264,12 +361,19 @@ impl BlockCommit {
                 .collect(),
             held_before: self.held,
             held_after,
+            operation_id: self.operation_id,
+            actor_uuid: self.uuid,
+            click: self.click,
+            inline: self.inline,
         };
         let handlers = world
             .get_resource::<BlockInteractionHooks>()
             .map_or_else(Vec::new, |hooks| hooks.handlers.clone());
         for handler in handlers {
             handler.on_committed(world, &event);
+        }
+        if let Some(inline) = inline {
+            inline.committed(world, &event);
         }
         world.trigger_ref(&mut event);
     }
@@ -290,7 +394,7 @@ fn held_snapshot(world: &World, player: Entity) -> Option<HeldItemSnapshot> {
 
 /// Read authoritative loaded block data without decoding, repairing or loading
 /// its actor and without triggering loot generation.
-fn block_state(world: &World, position: IVec3) -> Option<BlockStateSnapshot> {
+pub(super) fn block_state(world: &World, position: IVec3) -> Option<BlockStateSnapshot> {
     let runtime_id = super::blocks::block_at(world, (position.x, position.y, position.z))?;
     let (cx, cz) = world_to_chunk_coords(position.x, position.z);
     let chunk = world
@@ -307,6 +411,21 @@ fn block_state(world: &World, position: IVec3) -> Option<BlockStateSnapshot> {
         runtime_id,
         block_actor,
     })
+}
+
+/// Compare complete actors, including source recipes not yet converted to network NBT.
+fn block_actor(world: &World, position: IVec3) -> Option<crate::world::block_entity::BlockEntity> {
+    let (cx, cz) = world_to_chunk_coords(position.x, position.z);
+    let chunk = world
+        .get_resource::<ChunkManager>()?
+        .get_by_coords(cx, cz)?;
+    world
+        .get::<ChunkData>(chunk)?
+        .inner
+        .block_entities()
+        .iter()
+        .find(|actor| actor.position() == position.to_array())
+        .cloned()
 }
 
 /// Native synchronous callbacks with no engine lock or borrowed registry held.
@@ -334,26 +453,94 @@ impl BlockInteractionHooks {
 }
 
 /// Dispatch a decision without holding the callback registry resource borrowed.
+#[cfg(test)]
 pub(crate) fn authorize(
     world: &mut World,
     player: Entity,
     kind: BlockInteractionKind,
     positions: Vec<IVec3>,
 ) -> bool {
+    let updates: Vec<_> = positions
+        .iter()
+        .filter_map(|position| Some((*position, block_state(world, *position)?.runtime_id)))
+        .collect();
+    if updates.len() != positions.len() {
+        return false;
+    }
+    plan(world, player, kind, &updates, None, None).is_some()
+}
+
+/// Capture the entire plan and revalidate its full before-state after every authorization callback.
+pub(super) fn plan(
+    world: &mut World,
+    player: Entity,
+    kind: BlockInteractionKind,
+    updates: &[(IVec3, u32)],
+    click: Option<BlockClick>,
+    mut inline: Option<&mut dyn ScopedBlockDispatcher>,
+) -> Option<BlockCommit> {
+    if updates.len() > 512 {
+        return None;
+    }
+    let mut cells = Vec::new();
+    for &(position, proposed_runtime_id) in updates {
+        if let Some(previous) = cells
+            .iter()
+            .find(|cell: &&PlannedBlockCell| cell.position == position)
+        {
+            if previous.proposed_runtime_id != proposed_runtime_id {
+                return None;
+            }
+            continue;
+        }
+        cells.push(PlannedBlockCell {
+            position,
+            before: block_state(world, position)?,
+            proposed_runtime_id,
+            actor_before: block_actor(world, position),
+        });
+    }
+    let operation_id = {
+        let mut sequence = world.get_resource_or_init::<OperationSequence>();
+        sequence.0 = sequence.0.checked_add(1)?;
+        sequence.0
+    };
+    let mut committed =
+        BlockCommit::capture(world, player, kind, cells.iter().map(|cell| cell.position));
+    committed.operation_id = operation_id;
+    committed.click = click.clone();
+    committed.inline = inline.is_some();
     let handlers = world
         .get_resource::<BlockInteractionHooks>()
         .map_or_else(Vec::new, |hooks| hooks.handlers.clone());
     let mut event = BlockInteraction {
         player,
         kind,
-        positions,
+        positions: cells.iter().map(|cell| cell.position).collect(),
         cancelled: false,
+        operation_id,
+        cells,
+        click,
+        held: committed.held.clone(),
+        inline: inline.is_some(),
     };
     for handler in handlers {
         handler.on_interaction(world, &mut event);
     }
+    if !event.is_cancelled()
+        && let Some(inline) = inline.as_mut()
+    {
+        inline.proposed(world, &mut event);
+    }
     world.trigger_ref(&mut event);
-    !event.is_cancelled()
+    (!event.is_cancelled()
+        && committed.same_actor(world)
+        && held_snapshot(world, player) == committed.held
+        && event.cells.iter().all(|cell| {
+            block_state(world, cell.position).as_ref() == Some(&cell.before)
+                && block_actor(world, cell.position) == cell.actor_before
+        }))
+    .then_some(committed)
 }
 
 #[cfg(test)]
@@ -398,14 +585,14 @@ mod tests {
             &mut world,
             player,
             BlockInteractionKind::Use,
-            vec![IVec3::ZERO]
+            Vec::new()
         ));
         assert_eq!(*calls.lock().unwrap(), [1]);
         assert!(!authorize(
             &mut world,
             player,
             BlockInteractionKind::Use,
-            vec![IVec3::ZERO]
+            Vec::new()
         ));
         assert_eq!(*calls.lock().unwrap(), [1, 1, 2]);
     }

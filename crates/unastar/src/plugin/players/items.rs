@@ -115,7 +115,7 @@ impl HostContext {
     }
 
     /// Charge resource and retained-byte limits before exposing an owned value.
-    pub(super) fn own_item(
+    pub(in crate::plugin::manager) fn own_item(
         &mut self,
         stack: Stack,
     ) -> Result<Resource<wit::Stack>, wit::AccessError> {

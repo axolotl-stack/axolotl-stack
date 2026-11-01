@@ -23,9 +23,9 @@ use crate::entity::components::GameMode;
 use crate::item::ItemStack;
 use crate::registry::BlockRegistry;
 use crate::registry::block::{BlockEntry, LiquidKind, StateValue};
-use crate::server::game::block_interaction::{BlockCommit, BlockInteractionKind};
+use crate::server::game::block_interaction::{BlockClick, BlockCommit, BlockInteractionKind};
 use crate::server::game::blocks::{
-    authorize_block_operation, block_at, can_interact, correct_block, set_block,
+    authorize_block_plan, block_at, can_interact, correct_block, set_block,
 };
 use crate::server::game::types::BlockRegistryResource;
 
@@ -37,6 +37,17 @@ const UP: u8 = 1;
 /// handled, including authorization vetoes, so it must not fall through to
 /// placement. Only accepted effects emit a committed block notification.
 pub fn use_on_block(world: &mut World, player: Entity, clicked: IVec3, face: u8) -> bool {
+    use_on_block_with_click(world, player, clicked, face, None)
+}
+
+/// Retain actual validated packet hit coordinates without fabricating them for trusted direct calls.
+pub(in crate::server::game) fn use_on_block_with_click(
+    world: &mut World,
+    player: Entity,
+    clicked: IVec3,
+    face: u8,
+    offset: Option<DVec3>,
+) -> bool {
     let Some((slot, stack)) = held(world, player) else {
         return false;
     };
@@ -62,6 +73,7 @@ pub fn use_on_block(world: &mut World, player: Entity, clicked: IVec3, face: u8)
         registry: &registry,
         clicked,
         face,
+        offset,
         state,
         block: &block,
         committed: RefCell::new(None),
@@ -101,6 +113,7 @@ struct Use<'a> {
     registry: &'a BlockRegistry,
     clicked: IVec3,
     face: u8,
+    offset: Option<DVec3>,
     state: u32,
     block: &'a BlockEntry,
     committed: RefCell<Option<BlockCommit>>,
@@ -110,10 +123,10 @@ struct Use<'a> {
 impl Use<'_> {
     /// Authorize exact mutation targets while preserving the selected item and
     /// clicked block snapshot across callbacks. A veto is a handled interaction.
-    fn authorize(&self, world: &mut World, targets: &[IVec3]) -> bool {
+    fn authorize(&self, world: &mut World, updates: &[(IVec3, u32)]) -> bool {
         let clicked = (self.clicked.x, self.clicked.y, self.clicked.z);
         let mut positions = vec![clicked];
-        for target in targets {
+        for (target, _) in updates {
             let target = (target.x, target.y, target.z);
             if !positions.contains(&target) {
                 positions.push(target);
@@ -129,22 +142,45 @@ impl Use<'_> {
             })
             .map(|pos| (pos, block_at(world, pos)))
             .collect();
+        let mut proposed = Vec::with_capacity(positions.len());
+        for &(x, y, z) in &positions {
+            let position = IVec3::new(x, y, z);
+            let Some(state) = updates
+                .iter()
+                .find(|(target, _)| *target == position)
+                .map(|(_, state)| *state)
+                .or_else(|| block_at(world, (x, y, z)))
+            else {
+                return false;
+            };
+            proposed.push((position, state));
+        }
+        let mut committed = None;
         let valid = held(world, self.player)
             .is_some_and(|(slot, stack)| slot == self.slot && stack == *self.stack)
             && block_at(world, clicked) == Some(self.state)
             && can_interact(world, self.player, clicked)
-            && authorize_block_operation(world, self.player, BlockInteractionKind::Use, &positions)
+            && {
+                committed = authorize_block_plan(
+                    world,
+                    self.player,
+                    BlockInteractionKind::Use,
+                    &proposed,
+                    Some(BlockClick {
+                        position: self.clicked,
+                        face: (self.face <= 5).then_some(self.face),
+                        offset: self.offset,
+                    }),
+                    None,
+                );
+                committed.is_some()
+            }
             && can_interact(world, self.player, clicked)
             && dependencies
                 .iter()
                 .all(|(pos, state)| block_at(world, *pos) == *state);
         if valid {
-            *self.committed.borrow_mut() = Some(BlockCommit::capture(
-                world,
-                self.player,
-                BlockInteractionKind::Use,
-                positions.iter().map(|&(x, y, z)| IVec3::new(x, y, z)),
-            ));
+            *self.committed.borrow_mut() = committed;
         } else {
             for position in positions {
                 correct_block(world, self.player, position);
@@ -214,7 +250,7 @@ fn centre(pos: IVec3) -> DVec3 {
 /// Replace the clicked block and play the item-use-on sound with the new
 /// block, as tilling, flattening and stripping do.
 fn convert(world: &mut World, ctx: &Use, new_state: u32) -> bool {
-    if !ctx.authorize(world, &[ctx.clicked]) {
+    if !ctx.authorize(world, &[(ctx.clicked, new_state)]) {
         return false;
     }
     ctx.set_block(world, ctx.clicked, new_state);
@@ -306,7 +342,7 @@ fn flatten(world: &mut World, ctx: &Use) -> bool {
         else {
             return false;
         };
-        if !ctx.authorize(world, &[ctx.clicked]) {
+        if !ctx.authorize(world, &[(ctx.clicked, out)]) {
             return true;
         }
         ctx.set_block(world, ctx.clicked, out);
@@ -391,7 +427,7 @@ fn strip_or_scrape(world: &mut World, ctx: &Use) -> bool {
     let Some(state) = carry_states(ctx.registry, ctx.block, ctx.state, &into) else {
         return false;
     };
-    if !ctx.authorize(world, &[ctx.clicked]) {
+    if !ctx.authorize(world, &[(ctx.clicked, state)]) {
         return true;
     }
     ctx.set_block(world, ctx.clicked, state);
@@ -425,7 +461,7 @@ fn carve(world: &mut World, ctx: &Use) -> bool {
     else {
         return false;
     };
-    if !ctx.authorize(world, &[ctx.clicked]) {
+    if !ctx.authorize(world, &[(ctx.clicked, carved)]) {
         return true;
     }
     ctx.set_block(world, ctx.clicked, carved);
@@ -474,7 +510,7 @@ fn ignite(world: &mut World, ctx: &Use) -> bool {
             (target, state)
         }
     };
-    if !ctx.authorize(world, &[pos]) {
+    if !ctx.authorize(world, &[(pos, state)]) {
         return true;
     }
     ctx.set_block(world, pos, state);
@@ -519,7 +555,7 @@ fn fertilize(world: &mut World, ctx: &Use) -> bool {
         else {
             return false;
         };
-        if !ctx.authorize(world, &[ctx.clicked]) {
+        if !ctx.authorize(world, &[(ctx.clicked, state)]) {
             return true;
         }
         ctx.set_block(world, ctx.clicked, state);
@@ -537,7 +573,7 @@ fn fertilize(world: &mut World, ctx: &Use) -> bool {
         else {
             return false;
         };
-        if !ctx.authorize(world, &[ctx.clicked]) {
+        if !ctx.authorize(world, &[(ctx.clicked, state)]) {
             return true;
         }
         ctx.set_block(world, ctx.clicked, state);
@@ -605,7 +641,7 @@ fn grow_grass(world: &mut World, ctx: &Use) -> bool {
         plants.push((pos, plant));
     }
     let targets: Vec<_> = plants.iter().map(|(pos, _)| *pos).collect();
-    if !ctx.authorize(world, &targets)
+    if !ctx.authorize(world, &plants)
         || targets
             .iter()
             .any(|pos| block_at(world, (pos.x, pos.y - 1, pos.z)) != Some(grass))
@@ -639,7 +675,7 @@ fn fill_bucket(world: &mut World, ctx: &Use) -> bool {
     let Some(bucket) = crate::server::game::world_stack(world, filled.0, 1) else {
         return false;
     };
-    if !ctx.authorize(world, &[ctx.clicked]) {
+    if !ctx.authorize(world, &[(ctx.clicked, air)]) {
         return true;
     }
     ctx.set_block(world, ctx.clicked, air);
@@ -684,7 +720,7 @@ fn empty_bucket(world: &mut World, ctx: &Use) -> bool {
     let Some(empty) = crate::server::game::world_stack(world, "minecraft:bucket", 1) else {
         return false;
     };
-    if !ctx.authorize(world, &[pos]) {
+    if !ctx.authorize(world, &[(pos, state)]) {
         return true;
     }
     ctx.set_block(world, pos, state);

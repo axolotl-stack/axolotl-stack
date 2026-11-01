@@ -28,7 +28,6 @@ impl PlayerLineage {
             })
     }
 
-
     /// Opaque connection/actor lifetime key for internal owned presentation state.
     pub(crate) fn key(&self) -> uuid::Uuid {
         self.id

@@ -119,6 +119,8 @@ impl PluginManager {
             .view_registry
             .clone();
         super::views::install(views, world);
+
+        super::blocks::install(manager.clone(), world);
         LifecycleBridge::install(manager, world);
     }
 

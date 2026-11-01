@@ -83,6 +83,8 @@ fn fixture(
         readiness: Default::default(),
         storage_registry: Default::default(),
         command_roots: Default::default(),
+        ui_registry: Default::default(),
+        view_registry: Default::default(),
     };
     let mut world = bevy_ecs::world::World::new();
     world.insert_resource(crate::ecs::TickCounter { current: 42 });

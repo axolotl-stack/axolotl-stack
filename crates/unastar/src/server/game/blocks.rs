@@ -8,7 +8,9 @@ use bevy_ecs::prelude::*;
 use glam::IVec3;
 use tracing::{debug, trace, warn};
 
-use super::block_interaction::{self, BlockCommit, BlockInteractionKind};
+use super::block_interaction::{
+    self, BlockClick, BlockCommit, BlockInteractionKind, ScopedBlockDispatcher,
+};
 use super::packet_queues::{BlockAction, BlockPacketQueue};
 use crate::ecs::events::{EventBuffer, ServerEvent};
 use crate::entity::components::{BreakingState, PlayerSession, PlayerUuid};
@@ -434,6 +436,15 @@ pub(crate) fn correct_block(world: &World, entity: Entity, position: (i32, i32, 
 /// Called only after the plugin manager has accepted this queued intent.
 /// Revalidation closes races between packet processing and plugin dispatch.
 pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
+    commit_block_event_with(world, event, None);
+}
+
+/// A manager-owned queued commit uses its existing scoped dispatcher without reentry.
+pub(crate) fn commit_block_event_with(
+    world: &mut World,
+    event: &ServerEvent,
+    mut inline: Option<&mut dyn ScopedBlockDispatcher>,
+) {
     match event {
         ServerEvent::BlockBreak {
             entity,
@@ -445,24 +456,56 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             if *block_id != *blocks::AIR
                 && can_interact(world, *entity, *position)
                 && block_at(world, *position) == Some(*block_id)
-                && authorize_block_operation(
-                    world,
-                    *entity,
-                    BlockInteractionKind::Break,
-                    &positions,
-                )
                 && can_interact(world, *entity, *position)
                 && block_at(world, *position) == Some(*block_id)
                 && container_positions(world, *position) == positions
             {
-                let committed = BlockCommit::capture(
+                let updates: Vec<_> = positions
+                    .iter()
+                    .filter_map(|&(x, y, z)| {
+                        Some((
+                            IVec3::new(x, y, z),
+                            if (x, y, z) == *position {
+                                *blocks::AIR
+                            } else {
+                                block_at(world, (x, y, z))?
+                            },
+                        ))
+                    })
+                    .collect();
+                let Some(committed) = authorize_block_plan(
                     world,
                     *entity,
                     BlockInteractionKind::Break,
-                    positions.iter().map(|&(x, y, z)| IVec3::new(x, y, z)),
-                );
+                    &updates,
+                    Some(BlockClick {
+                        position: IVec3::new(position.0, position.1, position.2),
+                        face: None,
+                        offset: None,
+                    }),
+                    inline
+                        .as_mut()
+                        .map(|handler| &mut **handler as &mut dyn ScopedBlockDispatcher),
+                ) else {
+                    reject_block_event(world, event);
+                    return;
+                };
+                if !can_interact(world, *entity, *position)
+                    || container_positions(world, *position) != positions
+                {
+                    reject_block_event(world, event);
+                    return;
+                }
                 apply_break_block(
-                    world, *entity, position.0, position.1, position.2, committed,
+                    world,
+                    *entity,
+                    position.0,
+                    position.1,
+                    position.2,
+                    committed,
+                    inline
+                        .as_mut()
+                        .map(|handler| &mut **handler as &mut dyn ScopedBlockDispatcher),
                 );
             } else {
                 reject_block_event(world, event);
@@ -472,6 +515,7 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             entity,
             position,
             block_id,
+            click,
             ..
         } => {
             let upper = if can_interact(world, *entity, *position) {
@@ -484,8 +528,37 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                 return;
             };
             let positions = placement_positions(world, *position, *block_id, upper);
-            if !authorize_block_operation(world, *entity, BlockInteractionKind::Place, &positions)
-                || !can_interact(world, *entity, *position)
+            let updates: Option<Vec<_>> = positions
+                .iter()
+                .map(|&(x, y, z)| {
+                    let pos = IVec3::new(x, y, z);
+                    let state = if (x, y, z) == *position {
+                        *block_id
+                    } else if let Some((above, state)) = upper.filter(|(above, _)| *above == pos) {
+                        let _ = above;
+                        state
+                    } else {
+                        block_at(world, (x, y, z))?
+                    };
+                    Some((pos, state))
+                })
+                .collect();
+            let Some(committed) = updates.and_then(|updates| {
+                authorize_block_plan(
+                    world,
+                    *entity,
+                    BlockInteractionKind::Place,
+                    &updates,
+                    click.clone(),
+                    inline
+                        .as_mut()
+                        .map(|handler| &mut **handler as &mut dyn ScopedBlockDispatcher),
+                )
+            }) else {
+                reject_block_event(world, event);
+                return;
+            };
+            if !can_interact(world, *entity, *position)
                 || placement_upper(world, *entity, *position, *block_id) != Some(upper)
                 || placement_positions(world, *position, *block_id, upper) != positions
             {
@@ -495,12 +568,6 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                 super::inventory::resync_inventory(world, *entity);
                 return;
             }
-            let committed = BlockCommit::capture(
-                world,
-                *entity,
-                BlockInteractionKind::Place,
-                positions.iter().map(|&(x, y, z)| IVec3::new(x, y, z)),
-            );
             place_block(world, position.0, position.1, position.2, *block_id);
             if let Some((above, upper_state)) = upper {
                 place_block(world, above.x, above.y, above.z, upper_state);
@@ -514,7 +581,7 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             }
             super::inventory::resync_inventory(world, *entity);
             correct_block(world, *entity, *position);
-            committed.finish(world);
+            committed.finish_with(world, inline);
         }
         _ => {}
     }
@@ -571,19 +638,30 @@ pub(crate) fn authorize_block_operation(
     kind: BlockInteractionKind,
     positions: &[(i32, i32, i32)],
 ) -> bool {
-    if positions
+    let updates: Option<Vec<_>> = positions
         .iter()
-        .any(|&(x, y, z)| super::containers::mutation_locked(world, IVec3::new(x, y, z)))
-    {
-        return false;
-    }
-    let states: Option<Vec<_>> = positions
-        .iter()
-        .map(|position| block_at(world, *position))
+        .map(|&(x, y, z)| Some((IVec3::new(x, y, z), block_at(world, (x, y, z))?)))
         .collect();
-    let Some(states) = states else {
-        return false;
-    };
+    updates.is_some_and(|updates| {
+        authorize_block_plan(world, player, kind, &updates, None, None).is_some()
+    })
+}
+
+/// Authorize a complete planned batch and capture its original source for commit.
+pub(super) fn authorize_block_plan(
+    world: &mut World,
+    player: Entity,
+    kind: BlockInteractionKind,
+    updates: &[(IVec3, u32)],
+    click: Option<BlockClick>,
+    inline: Option<&mut dyn ScopedBlockDispatcher>,
+) -> Option<BlockCommit> {
+    if updates
+        .iter()
+        .any(|(position, _)| super::containers::mutation_locked(world, *position))
+    {
+        return None;
+    }
     let mode = world
         .get::<crate::entity::components::GameMode>(player)
         .copied();
@@ -592,19 +670,10 @@ pub(crate) fn authorize_block_operation(
     let session = world
         .get::<PlayerSession>(player)
         .map(InteractionSession::capture);
-    let allowed = block_interaction::authorize(
-        world,
-        player,
-        kind,
-        positions
-            .iter()
-            .map(|&(x, y, z)| IVec3::new(x, y, z))
-            .collect(),
-    );
-    allowed
-        && positions
-            .iter()
-            .all(|&(x, y, z)| !super::containers::mutation_locked(world, IVec3::new(x, y, z)))
+    let committed = block_interaction::plan(world, player, kind, updates, click, inline)?;
+    (updates
+        .iter()
+        .all(|(position, _)| !super::containers::mutation_locked(world, *position))
         && world.get_entity(player).is_ok()
         && world
             .get::<crate::entity::components::GameMode>(player)
@@ -616,11 +685,8 @@ pub(crate) fn authorize_block_operation(
             (Some(expected), Some(current)) => expected.matches(current),
             (None, None) => true,
             _ => false,
-        }
-        && positions
-            .iter()
-            .zip(states)
-            .all(|(position, state)| block_at(world, *position) == Some(state))
+        })
+    .then_some(committed)
 }
 
 /// Validate and queue a break intent. Plugin dispatch owns the commit boundary.
@@ -672,6 +738,7 @@ fn apply_break_block(
     y: i32,
     z: i32,
     committed: BlockCommit,
+    inline: Option<&mut dyn ScopedBlockDispatcher>,
 ) {
     if super::containers::mutation_locked(world, IVec3::new(x, y, z)) {
         return;
@@ -767,7 +834,7 @@ fn apply_break_block(
     if let Some(broken) = broken {
         super::containers::drop_contents(world, IVec3::new(x, y, z), broken);
     }
-    committed.finish(world);
+    committed.finish_with(world, inline);
 }
 
 /// Broadcast block break effects (UpdateBlock, particles, sound) to viewers.
@@ -914,6 +981,21 @@ fn wear_held_tool(world: &mut World, block_runtime_id: u32, committed: &BlockCom
     committed.wear_source(world, super::mining::mining_wear(block, tool));
 }
 
+/// Retain only finite, bounded local hit coordinates from an actual click packet.
+fn click_offset(
+    data: &jolyne::valentine::types::ItemUseInventoryTransaction,
+) -> Option<glam::DVec3> {
+    let offset = glam::DVec3::new(
+        f64::from(data.click_position.x),
+        f64::from(data.click_position.y),
+        f64::from(data.click_position.z),
+    );
+    (offset.is_finite()
+        && offset.cmpge(glam::DVec3::ZERO).all()
+        && offset.cmple(glam::DVec3::ONE).all())
+    .then_some(offset)
+}
+
 /// Handle block click from InventoryTransaction ItemUse::ClickBlock.
 fn handle_block_click(
     world: &mut World,
@@ -954,17 +1036,39 @@ fn handle_block_click(
     } else {
         vec![clicked]
     };
-    if use_kind.is_some()
-        && (!authorize_block_operation(world, entity, BlockInteractionKind::Use, &use_positions)
+    let use_commit = if use_kind.is_some() {
+        let updates: Option<Vec<_>> = use_positions
+            .iter()
+            .map(|&(x, y, z)| Some((IVec3::new(x, y, z), block_at(world, (x, y, z))?)))
+            .collect();
+        let committed = updates.and_then(|updates| {
+            authorize_block_plan(
+                world,
+                entity,
+                BlockInteractionKind::Use,
+                &updates,
+                Some(BlockClick {
+                    position: IVec3::new(clicked.0, clicked.1, clicked.2),
+                    face: Some(data.face),
+                    offset: click_offset(data),
+                }),
+                None,
+            )
+        });
+        if committed.is_none()
             || !can_interact(world, entity, clicked)
             || block_use(world, entity, clicked) != use_kind
             || (use_kind == Some(BlockUse::Container)
-                && container_positions(world, clicked) != use_positions))
-    {
-        correct_block(world, entity, clicked);
-        super::inventory::resync_inventory(world, entity);
-        return;
-    }
+                && container_positions(world, clicked) != use_positions)
+        {
+            correct_block(world, entity, clicked);
+            super::inventory::resync_inventory(world, entity);
+            return;
+        }
+        committed
+    } else {
+        None
+    };
     // A valid placement follows this interaction immediately in EventBuffer.
     // PluginManager carries interaction cancellation to the paired placement.
     if let Some(mut events) = world.get_resource_mut::<EventBuffer>() {
@@ -975,12 +1079,7 @@ fn handle_block_click(
         });
     }
     if let Some(use_kind) = use_kind {
-        let committed = BlockCommit::capture(
-            world,
-            entity,
-            BlockInteractionKind::Use,
-            use_positions.iter().map(|&(x, y, z)| IVec3::new(x, y, z)),
-        );
+        let committed = use_commit.expect("authorized native use plan");
         let before = world
             .get::<crate::entity::components::ContainerWindows>(entity)
             .and_then(|windows| windows.open_id());
@@ -1006,11 +1105,12 @@ fn handle_block_click(
     // Tools, bone meal, buckets and fire starters act on the clicked block
     // instead of placing anything.
     if main_hand_selected
-        && super::item_use::on_block::use_on_block(
+        && super::item_use::on_block::use_on_block_with_click(
             world,
             entity,
             IVec3::new(clicked.0, clicked.1, clicked.2),
             data.face,
+            click_offset(data),
         )
     {
         return;
@@ -1020,29 +1120,31 @@ fn handle_block_click(
             crate::entity::mob::interaction::interact::spawn_egg_actor(stack.item_id()).is_some()
         })
         && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR);
-    if spawn_egg
-        && (!authorize_block_operation(
-            world,
-            entity,
-            BlockInteractionKind::Use,
-            &[clicked, position],
-        ) || !can_interact(world, entity, clicked))
-    {
-        correct_block(world, entity, clicked);
-        correct_block(world, entity, position);
-        super::inventory::resync_inventory(world, entity);
-        return;
-    }
     if spawn_egg {
-        let committed = BlockCommit::capture(
-            world,
-            entity,
-            BlockInteractionKind::Use,
-            [
-                IVec3::new(clicked.0, clicked.1, clicked.2),
-                IVec3::new(position.0, position.1, position.2),
-            ],
-        );
+        let updates: Option<Vec<_>> = [clicked, position]
+            .into_iter()
+            .map(|(x, y, z)| Some((IVec3::new(x, y, z), block_at(world, (x, y, z))?)))
+            .collect();
+        let committed = updates.and_then(|updates| {
+            authorize_block_plan(
+                world,
+                entity,
+                BlockInteractionKind::Use,
+                &updates,
+                Some(BlockClick {
+                    position: IVec3::new(clicked.0, clicked.1, clicked.2),
+                    face: Some(data.face),
+                    offset: click_offset(data),
+                }),
+                None,
+            )
+        });
+        let Some(committed) = committed.filter(|_| can_interact(world, entity, clicked)) else {
+            correct_block(world, entity, clicked);
+            correct_block(world, entity, position);
+            super::inventory::resync_inventory(world, entity);
+            return;
+        };
         if crate::entity::mob::interaction::interact::spawn_egg_on_block(
             world,
             entity,
@@ -1135,6 +1237,11 @@ fn handle_block_click(
         .unwrap_or_default();
     if let Some(mut events) = world.get_resource_mut::<EventBuffer>() {
         events.push(ServerEvent::BlockPlace {
+            click: Some(BlockClick {
+                position: IVec3::new(clicked.0, clicked.1, clicked.2),
+                face: Some(data.face),
+                offset: click_offset(data),
+            }),
             entity,
             player_id,
             position: target,
@@ -1625,6 +1732,7 @@ mod tests {
         commit_block_event(
             &mut world,
             &ServerEvent::BlockPlace {
+                click: None,
                 entity: player,
                 player_id: String::new(),
                 position: (1, 65, 1),
@@ -1679,6 +1787,7 @@ mod tests {
         commit_block_event(
             &mut world,
             &ServerEvent::BlockPlace {
+                click: None,
                 entity: player,
                 player_id: String::new(),
                 position: (1, 65, 1),
@@ -2342,6 +2451,7 @@ mod tests {
     /// A direct placement intent still passes all native final validation.
     fn committed_place(player: Entity, block_id: u32) -> ServerEvent {
         ServerEvent::BlockPlace {
+            click: None,
             entity: player,
             player_id: String::new(),
             position: (1, 65, 1),

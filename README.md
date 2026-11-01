@@ -536,3 +536,42 @@ original owned account binding. Components should recompute presentation in a
 fresh transaction after world changes. `max_view_pairs` and
 `max_view_updates_per_tick` each default to 4096 per component; host-wide pair
 ownership is also bounded.
+
+### Component block transactions
+
+Subscribe to `block_transaction` for
+`Handler::on_block_transaction(ctx, &BlockProposal)`. The proposal owns every
+affected cell's loaded before-state and resolved proposed block state, including
+upper halves, multi-cell growth and unchanged reciprocal container partners.
+`BlockValue` contains the registered identifier and typed byte, integer or text
+state properties. A single `ctx.cancel()` rejects the entire batch before normal
+block changes, item consumption, tool wear, drops, sounds or window effects.
+Ordinary reach, building-mode and inventory-ownership rules still apply.
+
+Actual click position, face and local hit coordinates are retained when known;
+missing input facts remain absent. The held item is an owned detached stack,
+including an empty hand. Request `read-players` for live player queries and
+`item-values` to inspect detached item values. Callback scopes and owned-value
+limits apply normally. `max_block_cells` defaults to the host's 512-cell bound;
+lower per-component limits reject an oversized batch before partial lifting.
+
+All later native handlers and observers may still veto. The engine revalidates
+the exact world, connection, selection and entire before-state immediately before
+ordinary effects. Block actors participate in the fingerprint even when their
+registered block state is unchanged. A passed proposal alone is not a completed
+transaction. Required callback traps apply the runtime's recovery policy before
+the rejected operation can change the world or its source item.
+
+Subscribe separately to `block_committed` for
+`Handler::on_block_committed(tx, BlockCommitted)`. This owned record contains the
+original player identity, actual before/after cell values and detached held items
+after normal costs. It requires no live player after a native callback removes
+the source. Missing loaded cells, capture errors and quota errors are explicit;
+failed capture never becomes a fabricated empty complete batch. Operation IDs
+correlate proposal and completion within the actual world lifetime. Rejected,
+stale and merely handled clicks emit no completion.
+
+For a component subscribed to `block_transaction`, its scalar `block_break`,
+`block_place` and `player_interact_block` compatibility callbacks are suppressed.
+This gives one decision path for each planned operation. The example protects
+all cells of a column through the complete proposal and observes actual commits.

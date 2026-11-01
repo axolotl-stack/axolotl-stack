@@ -27,6 +27,8 @@ mod ui;
 #[path = "views.rs"]
 pub(crate) mod views;
 
+#[path = "blocks.rs"]
+mod blocks;
 #[path = "damage.rs"]
 mod damage;
 #[path = "deaths.rs"]
@@ -590,16 +592,19 @@ impl PluginManager {
             pending.store.data_mut().view_registry = self.view_registry.clone();
             pending.store.data_mut().plugin_id = pending.manifest.id.clone();
             pending.store.data_mut().capabilities = pending.manifest.capabilities.clone();
-            let result = with_guest_world(&mut pending.store, world, |store| -> anyhow::Result<_> {
-                let mut linker = Linker::<HostContext>::new(&self.engine);
-                wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
-                UnastarPlugin::add_to_linker::<HostContext, HostContext>(&mut linker, |ctx| ctx)?;
-                begin_initialization_budget(store, &pending.manifest.limits)?;
-                let bindings =
-                    UnastarPlugin::instantiate(&mut *store, &pending.component, &linker)?;
-                bindings.call_on_load(&mut *store)?;
-                Ok(bindings)
-            });
+            let result =
+                with_guest_world(&mut pending.store, world, |store| -> anyhow::Result<_> {
+                    let mut linker = Linker::<HostContext>::new(&self.engine);
+                    wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
+                    UnastarPlugin::add_to_linker::<HostContext, HostContext>(&mut linker, |ctx| {
+                        ctx
+                    })?;
+                    begin_initialization_budget(store, &pending.manifest.limits)?;
+                    let bindings =
+                        UnastarPlugin::instantiate(&mut *store, &pending.component, &linker)?;
+                    bindings.call_on_load(&mut *store)?;
+                    Ok(bindings)
+                });
             match result {
                 Ok(bindings) => {
                     commands::finish_invocation(pending.store.data_mut(), true);
@@ -710,6 +715,20 @@ impl PluginManager {
                 if !plugin.manifest.subscriptions.contains(&event.kind()) {
                     continue;
                 }
+                // Full transaction subscribers supersede the scalar compatibility callbacks.
+                if plugin
+                    .manifest
+                    .subscriptions
+                    .contains(&crate::ecs::events::EventKind::BlockTransaction)
+                    && matches!(
+                        event,
+                        ServerEvent::BlockBreak { .. }
+                            | ServerEvent::BlockPlace { .. }
+                            | ServerEvent::PlayerInteractBlock { .. }
+                    )
+                {
+                    continue;
+                }
                 if cancelled_indices.contains(&index) {
                     continue;
                 }
@@ -742,7 +761,18 @@ impl PluginManager {
         // Execute default behavior for non-cancelled events
         for (index, event) in all_events.into_iter().enumerate() {
             if !cancelled_indices.contains(&index) {
-                Self::execute_default_behavior(event, ecs_world);
+                if matches!(
+                    event,
+                    ServerEvent::BlockBreak { .. } | ServerEvent::BlockPlace { .. }
+                ) {
+                    crate::server::game::blocks::commit_block_event_with(
+                        ecs_world,
+                        &event,
+                        Some(self),
+                    );
+                } else {
+                    Self::execute_default_behavior(event, ecs_world);
+                }
             } else {
                 crate::server::game::reject_block_event(ecs_world, &event);
             }
@@ -1189,6 +1219,8 @@ pub(crate) mod tests {
         ])
     }
 
+    #[path = "blocks.rs"]
+    mod block_tests;
     #[path = "commands.rs"]
     mod command_tests;
     #[path = "execution.rs"]
@@ -1291,6 +1323,7 @@ pub(crate) mod tests {
             let plugin = manager.plugins.values_mut().next().unwrap();
             for event in [
                 ServerEvent::BlockPlace {
+                    click: None,
                     entity,
                     player_id: "test".into(),
                     position: (0, 1, 0),
@@ -1406,6 +1439,7 @@ pub(crate) mod tests {
                 face: 1,
             });
             events.push(ServerEvent::BlockPlace {
+                click: None,
                 entity,
                 player_id: "test".into(),
                 position: (1, 65, 1),

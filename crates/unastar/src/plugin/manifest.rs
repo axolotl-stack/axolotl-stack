@@ -45,6 +45,9 @@ pub struct PluginManifest {
 /// Resource limits for a plugin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginLimits {
+    /// Maximum affected cells lifted for one block authorization/completion.
+    #[serde(default = "default_block_cells")]
+    pub max_block_cells: u32,
     /// Wasmtime instruction fuel shared by all event exports in one server tick.
     /// Defaults to 10M; epoch interruption remains an independent per-call limit.
     #[serde(default = "default_fuel")]
@@ -100,6 +103,7 @@ pub struct PluginLimits {
 impl Default for PluginLimits {
     fn default() -> Self {
         Self {
+            max_block_cells: default_block_cells(),
             fuel_per_tick: default_fuel(),
             fuel_per_initialization: default_initialization_fuel(),
             initialization_timeout_ms: default_initialization_timeout(),
@@ -150,6 +154,11 @@ fn default_initialization_timeout() -> u32 {
 /// Keep the existing short callback default, independently of startup capacity.
 fn default_callback_timeout() -> u32 {
     10
+}
+
+/// Cover bounded native multi-cell growth while rejecting unbounded lifting.
+fn default_block_cells() -> u32 {
+    512
 }
 
 fn default_fuel() -> u64 {
