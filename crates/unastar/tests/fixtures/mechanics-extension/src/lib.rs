@@ -2,8 +2,8 @@
 
 use std::cell::RefCell;
 use unastar_api::{
-    AccessError, EffectApplication, EffectKind, Handler, InfiniteEffectApplication, LogLevel,
-    PlayerContext, PlayerHandle, QuitDisposition, QuitEvent, WorldTx, commands, host,
+    AccessError, EffectApplication, EffectKind, FoodPolicy, Handler, InfiniteEffectApplication,
+    LogLevel, PlayerContext, PlayerHandle, QuitDisposition, QuitEvent, WorldTx, commands, host,
 };
 
 struct Mechanics;
@@ -11,6 +11,7 @@ unastar_api::export_handler!(Mechanics);
 thread_local! {
     static TARGET: RefCell<Option<PlayerHandle>> = const { RefCell::new(None) };
     static DESTINATION: RefCell<Option<PlayerHandle>> = const { RefCell::new(None) };
+    static VITALS: RefCell<bool> = const { RefCell::new(false) };
 }
 /// Keep fixture failures as ordinary component traps without WASI stream dependencies.
 fn check(value: bool) {
@@ -35,6 +36,15 @@ fn infinite(kind: EffectKind, amplifier: u8) -> InfiniteEffectApplication {
 fn log(message: &str) {
     host::log(LogLevel::Info, message);
 }
+/// Exercise native food processing without creating replacement guest-side timers.
+fn no_food_processing() -> FoodPolicy {
+    FoodPolicy {
+        exhaustion: false,
+        food_drain: false,
+        natural_regeneration: false,
+        starvation: false,
+    }
+}
 
 impl Handler for Mechanics {
     fn on_load() {
@@ -46,6 +56,82 @@ impl Handler for Mechanics {
     fn on_player_command(ctx: &mut PlayerContext<'_>, line: String, _: Option<String>) {
         ctx.cancel();
         match line.trim_start_matches('/') {
+            "probe heal" => {
+                let before = ok(ctx.player().vitals());
+                check(matches!(
+                    ok(ctx.player().heal(1.25)),
+                    unastar_api::MechanicsAcknowledgement::Staged
+                ));
+                let after = ok(ctx.player().vitals());
+                check(before.health == after.health);
+                log("heal-staged");
+            }
+            "probe heal-clamp" => {
+                ok(ctx.player().heal(f32::MAX));
+            }
+            "probe heal-invalid" => {
+                for amount in [-1.0, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+                    check(matches!(
+                        ctx.player().heal(amount),
+                        Err(AccessError::InvalidArgument)
+                    ));
+                }
+                log("invalid-heal-rejected");
+            }
+            "probe food-off" => {
+                ok(ctx.player().set_food_policy(Some(no_food_processing())));
+            }
+            "probe food-on" => {
+                ok(ctx.player().set_food_policy(None));
+            }
+            "probe food-no-drain" => {
+                ok(ctx.player().set_food_policy(Some(FoodPolicy {
+                    exhaustion: true,
+                    food_drain: false,
+                    natural_regeneration: false,
+                    starvation: false,
+                })));
+            }
+            "probe vitals-unavailable" => {
+                check(matches!(
+                    ctx.player().vitals(),
+                    Err(AccessError::Unavailable)
+                ));
+                log("vitals-unavailable");
+            }
+            "probe vitals" => {
+                let value = ok(ctx.player().vitals());
+                log(&format!(
+                    "vitals:{},{},{},{},{},{},{}",
+                    value.health,
+                    value.max_health,
+                    value.absorption,
+                    value.food_level,
+                    value.saturation,
+                    value.exhaustion,
+                    value.food_policy_override.is_some()
+                ));
+            }
+            "probe vitals-denied" => {
+                check(matches!(
+                    ctx.player().heal(1.25),
+                    Err(AccessError::PermissionDenied)
+                ));
+                check(matches!(
+                    ctx.player().set_food_policy(Some(no_food_processing())),
+                    Err(AccessError::PermissionDenied)
+                ));
+                log("vitals-denied");
+            }
+            "probe vitals-trap" => {
+                ok(ctx.player().heal(1.25));
+                ok(ctx.player().set_food_policy(Some(no_food_processing())));
+                check(false);
+            }
+            "probe remember-vitals" => {
+                TARGET.with(|target| *target.borrow_mut() = Some(ok(ctx.player().handle())));
+                VITALS.with(|value| *value.borrow_mut() = true);
+            }
             "probe infinite" => {
                 ok(ctx
                     .player()
@@ -147,6 +233,18 @@ impl Handler for Mechanics {
                 }
             };
             let availability = ok(player.availability());
+            if VITALS.with_borrow(|value| *value) {
+                match player.heal(1.25) {
+                    Ok(_) => {
+                        check(availability == unastar_api::PlayerAvailability::Retained);
+                        ok(player.set_food_policy(Some(no_food_processing())));
+                        log("retained-vitals-staged");
+                    }
+                    Err(AccessError::Unavailable) => log("retained-vitals-unavailable"),
+                    Err(_) => check(false),
+                }
+                return;
+            }
             match player.apply_infinite_effect(&infinite(EffectKind::Resistance, 2), None) {
                 Ok(_) => {
                     check(availability == unastar_api::PlayerAvailability::Retained);

@@ -199,6 +199,26 @@ interface types {
         show-particles: bool,
     }
 
+    /// Per-actor native food processing; none restores the ordinary policy.
+    record food-policy {
+        exhaustion: bool,
+        food-drain: bool,
+        natural-regeneration: bool,
+        starvation: bool,
+    }
+
+    /// Current physical values; staged mechanics are not projected into observations.
+    record player-vitals {
+        health: f32,
+        max-health: f32,
+        absorption: f32,
+        food-level: s32,
+        saturation: f32,
+        exhaustion: f32,
+        food-policy-override: option<food-policy>,
+        captured-tick: u64,
+    }
+
     record player-mechanics-state {
         effects: list<active-status-effect>,
         /// Actual embedded player fall history, or standalone native body history.
@@ -697,6 +717,12 @@ interface types {
         state-receipt: func(request-id: string) -> result<option<inventory-receipt>, state-error>;
         /// Capture current authoritative state; pending requests are not reflected here.
         mechanics: func() -> result<player-mechanics-state, access-error>;
+        vitals: func() -> result<player-vitals, access-error>;
+        /// Stage finite nonnegative native healing, clamped to current maximum health.
+        /// Dead, held, incomplete and recovery-fenced actors cannot be revived by this import.
+        heal: func(amount: f32) -> result<mechanics-acknowledgement, access-error>;
+        /// Transient native processing policy; does not reset food values or native timers.
+        set-food-policy: func(policy: option<food-policy>) -> result<mechanics-acknowledgement, access-error>;
         apply-effect: func(effect: effect-application, source: option<borrow<player>>) -> result<mechanics-acknowledgement, access-error>;
         apply-infinite-effect: func(effect: infinite-effect-application, source: option<borrow<player>>) -> result<mechanics-acknowledgement, access-error>;
         remove-effect: func(kind: effect-kind) -> result<mechanics-acknowledgement, access-error>;
