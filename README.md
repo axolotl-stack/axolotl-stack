@@ -426,6 +426,36 @@ resource/retained-byte quotas apply to the complete capture. A failed capture
 releases its partial allocations and returns an explicit error. A required
 callback failure fences subsequent ordinary player saves.
 
+### Scoped durable player travel
+
+`player-travel` and `read-players` permit `Player::relocate(&world, feet,
+safe_y_radius, correlation)` in a fresh scoped callback. The owned `WorldHandle`
+selects one actual world lifetime, not whichever world later reuses a dimension.
+The runtime must use the native dimension router. The player must be connected,
+published and ready, with an account provider that
+guarantees atomic durable records. Coordinates are finite native
+player feet; safe-Y search is bounded to 256 blocks. Native chunk loading,
+collision/support/hazard checks, proposal vetoes, session ownership and complete
+player-state revalidation remain authoritative.
+
+`TravelAcknowledgement::Staged` acknowledges an intent only. A successful callback
+queues native work outside the component-manager lock; a trap or malformed return
+discards it. Valid default-action cancellation preserves the explicit request.
+Native same-world relocation and cross-world migration acknowledge canonical
+player storage before moving the real actor and its transport/inventory. There
+are at most 64 pending operations or undelivered results per component instance.
+
+`on_player_travel_result` receives owned original identity, origin/requested
+locations, opaque echoed correlation and a typed outcome. `Moved` reports the
+actual source and destination after native movement and storage acknowledgement;
+it is not a receipt for component-owned storage. `NotApplied` is a definite
+failure. `Uncertain` means native storage may have changed and the account is
+terminally fenced for recovery. Results do not manufacture a live player after
+departure or world closure: schedule an already-retained handle for fresh scoped
+follow-up work. Source closure and destination replacement produce failures;
+unloading a component revokes outstanding authority and discards notifications
+owned by that destroyed instance. Replacement components never inherit them.
+
 ### Scoped component player mechanics
 
 With `read-players`, `Player::mechanics()` copies the current native effects,

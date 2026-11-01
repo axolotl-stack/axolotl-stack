@@ -4,6 +4,16 @@ use super::*;
 use crate::plugin::manifest::PluginCapability;
 
 impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
+    fn relocate(
+        &mut self,
+        player: Resource<wit::Player>,
+        destination: Resource<wit::WorldHandle>,
+        feet: wit::Vec3,
+        radius: u16,
+        correlation: u64,
+    ) -> Result<wit::TravelAcknowledgement, wit::AccessError> {
+        self.stage_travel(player.rep(), destination.rep(), feet, radius, correlation)
+    }
     fn inventory(
         &mut self,
         player: Resource<wit::Player>,

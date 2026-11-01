@@ -22,6 +22,8 @@ mod inventory;
 mod items;
 #[path = "players/mechanics.rs"]
 mod mechanics;
+#[path = "players/travel.rs"]
+pub(super) mod travel;
 #[path = "players/values.rs"]
 mod values;
 pub(crate) use mechanics::apply_pending as apply_mechanics;

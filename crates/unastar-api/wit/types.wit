@@ -489,6 +489,9 @@ interface types {
 
     /// Live access is transaction scoped. Store player-handle instead of player.
     resource player {
+        /// Stage a native durable relocation, not a movement acknowledgement.
+        /// Destination is one actual world lifetime; coordinates are player feet.
+        relocate: func(destination: borrow<world-handle>, feet: vec3, safe-y-radius: u16, correlation: u64) -> result<travel-acknowledgement, access-error>;
         /// Capture current authoritative state; pending requests are not reflected here.
         mechanics: func() -> result<player-mechanics-state, access-error>;
         apply-effect: func(effect: effect-application, source: option<borrow<player>>) -> result<mechanics-acknowledgement, access-error>;
@@ -517,6 +520,35 @@ interface types {
         initial-state-ready: func() -> result<bool, access-error>;
         /// Valid only in this player's admission callback; retain the owned hold for Deferred.
         defer-admission: func() -> result<admission-hold, access-error>;
+    }
+    enum travel-acknowledgement { staged }
+    record travel-location { dimension: s32, feet: vec3 }
+    enum travel-error {
+        cancelled, source-closed, destination-closed, stale-source,
+        unavailable, unsafe-destination, rejected, pending, invalid-request,
+        incompatible-worlds, unsupported-state, backpressure, timeout, persistence,
+    }
+    record travel-moved {
+        /// Actual feet before the accepted native move, which may follow loading.
+        %from: vec3,
+        destination: travel-location,
+    }
+    variant travel-outcome {
+        /// Native canonical player storage acknowledged before actual movement.
+        moved(travel-moved),
+        /// No movement or potentially successful canonical write occurred.
+        not-applied(travel-error),
+        /// Storage may have changed; the native account is terminally fenced.
+        uncertain,
+    }
+    /// Owned facts; no live player is manufactured after departure or world closure.
+    /// Correlation is echoed only and does not authorize or identify host behavior.
+    record travel-result {
+        correlation: u64,
+        identity: player-identity,
+        origin: travel-location,
+        requested: travel-location,
+        outcome: travel-outcome,
     }
     /// Each stage is independently authorized before its native costs and effects.
     enum item-action-stage { %use, release, consume, charge, launch }

@@ -129,6 +129,19 @@ pub struct Player<'scope> {
     scope: PhantomData<&'scope WorldTx<'scope>>,
 }
 impl<'scope> Player<'scope> {
+    /// Stage native loading, safe-Y checks and durable movement to one actual world.
+    /// Only `on_player_travel_result` reports the physical outcome. A successful
+    /// callback keeps explicit requests even when its default action is cancelled.
+    pub fn relocate(
+        &self,
+        destination: &WorldHandle,
+        feet: Vec3,
+        safe_y_radius: u16,
+        correlation: u64,
+    ) -> Result<crate::TravelAcknowledgement, AccessError> {
+        self.raw()
+            .relocate(destination, feet, safe_y_radius, correlation)
+    }
     /// Bind generated callback arguments to the same transaction lifetime.
     #[doc(hidden)]
     pub fn __from_borrowed(raw: &'scope raw::Player, _tx: &'scope WorldTx<'scope>) -> Self {

@@ -226,6 +226,8 @@ pub enum PluginCapability {
     ReadInventory,
     /// Stage bounded native status, motion, mode and flight changes.
     PlayerMechanics,
+    /// Request bounded native durable relocations through owned world handles.
+    PlayerTravel,
     /// Read typed actor references and current-world observations.
     ReadPlayers,
     /// Advertise owned command roots; handling still uses explicit subscriptions.
