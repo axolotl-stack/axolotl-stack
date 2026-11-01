@@ -242,6 +242,7 @@ fn pending_viewer_receives_no_mob_snapshot_or_attributed_sound() {
     h.world()
         .entity_mut(viewer)
         .remove::<crate::server::game::player_events::PendingInitialState>();
+    crate::server::game::player_events::mark_initial_state_published(h.world(), viewer);
     network.run(h.world());
     assert!(
         h.packets()

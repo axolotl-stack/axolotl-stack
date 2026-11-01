@@ -42,6 +42,22 @@ impl<'scope> WorldTx<'scope> {
     }
 }
 
+/// A storable acknowledgement bound to one component and original connection.
+/// Dropping an unresolved deferred hold rejects admission rather than releasing it.
+pub struct AdmissionHold {
+    raw: raw::AdmissionHold,
+}
+impl AdmissionHold {
+    /// Stage a decision in a fresh world transaction; publication has a separate notification.
+    pub fn resolve(
+        &self,
+        tx: &WorldTx<'_>,
+        decision: crate::AdmissionResolution,
+    ) -> Result<crate::AdmissionAcknowledgement, AccessError> {
+        self.raw.resolve(tx.raw, &decision)
+    }
+}
+
 enum PlayerResource<'scope> {
     Borrowed(&'scope raw::Player),
     Owned(raw::Player),
@@ -68,6 +84,16 @@ impl<'scope> Player<'scope> {
             PlayerResource::Borrowed(raw) => raw,
             PlayerResource::Owned(raw) => raw,
         }
+    }
+    /// Query actual native initial-state completeness without claiming the player is Ready.
+    pub fn initial_state_ready(&self) -> Result<bool, AccessError> {
+        self.raw().initial_state_ready()
+    }
+    /// Retain this token and return Deferred when initialization needs later scoped callbacks.
+    pub fn defer_admission(&self) -> Result<AdmissionHold, AccessError> {
+        self.raw()
+            .defer_admission()
+            .map(|raw| AdmissionHold { raw })
     }
     /// Retain a stable actor reference instead of this scoped player.
     pub fn handle(&self) -> Result<PlayerHandle, AccessError> {

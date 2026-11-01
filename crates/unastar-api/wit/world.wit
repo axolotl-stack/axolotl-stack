@@ -5,13 +5,14 @@ world unastar-plugin {
     import host;
     import storage;
 
-    use types.{world-tx, player, vec3, block-pos, damage-cause, access-error};
+    use types.{world-tx, player, vec3, block-pos, damage-cause, access-error, admission-decision, quit-event, quit-disposition, admitted-event};
 
     export on-load: func();
     export on-unload: func();
     export on-tick: func(tick-id: u64);
-    export on-player-join: func(tx: borrow<world-tx>, player: borrow<player>, username: string);
-    export on-player-quit: func(tx: borrow<world-tx>, player: borrow<player>);
+    export on-player-admission: func(tx: borrow<world-tx>, player: borrow<player>) -> admission-decision;
+    export on-player-admitted: func(event: admitted-event);
+    export on-player-quit: func(tx: borrow<world-tx>, event: quit-event) -> quit-disposition;
     export on-player-chat: func(tx: borrow<world-tx>, player: borrow<player>, message: string) -> bool;
     export on-block-break: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, block-id: u32) -> bool;
     export on-block-place: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, block-id: u32) -> bool;

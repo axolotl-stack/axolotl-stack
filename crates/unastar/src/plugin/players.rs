@@ -11,6 +11,8 @@ mod identity;
 pub(super) use identity::WorldReference;
 pub(crate) use identity::{ComponentDirectory, PlayerLineage};
 use identity::{availability, ensure_identity, observe, resolve, snapshot};
+#[path = "players/admission.rs"]
+mod admission;
 #[path = "players/host.rs"]
 mod host;
 
@@ -35,6 +37,7 @@ enum Entry {
     },
     WorldHandle(WorldReference),
     Task(Arc<super::tasks::TaskState>),
+    AdmissionHold(super::sessions::OwnedHold),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.
@@ -353,6 +356,31 @@ pub(super) fn task_destination(
             }
         }
     }
+}
+
+/// Capture an owned event identity while the exact native actor is still present.
+pub(super) fn owned_identity(
+    world: &mut World,
+    player: Entity,
+) -> Result<wit::PlayerIdentity, wit::AccessError> {
+    ensure_identity(world, player).map(|reference| reference.identity)
+}
+/// Capture immutable facts without manufacturing values for a withheld native source.
+pub(super) fn owned_snapshot(
+    world: &mut World,
+    player: Entity,
+) -> Result<wit::PlayerSnapshot, wit::AccessError> {
+    let reference = ensure_identity(world, player)?;
+    snapshot(world, player, &reference)
+}
+
+/// Finalize component-owned admission acknowledgements at the central callback boundary.
+pub(super) fn finish_admission_invocation(
+    context: &mut HostContext,
+    world: &mut World,
+    succeeded: bool,
+) {
+    admission::finish(context, world, succeeded);
 }
 
 #[cfg(test)]

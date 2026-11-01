@@ -458,8 +458,18 @@ impl UnastarServer {
                             NetworkEvent::MetricsReady { session_id, metrics } => {
                                 self.server.attach_network_metrics(session_id, metrics);
                             }
+                            NetworkEvent::Departed { session_id, metrics } => {
+                                if !record_departure(&mut self.server, session_id, &metrics) { continue; }
+                                join_dimensions.remove(&session_id);
+                                if !self.server.prepare_disconnect(session_id) { continue; }
+                                self.server.check_plugins()?;
+                                if self.config.players.save_on_disconnect { self.server.save_player(session_id).await; }
+                                self.server.despawn_player(session_id);
+                            }
                             NetworkEvent::Disconnected { session_id } => {
                                 join_dimensions.remove(&session_id);
+                                if !self.server.prepare_disconnect(session_id) { continue; }
+                                self.server.check_plugins()?;
                                 if self.config.players.save_on_disconnect {
                                     let saved = self.server.save_player(session_id).await;
                                     if saved {
@@ -523,6 +533,31 @@ impl UnastarServer {
 
     /// Saves players and chunks before the process exits.
     async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let sessions: Vec<_> = self
+            .server
+            .iter()
+            .flat_map(|(_, server)| {
+                server
+                    .ecs
+                    .world()
+                    .resource::<crate::server::game::SessionEntityMap>()
+                    .iter()
+                    .map(|(session, _)| session)
+            })
+            .collect();
+        for session in sessions {
+            if let Some((dimension, player)) = self.server.locate_session(session) {
+                self.server
+                    .world_mut(dimension)
+                    .expect("located world")
+                    .ecs
+                    .world_mut()
+                    .entity_mut(player)
+                    .insert(crate::network::departure::QuitCause::ServerShutdown);
+                self.server.prepare_disconnect(session);
+                self.server.check_plugins()?;
+            }
+        }
         let players_saved = self.server.save_all_players().await;
         info!(players = players_saved, "Player data saved");
         let chunks_saved = self.server.save_all_chunks().await;
@@ -531,6 +566,30 @@ impl UnastarServer {
         info!("Server shutdown complete");
         Ok(())
     }
+}
+
+/// Reject a delayed observation from a different connection, even when its session ID was reused.
+fn record_departure(
+    router: &mut DimensionRouter,
+    session: u64,
+    metrics: &crate::entity::components::PlayerNetworkMetrics,
+) -> bool {
+    let Some((dimension, player)) = router.locate_session(session) else {
+        return false;
+    };
+    let world = router
+        .world_mut(dimension)
+        .expect("located world")
+        .ecs
+        .world_mut();
+    let Some(cause) = world
+        .get::<crate::entity::components::PlayerSession>(player)
+        .and_then(|session| metrics.departure(session))
+    else {
+        return false;
+    };
+    world.entity_mut(player).insert(cause);
+    true
 }
 
 #[derive(Clone)]

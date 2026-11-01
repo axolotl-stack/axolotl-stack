@@ -1,5 +1,6 @@
 //! Network module - connection handling and sessions.
 
+pub(crate) mod departure;
 pub mod events;
 
 use jolyne::BedrockStream;
@@ -56,6 +57,7 @@ pub(crate) async fn run_network_loop_with_metrics<T: jolyne::stream::Transport>(
     // An inbound failure the client should be told about (e.g. a streamed
     // spawn's `Timeout(Spawn)` or runtime ID mismatch).
     let mut failure = None;
+    let mut departure = departure::QuitCause::Unknown;
     'network: loop {
         tokio::select! {
             biased;
@@ -67,8 +69,10 @@ pub(crate) async fn run_network_loop_with_metrics<T: jolyne::stream::Transport>(
                         // Drain any remaining packets and queue them
                         while let Ok(packet) = outbound_rx.try_recv() {
                             let terminating = terminates_connection(&packet);
+                            if terminating { departure = departure::outgoing(&packet); }
                             if let Err(e) = stream.send_packet(packet).await {
                                 tracing::error!(session_id, "Send failed (tick flush): {:?}", e);
+                                departure = departure::failed(&e);
                                 break 'network;
                             }
                             if terminating {
@@ -78,6 +82,7 @@ pub(crate) async fn run_network_loop_with_metrics<T: jolyne::stream::Transport>(
                         // Flush all queued packets as a single batch
                         if let Err(e) = stream.flush().await {
                             tracing::error!(session_id, "Flush failed: {:?}", e);
+                            departure = departure::failed(&e);
                             break 'network;
                         }
                         if let Some(metrics) = &metrics {
@@ -90,6 +95,7 @@ pub(crate) async fn run_network_loop_with_metrics<T: jolyne::stream::Transport>(
                     Err(broadcast::error::RecvError::Closed) => {
                         // Server shutting down
                         tracing::error!(session_id, "Tick receiver closed - server shutdown or sender dropped");
+                        departure = departure::QuitCause::ServerShutdown;
                         break;
                     }
                 }
@@ -107,12 +113,14 @@ pub(crate) async fn run_network_loop_with_metrics<T: jolyne::stream::Transport>(
                         }) {
                             match e {
                                 mpsc::error::TrySendError::Full(_) => {
+                                    departure = departure::QuitCause::QueueOverflow;
                                     tracing::warn!(
                                         session_id,
                                         "Inbound event channel full; closing noisy connection"
                                     );
                                 }
                                 mpsc::error::TrySendError::Closed(_) => {
+                                    departure = departure::QuitCause::ServerShutdown;
                                     tracing::error!(session_id, "Main thread dropped event channel");
                                 }
                             }
@@ -126,16 +134,19 @@ pub(crate) async fn run_network_loop_with_metrics<T: jolyne::stream::Transport>(
                             message = disconnect.message.as_deref().unwrap_or(""),
                             "Client disconnected"
                         );
+                        departure = departure::QuitCause::PeerDisconnect { reason: disconnect.reason, message: disconnect.message.clone() };
                         break;
                     }
                     // Save and Quit closes the RakNet connection without a
                     // Bedrock Disconnect: a normal leave, not an error.
                     Err(jolyne::JolyneError::ConnectionClosed) => {
                         info!(session_id, "Client closed the connection");
+                        departure = departure::QuitCause::PeerClosed;
                         break;
                     }
                     Err(e) => {
                         tracing::error!(session_id, "Connection failed: {e}");
+                        departure = departure::failed(&e);
                         failure = Some(e);
                         break;
                     }
@@ -145,8 +156,10 @@ pub(crate) async fn run_network_loop_with_metrics<T: jolyne::stream::Transport>(
             // Priority 3: Queue outbound packets (batched flush on tick signal)
             Some(packet) = outbound_rx.recv() => {
                 let terminating = terminates_connection(&packet);
+                if terminating { departure = departure::outgoing(&packet); }
                 if let Err(e) = stream.send_packet(packet).await {
                     tracing::error!(session_id, "Send failed (immediate): {:?}", e);
+                    departure = departure::failed(&e);
                     break;
                 }
                 if terminating {
@@ -155,8 +168,10 @@ pub(crate) async fn run_network_loop_with_metrics<T: jolyne::stream::Transport>(
                 // Drain any other pending packets into buffer
                 while let Ok(p) = outbound_rx.try_recv() {
                     let terminating = terminates_connection(&p);
+                    if terminating { departure = departure::outgoing(&p); }
                     if let Err(e) = stream.send_packet(p).await {
                         warn!(session_id, "Send failed: {:?}", e);
+                        departure = departure::failed(&e);
                         break 'network;
                     }
                     if terminating {
@@ -185,8 +200,13 @@ pub(crate) async fn run_network_loop_with_metrics<T: jolyne::stream::Transport>(
     if let Err(e) = closed {
         trace!(session_id, "Closing connection failed: {e}");
     }
-    let _ = event_tx
-        .send(NetworkEvent::Disconnected { session_id })
-        .await;
+    let event = match metrics {
+        Some(metrics) => NetworkEvent::Departed {
+            session_id,
+            metrics: metrics.departed(departure),
+        },
+        None => NetworkEvent::Disconnected { session_id },
+    };
+    let _ = event_tx.send(event).await;
     info!(session_id, "Network task ended");
 }

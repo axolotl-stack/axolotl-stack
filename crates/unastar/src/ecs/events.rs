@@ -33,6 +33,7 @@ pub enum PluginAction {
 pub enum EventKind {
     Tick,
     PlayerJoin,
+    PlayerAdmitted,
     PlayerChat,
     BlockBreak,
     BlockPlace,

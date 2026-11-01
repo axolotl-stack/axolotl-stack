@@ -889,6 +889,7 @@ mod actor_viewer_tests {
         world
             .entity_mut(viewer)
             .remove::<crate::server::game::player_events::PendingInitialState>();
+        crate::server::game::player_events::mark_initial_state_published(&mut world, viewer);
         sync(&mut world);
         assert!(matches!(
             drain(&mut rx).as_slice(),

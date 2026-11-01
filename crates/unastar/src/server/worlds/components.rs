@@ -198,6 +198,7 @@ pub(super) fn native_components() -> TransferComponents {
     );
     crate::command::exec::register_transfer_components(&mut all);
     crate::plugin::manager::players::register_transfer_components(&mut all);
+    crate::plugin::manager::sessions::register_transfer_components(&mut all);
     all
 }
 

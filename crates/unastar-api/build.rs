@@ -140,6 +140,11 @@ fn default_body(resolve: &Resolve, func: &wit_parser::Function) -> String {
     match &func.result {
         Some(Type::Bool) => "true".into(),
         Some(Type::Id(id)) => {
+            match resolve.types[*id].name.as_deref() {
+                Some("admission-decision") => return "AdmissionDecision::Allow".into(),
+                Some("quit-disposition") => return "QuitDisposition::Remove".into(),
+                _ => (),
+            }
             if let TypeDefKind::Option(inner) = &resolve.types[*id].kind
                 && let Some(param) = func.params.iter().find(|param| param.ty == *inner)
             {
@@ -290,9 +295,19 @@ fn generate_handler(
     for func in funcs {
         writeln!(
             out,
-            "fn {}({}) {{}}",
+            "fn {}({}){} {{ {} }}",
             func.name.replace('-', "_"),
-            handler_params(resolve, func)
+            handler_params(resolve, func),
+            if matches!(func.name.as_str(), "on-player-admission" | "on-player-quit") {
+                return_str(resolve, func, false)
+            } else {
+                String::new()
+            },
+            if matches!(func.name.as_str(), "on-player-admission" | "on-player-quit") {
+                default_body(resolve, func)
+            } else {
+                String::new()
+            }
         )?;
     }
     writeln!(out, "}}")?;
@@ -356,7 +371,12 @@ fn generate_handler(
         }
         writeln!(
             out,
-            "<$t as $crate::Handler>::{method}({});",
+            "{}<$t as $crate::Handler>::{method}({});",
+            if matches!(func.name.as_str(), "on-player-admission" | "on-player-quit") {
+                "let decision = "
+            } else {
+                ""
+            },
             args.join(", ")
         )?;
         match &func.result {
@@ -369,6 +389,11 @@ fn generate_handler(
                 out,
                 "if ctx.is_cancelled() {{ None }} else {{ Some(position) }}"
             )?,
+            Some(_) if func.name == "on-player-admission" => writeln!(
+                out,
+                "if ctx.is_cancelled() {{ $crate::AdmissionDecision::Reject(\"Connection denied.\".into()) }} else {{ decision }}"
+            )?,
+            Some(_) if func.name == "on-player-quit" => writeln!(out, "decision")?,
             Some(_) => anyhow::bail!("unsupported Handler result for {}", func.name),
             None => {}
         }

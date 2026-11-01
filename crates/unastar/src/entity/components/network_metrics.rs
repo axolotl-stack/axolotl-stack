@@ -22,6 +22,7 @@ pub struct PlayerNetworkMetrics {
     session_id: u64,
     outbound: WeakSender<McpePacket>,
     latest: Arc<RwLock<Option<NetworkRttSample>>>,
+    departure: Arc<RwLock<Option<crate::network::departure::QuitCause>>>,
 }
 
 impl std::fmt::Debug for PlayerNetworkMetrics {
@@ -59,15 +60,23 @@ impl PlayerNetworkMetrics {
         session_id: u64,
         outbound: &Sender<McpePacket>,
     ) -> (Self, NetworkMetricsPublisher) {
-        let latest = Arc::new(RwLock::new(None));
-        (
-            Self {
-                session_id,
-                outbound: outbound.downgrade(),
-                latest: latest.clone(),
-            },
-            NetworkMetricsPublisher { latest },
-        )
+        let metrics = Self {
+            session_id,
+            outbound: outbound.downgrade(),
+            latest: Arc::new(RwLock::new(None)),
+            departure: Arc::new(RwLock::new(None)),
+        };
+        (metrics.clone(), NetworkMetricsPublisher { metrics })
+    }
+
+    /// Read the pump's owned departure only after the exact source transport matches.
+    pub(crate) fn departure(
+        &self,
+        session: &PlayerSession,
+    ) -> Option<crate::network::departure::QuitCause> {
+        self.matches(session)
+            .then(|| self.departure.read().ok()?.clone())
+            .flatten()
     }
 
     /// Require both logical session identity and the original transport channel.
@@ -82,13 +91,13 @@ impl PlayerNetworkMetrics {
 
 /// Owned exclusively by the actual network pump; native applications only read.
 pub(crate) struct NetworkMetricsPublisher {
-    latest: Arc<RwLock<Option<NetworkRttSample>>>,
+    metrics: PlayerNetworkMetrics,
 }
 
 impl NetworkMetricsPublisher {
     /// Publish the actual transport report, preserving unsupported/unmeasured None.
     pub(crate) fn observe(&self, rtt: Option<Duration>, now: Instant) {
-        if let Ok(mut latest) = self.latest.write() {
+        if let Ok(mut latest) = self.metrics.latest.write() {
             *latest = rtt.map(|round_trip_time| NetworkRttSample {
                 round_trip_time,
                 observed_at: now,
@@ -98,9 +107,22 @@ impl NetworkMetricsPublisher {
 
     /// Mark a disconnected or cancelled pump as having no current measurement.
     pub(crate) fn clear(&self) {
-        if let Ok(mut latest) = self.latest.write() {
+        if let Ok(mut latest) = self.metrics.latest.write() {
             *latest = None;
         }
+    }
+}
+
+impl NetworkMetricsPublisher {
+    /// Carry reason facts without retaining a departed outbound sender.
+    pub(crate) fn departed(
+        &self,
+        reason: crate::network::departure::QuitCause,
+    ) -> PlayerNetworkMetrics {
+        if let Ok(mut departure) = self.metrics.departure.write() {
+            *departure = Some(reason);
+        }
+        self.metrics.clone()
     }
 }
 

@@ -42,12 +42,9 @@ impl GameServer {
         // Disconnect is immediate (not queued) — despawn must happen now
         if packet.packet_id() == McpePacketName::DisconnectPacket {
             info!(session_id, "Client sent disconnect packet");
-            if let Some(mut event_buffer) = self
-                .ecs
-                .world_mut()
-                .get_resource_mut::<crate::ecs::events::EventBuffer>()
-            {
-                event_buffer.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
+            if let Ok(owned) = packet.into_owned(packet_args) {
+                let cause = crate::network::departure::incoming(&owned);
+                self.ecs.world_mut().entity_mut(entity).insert(cause);
             }
             self.despawn_player(session_id);
             return;

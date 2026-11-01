@@ -209,3 +209,36 @@ messages independently of fuel and linear memory. The former direct item, telepo
 kick and block mutation imports are absent from this version; new mutation
 capabilities must use authoritative host operations with their own typed contracts.
 The example component demonstrates scoped handlers and deferred player messages.
+
+### Component session admission and departure
+
+API 0.4 session handlers run at synchronous engine boundaries. Subscribe to
+`player_join` for `on_player_admission`, `player_admitted` for the owned publication
+notification, and `player_quit` for departure policy. Admission returns `Allow`,
+`Reject(reason)` or `Deferred`; the SDK's `PlayerContext::cancel` rejects admission.
+
+For deferred initialization, obtain and retain an owned `AdmissionHold` from the
+current player. Schedule a fresh transaction through a retained player handle;
+initializing players remain readable, and `initial_state_ready` reports actual
+native physical-plan completeness. Resolve each hold from its original player's
+world transaction. The result is `Staged` until that callback succeeds. Every
+component's holds must resolve before publication, with at most 32 holds per
+connection. Dropping an unresolved hold rejects admission; a trapped component
+cannot strand its retained holds indefinitely.
+
+While admission is pending, ordinary packet sends are rejected and player inputs
+are discarded. Ordinary saves cannot overwrite unresolved initialization.
+Terminal disconnects remain available. The engine queues the complete initial
+packet batch atomically; queue pressure retries without a partial initial batch
+or an admitted notification. `AdmittedEvent` confirms enqueue for delivery, not
+client rendering or a remote acknowledgement.
+
+Departure receives a world transaction and an owned `QuitEvent`, with immutable
+identity, a fallible observation and the actual known disconnect cause (`Unknown`
+when unavailable). It has no `PlayerContext`. Return `Remove` (the default) or
+`RetainEntity`; retention detaches transport/input from the same native actor.
+A retained handle may resolve that sessionless actor, while reconnecting players
+receive a new identity lineage. Departure callbacks run before ordinary native
+saves and teardown; required failures apply recovery fences before those saves.
+Legacy buffered join, quit and movement placeholders do not dispatch live-player
+callbacks. Typed movement proposals and commits remain a separate binding.

@@ -79,7 +79,7 @@ impl DimensionRouter {
         Ok(())
     }
     /// Stop all worlds when a required callback failed in any one of them.
-    fn check_plugins(&mut self) -> Result<(), WorldTickError> {
+    pub(crate) fn check_plugins(&mut self) -> Result<(), WorldTickError> {
         if let Some(manager) = self.plugin_manager.clone() {
             let result = manager
                 .lock()
@@ -334,6 +334,16 @@ impl DimensionRouter {
                 .attach_network_metrics(session, metrics)
         })
     }
+    /// Run synchronous departure observers before any ordinary disconnect save.
+    pub(crate) fn prepare_disconnect(&mut self, session: u64) -> bool {
+        self.locate_session(session).is_some_and(|(dimension, _)| {
+            self.worlds
+                .get_mut(&dimension)
+                .expect("located world")
+                .prepare_disconnect(session)
+        })
+    }
+
     /// Disconnect only the world that actually owns this transport.
     pub fn despawn_player(&mut self, session: u64) {
         if let Some((dimension, _)) = self.locate_session(session) {

@@ -75,6 +75,22 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
     ) -> Result<wit::PlayerSnapshot, wit::AccessError> {
         self.live_snapshot(player.rep())
     }
+    fn initial_state_ready(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<bool, wit::AccessError> {
+        let (_, player) = self.live_player(player.rep())?;
+        Ok(crate::server::game::player_events::initial_state_ready(
+            unsafe { self.world() },
+            player,
+        ))
+    }
+    fn defer_admission(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Resource<wit::AdmissionHold>, wit::AccessError> {
+        self.admission_hold(player.rep())
+    }
     fn message(
         &mut self,
         player: Resource<wit::Player>,

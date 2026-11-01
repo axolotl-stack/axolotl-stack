@@ -34,6 +34,13 @@ fn complete(world: &World, player: Entity) -> bool {
         && world.get::<Rotation>(player).is_some()
 }
 
+/// Native initial packet construction requires a complete unfenced physical source.
+pub(crate) fn initial_state_ready(world: &World, player: Entity) -> bool {
+    complete(world, player)
+        && !super::super::inventory_effects::is_quarantined(world, player)
+        && !super::super::inventory_effects::is_recovery_fenced(world, player)
+}
+
 impl PendingInitialState {
     /// Retained actors may complete initialization after their original transport leaves.
     fn matches(&self, world: &World, player: Entity) -> bool {
@@ -63,6 +70,9 @@ pub fn defer_initial_state(world: &mut World, player: Entity) -> bool {
     if let Some(pending) = world.get::<PendingInitialState>(player) {
         return pending.identity.matches(world, player) && pending.runtime == runtime;
     }
+    if let Some(session) = world.get::<PlayerSession>(player) {
+        session.hold_initial_packets();
+    }
     super::discard_input(world, player);
     world.entity_mut(player).insert(PendingInitialState {
         identity,
@@ -79,7 +89,7 @@ pub fn release_initial_state(world: &mut World, player: Entity) -> bool {
     let Some(pending) = world.get::<PendingInitialState>(player).cloned() else {
         return false;
     };
-    if !pending.matches(world, player) || !complete(world, player) {
+    if !pending.matches(world, player) || !initial_state_ready(world, player) {
         return false;
     }
     world
@@ -105,11 +115,22 @@ pub(crate) fn ready_initial_states(world: &mut World) -> Vec<Entity> {
     ready
         .into_iter()
         .filter_map(|(entity, pending)| {
-            if !pending.matches(world, entity) || !complete(world, entity) {
+            if !pending.matches(world, entity)
+                || !initial_state_ready(world, entity)
+                || crate::plugin::manager::sessions::blocks_publication(world, entity)
+            {
                 return None;
             }
             world.entity_mut(entity).remove::<PendingInitialState>();
             Some(entity)
         })
         .collect()
+}
+
+/// Open ordinary producers only after the complete native initial batch was enqueued.
+pub(crate) fn mark_initial_state_published(world: &mut World, player: Entity) {
+    if let Some(session) = world.get::<PlayerSession>(player) {
+        session.release_initial_packets();
+    }
+    world.entity_mut(player).insert(InitialStatePublished);
 }

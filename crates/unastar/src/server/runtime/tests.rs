@@ -548,3 +548,55 @@ async fn required_component_initializes_before_listener_binding_and_admission() 
         "initialization must precede binding: {error}"
     );
 }
+
+#[test]
+fn recorded_departure_is_bound_to_the_original_pump_channel() {
+    use crate::entity::components::{PlayerNetworkMetrics, PlayerSession};
+    let mut router = DimensionRouter::new(GameServer::with_config(crate::server::ServerConfig {
+        world: crate::world::WorldConfig::void_spawn_platform(1),
+        ..Default::default()
+    }));
+    let (outbound_tx, _packets) = mpsc::channel(1024);
+    let (metrics, publisher) = PlayerNetworkMetrics::bind(1, &outbound_tx);
+    let player = router
+        .spawn_player_in(
+            0,
+            PlayerSpawnData {
+                session_id: 1,
+                runtime_id: 1,
+                display_name: "Player".into(),
+                xuid: Some("42".into()),
+                uuid: Some(uuid::Uuid::from_u128(1).to_string()),
+                position: glam::DVec3::new(0.5, 65.62, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 0,
+            },
+        )
+        .unwrap();
+    assert!(
+        !record_departure(&mut router, 1, &metrics),
+        "an active pump did not depart"
+    );
+    let departed = publisher.departed(crate::network::departure::QuitCause::PeerClosed);
+    assert!(record_departure(&mut router, 1, &departed));
+    assert!(matches!(
+        router
+            .world(0)
+            .unwrap()
+            .ecs
+            .world()
+            .get::<crate::network::departure::QuitCause>(player),
+        Some(crate::network::departure::QuitCause::PeerClosed)
+    ));
+    let (replacement, _packets) = mpsc::channel(128);
+    router
+        .world_mut(0)
+        .unwrap()
+        .ecs
+        .world_mut()
+        .get_mut::<PlayerSession>(player)
+        .unwrap()
+        .outbound_tx = replacement;
+    assert!(!record_departure(&mut router, 1, &departed));
+}
