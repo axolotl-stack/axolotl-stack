@@ -135,6 +135,63 @@ interface types {
         captured-tick: u64,
     }
 
+    /// Admission proposals have no initial-publication side effects.
+    variant admission-decision {
+        allow,
+        reject(string),
+        deferred,
+    }
+
+    variant admission-resolution {
+        allow,
+        reject(string),
+    }
+
+    /// Acknowledgement is staged until this callback succeeds; it is not publication.
+    enum admission-acknowledgement {
+        staged,
+    }
+
+    resource admission-hold {
+        resolve: func(tx: borrow<world-tx>, decision: admission-resolution) -> result<admission-acknowledgement, access-error>;
+    }
+
+    enum quit-disposition {
+        remove,
+        retain-entity,
+    }
+
+    /// Protocol reason is observational metadata, never a command or packet capability.
+    record disconnect-detail {
+        protocol-code: option<s32>,
+        message: option<string>,
+    }
+
+    variant disconnect-reason {
+        unknown,
+        peer-closed,
+        peer-request(disconnect-detail),
+        server-request(disconnect-detail),
+        server-shutdown,
+        overloaded,
+        transport-failure(disconnect-detail),
+    }
+
+    /// Owned departure facts captured while the original actor still exists.
+    /// Missing native state stays an explicit error, never invented player values.
+    record quit-event {
+        identity: player-identity,
+        dimension: s32,
+        observation: result<player-snapshot, access-error>,
+        reason: disconnect-reason,
+        previously-admitted: bool,
+    }
+
+    /// Emitted only after the actual initial packet batch was accepted for delivery.
+    record admitted-event {
+        observation: player-snapshot,
+    }
+
     variant task-status {
         pending,
         running,
@@ -221,5 +278,9 @@ interface types {
         configured-admin: func() -> result<bool, access-error>;
         snapshot: func() -> result<player-snapshot, access-error>;
         message: func(message: string) -> result<_, access-error>;
+        /// Native physical-plan completeness is independent of availability/permission.
+        initial-state-ready: func() -> result<bool, access-error>;
+        /// Valid only in this player's admission callback; retain the owned hold for Deferred.
+        defer-admission: func() -> result<admission-hold, access-error>;
     }
 }

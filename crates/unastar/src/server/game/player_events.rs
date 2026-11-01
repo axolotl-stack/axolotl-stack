@@ -13,7 +13,9 @@ use glam::DVec3;
 use crate::entity::components::{PlayerSession, PlayerUuid};
 
 mod initial_state;
-pub(crate) use initial_state::{InitialStatePublished, ready_initial_states};
+pub(crate) use initial_state::{
+    InitialStatePublished, initial_state_ready, mark_initial_state_published, ready_initial_states,
+};
 pub use initial_state::{
     PendingInitialState, defer_initial_state, initial_state_pending, release_initial_state,
 };
@@ -123,6 +125,45 @@ impl PlayerQuit {
     pub fn disposition(&self) -> DisconnectDisposition {
         self.disposition
     }
+}
+
+/// Internal preparation lets synchronous departure policy run before native persistence.
+#[derive(Component, Clone)]
+pub(crate) struct PreparedQuit {
+    identity: ConnectionIdentity,
+    disposition: DisconnectDisposition,
+}
+
+/// Capture departure exactly once before an asynchronous native player save.
+pub(crate) fn prepare_quit(world: &mut World, player: Entity) -> bool {
+    if let Some(prepared) = world.get::<PreparedQuit>(player) {
+        return prepared.identity.matches(world, player);
+    }
+    let Some(identity) = ConnectionIdentity::capture(world, player) else {
+        return false;
+    };
+    let Some(disposition) = quit(world, player) else {
+        return false;
+    };
+    if !identity.matches(world, player) {
+        return false;
+    }
+    world.entity_mut(player).insert(PreparedQuit {
+        identity,
+        disposition,
+    });
+    true
+}
+
+/// A cached disposition belongs only to the connection whose callbacks ran.
+pub(crate) fn consume_quit(world: &mut World, player: Entity) -> Option<DisconnectDisposition> {
+    if let Some(prepared) = world.entity_mut(player).take::<PreparedQuit>() {
+        return prepared
+            .identity
+            .matches(world, player)
+            .then_some(prepared.disposition);
+    }
+    quit(world, player)
 }
 
 /// A retained player actor with no connected session or client input ownership.
@@ -543,6 +584,55 @@ pub(crate) fn remove_actor(world: &mut World, player: Entity) {
         if entity != player {
             session.send(packet.clone());
         }
+    }
+}
+
+/// Teardown is shared by ordinary disconnects and rejected pre-publication connections.
+pub(crate) fn disconnect(world: &mut World, session_id: crate::network::SessionId) {
+    use super::types::SessionEntityMap;
+    use super::{item_use, player_state};
+    use crate::entity::components::{BreakingState, PlayerInput, PlayerState};
+    use crate::world::ecs::ChunkLoader;
+    let entity = {
+        if let Some(mut map) = world.get_resource_mut::<SessionEntityMap>() {
+            map.remove(session_id)
+        } else {
+            None
+        }
+    };
+    if let Some(entity) = entity {
+        if world
+            .get::<PlayerSession>(entity)
+            .is_none_or(|session| session.session_id != session_id)
+        {
+            return;
+        }
+        let disposition = consume_quit(world, entity);
+        discard_input(world, entity);
+        match disposition {
+            Some(DisconnectDisposition::RetainEntity) => {
+                player_state::remember_identity(world, entity);
+                // Remove transport ownership and chunk views; the actor keeps
+                // its gameplay state and remains visible to other sessions.
+                if let Ok(mut actor) = world.get_entity_mut(entity) {
+                    actor.remove::<(
+                        PlayerSession,
+                        crate::command::Operator,
+                        PlayerInput,
+                        ChunkLoader,
+                        BreakingState,
+                        item_use::ItemUsing,
+                    )>();
+                    actor.insert((DetachedPlayer, PlayerState::default()));
+                }
+            }
+            Some(DisconnectDisposition::Despawn) => {
+                remove_actor(world, entity);
+                world.despawn(entity);
+            }
+            None => {} // A callback removed or replaced the original connection.
+        }
+        tracing::info!(session_id, "Player session removed");
     }
 }
 

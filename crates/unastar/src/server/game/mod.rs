@@ -115,6 +115,18 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 /// will respawn (respawn position, full health, fresh hunger), so it never
 /// reloads with zero health.
 pub(super) fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
+    if crate::plugin::manager::sessions::blocks_publication(world, entity) {
+        return None;
+    }
+    transaction_player_record(world, entity)
+}
+
+/// Explicit validated initialization transactions are distinct from ordinary autosaves.
+/// Preserve the same durable base mode and dead-state normalization without publishing.
+pub(super) fn transaction_player_record(
+    world: &World,
+    entity: Entity,
+) -> Option<(uuid::Uuid, PlayerData)> {
     if world.get::<player_events::DetachedPlayer>(entity).is_some() {
         return None;
     }
@@ -1030,16 +1042,18 @@ impl GameServer {
         player_events::joined(self.ecs.world_mut(), entity);
         if self.ecs.world().get::<PlayerSession>(entity).is_some() {
             if !player_events::initial_state_pending(self.ecs.world(), entity) {
-                self.ecs.world_mut().write_message(PlayerSpawnedEvent {
-                    entity,
-                    position: data.position,
-                    runtime_id,
-                });
-                self.send_join_packets(entity);
-                self.ecs
-                    .world_mut()
-                    .entity_mut(entity)
-                    .insert(player_events::InitialStatePublished);
+                if self.send_join_packets(entity) {
+                    self.ecs.world_mut().write_message(PlayerSpawnedEvent {
+                        entity,
+                        position: data.position,
+                        runtime_id,
+                    });
+                    player_events::mark_initial_state_published(self.ecs.world_mut(), entity);
+                    crate::plugin::manager::sessions::published(self.ecs.world_mut(), entity);
+                } else {
+                    player_events::defer_initial_state(self.ecs.world_mut(), entity);
+                    player_events::release_initial_state(self.ecs.world_mut(), entity);
+                }
             }
         } else if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>()
             && map.get(data.session_id) == Some(entity)
@@ -1073,49 +1087,18 @@ impl GameServer {
         true
     }
 
-    pub fn despawn_player(&mut self, session_id: SessionId) {
-        let entity = {
-            if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
-                map.remove(session_id)
-            } else {
-                None
-            }
+    /// Run departure policy before native persistence without tearing down its live source.
+    pub(crate) fn prepare_disconnect(&mut self, session_id: SessionId) -> bool {
+        let world = self.ecs.world_mut();
+        let Some(entity) = world.resource::<SessionEntityMap>().get(session_id) else {
+            return false;
         };
-        if let Some(entity) = entity {
-            let world = self.ecs.world_mut();
-            if world
-                .get::<PlayerSession>(entity)
-                .is_none_or(|session| session.session_id != session_id)
-            {
-                return;
-            }
-            let disposition = player_events::quit(world, entity);
-            player_events::discard_input(world, entity);
-            match disposition {
-                Some(player_events::DisconnectDisposition::RetainEntity) => {
-                    player_state::remember_identity(world, entity);
-                    // Remove transport ownership and chunk views; the actor keeps
-                    // its gameplay state and remains visible to other sessions.
-                    if let Ok(mut actor) = world.get_entity_mut(entity) {
-                        actor.remove::<(
-                            PlayerSession,
-                            crate::command::Operator,
-                            PlayerInput,
-                            ChunkLoader,
-                            BreakingState,
-                            item_use::ItemUsing,
-                        )>();
-                        actor.insert((player_events::DetachedPlayer, PlayerState::default()));
-                    }
-                }
-                Some(player_events::DisconnectDisposition::Despawn) => {
-                    player_events::remove_actor(world, entity);
-                    world.despawn(entity);
-                }
-                None => {} // A callback removed or replaced the original connection.
-            }
-            info!(session_id, "Player session removed");
-        }
+        player_events::prepare_quit(world, entity)
+            && world.resource::<SessionEntityMap>().get(session_id) == Some(entity)
+    }
+
+    pub fn despawn_player(&mut self, session_id: SessionId) {
+        player_events::disconnect(self.ecs.world_mut(), session_id);
     }
 
     pub fn tick(&mut self) {
@@ -1128,6 +1111,7 @@ impl GameServer {
 
     /// Publish explicitly released state once, including native world arrivals.
     pub(crate) fn publish_initial_states(&mut self) {
+        crate::plugin::manager::sessions::reconcile(self.ecs.world_mut());
         for entity in player_events::ready_initial_states(self.ecs.world_mut()) {
             let Some(position) = self.ecs.world().get::<Position>(entity).copied() else {
                 continue;
@@ -1135,19 +1119,24 @@ impl GameServer {
             let Some(runtime) = self.ecs.world().get::<RuntimeEntityId>(entity).copied() else {
                 continue;
             };
+            if self.ecs.world().get::<PlayerSession>(entity).is_some() {
+                if !self.send_join_packets(entity) {
+                    player_events::defer_initial_state(self.ecs.world_mut(), entity);
+                    player_events::release_initial_state(self.ecs.world_mut(), entity);
+                    continue;
+                }
+                if let Some(session) = self.ecs.world().get::<PlayerSession>(entity) {
+                    session.release_initial_packets();
+                }
+                player_state::publish_deferred_state(self.ecs.world_mut(), entity);
+            }
             self.ecs.world_mut().write_message(PlayerSpawnedEvent {
                 entity,
                 position: position.0,
                 runtime_id: runtime.0,
             });
-            if self.ecs.world().get::<PlayerSession>(entity).is_some() {
-                self.send_join_packets(entity);
-                player_state::publish_deferred_state(self.ecs.world_mut(), entity);
-            }
-            self.ecs
-                .world_mut()
-                .entity_mut(entity)
-                .insert(player_events::InitialStatePublished);
+            player_events::mark_initial_state_published(self.ecs.world_mut(), entity);
+            crate::plugin::manager::sessions::published(self.ecs.world_mut(), entity);
         }
     }
 

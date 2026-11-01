@@ -1,6 +1,8 @@
 //! Scoped Component Model example; build for `wasm32-wasip2`.
 
-use unastar_api::{BlockPos, Handler, LogLevel, PlayerContext, commands, server};
+use unastar_api::{
+    AdmissionDecision, AdmittedEvent, BlockPos, Handler, LogLevel, PlayerContext, commands, server,
+};
 
 struct ExamplePlugin;
 
@@ -23,8 +25,14 @@ impl Handler for ExamplePlugin {
             );
         }
     }
-    fn on_player_join(ctx: &mut PlayerContext<'_>, username: String) {
-        let _ = ctx.player().message(&format!("Welcome, {username}!"));
+    fn on_player_admission(_ctx: &mut PlayerContext<'_>) -> AdmissionDecision {
+        AdmissionDecision::Allow
+    }
+    fn on_player_admitted(event: AdmittedEvent) {
+        server::log(
+            LogLevel::Info,
+            &format!("{} entered the world", event.observation.identity.name),
+        );
     }
     fn on_player_command(ctx: &mut PlayerContext<'_>, line: String, _request_id: Option<String>) {
         if line.trim_start_matches('/').split_whitespace().next() == Some("greet") {

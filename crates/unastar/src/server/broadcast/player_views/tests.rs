@@ -103,6 +103,7 @@ fn deferred_subjects_and_viewers_withhold_snapshots_and_self_events() {
     assert!(drain(&mut own).is_empty());
     assert!(drain(&mut peer).is_empty());
     world.entity_mut(pending).remove::<PendingInitialState>();
+    crate::server::game::player_events::mark_initial_state_published(&mut world, pending);
     sync_player_views(&mut world);
     assert!(
         drain(&mut own)

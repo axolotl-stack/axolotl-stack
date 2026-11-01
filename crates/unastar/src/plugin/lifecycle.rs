@@ -91,6 +91,7 @@ impl PluginManager {
             .clone();
         world.insert_resource(readiness);
         super::commands::install(manager.clone(), world);
+        super::sessions::install(manager.clone(), world);
         LifecycleBridge::install(manager, world);
     }
 

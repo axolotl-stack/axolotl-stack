@@ -6,13 +6,14 @@ world unastar-plugin {
     import storage;
     import commands;
 
-    use types.{world-tx, player, vec3, block-pos, damage-cause, access-error};
+    use types.{world-tx, player, vec3, block-pos, damage-cause, access-error, admission-decision, quit-event, quit-disposition, admitted-event};
 
     export on-load: func();
     export on-unload: func();
     export on-tick: func(tick-id: u64);
-    export on-player-join: func(tx: borrow<world-tx>, player: borrow<player>, username: string);
-    export on-player-quit: func(tx: borrow<world-tx>, player: borrow<player>);
+    export on-player-admission: func(tx: borrow<world-tx>, player: borrow<player>) -> admission-decision;
+    export on-player-admitted: func(event: admitted-event);
+    export on-player-quit: func(tx: borrow<world-tx>, event: quit-event) -> quit-disposition;
     /// False handles the request and suppresses native execution. The optional
     /// client-supplied request identifier is opaque, not permission or uniqueness.
     export on-player-command: func(tx: borrow<world-tx>, player: borrow<player>, line: string, request-id: option<string>) -> bool;

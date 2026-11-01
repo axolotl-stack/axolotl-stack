@@ -812,7 +812,7 @@ fn deferred_initial_state_discards_real_form_packets_until_publication() {
         .world_mut()
         .resource_mut::<PlayerEventHooks>()
         .register(RecordForms);
-    let (alice, _) = join(&mut server, 1, "Alice");
+    let (alice, _packets) = join(&mut server, 1, "Alice");
     form_packet(&mut server, 1, 7, Some("0"), false);
     assert!(server.ecs.world().resource::<Forms>().0.is_empty());
     let inventory = server
@@ -826,4 +826,54 @@ fn deferred_initial_state_discards_real_form_packets_until_publication() {
     server.tick();
     form_packet(&mut server, 1, 7, Some("0"), false);
     assert_eq!(server.ecs.world().resource::<Forms>().0.len(), 1);
+}
+
+/// A departure observer adjusts authoritative state before native persistence reads it.
+struct PrepareForSave(Arc<AtomicUsize>);
+impl PlayerEventHandler for PrepareForSave {
+    fn on_quit(&self, world: &mut World, event: &mut PlayerQuit) {
+        self.0.fetch_add(1, Ordering::SeqCst);
+        world.get_mut::<Health>(event.player()).unwrap().current = 11.0;
+    }
+}
+
+#[tokio::test]
+async fn prepared_departure_runs_once_before_actual_native_save_and_teardown() {
+    use crate::storage::PlayerProvider;
+    let directory = tempfile::tempdir().unwrap();
+    let provider = Arc::new(crate::storage::LevelDBPlayerProvider::open(directory.path()).unwrap());
+    let mut server = GameServer::with_config(ServerConfig {
+        world: crate::world::WorldConfig::void_spawn_platform(1),
+        ..Default::default()
+    });
+    server
+        .ecs
+        .world_mut()
+        .insert_resource(crate::server::game::types::PlayerProviderResource(
+            provider.clone(),
+        ));
+    let count = Arc::new(AtomicUsize::new(0));
+    server
+        .ecs
+        .world_mut()
+        .resource_mut::<PlayerEventHooks>()
+        .register(PrepareForSave(count.clone()));
+    let (player, _packets) = join(&mut server, 1, "Player");
+    assert!(server.prepare_disconnect(1));
+    assert!(server.prepare_disconnect(1));
+    assert_eq!(count.load(Ordering::SeqCst), 1);
+    assert!(server.ecs.world().get::<PlayerSession>(player).is_some());
+    assert!(server.save_player(1).await);
+    assert_eq!(
+        provider
+            .load(uuid::Uuid::from_u128(1))
+            .await
+            .unwrap()
+            .unwrap()
+            .health,
+        11.0
+    );
+    server.despawn_player(1);
+    assert_eq!(count.load(Ordering::SeqCst), 1);
+    assert!(server.ecs.world().get_entity(player).is_err());
 }

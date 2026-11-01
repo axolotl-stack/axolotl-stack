@@ -35,12 +35,13 @@ pub mod raw {
     pub use crate::bindings::unastar::plugin::types::*;
 }
 pub use raw::{
-    AccessError, BlockPos, DamageCause, Enchantment, GameMode, ItemValue, LogLevel,
-    PlayerAvailability, PlayerFlags, PlayerHandle, PlayerIdentity, PlayerSnapshot, Task,
-    TaskStatus, Vec3, WorldHandle,
+    AccessError, AdmissionAcknowledgement, AdmissionDecision, AdmissionResolution, AdmittedEvent,
+    BlockPos, DamageCause, DisconnectDetail, DisconnectReason, Enchantment, GameMode, ItemValue,
+    LogLevel, PlayerAvailability, PlayerFlags, PlayerHandle, PlayerIdentity, PlayerSnapshot,
+    QuitDisposition, QuitEvent, Task, TaskStatus, Vec3, WorldHandle,
 };
 mod scoped;
-pub use scoped::{Player, PlayerContext, WorldTx, server};
+pub use scoped::{AdmissionHold, Player, PlayerContext, WorldTx, server};
 
 // Plugin trait + export_plugin! macro are generated from WIT by build.rs
 include!(concat!(env!("OUT_DIR"), "/plugin_api.rs"));

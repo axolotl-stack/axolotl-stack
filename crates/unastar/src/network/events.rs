@@ -52,6 +52,13 @@ pub enum NetworkEvent {
 
     /// Player disconnected (network task exiting).
     Disconnected { session_id: SessionId },
+
+    /// Internal pump observation bound to its original outbound transport.
+    #[doc(hidden)]
+    Departed {
+        session_id: SessionId,
+        metrics: crate::entity::components::PlayerNetworkMetrics,
+    },
 }
 
 impl NetworkEvent {
@@ -61,7 +68,8 @@ impl NetworkEvent {
             NetworkEvent::Joined { session_id, .. } => *session_id,
             NetworkEvent::WorldSelected { session_id, .. } => *session_id,
             NetworkEvent::Packet { session_id, .. } => *session_id,
-            NetworkEvent::Disconnected { session_id } => *session_id,
+            NetworkEvent::Disconnected { session_id }
+            | NetworkEvent::Departed { session_id, .. } => *session_id,
             NetworkEvent::MetricsReady { session_id, .. } => *session_id,
         }
     }

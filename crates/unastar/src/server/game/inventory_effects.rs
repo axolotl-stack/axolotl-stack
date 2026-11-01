@@ -445,7 +445,7 @@ pub fn submit(
     }
     effect.replacement.validate()?;
     let (_, mut candidate) =
-        super::player_record(world, player).ok_or(EffectError::MissingPlayer)?;
+        super::transaction_player_record(world, player).ok_or(EffectError::MissingPlayer)?;
     effect.replacement.put_into(&mut candidate);
     candidate
         .validate(uuid)

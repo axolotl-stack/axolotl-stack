@@ -27,7 +27,7 @@ fn attach_scoped(
         ]
         .into(),
         subscriptions: [
-            EventKind::PlayerJoin,
+            EventKind::PlayerJump,
             EventKind::PlayerChat,
             EventKind::Tick,
         ]
@@ -60,18 +60,14 @@ fn witness() -> &'static str {
     "i32.const 1024 i32.const 120 i32.store8 i32.const 0 i32.const 1024 i32.const 1 call @log@"
 }
 /// Queue a controlled input, consumed through the router's ordinary shared manager.
-fn join(router: &mut DimensionRouter, player: Entity) {
+fn scope_callback(router: &mut DimensionRouter, player: Entity) {
     router
         .world_mut(0)
         .unwrap()
         .ecs
         .world_mut()
         .resource_mut::<EventBuffer>()
-        .push(ServerEvent::PlayerJoin {
-            entity: player,
-            player_id: "1".into(),
-            username: "Player0".into(),
-        });
+        .push(ServerEvent::PlayerJump { entity: player });
 }
 /// Inspect guest witnesses without causing a second callback or renewing fuel.
 fn logs(manager: &Arc<Mutex<PluginManager>>) -> Vec<String> {
@@ -114,7 +110,7 @@ async fn actual_component_item_values_survive_callbacks_without_changing_invento
         &mut router,
         &[
             (
-                "on-player-join",
+                "on-player-jump",
                 format!(
                     r#"
             {}
@@ -147,7 +143,7 @@ async fn actual_component_item_values_survive_callbacks_without_changing_invento
         .manifest
         .capabilities
         .insert(PluginCapability::ItemValues);
-    join(&mut router, clients[0].0);
+    scope_callback(&mut router, clients[0].0);
     router.tick().await.unwrap();
     router
         .world_mut(0)
@@ -196,7 +192,7 @@ async fn actual_component_item_constructor_requires_its_capability() {
     let manager = attach_scoped(
         &mut router,
         &[(
-            "on-player-join",
+            "on-player-jump",
             format!(
                 r#"
         {}
@@ -210,7 +206,7 @@ async fn actual_component_item_constructor_requires_its_capability() {
             ),
         )],
     );
-    join(&mut router, clients[0].0);
+    scope_callback(&mut router, clients[0].0);
     router.tick().await.unwrap();
     assert_eq!(logs(&manager), ["x"]);
     assert_eq!(
@@ -236,7 +232,7 @@ async fn raw_guest_cannot_reuse_owned_live_player_after_the_callback() {
         &mut router,
         &[
             (
-                "on-player-join",
+                "on-player-jump",
                 r#"
             local.get 1 i32.const 64 call @[method]player.to-handle@
             i32.const 64 i32.load8_u if unreachable end
@@ -266,7 +262,7 @@ async fn raw_guest_cannot_reuse_owned_live_player_after_the_callback() {
             ),
         ],
     );
-    join(&mut router, clients[0].0);
+    scope_callback(&mut router, clients[0].0);
     router.tick().await.unwrap();
     router
         .world_mut(0)
@@ -301,7 +297,7 @@ async fn scheduled_player_callback_receives_a_fresh_scope_once() {
     let manager = attach_scoped(
         &mut router,
         &[
-            ("on-player-join", schedule().into()),
+            ("on-player-jump", schedule().into()),
             (
                 "on-player-task",
                 format!(
@@ -316,7 +312,7 @@ async fn scheduled_player_callback_receives_a_fresh_scope_once() {
             ),
         ],
     );
-    join(&mut router, clients[0].0);
+    scope_callback(&mut router, clients[0].0);
     router.tick().await.unwrap();
     assert_eq!(logs(&manager), ["x"]);
     router.tick().await.unwrap();
@@ -329,11 +325,11 @@ async fn trapping_scheduled_callback_latches_required_failure_before_further_wor
     let manager = attach_scoped(
         &mut router,
         &[
-            ("on-player-join", schedule().into()),
+            ("on-player-jump", schedule().into()),
             ("on-player-task", "unreachable".into()),
         ],
     );
-    join(&mut router, clients[0].0);
+    scope_callback(&mut router, clients[0].0);
     assert!(matches!(
         router.tick().await,
         Err(crate::server::worlds::WorldTickError::RequiredComponentUnavailable(_))
@@ -356,7 +352,7 @@ async fn departed_player_reports_typed_failure_without_forging_a_live_callback()
     let manager = attach_scoped(
         &mut router,
         &[
-            ("on-player-join", schedule().into()),
+            ("on-player-jump", schedule().into()),
             ("on-player-task", "unreachable".into()),
             (
                 "on-task-failed",
@@ -367,7 +363,7 @@ async fn departed_player_reports_typed_failure_without_forging_a_live_callback()
             ),
         ],
     );
-    join(&mut router, clients[0].0);
+    scope_callback(&mut router, clients[0].0);
     router.register_tick_handler(Depart);
     router.tick().await.unwrap();
     assert_eq!(logs(&manager), ["x"]);
@@ -389,7 +385,7 @@ async fn explicit_task_cancellation_reports_cancelled_and_never_runs_player_code
     let manager = attach_scoped(
         &mut router,
         &[
-            ("on-player-join", body),
+            ("on-player-jump", body),
             ("on-player-task", "unreachable".into()),
             (
                 "on-task-failed",
@@ -400,7 +396,7 @@ async fn explicit_task_cancellation_reports_cancelled_and_never_runs_player_code
             ),
         ],
     );
-    join(&mut router, clients[0].0);
+    scope_callback(&mut router, clients[0].0);
     router.tick().await.unwrap();
     assert_eq!(logs(&manager), ["x"]);
 }
@@ -411,7 +407,7 @@ async fn exact_connection_handle_follows_actual_world_migration_before_scheduled
     let manager = attach_scoped(
         &mut router,
         &[
-            ("on-player-join", schedule().into()),
+            ("on-player-jump", schedule().into()),
             (
                 "on-player-task",
                 format!(
@@ -432,7 +428,7 @@ async fn exact_connection_handle_follows_actual_world_migration_before_scheduled
             ),
         ],
     );
-    join(&mut router, clients[0].0);
+    scope_callback(&mut router, clients[0].0);
     crate::server::worlds::request_transfer_checked(
         router.world_mut(0).unwrap().ecs.world_mut(),
         clients[0].0,

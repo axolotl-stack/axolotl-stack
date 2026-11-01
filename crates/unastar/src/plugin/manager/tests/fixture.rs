@@ -104,20 +104,46 @@ pub(super) fn bytes(bodies: &[(&str, String)]) -> Vec<u8> {
         );
         let body = bodies.iter().find(|(name, _)| *name == function.name).map(|(_, body)| body.clone()).unwrap_or_else(|| match function.name.as_str() {
             "on-player-command" | "on-player-chat" | "on-block-break" | "on-block-place" | "on-player-interact-block" => "i32.const 1".into(),
+            "on-player-admission" => "i32.const 32 i32.const 0 i32.store i32.const 32".into(),
+            "on-player-quit" => "i32.const 0".into(),
             "on-player-damage" => "i32.const 32 i32.const 1 i32.store i32.const 36 local.get 5 f32.store i32.const 32".into(),
             "on-player-respawn" => "i32.const 64 i32.const 1 i32.store i32.const 72 local.get 2 f64.store i32.const 80 local.get 3 f64.store i32.const 88 local.get 4 f64.store i32.const 64".into(),
             _ => String::new(),
         });
         let mut body = body;
-        // Canonical borrowed arguments must be released before the export returns.
-        if function.params.iter().any(|param| param.name == "tx") {
-            body.push_str(" local.get 0 call @world-tx_drop@");
+        // Large owned records indirect all parameters; resource prefixes follow
+        // the canonical memory layout rather than pretending the pointer is a handle.
+        let indirect = resolve
+            .wasm_signature(wit_parser::abi::AbiVariant::GuestExport, function)
+            .indirect_params;
+        let mut sizes = wit_parser::SizeAlign::default();
+        sizes.fill(&resolve);
+        let mut offset = 0usize;
+        let mut offsets = HashMap::new();
+        for param in &function.params {
+            offset = offset.next_multiple_of(sizes.align(&param.ty).align_wasm32());
+            offsets.insert(param.name.as_str(), offset);
+            offset += sizes.size(&param.ty).size_wasm32();
         }
-        if function.params.iter().any(|param| param.name == "player") {
-            body.push_str(" local.get 1 call @player_drop@");
+        for (name, index, drop) in [("tx", 0, "world-tx_drop"), ("player", 1, "player_drop")] {
+            if function.params.iter().any(|param| param.name == name) {
+                if indirect {
+                    body.push_str(&format!(
+                        " local.get 0 i32.load offset={} call @{drop}@",
+                        offsets[name]
+                    ));
+                } else {
+                    body.push_str(&format!(" local.get {index} call @{drop}@"));
+                }
+            }
         }
         if function.params.iter().any(|param| param.name == "attacker") {
-            body.push_str(" local.get 2 if local.get 3 call @player_drop@ end");
+            if indirect {
+                let at = offsets["attacker"];
+                body.push_str(&format!(" local.get 0 i32.load8_u offset={at} if local.get 0 i32.load offset={} call @player_drop@ end",at+4));
+            } else {
+                body.push_str(" local.get 2 if local.get 3 call @player_drop@ end");
+            }
         }
         for (name, index) in &imports {
             body = body.replace(&format!("@{name}@"), &index.to_string());

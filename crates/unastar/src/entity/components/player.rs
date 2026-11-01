@@ -1,6 +1,6 @@
 //! Player-specific components.
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::prelude::*;
@@ -35,6 +35,7 @@ pub struct PlayerSession {
     /// Count of dropped packets due to channel being full.
     /// Uses atomic for interior mutability, allowing `send()` to take `&self`.
     packets_dropped: AtomicU32,
+    initial_packets_allowed: AtomicBool,
 }
 
 impl std::fmt::Debug for PlayerSession {
@@ -68,7 +69,17 @@ impl PlayerSession {
             uuid,
             outbound_tx,
             packets_dropped: AtomicU32::new(0),
+            initial_packets_allowed: AtomicBool::new(true),
         }
+    }
+
+    /// Internal initialization closes every ordinary producer, including terrain streaming.
+    pub(crate) fn hold_initial_packets(&self) {
+        self.initial_packets_allowed.store(false, Ordering::Relaxed);
+    }
+    /// The native initial batch was accepted atomically before ordinary sends resume.
+    pub(crate) fn release_initial_packets(&self) {
+        self.initial_packets_allowed.store(true, Ordering::Relaxed);
     }
 
     /// Send a packet to this player.
@@ -80,6 +91,15 @@ impl PlayerSession {
     ///
     /// Returns `true` if the packet was sent, `false` if dropped.
     pub fn send(&self, packet: McpePacket) -> bool {
+        if !self.initial_packets_allowed.load(Ordering::Relaxed)
+            && !matches!(
+                packet.data,
+                jolyne::valentine::McpePacketData::DisconnectPacket(_)
+                    | jolyne::valentine::McpePacketData::PacketViolationWarningPacket(_)
+            )
+        {
+            return false;
+        }
         match self.outbound_tx.try_send(packet) {
             Ok(()) => true,
             Err(mpsc::error::TrySendError::Full(_)) => {

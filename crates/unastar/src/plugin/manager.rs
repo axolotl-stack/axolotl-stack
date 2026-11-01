@@ -21,6 +21,9 @@ mod storage_bridge;
 #[path = "tasks.rs"]
 mod tasks;
 
+#[path = "sessions.rs"]
+pub(crate) mod sessions;
+
 /// Component API version supported by this host.
 pub const PLUGIN_API_VERSION: &str = "0.4.0";
 use crate::plugin::manifest::{PluginId, PluginLimits, PluginManifest};
@@ -58,6 +61,8 @@ pub struct HostContext {
     capabilities: HashSet<crate::plugin::manifest::PluginCapability>,
     generation: uuid::Uuid,
     pending_messages: Vec<players::BoundMessage>,
+    active_admission: Option<sessions::ActiveAdmission>,
+    pending_admissions: Vec<sessions::StagedResolution>,
     pending_tasks: Vec<tasks::TaskRequest>,
     task_requests: VecDeque<tasks::TaskRequest>,
     task_failures: VecDeque<tasks::TaskFailure>,
@@ -104,6 +109,8 @@ impl HostContext {
             capabilities: HashSet::new(),
             generation: uuid::Uuid::new_v4(),
             pending_messages: Vec::new(),
+            active_admission: None,
+            pending_admissions: Vec::new(),
             pending_tasks: Vec::new(),
             task_requests: VecDeque::new(),
             task_failures: VecDeque::new(),
@@ -183,6 +190,7 @@ fn with_world<R>(
             let ctx = self.store.data_mut();
             ctx.world_ptr = std::ptr::null_mut();
             ctx.resources.end_scope();
+            ctx.active_admission = None;
         }
     }
     store.data_mut().world_ptr = world;
@@ -194,13 +202,14 @@ fn with_world<R>(
     call(attachment.store)
 }
 
-/// Commit staged capability work only after the component invocation succeeds.
-fn finish_invocation(
+/// One completion point commits staged imports only after a successful guest export.
+pub(super) fn finish_invocation(
     context: &mut HostContext,
     world: &mut bevy_ecs::world::World,
     succeeded: bool,
 ) {
     commands::finish_invocation(context, succeeded);
+    players::finish_admission_invocation(context, world, succeeded);
     players::finish_invocation(context, world, succeeded);
 }
 
@@ -688,24 +697,9 @@ impl PluginManager {
                     .bindings
                     .call_on_tick(&mut plugin.store, *tick_id)
                     .map(|_| false),
-                ServerEvent::PlayerJoin {
-                    entity, username, ..
-                } => {
-                    let handle = make_player_resource(plugin.store, *entity)?;
-                    let tx = make_world_tx(plugin.store)?;
-                    plugin
-                        .bindings
-                        .call_on_player_join(&mut plugin.store, tx, handle, username)
-                        .map(|_| false)
-                }
-                ServerEvent::PlayerQuit { entity, .. } => {
-                    let handle = make_player_resource(plugin.store, *entity)?;
-                    let tx = make_world_tx(plugin.store)?;
-                    plugin
-                        .bindings
-                        .call_on_player_quit(&mut plugin.store, tx, handle)
-                        .map(|_| false)
-                }
+                ServerEvent::PlayerJoin { .. }
+                | ServerEvent::PlayerQuit { .. }
+                | ServerEvent::PlayerMove { .. } => Ok(false),
                 ServerEvent::PlayerChat {
                     entity, message, ..
                 } => {
@@ -751,24 +745,6 @@ impl PluginManager {
                         .bindings
                         .call_on_block_place(&mut plugin.store, tx, handle, pos, *block_id)
                         .map(|allow| !allow)
-                }
-                ServerEvent::PlayerMove { entity, from, to } => {
-                    let handle = make_player_resource(plugin.store, *entity)?;
-                    let tx = make_world_tx(plugin.store)?;
-                    let from_v = wit_types::Vec3 {
-                        x: from.0,
-                        y: from.1 - crate::entity::PLAYER_EYE_HEIGHT,
-                        z: from.2,
-                    };
-                    let to_v = wit_types::Vec3 {
-                        x: to.0,
-                        y: to.1 - crate::entity::PLAYER_EYE_HEIGHT,
-                        z: to.2,
-                    };
-                    plugin
-                        .bindings
-                        .call_on_player_move(&mut plugin.store, tx, handle, from_v, to_v)
-                        .map(|_| false)
                 }
                 ServerEvent::PlayerJump { entity } => {
                     let handle = make_player_resource(plugin.store, *entity)?;
@@ -984,6 +960,8 @@ pub(crate) mod tests {
     use crate::plugin::manifest::PluginLimits;
     use wit_bindings::unastar::plugin::host::Host;
     mod fixture;
+    #[path = "sessions.rs"]
+    mod session_tests;
 
     pub(super) fn engine() -> Engine {
         let mut config = wasmtime::Config::new();
