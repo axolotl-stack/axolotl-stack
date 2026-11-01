@@ -4,6 +4,22 @@ use super::*;
 use crate::plugin::manifest::PluginCapability;
 
 impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
+    fn grant_items(
+        &mut self,
+        player: Resource<wit::Player>,
+        request: String,
+        plan: Resource<wit::GrantPlan>,
+    ) -> Result<Resource<wit::InventoryOperation>, wit::InventoryError> {
+        self.grant_player_items(player.rep(), request, plan.rep())
+    }
+    fn grant_receipt(
+        &mut self,
+        player: Resource<wit::Player>,
+        request: String,
+    ) -> Result<Option<wit::InventoryReceipt>, wit::InventoryError> {
+        self.grant_receipt(player.rep(), request)
+    }
+
     fn vitals(
         &mut self,
         player: Resource<wit::Player>,
@@ -332,6 +348,13 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostWorldTx for HostContext {
+    fn grant_plan(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+    ) -> Result<Resource<wit::GrantPlan>, wit::InventoryError> {
+        self.new_grant_plan(tx.rep())
+    }
+
     fn block(
         &mut self,
         tx: Resource<wit::WorldTx>,

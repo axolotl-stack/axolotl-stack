@@ -303,6 +303,7 @@ struct Completion {
     uuid: Uuid,
     id: String,
     result: Result<EffectWrite, EffectWriteFailure>,
+    items: Option<crate::storage::item_grants::ItemMutation>,
     _retention: Option<Arc<dyn Send + Sync>>,
 }
 
@@ -314,6 +315,7 @@ struct ReplyGuard {
     uuid: Uuid,
     id: String,
     finished: bool,
+    items: Option<crate::storage::item_grants::ItemMutation>,
     retention: Option<Arc<dyn Send + Sync>>,
 }
 
@@ -326,6 +328,7 @@ impl ReplyGuard {
             uuid: self.uuid,
             id: self.id.clone(),
             result,
+            items: self.items.take(),
             _retention: self.retention.take(),
         });
     }
@@ -343,6 +346,7 @@ impl Drop for ReplyGuard {
                     resume_source: false,
                     message: "inventory persistence worker interrupted".into(),
                 }),
+                items: self.items.take(),
                 _retention: self.retention.take(),
             });
         }
@@ -369,10 +373,11 @@ pub fn install(server: &mut GameServer) -> Result<(), EffectError> {
             player: event.entity,
         });
     });
-    server
-        .ecs
-        .schedule_mut()
-        .add_systems(poll.before(PacketApplySet));
+    server.ecs.schedule_mut().add_systems(
+        (poll, super::item_grants::poll)
+            .chain()
+            .before(PacketApplySet),
+    );
     Ok(())
 }
 
@@ -408,6 +413,9 @@ pub fn receipt<'a>(
 
 /// Reject admission while an account has an outstanding or ambiguous durable write.
 pub(super) fn allow_spawn(world: &World, uuid: Uuid) -> Result<(), StorageError> {
+    if super::item_grants::recovery_required(world) {
+        return Err(StorageError::PlayerRecoveryRequired);
+    }
     if super::player_state::restoration::account_pending(world, uuid, None) {
         return Err(StorageError::PlayerRecoveryRequired);
     }
@@ -433,7 +441,7 @@ pub fn submit(
     player: Entity,
     effect: InventoryEffect,
 ) -> Result<Submission, EffectError> {
-    submit_with_retention(world, player, effect, None)
+    submit_with_retention(world, player, effect, None, None)
 }
 
 /// Keep an accepted caller reservation alive through worker cancellation and undelivered replies.
@@ -443,15 +451,34 @@ pub(crate) fn submit_retained(
     effect: InventoryEffect,
     retention: Arc<dyn Send + Sync>,
 ) -> Result<Submission, EffectError> {
-    submit_with_retention(world, player, effect, Some(retention))
+    submit_with_retention(world, player, effect, Some(retention), None)
 }
 
 /// One coordinator path serves ordinary calls and calls with retained resource ownership.
+/// Native item ownership and inventory become visible only after their single durable batch.
+pub(crate) fn submit_items(
+    world: &mut World,
+    player: Entity,
+    effect: InventoryEffect,
+    hash: [u8; 32],
+    items: crate::storage::item_grants::ItemMutation,
+    retention: Arc<dyn Send + Sync>,
+) -> Result<Submission, EffectError> {
+    let provider = world
+        .get_resource::<PlayerProviderResource>()
+        .ok_or(EffectError::MissingProvider)?;
+    if !provider.0.atomic_durable_items() {
+        return Err(EffectError::UnsupportedProvider);
+    }
+    submit_with_retention(world, player, effect, Some(retention), Some((hash, items)))
+}
+
 fn submit_with_retention(
     world: &mut World,
     player: Entity,
     effect: InventoryEffect,
     retention: Option<Arc<dyn Send + Sync>>,
+    items: Option<([u8; 32], crate::storage::item_grants::ItemMutation)>,
 ) -> Result<Submission, EffectError> {
     if !valid_inventory_effect_id(&effect.id) {
         return Err(EffectError::InvalidIdentifier);
@@ -460,7 +487,9 @@ fn submit_with_retention(
         return Err(EffectError::Busy);
     }
     let handle = tokio::runtime::Handle::try_current().map_err(|_| EffectError::MissingRuntime)?;
-    let hash = request_hash(&effect.replacement)?;
+    let hash = items
+        .as_ref()
+        .map_or_else(|| request_hash(&effect.replacement), |(hash, _)| Ok(*hash))?;
     if let Some(record) = receipt(world, player, &effect.id) {
         return if record.request_hash == hash {
             Ok(Submission::AlreadyCommitted {
@@ -502,8 +531,15 @@ fn submit_with_retention(
         return Err(EffectError::Conflict);
     }
     effect.replacement.validate()?;
-    let (_, mut candidate) =
-        super::transaction_player_record(world, player).ok_or(EffectError::MissingPlayer)?;
+    let (_, mut candidate) = if world
+        .get::<super::player_state::source_actors::ManagedSource>(player)
+        .is_some()
+    {
+        super::player_state::source_actors::active_record(world, player)
+    } else {
+        super::transaction_player_record(world, player)
+    }
+    .ok_or(EffectError::MissingPlayer)?;
     effect.replacement.put_into(&mut candidate);
     candidate
         .validate(uuid)
@@ -559,12 +595,22 @@ fn submit_with_retention(
         uuid,
         id: effect.id.clone(),
         finished: false,
+        items: items.as_ref().map(|(_, items)| items.clone()),
         retention,
     };
     handle.spawn(async move {
-        let result = writer
-            .commit_effect(uuid, &effect.id, hash, candidate)
-            .await;
+        let result = match items {
+            Some((_, items)) => {
+                writer
+                    .commit_item_effect(uuid, &effect.id, hash, candidate, items)
+                    .await
+            }
+            None => {
+                writer
+                    .commit_effect(uuid, &effect.id, hash, candidate)
+                    .await
+            }
+        };
         guard.finish(result);
     });
     Ok(Submission::Queued)
@@ -624,6 +670,11 @@ pub fn poll(world: &mut World) {
                         completion.player,
                         "Inventory state changed; reconnect to restore its durable result.",
                     );
+                }
+                if !write.already_committed
+                    && let Some(items) = &completion.items
+                {
+                    super::item_grants::publish(world, items, Some(completion.player));
                 }
                 world.trigger(InventoryEffectCommitted {
                     player: world

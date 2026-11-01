@@ -143,6 +143,9 @@ impl Harness {
         .collect::<HashSet<_>>();
         if write {
             capabilities.insert(PluginCapability::WriteInventory);
+            if mode >= 50 {
+                capabilities.insert(PluginCapability::GrantItems);
+            }
         }
         let archives = (mode == 26).then(|| tempfile::tempdir().unwrap());
         if archives.is_some() {
@@ -931,3 +934,6 @@ async fn a_malformed_callback_result_discards_its_staged_durable_inventory_inten
         0
     );
 }
+
+#[path = "inventory_writes/grants.rs"]
+mod grants;

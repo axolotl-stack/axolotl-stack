@@ -25,6 +25,7 @@ impl Drop for PendingSlot {
 /// Native copies and their original immutable image stay charged until a definitive result.
 struct Retained {
     image: Arc<super::values::Value<super::inventory::Image>>,
+    items: Option<crate::storage::item_grants::ItemMutation>,
     _copies: Arc<super::values::Value<()>>,
     _slot: PendingSlot,
 }
@@ -130,7 +131,7 @@ fn receipt(record: &InventoryEffectRecord) -> wit::InventoryReceipt {
 }
 
 /// Keep mechanical failures typed without exposing provider paths or native messages.
-fn error(error: native::EffectError) -> wit::InventoryError {
+pub(super) fn error(error: native::EffectError) -> wit::InventoryError {
     match error {
         native::EffectError::NotInstalled | native::EffectError::MissingProvider => {
             wit::InventoryError::NotInstalled
@@ -151,7 +152,7 @@ fn error(error: native::EffectError) -> wit::InventoryError {
 }
 
 /// Frame both variable-length identifiers before hashing into the engine's receipt namespace.
-fn request_key(plugin: &str, request: &str) -> Result<String, wit::InventoryError> {
+pub(super) fn request_key(plugin: &str, request: &str) -> Result<String, wit::InventoryError> {
     if request.is_empty() || request.len() > 256 || request.chars().any(char::is_control) {
         return Err(wit::InventoryError::InvalidIdentifier);
     }
@@ -273,9 +274,14 @@ impl HostContext {
         image_rep: u32,
         request: String,
         permit: Permit,
+        grants: Option<Vec<crate::server::game::item_grants::Grant>>,
     ) -> Result<Resource<wit::InventoryOperation>, wit::InventoryError> {
-        self.require(PluginCapability::WriteInventory)
-            .map_err(wit::InventoryError::Access)?;
+        self.require(if grants.is_some() {
+            PluginCapability::GrantItems
+        } else {
+            PluginCapability::WriteInventory
+        })
+        .map_err(wit::InventoryError::Access)?;
         let image = self
             .inventory_image(image_rep)
             .map_err(wit::InventoryError::Access)?;
@@ -290,9 +296,27 @@ impl HostContext {
             return Err(wit::InventoryError::Access(wit::AccessError::WrongWorld));
         }
         native::available(world).map_err(error)?;
-        let id = request_key(&self.plugin_id.0, &request)?;
+        let id = if grants.is_some() {
+            super::grants::request_key(&self.plugin_id.0, &request)?
+        } else {
+            request_key(&self.plugin_id.0, &request)?
+        };
         let key = (reference.uuid, id);
-        let hash = native::request_hash(&image.candidate).map_err(error)?;
+        let hash = if let Some(grants) = &grants {
+            let identity = world
+                .get_resource::<crate::world::WorldIdentity>()
+                .ok_or(wit::InventoryError::UnsupportedProvider)?;
+            let provider = world
+                .get_resource::<crate::server::game::types::PlayerProviderResource>()
+                .ok_or(wit::InventoryError::NotInstalled)?;
+            if !provider.0.atomic_durable_items() {
+                return Err(wit::InventoryError::UnsupportedProvider);
+            }
+            crate::server::game::item_grants::intent(identity.id, identity.dimension, grants)
+                .map_err(error)?
+        } else {
+            native::request_hash(&image.candidate).map_err(error)?
+        };
         self.inventories
             .known
             .retain(|_, operation| operation.strong_count() > 0);
@@ -361,9 +385,26 @@ impl HostContext {
             })
             .map_err(|_| wit::InventoryError::Access(wit::AccessError::LimitExceeded))?;
         let slot = PendingSlot(pending);
+        let grant_copies = grants.as_ref().map_or(0usize, |grants| {
+            grants
+                .iter()
+                .map(|grant| {
+                    let stacks = grant
+                        .quantity
+                        .div_ceil(u32::from(grant.item.max_stack_size().max(1)))
+                        as usize;
+                    stacks
+                        .saturating_mul(
+                            super::inventory::native_stack_bytes(&grant.item).saturating_add(256),
+                        )
+                        .saturating_mul(4)
+                })
+                .sum()
+        });
         let copies = image
             .bytes()
-            .checked_mul(4)
+            .checked_add(grant_copies)
+            .and_then(|bytes| bytes.checked_mul(4))
             .and_then(|bytes| bytes.checked_add(1024))
             .ok_or(wit::InventoryError::Access(wit::AccessError::LimitExceeded))?;
         let copies = self
@@ -371,6 +412,34 @@ impl HostContext {
             .value_budget
             .own((), copies)
             .map_err(wit::InventoryError::Access)?;
+        let (image, items) = if let Some(grants) = &grants {
+            let planned = crate::server::game::item_grants::plan(
+                unsafe { self.world() },
+                player,
+                &key.1,
+                grants,
+            )
+            .map_err(error)?;
+            if planned.expected != *image.expected {
+                return Err(wit::InventoryError::Conflict);
+            }
+            let mut generated = (**image).clone();
+            generated.candidate = Arc::new(planned.replacement);
+            let bytes = generated.bytes();
+            let image = self
+                .resources
+                .value_budget
+                .own(generated, bytes)
+                .map_err(wit::InventoryError::Access)?;
+            (
+                image,
+                Some(crate::storage::item_grants::ItemMutation::Create(
+                    planned.items,
+                )),
+            )
+        } else {
+            (image, None)
+        };
         let operation = Arc::new(Operation {
             key: key.clone(),
             source: reference.id,
@@ -381,6 +450,7 @@ impl HostContext {
                 status: wit::InventoryStatus::Staged,
                 retained: Some(Retained {
                     image,
+                    items,
                     _copies: copies,
                     _slot: slot,
                 }),
@@ -402,7 +472,29 @@ impl HostContext {
         image: u32,
     ) -> Result<Resource<wit::InventoryOperation>, wit::InventoryError> {
         let (reference, player) = self.live_player(rep).map_err(wit::InventoryError::Access)?;
-        self.stage_inventory(player, reference, image, request, Permit::Ready)
+        self.stage_inventory(player, reference, image, request, Permit::Ready, None)
+    }
+
+    pub(super) fn submit_grants(
+        &mut self,
+        rep: u32,
+        request: String,
+        grants: Vec<crate::server::game::item_grants::Grant>,
+    ) -> Result<Resource<wit::InventoryOperation>, wit::InventoryError> {
+        let (reference, player) = self.live_player(rep).map_err(wit::InventoryError::Access)?;
+        let image = self
+            .capture_inventory(rep)
+            .map_err(wit::InventoryError::Access)?;
+        let result = self.stage_inventory(
+            player,
+            reference,
+            image.rep(),
+            request,
+            Permit::Ready,
+            Some(grants),
+        );
+        self.resources.entries.remove(&image.rep());
+        result
     }
 
     /// Validate the owned initialization hold before retaining a request for its exact actor.
@@ -436,6 +528,7 @@ impl HostContext {
             image,
             request,
             Permit::Initializing { hold },
+            None,
         )
     }
 
@@ -489,16 +582,18 @@ pub(in crate::plugin::manager) fn finish(
             continue;
         }
         let result = (|| -> Result<native::Submission, wit::InventoryError> {
-            let image = pending
-                .operation
-                .progress
-                .lock()
-                .map_err(|_| wit::InventoryError::Access(wit::AccessError::Unavailable))?
-                .retained
-                .as_ref()
-                .ok_or(wit::InventoryError::Conflict)?
-                .image
-                .clone();
+            let (image, items) = {
+                let progress = pending
+                    .operation
+                    .progress
+                    .lock()
+                    .map_err(|_| wit::InventoryError::Access(wit::AccessError::Unavailable))?;
+                let retained = progress
+                    .retained
+                    .as_ref()
+                    .ok_or(wit::InventoryError::Conflict)?;
+                (retained.image.clone(), retained.items.clone())
+            };
             let (source, origin) = image
                 .captured_binding()
                 .map_err(wit::InventoryError::Access)?;
@@ -532,16 +627,23 @@ pub(in crate::plugin::manager) fn finish(
             {
                 return Err(wit::InventoryError::Busy);
             }
-            let submission = native::submit_retained(
-                world,
-                player,
-                native::InventoryEffect {
-                    id: pending.operation.key.1.clone(),
-                    expected: (*image.expected).clone(),
-                    replacement: (*image.candidate).clone(),
-                },
-                Arc::new(WorkerLease(pending.operation.clone())),
-            )
+            let effect = native::InventoryEffect {
+                id: pending.operation.key.1.clone(),
+                expected: (*image.expected).clone(),
+                replacement: (*image.candidate).clone(),
+            };
+            let lease = Arc::new(WorkerLease(pending.operation.clone()));
+            let submission = match items {
+                Some(items) => native::submit_items(
+                    world,
+                    player,
+                    effect,
+                    pending.operation.hash,
+                    items,
+                    lease,
+                ),
+                None => native::submit_retained(world, player, effect, lease),
+            }
             .map_err(error)?;
             Ok(submission)
         })();
@@ -586,6 +688,9 @@ impl super::super::PluginManager {
                 manifest
                     .capabilities
                     .contains(&PluginCapability::WriteInventory)
+                    || manifest
+                        .capabilities
+                        .contains(&PluginCapability::GrantItems)
                     || manifest
                         .capabilities
                         .contains(&PluginCapability::RestorePlayerState)

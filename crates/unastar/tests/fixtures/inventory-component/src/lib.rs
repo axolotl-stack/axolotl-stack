@@ -92,6 +92,103 @@ impl Plugin for Fixture {
 
     fn on_player_jump(tx: &raw::WorldTx, player: &raw::Player) {
         STATE.with_borrow_mut(|state| {
+            if state.mode >= 50 {
+                if state.mode == 58 {
+                    assert!(player.grant_receipt("exact-grant").unwrap().is_none());
+                    log("grant-namespace-isolated");
+                    return;
+                }
+                let (identifier, quantity, placement) = match state.mode {
+                    53 => (
+                        "minecraft:diamond_sword",
+                        3,
+                        raw::GrantPlacement::AnyInventoryOrDrop,
+                    ),
+                    54 => (
+                        "minecraft:diamond",
+                        130,
+                        raw::GrantPlacement::EmptyMainOrDrop(8),
+                    ),
+                    55 => (
+                        "minecraft:diamond_helmet",
+                        2,
+                        raw::GrantPlacement::EmptyArmourOrDrop(0),
+                    ),
+                    59 => (
+                        "minecraft:diamond",
+                        130,
+                        raw::GrantPlacement::EmptyMainOrDrop(0),
+                    ),
+                    56 => (
+                        "minecraft:diamond",
+                        131,
+                        raw::GrantPlacement::AnyInventoryOrDrop,
+                    ),
+                    _ => (
+                        "minecraft:diamond",
+                        130,
+                        raw::GrantPlacement::AnyInventoryOrDrop,
+                    ),
+                };
+                let item = tx
+                    .item(identifier, 1)
+                    .unwrap()
+                    .with_name(Some("Bounded grant"))
+                    .unwrap();
+                if state.mode == 59 && state.phase == 0 {
+                    let image = player
+                        .inventory()
+                        .unwrap()
+                        .with_slot(InventoryArea::Main, 0, &item.with_count(32).unwrap())
+                        .unwrap();
+                    state.expected = image.request_hash().unwrap();
+                    state.operation = Some(player.submit_inventory("setup", &image).unwrap());
+                    state.phase = 1;
+                    return;
+                }
+                let empty = tx.grant_plan().unwrap();
+                if state.mode == 52 {
+                    assert!(matches!(
+                        empty.with_item(&item, 0, placement),
+                        Err(AccessError::InvalidArgument)
+                    ));
+                    assert!(matches!(
+                        empty.with_item(&item, 16_385, placement),
+                        Err(AccessError::InvalidArgument)
+                    ));
+                    log("invalid-grant-rejected");
+                    return;
+                }
+                let plan = empty.with_item(&item, quantity, placement).unwrap();
+                state.expected = plan.request_hash().unwrap();
+                let result = player.grant_items("exact-grant", &plan);
+                if state.mode == 56 {
+                    assert!(matches!(result, Err(InventoryError::Conflict)));
+                    log("grant-conflict");
+                    return;
+                }
+                let operation = result.unwrap();
+                if state.mode == 57 {
+                    assert!(matches!(
+                        operation.status().unwrap(),
+                        InventoryStatus::Committed(_)
+                    ));
+                    log("grant-replayed");
+                    return;
+                }
+                assert!(matches!(
+                    operation.status().unwrap(),
+                    InventoryStatus::Staged
+                ));
+                state.operation = Some(operation);
+                state.phase = 1;
+                if state.mode == 51 {
+                    panic!("controlled failure after grant staging");
+                }
+                log("grant-staged");
+                return;
+            }
+
             match state.mode {
                 26 => {
                     let reference = player.archive("historical").unwrap();
@@ -264,6 +361,26 @@ impl Plugin for Fixture {
 
     fn on_tick(_tick: u64) {
         STATE.with_borrow_mut(|state| {
+            if state.mode >= 50 {
+                if let Some(operation) = &state.operation {
+                    match operation.status().unwrap() {
+                        InventoryStatus::Committed(commit) => {
+                            assert_eq!(commit.receipt.request_hash, state.expected);
+                            log("grant-committed");
+                            state.operation.take();
+                            state.phase = 2;
+                        }
+                        InventoryStatus::Uncertain => log("grant-uncertain"),
+                        InventoryStatus::Rejected(error) => {
+                            log(&format!("grant-rejected:{error:?}"));
+                            state.operation.take();
+                        }
+                        _ => (),
+                    }
+                }
+                return;
+            }
+
             if state.mode == 8 && state.phase == 1 {
                 assert!(matches!(
                     state
@@ -384,7 +501,7 @@ impl Plugin for Fixture {
 
     fn on_player_quit(_tx: &raw::WorldTx, _event: QuitEvent) -> QuitDisposition {
         STATE.with_borrow(|state| {
-            if state.mode == 13 {
+            if state.mode == 13 || state.mode >= 50 {
                 QuitDisposition::RetainEntity
             } else {
                 QuitDisposition::Remove

@@ -34,6 +34,13 @@ pub fn run(ctx: &mut CommandContext<'_>, args: KillArgs) -> CommandResult {
             crate::entity::player_life::kill_player(ctx.world, target)
         } else if ctx.world.get::<MobKind>(target).is_some() {
             kill_mob(ctx.world, target)
+        } else if ctx
+            .world
+            .get::<crate::entity::components::PersistentWorldItem>(target)
+            .is_some()
+        {
+            // This synchronous command cannot acknowledge a durable item retirement.
+            false
         } else {
             ctx.world.despawn(target);
             true

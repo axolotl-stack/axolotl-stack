@@ -106,7 +106,7 @@ pub fn pickup_items(
             &RuntimeId,
             Option<&ActorViewers>,
         ),
-        With<DroppedItem>,
+        (With<DroppedItem>, Without<super::item_grants::DurableItem>),
     >,
     mut players: Query<
         (

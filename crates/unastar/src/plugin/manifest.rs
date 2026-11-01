@@ -315,6 +315,8 @@ pub enum PluginCapability {
     PlayerMechanics,
     /// Replace exact inventory images through durable idempotent transactions.
     WriteInventory,
+    /// Exact-quantity inventory grants with persistent overflow item ownership.
+    GrantItems,
     /// Request bounded native durable relocations through owned world handles.
     PlayerTravel,
     /// Install typed full player state with canonical receipts and real source ownership.

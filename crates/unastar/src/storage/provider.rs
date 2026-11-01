@@ -28,6 +28,9 @@ pub enum StorageError {
     #[error(transparent)]
     ColumnWrite(#[from] super::column_writer::ColumnWriteError),
 
+    #[error("durable item ownership quota is exhausted")]
+    ItemQuotaExceeded,
+
     #[error("Not found")]
     NotFound,
 
@@ -326,6 +329,43 @@ impl PlayerData {
 /// Shared across all worlds (player data is global).
 #[async_trait]
 pub trait PlayerProvider: Send + Sync + 'static {
+    /// Explicit support for atomic canonical-account and persistent world-item changes.
+    fn atomic_durable_items(&self) -> bool {
+        false
+    }
+
+    /// Load the current native item ownership rows for one persistent world.
+    async fn world_items(
+        &self,
+        _world: Uuid,
+        _dimension: i32,
+    ) -> StorageResult<Vec<super::item_grants::PersistentItem>> {
+        Err(StorageError::Database(
+            "durable world items are unsupported".into(),
+        ))
+    }
+
+    /// Retire one exact world item without granting its contents to an account.
+    async fn retire_world_item(
+        &self,
+        _expected: &super::item_grants::PersistentItem,
+    ) -> StorageResult<()> {
+        Err(StorageError::Database(
+            "durable world items are unsupported".into(),
+        ))
+    }
+
+    /// Persist the account, its receipt and all conditional item rows in one durable batch.
+    async fn save_with_items(
+        &self,
+        _uuid: Uuid,
+        _data: &PlayerData,
+        _mutation: &super::item_grants::ItemMutation,
+    ) -> StorageResult<()> {
+        Err(StorageError::Database(
+            "durable world items are unsupported".into(),
+        ))
+    }
     /// Whether successful saves atomically replace one complete record durably.
     /// Durable inventory effects require this explicit contract. Errors may still
     /// be ambiguous and are handled conservatively by the serialized writer.

@@ -1998,7 +1998,7 @@ fn pull_item_entities(world: &mut World, pos: IVec3) -> bool {
     let min = pos.as_dvec3() + DVec3::new(0.0, 0.5, 0.0);
     let max = pos.as_dvec3() + DVec3::new(1.0, 2.0, 1.0);
     let mut query =
-        world.query_filtered::<(Entity, &Position, &ItemEntityStack), With<DroppedItem>>();
+        world.query_filtered::<(Entity, &Position, &ItemEntityStack), (With<DroppedItem>, Without<super::item_grants::DurableItem>)>();
     let candidates: Vec<_> = query
         .iter(world)
         .filter(|(_, position, stack)| {

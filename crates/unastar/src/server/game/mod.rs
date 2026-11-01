@@ -23,6 +23,7 @@ pub mod hunger;
 mod inventory;
 pub mod inventory_effects;
 pub mod item_actions;
+pub(crate) mod item_grants;
 pub mod item_use;
 mod items;
 pub(crate) mod join;

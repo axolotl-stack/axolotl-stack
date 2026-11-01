@@ -12,6 +12,10 @@ pub struct WorldTx<'scope> {
     raw: &'scope raw::WorldTx,
 }
 impl<'scope> WorldTx<'scope> {
+    pub fn grant_plan(&self) -> Result<crate::GrantPlan, crate::InventoryError> {
+        self.raw.grant_plan()
+    }
+
     /// Observe an exact surviving native source hold without recreating its actor.
     pub fn source_fence(
         &self,
@@ -242,6 +246,22 @@ pub struct Player<'scope> {
     scope: PhantomData<&'scope WorldTx<'scope>>,
 }
 impl<'scope> Player<'scope> {
+    /// Commit exact quantities to compatible inventory slots and durable overflow actors.
+    /// A committed receipt covers both in one native atomic record set.
+    pub fn grant_items(
+        &self,
+        request_id: &str,
+        plan: &crate::GrantPlan,
+    ) -> Result<crate::InventoryOperation, crate::InventoryError> {
+        self.raw().grant_items(request_id, plan)
+    }
+    pub fn grant_receipt(
+        &self,
+        request_id: &str,
+    ) -> Result<Option<crate::InventoryReceipt>, crate::InventoryError> {
+        self.raw().grant_receipt(request_id)
+    }
+
     /// Stage native loading, safe-Y checks and durable movement to one actual world.
     /// Only `on_player_travel_result` reports the physical outcome. A successful
     /// callback keeps explicit requests even when its default action is cancelled.

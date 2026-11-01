@@ -490,6 +490,7 @@ interface types {
         player: func(handle: borrow<player-handle>) -> result<player, access-error>;
         /// Construct a detached value using this world's frozen item/block registries.
         item: func(identifier: string, count: u8) -> result<stack, access-error>;
+        grant-plan: func() -> result<grant-plan, inventory-error>;
         /// Observe an already loaded native cell without loading or generating terrain.
         block: func(position: block-pos) -> result<block-cell, world-block-error>;
         edit-blocks: func() -> result<block-edit, world-block-error>;
@@ -627,6 +628,16 @@ interface types {
         with-enchantments: func(enchantments: list<enchantment>) -> result<stack, access-error>;
         value: func(path: list<string>) -> result<option<item-value>, access-error>;
         with-value: func(path: list<string>, value: option<item-value>) -> result<stack, access-error>;
+    }
+
+    /// Positional strategies fill only an empty requested slot, then drop any remainder.
+    /// An occupied requested slot sends the whole quantity to world drops, even if compatible.
+    variant grant-placement { any-inventory-or-drop, empty-main-or-drop(u8), empty-armour-or-drop(u8), empty-offhand-or-drop }
+    /// Exact quantities are independent of the prototype stack count, split by native maximums.
+    resource grant-plan {
+        /// Exact logical hash used by the eventual account-scoped grant receipt.
+        request-hash: func() -> result<list<u8>, access-error>;
+        with-item: func(item: borrow<stack>, quantity: u32, placement: grant-placement) -> result<grant-plan, access-error>;
     }
 
     enum inventory-area {
@@ -836,6 +847,10 @@ interface types {
         archive: func(key: string) -> result<archive-reference, archive-error>;
         submit-inventory: func(request-id: string, image: borrow<inventory-image>) -> result<inventory-operation, inventory-error>;
         inventory-receipt: func(request-id: string) -> result<option<inventory-receipt>, inventory-error>;
+        /// A committed result proves one atomic canonical inventory + overflow item-ownership write.
+        /// Replay never reapplies an old inventory or respawns already picked-up items.
+        grant-items: func(request-id: string, plan: borrow<grant-plan>) -> result<inventory-operation, inventory-error>;
+        grant-receipt: func(request-id: string) -> result<option<inventory-receipt>, inventory-error>;
         message: func(message: string) -> result<_, access-error>;
         /// Stage exact admitted-connection termination; initial admission uses reject/hold resolution.
         disconnect: func(reason: connection-close-reason) -> result<connection-close-request, connection-control-error>;

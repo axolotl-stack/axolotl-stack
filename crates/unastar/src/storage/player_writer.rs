@@ -121,7 +121,31 @@ impl SerializedPlayerProvider {
             request_hash,
             candidate,
             None,
-            SourceMutation::Ordinary,
+            (SourceMutation::Ordinary, None),
+        )
+        .await
+        .map(|(effect, _)| effect)
+    }
+
+    /// Inventory and world-item ownership share one canonical account receipt and atomic batch.
+    pub(crate) async fn commit_item_effect(
+        &self,
+        uuid: Uuid,
+        id: &str,
+        hash: [u8; 32],
+        candidate: PlayerData,
+        items: super::item_grants::ItemMutation,
+    ) -> Result<EffectWrite, EffectWriteFailure> {
+        if !self.inner.atomic_durable_items() {
+            return Err(rejected("provider does not support durable items"));
+        }
+        self.commit_full_effect(
+            uuid,
+            id,
+            hash,
+            candidate,
+            None,
+            (SourceMutation::Ordinary, Some(items)),
         )
         .await
         .map(|(effect, _)| effect)
@@ -143,7 +167,7 @@ impl SerializedPlayerProvider {
             request_hash,
             candidate,
             Some(supplement),
-            SourceMutation::Handoff(origin),
+            (SourceMutation::Handoff(origin), None),
         )
         .await
         .map(|(effect, _)| effect)
@@ -165,10 +189,13 @@ impl SerializedPlayerProvider {
             hash,
             candidate,
             None,
-            SourceMutation::Transition {
-                expected,
-                desired: Box::new(desired),
-            },
+            (
+                SourceMutation::Transition {
+                    expected,
+                    desired: Box::new(desired),
+                },
+                None,
+            ),
         )
         .await
         .map(|(effect, data)| SourceWrite { effect, data })
@@ -182,8 +209,9 @@ impl SerializedPlayerProvider {
         request_hash: [u8; 32],
         mut candidate: PlayerData,
         supplement: Option<super::RestorationSupplement>,
-        source: SourceMutation,
+        mutation: (SourceMutation, Option<super::item_grants::ItemMutation>),
     ) -> Result<(EffectWrite, PlayerData), EffectWriteFailure> {
+        let (source, items) = mutation;
         if !self.inner.atomic_durable_records() {
             return Err(uncertain(
                 "provider does not guarantee atomic durable records",
@@ -287,7 +315,20 @@ impl SerializedPlayerProvider {
         candidate
             .validate(uuid)
             .map_err(|error| rejected(error.to_string()))?;
-        if let Err(error) = self.inner.save(uuid, &candidate).await {
+        let with_items = items.is_some();
+        let saved = match items {
+            Some(items) => self.inner.save_with_items(uuid, &candidate, &items).await,
+            None => self.inner.save(uuid, &candidate).await,
+        };
+        if let Err(error) = saved {
+            if with_items
+                && matches!(
+                    error,
+                    StorageError::PlayerRevisionConflict | StorageError::ItemQuotaExceeded
+                )
+            {
+                return Err(rejected("world item ownership changed"));
+            }
             self.require_recovery(uuid);
             return Err(uncertain(error.to_string()));
         }
@@ -303,6 +344,23 @@ impl SerializedPlayerProvider {
 
 #[async_trait]
 impl PlayerProvider for SerializedPlayerProvider {
+    fn atomic_durable_items(&self) -> bool {
+        self.inner.atomic_durable_items()
+    }
+    async fn world_items(
+        &self,
+        world: Uuid,
+        dimension: i32,
+    ) -> StorageResult<Vec<super::item_grants::PersistentItem>> {
+        self.inner.world_items(world, dimension).await
+    }
+    async fn retire_world_item(
+        &self,
+        expected: &super::item_grants::PersistentItem,
+    ) -> StorageResult<()> {
+        self.inner.retire_world_item(expected).await
+    }
+
     fn atomic_durable_records(&self) -> bool {
         self.inner.atomic_durable_records()
     }

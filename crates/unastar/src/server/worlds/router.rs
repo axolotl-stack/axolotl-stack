@@ -39,6 +39,14 @@ impl DimensionRouter {
         // world installs its local inventory effect coordinator.
         let _ =
             crate::server::game::inventory_effects::prepare_shared_writer(primary.ecs.world_mut());
+        if primary
+            .ecs
+            .world()
+            .get_resource::<types::PlayerProviderResource>()
+            .is_some_and(|provider| provider.0.atomic_durable_items())
+        {
+            let _ = crate::server::game::inventory_effects::install(&mut primary);
+        }
         let dimension = primary.ecs.world().resource::<ChunkManager>().dimension();
         primary
             .ecs
@@ -261,6 +269,15 @@ impl DimensionRouter {
             .get_resource::<crate::server::game::inventory_effects::SharedPlayerWriter>(
         ) {
             world.ecs.world_mut().insert_resource(writer.clone());
+        }
+        if world
+            .ecs
+            .world()
+            .get_resource::<types::PlayerProviderResource>()
+            .is_some_and(|provider| provider.0.atomic_durable_items())
+        {
+            crate::server::game::inventory_effects::install(world)
+                .map_err(|_| TransferError::Persistence)?;
         }
         if let Some(store) = primary
             .ecs

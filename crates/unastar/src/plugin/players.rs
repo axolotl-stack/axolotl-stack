@@ -18,6 +18,8 @@ mod admission;
 mod archive;
 #[path = "players/connection_control.rs"]
 mod connection_control;
+#[path = "players/grants.rs"]
+mod grants;
 #[path = "players/host.rs"]
 mod host;
 #[path = "players/inventory.rs"]
@@ -90,6 +92,7 @@ enum Entry {
     Item(Arc<values::Value<crate::item::ItemStack>>),
     AdmissionHold(super::sessions::OwnedHold),
     InventoryImage(Arc<values::Value<inventory::Image>>),
+    GrantPlan(Arc<values::Value<grants::Plan>>),
     ArchivedState(Arc<values::Value<archive::Archived>>),
     InventoryOperation(Arc<inventory_transactions::Operation>),
     InventoryMechanicsOperation(Arc<inventory_mechanics::Operation>),

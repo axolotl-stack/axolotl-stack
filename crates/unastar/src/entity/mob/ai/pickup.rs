@@ -112,6 +112,9 @@ impl GearWork {
 /// A live, non-empty dropped item: its position and stack.
 fn item_view(world: &World, item: Entity) -> Option<(DVec3, &ItemStack)> {
     let entity = world.get_entity(item).ok()?;
+    if entity.contains::<crate::server::game::item_grants::DurableItem>() {
+        return None;
+    }
     let stack = &entity.get::<ItemEntityStack>()?.0;
     if stack.is_empty() {
         return None;
