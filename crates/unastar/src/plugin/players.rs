@@ -30,10 +30,20 @@ pub(super) use inventory_transactions::finish as finish_inventory_invocation;
 mod items;
 #[path = "players/mechanics.rs"]
 mod mechanics;
+#[path = "players/state.rs"]
+mod state;
+#[path = "players/state_sources.rs"]
+mod state_sources;
+#[path = "players/state_transactions.rs"]
+mod state_transactions;
 #[path = "players/values.rs"]
 mod values;
 pub(crate) use mechanics::apply_pending as apply_mechanics;
 pub(super) use mechanics::{MechanicsRequest, finish as finish_mechanics};
+pub(super) use state_sources::Pending as StateSources;
+pub(super) use state_sources::finish as finish_state_sources;
+pub(super) use state_transactions::Requests as StateRequests;
+pub(super) use state_transactions::finish as finish_state_transactions;
 
 /// One callback's authority; tokens are invalidated before another callback can run.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,6 +72,9 @@ enum Entry {
     ArchivedState(Arc<values::Value<archive::Archived>>),
     InventoryOperation(Arc<inventory_transactions::Operation>),
     ConnectionClose(Arc<super::connection_control::RequestState>),
+    StateImage(Arc<values::Value<state::Image>>),
+    SourceFence(Arc<state_sources::Fence>),
+    StateOperation(Arc<state_transactions::Operation>),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.

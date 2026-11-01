@@ -355,7 +355,7 @@ fn native_mode(mode: wit::GameMode) -> GameMode {
     }
 }
 /// Map each semantic component effect to the native registry explicitly.
-fn native_kind(kind: wit::EffectKind) -> EffectType {
+pub(super) fn native_kind(kind: wit::EffectKind) -> EffectType {
     EffectType(match kind {
         wit::EffectKind::Speed => 1,
         wit::EffectKind::Slowness => 2,
@@ -396,7 +396,7 @@ fn native_kind(kind: wit::EffectKind) -> EffectType {
     })
 }
 /// Reject unknown native effects rather than substituting a component kind.
-fn kind(effect: EffectType) -> Result<wit::EffectKind, wit::AccessError> {
+pub(super) fn kind(effect: EffectType) -> Result<wit::EffectKind, wit::AccessError> {
     Ok(match effect.0 {
         1 => wit::EffectKind::Speed,
         2 => wit::EffectKind::Slowness,

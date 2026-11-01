@@ -79,6 +79,9 @@ pub(crate) struct Record {
     pub world: SourceWorld,
     pub captured_tick: u64,
     pub state: PlayerSnapshot,
+    /// An engine-generated hold correlation; it never resolves a player by itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_fence: Option<String>,
 }
 
 impl Record {
@@ -97,9 +100,16 @@ impl Record {
             world,
             captured_tick,
             state,
+            source_fence: None,
         };
         record.validate(plugin_id)?;
         Ok(record)
+    }
+
+    /// Preserve exact native holding evidence for later module-owned cleanup.
+    pub(crate) fn with_source_fence(mut self, id: uuid::Uuid) -> Self {
+        self.source_fence = Some(id.to_string());
+        self
     }
 
     /// Stored formats and account facts are checked before any typed value is exposed.
@@ -120,6 +130,9 @@ impl Record {
             })
             .transpose()?;
         if self.version != FORMAT_VERSION
+            || self.source_fence.as_deref().is_some_and(|text| {
+                uuid::Uuid::parse_str(text).map_or(true, |id| id.is_nil() || id.to_string() != text)
+            })
             || self.plugin_id != plugin_id
             || self.plugin_id.is_empty()
             || owner.is_nil()

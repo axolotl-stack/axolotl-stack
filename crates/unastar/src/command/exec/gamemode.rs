@@ -43,7 +43,9 @@ pub fn mode_override(world: &World, player: Entity) -> Option<GameMode> {
 /// Repeated requests are accepted without redundant mode packets. Returns false
 /// for entities missing the player marker or current mode. No inventories change.
 pub fn set_mode_override(world: &mut World, player: Entity, mode: Option<GameMode>) -> bool {
-    if world.get::<Player>(player).is_none() {
+    if world.get::<Player>(player).is_none()
+        || crate::server::game::inventory_effects::is_quarantined(world, player)
+    {
         return false;
     }
     let Some(current) = world.get::<GameMode>(player).copied() else {
@@ -168,7 +170,9 @@ fn mode_key(mode: GameMode) -> &'static str {
 /// An active temporary override remains effective; this operation updates only
 /// the durable base restored when the override is removed.
 pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
-    if world.get::<Player>(player).is_none() {
+    if world.get::<Player>(player).is_none()
+        || crate::server::game::inventory_effects::is_quarantined(world, player)
+    {
         return;
     }
     if let Some(mut overlay) = world.get_mut::<ModeOverride>(player) {

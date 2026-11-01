@@ -392,7 +392,9 @@ pub(crate) fn available(world: &World) -> Result<(), EffectError> {
 
 /// Whether packet-driven gameplay and ordinary saves must stop for this actor.
 pub fn is_quarantined(world: &World, player: Entity) -> bool {
-    world.get::<Quarantined>(player).is_some() || is_recovery_fenced(world, player)
+    world.get::<Quarantined>(player).is_some()
+        || is_recovery_fenced(world, player)
+        || super::player_state::quarantine::is_held(world, player)
 }
 
 /// Query the durable receipt loaded or acknowledged with the actor's current inventory.
@@ -406,6 +408,9 @@ pub fn receipt<'a>(
 
 /// Reject admission while an account has an outstanding or ambiguous durable write.
 pub(super) fn allow_spawn(world: &World, uuid: Uuid) -> Result<(), StorageError> {
+    if super::player_state::restoration::account_pending(world, uuid, None) {
+        return Err(StorageError::PlayerRecoveryRequired);
+    }
     if recovery::account_fenced(world, uuid) {
         return Err(StorageError::PlayerRecoveryRequired);
     }

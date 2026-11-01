@@ -80,6 +80,8 @@ pub struct HostContext {
     generation: uuid::Uuid,
     pending_messages: Vec<players::BoundMessage>,
     pending_mechanics: Vec<players::MechanicsRequest>,
+    states: players::StateRequests,
+    state_sources: players::StateSources,
     mechanics_owner: std::sync::Arc<()>,
     pending_connection_closes: Vec<connection_control::Request>,
     connection_close_count: std::sync::Arc<std::sync::atomic::AtomicU32>,
@@ -145,6 +147,8 @@ impl HostContext {
             generation: uuid::Uuid::new_v4(),
             pending_messages: Vec::new(),
             pending_mechanics: Vec::new(),
+            states: Default::default(),
+            state_sources: Default::default(),
             mechanics_owner: std::sync::Arc::new(()),
             pending_connection_closes: Vec::new(),
             connection_close_count: Default::default(),
@@ -273,6 +277,8 @@ pub(super) fn finish_invocation(
     world: &mut bevy_ecs::world::World,
     succeeded: bool,
 ) {
+    players::finish_state_sources(context, world, succeeded);
+    players::finish_state_transactions(context, world, succeeded);
     players::finish_mechanics(context, world, succeeded);
     commands::finish_invocation(context, succeeded);
     players::finish_inventory_invocation(context, world, succeeded);

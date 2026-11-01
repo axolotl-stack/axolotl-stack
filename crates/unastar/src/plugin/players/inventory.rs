@@ -130,7 +130,7 @@ impl Image {
     }
 
     /// Historical identity is an observation, never a newly manufactured live capability.
-    fn identity(&self) -> Result<wit::PlayerIdentity, wit::AccessError> {
+    pub(super) fn identity(&self) -> Result<wit::PlayerIdentity, wit::AccessError> {
         match &self.origin {
             Origin::Captured { .. } => self.captured_binding().map(|(player, _)| player.identity),
             Origin::Archived { identity, .. } => Ok(identity.clone()),

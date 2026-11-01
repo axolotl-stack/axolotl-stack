@@ -12,6 +12,22 @@ pub struct WorldTx<'scope> {
     raw: &'scope raw::WorldTx,
 }
 impl<'scope> WorldTx<'scope> {
+    /// Observe an exact surviving native source hold without recreating its actor.
+    pub fn source_fence(
+        &self,
+        archive: &raw::ArchivedPlayerState,
+    ) -> Result<Option<raw::SourceFence>, raw::StateError> {
+        archive.source_fence(self.raw)
+    }
+    /// Derive a raw image for this actual world without moving an actor.
+    pub fn state_at(
+        &self,
+        image: &crate::PlayerStateImage,
+        feet: Vec3,
+        rotation: (f32, f32),
+    ) -> Result<crate::PlayerStateImage, AccessError> {
+        image.at(self.raw, feet, rotation)
+    }
     /// Wrap the canonical borrowed resource for generated component bridges.
     #[doc(hidden)]
     pub fn __from_borrowed(raw: &'scope raw::WorldTx) -> Self {
@@ -107,6 +123,19 @@ pub struct AdmissionHold {
     raw: raw::AdmissionHold,
 }
 impl AdmissionHold {
+    /// Stage a full-state plan on this hold's exact initializing actor in a fresh task.
+    /// The operation's durable acknowledgement does not resolve this admission hold.
+    pub fn submit_state(
+        &self,
+        tx: &WorldTx<'_>,
+        request_id: &str,
+        expected: &crate::PlayerStateImage,
+        desired: &crate::PlayerStateImage,
+        source: Option<&crate::SourceFence>,
+    ) -> Result<crate::StateOperation, crate::StateError> {
+        self.raw
+            .submit_state(tx.raw, request_id, expected, desired, source)
+    }
     /// Stage this hold's inventory in a fresh task after Deferred admission has finished.
     pub fn submit_inventory(
         &self,
@@ -139,6 +168,36 @@ pub struct Player<'scope> {
     scope: PhantomData<&'scope WorldTx<'scope>>,
 }
 impl<'scope> Player<'scope> {
+    /// Own a complete actual state observation; it never changes gameplay by itself.
+    pub fn state_image(&self) -> Result<crate::PlayerStateImage, AccessError> {
+        self.raw().state_image()
+    }
+    /// Stage native ownership of this genuine old source. Dropping the returned
+    /// observer cannot reactivate an accepted source hold.
+    pub fn fence_state(
+        &self,
+        expected: &crate::PlayerStateImage,
+    ) -> Result<crate::SourceFence, crate::StateError> {
+        self.raw().fence_state(expected)
+    }
+    /// Stage an exact-source full-state write; only the owned operation reports ACK/application.
+    pub fn submit_state(
+        &self,
+        request_id: &str,
+        expected: &crate::PlayerStateImage,
+        desired: &crate::PlayerStateImage,
+        source: Option<&crate::SourceFence>,
+    ) -> Result<crate::StateOperation, crate::StateError> {
+        self.raw()
+            .submit_state(request_id, expected, desired, source)
+    }
+    /// Read this component's already loaded or acknowledged canonical proof.
+    pub fn state_receipt(
+        &self,
+        request_id: &str,
+    ) -> Result<Option<crate::InventoryReceipt>, crate::StateError> {
+        self.raw().state_receipt(request_id)
+    }
     /// Bind generated callback arguments to the same transaction lifetime.
     #[doc(hidden)]
     pub fn __from_borrowed(raw: &'scope raw::Player, _tx: &'scope WorldTx<'scope>) -> Self {

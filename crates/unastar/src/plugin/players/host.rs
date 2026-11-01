@@ -4,6 +4,42 @@ use super::*;
 use crate::plugin::manifest::PluginCapability;
 
 impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
+    fn state_image(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Resource<wit::PlayerStateImage>, wit::AccessError> {
+        self.capture_state_image(player.rep())
+    }
+    fn fence_state(
+        &mut self,
+        player: Resource<wit::Player>,
+        expected: Resource<wit::PlayerStateImage>,
+    ) -> Result<Resource<wit::SourceFence>, wit::StateError> {
+        self.stage_state_fence(player.rep(), expected.rep())
+    }
+    fn submit_state(
+        &mut self,
+        player: Resource<wit::Player>,
+        request_id: String,
+        expected: Resource<wit::PlayerStateImage>,
+        desired: Resource<wit::PlayerStateImage>,
+        source: Option<Resource<wit::SourceFence>>,
+    ) -> Result<Resource<wit::StateOperation>, wit::StateError> {
+        self.submit_player_state(
+            player.rep(),
+            request_id,
+            expected.rep(),
+            desired.rep(),
+            source.map(|source| source.rep()),
+        )
+    }
+    fn state_receipt(
+        &mut self,
+        player: Resource<wit::Player>,
+        request_id: String,
+    ) -> Result<Option<wit::InventoryReceipt>, wit::StateError> {
+        self.state_receipt(player.rep(), request_id)
+    }
     fn archive(
         &mut self,
         player: Resource<wit::Player>,

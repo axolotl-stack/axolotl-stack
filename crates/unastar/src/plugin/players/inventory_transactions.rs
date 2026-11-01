@@ -586,6 +586,9 @@ impl super::super::PluginManager {
                 manifest
                     .capabilities
                     .contains(&PluginCapability::WriteInventory)
+                    || manifest
+                        .capabilities
+                        .contains(&PluginCapability::RestorePlayerState)
             })
             .map(|manifest| {
                 (
@@ -616,6 +619,8 @@ impl super::super::PluginManager {
             return Ok(());
         }
         install_ledger(server.ecs.world_mut());
+        crate::server::game::player_state::restoration::install(server)
+            .map_err(|error| format!("state persistence unavailable: {error}"))?;
         Ok(())
     }
 }

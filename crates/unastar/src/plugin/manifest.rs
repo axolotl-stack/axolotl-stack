@@ -264,6 +264,8 @@ pub enum PluginCapability {
     PlayerMechanics,
     /// Replace exact inventory images through durable idempotent transactions.
     WriteInventory,
+    /// Install typed full player state with canonical receipts and real source ownership.
+    RestorePlayerState,
     /// Read typed actor references and current-world observations.
     ReadPlayers,
     /// Advertise owned command roots; handling still uses explicit subscriptions.

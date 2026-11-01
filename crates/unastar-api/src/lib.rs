@@ -53,8 +53,9 @@ pub use raw::{
     EffectKind, Enchantment, GameMode, InventoryArea, InventoryCommit, InventoryError,
     InventoryImage, InventoryOperation, InventoryReceipt, InventoryStatus, ItemValue, Knockback,
     LogLevel, MechanicsAcknowledgement, MovementCommitted, PlayerAvailability, PlayerFlags,
-    PlayerHandle, PlayerIdentity, PlayerMechanicsState, PlayerSnapshot, QuitDisposition, QuitEvent,
-    Task, TaskStatus, Vec3, WorldHandle,
+    PlayerHandle, PlayerIdentity, PlayerMechanicsState, PlayerSnapshot, PlayerStateImage,
+    QuitDisposition, QuitEvent, SourceFence, SourceFenceStatus, StateCommit, StateError,
+    StateOperation, StateStatus, StateValues, Task, TaskStatus, Vec3, WorldHandle,
 };
 pub use raw::{
     BlockClick, BlockCommitted, BlockFace, BlockHeldItems, BlockOperationKind, BlockProperty,

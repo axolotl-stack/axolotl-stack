@@ -149,6 +149,13 @@ fn add_effect_state_scaled_from(
     potency: f32,
     valid: impl FnOnce(&World, &ActiveEffect) -> bool,
 ) -> bool {
+    if world
+        .get::<crate::entity::components::Player>(player)
+        .is_some()
+        && super::inventory_effects::is_quarantined(world, player)
+    {
+        return false;
+    }
     if !potency.is_finite() || !(0.0..=1.0).contains(&potency) {
         return false;
     }

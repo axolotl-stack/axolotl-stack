@@ -487,3 +487,6 @@ mod inventory_tests;
 
 #[path = "inventory_writes.rs"]
 mod inventory_write_tests;
+
+#[path = "state_restoration.rs"]
+mod state_restoration_tests;

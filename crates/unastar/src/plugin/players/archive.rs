@@ -7,8 +7,8 @@ use crate::server::game::types::ItemRegistryResource;
 use std::time::Instant;
 
 pub(super) struct Archived {
-    loaded: store::Loaded,
-    registry: Arc<crate::registry::ItemRegistry>,
+    pub(super) loaded: store::Loaded,
+    pub(super) registry: Arc<crate::registry::ItemRegistry>,
 }
 
 impl HostContext {
@@ -27,7 +27,7 @@ impl HostContext {
     }
 
     /// Share the bounded trusted I/O allowance, preserving ambiguous installation errors.
-    fn archive_call<T>(
+    pub(super) fn archive_call<T>(
         &mut self,
         may_write: bool,
         call: impl FnOnce(&mut store::Namespace) -> Result<T, store::ArchiveError>,
@@ -157,7 +157,10 @@ impl HostContext {
     }
 
     /// Retained immutable reads are still charged to this instance's resource and operation bounds.
-    fn archived(&mut self, rep: u32) -> Result<Arc<values::Value<Archived>>, wit::AccessError> {
+    pub(super) fn archived(
+        &mut self,
+        rep: u32,
+    ) -> Result<Arc<values::Value<Archived>>, wit::AccessError> {
         self.operation()?;
         self.require(PluginCapability::PlayerStateArchives)?;
         match self.resources.entries.get(&rep) {
@@ -200,6 +203,19 @@ impl super::super::wit_bindings::unastar::plugin::archives::Host for HostContext
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostArchivedPlayerState for HostContext {
+    fn source_fence(
+        &mut self,
+        archive: Resource<wit::ArchivedPlayerState>,
+        tx: Resource<wit::WorldTx>,
+    ) -> Result<Option<Resource<wit::SourceFence>>, wit::StateError> {
+        self.reacquire_state_fence(archive.rep(), tx.rep())
+    }
+    fn state_image(
+        &mut self,
+        archive: Resource<wit::ArchivedPlayerState>,
+    ) -> Result<Resource<wit::PlayerStateImage>, wit::AccessError> {
+        self.state_from_archive(archive.rep())
+    }
     fn reference(
         &mut self,
         archive: Resource<wit::ArchivedPlayerState>,
@@ -292,7 +308,7 @@ fn owner(identity: &wit::PlayerIdentity) -> store::Owner {
     }
 }
 /// Historical identity never resolves an actor or manufactures a live capability.
-fn identity(owner: &store::Owner) -> wit::PlayerIdentity {
+pub(super) fn identity(owner: &store::Owner) -> wit::PlayerIdentity {
     wit::PlayerIdentity {
         uuid: owner.uuid.clone(),
         authenticated_xuid: owner.authenticated_xuid,

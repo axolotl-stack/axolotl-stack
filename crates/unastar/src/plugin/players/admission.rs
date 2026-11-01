@@ -94,6 +94,24 @@ impl HostContext {
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostAdmissionHold for HostContext {
+    fn submit_state(
+        &mut self,
+        hold: Resource<wit::AdmissionHold>,
+        tx: Resource<wit::WorldTx>,
+        request_id: String,
+        expected: Resource<wit::PlayerStateImage>,
+        desired: Resource<wit::PlayerStateImage>,
+        source: Option<Resource<wit::SourceFence>>,
+    ) -> Result<Resource<wit::StateOperation>, wit::StateError> {
+        self.submit_initial_state(
+            hold.rep(),
+            tx.rep(),
+            request_id,
+            expected.rep(),
+            desired.rep(),
+            source.map(|source| source.rep()),
+        )
+    }
     fn submit_inventory(
         &mut self,
         hold: Resource<wit::AdmissionHold>,

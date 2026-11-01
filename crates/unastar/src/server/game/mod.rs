@@ -194,6 +194,7 @@ pub(super) fn capture_player_record(
             age_ticks: world
                 .get::<crate::entity::components::Age>(entity)
                 .map_or(0, |age| age.0),
+            restoration_checkpoint: None,
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -891,6 +892,13 @@ impl GameServer {
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(uuid::Uuid::new_v4);
         inventory_effects::allow_spawn(self.ecs.world(), player_uuid)?;
+        if player_state::restoration::account_pending(
+            self.ecs.world(),
+            player_uuid,
+            data.xuid.as_deref(),
+        ) {
+            return Err(crate::storage::StorageError::PlayerRecoveryRequired);
+        }
         if inventory_effects::recovery_account_fenced(
             self.ecs.world(),
             player_uuid,
@@ -926,6 +934,10 @@ impl GameServer {
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;
         let mut saved_data = data.saved_data;
+        let restore_checkpoint = saved_data
+            .as_ref()
+            .filter(|data| data.restoration_checkpoint.is_some())
+            .cloned();
         let inventory_persistence =
             inventory_effects::InventoryPersistence::from_record(saved_data.as_ref());
         let (main_inventory, armour, offhand, ui, ender_chest) = match saved_data.as_mut() {
@@ -1039,6 +1051,20 @@ impl GameServer {
 
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
             session_map.insert(data.session_id, entity);
+        }
+
+        if let Some(checkpoint) = restore_checkpoint
+            && let Err(error) =
+                player_state::resume_checkpoint(self.ecs.world_mut(), entity, checkpoint)
+        {
+            self.ecs
+                .world_mut()
+                .resource_mut::<SessionEntityMap>()
+                .remove(data.session_id);
+            self.ecs.world_mut().despawn(entity);
+            return Err(crate::storage::StorageError::Deserialization(
+                error.to_string(),
+            ));
         }
 
         player_events::joined(self.ecs.world_mut(), entity);
