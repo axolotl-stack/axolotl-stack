@@ -47,6 +47,7 @@ const SNAPSHOT_VERSION: u32 = 1;
 
 mod checkpoint;
 pub(crate) use checkpoint::resume_checkpoint;
+pub(crate) mod death_capture;
 pub(crate) mod quarantine;
 pub(crate) mod restoration;
 

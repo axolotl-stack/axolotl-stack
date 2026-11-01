@@ -203,6 +203,18 @@ impl super::super::wit_bindings::unastar::plugin::archives::Host for HostContext
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostArchivedPlayerState for HostContext {
+    fn death_facts(
+        &mut self,
+        archive: Resource<wit::ArchivedPlayerState>,
+    ) -> Result<Option<wit::DeathFacts>, wit::AccessError> {
+        let archive = self.archived(archive.rep())?;
+        Ok(archive
+            .loaded
+            .record
+            .death
+            .as_ref()
+            .map(super::death_archives::facts))
+    }
     fn source_fence(
         &mut self,
         archive: Resource<wit::ArchivedPlayerState>,

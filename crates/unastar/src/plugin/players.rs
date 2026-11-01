@@ -26,6 +26,8 @@ mod inventory;
 mod inventory_transactions;
 pub(super) use inventory_transactions::Requests as InventoryRequests;
 pub(super) use inventory_transactions::finish as finish_inventory_invocation;
+#[path = "players/death_archives.rs"]
+mod death_archives;
 #[path = "players/items.rs"]
 mod items;
 #[path = "players/mechanics.rs"]
@@ -75,6 +77,7 @@ enum Entry {
     StateImage(Arc<values::Value<state::Image>>),
     SourceFence(Arc<state_sources::Fence>),
     StateOperation(Arc<state_transactions::Operation>),
+    DeathState(Arc<values::Value<death_archives::Image>>),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.

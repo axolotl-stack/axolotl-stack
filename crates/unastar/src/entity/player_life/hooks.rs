@@ -156,6 +156,10 @@ pub struct PlayerDeath {
     pub keep_inventory: bool,
     pub(crate) attribution: crate::entity::damage::DamageAttribution,
     pub(crate) observation: DeathObservation,
+    pub(crate) state: Result<
+        Arc<crate::server::game::player_state::death_capture::Capture>,
+        crate::server::game::player_state::death_capture::Error,
+    >,
 }
 
 /// Owned native evidence captured before drops or death observers can remove the actor.

@@ -9,7 +9,9 @@ use bevy_ecs::prelude::*;
 use wasmtime::component::Resource;
 
 /// Validate captured native identity without resolving a removed or replacement actor.
-fn identity(observation: &DeathObservation) -> Result<wit::PlayerIdentity, wit::AccessError> {
+pub(super) fn identity(
+    observation: &DeathObservation,
+) -> Result<wit::PlayerIdentity, wit::AccessError> {
     let uuid = observation.uuid.ok_or(wit::AccessError::Unavailable)?;
     let name = observation
         .name
@@ -97,6 +99,7 @@ impl PluginManager {
         for owner in self.subscribers(EventKind::PlayerDeath) {
             let plugin = self.plugins.get_mut(&owner).expect("subscribed component");
             let mut reps = Vec::new();
+            let mut state_rep = None;
             let result = invoke(plugin, world, |store, bindings| {
                 let tx = make_world_tx(store)?;
                 let captured = inventory(store.data_mut(), event.inventory.as_ref());
@@ -104,6 +107,10 @@ impl PluginManager {
                     reps = owned;
                     values
                 });
+                let state = store
+                    .data_mut()
+                    .capture_death_archive(event)
+                    .inspect(|state| state_rep = Some(state.rep()));
                 let record = wit::DeathCommitted {
                     identity: identity.clone(),
                     dimension: event.observation.dimension,
@@ -117,11 +124,15 @@ impl PluginManager {
                     fall_distance: event.cause.fall_distance,
                     keep_inventory: event.keep_inventory,
                     inventory,
+                    state,
                 };
                 bindings.call_on_player_death(store, tx, &record)
             });
             if let Err(error) = result {
                 plugin.store.data_mut().discard_captured_items(&reps);
+                if let Some(rep) = state_rep {
+                    plugin.store.data_mut().discard_death_archive(rep);
+                }
                 self.callback_failed(world, &owner, &error.to_string());
                 if self.readiness.check().is_err() {
                     break;

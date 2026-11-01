@@ -12,6 +12,8 @@ use crate::server::game::player_state::PlayerSnapshot;
 
 pub(crate) const DEFAULT_DIRECTORY: &str = "data/player-state-archives";
 const FORMAT_VERSION: u16 = 1;
+mod death;
+pub(crate) use death::{Attribution as DeathAttribution, Facts as DeathFacts, Phase as DeathPhase};
 pub(crate) const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 /// Archive failures contain no host paths or encoded native state.
@@ -82,6 +84,8 @@ pub(crate) struct Record {
     /// An engine-generated hold correlation; it never resolves a player by itself.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_fence: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub death: Option<DeathFacts>,
 }
 
 impl Record {
@@ -101,6 +105,7 @@ impl Record {
             captured_tick,
             state,
             source_fence: None,
+            death: None,
         };
         record.validate(plugin_id)?;
         Ok(record)
@@ -114,6 +119,12 @@ impl Record {
 
     /// Stored formats and account facts are checked before any typed value is exposed.
     fn validate(&self, plugin_id: &str) -> Result<(), ArchiveError> {
+        if let Some(death) = &self.death {
+            death.validate()?;
+            if !self.state.dead || self.state.data.health != 0.0 || self.source_fence.is_some() {
+                return Err(ArchiveError::InvalidSnapshot);
+            }
+        }
         let owner =
             uuid::Uuid::parse_str(&self.owner.uuid).map_err(|_| ArchiveError::InvalidSnapshot)?;
         let world =
@@ -245,6 +256,11 @@ pub(crate) struct Loaded {
 }
 
 impl Namespace {
+    /// Exercise real atomic-install failure boundaries through component tests.
+    #[cfg(test)]
+    pub(super) fn inject_fault(&mut self, fault: storage::Fault) {
+        self.backend.lock().unwrap().inject_fault(fault);
+    }
     /// Reject corrupt native envelopes on every fresh instance/reload before guest initialization.
     fn validate_all(&mut self) -> Result<(), ArchiveError> {
         let keys = self
