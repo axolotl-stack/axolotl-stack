@@ -6,7 +6,7 @@ world unastar-plugin {
     import storage;
     import commands;
 
-    use types.{world-tx, player, vec3, block-pos, damage-cause, access-error, admission-decision, quit-event, quit-disposition, admitted-event};
+    use types.{world-tx, player, vec3, block-pos, damage-cause, access-error, admission-decision, quit-event, quit-disposition, admitted-event, movement-committed};
 
     export on-load: func();
     export on-unload: func();
@@ -20,7 +20,10 @@ world unastar-plugin {
     export on-player-chat: func(tx: borrow<world-tx>, player: borrow<player>, message: string) -> bool;
     export on-block-break: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, block-id: u32) -> bool;
     export on-block-place: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, block-id: u32) -> bool;
-    export on-player-move: func(tx: borrow<world-tx>, player: borrow<player>, old-position: vec3, new-position: vec3);
+    /// Return none to reject, or a feet-coordinate destination subject to final native validation.
+    export on-player-move: func(tx: borrow<world-tx>, player: borrow<player>, old-position: vec3, new-position: vec3) -> option<vec3>;
+    /// Invoked after accepted movement, never after veto, invalid input or a stale connection.
+    export on-player-moved: func(tx: borrow<world-tx>, player: borrow<player>, movement: movement-committed);
     export on-player-jump: func(tx: borrow<world-tx>, player: borrow<player>);
     export on-player-toggle-sneak: func(tx: borrow<world-tx>, player: borrow<player>, is-sneaking: bool);
     export on-player-toggle-sprint: func(tx: borrow<world-tx>, player: borrow<player>, is-sprinting: bool);

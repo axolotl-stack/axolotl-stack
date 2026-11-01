@@ -92,6 +92,7 @@ impl PluginManager {
         world.insert_resource(readiness);
         super::commands::install(manager.clone(), world);
         super::sessions::install(manager.clone(), world);
+        super::movements::install(manager.clone(), world);
         LifecycleBridge::install(manager, world);
     }
 
@@ -301,7 +302,7 @@ fn player_attacker(world: &World, attacker: Option<Entity>) -> Option<Entity> {
 }
 
 /// The component API uses feet; native player components continue to use eye height.
-fn to_wit(position: DVec3) -> wit_types::Vec3 {
+pub(super) fn to_wit(position: DVec3) -> wit_types::Vec3 {
     wit_types::Vec3 {
         x: position.x,
         y: position.y - crate::entity::PLAYER_EYE_HEIGHT,
