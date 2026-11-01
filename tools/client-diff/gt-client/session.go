@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/sandertv/gophertunnel/minecraft"
@@ -51,6 +53,10 @@ type session struct {
 	// grid is the inventory crafting grid (PlayerUI slots 28-31) as accepted
 	// ItemStackResponses report it.
 	grid map[int]protocol.ItemInstance
+	// enchantOptions are the options of the last PlayerEnchantOptions.
+	enchantOptions []protocol.EnchantmentOption
+	// actorEvents carries the type of every ActorEvent for wait_event.
+	actorEvents chan int32
 }
 
 // blockSlots bounds block window slots (a double chest has 54).
@@ -66,23 +72,39 @@ const (
 // containerIDs names the ContainerEnumName of each addressable container.
 // Block window slots use the PlayerUI numbering: anvil input 1 and material
 // 2, smithing table input 51, material 52 and template 53, grindstone input
-// 16 and additional 17.
+// 16 and additional 17, enchanting input 14 and lapis 15, stonecutter input
+// 3, loom banner 9, dye 10 and pattern 11, cartography input 12 and
+// additional 13. Block entity windows use their own slots: brewing stand
+// ingredient 0, bottles 1-3 and fuel 4, shulker box 0-26, crafter 0-8.
 var containerIDs = map[string]byte{
-	"armor":                 protocol.ContainerArmor,
-	"offhand":               protocol.ContainerOffhand,
-	"chest":                 protocol.ContainerLevelEntity,
-	"barrel":                protocol.ContainerBarrel,
-	"ingredient":            protocol.ContainerFurnaceIngredient,
-	"fuel":                  protocol.ContainerFurnaceFuel,
-	"result":                protocol.ContainerFurnaceResult,
-	"crafting":              protocol.ContainerCraftingInput,
-	"anvil_input":           protocol.ContainerAnvilInput,
-	"anvil_material":        protocol.ContainerAnvilMaterial,
-	"smithing_input":        protocol.ContainerSmithingTableInput,
-	"smithing_material":     protocol.ContainerSmithingTableMaterial,
-	"smithing_template":     protocol.ContainerSmithingTableTemplate,
-	"grindstone_input":      protocol.ContainerGrindstoneInput,
-	"grindstone_additional": protocol.ContainerGrindstoneAdditional,
+	"armor":                  protocol.ContainerArmor,
+	"offhand":                protocol.ContainerOffhand,
+	"chest":                  protocol.ContainerLevelEntity,
+	"barrel":                 protocol.ContainerBarrel,
+	"ingredient":             protocol.ContainerFurnaceIngredient,
+	"fuel":                   protocol.ContainerFurnaceFuel,
+	"result":                 protocol.ContainerFurnaceResult,
+	"crafting":               protocol.ContainerCraftingInput,
+	"anvil_input":            protocol.ContainerAnvilInput,
+	"anvil_material":         protocol.ContainerAnvilMaterial,
+	"smithing_input":         protocol.ContainerSmithingTableInput,
+	"smithing_material":      protocol.ContainerSmithingTableMaterial,
+	"smithing_template":      protocol.ContainerSmithingTableTemplate,
+	"grindstone_input":       protocol.ContainerGrindstoneInput,
+	"grindstone_additional":  protocol.ContainerGrindstoneAdditional,
+	"enchanting_input":       protocol.ContainerEnchantingInput,
+	"enchanting_material":    protocol.ContainerEnchantingMaterial,
+	"brewing_input":          protocol.ContainerBrewingStandInput,
+	"brewing_result":         protocol.ContainerBrewingStandResult,
+	"brewing_fuel":           protocol.ContainerBrewingStandFuel,
+	"shulker_box":            protocol.ContainerShulkerBox,
+	"crafter":                protocol.ContainerCrafterLevelEntity,
+	"stonecutter_input":      protocol.ContainerStonecutterInput,
+	"loom_input":             protocol.ContainerLoomInput,
+	"loom_dye":               protocol.ContainerLoomDye,
+	"loom_material":          protocol.ContainerLoomMaterial,
+	"cartography_input":      protocol.ContainerCartographyInput,
+	"cartography_additional": protocol.ContainerCartographyAdditional,
 }
 
 // inBlock reports whether a ContainerEnumName addresses the open block window.
@@ -92,15 +114,50 @@ func inBlock(container byte) bool {
 		protocol.ContainerFurnaceFuel, protocol.ContainerFurnaceResult,
 		protocol.ContainerAnvilInput, protocol.ContainerAnvilMaterial,
 		protocol.ContainerSmithingTableInput, protocol.ContainerSmithingTableMaterial, protocol.ContainerSmithingTableTemplate,
-		protocol.ContainerGrindstoneInput, protocol.ContainerGrindstoneAdditional:
+		protocol.ContainerGrindstoneInput, protocol.ContainerGrindstoneAdditional,
+		protocol.ContainerEnchantingInput, protocol.ContainerEnchantingMaterial,
+		protocol.ContainerBrewingStandInput, protocol.ContainerBrewingStandResult, protocol.ContainerBrewingStandFuel,
+		protocol.ContainerShulkerBox, protocol.ContainerCrafterLevelEntity, protocol.ContainerStonecutterInput,
+		protocol.ContainerLoomInput, protocol.ContainerLoomDye, protocol.ContainerLoomMaterial,
+		protocol.ContainerCartographyInput, protocol.ContainerCartographyAdditional:
 		return true
 	}
 	return false
 }
 
+// inputFlags names the PlayerAuthInput flags a move step can set.
+var inputFlags = map[string]int{
+	"sneaking":          packet.InputFlagSneaking,
+	"sneak_down":        packet.InputFlagSneakDown,
+	"start_sneaking":    packet.InputFlagStartSneaking,
+	"stop_sneaking":     packet.InputFlagStopSneaking,
+	"sneak_pressed_raw": packet.InputFlagSneakPressedRaw,
+	"sneak_current_raw": packet.InputFlagSneakCurrentRaw,
+	"jumping":           packet.InputFlagJumping,
+	"jump_down":         packet.InputFlagJumpDown,
+	"start_jumping":     packet.InputFlagStartJumping,
+	"jump_pressed_raw":  packet.InputFlagJumpPressedRaw,
+	"jump_current_raw":  packet.InputFlagJumpCurrentRaw,
+	"want_up":           packet.InputFlagWantUp,
+	"start_gliding":     packet.InputFlagStartGliding,
+	"stop_gliding":      packet.InputFlagStopGliding,
+	"sprinting":         packet.InputFlagSprinting,
+	"start_sprinting":   packet.InputFlagStartSprinting,
+}
+
+// bookActions maps book step actions to BookEdit action types.
+var bookActions = map[string]uint32{
+	"replace": packet.BookActionReplacePage,
+	"add":     packet.BookActionAddPage,
+	"delete":  packet.BookActionDeletePage,
+	"swap":    packet.BookActionSwapPages,
+	"sign":    packet.BookActionSign,
+}
+
 // windowSlotOffset is the PlayerUI slot of index 0 of a block window's
-// InventoryContent: BDS lists the anvil, smithing table and grindstone inputs
-// from index 0 although requests address them as UI slots 1, 51 and 16.
+// InventoryContent: BDS lists the inputs of the anvil, smithing table,
+// grindstone, enchanting table, stonecutter, loom and cartography table
+// from index 0 although requests address them by UI slot.
 func windowSlotOffset(windowType byte) int {
 	switch int(windowType) {
 	case protocol.ContainerTypeAnvil:
@@ -109,6 +166,14 @@ func windowSlotOffset(windowType byte) int {
 		return 51
 	case protocol.ContainerTypeGrindstone:
 		return 16
+	case protocol.ContainerTypeEnchantment:
+		return 14
+	case protocol.ContainerTypeStonecutter:
+		return 3
+	case protocol.ContainerTypeLoom:
+		return 9
+	case protocol.ContainerTypeCartography:
+		return 12
 	}
 	return 0
 }
@@ -125,6 +190,7 @@ func newSession(conn *minecraft.Conn) *session {
 		recipes:     make(map[string]craftRecipe),
 		windowItems: make(map[int]protocol.ItemInstance),
 		grid:        make(map[int]protocol.ItemInstance),
+		actorEvents: make(chan int32, 256),
 	}
 }
 
@@ -234,6 +300,13 @@ func (s *session) handle(pk packet.Packet) []packet.Packet {
 		s.positions[pk.EntityRuntimeID] = pk.Position
 	case *packet.CraftingData:
 		s.addRecipes(pk)
+	case *packet.PlayerEnchantOptions:
+		s.enchantOptions = pk.Options
+	case *packet.ActorEvent:
+		select {
+		case s.actorEvents <- int32(pk.EventType):
+		default:
+		}
 	case *packet.ItemStackResponse:
 		for _, response := range pk.Responses {
 			if response.Status != protocol.ItemStackResponseStatusOK {
@@ -504,38 +577,45 @@ func (s *session) entity(st step) (uint64, error) {
 	return id, nil
 }
 
-// craftRecipe is a crafting recipe the craft step can use: one with exactly
-// one ingredient, consumed from one inventory slot, a multi recipe (e.g.
-// repairing two items in the crafting grid) consumed from grid slots, or a
-// smithing transform/trim recipe consumed from the smithing table.
+// craftRecipe is a recipe the craft step can use: a shaped or shapeless
+// recipe (crafting grid, stonecutter), a multi recipe (e.g. repairing two
+// items in the crafting grid) or a smithing transform/trim recipe.
 type craftRecipe struct {
 	networkID   uint32
 	outputCount uint16
+	// output is the crafted item (zero for multi and smithing recipes).
+	output protocol.ItemStack
 }
 
-// addRecipes records the single-ingredient and smithing recipes of a
-// CraftingData packet by recipe ID (e.g. minecraft:oak_planks, a 1x1 shaped
-// recipe, or minecraft:smithing_netherite_sword) and the multi recipes by
-// UUID (e.g. 00000000-0000-0000-0000-000000000001). The caller holds s.mu.
+// addRecipes records the shaped, shapeless and smithing recipes of a
+// CraftingData packet by recipe ID (e.g. minecraft:oak_planks or
+// minecraft:smithing_netherite_sword) and the multi recipes by UUID (e.g.
+// 00000000-0000-0000-0000-000000000001). The caller holds s.mu.
 func (s *session) addRecipes(pk *packet.CraftingData) {
 	for _, recipe := range pk.ShapedRecipes {
-		if recipe.Width*recipe.Height == 1 && len(recipe.Output) == 1 {
-			s.recipes[recipe.RecipeID] = craftRecipe{recipe.RecipeNetworkID, recipe.Output[0].Count}
+		if len(recipe.Output) > 0 {
+			s.recipes[recipe.RecipeID] = craftRecipe{recipe.RecipeNetworkID, recipe.Output[0].Count, recipe.Output[0]}
 		}
 	}
 	for _, recipe := range pk.ShapelessRecipes {
-		if len(recipe.Input) == 1 && len(recipe.Output) == 1 {
-			s.recipes[recipe.RecipeID] = craftRecipe{recipe.RecipeNetworkID, recipe.Output[0].Count}
+		if len(recipe.Output) > 0 {
+			s.recipes[recipe.RecipeID] = craftRecipe{recipe.RecipeNetworkID, recipe.Output[0].Count, recipe.Output[0]}
+		}
+	}
+	for _, recipe := range pk.UserDataShapelessRecipes {
+		// e.g. shulkerBox_shulker_box_color_dye_1_0 (dyeing a shulker box)
+		if len(recipe.Output) > 0 {
+			s.recipes[recipe.RecipeID] = craftRecipe{recipe.RecipeNetworkID, recipe.Output[0].Count, recipe.Output[0]}
 		}
 	}
 	for _, recipe := range pk.MultiRecipes {
-		s.recipes[recipe.UUID.String()] = craftRecipe{recipe.RecipeNetworkID, 1}
+		s.recipes[recipe.UUID.String()] = craftRecipe{networkID: recipe.RecipeNetworkID, outputCount: 1}
 	}
 	for _, recipe := range pk.SmithingTransformRecipes {
-		s.recipes[recipe.RecipeID] = craftRecipe{recipe.RecipeNetworkID, 1}
+		s.recipes[recipe.RecipeID] = craftRecipe{networkID: recipe.RecipeNetworkID, outputCount: 1, output: recipe.Result}
 	}
 	for _, recipe := range pk.SmithingTrimRecipes {
-		s.recipes[recipe.RecipeID] = craftRecipe{recipe.RecipeNetworkID, 1}
+		s.recipes[recipe.RecipeID] = craftRecipe{networkID: recipe.RecipeNetworkID, outputCount: 1}
 	}
 }
 
@@ -544,7 +624,7 @@ func (s *session) recipe(id string) (craftRecipe, error) {
 	defer s.mu.Unlock()
 	recipe, ok := s.recipes[id]
 	if !ok {
-		return recipe, fmt.Errorf("no single-ingredient or multi recipe %q among %d", id, len(s.recipes))
+		return recipe, fmt.Errorf("no recipe %q among %d", id, len(s.recipes))
 	}
 	return recipe, nil
 }
@@ -569,18 +649,40 @@ func (s *session) interaction(st step) ([]packet.Packet, []inputSpec, error) {
 		out := make([]inputSpec, st.Ticks)
 		for i := range out {
 			out[i].delta = delta
+			if len(st.Flags) > 0 {
+				out[i].extra = func(pk *packet.PlayerAuthInput) {
+					for _, name := range st.Flags {
+						pk.InputData.Set(inputFlags[name])
+					}
+				}
+			}
 		}
 		return nil, out, nil
 	case "break":
+		// Without ticks the block breaks instantly (creative, or a block the
+		// held tool breaks at once). With ticks the client mines like a
+		// survival player: StartBreak, CrackBreak on each of the following
+		// ticks, then PredictDestroyBlock and finally StopBreak.
 		pos := s.block(st)
 		target := blockVec(pos).Add(faceOffset(st.Face))
-		return nil, []inputSpec{{look: &target}, {extra: func(pk *packet.PlayerAuthInput) {
-			pk.InputData.Set(packet.InputFlagPerformBlockActions)
-			pk.BlockActions = protocol.Option([]protocol.PlayerBlockAction{
-				{Action: protocol.PlayerActionStartBreak, BlockPos: pos, Face: st.Face},
-				{Action: protocol.PlayerActionPredictDestroyBlock, BlockPos: pos, Face: st.Face},
-			})
-		}}}, nil
+		actions := func(kinds ...int32) func(*packet.PlayerAuthInput) {
+			return func(pk *packet.PlayerAuthInput) {
+				pk.InputData.Set(packet.InputFlagPerformBlockActions)
+				list := make([]protocol.PlayerBlockAction, len(kinds))
+				for i, kind := range kinds {
+					list[i] = protocol.PlayerBlockAction{Action: kind, BlockPos: pos, Face: st.Face}
+				}
+				pk.BlockActions = protocol.Option(list)
+			}
+		}
+		if st.Ticks == 0 {
+			return nil, []inputSpec{{look: &target}, {extra: actions(protocol.PlayerActionStartBreak, protocol.PlayerActionPredictDestroyBlock)}}, nil
+		}
+		specs := []inputSpec{{look: &target}, {extra: actions(protocol.PlayerActionStartBreak)}}
+		for range st.Ticks {
+			specs = append(specs, inputSpec{extra: actions(protocol.PlayerActionCrackBreak)})
+		}
+		return nil, append(specs, inputSpec{extra: actions(protocol.PlayerActionPredictDestroyBlock)}, inputSpec{extra: actions(protocol.PlayerActionStopBreak)}), nil
 	case "click":
 		pos := s.block(st)
 		target := blockVec(pos).Add(faceOffset(st.Face))
@@ -671,6 +773,24 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 	case "close_inventory":
 		// Window 0 with type 0xff (NONE) as the vanilla client sends it.
 		return []packet.Packet{&packet.ContainerClose{WindowID: 0, ContainerType: 0xff}}, nil
+	case "book":
+		// Text is the page text, To the second page of "swap".
+		pk := &packet.BookEdit{InventorySlot: int32(st.Slot), ActionType: bookActions[st.Action], PageNumber: st.Page,
+			SecondaryPageNumber: int32(st.To), Text: st.Text, Title: st.Title, Author: st.Author}
+		return []packet.Packet{pk}, nil
+	case "toggle_crafter":
+		pos := s.block(st)
+		return []packet.Packet{&packet.PlayerToggleCrafterSlotRequest{PosX: pos[0], PosY: pos[1], PosZ: pos[2], Slot: byte(st.Slot), Disabled: st.Disabled}}, nil
+	case "map_info":
+		// The client asks for the data of the map it holds by its map_uuid.
+		s.mu.Lock()
+		held := s.inventory[s.selected].Stack
+		s.mu.Unlock()
+		id, ok := held.NBTData["map_uuid"].(int64)
+		if !ok {
+			return nil, fmt.Errorf("held item has no map_uuid: %v", held.NBTData)
+		}
+		return []packet.Packet{&packet.MapInfoRequest{MapID: id}}, nil
 	case "close_container":
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -684,15 +804,27 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 		s.window = 0
 		return []packet.Packet{&packet.ContainerClose{WindowID: window, ContainerType: kind}}, nil
 	case "craft":
-		recipe := craftRecipe{st.RecipeNetworkID, 1}
+		recipe := craftRecipe{networkID: st.RecipeNetworkID, outputCount: 1}
 		if st.Recipe != "" {
 			var err error
 			if recipe, err = s.recipe(st.Recipe); err != nil {
 				return nil, err
 			}
 		}
+		if st.Action == "enchant" {
+			s.mu.Lock()
+			if st.Option < 0 || st.Option >= len(s.enchantOptions) {
+				n := len(s.enchantOptions)
+				s.mu.Unlock()
+				return nil, fmt.Errorf("enchanting option %d of %d offered", st.Option, n)
+			}
+			recipe.networkID = s.enchantOptions[st.Option].RecipeNetworkID
+			s.mu.Unlock()
+		}
 		var consumes []protocol.StackRequestAction
 		var firstStack int32
+		var first protocol.ItemStack
+		consumed := make(map[string]bool)
 		if len(st.Consume) > 0 {
 			s.mu.Lock()
 			for i, ref := range st.Consume {
@@ -702,7 +834,10 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 					return nil, fmt.Errorf("%s slot %d is empty", ref.Container, ref.Slot)
 				}
 				if i == 0 {
-					firstStack = item.StackNetworkID
+					firstStack, first = item.StackNetworkID, item.Stack
+				}
+				if max(ref.Count, 1) >= int(item.Stack.Count) {
+					consumed[fmt.Sprint(ref.Container, ref.Slot)] = true
 				}
 				consume := &protocol.ConsumeStackRequestAction{}
 				consume.Count = byte(max(ref.Count, 1))
@@ -715,7 +850,7 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 			if err != nil {
 				return nil, err
 			}
-			firstStack = item.StackNetworkID
+			firstStack, first = item.StackNetworkID, item.Stack
 			consume := &protocol.ConsumeStackRequestAction{}
 			consume.Count = 1
 			consume.Source = inventorySlot(st.Slot, item.StackNetworkID)
@@ -737,7 +872,10 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 				id = uint32(firstStack)
 			}
 			request.Actions = append(request.Actions, &protocol.CraftGrindstoneRecipeStackRequestAction{RecipeNetworkID: id, NumberOfCrafts: 1, Cost: st.Cost})
+		case "loom":
+			request.Actions = append(request.Actions, &protocol.CraftLoomRecipeStackRequestAction{Pattern: st.Pattern, TimesCrafted: 1})
 		default:
+			// Enchanting sends the chosen option's recipe network ID.
 			request.Actions = append(request.Actions, &protocol.CraftRecipeStackRequestAction{RecipeNetworkID: recipe.networkID, NumberOfCrafts: 1})
 		}
 		if st.Result != "" {
@@ -753,8 +891,27 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 		// The crafted stack is addressed by the request ID until placed; it
 		// may merge into a matching stack already in the destination.
 		take.Source = protocol.StackRequestSlotInfo{Container: protocol.FullContainerName{ContainerID: protocol.ContainerCreatedOutput}, Slot: 50, StackNetworkID: requestID}
+		output := recipe.output
+		if output.NetworkID == 0 {
+			// Enchanting, the anvil and the grindstone output the input.
+			output = first
+		}
 		s.mu.Lock()
-		take.Destination = inventorySlot(st.To, s.inventory[st.To].StackNetworkID)
+		if st.ToContainer != "" {
+			dest := s.windowItems[st.To]
+			take.Destination = s.blockSlot(st.ToContainer, st.To)
+			if consumed[fmt.Sprint(st.ToContainer, st.To)] {
+				dest = protocol.ItemInstance{}
+				take.Destination.StackNetworkID = 0
+			}
+			predict(&dest, protocol.ItemInstance{Stack: output})
+			s.windowItems[st.To] = dest
+		} else {
+			dest := s.inventory[st.To]
+			take.Destination = inventorySlot(st.To, dest.StackNetworkID)
+			predict(&dest, protocol.ItemInstance{Stack: output})
+			s.inventory[st.To] = dest
+		}
 		s.mu.Unlock()
 		request.Actions = append(request.Actions, take)
 		return []packet.Packet{&packet.ItemStackRequest{Requests: []protocol.ItemStackRequest{request}}}, nil
@@ -848,4 +1005,32 @@ func (s *session) stackRequest(st step) ([]packet.Packet, error) {
 	}
 	s.requestID -= 2
 	return []packet.Packet{&packet.ItemStackRequest{Requests: []protocol.ItemStackRequest{{RequestID: s.requestID + 1, Actions: []protocol.StackRequestAction{action}}}}}, nil
+}
+
+// waitEvent blocks until the server sends an ActorEvent of type event (e.g.
+// 13, a fish biting the hook) after the step starts, or timeout passes; a
+// timeout is reported on stderr and the scenario continues.
+func (s *session) waitEvent(ctx context.Context, event int32, timeout time.Duration) error {
+	for drained := false; !drained; {
+		select {
+		case <-s.actorEvents:
+		default:
+			drained = true
+		}
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		select {
+		case got := <-s.actorEvents:
+			if got == event {
+				return nil
+			}
+		case <-timer.C:
+			fmt.Fprintf(os.Stderr, "wait_event: no actor event %d within %v\n", event, timeout)
+			return nil
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		}
+	}
 }
