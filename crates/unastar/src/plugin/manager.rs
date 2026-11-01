@@ -80,6 +80,8 @@ pub struct HostContext {
     generation: uuid::Uuid,
     pending_messages: Vec<players::BoundMessage>,
     pending_mechanics: Vec<players::MechanicsRequest>,
+    pending_travel: Vec<players::travel::Request>,
+    travel_results: std::sync::Arc<players::travel::Results>,
     mechanics_owner: std::sync::Arc<()>,
     pending_connection_closes: Vec<connection_control::Request>,
     connection_close_count: std::sync::Arc<std::sync::atomic::AtomicU32>,
@@ -145,6 +147,8 @@ impl HostContext {
             generation: uuid::Uuid::new_v4(),
             pending_messages: Vec::new(),
             pending_mechanics: Vec::new(),
+            pending_travel: Vec::new(),
+            travel_results: Default::default(),
             mechanics_owner: std::sync::Arc::new(()),
             pending_connection_closes: Vec::new(),
             connection_close_count: Default::default(),
@@ -274,6 +278,7 @@ pub(super) fn finish_invocation(
     succeeded: bool,
 ) {
     players::finish_mechanics(context, world, succeeded);
+    players::travel::finish(context, world, succeeded);
     commands::finish_invocation(context, succeeded);
     players::finish_inventory_invocation(context, world, succeeded);
     players::finish_admission_invocation(context, world, succeeded);
@@ -1184,6 +1189,8 @@ pub(crate) mod tests {
     mod movement_tests;
     #[path = "sessions.rs"]
     mod session_tests;
+    #[path = "travel.rs"]
+    mod travel_tests;
 
     pub(super) fn engine() -> Engine {
         let mut config = wasmtime::Config::new();

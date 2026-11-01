@@ -13,10 +13,14 @@ world unastar-plugin {
     use types.{world-tx, player, vec3, block-pos, access-error, admission-decision, quit-event, quit-disposition, admitted-event, movement-committed, damage-proposal, damage-tuning, damage-committed, death-committed};
     use types.{block-proposal, block-committed};
     use types.{item-action-proposal, item-action-decision, item-action-committed};
+    use types.{travel-result};
 
     export on-load: func();
     export on-unload: func();
     export on-tick: func(tick-id: u64);
+    /// Owned outcome of this component instance's accepted relocation request.
+    /// Schedule a retained player/world handle for fresh scoped follow-up work.
+    export on-player-travel-result: func(event: travel-result);
     export on-player-admission: func(tx: borrow<world-tx>, player: borrow<player>) -> admission-decision;
     export on-player-admitted: func(event: admitted-event);
     export on-player-quit: func(tx: borrow<world-tx>, event: quit-event) -> quit-disposition;

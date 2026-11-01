@@ -482,6 +482,11 @@ impl DimensionRouter {
             self.check_plugins()?;
             self.refresh_directory();
             {
+                manager
+                    .lock()
+                    .map_err(|_| WorldTickError::PluginManagerUnavailable)?
+                    .drain_travel_results(self);
+                self.check_plugins()?;
                 let manager = manager
                     .lock()
                     .map_err(|_| WorldTickError::PluginManagerUnavailable)?;

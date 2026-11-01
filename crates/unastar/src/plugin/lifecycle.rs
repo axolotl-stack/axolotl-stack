@@ -122,6 +122,7 @@ impl PluginManager {
 
         super::blocks::install(manager.clone(), world);
         super::item_actions::install(manager.clone(), world);
+        super::players::travel::install(world);
         LifecycleBridge::install(manager, world);
     }
 

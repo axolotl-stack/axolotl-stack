@@ -26,6 +26,16 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
     ) -> Result<Option<wit::InventoryReceipt>, wit::InventoryError> {
         self.player_inventory_receipt(player.rep(), request_id)
     }
+    fn relocate(
+        &mut self,
+        player: Resource<wit::Player>,
+        destination: Resource<wit::WorldHandle>,
+        feet: wit::Vec3,
+        radius: u16,
+        correlation: u64,
+    ) -> Result<wit::TravelAcknowledgement, wit::AccessError> {
+        self.stage_travel(player.rep(), destination.rep(), feet, radius, correlation)
+    }
     fn inventory(
         &mut self,
         player: Resource<wit::Player>,
