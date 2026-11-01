@@ -30,6 +30,7 @@ pub struct BlockClick {
     pub position: IVec3,
     pub face: Option<u8>,
     pub offset: Option<glam::DVec3>,
+    pub(crate) item_action: Option<u64>,
 }
 
 /// One complete planned cell. Unchanged reciprocal actors remain explicit.
@@ -45,6 +46,12 @@ pub(crate) struct PlannedBlockCell {
 pub(crate) trait ScopedBlockDispatcher {
     fn proposed(&mut self, world: &mut World, event: &mut BlockInteraction);
     fn committed(&mut self, world: &mut World, event: &PlayerBlockCommitted);
+    /// Deliver the correlated physical item outcome through the same owned manager scope.
+    fn item_committed(
+        &mut self,
+        world: &mut World,
+        event: &super::item_actions::PlayerItemActionCommitted,
+    );
 }
 
 #[derive(Resource, Default)]
@@ -327,7 +334,7 @@ impl BlockCommit {
     pub(super) fn finish_with(
         self,
         world: &mut World,
-        inline: Option<&mut dyn ScopedBlockDispatcher>,
+        mut inline: Option<&mut dyn ScopedBlockDispatcher>,
     ) {
         let held_after = self
             .held
@@ -366,16 +373,23 @@ impl BlockCommit {
             click: self.click,
             inline: self.inline,
         };
+        let item_completion = super::item_actions::take_block_completion(world, &event);
         let handlers = world
             .get_resource::<BlockInteractionHooks>()
             .map_or_else(Vec::new, |hooks| hooks.handlers.clone());
         for handler in handlers {
             handler.on_committed(world, &event);
         }
-        if let Some(inline) = inline {
+        if let Some(inline) = inline.as_mut() {
             inline.committed(world, &event);
         }
         world.trigger_ref(&mut event);
+        if let Some(completed) = item_completion {
+            if let Some(inline) = inline.as_mut() {
+                inline.item_committed(world, &completed);
+            }
+            super::item_actions::publish_completion(world, completed);
+        }
     }
 }
 
@@ -479,6 +493,16 @@ pub(super) fn plan(
     click: Option<BlockClick>,
     mut inline: Option<&mut dyn ScopedBlockDispatcher>,
 ) -> Option<BlockCommit> {
+    let mut click = click;
+    if let Some(click) = click.as_mut()
+        && click.item_action.is_none()
+    {
+        click.item_action = super::item_actions::active_block(world);
+    }
+    let item_action = click.as_ref().and_then(|click| click.item_action);
+    if !super::item_actions::block_current(world, player, item_action) {
+        return None;
+    }
     if updates.len() > 512 {
         return None;
     }
@@ -535,6 +559,7 @@ pub(super) fn plan(
     world.trigger_ref(&mut event);
     (!event.is_cancelled()
         && committed.same_actor(world)
+        && super::item_actions::block_current(world, player, item_action)
         && held_snapshot(world, player) == committed.held
         && event.cells.iter().all(|cell| {
             block_state(world, cell.position).as_ref() == Some(&cell.before)

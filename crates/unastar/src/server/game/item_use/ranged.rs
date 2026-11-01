@@ -227,10 +227,22 @@ fn shoot_bow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, tic
         item: returned,
         throw_sound: false,
     };
-    let Some(permit) = crate::server::game::item_actions::authorize(
+    let ammo_witness = ammo.and_then(|ammo| {
+        crate::server::game::item_actions::AmmoSnapshot::capture(
+            world,
+            player,
+            match ammo {
+                Ammo::Offhand => None,
+                Ammo::Main(slot) => Some(slot),
+            },
+        )
+    });
+    let Some(permit) = crate::server::game::item_actions::authorize_target(
         world,
         player,
         crate::server::game::item_actions::ItemActionKind::Launch,
+        crate::server::game::item_actions::ItemTarget::Air,
+        ammo_witness,
     ) else {
         return;
     };
@@ -272,7 +284,6 @@ pub fn tick_crossbow(
         5 => sound(world, player, "crossbow.loading.start"),
         15 => sound(world, player, "crossbow.loading.middle"),
         CROSSBOW_LOAD_TICKS.. => {
-            sound(world, player, "crossbow.loading.end");
             load_crossbow(world, player, slot, stack);
         }
         _ => {}
@@ -280,14 +291,40 @@ pub fn tick_crossbow(
 }
 
 fn load_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack) {
-    stop_using(world, player);
     let creative = creative(world, player);
-    match find_arrow(world, player) {
-        Some(ammo) if !creative => take_arrow(world, player, ammo),
-        None if !creative => return,
-        _ => {}
+    let ammo = find_arrow(world, player);
+    if ammo.is_none() && !creative {
+        stop_using(world, player);
+        return;
+    }
+    let witness = ammo.and_then(|ammo| {
+        crate::server::game::item_actions::AmmoSnapshot::capture(
+            world,
+            player,
+            match ammo {
+                Ammo::Offhand => None,
+                Ammo::Main(slot) => Some(slot),
+            },
+        )
+    });
+    let Some(permit) = crate::server::game::item_actions::authorize_target(
+        world,
+        player,
+        crate::server::game::item_actions::ItemActionKind::Charge,
+        crate::server::game::item_actions::ItemTarget::Air,
+        witness,
+    ) else {
+        return;
+    };
+    if !permit.is_current(world) {
+        return;
+    }
+    stop_using(world, player);
+    if let (Some(ammo), false) = (ammo, creative) {
+        take_arrow(world, player, ammo);
     }
     set_slot(world, player, slot, with_charge(stack, true));
+    sound(world, player, "crossbow.loading.end");
     crate::entity::mob::combat::send_actor_event(
         world,
         player,
@@ -297,6 +334,10 @@ fn load_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack)
     if let Some(entry) = stack.item() {
         super::completed(world, player, entry.network_id(), super::UseMethod::None);
     }
+    permit.commit(
+        world,
+        crate::server::game::item_actions::ItemActionOutcome::Charged,
+    );
 }
 
 fn fire_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack) {

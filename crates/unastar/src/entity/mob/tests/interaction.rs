@@ -117,6 +117,11 @@ impl Harness {
     }
 
     fn interact(&mut self, target: Entity) {
+        // Arrange a genuine in-reach source before invoking the native interaction path.
+        let feet = self.world().get::<Position>(target).unwrap().0;
+        let player = self.player;
+        self.world().get_mut::<Position>(player).unwrap().0 =
+            feet + DVec3::new(0.0, crate::entity::PLAYER_EYE_HEIGHT, 2.0);
         let runtime_id = self.world().get::<RuntimeId>(target).unwrap().0;
         let transaction = ItemUseOnActorInventoryTransaction {
             runtime_id: ActorRuntimeId {

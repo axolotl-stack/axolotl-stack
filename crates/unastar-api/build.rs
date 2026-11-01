@@ -154,6 +154,7 @@ fn default_body(resolve: &Resolve, func: &wit_parser::Function) -> String {
             match resolve.types[*id].name.as_deref() {
                 Some("admission-decision") => return "AdmissionDecision::Allow".into(),
                 Some("quit-disposition") => return "QuitDisposition::Remove".into(),
+                Some("item-action-decision") => return "ItemActionDecision::Pass".into(),
                 _ => (),
             }
             if let TypeDefKind::Option(inner) = &resolve.types[*id].kind
@@ -278,15 +279,19 @@ fn handler_params(resolve: &Resolve, func: &wit_parser::Function) -> String {
             continue;
         }
         let name = param.name.replace('-', "_");
-        let ty = if name == "attacker" {
+        let ty = if matches!(name.as_str(), "attacker" | "target") {
             "Option<&Player<'_>>".into()
-        } else if (func.name == "on-player-damage" || func.name == "on-block-transaction")
-            && name == "proposal"
+        } else if matches!(
+            func.name.as_str(),
+            "on-player-damage" | "on-block-transaction" | "on-item-action"
+        ) && name == "proposal"
         {
             if func.name == "on-player-damage" {
                 "&DamageProposal".into()
-            } else {
+            } else if func.name == "on-block-transaction" {
                 "&BlockProposal".into()
+            } else {
+                "&ItemActionProposal".into()
             }
         } else if (func.name == "on-player-respawn" && name == "position")
             || (func.name == "on-player-move" && name == "new_position")
@@ -320,12 +325,18 @@ fn generate_handler(
             "fn {}({}){} {{ {} }}",
             func.name.replace('-', "_"),
             handler_params(resolve, func),
-            if matches!(func.name.as_str(), "on-player-admission" | "on-player-quit") {
+            if matches!(
+                func.name.as_str(),
+                "on-player-admission" | "on-player-quit" | "on-item-action"
+            ) {
                 return_str(resolve, func, false)
             } else {
                 String::new()
             },
-            if matches!(func.name.as_str(), "on-player-admission" | "on-player-quit") {
+            if matches!(
+                func.name.as_str(),
+                "on-player-admission" | "on-player-quit" | "on-item-action"
+            ) {
                 default_body(resolve, func)
             } else {
                 String::new()
@@ -358,11 +369,13 @@ fn generate_handler(
                 "let player = $crate::Player::__from_borrowed(player, &tx); let mut ctx = $crate::PlayerContext::__new(&tx, &player, {cancellable});"
             )?;
         }
-        if func.params.iter().any(|param| param.name == "attacker") {
-            writeln!(
-                out,
-                "let attacker = attacker.map(|raw| $crate::Player::__from_borrowed(raw, &tx));"
-            )?;
+        for name in ["attacker", "target"] {
+            if func.params.iter().any(|param| param.name == name) {
+                writeln!(
+                    out,
+                    "let {name} = {name}.map(|raw| $crate::Player::__from_borrowed(raw, &tx));"
+                )?;
+            }
         }
         if func.name == "on-player-damage" {
             writeln!(out, "let mut tuning = proposal.tuning;")?;
@@ -384,14 +397,16 @@ fn generate_handler(
                 continue;
             }
             let name = param.name.replace('-', "_");
-            args.push(if name == "attacker" {
-                "attacker.as_ref()".into()
+            args.push(if matches!(name.as_str(), "attacker" | "target") {
+                format!("{name}.as_ref()")
             } else if (func.name == "on-player-respawn" && name == "position")
                 || (func.name == "on-player-move" && name == "new_position")
             {
                 format!("&mut {name}")
-            } else if (func.name == "on-player-damage" || func.name == "on-block-transaction")
-                && name == "proposal"
+            } else if matches!(
+                func.name.as_str(),
+                "on-player-damage" | "on-block-transaction" | "on-item-action"
+            ) && name == "proposal"
             {
                 "&proposal".into()
             } else {
@@ -404,7 +419,10 @@ fn generate_handler(
         writeln!(
             out,
             "{}<$t as $crate::Handler>::{method}({});",
-            if matches!(func.name.as_str(), "on-player-admission" | "on-player-quit") {
+            if matches!(
+                func.name.as_str(),
+                "on-player-admission" | "on-player-quit" | "on-item-action"
+            ) {
                 "let decision = "
             } else {
                 ""
@@ -428,6 +446,10 @@ fn generate_handler(
             Some(_) if func.name == "on-player-admission" => writeln!(
                 out,
                 "if ctx.is_cancelled() {{ $crate::AdmissionDecision::Reject(\"Connection denied.\".into()) }} else {{ decision }}"
+            )?,
+            Some(_) if func.name == "on-item-action" => writeln!(
+                out,
+                "if ctx.is_cancelled() {{ $crate::ItemActionDecision::Deny }} else {{ decision }}"
             )?,
             Some(_) if func.name == "on-player-quit" => writeln!(out, "decision")?,
             Some(_) => anyhow::bail!("unsupported Handler result for {}", func.name),

@@ -4,6 +4,7 @@ version = "0.4.0"
 api_version = "0.4.0"
 capabilities = ["read-players", "send-messages", "schedule-tasks", "commands"]
 subscriptions = [
+    "item_action",
     "player_join",
     "player_chat",
     "player_command",

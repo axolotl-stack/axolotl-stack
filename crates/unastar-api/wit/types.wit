@@ -387,4 +387,47 @@ interface types {
         /// Valid only in this player's admission callback; retain the owned hold for Deferred.
         defer-admission: func() -> result<admission-hold, access-error>;
     }
+    /// Each stage is independently authorized before its native costs and effects.
+    enum item-action-stage { %use, release, consume, charge, launch }
+    record item-block-target { click: block-click, block: result<block-value, access-error> }
+    record item-actor-target { identifier: string, feet: vec3, player: result<option<player-identity>, access-error> }
+    variant item-action-target { air, block(item-block-target), actor(item-actor-target) }
+    record item-action-proposal {
+        action-id: u64,
+        dimension: s32,
+        stage: item-action-stage,
+        slot: u8,
+        selected: stack,
+        target: item-action-target,
+    }
+    /// Correlation is echoed only. It does not name or dispatch host behavior.
+    /// Consume must be positive and within the captured selected count.
+    record handled-item-action { correlation: u64, consume: u8 }
+    variant item-action-decision { pass, deny, handled(handled-item-action) }
+    record launched-item-actor { identifier: string, feet: vec3 }
+    record custom-item-outcome { correlation: option<u64>, consumed: u8 }
+    variant item-action-outcome {
+        started,
+        consumed(u8),
+        charged,
+        launched(result<launched-item-actor, access-error>),
+        interacted,
+        block(u64),
+        custom(custom-item-outcome),
+    }
+    /// Only the native selected cell and known ammunition cell are observed.
+    /// This is not a complete inventory diff or a durable inventory acknowledgement.
+    record item-ammunition-change { main-slot: option<u32>, before: stack, after: option<stack> }
+    record item-action-items { selected-before: stack, selected-after: option<stack>, ammunition: option<item-ammunition-change> }
+    /// A physical native completion, never a durable receipt or an accepted gesture.
+    record item-action-committed {
+        action-id: u64,
+        dimension: s32,
+        player: player-identity,
+        stage: item-action-stage,
+        slot: u8,
+        target: item-action-target,
+        items: result<item-action-items, access-error>,
+        outcome: item-action-outcome,
+    }
 }

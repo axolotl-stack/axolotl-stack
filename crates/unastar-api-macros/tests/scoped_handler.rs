@@ -8,6 +8,14 @@ static LAST_TICK: AtomicU64 = AtomicU64::new(0);
 struct Scoped;
 #[plugin]
 impl Handler for Scoped {
+    fn on_item_action(
+        ctx: &mut PlayerContext<'_>,
+        _target: Option<&unastar_api::Player<'_>>,
+        _proposal: &unastar_api::ItemActionProposal,
+    ) -> unastar_api::ItemActionDecision {
+        ctx.cancel();
+        unastar_api::ItemActionDecision::Pass
+    }
     fn on_tick(tick: u64) {
         LAST_TICK.store(tick, Ordering::SeqCst);
     }
@@ -71,6 +79,14 @@ fn generated_handler_dispatches_and_uses_the_canonical_transaction_signature() {
     ) -> bool = <__UnastarHandlerBridge as Guest>::on_block_transaction;
     let _: fn(&unastar_api::raw::WorldTx, unastar_api::BlockCommitted) =
         <__UnastarHandlerBridge as Guest>::on_block_committed;
+    let _: fn(
+        &unastar_api::raw::WorldTx,
+        &unastar_api::raw::Player,
+        Option<&unastar_api::raw::Player>,
+        unastar_api::ItemActionProposal,
+    ) -> unastar_api::ItemActionDecision = <__UnastarHandlerBridge as Guest>::on_item_action;
+    let _: fn(&unastar_api::raw::WorldTx, unastar_api::ItemActionCommitted) =
+        <__UnastarHandlerBridge as Guest>::on_item_action_committed;
     <__UnastarHandlerBridge as Guest>::on_tick(123);
     assert_eq!(LAST_TICK.load(Ordering::SeqCst), 123);
 }

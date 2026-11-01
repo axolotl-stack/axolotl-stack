@@ -58,17 +58,25 @@ pub fn apply_mob_actions(world: &mut World) {
                     crate::entity::mob::combat::player_attack(world, player, target, &transaction);
                 }
             }
-            ActionType::Interact => {
-                if let Some(target) = mob_by_runtime_id(world, runtime_id) {
-                    crate::entity::mob::interaction::interact::player_interact(
+            ActionType::Interact | ActionType::ItemInteract => {
+                let target = match (
+                    mob_by_runtime_id(world, runtime_id),
+                    player_by_runtime_id(world, runtime_id),
+                ) {
+                    (Some(target), None) | (None, Some(target)) => Some(target),
+                    _ => None,
+                };
+                if let Some(target) = target {
+                    crate::entity::mob::interaction::interact::player_item_interact(
                         world,
                         player,
                         target,
                         &transaction,
+                        transaction.action_type == ActionType::Interact,
                     );
                 }
             }
-            ActionType::ItemInteract | ActionType::Unknown(_) => {}
+            ActionType::Unknown(_) => {}
         }
     }
 }

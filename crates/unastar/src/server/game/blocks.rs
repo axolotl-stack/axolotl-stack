@@ -443,6 +443,20 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
 pub(crate) fn commit_block_event_with(
     world: &mut World,
     event: &ServerEvent,
+    inline: Option<&mut dyn ScopedBlockDispatcher>,
+) {
+    let id = match event {
+        ServerEvent::BlockPlace { click, .. } => click.as_ref().and_then(|click| click.item_action),
+        _ => None,
+    };
+    commit_block_event_inner(world, event, inline);
+    super::item_actions::discard_block(world, id);
+}
+
+/// Keep all early native failure paths inside the transient-correlation cleanup boundary.
+fn commit_block_event_inner(
+    world: &mut World,
+    event: &ServerEvent,
     mut inline: Option<&mut dyn ScopedBlockDispatcher>,
 ) {
     match event {
@@ -479,6 +493,7 @@ pub(crate) fn commit_block_event_with(
                     BlockInteractionKind::Break,
                     &updates,
                     Some(BlockClick {
+                        item_action: None,
                         position: IVec3::new(position.0, position.1, position.2),
                         face: None,
                         offset: None,
@@ -997,7 +1012,50 @@ fn click_offset(
 }
 
 /// Handle block click from InventoryTransaction ItemUse::ClickBlock.
+/// Authorize the actual selected item before any block default effect; an inert pass emits nothing.
 fn handle_block_click(
+    world: &mut World,
+    entity: Entity,
+    data: &jolyne::valentine::types::ItemUseInventoryTransaction,
+) {
+    let clicked = IVec3::new(data.position.x, data.position.y, data.position.z);
+    if data.face > 5 || !can_interact(world, entity, clicked.into()) {
+        handle_block_click_default(world, entity, data);
+        return;
+    }
+    let main_hand = data.hand == jolyne::valentine::EnumsHandSlot::Mainhand
+        && world
+            .get::<crate::entity::components::HeldSlot>(entity)
+            .is_some_and(|slot| data.slot == i32::from(slot.0));
+    if !main_hand {
+        handle_block_click_default(world, entity, data);
+        return;
+    }
+    let target = super::item_actions::ItemTarget::Block(super::item_actions::ItemBlockTarget {
+        position: clicked,
+        face: data.face,
+        offset: click_offset(data),
+        state: block_at(world, clicked.into()),
+    });
+    let Some(permit) = super::item_actions::authorize_target(
+        world,
+        entity,
+        super::item_actions::ItemActionKind::Use,
+        target,
+        None,
+    ) else {
+        super::inventory::resync_inventory(world, entity);
+        return;
+    };
+    let Some(id) = super::item_actions::begin_block(world, permit) else {
+        return;
+    };
+    handle_block_click_default(world, entity, data);
+    super::item_actions::end_block(world, id);
+}
+
+/// Preserve ordinary validation, corrective packets and default block behavior after item permission.
+fn handle_block_click_default(
     world: &mut World,
     entity: Entity,
     data: &jolyne::valentine::types::ItemUseInventoryTransaction,
@@ -1048,6 +1106,7 @@ fn handle_block_click(
                 BlockInteractionKind::Use,
                 &updates,
                 Some(BlockClick {
+                    item_action: None,
                     position: IVec3::new(clicked.0, clicked.1, clicked.2),
                     face: Some(data.face),
                     offset: click_offset(data),
@@ -1132,6 +1191,7 @@ fn handle_block_click(
                 BlockInteractionKind::Use,
                 &updates,
                 Some(BlockClick {
+                    item_action: None,
                     position: IVec3::new(clicked.0, clicked.1, clicked.2),
                     face: Some(data.face),
                     offset: click_offset(data),
@@ -1235,9 +1295,12 @@ fn handle_block_click(
         .get::<PlayerUuid>(entity)
         .map(|id| id.0.to_string())
         .unwrap_or_default();
+    let item_action = super::item_actions::active_block(world);
+    super::item_actions::queue_block(world, item_action);
     if let Some(mut events) = world.get_resource_mut::<EventBuffer>() {
         events.push(ServerEvent::BlockPlace {
             click: Some(BlockClick {
+                item_action,
                 position: IVec3::new(clicked.0, clicked.1, clicked.2),
                 face: Some(data.face),
                 offset: click_offset(data),
