@@ -48,8 +48,14 @@ pub(super) fn value(world: &World, runtime: u32) -> Result<wit::BlockValue, wit:
     let registry = world
         .get_resource::<crate::server::game::types::BlockRegistryResource>()
         .ok_or(wit::AccessError::Unavailable)?;
+    registry_value(&registry.0, runtime)
+}
+/// An owned observation retains its frozen registry without retaining a live world borrow.
+pub(super) fn registry_value(
+    registry: &crate::registry::BlockRegistry,
+    runtime: u32,
+) -> Result<wit::BlockValue, wit::AccessError> {
     let block = registry
-        .0
         .get_by_runtime_id(runtime)
         .ok_or(wit::AccessError::Unavailable)?;
     let mut properties = Vec::new();

@@ -45,6 +45,12 @@ pub struct PluginManifest {
 /// Resource limits for a plugin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginLimits {
+    /// Maximum literal block batches staged per shared component cycle, hard-capped at 128.
+    #[serde(default = "default_block_edits")]
+    pub max_block_edits_per_tick: u32,
+    /// Maximum outstanding literal batches, including requests whose guest ticket was dropped.
+    #[serde(default = "default_pending_block_edits")]
+    pub max_pending_block_edits: u32,
     /// Maximum UTF-8 bytes in a connection termination notice, also capped at 4096 by the host.
     #[serde(default = "default_connection_reason_bytes")]
     pub max_connection_reason_bytes: u32,
@@ -115,6 +121,8 @@ pub struct PluginLimits {
 impl Default for PluginLimits {
     fn default() -> Self {
         Self {
+            max_block_edits_per_tick: default_block_edits(),
+            max_pending_block_edits: default_pending_block_edits(),
             max_connection_reason_bytes: default_connection_reason_bytes(),
             max_connection_requests_per_tick: default_connection_requests(),
             max_pending_connection_requests: default_pending_connection_requests(),
@@ -138,6 +146,15 @@ impl Default for PluginLimits {
             max_pending_inventory_operations: default_pending_inventory_operations(),
         }
     }
+}
+
+/// Keep per-cycle native publication work bounded independently of guest fuel.
+fn default_block_edits() -> u32 {
+    32
+}
+/// Pending work retains its reservation until cancellation, rejection or actual application.
+fn default_pending_block_edits() -> u32 {
+    128
 }
 
 impl PluginLimits {
@@ -254,6 +271,8 @@ fn default_pending_inventory_operations() -> u32 {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginCapability {
+    ReadBlocks,
+    WriteBlocks,
     /// Durably capture and read complete immutable host-owned player state.
     PlayerStateArchives,
     /// Construct and inspect bounded detached item values, without granting inventory writes.

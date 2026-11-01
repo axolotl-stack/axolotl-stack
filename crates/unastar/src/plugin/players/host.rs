@@ -219,6 +219,26 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostWorldTx for HostContext {
+    fn block(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        position: wit::BlockPos,
+    ) -> Result<Resource<wit::BlockCell>, wit::WorldBlockError> {
+        world_blocks::capture(self, tx.rep(), position)
+    }
+    fn edit_blocks(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+    ) -> Result<Resource<wit::BlockEdit>, wit::WorldBlockError> {
+        world_blocks::edit(self, tx.rep())
+    }
+    fn apply_blocks(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        edit: Resource<wit::BlockEdit>,
+    ) -> Result<Resource<wit::BlockEditRequest>, wit::WorldBlockError> {
+        world_blocks::stage(self, tx.rep(), edit.rep())
+    }
     fn item(
         &mut self,
         tx: Resource<wit::WorldTx>,

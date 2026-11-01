@@ -37,6 +37,25 @@ impl<'scope> WorldTx<'scope> {
     pub fn item(&self, identifier: &str, count: u8) -> Result<crate::ItemStack, AccessError> {
         self.raw.item(identifier, count)
     }
+    /// Capture typed loaded terrain and its host-owned expected-state witness.
+    /// This does not load chunks, generate terrain or materialize block actors.
+    pub fn block(
+        &self,
+        position: crate::BlockPos,
+    ) -> Result<crate::BlockCell, crate::WorldBlockError> {
+        self.raw.block(position)
+    }
+    /// Construct a detached builder bound to this world's actual runtime lifetime.
+    pub fn edit_blocks(&self) -> Result<crate::BlockEdit, crate::WorldBlockError> {
+        self.raw.edit_blocks()
+    }
+    /// Stage the whole builder for revalidation and physical publication after the callback.
+    pub fn apply_blocks(
+        &self,
+        edit: &crate::BlockEdit,
+    ) -> Result<crate::BlockEditRequest, crate::WorldBlockError> {
+        self.raw.apply_blocks(edit)
+    }
     /// Enumerate owned actor references in this transaction's current world.
     pub fn players(&self) -> Result<Vec<PlayerHandle>, AccessError> {
         self.raw.players()

@@ -45,6 +45,7 @@ pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use commands::ConsoleCommands;
 pub(crate) use container_mutations::area_locked as container_area_locked;
 pub use container_mutations::{ContainerMutationLocks, complete_container_mutations};
+pub(crate) use containers::has_decoded_state as container_has_decoded_state;
 pub(crate) use containers::mutation_locked as container_cell_locked;
 pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};

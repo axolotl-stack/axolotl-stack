@@ -750,3 +750,62 @@ input and closes the transport with its bounded close procedure even if the peer
 ignores the notice. Actual departure continues through the existing quit policy,
 ordinary-save gates and retained-actor teardown. This import never despawns an
 actor directly or acknowledges an unrelated inventory write.
+
+### Loaded terrain transactions
+
+Components with `read-blocks` can call `WorldTx::block` to capture a typed owned
+`BlockCell`. It includes both native storage layers, material/definition facts,
+actual stored actor presence and authored edit support. Reads use already loaded
+native columns and their actual build bounds. Unloaded, reserved, out-of-bounds
+and unconverted columns return explicit errors. Observations remain historical
+values after their original world or column changes.
+
+`write-blocks` enables detached `BlockEdit` builders and
+`WorldTx::apply_blocks`. Each replacement requires an original owned cell witness
+and complete typed block properties. A fresh transaction stages the whole builder;
+the native world phase rechecks every expected cell, chunk lifetime, registry and
+reservation before installing any of them. Native observers see the installed
+batch outside the component-manager lock, within the original cycle budget.
+Literal edits use native block updates and gravity scheduling. Player placement,
+item costs and break drops use their existing action boundaries.
+
+The initial literal-edit family is air, stone, cobblestone, dirt, obsidian, end
+stone, netherrack, sand and gravel with an air secondary layer. Stored or decoded
+actor data and unsupported source/proposed families return `Unsupported`.
+Container creation and inventory mutation are unsupported by this interface.
+
+```rust
+use unastar_api::{BlockCell, BlockEditRequest, BlockLayers, BlockPos, WorldBlockError, WorldTx};
+
+fn replace_loaded(
+    tx: &WorldTx<'_>,
+    position: BlockPos,
+    material: &BlockCell,
+) -> Result<BlockEditRequest, WorldBlockError> {
+    let current = tx.block(position)?;
+    let before = current.layers().map_err(WorldBlockError::Access)?;
+    let material = material.layers().map_err(WorldBlockError::Access)?;
+    let edit = tx.edit_blocks()?;
+    edit.replace(&current, &BlockLayers {
+        primary: material.primary,
+        secondary: before.secondary,
+    })?;
+    tx.apply_blocks(&edit)
+}
+```
+
+An owned request reports `Staged`, `Pending`, `Applied { checked, changed }`,
+`Cancelled` or a typed failure. `Applied` describes native in-memory changes;
+storage durability and client acknowledgements have separate contracts.
+Cancellation before application ends the pending request. Dropping a ticket keeps
+accepted work and its quota reserved. Callback traps or malformed decisions
+reject staging; valid default-action cancellation preserves explicit edits.
+
+Default per-component limits are 32 batches per shared cycle and 128 outstanding
+batches, configurable through `max_block_edits_per_tick` and
+`max_pending_block_edits`, with hard caps of 128 and 4,096. `max_block_cells`
+bounds each batch to at most 512 cells. Cell/candidate bytes share the 16 MiB
+native owned-value budget, including values retained by accepted work. Each world
+bounds its queue to 4,096 requests/8,192 cells and publishes at most 128 requests
+and 1,024 cells per phase, preserving batch order. Owner unload, world closure,
+conflicts and late reservations end pending work before physical writes.
