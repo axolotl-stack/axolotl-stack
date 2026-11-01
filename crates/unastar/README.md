@@ -1638,3 +1638,27 @@ accepts a previously captured origin for delayed damage. Native projectile
 impacts and instant potion damage use this path; cloud effects inherit the
 source potion's owner after the potion disappears. This does not change the
 existing lasting-effect tick model or make its periodic damage newly attributed.
+
+## Bow enchantments
+
+Ordinary bow releases capture Power and Flame from the authorized held stack.
+Power adds `(level + 1) / 2` to the arrow speed-damage coefficient before the
+existing ceiling and critical bonus. Flame marks the arrow on fire for 100 ticks;
+water or expiry extinguishes it, including arrows stuck in blocks. An accepted
+hit that removes health ignites its living target for 100 ticks through the
+normal player or mob fire-immunity rules. Launch, impact and damage vetoes retain
+their existing boundaries. Switching weapons or removing the shooter does not
+change an arrow's captured enchantments. Punch and tipped-arrow ammunition remain
+unimplemented. These formulas follow a public library reference; no additional
+Bedrock version conformance is claimed. See [third-party notices](THIRD_PARTY_NOTICES.md).
+
+## Fire Aspect
+
+Accepted player melee attacks and equipped mob melee attacks capture Fire Aspect
+from the original sword before damage callbacks. A hit that removes health ignites
+its living target for `80 * level` ticks through the ordinary player or mob fire
+lane. Dead, fire-immune, creative and spectator targets do not catch this fire.
+Later held-item changes cannot add or remove the captured fire effect. Attack
+damage calculations are unchanged. Sword classification uses the registered tool
+kind; adding sword enchantment NBT to another item does not grant its behavior.
+The duration follows the public library formula in the [third-party notices](THIRD_PARTY_NOTICES.md).

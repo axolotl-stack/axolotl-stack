@@ -118,6 +118,7 @@ pub(super) fn on_hit(
         super::fire::block(world, owner, position, fire);
     }
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
+        let flame_ticks = super::enchantments::flame_ticks(world, projectile);
         let (destroyed, applied) = impact_damage(world, projectile, impact, at, actor);
         removed |= destroyed;
         if applied > 0.0 {
@@ -127,6 +128,7 @@ pub(super) fn on_hit(
             if let Some(fire) = rules.block_fire {
                 super::fire::actor(world, actor, fire.entity_fire_ticks);
             }
+            super::fire::actor(world, actor, flame_ticks);
         }
         if !destroyed {
             rebound(world, projectile, rules, applied);
@@ -183,7 +185,8 @@ fn impact_damage(
         let speed = world
             .get::<crate::entity::components::Velocity>(projectile)
             .map_or(0.0, |v| v.0.length() as f32);
-        let mut damage = speed * impact.power_multiplier;
+        let mut damage =
+            speed * (impact.power_multiplier + super::enchantments::power_bonus(world, projectile));
         if impact.ceil_pre_critical {
             damage = damage.ceil();
         }

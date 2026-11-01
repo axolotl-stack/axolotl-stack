@@ -562,7 +562,7 @@ Sub-rows by facet, most incomplete first (25 of 25):
 **ranged_weapons**
 
 - `minecraft:bow/digger`, `minecraft:crossbow/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
-- `minecraft:bow/shooter`: Power, Punch and Flame are not applied; tipped arrows are not shot
+- `minecraft:bow/shooter`: Punch is not applied; tipped arrows are not shot
 - `minecraft:crossbow/shooter`: Multishot, Piercing and Quick Charge are not applied; cannot load firework rockets or tipped arrows
 
 **spawn_eggs**
@@ -818,7 +818,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **crafting**
 
 - `crafting.crafting_grid`: shaped and shapeless 2x2/3x3 recipes work; recipe-book auto-craft, ingredient remainders (buckets, bottles) and special/multi recipes (repair, dyeing, fireworks) are rejected
-- `crafting.enchantments`: efficiency, aqua affinity, silk touch, fortune, looting, unbreaking and infinity act; damage (sharpness, smite, bane of arthropods), protection, knockback, fire aspect, mending, power, punch, flame and the other armour, trident and crossbow enchantments have no effect
+- `crafting.enchantments`: efficiency, aqua affinity, silk touch, fortune, looting, unbreaking, infinity, power, flame and fire aspect act; damage (sharpness, smite, bane of arthropods), protection, knockback, mending, punch and the other armour, trident and crossbow enchantments have no effect
 - `crafting.loot_tables`: block, mob and generated-chest tables roll; missing functions enchant_randomly, enchant_with_levels, enchant_book_for_trading, exploration_map, random_aux_value, set_armor_trim, set_banner_details, set_damage, set_ominous_bottle_amplifier, set_potion, set_stew_effect, specific_enchants and conditions biome_has_tag, bool_property, damaged_by_entity, entity_killed, entity_properties, has_mark_variant, has_variant, killed_by_entity fail the roll; no fishing loot
 - `crafting.smelting`: furnace, blast furnace and smoker smelt with fuel, XP and hoppers; campfire and soul campfire cooking missing
 - missing: `crafting.anvil`, `crafting.brewing`, `crafting.enchanting`, `crafting.grindstone`, `crafting.recipe_book`, `crafting.smithing`, `crafting.stonecutter_loom_cartography`, `crafting.trading`

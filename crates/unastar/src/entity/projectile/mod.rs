@@ -19,6 +19,7 @@
 
 pub mod cloud;
 pub mod config;
+pub(crate) mod enchantments;
 mod fire;
 pub mod flight;
 pub mod hit;
