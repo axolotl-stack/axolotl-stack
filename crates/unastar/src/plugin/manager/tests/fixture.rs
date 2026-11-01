@@ -233,6 +233,17 @@ pub(super) fn field_layout(export: &str, parameter: &str, fields: &[&str]) -> (u
         if param.name == parameter {
             let mut ty = param.ty;
             for name in fields {
+                if *name == "ok" {
+                    let wit_parser::Type::Id(id) = unalias(&resolve, ty) else {
+                        panic!("not a result")
+                    };
+                    let wit_parser::TypeDefKind::Result(result) = &resolve.types[id].kind else {
+                        panic!("not a result")
+                    };
+                    offset = (offset + 1).next_multiple_of(sizes.align(&ty).align_wasm32());
+                    ty = result.ok.expect("result value");
+                    continue;
+                }
                 if *name == "some" {
                     let wit_parser::Type::Id(id) = unalias(&resolve, ty) else {
                         panic!("not an option")

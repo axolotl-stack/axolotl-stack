@@ -198,6 +198,7 @@ fn apply_hit_result_attributed(
                 attacker: hit.attacker,
                 fall_distance,
             },
+            attribution,
         );
     }
     (applied, dead)

@@ -110,6 +110,28 @@ interface types {
         knockback: knockback,
     }
 
+    /// Detached item values retain exact native slot positions and instance properties.
+    record death-inventory {
+        main: list<stack>,
+        armour: list<stack>,
+        offhand: stack,
+        ui: list<stack>,
+        held-slot: u8,
+    }
+
+    /// Owned facts after committed death, including carried values captured before drops.
+    /// Incomplete source evidence and item-value quota failures remain explicit errors.
+    record death-committed {
+        identity: result<player-identity, access-error>,
+        dimension: option<s32>,
+        feet: option<vec3>,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        fall-distance: option<f64>,
+        keep-inventory: bool,
+        inventory: result<death-inventory, access-error>,
+    }
+
     enum game-mode {
         survival,
         creative,

@@ -1,7 +1,8 @@
 //! Scoped Component Model example; build for `wasm32-wasip2`.
 
 use unastar_api::{
-    AdmissionDecision, AdmittedEvent, BlockPos, Handler, LogLevel, PlayerContext, commands, server,
+    AdmissionDecision, AdmittedEvent, BlockPos, DeathCommitted, Handler, LogLevel, PlayerContext,
+    WorldTx, commands, server,
 };
 
 struct ExamplePlugin;
@@ -33,6 +34,15 @@ impl Handler for ExamplePlugin {
             LogLevel::Info,
             &format!("{} entered the world", event.observation.identity.name),
         );
+    }
+    fn on_player_death(_tx: &WorldTx<'_>, event: DeathCommitted) {
+        if let Ok(identity) = event.identity {
+            server::log(
+                LogLevel::Info,
+                &format!("Observed {}'s committed death", identity.name),
+            );
+        }
+        // Owned item values release normally when the event leaves this scope.
     }
     fn on_player_command(ctx: &mut PlayerContext<'_>, line: String, _request_id: Option<String>) {
         if line.trim_start_matches('/').split_whitespace().next() == Some("greet") {

@@ -23,6 +23,8 @@ mod tasks;
 
 #[path = "damage.rs"]
 mod damage;
+#[path = "deaths.rs"]
+mod deaths;
 #[path = "movements.rs"]
 mod movements;
 #[path = "sessions.rs"]
@@ -965,6 +967,8 @@ pub(crate) mod tests {
     use wit_bindings::unastar::plugin::host::Host;
     #[path = "damage.rs"]
     mod damage_tests;
+    #[path = "deaths.rs"]
+    mod death_tests;
     mod fixture;
     #[path = "movements.rs"]
     mod movement_tests;

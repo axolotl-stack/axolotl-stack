@@ -10,7 +10,7 @@ use crate::entity::player_life::hooks::{PlayerDamage, PlayerDamaged};
 use bevy_ecs::prelude::*;
 
 /// Copy immutable launch/deflection facts without resolving a missing owner into a fake actor.
-fn attribution(source: &DamageAttribution) -> wit::DamageAttribution {
+pub(super) fn attribution(source: &DamageAttribution) -> wit::DamageAttribution {
     wit::DamageAttribution {
         source_dimension: source.dimension(),
         source_world_lifetime: source.world_lifetime().map(|id| id.to_string()),

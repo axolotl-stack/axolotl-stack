@@ -2,7 +2,9 @@
 
 use std::sync::{Arc, Mutex};
 
-use bevy_ecs::prelude::{Entity, World};
+#[cfg(test)]
+use bevy_ecs::prelude::Entity;
+use bevy_ecs::prelude::World;
 use glam::DVec3;
 use tracing::error;
 use unastar_data::actor_components::body::ActorDamageCause;
@@ -13,6 +15,7 @@ use super::{
 };
 use super::{begin_fuel_budget, prepare_invocation, wit_types, with_world};
 use crate::ecs::events::{ActionQueue, EventKind};
+#[cfg(test)]
 use crate::entity::components::Player;
 use crate::entity::player_life::hooks::{
     PlayerDamage, PlayerDamaged, PlayerDeath, PlayerLifecycleHandler, PlayerLifecycleHooks,
@@ -149,32 +152,6 @@ impl PluginManager {
         ids
     }
 
-    /// Notify subscribers after the native death has committed.
-    fn player_death(&mut self, world: &mut World, event: &PlayerDeath) {
-        if !self.begin_tick(world) {
-            return;
-        }
-        for id in self.subscribers(EventKind::PlayerDeath) {
-            let plugin = self.plugins.get_mut(&id).expect("subscribed plugin exists");
-            let attacker = player_attacker(world, event.cause.attacker);
-            let cause = damage_cause(event.cause.cause);
-            if let Err(error) = invoke(plugin, world, |store, bindings| {
-                let tx = make_world_tx(store)?;
-                let player = make_player_resource(store, event.player)?;
-                let attacker = attacker
-                    .map(|entity| make_player_resource(store, entity))
-                    .transpose()?;
-                bindings.call_on_player_death(store, tx, player, attacker, cause)
-            }) {
-                error!(plugin = %id, %error, "Player death callback failed");
-                self.callback_failed(world, &id, &error.to_string());
-                if self.readiness.check().is_err() {
-                    break;
-                }
-            }
-        }
-    }
-
     /// Apply ordered respawn decisions before acknowledging or restoring the player.
     fn player_respawn(&mut self, world: &mut World, event: &mut PlayerRespawn) {
         if !self.begin_tick(world) {
@@ -261,11 +238,6 @@ pub(super) fn invoke<R>(
         }
     }
     result
-}
-
-/// Only player attackers have a player resource handle in the component API.
-fn player_attacker(world: &World, attacker: Option<Entity>) -> Option<Entity> {
-    attacker.filter(|entity| world.get::<Player>(*entity).is_some())
 }
 
 /// The component API uses feet; native player components continue to use eye height.

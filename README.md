@@ -386,3 +386,18 @@ the exact native owner still resolves in this world. Optional world-lifetime
 UUIDs identify captured runtime instances for observation; they differ from
 durable configured world identity and never grant access. Missing engine
 lifetime evidence remains absent.
+
+### Owned component death observations
+
+`player_death` receives a fresh world transaction and an owned `DeathCommitted`.
+Identity, position and origin are captured before native death observers can
+remove the actor. The callback follows ordinary drops; the preceding positive
+health-loss notification runs before death/drop processing.
+
+The fallible inventory contains every main, armour, offhand and crafting/UI slot
+in its original position, including the selected slot. Its detached stack values
+preserve instance metadata and remain usable after the original actor disappears
+or respawns. `item-values` permission, ordinary metadata validation and existing
+resource/retained-byte quotas apply to the complete capture. A failed capture
+releases its partial allocations and returns an explicit error. A required
+callback failure fences subsequent ordinary player saves.

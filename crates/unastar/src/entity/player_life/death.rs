@@ -95,7 +95,12 @@ pub fn kill_player(world: &mut World, player: Entity) -> bool {
 }
 
 /// The death of `player`, whose health just reached zero.
-pub(super) fn die(world: &mut World, player: Entity, cause: DeathCause) {
+pub(super) fn die(
+    world: &mut World,
+    player: Entity,
+    cause: DeathCause,
+    attribution: crate::entity::damage::DamageAttribution,
+) {
     if world.get::<Dead>(player).is_some() || world.get::<Player>(player).is_none() {
         return;
     }
@@ -121,6 +126,7 @@ pub(super) fn die(world: &mut World, player: Entity, cause: DeathCause) {
     }
     let rules = world.resource::<GameRules>().clone();
     let inventory = hooks::PlayerDeathInventory::capture(world, player);
+    let observation = hooks::DeathObservation::capture(world, player);
     if rules.show_death_messages {
         broadcast_death_message(world, &message, player, cause.attacker);
     }
@@ -134,6 +140,8 @@ pub(super) fn die(world: &mut World, player: Entity, cause: DeathCause) {
             cause,
             inventory,
             keep_inventory: rules.keep_inventory,
+            attribution,
+            observation,
         },
     );
     if world.get::<Dead>(player).is_none() || world.get::<Player>(player).is_none() {

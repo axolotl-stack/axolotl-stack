@@ -154,6 +154,40 @@ pub struct PlayerDeath {
     pub inventory: Option<PlayerDeathInventory>,
     /// World policy at the committed death; individual items can also be retained.
     pub keep_inventory: bool,
+    pub(crate) attribution: crate::entity::damage::DamageAttribution,
+    pub(crate) observation: DeathObservation,
+}
+
+/// Owned native evidence captured before drops or death observers can remove the actor.
+#[derive(Debug, Clone)]
+pub(crate) struct DeathObservation {
+    pub(crate) uuid: Option<uuid::Uuid>,
+    pub(crate) name: Option<String>,
+    pub(crate) account: Option<String>,
+    pub(crate) connection: Option<crate::server::game::player_events::ConnectionIdentity>,
+    pub(crate) retained: bool,
+    pub(crate) dimension: Option<i32>,
+    pub(crate) feet: Option<DVec3>,
+}
+impl DeathObservation {
+    /// Capture only current authoritative evidence; incomplete fields remain absent.
+    pub(crate) fn capture(world: &World, player: Entity) -> Self {
+        use crate::entity::components::{PlayerName, PlayerUuid};
+        use crate::server::game::player_events::{ConnectionIdentity, DetachedPlayer};
+        Self {
+            uuid: world.get::<PlayerUuid>(player).map(|id| id.0),
+            name: world.get::<PlayerName>(player).map(|name| name.0.clone()),
+            account: crate::server::game::player_state::account_xuid(world, player)
+                .map(str::to_owned),
+            connection: ConnectionIdentity::capture(world, player),
+            retained: world.get::<DetachedPlayer>(player).is_some(),
+            dimension: world
+                .get_resource::<crate::world::ChunkManager>()
+                .map(|chunks| chunks.dimension()),
+            feet: crate::entity::geometry::feet_position(world, player)
+                .filter(|feet| feet.is_finite() && feet.as_vec3().is_finite()),
+        }
+    }
 }
 
 /// A proposed respawn, before health, hunger, position or packets change.
