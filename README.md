@@ -27,7 +27,7 @@ Unastar is the flagship server implementation built on top of Jolyne. It aims to
 
 ### 💖 [Valentine](crates/valentine)
 **The Data Layer.**
-Valentine manages the version-specific packet definitions and data schemas. It includes `valentine_gen`, a code generator that reads the pinned protocolgen canonical manifest by default, resolves discriminator and argument types once for signatures and codec args, and emits formatted Rust structs and enums for packet serialization. The workspace currently defaults to `v1_26_51`. In application code, prefer `valentine::bedrock::version::v1_26_51` as the canonical import path.
+Valentine manages the version-specific packet definitions and data schemas. It includes `valentine_gen`, a code generator that reads the pinned protocolgen canonical manifest by default, resolves discriminator and argument types once for signatures and codec args, and emits formatted Rust structs and enums for packet serialization. Jolyne and Unastar explicitly select Bedrock 1.26.60 / protocol 2225 (`v1_26_60`). The low-level Valentine crate retains `bedrock_1_26_51` as its default feature for existing callers; select `bedrock_1_26_60` explicitly for the current runtime, or enable both version features when decoding historical traffic. Canonical imports are `valentine::bedrock::version::v1_26_60` and `valentine::bedrock::version::v1_26_51`.
 *   **Use for**: Accessing raw packet definitions or generating code for new protocol versions.
 
 ### 📡 [Tokio-RakNet](crates/tokio-raknet)

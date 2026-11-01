@@ -76,12 +76,14 @@ changelog before using a schema as a release target.
 
 ## Mojang version mapping and pin policy
 
-The default codec and Jolyne runtime target Bedrock 26.60 (schema label
+The default generator input and Jolyne runtime target Bedrock 26.60 (schema label
 `1.26.60`, network protocol 2225). Its canonical manifest and source
 fingerprints are pinned under `protocolgen/generated/1.26.60/`, from the
 `cinnabar-mc/protocolgen` submodule. The generated `v1_26_51` crate remains
 available behind `bedrock_1_26_51` for explicit protocol 2193 decoding; the
-runtime does not negotiate simultaneous versions. Its non-wire actor symbol
+low-level Valentine crate retains `bedrock_1_26_51` as its default feature,
+while Jolyne explicitly selects `bedrock_1_26_60`. The runtime does not negotiate
+simultaneous versions. The retained crate's non-wire actor symbol
 vocabulary retains its documented source version independently of the selected
 codec. Older Valentine version crates (1.26.0,
 1.26.40, 1.26.44) have been removed; regenerate from their protocolgen
