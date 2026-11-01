@@ -50,6 +50,7 @@ pub(crate) use checkpoint::resume_checkpoint;
 pub(crate) mod death_capture;
 pub(crate) mod quarantine;
 pub(crate) mod restoration;
+pub(crate) mod source_actors;
 
 /// Validate complete raw state and item resolution before any accepted state write.
 pub(crate) fn preflight_restore(
@@ -241,6 +242,12 @@ pub struct PlayerSnapshot {
     pub burning_next: u64,
     pub effects: Vec<SnapshotEffect>,
     pub dead: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub food_policy: Option<crate::storage::RestorationFoodPolicy>,
+    #[serde(default)]
+    pub food_ticks: u32,
+    #[serde(default)]
+    pub food_regeneration: u32,
 }
 
 /// A snapshot failure leaves the target's gameplay and network state unchanged.
@@ -261,6 +268,50 @@ pub enum SnapshotError {
 }
 
 impl PlayerSnapshot {
+    /// Native receipt acknowledgement can advance without changing the actual held gameplay state.
+    pub(crate) fn same_physical_state(&self, other: &Self) -> bool {
+        let a = &self.data;
+        let b = &other.data;
+        self.version == other.version
+            && self.base_game_mode == other.base_game_mode
+            && self.flight_override == other.flight_override
+            && self.xuid == other.xuid
+            && self.ui == other.ui
+            && self.velocity == other.velocity
+            && self.head_yaw == other.head_yaw
+            && self.absorption == other.absorption
+            && self.air_current == other.air_current
+            && self.air_max == other.air_max
+            && self.on_fire_ticks == other.on_fire_ticks
+            && self.burning_remaining == other.burning_remaining
+            && self.burning_next == other.burning_next
+            && self.effects == other.effects
+            && self.dead == other.dead
+            && self.food_policy == other.food_policy
+            && self.food_ticks == other.food_ticks
+            && self.food_regeneration == other.food_regeneration
+            && a.uuid == b.uuid
+            && a.position == b.position
+            && a.rotation == b.rotation
+            && a.dimension == b.dimension
+            && a.game_mode == b.game_mode
+            && a.health == b.health
+            && a.food == b.food
+            && a.experience == b.experience
+            && a.inventory == b.inventory
+            && a.armour == b.armour
+            && a.offhand == b.offhand
+            && a.cursor == b.cursor
+            && a.ui == b.ui
+            && a.held_slot == b.held_slot
+            && a.ender_chest == b.ender_chest
+            && a.max_health == b.max_health
+            && a.saturation == b.saturation
+            && a.exhaustion == b.exhaustion
+            && a.experience_progress == b.experience_progress
+            && a.cold_exposure == b.cold_exposure
+            && a.age_ticks == b.age_ticks
+    }
     /// Validate the complete serializable structure before resolving item types.
     pub fn validate(&self) -> Result<(), SnapshotError> {
         if self.version != SNAPSHOT_VERSION {
@@ -272,7 +323,8 @@ impl PlayerSnapshot {
         if let Some(base) = self.base_game_mode {
             mode_from_id(base)?;
         }
-        if self.data.inventory.len() != 36
+        if self.food_regeneration >= super::hunger::FOOD_TICK_INTERVAL
+            || self.data.inventory.len() != 36
             || self.data.ender_chest.len() != crate::entity::components::ENDER_CHEST_SIZE
             || self.ui.len() != PLAYER_UI_SIZE
             || self.ui.first() != Some(&self.data.cursor)
@@ -361,6 +413,20 @@ pub fn capture(world: &World, player: Entity) -> Result<PlayerSnapshot, Snapshot
     let snapshot = PlayerSnapshot {
         version: SNAPSHOT_VERSION,
         data,
+        food_policy: world
+            .get::<super::hunger::PlayerFoodPolicy>(player)
+            .map(|policy| crate::storage::RestorationFoodPolicy {
+                exhaustion: policy.exhaustion,
+                food_drain: policy.food_drain,
+                natural_regeneration: policy.natural_regeneration,
+                starvation: policy.starvation,
+            }),
+        food_ticks: world
+            .get::<super::hunger::FoodTimer>(player)
+            .map_or(0, |timer| timer.ticks),
+        food_regeneration: world
+            .get::<super::hunger::FoodTimer>(player)
+            .map_or(0, |timer| timer.regeneration),
         flight_override: super::flight::override_value(world, player),
         base_game_mode: crate::command::exec::mode_override(world, player)
             .and_then(|_| crate::command::exec::base_game_mode(world, player))
@@ -527,6 +593,24 @@ pub fn restore(
         if let Some(burning) = burning {
             entity.insert(burning);
         }
+    }
+    world.entity_mut(player).insert(super::hunger::FoodTimer {
+        ticks: snapshot.food_ticks,
+        regeneration: snapshot.food_regeneration,
+    });
+    if let Some(policy) = snapshot.food_policy {
+        world
+            .entity_mut(player)
+            .insert(super::hunger::PlayerFoodPolicy {
+                exhaustion: policy.exhaustion,
+                food_drain: policy.food_drain,
+                natural_regeneration: policy.natural_regeneration,
+                starvation: policy.starvation,
+            });
+    } else {
+        world
+            .entity_mut(player)
+            .remove::<super::hunger::PlayerFoodPolicy>();
     }
     super::flight::restore_override(world, player, snapshot.flight_override);
     crate::command::exec::restore_game_mode(world, player, prepared.mode, prepared.base_mode);

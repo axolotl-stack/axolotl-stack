@@ -111,6 +111,39 @@ pub(super) fn die(
     if let Some(mut fall) = world.get_mut::<PlayerFall>(player) {
         *fall = PlayerFall::default();
     }
+    if crate::server::game::player_state::source_actors::defer_death(
+        world,
+        player,
+        cause,
+        attribution,
+    ) {
+        return;
+    }
+    finish_death(world, player, cause, attribution);
+}
+
+/// Resume the actual native death pipeline only after a managed source terminal write acknowledges.
+pub(crate) fn finish_death(
+    world: &mut World,
+    player: Entity,
+    cause: DeathCause,
+    attribution: crate::entity::damage::DamageAttribution,
+) {
+    let rules = world.resource::<GameRules>().clone();
+    finish_death_with_rules(world, player, cause, attribution, rules);
+}
+
+/// A deferred native death keeps its original drop disposition through the durable barrier.
+pub(crate) fn finish_death_with_rules(
+    world: &mut World,
+    player: Entity,
+    cause: DeathCause,
+    attribution: crate::entity::damage::DamageAttribution,
+    rules: GameRules,
+) {
+    if world.get::<Dead>(player).is_none() || world.get::<Player>(player).is_none() {
+        return;
+    }
     super::hurt::send_player_event(world, player, EnumsActorEvent::Death);
 
     let message = death_message(world, player, cause);
@@ -124,7 +157,6 @@ pub(super) fn die(
                 .collect(),
         }));
     }
-    let rules = world.resource::<GameRules>().clone();
     let inventory = hooks::PlayerDeathInventory::capture(world, player);
     let observation = hooks::DeathObservation::capture(world, player);
     let state = crate::server::game::player_state::death_capture::capture(world, player);
@@ -150,7 +182,11 @@ pub(super) fn die(
         return;
     }
     respawn::open_respawn_screen(world, player);
-    if rules.do_immediate_respawn {
+    if rules.do_immediate_respawn
+        && world
+            .get::<crate::server::game::player_state::source_actors::ManagedSource>(player)
+            .is_none()
+    {
         respawn::respawn(world, player);
     }
 }

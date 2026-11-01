@@ -332,6 +332,38 @@ holds remain unavailable until a separate explicit retirement operation.
 The source archive may be persisted while its hold is still staged, closing the
 reload gap before physical withholding. Archive acknowledgement alone does not
 mean a hold exists; its status and exact native-anchor resolution remain separate.
+`SourceFenceStatus::Consumed` binds the source to one accepted operation; it is
+not a durable acknowledgement. A queued or uncertain operation still requires
+its own canonical result before a component can report successful installation.
+
+`SourceFence::checkpoint` can establish canonical source ownership only for that
+actual accepted hold. `ArchivedPlayerState::source` observes the current canonical
+generation without constructing a player. Its `SourceActorOperation` reports
+staged, queued, observed, unowned, rejected, uncertain or cancelled status.
+Observed state separately reports the durable phase (`Frozen`, `Active`,
+`Retired`, `Transferred` or `Terminal`) and physical availability. Absence and
+`Unowned` never imply consumption. Retained operation and archive resources do
+not authorize a replacement generation or an unrelated component namespace.
+Read-only inspection reports `live_applied = false`, even when a real body is
+present; its separate physical observation describes that body's availability.
+
+Explicit `recreate` uses the latest acknowledged canonical state to create a new
+native, sessionless retained actor. It starts held and has no historical network
+session or chunk-viewing client. Explicit `activate` acknowledges the transition
+before releasing its real state; complete source checkpoints preserve native
+food policy and timer phase. Ordinary captures of an active source advance its
+current canonical physical sample. `retire` acknowledges a tombstone before
+removing the held actor and supports idempotent replay. An uncertain writer or
+closed world leaves the source fenced for reconciliation.
+
+An active source's death withholds native drops until its canonical terminal
+record contains the actual post-drop inventory. A `CommittedBeforeDrops` death
+archive remains historical evidence and cannot become source recreation
+authority. This barrier prevents revival of the pre-drop inventory; it does not
+promise replay of world drops or guest notifications across a process crash.
+Frozen handoff is explicit: a continuously mutable, unfenced source cannot be
+silently consumed by a state installation. Such a request is rejected while any
+deferred target remains unpublished.
 
 Complete installation saves a nonrecursive checkpoint and the new receipt in one
 canonical record before live application. Stock hydration restores its typed

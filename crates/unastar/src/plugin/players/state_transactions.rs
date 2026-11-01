@@ -25,6 +25,7 @@ struct Retained {
     expected: Arc<values::Value<super::state::Image>>,
     desired: Arc<values::Value<super::state::Image>>,
     source: Option<Arc<super::state_sources::Fence>>,
+    canonical: Option<Arc<crate::storage::PlayerData>>,
     _copies: Arc<values::Value<()>>,
     _slot: Slot,
 }
@@ -280,7 +281,7 @@ impl HostContext {
             && (source.reference.uuid != reference.uuid
                 || source.reference.identity.authenticated_xuid
                     != reference.identity.authenticated_xuid
-                || source.image.expected != desired.expected)
+                || !source.image.expected.same_physical_state(&desired.expected))
         {
             return Err(wit::StateError::Conflict);
         }
@@ -304,6 +305,11 @@ impl HostContext {
             .own((), bytes)
             .map_err(wit::StateError::Access)?;
         let retained = Arc::new(Retained {
+            canonical: if matches!(permit, Permit::Initializing(_)) {
+                desired.canonical.clone()
+            } else {
+                None
+            },
             expected,
             desired,
             source,
@@ -514,6 +520,16 @@ fn run(router: &mut crate::server::worlds::DimensionRouter, mut queued: QueueGua
             return;
         }
     }
+    let source_proof = queued.retained.source.as_ref().and_then(|source| {
+        router.world(source.world.dimension).and_then(|server| {
+            let world = server.ecs.world();
+            let actor = source.player(world)?;
+            let managed = world
+                .get::<crate::server::game::player_state::source_actors::ManagedSource>(actor)?;
+            (source.matches(world) && managed.record.module == source.module)
+                .then(|| managed.proof())
+        })
+    });
     let world = router
         .world_mut(operation.world.dimension)
         .expect("validated owner world")
@@ -526,12 +542,18 @@ fn run(router: &mut crate::server::worlds::DimensionRouter, mut queued: QueueGua
     });
     match native::submit(
         world,
-        queued.target.clone(),
-        operation.key.1.clone(),
-        operation.hash,
-        queued.retained.expected.expected.clone(),
-        queued.retained.desired.candidate.clone(),
-        lease,
+        native::StateSubmission {
+            target: queued.target.clone(),
+            id: operation.key.1.clone(),
+            hash: operation.hash,
+            expected: queued.retained.expected.expected.clone(),
+            desired: queued.retained.desired.candidate.clone(),
+            origin: crate::storage::player_writer::StateOrigin {
+                source: source_proof,
+                baseline: queued.retained.canonical.clone(),
+            },
+            retention: lease,
+        },
     ) {
         Ok(native::Submission::Queued) => {
             if let Some(source) = &queued.retained.source {

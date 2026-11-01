@@ -211,6 +211,11 @@ fn apply_hit_result_attributed(
 /// Validate an incoming or extension-adjusted hit against current player state.
 /// This is repeated after callbacks, which may change or remove that state.
 fn eligible_hit(world: &World, player: Entity, hit: &Hit) -> bool {
+    if crate::server::game::player_state::source_actors::admission_blocked(world, player)
+        || crate::server::game::inventory_effects::is_quarantined(world, player)
+    {
+        return false;
+    }
     if crate::entity::conditions::rejects_fire_damage(world, player, hit.cause) {
         return false;
     }
@@ -356,6 +361,18 @@ fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPo
             .0
             .gen_range(0.0..std::f64::consts::TAU);
         away = DVec2::from_angle(angle);
+    }
+    if world.get::<PlayerSession>(player).is_none()
+        && world
+            .get::<crate::server::game::player_state::source_actors::ManagedSource>(player)
+            .is_some_and(|managed| {
+                managed.record.phase == crate::storage::source::SourcePhase::Active
+            })
+    {
+        if let Some(mut actual) = world.get_mut::<crate::entity::components::Velocity>(player) {
+            actual.0 = knockback_velocity(actual.0, away.normalize(), power);
+        }
+        return;
     }
     let velocity = knockback_velocity(DVec3::ZERO, away.normalize(), power);
     let (Some(session), Some(runtime_id)) = (

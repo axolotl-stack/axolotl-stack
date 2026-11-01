@@ -25,6 +25,7 @@ pub use router::{DimensionRouter, WorldTickError};
 pub use transfer::{find_safe_destination, is_safe_destination};
 
 pub use loading::is_loading;
+pub(crate) use transfer::prepare_chunks_with_anchor;
 
 #[cfg(test)]
 mod tests;

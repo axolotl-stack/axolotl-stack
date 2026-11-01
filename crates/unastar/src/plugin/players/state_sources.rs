@@ -26,6 +26,22 @@ pub(super) struct Fence {
     _copies: Arc<values::Value<()>>,
 }
 impl Fence {
+    /// Only an actual original withheld holder supplies native checkpoint authority.
+    pub(super) fn hold(&self, world: &World) -> Option<quarantine::Handle> {
+        let hold = match &*self.phase.lock() {
+            Phase::Held(handle) | Phase::Consumed { handle, .. } => handle.clone(),
+            _ => return None,
+        };
+        self.matches(world).then_some(hold)
+    }
+    /// Read the real withheld actor only while every original native ownership check holds.
+    pub(super) fn player(&self, world: &World) -> Option<Entity> {
+        let player = match &*self.phase.lock() {
+            Phase::Held(handle) | Phase::Consumed { handle, .. } => handle.player,
+            _ => return None,
+        };
+        self.matches(world).then_some(player)
+    }
     /// An owned token never resolves by account, display name or historical session number.
     pub(super) fn matches(&self, world: &World) -> bool {
         self.world.matches(world)
@@ -70,6 +86,9 @@ impl Fence {
             Phase::Held(handle) | Phase::Consumed { handle, .. } if handle.is_gone() => {
                 wit::SourceFenceStatus::Gone
             }
+            Phase::Held(handle) | Phase::Consumed { handle, .. } if handle.is_released() => {
+                wit::SourceFenceStatus::Released
+            }
             Phase::Held(_) => wit::SourceFenceStatus::Held,
             Phase::Consumed { .. } => wit::SourceFenceStatus::Consumed,
             Phase::Cancelled => wit::SourceFenceStatus::Cancelled,
@@ -80,10 +99,84 @@ impl Fence {
 #[derive(Component)]
 pub(super) struct Anchor(pub(super) Arc<Fence>);
 
+/// An activated body no longer retains an expired holding image solely through its native cache.
+pub(crate) fn release_inactive_anchor(world: &mut World, player: Entity) {
+    if world
+        .get::<Anchor>(player)
+        .is_some_and(|anchor| !anchor.0.matches(world))
+    {
+        world.entity_mut(player).remove::<Anchor>();
+    }
+}
+
 #[derive(Default)]
 pub(in crate::plugin::manager) struct Pending(Vec<Arc<Fence>>);
 
 impl HostContext {
+    /// Canonical recreation grants a new fence only over its genuine existing native holder.
+    pub(super) fn adopt_source_fence(
+        &mut self,
+        operation: &crate::server::game::player_state::source_actors::Operation,
+    ) -> Result<Resource<wit::SourceFence>, wit::StateError> {
+        let world = unsafe { self.world() };
+        let player = operation.player(world).ok_or(wit::StateError::SourceGone)?;
+        let hold = world
+            .get::<crate::server::game::player_state::source_actors::SourceBody>(player)
+            .ok_or(wit::StateError::SourceGone)?
+            .0
+            .clone();
+        if !quarantine::matches(world, &hold) {
+            return Err(wit::StateError::SourceGone);
+        }
+        if let Some(anchor) = world.get::<Anchor>(player) {
+            if anchor.0.module != self.plugin_id.0 || !anchor.0.matches(world) {
+                return Err(wit::StateError::Conflict);
+            }
+            return self
+                .resources
+                .allocate(
+                    Entry::SourceFence(anchor.0.clone()),
+                    self.api_limits.max_owned_resources,
+                )
+                .map(Resource::new_own)
+                .map_err(wit::StateError::Access);
+        }
+        let image_resource = self
+            .state_from_source(operation)
+            .map_err(wit::StateError::Access)?;
+        let image_rep = image_resource.rep();
+        let image = self
+            .state_image(image_rep)
+            .map_err(wit::StateError::Access)?;
+        self.resources.entries.remove(&image_rep);
+        let copies = self
+            .resources
+            .value_budget
+            .own((), image.bytes())
+            .map_err(wit::StateError::Access)?;
+        let world = self.world_mut();
+        let reference = ensure_identity(world, player).map_err(wit::StateError::Access)?;
+        let source = Arc::new(Fence {
+            id: uuid::Uuid::parse_str(&operation.reference.nonce)
+                .map_err(|_| wit::StateError::InvalidImage)?,
+            module: operation.reference.module.clone(),
+            reference,
+            world: WorldReference::of(world).map_err(wit::StateError::Access)?,
+            image,
+            phase: Mutex::new(Phase::Held(hold)),
+            _copies: copies,
+        });
+        let resource = self
+            .resources
+            .allocate(
+                Entry::SourceFence(source.clone()),
+                self.api_limits.max_owned_resources,
+            )
+            .map(Resource::new_own)
+            .map_err(wit::StateError::Access)?;
+        self.world_mut().entity_mut(player).insert(Anchor(source));
+        Ok(resource)
+    }
     /// Reopening an archive can observe the same engine-held source, never recreate it.
     pub(super) fn reacquire_state_fence(
         &mut self,
@@ -171,8 +264,19 @@ impl HostContext {
             .value_budget
             .own((), image.bytes())
             .map_err(wit::StateError::Access)?;
+        let id = match unsafe { self.world() }
+            .get::<crate::server::game::player_state::source_actors::ManagedSource>(
+            player,
+        ) {
+            Some(managed) if managed.record.module == self.plugin_id.0 => {
+                uuid::Uuid::parse_str(&managed.record.nonce)
+                    .map_err(|_| wit::StateError::RecoveryRequired)?
+            }
+            Some(_) => return Err(wit::StateError::Access(wit::AccessError::PermissionDenied)),
+            None => uuid::Uuid::new_v4(),
+        };
         let source = Arc::new(Fence {
-            id: uuid::Uuid::new_v4(),
+            id,
             module: self.plugin_id.0.clone(),
             reference,
             world,
@@ -242,6 +346,13 @@ pub(in crate::plugin::manager) fn finish(
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostSourceFence for HostContext {
+    fn checkpoint(
+        &mut self,
+        source: Resource<wit::SourceFence>,
+        tx: Resource<wit::WorldTx>,
+    ) -> Result<Resource<wit::SourceActorOperation>, wit::StateError> {
+        self.checkpoint_source(source.rep(), tx.rep())
+    }
     fn status(
         &mut self,
         source: Resource<wit::SourceFence>,

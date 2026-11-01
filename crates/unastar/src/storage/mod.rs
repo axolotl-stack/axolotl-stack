@@ -14,7 +14,10 @@ mod keys;
 pub mod player_writer;
 mod provider;
 mod restoration;
-pub use restoration::{RestorationCheckpoint, RestorationEffect, RestorationSupplement};
+pub use restoration::{
+    RestorationCheckpoint, RestorationEffect, RestorationFoodPolicy, RestorationSupplement,
+};
+pub mod source;
 
 // LevelDB implementations
 mod leveldb_player;

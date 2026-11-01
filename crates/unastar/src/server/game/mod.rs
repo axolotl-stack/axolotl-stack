@@ -118,8 +118,16 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 /// will respawn (respawn position, full health, fresh hunger), so it never
 /// reloads with zero health.
 pub(super) fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
-    if crate::plugin::manager::sessions::blocks_publication(world, entity) {
+    if crate::plugin::manager::sessions::blocks_publication(world, entity)
+        || player_state::source_actors::admission_blocked(world, entity)
+    {
         return None;
+    }
+    if world
+        .get::<player_state::source_actors::ManagedSource>(entity)
+        .is_some()
+    {
+        return player_state::source_actors::active_record(world, entity);
     }
     transaction_player_record(world, entity)
 }
@@ -198,6 +206,7 @@ pub(super) fn capture_player_record(
                 .get::<crate::entity::components::Age>(entity)
                 .map_or(0, |age| age.0),
             restoration_checkpoint: None,
+            source_actor: None,
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -991,6 +1000,10 @@ impl GameServer {
             .as_ref()
             .filter(|data| data.restoration_checkpoint.is_some())
             .cloned();
+        let source_checkpoint = saved_data
+            .as_ref()
+            .filter(|data| data.source_actor.is_some())
+            .cloned();
         let inventory_persistence =
             inventory_effects::InventoryPersistence::from_record(saved_data.as_ref());
         let (main_inventory, armour, offhand, ui, ender_chest) = match saved_data.as_mut() {
@@ -1120,6 +1133,19 @@ impl GameServer {
             ));
         }
 
+        if let Some(checkpoint) = source_checkpoint
+            && let Err(error) =
+                player_state::source_actors::resume(self.ecs.world_mut(), entity, &checkpoint)
+        {
+            self.ecs
+                .world_mut()
+                .resource_mut::<SessionEntityMap>()
+                .remove(data.session_id);
+            self.ecs.world_mut().despawn(entity);
+            return Err(crate::storage::StorageError::Deserialization(
+                error.to_string(),
+            ));
+        }
         player_events::joined(self.ecs.world_mut(), entity);
         if self.ecs.world().get::<PlayerSession>(entity).is_some() {
             if !player_events::initial_state_pending(self.ecs.world(), entity) {

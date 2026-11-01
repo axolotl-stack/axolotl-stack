@@ -172,7 +172,8 @@ fn add_effect_state_scaled_from(
     if world
         .get::<crate::entity::components::Player>(player)
         .is_some()
-        && super::inventory_effects::is_quarantined(world, player)
+        && (super::inventory_effects::is_quarantined(world, player)
+            || super::player_state::source_actors::admission_blocked(world, player))
     {
         return false;
     }
@@ -301,17 +302,20 @@ fn pulses(base: u32, amplifier: u8, remaining: u32) -> bool {
 /// System: what the active effects do to each player this tick. Runs after
 /// `tick_effects` has counted the durations down.
 #[allow(clippy::type_complexity)]
-pub fn apply_player_effects(
+pub(crate) fn apply_player_effects(
     mut commands: Commands,
-    mut players: Query<(
-        Entity,
-        &Effects,
-        &mut Health,
-        &mut Hunger,
-        &GameMode,
-        Option<&mut Absorption>,
-        Option<&super::hunger::PlayerFoodPolicy>,
-    )>,
+    mut players: Query<
+        (
+            Entity,
+            &Effects,
+            &mut Health,
+            &mut Hunger,
+            &GameMode,
+            Option<&mut Absorption>,
+            Option<&super::hunger::PlayerFoodPolicy>,
+        ),
+        Without<super::player_state::source_actors::SourceAdmissionBlocked>,
+    >,
     mut absent: Query<&mut Absorption, Without<Effects>>,
 ) {
     for (player, effects, mut health, mut hunger, mode, absorption, food_policy) in &mut players {

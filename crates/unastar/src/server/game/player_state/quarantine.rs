@@ -23,6 +23,10 @@ impl Handle {
     pub(crate) fn is_gone(&self) -> bool {
         self.life.load(Ordering::Acquire) == GONE
     }
+    /// Activation released these exact buffers without implying that their values were consumed.
+    pub(crate) fn is_released(&self) -> bool {
+        self.life.load(Ordering::Acquire) == RELEASED
+    }
 }
 
 /// A source hold is permanent until a separate explicit retirement operation.
@@ -112,6 +116,7 @@ held_fields! {
     velocity:Velocity,effects:Effects,air:AirSupply,fire:OnFire,burning:Burning,absorption:Absorption,
     age:Age,cold:FreezingState,mode:GameMode,state:crate::entity::components::PlayerState,input:crate::entity::components::PlayerInput,
     breaking:BreakingState,using:super::super::item_use::ItemUsing,
+    food_policy:super::super::hunger::PlayerFoodPolicy,food_timer:super::super::hunger::FoodTimer,
 }
 
 #[derive(Component)]
@@ -209,6 +214,68 @@ pub(crate) fn matches(world: &World, handle: &Handle) -> bool {
             && frozen.owner.matches(world, handle.player)
             && Fields::withheld(world, handle.player)
     })
+}
+
+/// Read only the exact genuine buffers still owned by this native source hold.
+pub(crate) fn source_snapshot(world: &World, handle: &Handle) -> Option<Arc<PlayerSnapshot>> {
+    if !matches(world, handle) {
+        return None;
+    }
+    let frozen = world.get::<Frozen>(handle.player)?;
+    (frozen.role == Role::Source).then(|| frozen._snapshot.clone())
+}
+
+/// Acknowledged receipts advance without replacing the actual held source's gameplay buffers.
+pub(crate) fn acknowledge_source_receipts(
+    world: &mut World,
+    handle: &Handle,
+    data: &PlayerData,
+) -> bool {
+    if !matches(world, handle) {
+        return false;
+    }
+    let Some(mut frozen) = world.get_mut::<Frozen>(handle.player) else {
+        return false;
+    };
+    if frozen.role != Role::Source || frozen._snapshot.data.uuid != data.uuid {
+        return false;
+    }
+    let mut snapshot = (*frozen._snapshot).clone();
+    snapshot.data.inventory_revision = data.inventory_revision;
+    snapshot.data.inventory_effects = data.inventory_effects.clone();
+    snapshot.data.restoration_checkpoint = None;
+    snapshot.data.source_actor = None;
+    frozen._snapshot = Arc::new(snapshot);
+    true
+}
+
+/// A source becomes physically active only after its canonical activation is acknowledged.
+pub(crate) fn release_source(world: &mut World, handle: &Handle) -> bool {
+    if !matches(world, handle)
+        || world
+            .get::<Frozen>(handle.player)
+            .is_none_or(|frozen| frozen.role != Role::Source)
+    {
+        return false;
+    }
+    let mut frozen = world
+        .entity_mut(handle.player)
+        .take::<Frozen>()
+        .expect("validated held source");
+    let snapshot = frozen._snapshot.clone();
+    frozen.handle.life.store(RELEASED, Ordering::Release);
+    frozen
+        .fields
+        .take()
+        .expect("owned source buffers")
+        .put(world, handle.player);
+    if restore(world, handle.player, &snapshot).is_err() {
+        frozen.fields = Some(Fields::take(world, handle.player));
+        frozen.handle.life.store(HELD, Ordering::Release);
+        world.entity_mut(handle.player).insert(frozen);
+        return false;
+    }
+    true
 }
 
 /// Reinstall exact target state after a proven pre-write rejection, never a source fence.

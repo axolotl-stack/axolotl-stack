@@ -36,16 +36,37 @@ pub struct RestorationSupplement {
     pub burning_next: u64,
     pub effects: Vec<RestorationEffect>,
     pub dead: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub food_policy: Option<RestorationFoodPolicy>,
+    #[serde(default)]
+    pub food_ticks: u32,
+    #[serde(default)]
+    pub food_regeneration: u32,
+}
+
+/// Actual transient native food permissions accompany complete physical-state handoffs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RestorationFoodPolicy {
+    pub exhaustion: bool,
+    pub food_drain: bool,
+    pub natural_regeneration: bool,
+    pub starvation: bool,
 }
 
 impl RestorationSupplement {
     /// Validate immutable extra state before persistence or reconstruction.
     pub fn validate(&self, data: &PlayerData) -> StorageResult<()> {
+        self.validate_mode(data, data.game_mode)
+    }
+
+    /// Complete snapshots carry an effective mode while the canonical row retains its base.
+    pub(crate) fn validate_mode(&self, data: &PlayerData, canonical_mode: u8) -> StorageResult<()> {
         let valid_mode = |mode| matches!(mode, 0 | 1 | 2 | 6);
         if self.version != 1
             || !valid_mode(self.effective_mode)
             || self.base_mode.is_some_and(|mode| !valid_mode(mode))
-            || self.base_mode.unwrap_or(self.effective_mode) != data.game_mode
+            || self.base_mode.unwrap_or(self.effective_mode) != canonical_mode
             || self.dead != (data.health == 0.0)
             || self
                 .velocity
@@ -59,6 +80,7 @@ impl RestorationSupplement {
             || self.air_current > self.air_max
             || (self.burning_remaining == 0 && self.burning_next != 0)
             || self.effects.len() > 36
+            || self.food_regeneration >= crate::server::game::hunger::FOOD_TICK_INTERVAL
             || self
                 .effects
                 .iter()

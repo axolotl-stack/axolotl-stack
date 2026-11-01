@@ -39,6 +39,7 @@ pub(crate) fn initial_state_ready(world: &World, player: Entity) -> bool {
     complete(world, player)
         && !super::super::inventory_effects::is_quarantined(world, player)
         && !super::super::inventory_effects::is_recovery_fenced(world, player)
+        && !super::super::player_state::source_actors::admission_blocked(world, player)
 }
 
 impl PendingInitialState {

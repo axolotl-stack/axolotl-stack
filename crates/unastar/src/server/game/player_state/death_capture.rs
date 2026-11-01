@@ -33,7 +33,7 @@ impl std::fmt::Debug for Capture {
 }
 
 /// Estimate borrowed dynamic data before the full snapshot clones any item or receipt buffers.
-fn estimate(world: &World, player: Entity) -> Result<usize, Error> {
+pub(super) fn estimate(world: &World, player: Entity) -> Result<usize, Error> {
     let main = world
         .get::<MainInventory>(player)
         .ok_or(Error::Unavailable)?;

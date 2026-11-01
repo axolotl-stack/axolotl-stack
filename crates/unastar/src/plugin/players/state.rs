@@ -18,6 +18,7 @@ pub(super) struct Image {
     pub(super) destination: Option<WorldReference>,
     pub(super) registry: Arc<crate::registry::ItemRegistry>,
     pub(super) captured_tick: u64,
+    pub(super) canonical: Option<Arc<crate::storage::PlayerData>>,
     provenance: [u8; 32],
     bytes: usize,
 }
@@ -116,6 +117,14 @@ fn values(snapshot: &NativeSnapshot) -> Result<wit::StateValues, wit::AccessErro
         food: data.food as u8,
         saturation: data.saturation,
         exhaustion: data.exhaustion,
+        food_policy: snapshot.food_policy.map(|policy| wit::FoodPolicy {
+            exhaustion: policy.exhaustion,
+            food_drain: policy.food_drain,
+            natural_regeneration: policy.natural_regeneration,
+            starvation: policy.starvation,
+        }),
+        food_ticks: snapshot.food_ticks,
+        food_regeneration: snapshot.food_regeneration,
         experience: data.experience as u32,
         experience_progress: data.experience_progress,
         base_mode: mode(snapshot.base_game_mode.unwrap_or(data.game_mode))?,
@@ -171,6 +180,16 @@ fn put_values(
     snapshot.data.food = values.food.into();
     snapshot.data.saturation = values.saturation;
     snapshot.data.exhaustion = values.exhaustion;
+    snapshot.food_policy = values
+        .food_policy
+        .map(|policy| crate::storage::RestorationFoodPolicy {
+            exhaustion: policy.exhaustion,
+            food_drain: policy.food_drain,
+            natural_regeneration: policy.natural_regeneration,
+            starvation: policy.starvation,
+        });
+    snapshot.food_ticks = values.food_ticks;
+    snapshot.food_regeneration = values.food_regeneration;
     snapshot.data.experience =
         i32::try_from(values.experience).map_err(|_| wit::AccessError::InvalidArgument)?;
     snapshot.data.experience_progress = values.experience_progress;
@@ -203,6 +222,69 @@ fn put_values(
 }
 
 impl HostContext {
+    /// A canonical source observation is detached state and cannot pose as a fresh target.
+    pub(super) fn state_from_source(
+        &mut self,
+        operation: &crate::server::game::player_state::source_actors::Operation,
+    ) -> Result<Resource<wit::PlayerStateImage>, wit::AccessError> {
+        let observed = operation
+            .observation()
+            .ok_or(wit::AccessError::Unavailable)?;
+        let bytes = observed
+            .retained_bytes()
+            .map_err(|_| wit::AccessError::LimitExceeded)?;
+        let bytes = bytes
+            .checked_mul(6)
+            .ok_or(wit::AccessError::LimitExceeded)?;
+        let reservation = self.resources.value_budget.reserve(bytes)?;
+        let snapshot = Arc::new(
+            observed
+                .snapshot()
+                .map_err(|_| wit::AccessError::Unavailable)?,
+        );
+        let generation = observed.source.generation.to_be_bytes();
+        let mut baseline = HashWriter {
+            hash: Sha256::new(),
+            bytes: 0,
+        };
+        serde_json::to_writer(&mut baseline, observed.data.as_ref())
+            .map_err(|_| wit::AccessError::LimitExceeded)?;
+        let baseline: [u8; 32] = baseline.hash.finalize().into();
+        self.own_state_image(
+            reservation.bind(Image {
+                binding: None,
+                expected: snapshot.clone(),
+                candidate: snapshot,
+                owner: wit::PlayerIdentity {
+                    uuid: operation.reference.uuid.to_string(),
+                    authenticated_xuid: operation
+                        .reference
+                        .xuid
+                        .as_deref()
+                        .and_then(|xuid| xuid.parse().ok()),
+                    name: operation.reference.name.clone(),
+                    connection_id: None,
+                },
+                world: wit::ArchiveWorld {
+                    uuid: operation.reference.world.to_string(),
+                    name: operation.world_name.clone(),
+                    dimension: operation.reference.dimension,
+                },
+                destination: None,
+                registry: operation.registry.clone(),
+                captured_tick: operation.tick,
+                canonical: Some(observed.data.clone()),
+                provenance: provenance(&[
+                    b"canonical-source",
+                    self.plugin_id.0.as_bytes(),
+                    operation.reference.nonce.as_bytes(),
+                    &generation,
+                    &baseline,
+                ]),
+                bytes,
+            }),
+        )
+    }
     /// Death images are owned historical evidence, never fresh expected targets or live sources.
     pub(super) fn state_from_death(
         &mut self,
@@ -211,6 +293,8 @@ impl HostContext {
     ) -> Result<Resource<wit::PlayerStateImage>, wit::AccessError> {
         let bytes = capture
             .bytes
+            .checked_mul(2)
+            .ok_or(wit::AccessError::LimitExceeded)?
             .checked_add(4096)
             .ok_or(wit::AccessError::LimitExceeded)?;
         let reservation = self.resources.value_budget.reserve(bytes)?;
@@ -227,6 +311,7 @@ impl HostContext {
             destination: None,
             registry: capture.registry.clone(),
             captured_tick: capture.tick,
+            canonical: None,
             provenance: provenance(&[
                 b"death",
                 self.plugin_id.0.as_bytes(),
@@ -326,6 +411,7 @@ impl HostContext {
             destination: Some(origin),
             registry,
             captured_tick,
+            canonical: None,
             provenance: proof,
             bytes,
         }))
@@ -339,10 +425,20 @@ impl HostContext {
         let bytes = archive
             .loaded
             .bytes
-            .checked_mul(2)
+            .checked_mul(if archive.loaded.record.source_actor.is_some() {
+                3
+            } else {
+                2
+            })
             .and_then(|bytes| bytes.checked_add(16384))
             .ok_or(wit::AccessError::LimitExceeded)?;
         let reservation = self.resources.value_budget.reserve(bytes)?;
+        let canonical = archive
+            .loaded
+            .record
+            .canonical_source()
+            .map_err(|_| wit::AccessError::InvalidArgument)?
+            .map(Arc::new);
         let native = Arc::new(archive.loaded.record.state.clone());
         let source = &archive.loaded.record.world;
         let reference = &archive.loaded.reference;
@@ -366,6 +462,7 @@ impl HostContext {
             destination: None,
             registry: archive.registry.clone(),
             captured_tick: archive.loaded.record.captured_tick,
+            canonical,
             provenance: proof,
             bytes,
         }))
@@ -401,6 +498,7 @@ impl HostContext {
             destination: target,
             registry: image.registry.clone(),
             captured_tick: image.captured_tick,
+            canonical: image.canonical.clone(),
             provenance: image.provenance,
             bytes,
         }))

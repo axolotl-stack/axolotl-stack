@@ -33,17 +33,29 @@ impl PlayerSnapshot {
                 })
                 .collect(),
             dead: self.dead,
+            food_policy: self.food_policy,
+            food_ticks: self.food_ticks,
+            food_regeneration: self.food_regeneration,
         }
     }
 
     /// Reconstruct gameplay only; canonical account fields, epoch and receipts stay current.
     pub(crate) fn from_checkpoint(
-        mut data: PlayerData,
+        data: PlayerData,
         checkpoint: &RestorationCheckpoint,
     ) -> Result<Self, SnapshotError> {
         checkpoint.validate(&data).map_err(invalid)?;
-        let supplement = &checkpoint.supplement;
+        Self::from_supplement(data, &checkpoint.supplement)
+    }
+
+    /// Rebuild raw values beside their current canonical slots and proof history.
+    pub(crate) fn from_supplement(
+        mut data: PlayerData,
+        supplement: &RestorationSupplement,
+    ) -> Result<Self, SnapshotError> {
+        supplement.validate(&data).map_err(invalid)?;
         data.restoration_checkpoint = None;
+        data.source_actor = None;
         data.game_mode = supplement.effective_mode;
         let snapshot = Self {
             version: SNAPSHOT_VERSION,
@@ -73,6 +85,9 @@ impl PlayerSnapshot {
                 })
                 .collect(),
             dead: supplement.dead,
+            food_policy: supplement.food_policy,
+            food_ticks: supplement.food_ticks,
+            food_regeneration: supplement.food_regeneration,
         };
         snapshot.validate()?;
         Ok(snapshot)
@@ -198,6 +213,7 @@ mod tests {
                 [19; 32],
                 candidate,
                 snapshot.supplement(),
+                crate::storage::player_writer::StateOrigin::default(),
             )
             .await
             .unwrap();

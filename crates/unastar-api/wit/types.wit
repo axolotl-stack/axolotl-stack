@@ -763,6 +763,8 @@ interface types {
         /// Reacquire only an existing exact native source hold in this transaction world.
         /// Absence never recreates an actor or grants a historical player capability.
         source-fence: func(tx: borrow<world-tx>) -> result<option<source-fence>, state-error>;
+        /// Inspect exact canonical source ownership; an absent ledger is unowned, never consumed.
+        source: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
         reference: func() -> result<archive-reference, access-error>;
         facts: func() -> result<archive-facts, access-error>;
         inventory: func() -> result<inventory-image, access-error>;
@@ -905,6 +907,9 @@ interface types {
         food: u8,
         saturation: f32,
         exhaustion: f32,
+        food-policy: option<food-policy>,
+        food-ticks: u32,
+        food-regeneration: u32,
         experience: u32,
         experience-progress: f32,
         base-mode: game-mode,
@@ -935,12 +940,32 @@ interface types {
         not-installed, unsupported-provider, invalid-identifier, not-applied,
         recovery-required, source-gone, unsafe-position, timed-out,
     }
-    enum source-fence-status { staged, held, consumed, gone, cancelled }
+    enum source-fence-status { staged, held, consumed, gone, cancelled, released }
     /// Dropping this observer never reactivates an accepted native source hold.
     resource source-fence {
         status: func() -> result<source-fence-status, access-error>;
         state-image: func() -> result<player-state-image, access-error>;
         archive: func(key: string) -> result<archive-reference, archive-error>;
+        /// Requires the actual accepted native hold and waits for a canonical source checkpoint.
+        checkpoint: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+    }
+    enum source-actor-phase { frozen, active, retired, transferred, terminal }
+    enum source-actor-physical { unavailable, absent, held, present }
+    record source-actor-observation { phase: source-actor-phase, generation: u64, live-applied: bool, physical: source-actor-physical }
+    variant source-actor-status {
+        staged, queued, observed(source-actor-observation), unowned,
+        rejected(state-error), uncertain, cancelled,
+    }
+    /// Owned canonical observations do not synthesize a scoped player or a past connection.
+    resource source-actor-operation {
+        status: func() -> result<source-actor-status, access-error>;
+        state-image: func() -> result<player-state-image, access-error>;
+        archive: func(key: string) -> result<archive-reference, archive-error>;
+        player: func(tx: borrow<world-tx>) -> result<option<player-handle>, state-error>;
+        source-fence: func(tx: borrow<world-tx>) -> result<source-fence, state-error>;
+        recreate: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+        activate: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+        retire: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
     }
     record state-commit {
         receipt: inventory-receipt,

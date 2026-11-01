@@ -37,10 +37,13 @@ mod death_archives;
 mod items;
 #[path = "players/mechanics.rs"]
 mod mechanics;
+#[path = "players/source_actors.rs"]
+mod source_actors;
 #[path = "players/state.rs"]
 mod state;
 #[path = "players/state_sources.rs"]
 mod state_sources;
+pub(super) use source_actors::{Pending as SourceActorRequests, finish as finish_source_actors};
 #[path = "players/state_transactions.rs"]
 mod state_transactions;
 #[path = "players/travel.rs"]
@@ -53,6 +56,7 @@ pub(crate) use mechanics::apply_pending as apply_mechanics;
 pub(super) use mechanics::{MechanicsRequest, finish as finish_mechanics};
 pub(super) use state_sources::Pending as StateSources;
 pub(super) use state_sources::finish as finish_state_sources;
+pub(crate) use state_sources::release_inactive_anchor;
 pub(super) use state_transactions::Requests as StateRequests;
 pub(super) use state_transactions::finish as finish_state_transactions;
 pub(crate) use world_blocks::apply_durable as apply_durable_block_edits;
@@ -97,6 +101,7 @@ enum Entry {
     DeathState(Arc<values::Value<death_archives::Image>>),
     DurableBlockRequest(Arc<world_blocks::DurableState>),
     ContainerPlan(world_blocks::ContainerPlan),
+    SourceActorOperation(Arc<crate::server::game::player_state::source_actors::Operation>),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.

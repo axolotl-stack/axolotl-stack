@@ -225,18 +225,21 @@ pub fn tick_food(
 }
 
 /// Mutable food state and optional per-actor policy read by one food tick.
-type HungryPlayers = QueryState<(
-    Entity,
-    &'static mut Hunger,
-    &'static mut FoodTimer,
-    &'static mut Health,
-    &'static GameMode,
-    Option<&'static PlayerFoodPolicy>,
-)>;
+type HungryPlayers = QueryState<
+    (
+        Entity,
+        &'static mut Hunger,
+        &'static mut FoodTimer,
+        &'static mut Health,
+        &'static GameMode,
+        Option<&'static PlayerFoodPolicy>,
+    ),
+    Without<super::player_state::source_actors::SourceAdmissionBlocked>,
+>;
 
 /// System (exclusive): tick every survival or adventure player's food.
 /// Starvation goes through the player damage path ([`hurt_player`]).
-pub fn tick_hunger(
+pub(crate) fn tick_hunger(
     world: &mut World,
     players: &mut HungryPlayers,
     mut starving: Local<Vec<Entity>>,

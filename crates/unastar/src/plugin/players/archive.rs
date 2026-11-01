@@ -203,6 +203,13 @@ impl super::super::wit_bindings::unastar::plugin::archives::Host for HostContext
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostArchivedPlayerState for HostContext {
+    fn source(
+        &mut self,
+        archive: Resource<wit::ArchivedPlayerState>,
+        tx: Resource<wit::WorldTx>,
+    ) -> Result<Resource<wit::SourceActorOperation>, wit::StateError> {
+        self.inspect_source(archive.rep(), tx.rep())
+    }
     fn death_facts(
         &mut self,
         archive: Resource<wit::ArchivedPlayerState>,

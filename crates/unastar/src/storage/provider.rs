@@ -160,6 +160,9 @@ pub struct PlayerData {
     /// Ordinary captures omit this field after genuine live state was installed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub restoration_checkpoint: Option<super::RestorationCheckpoint>,
+    /// Native source ownership is canonical engine state, never supplied by a state image.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_actor: Option<super::source::SourceActorRecord>,
 }
 
 impl Default for PlayerData {
@@ -189,6 +192,7 @@ impl Default for PlayerData {
             cold_exposure: 0.0,
             age_ticks: 0,
             restoration_checkpoint: None,
+            source_actor: None,
         }
     }
 }
@@ -270,6 +274,9 @@ impl StoredItemStack {
 impl PlayerData {
     /// Validate structural state; typed item resolution occurs atomically at spawn.
     pub fn validate(&self, uuid: Uuid) -> StorageResult<()> {
+        if let Some(source) = &self.source_actor {
+            source.validate(self)?;
+        }
         if let Some(checkpoint) = &self.restoration_checkpoint {
             checkpoint.validate(self)?;
         }

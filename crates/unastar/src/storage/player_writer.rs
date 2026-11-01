@@ -13,10 +13,33 @@ use async_trait::async_trait;
 use tokio::sync::Mutex as AsyncMutex;
 use uuid::Uuid;
 
+use super::source::{SourceActorRecord, SourcePhase, SourceProof};
 use super::{
     InventoryEffectRecord, PlayerData, PlayerProvider, StorageError, StorageResult,
     valid_inventory_effect_id,
 };
+
+/// A source transition returns the exact row acknowledged under the account lock.
+pub(crate) struct SourceWrite {
+    pub effect: EffectWrite,
+    pub data: PlayerData,
+}
+
+/// Native source proof and exact optional initialization baseline for one full-state install.
+#[derive(Default)]
+pub(crate) struct StateOrigin {
+    pub source: Option<SourceProof>,
+    pub baseline: Option<Arc<PlayerData>>,
+}
+
+enum SourceMutation {
+    Ordinary,
+    Handoff(StateOrigin),
+    Transition {
+        expected: Option<SourceProof>,
+        desired: Box<SourceActorRecord>,
+    },
+}
 
 /// The outcome of a write that either created or found an exact durable receipt.
 #[derive(Clone, Debug)]
@@ -92,8 +115,16 @@ impl SerializedPlayerProvider {
         request_hash: [u8; 32],
         candidate: PlayerData,
     ) -> Result<EffectWrite, EffectWriteFailure> {
-        self.commit_full_effect(uuid, id, request_hash, candidate, None)
-            .await
+        self.commit_full_effect(
+            uuid,
+            id,
+            request_hash,
+            candidate,
+            None,
+            SourceMutation::Ordinary,
+        )
+        .await
+        .map(|(effect, _)| effect)
     }
 
     /// Atomically preserve canonical history while installing one full-state handoff.
@@ -104,9 +135,43 @@ impl SerializedPlayerProvider {
         request_hash: [u8; 32],
         candidate: PlayerData,
         supplement: super::RestorationSupplement,
+        origin: StateOrigin,
     ) -> Result<EffectWrite, EffectWriteFailure> {
-        self.commit_full_effect(uuid, id, request_hash, candidate, Some(supplement))
-            .await
+        self.commit_full_effect(
+            uuid,
+            id,
+            request_hash,
+            candidate,
+            Some(supplement),
+            SourceMutation::Handoff(origin),
+        )
+        .await
+        .map(|(effect, _)| effect)
+    }
+
+    /// Source ownership and inventory/receipt lineage change in the same durable account row.
+    pub(crate) async fn commit_source(
+        &self,
+        uuid: Uuid,
+        id: &str,
+        hash: [u8; 32],
+        candidate: PlayerData,
+        expected: Option<SourceProof>,
+        desired: SourceActorRecord,
+    ) -> Result<SourceWrite, EffectWriteFailure> {
+        self.commit_full_effect(
+            uuid,
+            id,
+            hash,
+            candidate,
+            None,
+            SourceMutation::Transition {
+                expected,
+                desired: Box::new(desired),
+            },
+        )
+        .await
+        .map(|(effect, data)| SourceWrite { effect, data })
     }
 
     /// Inventory and full-state effects share one account lock, epoch and proof ledger.
@@ -117,7 +182,8 @@ impl SerializedPlayerProvider {
         request_hash: [u8; 32],
         mut candidate: PlayerData,
         supplement: Option<super::RestorationSupplement>,
-    ) -> Result<EffectWrite, EffectWriteFailure> {
+        source: SourceMutation,
+    ) -> Result<(EffectWrite, PlayerData), EffectWriteFailure> {
         if !self.inner.atomic_durable_records() {
             return Err(uncertain(
                 "provider does not guarantee atomic durable records",
@@ -150,10 +216,13 @@ impl SerializedPlayerProvider {
             }
             if let Some(record) = current.inventory_effects.get(id) {
                 return if record.request_hash == request_hash {
-                    Ok(EffectWrite {
-                        record: record.clone(),
-                        already_committed: true,
-                    })
+                    Ok((
+                        EffectWrite {
+                            record: record.clone(),
+                            already_committed: true,
+                        },
+                        current.clone(),
+                    ))
                 } else {
                     Err(uncertain(
                         "effect identifier already belongs to another payload",
@@ -162,6 +231,16 @@ impl SerializedPlayerProvider {
             }
         }
         let revision = current.as_ref().map_or(0, |data| data.inventory_revision);
+        if let SourceMutation::Handoff(StateOrigin {
+            baseline: Some(expected),
+            ..
+        }) = &source
+            && current.as_ref() != Some(expected.as_ref())
+        {
+            let mut error = rejected("canonical initialization source changed");
+            error.resume_source = false;
+            return Err(error);
+        }
         if candidate.inventory_revision != revision {
             let mut error = rejected("inventory revision changed before the effect write");
             error.resume_source = false;
@@ -183,6 +262,8 @@ impl SerializedPlayerProvider {
         {
             return Err(rejected("inventory receipt history is full"));
         }
+        candidate.source_actor =
+            source_update(current.as_ref(), &candidate, source, id, request_hash)?;
         candidate.inventory_effects =
             current.map_or_else(BTreeMap::new, |data| data.inventory_effects);
         let next = revision
@@ -210,10 +291,13 @@ impl SerializedPlayerProvider {
             self.require_recovery(uuid);
             return Err(uncertain(error.to_string()));
         }
-        Ok(EffectWrite {
-            record,
-            already_committed: false,
-        })
+        Ok((
+            EffectWrite {
+                record,
+                already_committed: false,
+            },
+            candidate,
+        ))
     }
 }
 
@@ -265,6 +349,7 @@ impl PlayerProvider for SerializedPlayerProvider {
             return Err(StorageError::PlayerRevisionConflict);
         }
         let mut candidate = data.clone();
+        candidate.source_actor = ordinary_source(current.as_ref(), data)?;
         // This ordinary-save boundary retires the one-shot raw handoff. Keeping
         // old extras beside newly advanced life/position would replay stale state.
         candidate.restoration_checkpoint = None;
@@ -288,6 +373,117 @@ impl PlayerProvider for SerializedPlayerProvider {
     }
 }
 
+/// Ordinary callers can advance genuine active state, but cannot create or reopen source authority.
+fn ordinary_source(
+    current: Option<&PlayerData>,
+    candidate: &PlayerData,
+) -> StorageResult<Option<SourceActorRecord>> {
+    let old = current.and_then(|data| data.source_actor.as_ref());
+    match old {
+        Some(old) if old.phase.unresolved() => {
+            let next = candidate
+                .source_actor
+                .as_ref()
+                .ok_or(StorageError::PlayerRevisionConflict)?;
+            let mut comparable = next.clone();
+            comparable.sample = old.sample;
+            comparable.supplement = old.supplement.clone();
+            if old.phase != SourcePhase::Active
+                || next.phase != SourcePhase::Active
+                || next.sample <= old.sample
+                || comparable != *old
+            {
+                return Err(StorageError::PlayerRevisionConflict);
+            }
+            next.validate(candidate)?;
+            Ok(Some(next.clone()))
+        }
+        Some(old) => {
+            if candidate.source_actor.is_some() {
+                return Err(StorageError::PlayerRevisionConflict);
+            }
+            let mut tombstone = old.clone();
+            tombstone.phase = SourcePhase::Retired;
+            tombstone.supplement = None;
+            Ok(Some(tombstone))
+        }
+        None if candidate.source_actor.is_some() => Err(StorageError::PlayerRevisionConflict),
+        None => Ok(None),
+    }
+}
+
+/// All source generations use the same canonical lock and atomic receipt boundary.
+fn source_update(
+    current: Option<&PlayerData>,
+    candidate: &PlayerData,
+    mutation: SourceMutation,
+    id: &str,
+    request_hash: [u8; 32],
+) -> Result<Option<SourceActorRecord>, EffectWriteFailure> {
+    let conflict = || {
+        let mut error = rejected("canonical source ownership changed");
+        error.resume_source = false;
+        error
+    };
+    let old = current.and_then(|data| data.source_actor.as_ref());
+    match mutation {
+        SourceMutation::Ordinary => ordinary_source(current, candidate).map_err(|_| conflict()),
+        SourceMutation::Handoff(StateOrigin { source: proof, .. }) => match (old, proof) {
+            (Some(old), Some(proof)) if old.phase.unresolved() && old.matches(&proof) => {
+                let mut next = old.clone();
+                next.generation = old.generation.checked_add(1).ok_or_else(conflict)?;
+                next.sample = 0;
+                next.phase = SourcePhase::Transferred;
+                next.supplement = None;
+                next.handoff = Some(super::source::SourceHandoff {
+                    id: id.into(),
+                    request_hash,
+                });
+                Ok(Some(next))
+            }
+            (Some(old), None) if !old.phase.unresolved() => {
+                let mut next = old.clone();
+                next.phase = SourcePhase::Transferred;
+                next.supplement = None;
+                Ok(Some(next))
+            }
+            (None, None) => Ok(None),
+            _ => Err(conflict()),
+        },
+        SourceMutation::Transition { expected, desired } => {
+            let generation = old
+                .map_or(Some(1), |old| old.generation.checked_add(1))
+                .ok_or_else(conflict)?;
+            let valid_old = match (old, expected) {
+                (Some(old), Some(proof)) => {
+                    old.matches(&proof)
+                        && old.module == desired.module
+                        && old.nonce == desired.nonce
+                        && old.world == desired.world
+                        && old.name == desired.name
+                        && (old.phase.unresolved() || desired.phase == SourcePhase::Retired)
+                }
+                (Some(old), None) => {
+                    !old.phase.unresolved()
+                        && old.nonce != desired.nonce
+                        && desired.phase == SourcePhase::Frozen
+                }
+                (None, None) => desired.phase == SourcePhase::Frozen,
+                _ => false,
+            };
+            if !valid_old
+                || desired.generation != generation
+                || desired.sample != 0
+                || desired.phase == SourcePhase::Transferred
+            {
+                return Err(conflict());
+            }
+            desired.validate(candidate).map_err(|_| conflict())?;
+            Ok(Some(*desired))
+        }
+    }
+}
+
 /// A successful read proved this requested effect was absent before any write attempt.
 fn rejected(message: impl Into<String>) -> EffectWriteFailure {
     EffectWriteFailure {
@@ -305,6 +501,10 @@ fn uncertain(message: impl Into<String>) -> EffectWriteFailure {
         message: message.into(),
     }
 }
+
+#[cfg(test)]
+#[path = "player_writer/source_tests.rs"]
+mod source_tests;
 
 #[cfg(test)]
 mod tests {
@@ -403,6 +603,9 @@ mod tests {
             effective_mode: 0,
             base_mode: None,
             flight_override: None,
+            food_policy: None,
+            food_ticks: 0,
+            food_regeneration: 0,
             velocity: [0.0; 3],
             head_yaw: 0.0,
             absorption: 0.0,
@@ -427,6 +630,7 @@ mod tests {
                     [4; 32],
                     original.clone(),
                     supplement.clone(),
+                    StateOrigin::default(),
                 )
                 .await
                 .unwrap();
@@ -450,7 +654,14 @@ mod tests {
             assert_eq!(advanced.inventory_revision, 2);
             assert_eq!(advanced.inventory_effects.len(), 2);
             let replay = provider
-                .commit_state_effect(uuid, "state:1", [4; 32], original, supplement)
+                .commit_state_effect(
+                    uuid,
+                    "state:1",
+                    [4; 32],
+                    original,
+                    supplement,
+                    StateOrigin::default(),
+                )
                 .await
                 .unwrap();
             assert!(replay.already_committed);

@@ -86,6 +86,8 @@ pub(crate) struct Record {
     pub source_fence: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub death: Option<DeathFacts>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_actor: Option<crate::storage::source::SourceActorRecord>,
 }
 
 impl Record {
@@ -106,6 +108,7 @@ impl Record {
             state,
             source_fence: None,
             death: None,
+            source_actor: None,
         };
         record.validate(plugin_id)?;
         Ok(record)
@@ -117,8 +120,54 @@ impl Record {
         self
     }
 
+    /// Acknowledged source images carry a full canonical baseline, never a guest-provided epoch.
+    pub(crate) fn with_source_actor(
+        mut self,
+        source: crate::storage::source::SourceActorRecord,
+    ) -> Result<Self, ArchiveError> {
+        self.source_fence = Some(source.nonce.clone());
+        self.source_actor = Some(source);
+        self.validate(&self.plugin_id)?;
+        Ok(self)
+    }
+
+    /// Reconstruct only the exact stamped canonical row, leaving raw actor fields separately typed.
+    pub(crate) fn canonical_source(
+        &self,
+    ) -> Result<Option<crate::storage::PlayerData>, ArchiveError> {
+        let Some(source) = self.source_actor.as_ref() else {
+            return Ok(None);
+        };
+        self.validate(&self.plugin_id)?;
+        let mut data = self.state.data.clone();
+        data.game_mode = self.state.base_game_mode.unwrap_or(data.game_mode);
+        data.source_actor = Some(source.clone());
+        data.restoration_checkpoint = None;
+        Ok(Some(data))
+    }
+
     /// Stored formats and account facts are checked before any typed value is exposed.
     fn validate(&self, plugin_id: &str) -> Result<(), ArchiveError> {
+        if let Some(source) = &self.source_actor {
+            if self.death.is_some()
+                || self.source_fence.as_deref() != Some(source.nonce.as_str())
+                || source.module != self.plugin_id
+                || source.name != self.owner.name
+                || source.world != self.world.uuid
+                || source.dimension != self.world.dimension
+                || source.supplement.as_ref() != Some(&self.state.supplement())
+            {
+                return Err(ArchiveError::InvalidSnapshot);
+            }
+            source
+                .validate_mode(
+                    &self.state.data,
+                    self.state
+                        .base_game_mode
+                        .unwrap_or(self.state.data.game_mode),
+                )
+                .map_err(|_| ArchiveError::InvalidSnapshot)?;
+        }
         if let Some(death) = &self.death {
             death.validate()?;
             if !self.state.dead || self.state.data.health != 0.0 || self.source_fence.is_some() {

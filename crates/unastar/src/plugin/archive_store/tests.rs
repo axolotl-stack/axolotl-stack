@@ -47,6 +47,9 @@ fn record(plugin: &str) -> Record {
         burning_next: 2,
         effects: Vec::new(),
         dead: false,
+        food_policy: None,
+        food_ticks: 0,
+        food_regeneration: 0,
     };
     Record::new(
         plugin,

@@ -62,6 +62,7 @@ struct Completion {
     uuid: uuid::Uuid,
     id: String,
     desired: Arc<PlayerSnapshot>,
+    history: std::collections::BTreeMap<String, InventoryEffectRecord>,
     result: Result<EffectWrite, EffectWriteFailure>,
     _retention: Arc<dyn Send + Sync>,
 }
@@ -72,6 +73,7 @@ struct Reply {
     uuid: uuid::Uuid,
     id: String,
     desired: Arc<PlayerSnapshot>,
+    history: std::collections::BTreeMap<String, InventoryEffectRecord>,
     retention: Option<Arc<dyn Send + Sync>>,
     done: bool,
 }
@@ -86,6 +88,7 @@ impl Reply {
                 uuid: self.uuid,
                 id: self.id.clone(),
                 desired: self.desired.clone(),
+                history: self.history.clone(),
                 result,
                 _retention: self.retention.take().expect("accepted reservation"),
             })
@@ -105,6 +108,7 @@ impl Drop for Reply {
                     uuid: self.uuid,
                     id: self.id.clone(),
                     desired: self.desired.clone(),
+                    history: self.history.clone(),
                     result: Err(EffectWriteFailure {
                         kind: WriteFailureKind::RecoveryRequired,
                         resume_source: false,
@@ -137,6 +141,7 @@ pub(crate) fn install(
         .ecs
         .schedule_mut()
         .add_systems(poll.before(PacketApplySet));
+    super::source_actors::install(server)?;
     Ok(())
 }
 
@@ -155,16 +160,29 @@ pub(crate) fn account_pending(world: &World, uuid: uuid::Uuid, xuid: Option<&str
             })
 }
 
+/// One validated complete install retains its original physical and canonical baselines.
+pub(crate) struct StateSubmission {
+    pub target: quarantine::Handle,
+    pub id: String,
+    pub hash: [u8; 32],
+    pub expected: Arc<PlayerSnapshot>,
+    pub desired: Arc<PlayerSnapshot>,
+    pub origin: crate::storage::player_writer::StateOrigin,
+    pub retention: Arc<dyn Send + Sync>,
+}
+
 /// The caller has already frozen the exact source and performed global duplicate checks.
-pub(crate) fn submit(
-    world: &mut World,
-    target: quarantine::Handle,
-    id: String,
-    hash: [u8; 32],
-    expected: Arc<PlayerSnapshot>,
-    desired: Arc<PlayerSnapshot>,
-    retention: Arc<dyn Send + Sync>,
-) -> Result<Submission, Error> {
+pub(crate) fn submit(world: &mut World, request: StateSubmission) -> Result<Submission, Error> {
+    let StateSubmission {
+        target,
+        id,
+        hash,
+        expected,
+        desired,
+        origin,
+        retention,
+    } = request;
+    let crate::storage::player_writer::StateOrigin { source, baseline } = origin;
     if !crate::storage::valid_inventory_effect_id(&id) || !quarantine::matches(world, &target) {
         return Err(Error::Conflict);
     }
@@ -195,6 +213,16 @@ pub(crate) fn submit(
     candidate.game_mode = desired.base_game_mode.unwrap_or(desired.data.game_mode);
     candidate.inventory_revision = expected.data.inventory_revision;
     candidate.inventory_effects = expected.data.inventory_effects.clone();
+    if let Some(baseline) = &baseline {
+        if !super::super::player_events::initial_state_pending(world, target.player)
+            || baseline.uuid != expected.data.uuid
+            || baseline.source_actor.is_none()
+        {
+            return Err(Error::Conflict);
+        }
+        candidate.inventory_revision = baseline.inventory_revision;
+        candidate.inventory_effects = baseline.inventory_effects.clone();
+    }
     candidate.restoration_checkpoint = None;
     candidate.ui = desired.ui.clone();
     candidate.cursor = desired.ui.first().cloned().ok_or(Error::InvalidState)?;
@@ -214,12 +242,20 @@ pub(crate) fn submit(
         uuid,
         id: id.clone(),
         desired,
+        history: candidate.inventory_effects.clone(),
         retention: Some(retention),
         done: false,
     };
     runtime.spawn(async move {
         let result = writer
-            .commit_state_effect(uuid, &id, hash, candidate, supplement)
+            .commit_state_effect(
+                uuid,
+                &id,
+                hash,
+                candidate,
+                supplement,
+                crate::storage::player_writer::StateOrigin { source, baseline },
+            )
             .await;
         reply.finish(result);
     });
@@ -265,12 +301,7 @@ pub(crate) fn poll(world: &mut World) {
             Ok(write) => {
                 let mut snapshot = (*completion.desired).clone();
                 snapshot.data.inventory_revision = write.record.revision;
-                snapshot.data.inventory_effects = world
-                    .get::<super::super::inventory_effects::InventoryPersistence>(
-                        completion.target.player,
-                    )
-                    .map(|state| state.receipts().clone())
-                    .unwrap_or_default();
+                snapshot.data.inventory_effects = completion.history;
                 snapshot
                     .data
                     .inventory_effects
@@ -288,6 +319,7 @@ pub(crate) fn poll(world: &mut World) {
                     false
                 };
                 if live_applied {
+                    super::source_actors::release_admission(world, completion.target.player);
                     world.entity_mut(completion.target.player).insert(
                         super::super::inventory_effects::InventoryPersistence::from_record(Some(
                             &snapshot.data,

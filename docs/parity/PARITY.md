@@ -843,7 +843,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **platform**
 
 - `platform.addons`: actor and item registries accept addon definitions in code; no custom behaviour packs are loaded from disk and custom blocks/recipes are not supported
-- `platform.plugins`: the component interface exposes only a subset of native application events and effects
+- `platform.plugins`: the component interface exposes only a subset of native application events and effects; versioned handoff of a continuously mutable, unfenced source is not supported
 - `platform.resource_packs`: jolyne negotiates and serves packs, but unastar always offers an empty pack list (no packs configured or loaded from disk)
 - `platform.server_config`: own config file with operators, max players, difficulty and world settings; no allowlist or permissions files, no server.properties keys like level-seed/tick-distance parity
 

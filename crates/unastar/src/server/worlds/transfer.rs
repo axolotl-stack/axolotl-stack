@@ -280,8 +280,6 @@ pub(super) fn prepare_chunks(world: &mut World, feet: DVec3) -> Result<bool, Tra
     {
         return Err(TransferError::UnsafeDestination);
     }
-    let min = (feet - DVec3::new(0.3, 0.0, 0.3)).floor().as_ivec3();
-    let max = (feet + DVec3::new(0.3, 0.0, 0.3)).floor().as_ivec3();
     let anchor = if let Some(anchor) = world.get_resource::<PreloadAnchor>() {
         anchor.0
     } else {
@@ -289,6 +287,24 @@ pub(super) fn prepare_chunks(world: &mut World, feet: DVec3) -> Result<bool, Tra
         world.insert_resource(PreloadAnchor(entity));
         entity
     };
+    prepare_chunks_with_anchor(world, feet, anchor)
+}
+
+/// Native sessionless actors can hold terrain without acquiring network loader ownership.
+pub(crate) fn prepare_chunks_with_anchor(
+    world: &mut World,
+    feet: DVec3,
+    anchor: Entity,
+) -> Result<bool, TransferError> {
+    if !feet.is_finite()
+        || feet.x.abs() > f64::from(i32::MAX - 32)
+        || feet.z.abs() > f64::from(i32::MAX - 32)
+        || world.get_entity(anchor).is_err()
+    {
+        return Err(TransferError::UnsafeDestination);
+    }
+    let min = (feet - DVec3::new(0.3, 0.0, 0.3)).floor().as_ivec3();
+    let max = (feet + DVec3::new(0.3, 0.0, 0.3)).floor().as_ivec3();
     let mut complete = true;
     for x in min.x >> 4..=max.x >> 4 {
         for z in min.z >> 4..=max.z >> 4 {
@@ -308,6 +324,14 @@ pub(super) fn prepare_chunks(world: &mut World, feet: DVec3) -> Result<bool, Tra
                 continue;
             }
             if manager.has_async_generation() {
+                if manager
+                    .pending_generation
+                    .get(&(x, z))
+                    .is_some_and(|viewers| viewers.contains(&anchor))
+                {
+                    complete = false;
+                    continue;
+                }
                 let receiver = world
                     .resource_mut::<ChunkManager>()
                     .request_generation(x, z, anchor);
