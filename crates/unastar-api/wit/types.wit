@@ -94,6 +94,10 @@ interface types {
     }
 
     record damage-proposal {
+        /// Opaque nonzero native invocation identity. Shared by all subscribers and
+        /// its positive-loss notification, never an account grant or a durable receipt.
+        /// Unique within the running host process; it is not preserved across restart.
+        action-id: u64,
         cause: damage-cause,
         attribution: damage-attribution,
         tuning: damage-tuning,
@@ -101,6 +105,8 @@ interface types {
 
     /// Positive actual health loss after native immunity, timer and armour rules.
     record damage-committed {
+        /// The unchanged action-id from the native proposal that produced this loss.
+        action-id: u64,
         identity: player-identity,
         dimension: s32,
         cause: damage-cause,

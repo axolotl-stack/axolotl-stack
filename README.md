@@ -551,6 +551,11 @@ budget and do not dispatch duplicate buffered movement events.
 
 ### Component damage transactions
 
+`DamageProposal.action_id` and `DamageCommitted.action_id` carry the same opaque,
+nonzero native invocation identity. Nested hits and separate worlds have distinct
+IDs within the running host process. IDs are not durable receipts or permissions;
+vetoed, suppressed and zero-loss proposals produce no committed notification.
+
 `player_damage` supplies an immutable `DamageProposal` with native launch or
 deflection attribution, plus adjustable `DamageTuning`. Scoped handlers may
 change incoming damage, knockback, the full-hit hurt window, armour bypass and

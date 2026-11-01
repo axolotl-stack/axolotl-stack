@@ -60,6 +60,7 @@ impl PlayerDeathInventory {
 /// been committed when this event is delivered.
 #[derive(Event, Debug, Clone)]
 pub struct PlayerDamage {
+    action_id: u64,
     player: Entity,
     attribution: crate::entity::damage::DamageAttribution,
     /// Incoming hit; extensions may change its damage and knockback. Modified
@@ -79,6 +80,11 @@ pub struct PlayerDamage {
 }
 
 impl PlayerDamage {
+    /// Correlate this exact native proposal with its positive-loss notification.
+    pub(crate) fn action_id(&self) -> u64 {
+        self.action_id
+    }
+
     /// Identify the player this hit would hurt.
     pub fn player(&self) -> Entity {
         self.player
@@ -102,11 +108,13 @@ impl PlayerDamage {
 
     /// Construct the decision for an incoming hit.
     pub(super) fn new(
+        action_id: u64,
         player: Entity,
         hit: Hit,
         attribution: crate::entity::damage::DamageAttribution,
     ) -> Self {
         Self {
+            action_id,
             player,
             attribution,
             hit,
@@ -123,6 +131,7 @@ impl PlayerDamage {
 /// hits do not emit this event. This notification cannot cancel committed loss.
 #[derive(Event, Debug, Clone, Copy)]
 pub struct PlayerDamaged {
+    pub(super) action_id: u64,
     /// Player whose health changed.
     pub player: Entity,
     /// The validated incoming hit after pre-damage hooks.
@@ -134,6 +143,11 @@ pub struct PlayerDamaged {
 }
 
 impl PlayerDamaged {
+    /// Read the unchanged identity allocated before this hit's authorization.
+    pub(crate) fn action_id(&self) -> u64 {
+        self.action_id
+    }
+
     /// Read immutable source/owner facts after positive health loss.
     pub fn attribution(&self) -> &crate::entity::damage::DamageAttribution {
         &self.attribution

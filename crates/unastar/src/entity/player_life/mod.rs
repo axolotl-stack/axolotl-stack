@@ -19,6 +19,7 @@
 
 pub mod attributes;
 pub mod constants;
+mod damage_action;
 pub mod death;
 pub mod environment;
 pub mod hooks;

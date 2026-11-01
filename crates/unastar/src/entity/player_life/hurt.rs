@@ -96,7 +96,10 @@ fn apply_hit_result_attributed(
     if !eligible_hit(world, player, hit) {
         return (0.0, false);
     }
-    let mut event = hooks::PlayerDamage::new(player, *hit, attribution);
+    let Some(action_id) = super::damage_action::next() else {
+        return (0.0, false);
+    };
+    let mut event = hooks::PlayerDamage::new(action_id, player, *hit, attribution);
     hooks::damage(world, &mut event);
     if event.is_cancelled()
         || !eligible_hit(world, player, &event.hit)
@@ -182,6 +185,7 @@ fn apply_hit_result_attributed(
         hooks::damaged(
             world,
             hooks::PlayerDamaged {
+                action_id,
                 player,
                 hit: *hit,
                 damage: applied,

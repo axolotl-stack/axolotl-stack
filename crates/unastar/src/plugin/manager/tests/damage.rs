@@ -1,6 +1,9 @@
 //! Actual component damage decisions and committed health loss through native hit/projectile lanes.
 
 use super::*;
+
+#[path = "damage/action_ids.rs"]
+mod action_ids;
 use crate::ecs::events::EventKind;
 use crate::entity::components::{GameMode, Health, Position, Velocity};
 use crate::entity::damage::DamageAttribution;

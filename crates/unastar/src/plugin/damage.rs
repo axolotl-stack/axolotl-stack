@@ -76,6 +76,7 @@ impl PluginManager {
                 .live_owner(world)
                 .filter(|actor| world.get::<Player>(*actor).is_some());
             let proposal = wit::DamageProposal {
+                action_id: event.action_id(),
                 cause: damage_cause(event.hit.cause),
                 attribution: attribution(event.attribution()),
                 tuning: wit::DamageTuning {
@@ -142,6 +143,7 @@ impl PluginManager {
             return;
         };
         let record = wit::DamageCommitted {
+            action_id: event.action_id(),
             identity,
             dimension: chunks.dimension(),
             cause: damage_cause(event.hit.cause),
