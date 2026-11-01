@@ -1662,3 +1662,13 @@ Later held-item changes cannot add or remove the captured fire effect. Attack
 damage calculations are unchanged. Sword classification uses the registered tool
 kind; adding sword enchantment NBT to another item does not grant its behavior.
 The duration follows the public library formula in the [third-party notices](THIRD_PARTY_NOTICES.md).
+
+## Component ticks across worlds
+
+A component instance receives one `on-tick` callback per dimension-router cycle,
+using the primary world's completed tick ID. Each world drains its local events
+under the same component fuel budget. Synchronous callbacks and deferred router
+work share that budget until the complete cycle ends. The next cycle renews it
+once. The global callback sees a refreshed owned player directory; player counts
+and names cover connected players in all registered worlds. Other world queries
+in the existing component API use the current callback's world.
