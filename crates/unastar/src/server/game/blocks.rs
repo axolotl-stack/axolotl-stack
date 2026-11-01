@@ -1383,8 +1383,28 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 /// viewers (with the place sound when `place_sound`) and schedule gravity
 /// checks for the block and the one above it.
 pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    let _ = try_set_block(world, pos, block_runtime_id, place_sound);
+}
+
+/// Why a native block replacement did not commit any physical changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BlockWriteError {
+    Reserved,
+    Unavailable,
+    OutsideHeight,
+}
+
+/// Replace a loaded cell and return its previous state only after the write
+/// succeeds. Callers transferring material into or out of an actor must retain
+/// that ownership when this returns an error.
+pub(crate) fn try_set_block(
+    world: &mut World,
+    pos: IVec3,
+    block_runtime_id: u32,
+    place_sound: bool,
+) -> Result<u32, BlockWriteError> {
     if super::containers::mutation_locked(world, pos) {
-        return;
+        return Err(BlockWriteError::Reserved);
     }
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
@@ -1392,29 +1412,29 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
 
     let chunk_entity = {
         let Some(chunk_manager) = world.get_resource::<ChunkManager>() else {
-            return;
+            return Err(BlockWriteError::Unavailable);
         };
         chunk_manager.get_by_coords(cx, cz)
     };
 
     let Some(chunk_entity) = chunk_entity else {
         debug!(chunk = ?(cx, cz), "place_block: chunk not found");
-        return;
+        return Err(BlockWriteError::Unavailable);
     };
 
-    let old_block_id = world
-        .get::<crate::world::ecs::ChunkData>(chunk_entity)
-        .map(|cd| cd.inner.get_block(local_x, local_y, local_z))
-        .unwrap_or(0);
-
-    // Update chunk data
-    if let Some(mut chunk_data) = world.get_mut::<crate::world::ecs::ChunkData>(chunk_entity) {
+    let old_block_id = {
+        let Some(mut chunk_data) = world.get_mut::<crate::world::ecs::ChunkData>(chunk_entity)
+        else {
+            return Err(BlockWriteError::Unavailable);
+        };
+        if !chunk_data.inner.block_bounds().contains(&pos.y) {
+            return Err(BlockWriteError::OutsideHeight);
+        }
         chunk_data
             .inner
-            .set_block(local_x, local_y, local_z, block_runtime_id);
-    } else {
-        return;
-    }
+            .set_block(local_x, local_y, local_z, block_runtime_id)
+            .ok_or(BlockWriteError::OutsideHeight)?
+    };
 
     if let Some(mut state_flags) = world.get_mut::<crate::world::ecs::ChunkStateFlags>(chunk_entity)
     {
@@ -1472,6 +1492,7 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
             }
         }
     }
+    Ok(old_block_id)
 }
 
 /// Break the block at `pos` without a breaker, as `/setblock … destroy` and

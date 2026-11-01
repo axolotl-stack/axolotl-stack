@@ -12,7 +12,7 @@
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
 
-use super::blocks::set_block;
+use super::blocks::try_set_block;
 use super::placement::is_replaceable;
 use super::types::BlockRegistryResource;
 use crate::ecs::resources::TickCounter;
@@ -87,7 +87,12 @@ pub fn process_gravity_checks(world: &mut World) {
         if !falls || !is_free(world, pos - IVec3::Y) {
             continue;
         }
-        set_block(world, pos, *crate::world::chunk::blocks::AIR, false);
+        if try_set_block(world, pos, *crate::world::chunk::blocks::AIR, false).is_err() {
+            // A reservation can arrive after this gravity check was queued.
+            // Keep the material in its source cell and try again when due.
+            schedule_gravity_checks(world, pos);
+            continue;
+        }
         let runtime_id = next_actor_id(world);
         world.spawn((
             FallingBlock { state },
@@ -120,13 +125,18 @@ pub fn land_falling_blocks(world: &mut World) {
             .collect()
     };
     for (entity, position, state, on_ground) in landed {
-        world.despawn(entity);
         let cell = position.floor().as_ivec3();
+        if super::containers::mutation_locked(world, cell) || world.block_at(cell).is_none() {
+            continue;
+        }
         if on_ground && is_free(world, cell) {
-            set_block(world, cell, state, true);
+            if try_set_block(world, cell, state, true).is_ok() {
+                world.despawn(entity);
+            }
             continue;
         }
         let drops = super::block_drops::block_drops(world, state, None);
+        world.despawn(entity);
         for stack in drops {
             super::block_drops::pop_resource(world, cell, stack);
         }
@@ -135,6 +145,7 @@ pub fn land_falling_blocks(world: &mut World) {
 
 #[cfg(test)]
 mod tests {
+    use super::super::blocks::set_block;
     use super::*;
     use crate::entity::components::DroppedItem;
     use crate::entity::systems::tick_physics;
@@ -247,5 +258,170 @@ mod tests {
             .map(|s| s.0.item_id().to_owned())
             .collect();
         assert_eq!(items, vec!["minecraft:sand".to_string()]);
+    }
+
+    /// Reserve a real cell through the same ownership gate as native writers.
+    fn reserve(world: &mut World, position: IVec3) {
+        world.init_resource::<super::super::ContainerMutationLocks>();
+        assert!(
+            world
+                .resource_mut::<super::super::ContainerMutationLocks>()
+                .acquire("example:edit", [position])
+        );
+    }
+
+    /// Release only the test operation's exact cell ownership.
+    fn release(world: &mut World, position: IVec3) {
+        assert!(
+            world
+                .resource_mut::<super::super::ContainerMutationLocks>()
+                .release("example:edit", [position])
+        );
+    }
+
+    /// Count the actual material held by physical dropped-item actors.
+    fn dropped_sand(world: &mut World) -> usize {
+        world
+            .query_filtered::<&crate::entity::components::ItemEntityStack, With<DroppedItem>>()
+            .iter(world)
+            .filter(|item| item.0.item_id() == "minecraft:sand")
+            .map(|item| usize::from(item.0.count))
+            .sum()
+    }
+
+    #[test]
+    fn source_reserved_after_gravity_was_scheduled_retries_without_duplicating_material() {
+        let (mut world, chunk) = world();
+        let source = IVec3::new(8, 70, 8);
+        set_block(&mut world, source, *blocks::SAND, false);
+        reserve(&mut world, source);
+        run(&mut world, 9);
+        assert_eq!(block(&world, chunk, 70), *blocks::SAND);
+        assert_eq!(world.query::<&FallingBlock>().iter(&world).count(), 0);
+        assert_eq!(dropped_sand(&mut world), 0);
+        assert_eq!(
+            world
+                .resource::<GravityChecks>()
+                .0
+                .iter()
+                .filter(|(position, _)| *position == source)
+                .count(),
+            1,
+            "one future check keeps the still-owned source eligible"
+        );
+        release(&mut world, source);
+        run(&mut world, 3);
+        assert_eq!(block(&world, chunk, 70), *blocks::AIR);
+        assert_eq!(world.query::<&FallingBlock>().iter(&world).count(), 1);
+        run(&mut world, 60);
+        assert_eq!(block(&world, chunk, 61), *blocks::SAND);
+        assert_eq!(world.query::<&FallingBlock>().iter(&world).count(), 0);
+        assert_eq!(dropped_sand(&mut world), 0);
+    }
+
+    #[test]
+    fn reserved_landing_keeps_the_actor_even_after_its_drop_timeout() {
+        let (mut world, chunk) = world();
+        let destination = IVec3::new(8, 61, 8);
+        set_block(&mut world, IVec3::new(8, 70, 8), *blocks::SAND, false);
+        run(&mut world, 3);
+        reserve(&mut world, destination);
+        run(&mut world, MAX_FALL_TICKS as usize + 2);
+        assert_eq!(block(&world, chunk, 61), *blocks::AIR);
+        assert_eq!(world.query::<&FallingBlock>().iter(&world).count(), 1);
+        assert_eq!(dropped_sand(&mut world), 0);
+        release(&mut world, destination);
+        run(&mut world, 2);
+        assert_eq!(block(&world, chunk, 61), *blocks::SAND);
+        assert_eq!(world.query::<&FallingBlock>().iter(&world).count(), 0);
+        assert_eq!(dropped_sand(&mut world), 0);
+    }
+
+    #[test]
+    fn late_reservation_of_a_nonreplaceable_landing_defers_the_single_item_drop() {
+        let (mut world, chunk) = world();
+        let destination = IVec3::new(8, 61, 8);
+        let torch = BlockRegistry::vanilla()
+            .default_state_id_by_name("minecraft:torch")
+            .unwrap();
+        set_block(&mut world, destination, torch, false);
+        set_block(&mut world, IVec3::new(8, 70, 8), *blocks::SAND, false);
+        run(&mut world, 3);
+        reserve(&mut world, destination);
+        run(&mut world, 60);
+        assert_eq!(block(&world, chunk, 61), torch);
+        assert_eq!(world.query::<&FallingBlock>().iter(&world).count(), 1);
+        assert_eq!(dropped_sand(&mut world), 0);
+        release(&mut world, destination);
+        run(&mut world, 2);
+        assert_eq!(world.query::<&FallingBlock>().iter(&world).count(), 0);
+        assert_eq!(block(&world, chunk, 61), torch);
+        assert_eq!(dropped_sand(&mut world), 1);
+        run(&mut world, 10);
+        assert_eq!(dropped_sand(&mut world), 1);
+    }
+
+    #[test]
+    fn an_unloaded_landing_retains_the_actor_until_the_real_cell_returns() {
+        let (mut world, chunk) = world();
+        let actor = world
+            .spawn((
+                FallingBlock {
+                    state: *blocks::SAND,
+                },
+                Position(DVec3::new(8.5, 61.0, 8.5)),
+                OnGround(true),
+                Age(0),
+            ))
+            .id();
+        world.resource_mut::<ChunkManager>().remove_by_coords(0, 0);
+        land_falling_blocks(&mut world);
+        assert!(world.get::<FallingBlock>(actor).is_some());
+        assert_eq!(dropped_sand(&mut world), 0);
+        assert_eq!(block(&world, chunk, 61), *blocks::AIR);
+        world
+            .resource_mut::<ChunkManager>()
+            .insert(ChunkPosition::new(0, 0), chunk);
+        land_falling_blocks(&mut world);
+        assert!(world.get_entity(actor).is_err());
+        assert_eq!(block(&world, chunk, 61), *blocks::SAND);
+        assert_eq!(dropped_sand(&mut world), 0);
+    }
+
+    #[test]
+    fn rejected_native_writes_leave_cells_broadcasts_and_gravity_checks_unchanged() {
+        use super::super::blocks::BlockWriteError;
+        let (mut world, chunk) = world();
+        let cell = IVec3::new(8, 61, 8);
+        assert_eq!(
+            try_set_block(&mut world, cell, *blocks::SAND, false),
+            Ok(*blocks::AIR)
+        );
+        world.resource_mut::<GravityChecks>().0.clear();
+        world
+            .resource_mut::<Messages<BlockBroadcastEvent>>()
+            .clear();
+        reserve(&mut world, cell);
+        assert_eq!(
+            try_set_block(&mut world, cell, *blocks::AIR, true),
+            Err(BlockWriteError::Reserved)
+        );
+        release(&mut world, cell);
+        assert_eq!(
+            try_set_block(
+                &mut world,
+                IVec3::new(8, 61 + 65_536, 8),
+                *blocks::AIR,
+                true,
+            ),
+            Err(BlockWriteError::OutsideHeight)
+        );
+        assert_eq!(
+            try_set_block(&mut world, IVec3::new(24, 61, 8), *blocks::AIR, true),
+            Err(BlockWriteError::Unavailable)
+        );
+        assert_eq!(block(&world, chunk, 61), *blocks::SAND);
+        assert!(world.resource::<GravityChecks>().0.is_empty());
+        assert!(world.resource::<Messages<BlockBroadcastEvent>>().is_empty());
     }
 }
