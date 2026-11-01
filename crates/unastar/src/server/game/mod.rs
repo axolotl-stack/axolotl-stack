@@ -489,8 +489,10 @@ impl GameServer {
                 .in_set(PhysicsSet)
                 .after(tick_physics),
         );
-        // Mob AI turns goals into rotation and velocity before the physics
-        // step integrates them; pushing separates overlapping mobs.
+        // Each tick runs as BDS does: the physics step moves every body by
+        // the velocity its mob AI chose on the tick before, then the mob AI
+        // looks at the moved world and chooses the next velocity, and
+        // pushing separates overlapping mobs.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::ai::tick_mob_ai,
@@ -498,8 +500,8 @@ impl GameServer {
             )
                 .chain()
                 .in_set(PhysicsSet)
-                .after(crate::entity::mob::derive_mob_state)
-                .before(tick_physics),
+                .after(tick_physics)
+                .before(crate::entity::projectile::tick_projectiles),
         );
 
         ecs.schedule_mut().add_systems(

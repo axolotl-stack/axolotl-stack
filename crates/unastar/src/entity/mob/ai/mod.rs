@@ -1,13 +1,14 @@
 //! Mob AI: authored goals, navigation and the native move/look/jump
 //! controls.
 //!
-//! [`tick_mob_ai`] runs every server tick in the physics set, after the
-//! definition barrier and [`super::derive_mob_state`] and before
-//! `tick_physics`. For every living mob it (re)builds the goal composition
-//! when the definition changed, ticks the goal selector, follows the current
-//! path, runs the move and look controls, and turns the result into body
-//! yaw, head yaw and velocity (acceleration and jumps) that the physics step
-//! then integrates. [`push_mobs`] then pushes nearby pushable mobs apart.
+//! [`tick_mob_ai`] runs every server tick in the physics set, after
+//! `tick_physics` moved every body (as BDS ticks: the move first, then the
+//! AI sees the moved world). For every living mob it (re)builds the goal
+//! composition when the definition changed, ticks the goal selector, follows
+//! the current path, runs the move and look controls, and turns the result
+//! into body yaw, head yaw and velocity (acceleration and jumps) that the
+//! next tick's physics step integrates. [`push_mobs`] then pushes nearby
+//! pushable mobs apart.
 
 mod break_door;
 mod control;
