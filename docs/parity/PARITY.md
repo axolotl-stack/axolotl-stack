@@ -20,7 +20,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 136 | 22 | 46 | 12 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
-| [Gameplay systems](#gameplay-systems) | 74 | 34 | 35 | 5 | 0 | 0 | 6.8% |
+| [Gameplay systems](#gameplay-systems) | 75 | 34 | 35 | 6 | 0 | 0 | 8.0% |
 
 ## Where to help
 
@@ -811,7 +811,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 | performance | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | platform | 6 | 0 | 4 | 2 | 0 | 0 | 33.3% |
 | player | 17 | 5 | 11 | 1 | 0 | 0 | 5.9% |
-| world | 21 | 9 | 10 | 2 | 0 | 0 | 9.5% |
+| world | 22 | 9 | 10 | 3 | 0 | 0 | 13.6% |
 
 ### Gameplay systems gaps
 
