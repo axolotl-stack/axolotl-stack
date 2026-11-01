@@ -845,5 +845,67 @@ is bounded to 65,536 entries and 16 MiB, with no implicit pruning or ID reuse.
 Unstamped `save_column` calls remain compatible only before the first durable
 effect epoch; native save/unload paths use original capture stamps thereafter.
 Providers without atomic-set support, including BlazeDB, report unsupported
-instead of promising durable effects. This storage foundation adds no component
-operation; `WorldTx::apply_blocks` still describes physical in-memory changes.
+instead of promising durable effects. `WorldTx::apply_blocks` continues to describe
+physical in-memory changes, independently of the receipt-backed operation below.
+
+
+### Durable loaded terrain intents
+
+`write-durable-blocks` enables `WorldTx::block_intent`, `commit_blocks`,
+`block_receipt` and `resume_blocks`. These methods reuse the owned `BlockCell`
+and `BlockEdit` values above, including their actor-free, loaded-only block
+families. Reading cells and constructing the builder still require `read-blocks`
+and `write-blocks`. No operation loads or generates missing terrain or edits a
+container, block actor or entity record.
+
+A component supplies a key of 1–64 ASCII letters, digits, hyphens, underscores or
+periods. The host namespaces keys by the trusted module ID and configured world
+UUID; a different module or world cannot query or resume them. A configured,
+non-nil `WorldIdentity` and an atomic-set provider are required. Programmatic
+worlds without that identity and providers without atomic-set support fail
+explicitly before acquiring storage ownership.
+
+Before persisting its own intent, a component can obtain `block_intent(&edit)`.
+The SHA-256 value binds the module, world UUID/dimension, sorted requested cells
+and their complete typed before/proposed block states. It excludes ephemeral
+runtime IDs and unrelated moving actors. The host separately retains the exact
+whole-column payload and its fingerprint. A matching key cannot be reused for a
+different logical intent, and repeating an acknowledged intent never installs an
+old captured column over newer live terrain. Query `block_receipt(key)` first
+when recovering a component's own persisted intent.
+
+`commit_blocks` returns an owned `DurableBlockRequest`. `Staged` means the callback
+has not committed its requests; `Pending` means native validation or IO remains.
+`Committed { key, epoch, intent }` requires both a real synchronous storage ACK
+and native publication, or a validated receipt recovered by reopening the
+provider. It is not a client acknowledgement. Before publication, the original
+loaded columns remain pinned and native terrain/container mutations are fenced.
+The host revalidates every source cell, world/provider lifetime, owner and column
+before accepting IO, then validates the retained source again after the ACK.
+Every buffer is installed before native observers see any changed cell.
+
+`NotApplied` reports a definitive rejection. `RecoveryRequired` preserves
+accepted native ownership when IO or publication cannot be proven; it must not
+be treated as a refund, rollback or successful retry. Unknown receipt keys return
+`None`. An uncertain writer requires reopening and validating its persisted
+preparation/receipt before reads can claim a result. `resume_blocks(key)` can
+reconcile an owner-lost operation still retained in the same native world, using
+its actual receipt and original payload. It cannot reconstruct missing work from
+freshly captured terrain or moving actors. World closure retains storage
+ownership until provider shutdown/reopen; it does not publish into a replacement
+world.
+
+Cancellation succeeds only while the request remains `Staged`. Dropping an owned
+request does not cancel accepted IO or release its outstanding quota. Traps and
+malformed callback results discard staging without IO; valid cancellation of the
+callback's ordinary default action preserves explicit durable requests. New
+requests default to four per shared cycle and 16 outstanding per component,
+configured through `max_durable_block_writes_per_tick` and
+`max_pending_durable_block_writes`, with hard caps of 32 and 128. Each world also
+bounds queued/retained requests to 128. The provider's 16-column/16-MiB atomic-set
+and 32-MiB queued-byte bounds continue to apply.
+
+Receipts carrying logical intent use version-two column metadata. Existing
+version-one data remains readable; an older binary rejects newer metadata rather
+than silently dropping its ownership history. Receipt IDs remain bounded and are
+never implicitly pruned or reused.

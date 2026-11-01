@@ -14,8 +14,18 @@ use glam::IVec3;
 use std::sync::Arc;
 use wasmtime::component::Resource;
 
+#[path = "world_blocks/durable.rs"]
+mod durable;
 #[path = "world_blocks/publication.rs"]
 mod publication;
+pub(crate) use durable::apply_pending as apply_durable;
+pub(in crate::plugin::manager) use durable::{
+    Staged as DurableStaged, State as DurableState, finish as finish_durable,
+};
+pub(super) use durable::{
+    intent as durable_intent, lookup as durable_lookup, resume as durable_resume,
+    stage as durable_stage,
+};
 pub(crate) use publication::apply_pending;
 pub(in crate::plugin::manager) use publication::{Request, RequestState, finish};
 

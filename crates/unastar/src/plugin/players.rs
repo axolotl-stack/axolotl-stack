@@ -36,7 +36,9 @@ mod values;
 mod world_blocks;
 pub(crate) use mechanics::apply_pending as apply_mechanics;
 pub(super) use mechanics::{MechanicsRequest, finish as finish_mechanics};
+pub(crate) use world_blocks::apply_durable as apply_durable_block_edits;
 pub(crate) use world_blocks::apply_pending as apply_block_edits;
+pub(super) use world_blocks::{DurableStaged, finish_durable as finish_durable_blocks};
 pub(super) use world_blocks::{Request as BlockEditRequest, finish as finish_block_edits};
 
 /// One callback's authority; tokens are invalidated before another callback can run.
@@ -69,6 +71,7 @@ enum Entry {
     BlockCell(Arc<values::Value<world_blocks::Cell>>),
     BlockEdit(world_blocks::Edit),
     BlockEditRequest(Arc<world_blocks::RequestState>),
+    DurableBlockRequest(Arc<world_blocks::DurableState>),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.
@@ -82,6 +85,7 @@ pub(super) struct PlayerResources {
     pub(super) messages: u32,
     pub(super) connection_closes: u32,
     pub(super) block_edits: u32,
+    pub(super) durable_blocks: u32,
     pub(super) tasks: u32,
     pub(super) value_budget: values::Budget,
 }
@@ -310,6 +314,7 @@ pub(super) fn begin_budget(context: &mut HostContext) {
     context.resources.messages = 0;
     context.resources.connection_closes = 0;
     context.resources.block_edits = 0;
+    context.resources.durable_blocks = 0;
     context.resources.tasks = 0;
 }
 

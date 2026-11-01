@@ -542,3 +542,68 @@ async fn mandatory_save_reports_unaccepted_terrain_without_clearing_its_buffer()
             .is_dirty()
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn owner_lost_after_io_acceptance_requires_the_real_receipt_and_original_payload() {
+    let dir = Temp::new();
+    let (mut server, writer) = server(&dir);
+    let owner = Arc::new(());
+    let world = server.ecs.world_mut();
+    let chunk = world.get_or_create_chunk(0, 0);
+    let mut candidate = capture(world, &[chunk]).unwrap();
+    let before = candidate.columns[0].column.chunk.get_block(1, 20, 1);
+    candidate.columns[0]
+        .column
+        .chunk
+        .set_block(1, 20, 1, *blocks::STONE);
+    let pause = writer.pause_next();
+    let ticket = commit_scoped(
+        world,
+        candidate,
+        "scoped/one",
+        [9; 32],
+        Arc::downgrade(&owner),
+        vec![ColumnBlockChange {
+            position: IVec3::new(1, 20, 1),
+            before,
+            after: *blocks::STONE,
+        }],
+    )
+    .unwrap();
+    entered(&pause).await;
+    drop(owner);
+    pause.release();
+    assert!(matches!(
+        finish(world, &ticket).await,
+        ColumnOperationStatus::Failed(ColumnWriteError::RecoveryRequired)
+    ));
+    assert_eq!(
+        world
+            .get::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .get_block(1, 20, 1),
+        before
+    );
+    assert!(pinned(world, chunk));
+    let resumed = Arc::new(());
+    assert!(matches!(
+        reconcile_scoped(world, "scoped/missing", [9; 32], Arc::downgrade(&resumed)),
+        Err(ColumnWriteError::RecoveryRequired)
+    ));
+    let recovered =
+        reconcile_scoped(world, "scoped/one", [9; 32], Arc::downgrade(&resumed)).unwrap();
+    assert!(matches!(
+        recovered.status(),
+        ColumnOperationStatus::Applied(Some(_))
+    ));
+    assert_eq!(
+        world
+            .get::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .get_block(1, 20, 1),
+        *blocks::STONE
+    );
+    assert!(!pinned(world, chunk));
+}

@@ -547,3 +547,78 @@ async fn semantically_identical_nbt_field_order_replays_the_same_durable_receipt
     assert!(ack.replay);
     assert_eq!(ack.epoch, 1);
 }
+
+#[tokio::test]
+async fn stable_intent_replay_ignores_newly_captured_dynamic_column_state() {
+    let dir = Temp::new();
+    let writer = ColumnWriter::open(dir.db()).unwrap();
+    let intent = [91; 32];
+    let stamp = writer.capture().unwrap();
+    writer.reserve().unwrap();
+    let first = writer
+        .durable_intent(stamp, &[column(0, 0, true)], "stable/one", intent)
+        .unwrap()
+        .await
+        .unwrap()
+        .unwrap();
+    writer.release();
+    let original = first.receipt.unwrap();
+    assert_eq!(original.intent, Some(intent));
+    let newer = writer.capture().unwrap();
+    writer
+        .ordinary(newer, &[column(0, 0, false)])
+        .unwrap()
+        .await
+        .unwrap()
+        .unwrap();
+    let stamp = writer.capture().unwrap();
+    writer.reserve().unwrap();
+    let replay = writer
+        .durable_intent(stamp, &[column(0, 0, false)], "stable/one", intent)
+        .unwrap()
+        .await
+        .unwrap()
+        .unwrap();
+    writer.release();
+    assert!(replay.replay);
+    assert_eq!(replay.receipt.unwrap(), original);
+    assert_eq!(writer.peek_receipt("stable/one").unwrap(), Some(original));
+    let stamp = writer.capture().unwrap();
+    writer.reserve().unwrap();
+    assert_eq!(
+        writer
+            .durable_intent(stamp, &[column(0, 0, false)], "stable/one", [92; 32])
+            .unwrap()
+            .await
+            .unwrap()
+            .unwrap_err(),
+        ColumnWriteError::Conflict
+    );
+    writer.release();
+}
+
+#[tokio::test]
+async fn validated_receipt_peek_never_waits_for_an_unfinished_native_write() {
+    let dir = Temp::new();
+    let writer = ColumnWriter::open(dir.db()).unwrap();
+    let pause = writer.pause_next();
+    let stamp = writer.capture().unwrap();
+    let completion = writer.ordinary(stamp, &[column(0, 0, true)]).unwrap();
+    for _ in 0..1000 {
+        if pause.entered.load(Ordering::Acquire) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+    }
+    assert!(pause.entered.load(Ordering::Acquire));
+    let query = writer.clone();
+    let (send, receive) = std::sync::mpsc::channel();
+    let thread = std::thread::spawn(move || {
+        let _ = send.send(query.peek_receipt("missing"));
+    });
+    let result = receive.recv_timeout(std::time::Duration::from_millis(100));
+    pause.release();
+    thread.join().unwrap();
+    completion.await.unwrap().unwrap();
+    assert_eq!(result.unwrap().unwrap(), None);
+}

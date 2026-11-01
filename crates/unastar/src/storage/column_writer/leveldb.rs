@@ -33,6 +33,8 @@ struct Ledger {
 struct Prepared {
     id: String,
     hash: [u8; 32],
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    intent: Option<[u8; 32]>,
     expected: u64,
     columns: Vec<(i32, i32, i32)>,
 }
@@ -44,13 +46,14 @@ struct State {
 pub(super) struct EncodedSet {
     entries: BTreeMap<Vec<u8>, Option<Vec<u8>>>,
     columns: Vec<(i32, i32, i32)>,
-    hash: [u8; 32],
+    pub(super) hash: [u8; 32],
     pub bytes: usize,
 }
 /// The sole read/write gate and durable metadata owner for an opened database.
 pub(crate) struct LevelStore {
     db: Arc<DB>,
     state: Mutex<State>,
+    receipts: std::sync::RwLock<BTreeMap<String, ColumnReceipt>>,
     epoch: AtomicU64,
     uncertain: AtomicBool,
     lease: Mutex<Option<Arc<dyn Send + Sync>>>,
@@ -87,6 +90,7 @@ impl LevelStore {
                 ColumnReceipt {
                     id: prepared.id,
                     hash: prepared.hash,
+                    intent: prepared.intent,
                     epoch: prepared.expected,
                     outcome: ReceiptOutcome::NotApplied,
                 },
@@ -95,6 +99,7 @@ impl LevelStore {
         }
         Ok(Self {
             epoch: AtomicU64::new(ledger.epoch),
+            receipts: std::sync::RwLock::new(ledger.receipts.clone()),
             state: Mutex::new(State {
                 ledger,
                 last_sequence: 0,
@@ -180,12 +185,28 @@ impl LevelStore {
         }
         Ok(state.ledger.receipts.get(id).cloned())
     }
+    /// Immutable receipt observations never acquire the IO serialization lock.
+    pub(super) fn peek_receipt(&self, id: &str) -> Result<Option<ColumnReceipt>, ColumnWriteError> {
+        if self.uncertain() {
+            return Err(ColumnWriteError::RecoveryRequired);
+        }
+        if !valid_id(id) {
+            return Err(ColumnWriteError::Invalid);
+        }
+        let receipts = self
+            .receipts
+            .try_read()
+            .map_err(|_| ColumnWriteError::Busy)?;
+        Ok(receipts.get(id).cloned())
+    }
+
     /// Check original capture order and epoch, then write one complete atomic set.
     pub(super) fn write(
         &self,
         stamp: ColumnStamp,
         set: &EncodedSet,
         effect: Option<&str>,
+        intent: Option<[u8; 32]>,
     ) -> Result<ColumnWriteAck, ColumnWriteError> {
         let mut state = self
             .state
@@ -201,7 +222,7 @@ impl LevelStore {
         if let Some(id) = effect
             && let Some(receipt) = state.ledger.receipts.get(id)
         {
-            if receipt.hash != set.hash {
+            if receipt.intent != intent || (intent.is_none() && receipt.hash != set.hash) {
                 return Err(ColumnWriteError::Conflict);
             }
             return match receipt.outcome {
@@ -228,6 +249,7 @@ impl LevelStore {
         let receipt = effect.map(|id| ColumnReceipt {
             id: id.to_owned(),
             hash: set.hash,
+            intent,
             epoch: next,
             outcome: ReceiptOutcome::Applied,
         });
@@ -239,6 +261,9 @@ impl LevelStore {
                 return Err(ColumnWriteError::Busy);
             }
             final_ledger.epoch = next;
+            if intent.is_some() {
+                final_ledger.version = 2;
+            }
             final_ledger
                 .receipts
                 .insert(receipt.id.clone(), receipt.clone());
@@ -252,9 +277,13 @@ impl LevelStore {
         };
         if let Some(id) = effect {
             let mut prepared = state.ledger.clone();
+            if intent.is_some() {
+                prepared.version = 2;
+            }
             prepared.prepared = Some(Prepared {
                 id: id.to_owned(),
                 hash: set.hash,
+                intent,
                 expected: stamp.epoch,
                 columns: set.columns.clone(),
             });
@@ -294,6 +323,12 @@ impl LevelStore {
         if self.fault.load(Ordering::Acquire) == 2 {
             return self.poison();
         }
+        if let Some(receipt) = &receipt {
+            self.receipts
+                .write()
+                .map_err(|_| ColumnWriteError::RecoveryRequired)?
+                .insert(receipt.id.clone(), receipt.clone());
+        }
         Ok(ColumnWriteAck {
             epoch: next,
             receipt,
@@ -308,12 +343,16 @@ impl LevelStore {
 }
 /// Validate persisted ownership, complete epoch lineage, and bounded receipt keys.
 fn validate(ledger: &Ledger) -> StorageResult<()> {
-    if ledger.version != 1 || ledger.receipts.len() > MAX_RECEIPTS {
+    if !matches!(ledger.version, 1 | 2) || ledger.receipts.len() > MAX_RECEIPTS {
         return Err(invalid("invalid column ledger version or capacity"));
     }
     let mut epochs = BTreeSet::new();
     for (id, receipt) in &ledger.receipts {
-        if !valid_id(id) || &receipt.id != id || receipt.epoch > ledger.epoch {
+        if !valid_id(id)
+            || &receipt.id != id
+            || receipt.epoch > ledger.epoch
+            || (ledger.version == 1 && receipt.intent.is_some())
+        {
             return Err(invalid("invalid column receipt"));
         }
         if receipt.outcome == ReceiptOutcome::Applied
@@ -329,6 +368,7 @@ fn validate(ledger: &Ledger) -> StorageResult<()> {
         let columns: BTreeSet<_> = prepared.columns.iter().copied().collect();
         if !valid_id(&prepared.id)
             || prepared.expected != ledger.epoch
+            || (ledger.version == 1 && prepared.intent.is_some())
             || ledger.receipts.contains_key(&prepared.id)
             || columns.len() != prepared.columns.len()
             || columns.is_empty()

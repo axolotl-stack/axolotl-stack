@@ -54,6 +54,9 @@ pub struct ColumnWrite {
 pub struct ColumnReceipt {
     pub id: String,
     pub hash: [u8; 32],
+    /// Optional stable intent identity, independent of captured actor state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub intent: Option<[u8; 32]>,
     pub epoch: u64,
     pub outcome: ReceiptOutcome,
 }
@@ -98,6 +101,7 @@ enum Job {
         stamp: ColumnStamp,
         encoded: leveldb::EncodedSet,
         effect: Option<String>,
+        intent: Option<[u8; 32]>,
         reply: oneshot::Sender<Result<ColumnWriteAck, ColumnWriteError>>,
         _bytes: ByteLease,
     },
@@ -151,10 +155,11 @@ impl ColumnWriter {
                             stamp,
                             encoded,
                             effect,
+                            intent,
                             reply,
                             _bytes,
                         } => {
-                            let result = store.write(stamp, &encoded, effect.as_deref());
+                            let result = store.write(stamp, &encoded, effect.as_deref(), intent);
                             let _ = reply.send(result);
                         }
                         Job::Barrier(store, reply) => {
@@ -269,7 +274,7 @@ impl ColumnWriter {
         if self.reserved() {
             return Err(ColumnWriteError::Busy);
         }
-        self.submit(stamp, columns, None)
+        self.submit(stamp, columns, None, None)
     }
     /// Queue a fenced durable candidate. The fence outlives the completion and
     /// must be released by the native coordinator after physical publication.
@@ -285,14 +290,45 @@ impl ColumnWriter {
         if !valid_id(id) {
             return Err(ColumnWriteError::Invalid);
         }
-        self.submit(stamp, columns, Some(id.to_owned()))
+        self.submit(stamp, columns, Some(id.to_owned()), None)
     }
+    /// Submit a host-computed stable intent while retaining its dynamic full
+    /// column payload hash. Only trusted scoped adapters construct this digest.
+    pub(crate) fn durable_intent(
+        &self,
+        stamp: ColumnStamp,
+        columns: &[ColumnWrite],
+        id: &str,
+        intent: [u8; 32],
+    ) -> Result<ColumnCompletion, ColumnWriteError> {
+        if !self.publication_pending.load(Ordering::Acquire) {
+            return Err(ColumnWriteError::Busy);
+        }
+        if !valid_id(id) {
+            return Err(ColumnWriteError::Invalid);
+        }
+        self.submit(stamp, columns, Some(id.to_owned()), Some(intent))
+    }
+    /// Reconcile only the original detached payload retained by native work.
+    pub(crate) fn payload_hash(columns: &[ColumnWrite]) -> Result<[u8; 32], ColumnWriteError> {
+        Ok(leveldb::encode(columns)?.hash)
+    }
+
+    /// Query already-validated metadata without waiting behind storage IO.
+    pub(crate) fn peek_receipt(&self, id: &str) -> Result<Option<ColumnReceipt>, ColumnWriteError> {
+        if self.orphaned.load(Ordering::Acquire) {
+            return Err(ColumnWriteError::RecoveryRequired);
+        }
+        self.store.peek_receipt(id)
+    }
+
     /// Encode before queueing; no worker or byte reservation is created on rejection.
     fn submit(
         &self,
         stamp: ColumnStamp,
         columns: &[ColumnWrite],
         effect: Option<String>,
+        intent: Option<[u8; 32]>,
     ) -> Result<ColumnCompletion, ColumnWriteError> {
         if stamp.owner != self.owner {
             return Err(ColumnWriteError::Stale);
@@ -323,6 +359,7 @@ impl ColumnWriter {
                 stamp,
                 encoded,
                 effect,
+                intent,
                 reply,
                 _bytes: lease,
             })
