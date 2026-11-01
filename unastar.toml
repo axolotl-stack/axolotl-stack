@@ -137,3 +137,8 @@ always_at_location = false
 # Spawn location in *block coordinates* (floats allowed for smoother centering).
 # `yaw` and `pitch` are optional. Unset: the generator picks the spawn.
 # location = { x = 0.5, y = 17.0, z = 0.5, yaw = 0.0, pitch = 0.0 }
+
+[plugins]
+# Required manifest IDs must be present and initialize before listeners start.
+# A runtime callback failure stops simulation and fences connected player state.
+required = []

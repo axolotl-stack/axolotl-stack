@@ -10,6 +10,8 @@ use crate::ecs::events::{PluginAction, ServerEvent};
 
 #[path = "lifecycle.rs"]
 mod lifecycle;
+#[path = "readiness.rs"]
+pub(crate) mod readiness;
 
 /// Component API version supported by this host.
 pub const PLUGIN_API_VERSION: &str = "0.3.0";
@@ -47,6 +49,8 @@ pub struct HostContext {
     entity_map: HashMap<u32, Entity>,
     next_rep: u32,
     limits: wasmtime::StoreLimits,
+    /// Immutable opaque bytes loaded before component instantiation.
+    configuration: Vec<u8>,
 }
 
 // Safety: We only access world_ptr from the thread that owns the World (during system execution).
@@ -79,6 +83,7 @@ impl HostContext {
                 .memory_size(limits.max_memory)
                 .trap_on_grow_failure(true)
                 .build(),
+            configuration: Vec::new(),
         }
     }
 
@@ -330,6 +335,7 @@ pub struct PluginManager {
     pending: Vec<PendingPlugin>,
     tick_prepared: bool,
     tick_budget_valid: bool,
+    readiness: readiness::PluginReadiness,
 }
 
 struct LoadedPlugin {
@@ -452,16 +458,20 @@ impl PluginManager {
             pending: Vec::new(),
             tick_prepared: false,
             tick_budget_valid: true,
+            readiness: Default::default(),
         })
     }
 
-    /// Discover and compile plugins from a directory. Instantiation and on-load
-    /// run on the first tick, when the live ECS World can be safely attached.
+    /// Discover and compile components. Initialization attaches the live world
+    /// before the production listener starts, or on a standalone manager's first cycle.
     pub fn load_plugins(&mut self, plugins_dir: &Path) -> Result<(), anyhow::Error> {
         if !plugins_dir.exists() {
             info!(path = %plugins_dir.display(), "Plugins directory not found, creating it.");
             std::fs::create_dir_all(plugins_dir)?;
-            return Ok(());
+            return self
+                .readiness
+                .discovered(&Default::default())
+                .map_err(anyhow::Error::msg);
         }
 
         let mut found_any = false;
@@ -481,7 +491,19 @@ impl PluginManager {
             info!("Plugins directory is empty, no plugins to load.");
         }
 
-        Ok(())
+        let present = self
+            .plugins
+            .keys()
+            .map(|id| id.0.clone())
+            .chain(
+                self.pending
+                    .iter()
+                    .map(|plugin| plugin.manifest.id.0.clone()),
+            )
+            .collect();
+        self.readiness
+            .discovered(&present)
+            .map_err(anyhow::Error::msg)
     }
 
     /// Load a single plugin from a directory.
@@ -496,6 +518,23 @@ impl PluginManager {
         }
         let manifest_content = std::fs::read_to_string(&manifest_path)?;
         let manifest: PluginManifest = toml_edit::de::from_str(&manifest_content)?;
+        let id = manifest.id.clone();
+        if manifest.required {
+            self.readiness.require(&id.0);
+        }
+        let result = self.prepare_plugin(plugin_dir, manifest);
+        if let Err(error) = &result {
+            self.readiness.fail(&id.0, &error.to_string());
+        }
+        result
+    }
+
+    /// Compile one manifest and cache its bounded configuration before instantiation.
+    fn prepare_plugin(
+        &mut self,
+        plugin_dir: &Path,
+        manifest: PluginManifest,
+    ) -> Result<(), anyhow::Error> {
         if manifest.api_version != PLUGIN_API_VERSION {
             anyhow::bail!(
                 "Plugin API {} is unsupported; rebuild against {}",
@@ -511,9 +550,15 @@ impl PluginManager {
                 .iter()
                 .any(|plugin| plugin.manifest.id == plugin_id)
         {
+            anyhow::ensure!(
+                !self.readiness.is_required(&plugin_id.0),
+                "duplicate required component ID {plugin_id}"
+            );
             warn!(id = %plugin_id, "Duplicate plugin ID found, skipping");
             return Ok(());
         }
+
+        let configuration = readiness::configuration(plugin_dir, manifest.config.as_deref())?;
 
         // 2. Load WASM component
         let wasm_path = plugin_dir.join("plugin.wasm");
@@ -536,7 +581,12 @@ impl PluginManager {
         }
         let wasi_ctx = wasi_builder.build();
 
-        let store = create_store(&self.engine, wasi_ctx, plugin_id, &manifest.limits)?;
+        let mut store = create_store(&self.engine, wasi_ctx, plugin_id, &manifest.limits)?;
+        store.data_mut().configuration = configuration;
+        tracing::debug!(
+            config_bytes = store.data().configuration.len(),
+            "Component configuration prepared"
+        );
         // Runtime discovery happens before the game World is available.
         // Defer *instantiation* too: component start functions can call hosts.
         self.pending.push(PendingPlugin {
@@ -549,7 +599,11 @@ impl PluginManager {
     }
 
     fn initialize_pending(&mut self, world: &mut bevy_ecs::world::World) {
+        let mut staged = Vec::new();
         for mut pending in self.pending.drain(..) {
+            if pending.manifest.required {
+                self.readiness.require(&pending.manifest.id.0);
+            }
             let result = with_world(&mut pending.store, world, |store| -> anyhow::Result<_> {
                 let mut linker = Linker::<HostContext>::new(&self.engine);
                 wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
@@ -564,11 +618,10 @@ impl PluginManager {
             });
             match result {
                 Ok(bindings) => {
-                    for action in std::mem::take(&mut pending.store.data_mut().pending_actions) {
-                        world
-                            .resource_mut::<crate::ecs::events::ActionQueue>()
-                            .push(action);
-                    }
+                    staged.extend(std::mem::take(
+                        &mut pending.store.data_mut().pending_actions,
+                    ));
+                    self.readiness.initialized(&pending.manifest.id.0);
                     info!(id = %pending.manifest.id, "Plugin loaded (Component Model)");
                     self.plugins.insert(
                         pending.manifest.id.clone(),
@@ -580,9 +633,24 @@ impl PluginManager {
                     );
                 }
                 Err(error) => {
-                    error!(id = %pending.manifest.id, %error, "Plugin initialization failed")
+                    error!(id = %pending.manifest.id, %error, "Plugin initialization failed");
+                    if self
+                        .readiness
+                        .fail(&pending.manifest.id.0, &error.to_string())
+                    {
+                        break;
+                    }
                 }
             }
+        }
+        if self.readiness.check().is_ok() {
+            for action in staged {
+                world
+                    .resource_mut::<crate::ecs::events::ActionQueue>()
+                    .push(action);
+            }
+        } else {
+            readiness::fence_world(world);
         }
     }
 
@@ -624,6 +692,10 @@ impl PluginManager {
         all_events: Vec<ServerEvent>,
     ) {
         let budget_valid = self.tick_budget_valid;
+        let readiness = self.readiness.clone();
+        if readiness.check().is_err() {
+            return;
+        }
 
         if all_events.is_empty() {
             return;
@@ -649,7 +721,8 @@ impl PluginManager {
                     continue;
                 }
 
-                let cancelled = !budget_valid || Self::dispatch_event(plugin, event, ecs_world);
+                let cancelled =
+                    !budget_valid || Self::dispatch_event(plugin, event, ecs_world, &readiness);
 
                 // Drain pending actions after each call
                 let actions: Vec<PluginAction> =
@@ -663,6 +736,10 @@ impl PluginManager {
                     }
                 }
 
+                if readiness.check().is_err() {
+                    self.tick_budget_valid = false;
+                    return;
+                }
                 if cancelled {
                     cancelled_indices.insert(index);
                 }
@@ -685,6 +762,7 @@ impl PluginManager {
         plugin: &mut LoadedPlugin,
         event: &ServerEvent,
         world: &mut bevy_ecs::world::World,
+        readiness: &readiness::PluginReadiness,
     ) -> bool {
         struct Invocation<'a> {
             store: &'a mut Store<HostContext>,
@@ -878,6 +956,9 @@ impl PluginManager {
             Err(e) => {
                 plugin.store.data_mut().pending_actions.clear();
                 error!(plugin = %plugin.manifest.id, error = %e, "Event dispatch failed");
+                if readiness.fail(&plugin.manifest.id.0, &e.to_string()) {
+                    readiness::fence_world(world);
+                }
                 matches!(
                     event,
                     ServerEvent::PlayerChat { .. }
@@ -959,7 +1040,7 @@ fn make_player_handle(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::plugin::manifest::PluginLimits;
     use wit_bindings::unastar::plugin::host::Host;
@@ -1017,6 +1098,27 @@ mod tests {
         respawn_body: &str,
         tick_body: &str,
     ) -> Component {
+        Component::new(
+            engine,
+            component_source(
+                allow,
+                damage_body,
+                respawn_body,
+                tick_body,
+                "call $tick i64.const 42 i64.ne if unreachable end",
+            ),
+        )
+        .unwrap()
+    }
+
+    /// Source fixture supports discovery and actual initialization from a directory.
+    pub(crate) fn component_source(
+        allow: bool,
+        damage_body: &str,
+        respawn_body: &str,
+        tick_body: &str,
+        load_body: &str,
+    ) -> String {
         let exports = [
             ("on-load", "", "", false),
             ("on-unload", "", "", false),
@@ -1149,7 +1251,7 @@ mod tests {
                 format!("(param {params})")
             };
             let body = if name == "on-load" {
-                "call $tick i64.const 42 i64.ne if unreachable end".to_string()
+                load_body.to_owned()
             } else if name == "on-tick" {
                 tick_body.to_owned()
             } else if returns_bool {
@@ -1219,8 +1321,11 @@ mod tests {
                 (canon lift (core func $instance "on-player-respawned") (memory $instance "memory")))
         "#);
         wat.push(')');
-        Component::new(engine, wat).unwrap()
+        wat
     }
+
+    #[path = "readiness.rs"]
+    mod readiness_tests;
 
     #[test]
     fn real_plugin_load_reads_world_and_chat_cancellation_prevents_delivery() {
@@ -1231,6 +1336,8 @@ mod tests {
                 name: "test".into(),
                 version: "1".into(),
                 api_version: PLUGIN_API_VERSION.into(),
+                required: false,
+                config: None,
                 capabilities: Default::default(),
                 subscriptions: [crate::ecs::events::EventKind::PlayerChat].into(),
                 limits: PluginLimits::default(),
@@ -1246,6 +1353,7 @@ mod tests {
                 pending: vec![pending],
                 tick_prepared: false,
                 tick_budget_valid: true,
+                readiness: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1309,7 +1417,7 @@ mod tests {
                 },
             ] {
                 assert_eq!(
-                    PluginManager::dispatch_event(plugin, &event, &mut world),
+                    PluginManager::dispatch_event(plugin, &event, &mut world, &Default::default()),
                     !allow
                 );
                 assert!(plugin.store.data().world_ptr.is_null());
@@ -1336,6 +1444,8 @@ mod tests {
                 name: "test".into(),
                 version: "1".into(),
                 api_version: PLUGIN_API_VERSION.into(),
+                required: false,
+                config: None,
                 capabilities: Default::default(),
                 subscriptions: [subscription].into(),
                 limits: PluginLimits::default(),
@@ -1351,6 +1461,7 @@ mod tests {
                 pending: vec![pending],
                 tick_prepared: false,
                 tick_budget_valid: true,
+                readiness: Default::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1426,6 +1537,7 @@ mod tests {
             pending: Vec::new(),
             tick_prepared: false,
             tick_budget_valid: true,
+            readiness: Default::default(),
         };
         let mut world = bevy_ecs::world::World::new();
         world.insert_resource(crate::ecs::resources::TickCounter::default());

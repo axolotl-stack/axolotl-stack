@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 use crate::ecs::events::EventKind;
 
@@ -24,6 +25,12 @@ pub struct PluginManifest {
     pub version: String,
     /// Required host API version.
     pub api_version: String,
+    /// Initialization and callback failures stop the runtime instead of being optional.
+    #[serde(default)]
+    pub required: bool,
+    /// Optional opaque configuration file, relative to the plugin directory.
+    #[serde(default)]
+    pub config: Option<PathBuf>,
     /// Requested capabilities.
     #[serde(default)]
     pub capabilities: HashSet<PluginCapability>,

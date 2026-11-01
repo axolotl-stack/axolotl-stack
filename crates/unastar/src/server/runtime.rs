@@ -50,6 +50,7 @@ pub struct UnastarServer {
 impl UnastarServer {
     /// Create a new server instance from config.
     pub async fn new(config: Arc<UnastarConfig>) -> Result<Self, Box<dyn std::error::Error>> {
+        config.plugins.validate().map_err(std::io::Error::other)?;
         let player_data_store = Arc::new(PlayerDataStore::new(config.players.data_dir.clone()));
 
         // Create ECS-based game server
@@ -131,12 +132,16 @@ impl UnastarServer {
         // Initialize Plugin Manager
         let mut plugin_manager = PluginManager::new()
             .map_err(|e| format!("Failed to initialize plugin manager: {}", e))?;
+        plugin_manager.require_plugins(&config.plugins.required);
 
         // Load plugins from "plugins" directory relative to CWD
         let plugins_dir = std::env::current_dir()?.join("plugins");
         info!(path = %plugins_dir.display(), "Loading plugins from directory");
-        if let Err(e) = plugin_manager.load_plugins(&plugins_dir) {
-            warn!(error = %e, "Failed to load plugins");
+        if let Err(error) = plugin_manager.load_plugins(&plugins_dir) {
+            plugin_manager
+                .check_required()
+                .map_err(std::io::Error::other)?;
+            warn!(%error, "Optional component discovery failed");
         }
 
         let plugin_manager = Arc::new(Mutex::new(plugin_manager));
@@ -186,6 +191,7 @@ impl UnastarServer {
         self.config
             .validate_network()
             .map_err(std::io::Error::other)?;
+        self.server.initialize_plugins()?;
         let status = Arc::new(RuntimeStatus::new(&self.config));
 
         // Build listener config from server settings

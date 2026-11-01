@@ -36,6 +36,7 @@ pub struct UnastarConfig {
     pub server: ServerConfigFile,
     pub world: WorldConfig,
     pub players: PlayerStorageConfig,
+    pub plugins: PluginConfig,
     #[serde(alias = "spawn")]
     pub spawn_rules: Vec<SpawnRule>,
 }
@@ -46,6 +47,7 @@ impl Default for UnastarConfig {
             server: ServerConfigFile::default(),
             world: WorldConfig::default(),
             players: PlayerStorageConfig::default(),
+            plugins: PluginConfig::default(),
             spawn_rules: vec![SpawnRule::default()],
         }
     }
@@ -163,6 +165,7 @@ impl UnastarConfig {
 
     pub fn validate(&self) -> Result<(), String> {
         self.validate_network()?;
+        self.plugins.validate()?;
         #[cfg(not(feature = "bedrock-worldgen"))]
         if matches!(
             self.world.generator,
@@ -194,6 +197,33 @@ impl UnastarConfig {
                  from the Java server jar: build with `--features java-worldgen` and \
                  UNASTAR_JAVA_SERVER_JAR=<path to the Java Edition 1.21.11 server.jar>"
                     .into(),
+            );
+        }
+        Ok(())
+    }
+}
+
+/// Components whose absence or failure prevents player admission.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct PluginConfig {
+    /// Manifest IDs, independent of directory names; an empty list requires none.
+    pub required: Vec<String>,
+}
+impl PluginConfig {
+    /// Reject ambiguous, empty or unbounded required component identities.
+    pub(crate) fn validate(&self) -> Result<(), String> {
+        let unique: std::collections::BTreeSet<_> = self.required.iter().collect();
+        if self.required.len() > 128
+            || unique.len() != self.required.len()
+            || self.required.iter().any(|id| {
+                id.is_empty()
+                    || id.len() > 128
+                    || id.chars().any(|ch| ch.is_control() || ch.is_whitespace())
+            })
+        {
+            return Err(
+                "`plugins.required` requires at most 128 unique bounded manifest IDs".into(),
             );
         }
         Ok(())

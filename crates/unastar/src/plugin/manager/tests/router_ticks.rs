@@ -82,6 +82,8 @@ fn attach(
         name: "Global".into(),
         version: "1".into(),
         api_version: PLUGIN_API_VERSION.into(),
+        required: false,
+        config: None,
         capabilities: Default::default(),
         subscriptions: kinds.iter().copied().collect(),
         limits: PluginLimits {
@@ -100,6 +102,7 @@ fn attach(
         pending: vec![pending],
         tick_prepared: false,
         tick_budget_valid: true,
+        readiness: Default::default(),
     }));
     for (_, server) in router.iter_mut() {
         PluginManager::attach_to_world(manager.clone(), server.ecs.world_mut());
@@ -283,4 +286,117 @@ async fn component_fuel_is_not_replenished_between_worlds_or_deferred_router_wor
         "the next cycle renews exactly once"
     );
     assert!(!manager.lock().unwrap().tick_prepared);
+}
+
+/// Require a real already-attached component without creating another guest instance.
+fn require(manager: &Arc<Mutex<PluginManager>>) {
+    let mut manager = manager.lock().unwrap();
+    let id = manager.pending[0].manifest.id.0.clone();
+    manager.pending[0].manifest.required = true;
+    manager.readiness.require(&id);
+}
+
+#[tokio::test]
+async fn required_tick_trap_fences_all_worlds_and_never_recovers_on_next_fuel_cycle() {
+    use crate::server::game::{inventory_effects, player_state};
+    let (mut router, clients) = router();
+    let manager = attach(
+        &mut router,
+        &[crate::ecs::events::EventKind::Tick],
+        KEEP_DAMAGE,
+        "i32.const 0 i32.const 64 i32.const 0 i32.const 9 call $set-block unreachable",
+    );
+    require(&manager);
+    assert!(matches!(
+        router.tick().await,
+        Err(crate::server::worlds::WorldTickError::RequiredComponentUnavailable(_))
+    ));
+    let clocks: Vec<_> = router
+        .iter()
+        .map(|(_, server)| server.ecs.world().resource::<TickCounter>().current)
+        .collect();
+    for (dimension, server) in router.iter_mut() {
+        let player = clients[dimension as usize].0;
+        let world = server.ecs.world_mut();
+        assert!(inventory_effects::is_recovery_fenced(world, player));
+        assert!(player_state::capture(world, player).is_err());
+        assert!(world.get::<Health>(player).is_none());
+        assert!(
+            world
+                .resource_mut::<crate::ecs::events::ActionQueue>()
+                .drain()
+                .is_empty()
+        );
+        assert!(!super::super::readiness::admission_allowed(world));
+    }
+    assert!(router.tick().await.is_err());
+    assert_eq!(
+        clocks,
+        router
+            .iter()
+            .map(|(_, server)| server.ecs.world().resource::<TickCounter>().current)
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(router.save_all_players().await, 0);
+}
+
+#[tokio::test]
+async fn required_damage_trap_vetoes_before_commit_and_fences_the_exact_player() {
+    use crate::server::game::inventory_effects;
+    let (mut router, clients) = router();
+    let manager = attach(
+        &mut router,
+        &[crate::ecs::events::EventKind::PlayerDamage],
+        "unreachable",
+        "",
+    );
+    require(&manager);
+    router.initialize_plugins().unwrap();
+    let world = router.world_mut(1).unwrap().ecs.world_mut();
+    let player = clients[1].0;
+    assert_eq!(
+        crate::entity::player_life::hurt_player(
+            world,
+            player,
+            &Hit {
+                damage: 5.0,
+                cause: ActorDamageCause::Override,
+                attacker: None,
+                by_player: false,
+                knockback_from: None,
+                knockback_power: KnockbackPower::DEFAULT,
+            }
+        ),
+        0.0
+    );
+    assert!(inventory_effects::is_recovery_fenced(world, player));
+    assert!(
+        world
+            .get::<crate::entity::mob::combat::HurtTimer>(player)
+            .is_none()
+    );
+    assert!(router.tick().await.is_err());
+    assert!(inventory_effects::is_recovery_fenced(
+        router.world(2).unwrap().ecs.world(),
+        clients[2].0
+    ));
+}
+
+#[tokio::test]
+async fn required_legitimate_damage_veto_preserves_readiness_and_player_state() {
+    let (mut router, clients) = router();
+    let manager = attach(
+        &mut router,
+        &[crate::ecs::events::EventKind::PlayerDamage],
+        "i32.const 32 i32.const 0 i32.store i32.const 32",
+        "",
+    );
+    require(&manager);
+    router.initialize_plugins().unwrap();
+    let world = router.world_mut(1).unwrap().ecs.world_mut();
+    let player = clients[1].0;
+    apply_hit(world, player);
+    assert_eq!(world.get::<Health>(player).unwrap().current, 20.0);
+    assert!(super::super::readiness::admission_allowed(world));
+    router.tick().await.unwrap();
 }

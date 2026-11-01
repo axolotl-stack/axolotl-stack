@@ -19,6 +19,8 @@ use crate::world::ecs::ChunkManager;
 pub enum WorldTickError {
     #[error("plugin manager lock is poisoned")]
     PluginManagerUnavailable,
+    #[error("required component is unavailable: {0}")]
+    RequiredComponentUnavailable(String),
 }
 
 /// Separate ECS worlds share transport routing without sharing terrain, physics,
@@ -55,6 +57,46 @@ impl DimensionRouter {
     /// Record the runtime's manager after its primary world was attached.
     pub(crate) fn set_plugin_manager(&mut self, manager: Arc<Mutex<crate::plugin::PluginManager>>) {
         self.plugin_manager = Some(manager);
+    }
+    /// Complete required initialization before listeners or simulation admit players.
+    pub(crate) fn initialize_plugins(&mut self) -> Result<(), WorldTickError> {
+        if let Some(manager) = self.plugin_manager.clone() {
+            let result = manager
+                .lock()
+                .map_err(|_| WorldTickError::PluginManagerUnavailable)?
+                .initialize_startup(
+                    self.worlds
+                        .get_mut(&self.primary)
+                        .expect("primary world")
+                        .ecs
+                        .world_mut(),
+                );
+            if let Err(reason) = result {
+                self.fence_plugin_failure();
+                return Err(WorldTickError::RequiredComponentUnavailable(reason));
+            }
+        }
+        Ok(())
+    }
+    /// Stop all worlds when a required callback failed in any one of them.
+    fn check_plugins(&mut self) -> Result<(), WorldTickError> {
+        if let Some(manager) = self.plugin_manager.clone() {
+            let result = manager
+                .lock()
+                .map_err(|_| WorldTickError::PluginManagerUnavailable)?
+                .check_required();
+            if let Err(reason) = result {
+                self.fence_plugin_failure();
+                return Err(WorldTickError::RequiredComponentUnavailable(reason));
+            }
+        }
+        Ok(())
+    }
+    /// Prevent ordinary saves or delayed effects from publishing uncertain state.
+    fn fence_plugin_failure(&mut self) {
+        for world in self.worlds.values_mut() {
+            crate::plugin::manager::readiness::fence_world(world.ecs.world_mut());
+        }
     }
     /// Read the primary server's protocol dimension.
     pub fn primary_dimension(&self) -> i32 {
@@ -352,6 +394,7 @@ impl DimensionRouter {
     /// Tick every world, then run owned global work and migration outside all
     /// local ECS borrows. Aggregate application ticks run exactly once.
     pub async fn tick(&mut self) -> Result<(), WorldTickError> {
+        self.initialize_plugins()?;
         self.refresh_directory();
         if let Some(manager) = self.plugin_manager.clone() {
             manager
@@ -375,14 +418,20 @@ impl DimensionRouter {
             }
             super::loading::expire(world);
         }
+        self.check_plugins()?;
         self.apply_requests();
+        self.check_plugins()?;
         self.apply_relocations().await;
+        self.check_plugins()?;
         self.apply_transfers().await;
+        self.check_plugins()?;
         self.apply_requests();
+        self.check_plugins()?;
         let handlers = self.tick_handlers.clone();
         for handler in handlers {
             let directory = self.refresh_directory();
             handler.on_tick(self, &directory);
+            self.check_plugins()?;
         }
         self.refresh_directory();
         if let Some(manager) = self.plugin_manager.clone() {
@@ -396,9 +445,11 @@ impl DimensionRouter {
                         .ecs
                         .world_mut(),
                 );
+            self.check_plugins()?;
             // Global callbacks queue work rather than reentering borrowed worlds.
             // Its synchronous plugin hooks still share this cycle's original fuel.
             self.apply_requests();
+            self.check_plugins()?;
             self.refresh_directory();
             manager
                 .lock()
@@ -425,6 +476,9 @@ impl DimensionRouter {
             }
         }
         for request in requests {
+            if self.check_plugins().is_err() {
+                break;
+            }
             let directory = self.refresh_directory();
             request(self, &directory);
         }

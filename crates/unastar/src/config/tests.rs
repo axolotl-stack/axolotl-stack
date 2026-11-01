@@ -318,3 +318,27 @@ fn configured_signing_key_path_roundtrips_and_rejects_empty_paths() {
         assert!(config.validate_network().is_err());
     }
 }
+
+#[test]
+fn required_component_identities_are_validated_and_samples_default_to_optional() {
+    for ids in [
+        vec!["".into()],
+        vec!["contains space".into()],
+        vec!["same".into(), "same".into()],
+        vec!["x".repeat(129)],
+        vec!["many".into(); 129],
+    ] {
+        assert!(PluginConfig { required: ids }.validate().is_err());
+    }
+    let config: UnastarConfig =
+        toml_edit::de::from_str("[plugins]\nrequired = ['example.policy']\n").unwrap();
+    config.plugins.validate().unwrap();
+    assert_eq!(config.plugins.required, ["example.policy"]);
+    for sample in [
+        DEFAULT_CONFIG_TOML,
+        include_str!("../../../../unastar.toml"),
+    ] {
+        let config: UnastarConfig = toml_edit::de::from_str(sample).unwrap();
+        assert!(config.plugins.required.is_empty());
+    }
+}
