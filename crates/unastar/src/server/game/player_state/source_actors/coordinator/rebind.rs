@@ -185,7 +185,7 @@ pub(crate) fn prepare(
     let source_player = source.player(world).ok_or(Error::SourceGone)?;
     if source_player == target
         || crate::server::game::player_state::source_actors::pending(world, source_player)
-        || crate::server::game::inventory_effects::is_quarantined(world, source_player)
+        || crate::server::game::inventory_effects::inventory_busy(world, source_player)
         || world.get::<Dead>(source_player).is_some()
     {
         return Err(Error::Busy);
@@ -246,7 +246,7 @@ pub(crate) fn submit(world: &mut World, operation: Arc<Operation>) {
         if !operation.original(world) || !operation.replacement(world) {
             return Err(Error::SourceGone);
         }
-        if crate::server::game::inventory_effects::is_quarantined(world, operation.source_player)
+        if crate::server::game::inventory_effects::inventory_busy(world, operation.source_player)
             || world.get::<Dead>(operation.source_player).is_some()
         {
             return Err(Error::Busy);
@@ -762,6 +762,7 @@ pub(super) fn defer_death(
     player: Entity,
     cause: crate::entity::player_life::death::DeathCause,
     attribution: crate::entity::damage::DamageAttribution,
+    rules: crate::world::rules::GameRules,
 ) -> bool {
     let Some(operation) = world
         .get::<Pending>(player)
@@ -780,7 +781,7 @@ pub(super) fn defer_death(
             .map_err(|_| Error::LimitExceeded)?;
         let lease = (operation.reserve)(size.checked_mul(3).ok_or(Error::LimitExceeded)?)?;
         let pre = Arc::new(capture(world, player).map_err(|_| Error::InvalidState)?);
-        let mut post = post_drop(world, player, &pre)?;
+        let mut post = post_drop(world, player, &pre, rules.keep_inventory)?;
         let hold = quarantine::hold(
             world,
             player,
@@ -795,7 +796,7 @@ pub(super) fn defer_death(
         let death = Arc::new(TerminalDeath {
             cause,
             attribution,
-            rules: world.resource::<crate::world::rules::GameRules>().clone(),
+            rules,
         });
         let runtime = world.resource::<Runtime>();
         let writer = runtime.writer.clone();

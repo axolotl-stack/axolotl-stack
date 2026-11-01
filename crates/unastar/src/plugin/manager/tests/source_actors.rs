@@ -272,13 +272,17 @@ impl Harness {
     }
     /// Poll the real router/worker boundary; guest logs are results of executed imports.
     async fn until(&mut self, wanted: &str) {
+        let _ = self.until_logs(wanted).await;
+    }
+    /// Keep the exact owned callback evidence when a control needs to correlate native facts.
+    async fn until_logs(&mut self, wanted: &str) -> Vec<String> {
         let mut logs = Vec::new();
         for _ in 0..500 {
             let result = self.router.tick().await;
             logs.extend(self.logs());
             assert!(result.is_ok(), "router: {result:?}; guest: {logs:?}");
             if logs.iter().any(|line| line == wanted) {
-                return;
+                return logs;
             }
             tokio::time::sleep(std::time::Duration::from_millis(2)).await;
         }
@@ -1852,4 +1856,325 @@ async fn actual_component_live_rebind_trap_after_ack_keeps_target_unpublished_an
             .count(),
         0
     );
+}
+
+/// An actual source-free retained death waits for canonical post-drop ACK before values or module ownership.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_initial_terminal_waits_for_native_ack_then_adopts_without_repeating_drops()
+ {
+    let directory = tempfile::tempdir().unwrap();
+    let provider = Arc::new(SourceAckGate {
+        inner: Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        written: std::sync::atomic::AtomicBool::new(false),
+        release: tokio::sync::Semaphore::new(0),
+    });
+    let mut h = Harness::new(50, provider.clone(), tempfile::tempdir().unwrap(), true);
+    h.prepare_subject();
+    h.retain().await;
+    let source = h.subject.unwrap();
+    assert!(
+        provider
+            .inner
+            .load(uuid::Uuid::from_u128(1))
+            .await
+            .unwrap()
+            .is_none_or(|data| data.source_actor.is_none())
+    );
+    assert!(
+        crate::entity::player_life::hurt_player(
+            h.world_mut(),
+            source,
+            &Hit {
+                damage: 100.0,
+                cause: ActorDamageCause::Override,
+                attacker: None,
+                by_player: false,
+                knockback_from: None,
+                knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT
+            }
+        ) > 0.0
+    );
+    for _ in 0..300 {
+        h.router.tick().await.unwrap();
+        if provider.written.load(std::sync::atomic::Ordering::Acquire) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert!(provider.written.load(std::sync::atomic::Ordering::Acquire));
+    assert!(player_state::quarantine::is_held(h.world(), source));
+    assert_eq!(
+        h.world_mut()
+            .query::<&crate::entity::components::DroppedItem>()
+            .iter(h.world())
+            .count(),
+        0
+    );
+    let native = provider
+        .inner
+        .load(uuid::Uuid::from_u128(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(native.source_actor.is_none());
+    let native_death = native.native_terminal.as_ref().unwrap().death.clone();
+    assert_eq!(
+        native_death,
+        h.world()
+            .get::<crate::entity::player_life::death::NativeDeathId>(source)
+            .unwrap()
+            .0
+            .to_string()
+    );
+    assert_eq!(native.health, 0.0);
+    assert!(native.inventory.iter().all(|item| item.count == 0));
+    // Rules changed after the genuine death do not change its captured native disposition.
+    h.world_mut()
+        .resource_mut::<crate::world::rules::GameRules>()
+        .keep_inventory = true;
+    provider.release.add_permits(1);
+    let observed = h.until_logs("terminal:staged").await;
+    assert!(
+        observed
+            .iter()
+            .any(|line| line == &format!("terminal:death:{native_death}"))
+    );
+    let drops = h
+        .world_mut()
+        .query::<&crate::entity::components::DroppedItem>()
+        .iter(h.world())
+        .count();
+    assert!(drops > 0);
+    provider.release.add_permits(1);
+    h.until("terminal:owned").await;
+    assert_eq!(
+        h.world_mut()
+            .query::<&crate::entity::components::DroppedItem>()
+            .iter(h.world())
+            .count(),
+        drops
+    );
+    let current = provider
+        .inner
+        .load(uuid::Uuid::from_u128(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(current.native_terminal.is_none());
+    assert_eq!(
+        current.source_actor.as_ref().unwrap().phase,
+        crate::storage::source::SourcePhase::Terminal
+    );
+    assert_eq!(current.health, 0.0);
+    assert!(current.inventory.iter().all(|item| item.count == 0));
+    assert!(
+        h.world()
+            .get::<crate::entity::player_life::Dead>(source)
+            .is_some()
+    );
+    assert!(!player_state::quarantine::is_held(h.world(), source));
+    let Harness {
+        router,
+        manager,
+        archives,
+        ..
+    } = h;
+    drop(router);
+    drop(manager);
+    drop(provider);
+    let mut cold = Harness::new(
+        53,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        archives,
+        false,
+    );
+    cold.until("terminal:cold-owned").await;
+    assert_eq!(
+        cold.world_mut()
+            .query::<&Player>()
+            .iter(cold.world())
+            .count(),
+        0
+    );
+}
+
+/// A durable producer archive from a trapped adoption is never source ownership.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_initial_terminal_trap_keeps_native_proof_and_archive_unowned_after_restart()
+ {
+    let directory = tempfile::tempdir().unwrap();
+    let mut h = Harness::new(
+        51,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        tempfile::tempdir().unwrap(),
+        true,
+    );
+    h.prepare_subject();
+    h.retain().await;
+    let source = h.subject.unwrap();
+    assert!(
+        crate::entity::player_life::hurt_player(
+            h.world_mut(),
+            source,
+            &Hit {
+                damage: 100.0,
+                cause: ActorDamageCause::Override,
+                attacker: None,
+                by_player: false,
+                knockback_from: None,
+                knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT
+            }
+        ) > 0.0
+    );
+    let mut failed = false;
+    for _ in 0..300 {
+        if h.router.tick().await.is_err() {
+            failed = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert!(failed);
+    let saved = h.stored().await;
+    assert!(saved.source_actor.is_none());
+    assert!(saved.native_terminal.is_some());
+    assert!(saved.inventory.iter().all(|item| item.count == 0));
+    let Harness {
+        router,
+        manager,
+        archives,
+        ..
+    } = h;
+    drop(router);
+    drop(manager);
+    let mut cold = Harness::new(
+        54,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        archives,
+        false,
+    );
+    cold.until("terminal:cold-unowned").await;
+    assert_eq!(
+        cold.world_mut()
+            .query::<&Player>()
+            .iter(cold.world())
+            .count(),
+        0
+    );
+}
+
+/// Restoring raw dead values does not manufacture a committed native terminal witness.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_initial_terminal_rejects_dead_state_without_real_native_death() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut h = Harness::new(
+        52,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        tempfile::tempdir().unwrap(),
+        true,
+    );
+    h.prepare_subject();
+    h.retain().await;
+    let source = h.subject.unwrap();
+    let mut raw = player_state::capture(h.world(), source).unwrap();
+    raw.dead = true;
+    raw.data.health = 0.0;
+    player_state::restore(h.world_mut(), source, &raw).unwrap();
+    h.until("terminal:no-witness").await;
+    assert!(
+        h.world_mut()
+            .query::<&crate::entity::components::DroppedItem>()
+            .iter(h.world())
+            .next()
+            .is_none()
+    );
+    let row = h
+        .router
+        .world(0)
+        .unwrap()
+        .ecs
+        .world()
+        .resource::<crate::server::game::types::PlayerProviderResource>()
+        .0
+        .load(uuid::Uuid::from_u128(1))
+        .await
+        .unwrap();
+    assert!(row.is_none_or(|data| data.native_terminal.is_none() && data.source_actor.is_none()));
+}
+
+/// Closing the originating world before ACK keeps only genuine canonical post-drop evidence.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_initial_terminal_world_close_preserves_native_proof_without_a_body_or_module()
+ {
+    let directory = tempfile::tempdir().unwrap();
+    let provider = Arc::new(SourceAckGate {
+        inner: Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        written: std::sync::atomic::AtomicBool::new(false),
+        release: tokio::sync::Semaphore::new(0),
+    });
+    let mut h = Harness::new(50, provider.clone(), tempfile::tempdir().unwrap(), true);
+    h.prepare_subject();
+    h.retain().await;
+    let source = h.subject.unwrap();
+    assert!(
+        crate::entity::player_life::hurt_player(
+            h.world_mut(),
+            source,
+            &Hit {
+                damage: 100.0,
+                cause: ActorDamageCause::Override,
+                attacker: None,
+                by_player: false,
+                knockback_from: None,
+                knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT
+            }
+        ) > 0.0
+    );
+    for _ in 0..300 {
+        h.router.tick().await.unwrap();
+        if provider.written.load(std::sync::atomic::Ordering::Acquire) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert!(provider.written.load(std::sync::atomic::Ordering::Acquire));
+    assert!(
+        h.world_mut()
+            .query::<&crate::entity::components::DroppedItem>()
+            .iter(h.world())
+            .next()
+            .is_none()
+    );
+    let before = provider
+        .inner
+        .load(uuid::Uuid::from_u128(1))
+        .await
+        .unwrap()
+        .unwrap();
+    let native_death = before.native_terminal.as_ref().unwrap().death.clone();
+    let Harness {
+        router, manager, ..
+    } = h;
+    drop(router);
+    drop(manager);
+    provider.release.add_permits(1);
+    for _ in 0..300 {
+        if Arc::strong_count(&provider) == 1 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert_eq!(Arc::strong_count(&provider), 1);
+    drop(provider);
+    let reopened = LevelDBPlayerProvider::open(directory.path()).unwrap();
+    let row = reopened
+        .load(uuid::Uuid::from_u128(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(row.source_actor.is_none());
+    assert_eq!(row.native_terminal.as_ref().unwrap().death, native_death);
+    assert_eq!(row.health, 0.0);
+    assert!(row.inventory.iter().all(|item| item.count == 0));
+    row.validate(uuid::Uuid::from_u128(1)).unwrap();
 }

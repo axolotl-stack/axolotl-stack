@@ -48,7 +48,7 @@ impl SourceBaseline {
         let snapshot =
             player_state::capture(world, player).map_err(|_| TransferError::SourceUnavailable)?;
         if snapshot.dead
-            || inventory_effects::is_quarantined(world, player)
+            || inventory_effects::inventory_busy(world, player)
             || player_events::initial_state_pending(world, player)
             || world
                 .get::<PlayerUi>(player)

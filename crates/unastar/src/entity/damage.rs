@@ -11,7 +11,8 @@ use uuid::Uuid;
 
 use super::components::{Player, PlayerSession, PlayerUuid};
 
-/// Opaque identity for one engine world lifetime, never persisted or used for access checks.
+/// Opaque identity for one engine world lifetime, never restored from saved evidence
+/// or used by itself to authorize access to a live world.
 #[derive(Resource)]
 pub(crate) struct DamageWorldLifetime(pub(crate) Uuid);
 impl Default for DamageWorldLifetime {

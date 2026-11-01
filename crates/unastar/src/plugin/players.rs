@@ -9,9 +9,9 @@ use wasmtime::component::Resource;
 #[path = "players/identity.rs"]
 mod identity;
 pub(super) use identity::WorldReference;
-pub(crate) use identity::{ComponentDirectory, PlayerLineage};
+pub(super) use identity::resolve;
+pub(crate) use identity::{ComponentDirectory, PlayerLineage, ensure_identity};
 use identity::{availability, observe, snapshot};
-pub(super) use identity::{ensure_identity, resolve};
 #[path = "players/admission.rs"]
 mod admission;
 #[path = "players/archive.rs"]

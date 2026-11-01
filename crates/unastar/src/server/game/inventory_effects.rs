@@ -1,10 +1,10 @@
 //! Durable, idempotent inventory replacement without blocking the ECS tick.
 //!
-//! A submission validates a complete candidate, quarantines the source's mutable
-//! inventory and input, and saves inventory plus its receipt on a provider worker.
-//! Only the durable acknowledgement publishes slots and packets. An uncertain
-//! result keeps the actor quarantined and requests disconnect; its account must
-//! be recovered before further admission. All provider users share one writer.
+//! Replacements quarantine mutable state; positive deliveries reserve only the
+//! canonical write lane, leaving the actual body's simulation running. Both save
+//! inventory and its receipt on one provider worker. Only a durable acknowledgement
+//! publishes incoming value. Ambiguous outcomes retain their source ownership and
+//! fence the account against further admission. All provider users share one writer.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, mpsc};
@@ -34,6 +34,7 @@ use crate::storage::{
     InventoryEffectRecord, PlayerData, StorageError, StoredItemStack, valid_inventory_effect_id,
 };
 
+mod nonfreezing;
 mod recovery;
 pub use recovery::{
     RecoveryFence, RecoverySource, fence_for_recovery, is_recovery_fenced, recovery_account_fenced,
@@ -185,7 +186,7 @@ pub struct InventoryEffectCommitted {
     pub record: InventoryEffectRecord,
     pub already_committed: bool,
     pub live_applied: bool,
-    /// The protected source still owns frozen inventory buffers after this result.
+    /// The protected source still owns accepted inventory buffers after this result.
     pub retained_buffers: bool,
 }
 
@@ -214,7 +215,38 @@ pub struct InventoryPersistence {
     receipts: BTreeMap<String, InventoryEffectRecord>,
 }
 
+/// Exact internal metadata evidence; it grants no authority over inventory values.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct InventoryEpoch {
+    revision: u64,
+    history: [u8; 32],
+}
+
 impl InventoryPersistence {
+    /// Stream bounded history into a digest without cloning or buffering its encoded map.
+    pub(crate) fn epoch(&self) -> Result<InventoryEpoch, EffectError> {
+        struct Writer(Sha256);
+        impl std::io::Write for Writer {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.0.update(bytes);
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let mut writer = Writer(Sha256::new());
+        serde_json::to_writer(&mut writer, &self.receipts)
+            .map_err(|error| EffectError::InvalidInventory(error.to_string()))?;
+        Ok(InventoryEpoch {
+            revision: self.revision,
+            history: writer.0.finalize().into(),
+        })
+    }
+
+    pub(crate) fn matches_epoch(&self, expected: InventoryEpoch) -> bool {
+        self.epoch().is_ok_and(|actual| actual == expected)
+    }
     /// Copy persistence metadata from the same record that supplied the player's slots.
     pub fn from_record(data: Option<&PlayerData>) -> Self {
         data.map_or_else(Self::default, |data| Self {
@@ -373,6 +405,7 @@ pub fn install(server: &mut GameServer) -> Result<(), EffectError> {
             player: event.entity,
         });
     });
+    nonfreezing::install(world);
     server.ecs.schedule_mut().add_systems(
         (poll, super::item_grants::poll)
             .chain()
@@ -402,12 +435,45 @@ pub fn is_quarantined(world: &World, player: Entity) -> bool {
         || super::player_state::quarantine::is_held(world, player)
 }
 
+/// Canonical write ownership is distinct from physically withholding a player's state.
+pub(crate) fn inventory_busy(world: &World, player: Entity) -> bool {
+    is_quarantined(world, player)
+        || super::player_state::source_actors::pending(world, player)
+        || world.get::<PlayerUuid>(player).is_some_and(|uuid| {
+            world
+                .get_resource::<Coordinator>()
+                .is_some_and(|coordinator| coordinator.pending.contains_key(&uuid.0))
+        })
+}
+
+/// Positive delivery owns a write lane while the real actor continues simulation.
+pub(crate) fn grant_pending(world: &World, player: Entity) -> bool {
+    nonfreezing::pending(world, player)
+}
+
+/// Preserve the actual fatal hit until accepted inventory value is canonically settled.
+pub(crate) fn defer_grant_death(
+    world: &mut World,
+    player: Entity,
+    cause: crate::entity::player_life::death::DeathCause,
+    attribution: crate::entity::damage::DamageAttribution,
+) -> bool {
+    nonfreezing::defer_death(world, player, cause, attribution)
+}
+
+pub(crate) fn grant_death_pending(world: &World, player: Entity) -> bool {
+    nonfreezing::death_pending(world, player)
+}
+
 /// Query the durable receipt loaded or acknowledged with the actor's current inventory.
 pub fn receipt<'a>(
     world: &'a World,
     player: Entity,
     id: &str,
 ) -> Option<&'a InventoryEffectRecord> {
+    if nonfreezing::contains(world, player, id) {
+        return None;
+    }
     world.get::<InventoryPersistence>(player)?.receipts.get(id)
 }
 
@@ -540,6 +606,10 @@ fn submit_with_retention(
         super::transaction_player_record(world, player)
     }
     .ok_or(EffectError::MissingPlayer)?;
+    let live_baseline = items
+        .as_ref()
+        .map(|_| nonfreezing::fingerprint(&candidate))
+        .transpose()?;
     effect.replacement.put_into(&mut candidate);
     candidate
         .validate(uuid)
@@ -569,21 +639,30 @@ fn submit_with_retention(
             .map_or(0, |input| input.tick),
     };
     close_window(world, player);
-    world
-        .entity_mut(player)
-        .remove::<(
-            MainInventory,
-            ArmourInventory,
-            OffhandSlot,
-            PlayerUi,
-            EnderChestInventory,
-            Health,
-            PlayerInput,
-            BreakingState,
-            super::item_use::ItemUsing,
-        )>()
-        .insert(frozen);
-    clear_inputs(world, player);
+    if items.is_some() {
+        nonfreezing::hold(
+            world,
+            player,
+            frozen,
+            live_baseline.expect("item delivery baseline prepared"),
+        )?;
+    } else {
+        world
+            .entity_mut(player)
+            .remove::<(
+                MainInventory,
+                ArmourInventory,
+                OffhandSlot,
+                PlayerUi,
+                EnderChestInventory,
+                Health,
+                PlayerInput,
+                BreakingState,
+                super::item_use::ItemUsing,
+            )>()
+            .insert(frozen);
+        clear_inputs(world, player);
+    }
     world
         .resource_mut::<Coordinator>()
         .pending
@@ -629,6 +708,10 @@ pub fn poll(world: &mut World) {
         })
         .unwrap_or_default();
     for completion in completions {
+        if nonfreezing::contains(world, completion.player, &completion.id) {
+            nonfreezing::complete(world, completion);
+            continue;
+        }
         world
             .resource_mut::<Coordinator>()
             .pending

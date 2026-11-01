@@ -5,6 +5,9 @@ use crate::entity::components::{
     ArmourInventory, DroppedItem, Health, ItemEntityStack, PickupDelay, PlayerSession,
 };
 use crate::storage::LevelDBPlayerProvider;
+
+#[path = "grants/nonfreezing.rs"]
+mod nonfreezing;
 use crate::storage::item_grants::{ItemMutation, PersistentItem};
 
 fn limits() -> PluginLimits {
@@ -20,6 +23,9 @@ struct Gate {
     started: Semaphore,
     release: Semaphore,
     lost_ack: AtomicBool,
+    hold_terminal: AtomicBool,
+    terminal_started: Semaphore,
+    terminal_release: Semaphore,
 }
 #[async_trait]
 impl PlayerProvider for Gate {
@@ -33,6 +39,10 @@ impl PlayerProvider for Gate {
         self.inner.load(uuid).await
     }
     async fn save(&self, uuid: uuid::Uuid, data: &PlayerData) -> StorageResult<()> {
+        if data.native_terminal.is_some() && self.hold_terminal.load(Ordering::Acquire) {
+            self.terminal_started.add_permits(1);
+            self.terminal_release.acquire().await.unwrap().forget();
+        }
         self.inner.save(uuid, data).await
     }
     async fn delete(&self, uuid: uuid::Uuid) -> StorageResult<()> {
@@ -76,6 +86,9 @@ fn gated(dir: &std::path::Path, lost_ack: bool) -> Arc<Gate> {
         started: Semaphore::new(0),
         release: Semaphore::new(0),
         lost_ack: AtomicBool::new(lost_ack),
+        hold_terminal: AtomicBool::new(false),
+        terminal_started: Semaphore::new(0),
+        terminal_release: Semaphore::new(0),
     })
 }
 
@@ -96,7 +109,11 @@ async fn held_original_quit_body_and_world_actors_wait_for_the_same_batch_ack() 
             .unwrap()
             .is_empty()
     );
-    assert!(native::is_quarantined(
+    assert!(native::inventory_busy(
+        harness.router.world(0).unwrap().ecs.world(),
+        harness.player
+    ));
+    assert!(!native::is_quarantined(
         harness.router.world(0).unwrap().ecs.world(),
         harness.player
     ));
@@ -104,7 +121,7 @@ async fn held_original_quit_body_and_world_actors_wait_for_the_same_batch_ack() 
     let world = harness.router.world_mut(0).unwrap().ecs.world_mut();
     world.flush();
     assert!(world.get::<PlayerSession>(harness.player).is_none());
-    assert!(world.get::<Health>(harness.player).is_none());
+    assert!(world.get::<Health>(harness.player).is_some());
     provider.release.add_permits(1);
     harness.acknowledge(1).await;
     assert_eq!(
@@ -132,7 +149,7 @@ async fn lost_ack_cold_reopen_uses_exact_receipt_without_duplicate_items() {
         provider.release.add_permits(1);
         harness.acknowledge(1).await;
         assert!(drops(&mut harness).is_empty());
-        assert!(native::is_quarantined(
+        assert!(native::inventory_busy(
             harness.router.world(0).unwrap().ecs.world(),
             harness.player
         ));
@@ -717,8 +734,9 @@ async fn changed_original_transport_during_io_never_receives_the_inventory_publi
     provider.release.add_permits(1);
     harness.acknowledge(1).await;
     let world = harness.router.world(0).unwrap().ecs.world();
-    assert!(native::is_quarantined(world, harness.player));
-    assert!(world.get::<MainInventory>(harness.player).is_none());
+    assert!(native::inventory_busy(world, harness.player));
+    assert!(!native::is_quarantined(world, harness.player));
+    assert!(world.get::<MainInventory>(harness.player).is_some());
     assert_eq!(
         drops(&mut harness)
             .iter()

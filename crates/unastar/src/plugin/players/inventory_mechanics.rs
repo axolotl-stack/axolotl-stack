@@ -79,6 +79,11 @@ pub(in crate::plugin::manager) fn finish(
         } else if !request.scope.world.matches(world)
             || !request.reference.matches(world, request.player)
             || !available(world, request.player, &request.reference)
+            || (crate::server::game::inventory_effects::grant_pending(world, request.player)
+                && request.changes.iter().any(|change| {
+                    !change.replacement.is_empty()
+                        && change.replacement.net_id != change.expected.net_id
+                }))
             || world.get::<HeldSlot>(request.player).map(|slot| slot.0) != Some(request.held)
             || !request.changes.iter().all(|change| {
                 slot(world, request.player, change.area, change.index)
@@ -211,6 +216,10 @@ impl HostContext {
         order: Vec<u8>,
     ) -> Result<Resource<wit::InventoryMechanicsOperation>, wit::AccessError> {
         let source = self.inventory_mechanics_source(rep)?;
+        if crate::server::game::inventory_effects::grant_pending(unsafe { self.world() }, source.1)
+        {
+            return Err(wit::AccessError::Unavailable);
+        }
         if order.len() != 9
             || order.iter().any(|index| *index >= 9)
             || (0..9).any(|index| order.iter().filter(|value| **value == index).count() != 1)

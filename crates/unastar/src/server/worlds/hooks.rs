@@ -214,7 +214,7 @@ pub fn request_transfer_checked(
     if !owns_connection(world, player, &identity)
         || super::is_loading(world, player)
         || crate::server::game::player_events::initial_state_pending(world, player)
-        || crate::server::game::inventory_effects::is_quarantined(world, player)
+        || crate::server::game::inventory_effects::inventory_busy(world, player)
         || crate::server::game::player_state::capture(world, player).is_err()
     {
         return Err(TransferError::SourceUnavailable);

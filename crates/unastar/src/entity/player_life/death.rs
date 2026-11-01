@@ -94,6 +94,10 @@ pub fn kill_player(world: &mut World, player: Entity) -> bool {
     .1
 }
 
+/// One actual engine death, preserved while its durable continuation is pending.
+#[derive(Component, Clone, Copy)]
+pub(crate) struct NativeDeathId(pub(crate) uuid::Uuid);
+
 /// The death of `player`, whose health just reached zero.
 pub(super) fn die(
     world: &mut World,
@@ -106,17 +110,19 @@ pub(super) fn die(
     }
     world
         .entity_mut(player)
-        .insert(Dead)
+        .insert((Dead, NativeDeathId(uuid::Uuid::new_v4())))
         .remove::<(Burning, HurtTimer)>();
     if let Some(mut fall) = world.get_mut::<PlayerFall>(player) {
         *fall = PlayerFall::default();
     }
-    if crate::server::game::player_state::source_actors::defer_death(
-        world,
-        player,
-        cause,
-        attribution,
-    ) {
+    if crate::server::game::inventory_effects::defer_grant_death(world, player, cause, attribution)
+        || crate::server::game::player_state::source_actors::defer_death(
+            world,
+            player,
+            cause,
+            attribution,
+        )
+    {
         return;
     }
     finish_death(world, player, cause, attribution);
@@ -183,6 +189,8 @@ pub(crate) fn finish_death_with_rules(
     }
     respawn::open_respawn_screen(world, player);
     if rules.do_immediate_respawn
+        && world.get::<PlayerSession>(player).is_some()
+        && !crate::server::game::player_state::source_actors::pending(world, player)
         && world
             .get::<crate::server::game::player_state::source_actors::ManagedSource>(player)
             .is_none()

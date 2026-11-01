@@ -85,6 +85,12 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
     ) -> Result<Resource<wit::SourceActorOperation>, wit::StateError> {
         self.checkpoint_live_source(player.rep())
     }
+    fn checkpoint_terminal_source(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Resource<wit::SourceActorOperation>, wit::StateError> {
+        self.checkpoint_terminal_native_source(player.rep())
+    }
     fn fence_state(
         &mut self,
         player: Resource<wit::Player>,
@@ -152,6 +158,14 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
         player: Resource<wit::Player>,
     ) -> Result<Resource<wit::InventoryImage>, wit::AccessError> {
         self.capture_inventory(player.rep())
+    }
+    fn inventory_busy(&mut self, player: Resource<wit::Player>) -> Result<bool, wit::AccessError> {
+        let (_, player) = self.live_player(player.rep())?;
+        self.require(PluginCapability::ReadInventory)?;
+        Ok(crate::server::game::inventory_effects::inventory_busy(
+            unsafe { self.world() },
+            player,
+        ))
     }
     fn mechanics(
         &mut self,

@@ -109,7 +109,7 @@ impl Plugin for Fixture {
                         130,
                         raw::GrantPlacement::EmptyMainOrDrop(8),
                     ),
-                    55 => (
+                    55 | 61 | 65 => (
                         "minecraft:diamond_helmet",
                         2,
                         raw::GrantPlacement::EmptyArmourOrDrop(0),
@@ -124,22 +124,41 @@ impl Plugin for Fixture {
                         131,
                         raw::GrantPlacement::AnyInventoryOrDrop,
                     ),
+                    62 => (
+                        "minecraft:snowball",
+                        20,
+                        raw::GrantPlacement::AnyInventoryOrDrop,
+                    ),
+                    63 | 64 => (
+                        "minecraft:snowball",
+                        if state.mode == 63 { 64 } else { 1 },
+                        raw::GrantPlacement::AnyInventoryOrDrop,
+                    ),
                     _ => (
                         "minecraft:diamond",
                         130,
                         raw::GrantPlacement::AnyInventoryOrDrop,
                     ),
                 };
-                let item = tx
-                    .item(identifier, 1)
-                    .unwrap()
-                    .with_name(Some("Bounded grant"))
-                    .unwrap();
-                if state.mode == 59 && state.phase == 0 {
+                let item = if matches!(state.mode, 63 | 64) {
+                    player.inventory_stack(InventoryArea::Main, 0).unwrap()
+                } else {
+                    tx.item(identifier, 1)
+                        .unwrap()
+                        .with_name(Some("Bounded grant"))
+                        .unwrap()
+                };
+                if matches!(state.mode, 59 | 62) && state.phase == 0 {
                     let image = player
                         .inventory()
                         .unwrap()
-                        .with_slot(InventoryArea::Main, 0, &item.with_count(32).unwrap())
+                        .with_slot(
+                            InventoryArea::Main,
+                            0,
+                            &item
+                                .with_count(if state.mode == 62 { 10 } else { 32 })
+                                .unwrap(),
+                        )
                         .unwrap();
                     state.expected = image.request_hash().unwrap();
                     state.operation = Some(player.submit_inventory("setup", &image).unwrap());
@@ -162,13 +181,22 @@ impl Plugin for Fixture {
                 let plan = empty.with_item(&item, quantity, placement).unwrap();
                 state.expected = plan.request_hash().unwrap();
                 let result = player.grant_items("exact-grant", &plan);
+                if state.mode == 63 {
+                    assert!(matches!(
+                        result,
+                        Err(InventoryError::Access(AccessError::LimitExceeded))
+                    ));
+                    assert!(!player.inventory_busy().unwrap());
+                    log("grant-fragment-memory-limited");
+                    return;
+                }
                 if state.mode == 56 {
                     assert!(matches!(result, Err(InventoryError::Conflict)));
                     log("grant-conflict");
                     return;
                 }
                 let operation = result.unwrap();
-                if state.mode == 57 {
+                if matches!(state.mode, 57 | 61) {
                     assert!(matches!(
                         operation.status().unwrap(),
                         InventoryStatus::Committed(_)
@@ -344,6 +372,42 @@ impl Plugin for Fixture {
         destination: Vec3,
     ) -> Option<Vec3> {
         STATE.with_borrow_mut(|state| {
+            if state.mode >= 50
+                && state.operation.as_ref().is_some_and(|operation| {
+                    matches!(operation.status().unwrap(), InventoryStatus::Uncertain)
+                })
+            {
+                assert!(player.inventory_busy().unwrap());
+                assert!(player.grant_receipt("exact-grant").unwrap().is_none());
+                log("uncertain-grant-readback-hidden");
+            }
+            if matches!(state.mode, 54 | 55 | 62 | 65)
+                && state.operation.as_ref().is_some_and(|operation| {
+                    matches!(operation.status().unwrap(), InventoryStatus::Queued)
+                })
+            {
+                assert_eq!(
+                    player.availability().unwrap(),
+                    raw::PlayerAvailability::Ready
+                );
+                assert!(player.inventory_busy().unwrap());
+                assert!(player.health().unwrap() > 0.0);
+                assert!(player.inventory().is_ok());
+                log("live-inventory-busy");
+                if state.mode == 65 {
+                    assert!(matches!(
+                        player.reorder_hotbar(&[8, 7, 6, 5, 4, 3, 2, 1, 0]),
+                        Err(AccessError::Unavailable)
+                    ));
+                    let selected = player.inventory_stack(InventoryArea::Main, 0).unwrap();
+                    let cost = player.consume_selected(&selected, 1).unwrap();
+                    assert!(matches!(
+                        cost.status().unwrap(),
+                        raw::InventoryMechanicsStatus::Staged
+                    ));
+                    log("live-selected-cost-staged");
+                }
+            }
             if !matches!(state.mode, 27 | 28) {
                 return Some(destination);
             }
@@ -371,6 +435,10 @@ impl Plugin for Fixture {
                             state.phase = 2;
                         }
                         InventoryStatus::Uncertain => log("grant-uncertain"),
+                        InventoryStatus::Rejected(InventoryError::NotApplied) => {
+                            log("grant-not-applied");
+                            state.operation.take();
+                        }
                         InventoryStatus::Rejected(error) => {
                             log(&format!("grant-rejected:{error:?}"));
                             state.operation.take();

@@ -10,6 +10,7 @@ use std::sync::{Arc, mpsc};
 
 mod live;
 pub(crate) mod rebind;
+pub(crate) mod unowned_terminal;
 pub(crate) use live::{LiveSource, pending, pending_account};
 
 /// Definite rejection is distinct from a write whose durable result must be reconciled.
@@ -122,6 +123,7 @@ pub(crate) struct Operation {
     pub world_name: String,
     pub tick: u64,
     live: Option<Arc<live::State>>,
+    initial_terminal: Option<Arc<PlayerSnapshot>>,
 }
 impl Operation {
     /// A departure that removes its body cannot commit a request requiring retention.
@@ -133,7 +135,12 @@ impl Operation {
     /// Provisional history is not canonical source authority.
     pub(crate) fn provisional(&self) -> Option<Arc<PlayerSnapshot>> {
         (!matches!(self.status(), Status::Cancelled))
-            .then(|| self.live.as_ref().map(|live| live.snapshot.clone()))
+            .then(|| {
+                self.live
+                    .as_ref()
+                    .map(|live| live.snapshot.clone())
+                    .or_else(|| self.initial_terminal.clone())
+            })
             .flatten()
     }
     /// Reading completion never requires a live or fabricated player context.
@@ -211,6 +218,12 @@ pub(crate) enum Action {
     Retire,
 }
 pub(crate) enum Intent {
+    AdoptTerminal {
+        player: Entity,
+        snapshot: Arc<PlayerSnapshot>,
+        witness: Arc<unowned_terminal::Witness>,
+        reference: Reference,
+    },
     RetireRebind {
         operation: Arc<rebind::Operation>,
     },
@@ -266,7 +279,8 @@ pub(crate) fn prepare(
     }
     let reference = match &intent {
         Intent::RetireRebind { operation } => operation.source.reference.clone(),
-        Intent::Live { reference, .. }
+        Intent::AdoptTerminal { reference, .. }
+        | Intent::Live { reference, .. }
         | Intent::Seal { reference, .. }
         | Intent::Inspect(reference)
         | Intent::Terminal { reference, .. } => reference.clone(),
@@ -296,9 +310,14 @@ pub(crate) fn prepare(
         ))),
         _ => None,
     };
+    let initial_terminal = match &intent {
+        Intent::AdoptTerminal { snapshot, .. } => Some(snapshot.clone()),
+        _ => None,
+    };
     let operation = Arc::new(Operation {
         reference,
         live,
+        initial_terminal,
         world: world.id(),
         progress: Mutex::new(Progress {
             status: Status::Staged,
@@ -344,6 +363,10 @@ struct Failure {
     uncertain: bool,
 }
 enum Apply {
+    AdoptTerminal {
+        player: Entity,
+        hold: quarantine::Handle,
+    },
     RetireRebind {
         player: Entity,
         hold: quarantine::Handle,
@@ -384,7 +407,9 @@ pub(crate) fn install(
 ) -> Result<(), super::super::super::inventory_effects::EffectError> {
     let world = server.ecs.world_mut();
     if world.contains_resource::<Coordinator>() {
-        return rebind::install(server);
+        rebind::install(server)?;
+        unowned_terminal::install(server);
+        return Ok(());
     }
     let writer = super::super::super::inventory_effects::prepare_shared_writer(world)?;
     let (tx, rx) = mpsc::channel();
@@ -406,12 +431,26 @@ pub(crate) fn install(
         .ecs
         .schedule_mut()
         .add_systems(super::residency::motion.in_set(crate::ecs::PhysicsSet));
-    rebind::install(server)
+    rebind::install(server)?;
+    unowned_terminal::install(server);
+    Ok(())
 }
 
 /// Requests enter the router only after every guest borrow and manager guard has been released.
 pub(crate) fn submit(world: &mut World, prepared: Prepared) {
     let operation = prepared.operation.clone();
+    let adoption_player = match &prepared.intent {
+        Intent::AdoptTerminal { player, .. } => Some(*player),
+        _ => None,
+    };
+    if let Intent::AdoptTerminal {
+        player, witness, ..
+    } = &prepared.intent
+        && let Err(error) = unowned_terminal::accept_adoption(world, &operation, *player, witness)
+    {
+        operation.reject(error);
+        return;
+    }
     if operation.live.is_some()
         && let Err(error) = live::accept(world, &operation)
     {
@@ -420,6 +459,9 @@ pub(crate) fn submit(world: &mut World, prepared: Prepared) {
     }
     if !crate::server::worlds::queue_router_request(world, move |router, _| run(router, prepared)) {
         live::reject_pending(world, &operation);
+        if let Some(player) = adoption_player {
+            unowned_terminal::reject_adoption(world, player, &operation);
+        }
         operation.reject(Error::Busy);
     }
 }
@@ -534,9 +576,9 @@ fn run(router: &mut crate::server::worlds::DimensionRouter, prepared: Prepared) 
         Intent::RetireRebind { operation } => {
             Some((operation.source.world, operation.source_player))
         }
-        Intent::Seal { player, .. } | Intent::Terminal { player, .. } => {
-            Some((operation.world, *player))
-        }
+        Intent::AdoptTerminal { player, .. }
+        | Intent::Seal { player, .. }
+        | Intent::Terminal { player, .. } => Some((operation.world, *player)),
         Intent::Continue { observed, action } if *action != Action::Recreate => router
             .world(dimension)
             .and_then(|server| observed.player(server.ecs.world()))
@@ -601,6 +643,10 @@ fn run(router: &mut crate::server::worlds::DimensionRouter, prepared: Prepared) 
 }
 
 enum Work {
+    AdoptTerminal {
+        snapshot: Arc<PlayerSnapshot>,
+        witness: crate::storage::terminal::NativeTerminalRecord,
+    },
     Live(Arc<PlayerSnapshot>, Option<SourceProof>),
     Inspect,
     Seal(Arc<PlayerSnapshot>, Option<SourceProof>),
@@ -624,6 +670,37 @@ enum Work {
 /// Active retirement freezes the genuine current state before the durable write starts.
 fn prepare_work(world: &mut World, intent: &Intent) -> Result<(Work, Apply), Error> {
     match intent {
+        Intent::AdoptTerminal {
+            player, witness, ..
+        } => {
+            let actual = unowned_terminal::witness(world, *player)?;
+            if actual.proof != witness.proof
+                || actual.lineage.key() != witness.lineage.key()
+                || !unowned_terminal::is_adopting(world, *player)
+            {
+                return Err(Error::SourceGone);
+            }
+            let snapshot = Arc::new(capture(world, *player).map_err(|_| Error::InvalidState)?);
+            let hold = quarantine::hold(
+                world,
+                *player,
+                snapshot.clone(),
+                quarantine::Role::Source,
+                witness.clone(),
+            )
+            .map_err(|_| Error::Conflict)?;
+            world.entity_mut(*player).insert(SourceBody(hold.clone()));
+            Ok((
+                Work::AdoptTerminal {
+                    snapshot,
+                    witness: actual.proof,
+                },
+                Apply::AdoptTerminal {
+                    player: *player,
+                    hold,
+                },
+            ))
+        }
         Intent::RetireRebind { operation } => rebind::prepare_retirement(world, operation),
         Intent::Live { .. } => Err(Error::InvalidState),
         Intent::Terminal {
@@ -922,6 +999,75 @@ impl Work {
             error: Error::RecoveryRequired,
             uncertain: true,
         })?;
+        if let Self::AdoptTerminal { snapshot, witness } = self {
+            let actual = current.as_ref().ok_or_else(|| fail(Error::NotOwned))?;
+            if actual.native_terminal.as_ref() != Some(&witness)
+                || witness.validate(actual).is_err()
+                || witness.world != reference.world.to_string()
+                || witness.name != reference.name
+                || witness.xuid != reference.xuid
+            {
+                return Err(fail(Error::Conflict));
+            }
+            let generation = actual
+                .source_actor
+                .as_ref()
+                .map_or(Some(1), |source| source.generation.checked_add(1))
+                .ok_or_else(|| fail(Error::Conflict))?;
+            let lease = reserve(
+                snapshot_bytes(&snapshot)
+                    .map_err(fail)?
+                    .checked_mul(6)
+                    .ok_or_else(|| fail(Error::LimitExceeded))?,
+            )
+            .map_err(fail)?;
+            let mut candidate = snapshot.data.clone();
+            candidate.game_mode = snapshot.base_game_mode.unwrap_or(candidate.game_mode);
+            candidate.native_terminal = None;
+            let source = SourceActorRecord {
+                version: 1,
+                module: reference.module.clone(),
+                nonce: reference.nonce.clone(),
+                generation,
+                sample: 0,
+                name: reference.name.clone(),
+                world: reference.world.to_string(),
+                dimension: reference.dimension,
+                phase: SourcePhase::Terminal,
+                supplement: Some(snapshot.supplement()),
+                handoff: None,
+            };
+            use sha2::Digest;
+            let hash = sha2::Sha256::digest(
+                bounded_encode(&(&candidate, &source, &witness)).map_err(fail)?,
+            )
+            .into();
+            let id = format!("source:{}:{}:initial-terminal", reference.nonce, generation);
+            let written = writer
+                .commit_initial_terminal(
+                    reference.uuid,
+                    &id,
+                    hash,
+                    candidate,
+                    witness,
+                    source.clone(),
+                )
+                .await
+                .map_err(write_error)?;
+            if written.data.inventory_effects.get(&id) != Some(&written.effect.record)
+                || written.data.source_actor.as_ref() != Some(&source)
+            {
+                return Err(Failure {
+                    error: Error::RecoveryRequired,
+                    uncertain: true,
+                });
+            }
+            return Ok(Arc::new(Observation {
+                data: Arc::new(written.data),
+                source,
+                _bytes: lease,
+            }));
+        }
         if matches!(self, Self::Inspect) {
             let data = current.ok_or_else(|| fail(Error::NotOwned))?;
             let source = validate_reference(&data, reference).map_err(fail)?;
@@ -1140,7 +1286,9 @@ impl Work {
                 data.inventory_effects = actual.inventory_effects.clone();
                 (data, source, Some(proof), "terminal")
             }
-            Self::RetireConsumed(_) | Self::Inspect => return Err(fail(Error::Conflict)),
+            Self::RetireConsumed(_) | Self::Inspect | Self::AdoptTerminal { .. } => {
+                return Err(fail(Error::Conflict));
+            }
         };
         source.generation = generation;
         source
@@ -1204,12 +1352,14 @@ fn write_error(error: EffectWriteFailure) -> Failure {
 }
 
 /// Project the ordinary native slot disposition without publishing any item or experience value.
-fn post_drop(world: &World, player: Entity, pre: &PlayerSnapshot) -> Result<PlayerSnapshot, Error> {
+fn post_drop(
+    world: &World,
+    player: Entity,
+    pre: &PlayerSnapshot,
+    keep_inventory: bool,
+) -> Result<PlayerSnapshot, Error> {
     let mut post = pre.clone();
-    if !world
-        .resource::<crate::world::rules::GameRules>()
-        .keep_inventory
-    {
+    if !keep_inventory {
         let main = world
             .get::<MainInventory>(player)
             .ok_or(Error::InvalidState)?;
@@ -1249,14 +1399,26 @@ pub(crate) fn defer_death(
     cause: crate::entity::player_life::death::DeathCause,
     attribution: crate::entity::damage::DamageAttribution,
 ) -> bool {
-    if rebind::defer_death(world, player, cause, attribution) {
+    let rules = world.resource::<crate::world::rules::GameRules>().clone();
+    defer_death_with_rules(world, player, cause, attribution, rules)
+}
+
+/// Inventory continuations retain the actual original death rules across provider work.
+pub(crate) fn defer_death_with_rules(
+    world: &mut World,
+    player: Entity,
+    cause: crate::entity::player_life::death::DeathCause,
+    attribution: crate::entity::damage::DamageAttribution,
+    rules: crate::world::rules::GameRules,
+) -> bool {
+    if rebind::defer_death(world, player, cause, attribution, rules.clone()) {
         return true;
     }
-    if live::defer_death(world, player, cause, attribution) {
+    if live::defer_death(world, player, cause, attribution, rules.clone()) {
         return true;
     }
     let Some(managed) = world.get::<ManagedSource>(player) else {
-        return false;
+        return unowned_terminal::retained(world, player, cause, attribution, rules);
     };
     if managed.record.phase != SourcePhase::Active {
         return false;
@@ -1271,7 +1433,7 @@ pub(crate) fn defer_death(
             .map_err(|_| Error::LimitExceeded)?;
         let lease = reserve(size.checked_mul(3).ok_or(Error::LimitExceeded)?)?;
         let pre = Arc::new(capture(world, player).map_err(|_| Error::InvalidState)?);
-        let post = Arc::new(post_drop(world, player, &pre)?);
+        let post = Arc::new(post_drop(world, player, &pre, rules.keep_inventory)?);
         let reference = Reference {
             module: source.module.clone(),
             uuid: uuid::Uuid::parse_str(&pre.data.uuid).map_err(|_| Error::InvalidState)?,
@@ -1304,7 +1466,7 @@ pub(crate) fn defer_death(
                 death: Arc::new(TerminalDeath {
                     cause,
                     attribution,
-                    rules: world.resource::<crate::world::rules::GameRules>().clone(),
+                    rules,
                 }),
             },
             combined,
@@ -1322,6 +1484,67 @@ pub(crate) fn defer_death(
         tracing::error!(?error, "Native source terminal processing remains withheld");
     }
     true
+}
+
+/// An acknowledged inventory continuation uses one native death barrier for actual online or retained bodies.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn defer_death_after_inventory(
+    world: &mut World,
+    player: Entity,
+    cause: crate::entity::player_life::death::DeathCause,
+    attribution: crate::entity::damage::DamageAttribution,
+    rules: crate::world::rules::GameRules,
+    lineage: &crate::plugin::manager::players::PlayerLineage,
+    id: &str,
+    receipt: &crate::storage::InventoryEffectRecord,
+) -> bool {
+    if !lineage.matches(world, player)
+        || !world
+            .get::<crate::server::game::inventory_effects::InventoryPersistence>(player)
+            .is_some_and(|state| state.receipts().get(id) == Some(receipt))
+    {
+        return false;
+    }
+    if defer_death_with_rules(world, player, cause, attribution, rules.clone()) {
+        return true;
+    }
+    unowned_terminal::after_inventory(
+        world,
+        player,
+        cause,
+        attribution,
+        rules,
+        lineage,
+        id,
+        receipt,
+    )
+}
+
+/// Definitive non-application releases no incoming value, but its actual fatal hit still settles.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn defer_death_after_inventory_rejection(
+    world: &mut World,
+    player: Entity,
+    cause: crate::entity::player_life::death::DeathCause,
+    attribution: crate::entity::damage::DamageAttribution,
+    rules: crate::world::rules::GameRules,
+    lineage: &crate::plugin::manager::players::PlayerLineage,
+    epoch: crate::server::game::inventory_effects::InventoryEpoch,
+    failure: &crate::storage::player_writer::EffectWriteFailure,
+) -> bool {
+    if failure.kind != crate::storage::player_writer::WriteFailureKind::NotApplied
+        || !failure.resume_source
+        || !lineage.matches(world, player)
+        || !world
+            .get::<crate::server::game::inventory_effects::InventoryPersistence>(player)
+            .is_some_and(|state| state.matches_epoch(epoch))
+    {
+        return false;
+    }
+    if defer_death_with_rules(world, player, cause, attribution, rules.clone()) {
+        return true;
+    }
+    unowned_terminal::begin(world, player, cause, attribution, rules)
 }
 
 /// Polling queues application through the aggregate router boundary, never guest reentry.
@@ -1358,6 +1581,17 @@ fn apply(router: &mut crate::server::worlds::DimensionRouter, mut completion: Co
     let observed = match &completion.result {
         Ok(observed) => observed.clone(),
         Err(failure) => {
+            if !failure.uncertain
+                && let Apply::AdoptTerminal { player, hold } = &completion.action
+                && let Some(server) = router.world_mut(operation.reference.dimension)
+                && server.ecs.world().id() == operation.world
+            {
+                let world = server.ecs.world_mut();
+                if quarantine::release_source(world, hold) {
+                    world.entity_mut(*player).remove::<SourceBody>();
+                    unowned_terminal::reject_adoption(world, *player, &operation);
+                }
+            }
             if !failure.uncertain
                 && matches!(completion.action, Apply::Live)
                 && let Some(server) = router.world_mut(operation.reference.dimension)
@@ -1427,6 +1661,26 @@ fn apply(router: &mut crate::server::worlds::DimensionRouter, mut completion: Co
     }
     let mut actor = None;
     let applied = match completion.action {
+        Apply::AdoptTerminal { player, hold } if quarantine::matches(world, &hold) => {
+            quarantine::acknowledge_source_receipts(world, &hold, &observed.data);
+            if quarantine::release_source(world, &hold) {
+                world.entity_mut(player).insert((
+                    ManagedSource::acknowledged(observed.source.clone())
+                        .retaining(operation.clone()),
+                    crate::server::game::inventory_effects::InventoryPersistence::from_record(
+                        Some(&observed.data),
+                    ),
+                ));
+                world
+                    .entity_mut(player)
+                    .remove::<(SourceBody, unowned_terminal::Witness)>();
+                unowned_terminal::reject_adoption(world, player, &operation);
+                actor = Some(player);
+                true
+            } else {
+                false
+            }
+        }
         Apply::RetireRebind {
             player,
             hold,

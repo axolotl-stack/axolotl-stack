@@ -27,6 +27,7 @@ struct Retained {
     image: Arc<super::values::Value<super::inventory::Image>>,
     items: Option<crate::storage::item_grants::ItemMutation>,
     _copies: Arc<super::values::Value<()>>,
+    _spill_copies: Option<Arc<super::values::Value<()>>>,
     _slot: PendingSlot,
 }
 
@@ -128,6 +129,38 @@ fn receipt(record: &InventoryEffectRecord) -> wit::InventoryReceipt {
         revision: record.revision,
         request_hash: record.request_hash.to_vec(),
     }
+}
+
+/// A changed destination can turn each owed inventory item into a separate persistent row.
+/// Reserve those copies before returning a staged operation, not during a later native tick.
+fn fragment_bytes(
+    expected: &native::InventoryState,
+    candidate: &native::InventoryState,
+) -> Result<usize, wit::InventoryError> {
+    let limited = || wit::InventoryError::Access(wit::AccessError::LimitExceeded);
+    expected
+        .main
+        .iter()
+        .zip(&candidate.main)
+        .chain(expected.armour.iter().zip(&candidate.armour))
+        .chain(std::iter::once((&expected.offhand, &candidate.offhand)))
+        .try_fold(0usize, |total, (before, after)| {
+            let quantity = after
+                .count
+                .checked_sub(before.count)
+                .ok_or(wit::InventoryError::InvalidImage)?;
+            let bytes = after
+                .nbt
+                .as_ref()
+                .map_or(0, Vec::len)
+                .checked_mul(4)
+                .and_then(|bytes| bytes.checked_add(after.item_id.len()))
+                .and_then(|bytes| bytes.checked_add(512))
+                .and_then(|bytes| bytes.checked_mul(usize::from(quantity)))
+                .and_then(|bytes| bytes.checked_mul(4))
+                .ok_or_else(limited)?;
+            total.checked_add(bytes).ok_or_else(limited)
+        })
 }
 
 /// Keep mechanical failures typed without exposing provider paths or native messages.
@@ -258,6 +291,9 @@ impl HostContext {
         world: &World,
         player: Entity,
     ) -> Result<(), wit::InventoryError> {
+        if native::inventory_busy(world, player) {
+            return Err(wit::InventoryError::Busy);
+        }
         match availability(world, player) {
             wit::PlayerAvailability::Ready => Ok(()),
             wit::PlayerAvailability::Quarantined => Err(wit::InventoryError::Busy),
@@ -412,7 +448,7 @@ impl HostContext {
             .value_budget
             .own((), copies)
             .map_err(wit::InventoryError::Access)?;
-        let (image, items) = if let Some(grants) = &grants {
+        let (image, items, spill_copies) = if let Some(grants) = &grants {
             let planned = crate::server::game::item_grants::plan(
                 unsafe { self.world() },
                 player,
@@ -423,6 +459,11 @@ impl HostContext {
             if planned.expected != *image.expected {
                 return Err(wit::InventoryError::Conflict);
             }
+            let spill_copies = self
+                .resources
+                .value_budget
+                .own((), fragment_bytes(&planned.expected, &planned.replacement)?)
+                .map_err(wit::InventoryError::Access)?;
             let mut generated = (**image).clone();
             generated.candidate = Arc::new(planned.replacement);
             let bytes = generated.bytes();
@@ -436,9 +477,10 @@ impl HostContext {
                 Some(crate::storage::item_grants::ItemMutation::Create(
                     planned.items,
                 )),
+                Some(spill_copies),
             )
         } else {
-            (image, None)
+            (image, None, None)
         };
         let operation = Arc::new(Operation {
             key: key.clone(),
@@ -452,6 +494,7 @@ impl HostContext {
                     image,
                     items,
                     _copies: copies,
+                    _spill_copies: spill_copies,
                     _slot: slot,
                 }),
             }),

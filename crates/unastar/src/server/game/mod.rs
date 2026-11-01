@@ -122,6 +122,8 @@ pub(super) fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid
     if crate::plugin::manager::sessions::blocks_publication(world, entity)
         || player_state::source_actors::admission_blocked(world, entity)
         || player_state::source_actors::pending(world, entity)
+        || inventory_effects::grant_pending(world, entity)
+        || inventory_effects::grant_death_pending(world, entity)
     {
         return None;
     }
@@ -209,6 +211,7 @@ pub(super) fn capture_player_record(
                 .map_or(0, |age| age.0),
             restoration_checkpoint: None,
             source_actor: None,
+            native_terminal: None,
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),

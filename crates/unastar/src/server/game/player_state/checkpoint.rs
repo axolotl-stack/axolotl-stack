@@ -56,6 +56,7 @@ impl PlayerSnapshot {
         supplement.validate(&data).map_err(invalid)?;
         data.restoration_checkpoint = None;
         data.source_actor = None;
+        data.native_terminal = None;
         data.game_mode = supplement.effective_mode;
         let snapshot = Self {
             version: SNAPSHOT_VERSION,

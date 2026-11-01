@@ -804,6 +804,8 @@ interface types {
         /// Stage a point-in-time durable checkpoint of this genuine retained source.
         /// Native simulation continues during persistence; Staged is not an ACK.
         checkpoint-source: func() -> result<source-actor-operation, state-error>;
+        /// Adopt only the exact current native post-drop terminal witness of a real retained body.
+        checkpoint-terminal-source: func() -> result<source-actor-operation, state-error>;
         fence-state: func(expected: borrow<player-state-image>) -> result<source-fence, state-error>;
         submit-state: func(request-id: string, expected: borrow<player-state-image>, desired: borrow<player-state-image>, source: option<borrow<source-fence>>) -> result<state-operation, state-error>;
         state-receipt: func(request-id: string) -> result<option<inventory-receipt>, state-error>;
@@ -837,6 +839,8 @@ interface types {
         configured-admin: func() -> result<bool, access-error>;
         snapshot: func() -> result<player-snapshot, access-error>;
         inventory: func() -> result<inventory-image, access-error>;
+        /// A write-lane fact, independent of the actor's physical availability and life.
+        inventory-busy: func() -> result<bool, access-error>;
         /// Exact physical stack observation, retaining its private native slot identity.
         inventory-stack: func(area: inventory-area, index: u32) -> result<stack, access-error>;
         /// Destination slot i receives original hotbar slot order[i]; exactly nine distinct indices.
@@ -850,9 +854,11 @@ interface types {
         archive: func(key: string) -> result<archive-reference, archive-error>;
         submit-inventory: func(request-id: string, image: borrow<inventory-image>) -> result<inventory-operation, inventory-error>;
         inventory-receipt: func(request-id: string) -> result<option<inventory-receipt>, inventory-error>;
-        /// A committed result proves one atomic canonical inventory + overflow item-ownership write.
+        /// A committed result proves acknowledged canonical inventory + overflow ownership.
+        /// Native destination corrections remain pending until their own atomic writes acknowledge.
         /// Replay never reapplies an old inventory or respawns already picked-up items.
         grant-items: func(request-id: string, plan: borrow<grant-plan>) -> result<inventory-operation, inventory-error>;
+        /// None is unknown, never proof of non-application. Pending/uncertain live corrections mask readback.
         grant-receipt: func(request-id: string) -> result<option<inventory-receipt>, inventory-error>;
         message: func(message: string) -> result<_, access-error>;
         /// Stage exact admitted-connection termination; initial admission uses reject/hold resolution.

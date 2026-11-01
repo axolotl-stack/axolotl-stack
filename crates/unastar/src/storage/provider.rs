@@ -166,6 +166,9 @@ pub struct PlayerData {
     /// Native source ownership is canonical engine state, never supplied by a state image.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_actor: Option<super::source::SourceActorRecord>,
+    /// Exact native post-drop proof; a later ordinary capture retires this one-shot evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_terminal: Option<super::terminal::NativeTerminalRecord>,
 }
 
 impl Default for PlayerData {
@@ -196,6 +199,7 @@ impl Default for PlayerData {
             age_ticks: 0,
             restoration_checkpoint: None,
             source_actor: None,
+            native_terminal: None,
         }
     }
 }
@@ -277,6 +281,9 @@ impl StoredItemStack {
 impl PlayerData {
     /// Validate structural state; typed item resolution occurs atomically at spawn.
     pub fn validate(&self, uuid: Uuid) -> StorageResult<()> {
+        if let Some(terminal) = &self.native_terminal {
+            terminal.validate(self)?;
+        }
         if let Some(source) = &self.source_actor {
             source.validate(self)?;
         }

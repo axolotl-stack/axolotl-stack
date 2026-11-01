@@ -76,6 +76,7 @@ pub(super) fn accept(world: &mut World, operation: &Arc<Operation>) -> Result<()
         return Err(Error::Conflict);
     }
     if crate::server::game::player_state::source_actors::pending(world, player)
+        || crate::server::game::inventory_effects::grant_pending(world, player)
         || world.get::<Dead>(player).is_some()
         || crate::server::game::inventory_effects::is_quarantined(world, player)
         || crate::server::game::player_events::initial_state_pending(world, player)
@@ -242,6 +243,7 @@ pub(super) fn defer_death(
     player: Entity,
     cause: crate::entity::player_life::death::DeathCause,
     attribution: crate::entity::damage::DamageAttribution,
+    rules: crate::world::rules::GameRules,
 ) -> bool {
     let Some(operation) = world
         .get::<Pending>(player)
@@ -265,7 +267,7 @@ pub(super) fn defer_death(
             .map_err(|_| Error::LimitExceeded)?;
         let lease = (operation.reserve)(size.checked_mul(3).ok_or(Error::LimitExceeded)?)?;
         let pre = Arc::new(capture(world, player).map_err(|_| Error::InvalidState)?);
-        let mut post = post_drop(world, player, &pre)?;
+        let mut post = post_drop(world, player, &pre, rules.keep_inventory)?;
         let hold = quarantine::hold(
             world,
             player,
@@ -291,7 +293,7 @@ pub(super) fn defer_death(
                 death: Arc::new(TerminalDeath {
                     cause,
                     attribution,
-                    rules: world.resource::<crate::world::rules::GameRules>().clone(),
+                    rules,
                 }),
             }),
         };

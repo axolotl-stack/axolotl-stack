@@ -357,6 +357,12 @@ impl<'scope> Player<'scope> {
     pub fn checkpoint_source(&self) -> Result<crate::SourceActorOperation, crate::StateError> {
         self.raw().checkpoint_source()
     }
+    /// Adopt genuine acknowledged post-drop evidence; history alone cannot authorize it.
+    pub fn checkpoint_terminal_source(
+        &self,
+    ) -> Result<crate::SourceActorOperation, crate::StateError> {
+        self.raw().checkpoint_terminal_source()
+    }
     /// Stage native ownership of this genuine old source. Dropping the returned
     /// observer cannot reactivate an accepted source hold.
     pub fn fence_state(
@@ -459,6 +465,11 @@ impl<'scope> Player<'scope> {
     /// Capture a complete owned inventory image without granting a live inventory borrow.
     pub fn inventory(&self) -> Result<crate::InventoryImage, AccessError> {
         self.raw().inventory()
+    }
+    /// Whether a canonical inventory or source write currently owns this actor's write lane.
+    /// Readable inventory, vitals and actor availability remain separate observations.
+    pub fn inventory_busy(&self) -> Result<bool, AccessError> {
+        self.raw().inventory_busy()
     }
     /// Observe an exact main, armour or offhand stack for a later bounded physical change.
     pub fn inventory_stack(

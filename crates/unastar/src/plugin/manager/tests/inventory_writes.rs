@@ -146,6 +146,9 @@ impl Harness {
             if mode >= 50 {
                 capabilities.insert(PluginCapability::GrantItems);
             }
+            if mode == 65 {
+                capabilities.insert(PluginCapability::InventoryMechanics);
+            }
         }
         let archives = (mode == 26).then(|| tempfile::tempdir().unwrap());
         if archives.is_some() {

@@ -490,3 +490,164 @@ async fn terminal_after_handoff_requires_the_exact_canonical_receipt_and_preserv
         SourcePhase::Terminal
     );
 }
+
+/// Native death proof survives reopen before any module is allowed to claim terminal ownership.
+#[tokio::test]
+async fn native_terminal_receipt_reopen_and_exact_adoption_preserve_postdrop_state() {
+    use crate::storage::terminal::NativeTerminalRecord;
+    let directory = tempfile::tempdir().unwrap();
+    let inner = Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap());
+    let writer = SerializedPlayerProvider::new(inner.clone());
+    let (uuid, mut data, mut source) = fresh();
+    data.health = 0.0;
+    data.inventory.clear();
+    data.experience = 0;
+    let mut raw = supplement();
+    raw.dead = true;
+    let lifetime = Uuid::from_u128(700);
+    let death = Uuid::from_u128(701);
+    let proof = NativeTerminalRecord {
+        version: 1,
+        death: death.to_string(),
+        world: source.world.clone(),
+        lifetime: lifetime.to_string(),
+        dimension: data.dimension,
+        lineage: Uuid::from_u128(702).to_string(),
+        name: source.name.clone(),
+        xuid: raw.xuid.clone(),
+        id: format!("native-terminal:{lifetime}:{death}"),
+        receipt: InventoryEffectRecord {
+            revision: 0,
+            request_hash: [0; 32],
+        },
+    };
+    let native = writer
+        .commit_native_terminal(uuid, data, raw.clone(), proof)
+        .await
+        .unwrap();
+    assert!(native.data.source_actor.is_none());
+    native.data.validate(uuid).unwrap();
+    let proof = native.data.native_terminal.clone().unwrap();
+    assert_eq!(proof.receipt, native.effect.record);
+    drop(writer);
+    drop(inner);
+    let inner = Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap());
+    let writer = SerializedPlayerProvider::new(inner.clone());
+    let canonical = writer.load(uuid).await.unwrap().unwrap();
+    assert_eq!(canonical.native_terminal.as_ref(), Some(&proof));
+    assert_eq!(canonical.health, 0.0);
+    assert!(canonical.inventory.is_empty());
+    source.phase = SourcePhase::Terminal;
+    source.supplement = Some(raw);
+    source.generation = 1;
+    let adopted = writer
+        .commit_initial_terminal(
+            uuid,
+            "example:terminal-adoption",
+            [81; 32],
+            canonical.clone(),
+            proof.clone(),
+            source.clone(),
+        )
+        .await
+        .unwrap();
+    assert!(adopted.data.native_terminal.is_none());
+    assert_eq!(adopted.data.source_actor.as_ref(), Some(&source));
+    assert_eq!(
+        adopted.data.inventory_effects.get(&proof.id),
+        Some(&proof.receipt)
+    );
+    assert_eq!(adopted.data.health, 0.0);
+    assert!(adopted.data.inventory.is_empty());
+    let mut replacement = source;
+    replacement.nonce = Uuid::from_u128(703).to_string();
+    replacement.generation = 2;
+    assert!(
+        writer
+            .commit_initial_terminal(
+                uuid,
+                "example:terminal-replay",
+                [82; 32],
+                adopted.data.clone(),
+                proof,
+                replacement
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(writer.load(uuid).await.unwrap().unwrap(), adopted.data);
+}
+
+/// A forged witness or extra post-drop value cannot acquire genuine terminal authority.
+#[tokio::test]
+async fn native_terminal_adoption_rejects_wrong_death_and_added_items_without_a_receipt() {
+    use crate::storage::terminal::NativeTerminalRecord;
+    let directory = tempfile::tempdir().unwrap();
+    let writer = SerializedPlayerProvider::new(Arc::new(
+        LevelDBPlayerProvider::open(directory.path()).unwrap(),
+    ));
+    let (uuid, mut data, mut source) = fresh();
+    data.health = 0.0;
+    data.inventory.clear();
+    let mut raw = supplement();
+    raw.dead = true;
+    let lifetime = Uuid::from_u128(710);
+    let death = Uuid::from_u128(711);
+    let proof = NativeTerminalRecord {
+        version: 1,
+        death: death.to_string(),
+        world: source.world.clone(),
+        lifetime: lifetime.to_string(),
+        dimension: data.dimension,
+        lineage: Uuid::from_u128(712).to_string(),
+        name: source.name.clone(),
+        xuid: raw.xuid.clone(),
+        id: format!("native-terminal:{lifetime}:{death}"),
+        receipt: InventoryEffectRecord {
+            revision: 0,
+            request_hash: [0; 32],
+        },
+    };
+    let native = writer
+        .commit_native_terminal(uuid, data, raw.clone(), proof)
+        .await
+        .unwrap();
+    let proof = native.data.native_terminal.clone().unwrap();
+    source.phase = SourcePhase::Terminal;
+    source.supplement = Some(raw);
+    let mut wrong = proof.clone();
+    wrong.lineage = Uuid::from_u128(713).to_string();
+    assert!(
+        writer
+            .commit_initial_terminal(
+                uuid,
+                "example:wrong-terminal",
+                [83; 32],
+                native.data.clone(),
+                wrong,
+                source.clone()
+            )
+            .await
+            .is_err()
+    );
+    let mut extra = native.data.clone();
+    extra.inventory.push(crate::storage::StoredItemStack {
+        item_id: "minecraft:stone".into(),
+        count: 1,
+        ..Default::default()
+    });
+    assert!(
+        writer
+            .commit_initial_terminal(
+                uuid,
+                "example:added-terminal",
+                [84; 32],
+                extra,
+                proof,
+                source
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(writer.load(uuid).await.unwrap().unwrap(), native.data);
+}

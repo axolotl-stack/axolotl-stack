@@ -112,6 +112,8 @@ pub(crate) fn capture(world: &World, player: Entity) -> Result<Arc<Capture>, Err
             .0
             .clone(),
         bytes,
-        nonce: uuid::Uuid::new_v4(),
+        nonce: world
+            .get::<crate::entity::player_life::death::NativeDeathId>(player)
+            .map_or_else(uuid::Uuid::new_v4, |id| id.0),
     }))
 }

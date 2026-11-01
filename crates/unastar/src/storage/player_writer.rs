@@ -35,6 +35,10 @@ pub(crate) struct StateOrigin {
 enum SourceMutation {
     Ordinary,
     Handoff(StateOrigin),
+    InitialTerminal {
+        witness: super::terminal::NativeTerminalRecord,
+        desired: Box<SourceActorRecord>,
+    },
     Transition {
         expected: Option<SourceProof>,
         desired: Box<SourceActorRecord>,
@@ -172,6 +176,83 @@ impl SerializedPlayerProvider {
         )
         .await
         .map(|(effect, _)| effect)
+    }
+
+    /// A real native death stores post-drop raw state and its own receipt in one account row.
+    pub(crate) async fn commit_native_terminal(
+        &self,
+        uuid: Uuid,
+        mut candidate: PlayerData,
+        supplement: super::RestorationSupplement,
+        mut proof: super::terminal::NativeTerminalRecord,
+    ) -> Result<SourceWrite, EffectWriteFailure> {
+        use sha2::Digest;
+        // The receipt frames the actual post-drop state and original engine identity;
+        // its own hash is excluded to avoid a self-referential proof.
+        let hash = sha2::Sha256::digest(
+            serde_json::to_vec(&(
+                "native-terminal-v1",
+                &candidate,
+                &supplement,
+                &proof.death,
+                &proof.world,
+                &proof.lifetime,
+                proof.dimension,
+                &proof.lineage,
+                &proof.name,
+                &proof.xuid,
+            ))
+            .map_err(|error| rejected(error.to_string()))?,
+        )
+        .into();
+        proof.receipt = InventoryEffectRecord {
+            revision: candidate
+                .inventory_revision
+                .checked_add(1)
+                .ok_or_else(|| rejected("inventory epoch exhausted"))?,
+            request_hash: hash,
+        };
+        let id = proof.id.clone();
+        candidate.native_terminal = Some(proof);
+        self.commit_full_effect(
+            uuid,
+            &id,
+            hash,
+            candidate,
+            Some(supplement),
+            (SourceMutation::Ordinary, None),
+        )
+        .await
+        .map(|(effect, data)| SourceWrite { effect, data })
+    }
+
+    /// Module ownership may adopt only an exact current native post-drop checkpoint.
+    pub(crate) async fn commit_initial_terminal(
+        &self,
+        uuid: Uuid,
+        id: &str,
+        request_hash: [u8; 32],
+        mut candidate: PlayerData,
+        witness: super::terminal::NativeTerminalRecord,
+        desired: SourceActorRecord,
+    ) -> Result<SourceWrite, EffectWriteFailure> {
+        candidate.native_terminal = None;
+        self.commit_full_effect(
+            uuid,
+            id,
+            request_hash,
+            candidate,
+            None,
+            (
+                SourceMutation::InitialTerminal {
+                    witness,
+                    desired: Box::new(desired),
+                },
+                None,
+            ),
+        )
+        .await
+        .map(|(effect, data)| SourceWrite { effect, data })
     }
 
     /// Source ownership and inventory/receipt lineage change in the same durable account row.
@@ -542,6 +623,36 @@ fn source_update(
             (None, None) => Ok(None),
             _ => Err(conflict()),
         },
+        SourceMutation::InitialTerminal { witness, desired } => {
+            let actual = current.ok_or_else(conflict)?;
+            if actual.native_terminal.as_ref() != Some(&witness)
+                || witness.validate(actual).is_err()
+                || old.is_some_and(|old| old.requires_handoff() || old.nonce == desired.nonce)
+                || desired.phase != SourcePhase::Terminal
+                || desired.generation
+                    != old
+                        .map_or(Some(1), |old| old.generation.checked_add(1))
+                        .ok_or_else(conflict)?
+                || desired.sample != 0
+                || desired.world != witness.world
+                || desired.dimension != witness.dimension
+                || desired.name != witness.name
+                || candidate.health != 0.0
+                || candidate.inventory != actual.inventory
+                || candidate.armour != actual.armour
+                || candidate.offhand != actual.offhand
+                || candidate.ui != actual.ui
+                || candidate.cursor != actual.cursor
+                || candidate.ender_chest != actual.ender_chest
+                || candidate.held_slot != actual.held_slot
+                || candidate.experience != actual.experience
+                || candidate.experience_progress != actual.experience_progress
+            {
+                return Err(conflict());
+            }
+            desired.validate(candidate).map_err(|_| conflict())?;
+            Ok(Some(*desired))
+        }
         SourceMutation::Transition {
             expected,
             desired,

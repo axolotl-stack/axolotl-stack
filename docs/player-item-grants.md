@@ -33,17 +33,40 @@ batch. Expiry and out-of-world removal durably retire the row before removing th
 actor. Compact permanent tombstones prevent ID reuse. Pickup and retirement encode
 only changed rows; the stable discovery index changes only on creation.
 
-An ambiguous write keeps the original inventory owner quarantined and the outcome
-uncertain until explicit recovery. Dropping a guest operation or quitting does not
-cancel accepted IO or substitute another actor. The existing `live_applied` field
-describes the original inventory publication, not client receipt or rendering.
-The current coordinator withholds both inventory and health during accepted IO.
-This capability does not yet provide a nonfreezing inventory-only reservation.
+Positive delivery reserves the canonical inventory write lane while the actual
+recipient stays `Ready` or `Retained`. Health, armour, food, movement, native wear
+and selected-item consumption remain live. `Player.inventory_busy()` reports this
+independently of physical availability. Competing replacements, slot permutations
+and world transfers return busy/unavailable instead of changing those inputs.
 
-Limits remain explicit: at most 128 entries, 16,384 total items and 256 overflow
-actors per operation; 4,096 active persistent items, 65,536 lifetime item identities
-and 16 MiB of item records per player provider. Exhaustion rejects the operation;
-there is no silent eviction. Resource and byte allowances also cover retained work.
+Placement is selected against the authoritative submission image. Acknowledgement
+adds only incoming counts to the current slots; it never reinstalls an older
+inventory, health or armour state. If native progress changed the destination,
+additional world ownership is acknowledged before publishing that part. A bounded
+catch-up checkpoint retains native progress observed at the first acknowledgement;
+ordinary later simulation is not a promise of durable per-tick state.
+
+A fatal hit stays fatal during IO. Incoming items that would leave the corpse are
+persisted as world items, while keep-inventory and keep-on-death items stay carried.
+The actual post-drop state is acknowledged before ordinary death loot, notifications
+or respawn. An exact current native receipt and original actor lineage authorize
+this continuation; a rejected request does not invent a receipt. The native terminal
+stamp is separate from component-owned source authority and historical archives.
+
+An ambiguous write keeps the original write owner and the outcome uncertain until
+explicit recovery. A correction failure after an earlier acknowledgement also stays
+uncertain; it cannot report the whole request as not applied. Dropping an operation
+or quitting does not cancel accepted IO or substitute another actor. `live_applied`
+describes the original publication, not client receipt or rendering.
+
+Limits remain explicit: at most 128 entries, 16,384 total items and 256 initially
+planned overflow stacks; 4,096 active persistent items, 65,536 lifetime identities
+and 16 MiB of item records per player provider. Destination corrections may create
+additional rows from already-owed inventory quantities, subject to the same global
+limits and at most 255 correction phases. The component byte allowance reserves
+worst-case fragment copies before staging. Preflight exhaustion rejects; inability
+to finish after an earlier write remains pending/recovery. There is no silent
+eviction or reduction of the accepted opaque metadata limit.
 
 Managed overflow items currently support player pickup and durable retirement.
 They are excluded from ordinary merging, hopper collection and mob equipment

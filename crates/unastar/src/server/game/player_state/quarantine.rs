@@ -170,6 +170,7 @@ pub(crate) fn hold(
     retention: Arc<dyn Send + Sync>,
 ) -> Result<Handle, SnapshotError> {
     if super::super::inventory_effects::is_quarantined(world, player)
+        || super::super::inventory_effects::grant_pending(world, player)
         || capture(world, player)? != *expected
     {
         return Err(invalid("state source changed before ownership transfer"));

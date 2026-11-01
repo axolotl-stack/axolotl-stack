@@ -91,8 +91,26 @@ impl Plugin for Fixture {
             }
         });
     }
-    fn on_player_death(_tx: &raw::WorldTx, _death: raw::DeathCommitted) {
+    fn on_player_death(tx: &raw::WorldTx, _death: raw::DeathCommitted) {
         log("source:death");
+        STATE.with_borrow_mut(|state| {
+            if matches!(state.mode, 50 | 51) {
+                log(&format!(
+                    "terminal:death:{}",
+                    _death.state.as_ref().unwrap().facts().unwrap().capture_id
+                ));
+                let tx = unastar_api::WorldTx::__from_borrowed(tx);
+                let player = tx.player(state.original.as_ref().unwrap()).unwrap();
+                let operation = player.checkpoint_terminal_source().unwrap();
+                drop(operation.archive("terminal-origin").unwrap());
+                if state.mode == 51 {
+                    panic!("controlled terminal adoption failure");
+                }
+                state.operation = Some(operation);
+                state.phase = 90;
+                log("terminal:staged");
+            }
+        });
     }
     fn on_player_quit(tx: &raw::WorldTx, event: QuitEvent) -> QuitDisposition {
         STATE.with_borrow_mut(|state| {
@@ -101,6 +119,10 @@ impl Plugin for Fixture {
             }
             assert!(event.previously_admitted);
             let player = tx.player(state.original.as_ref().unwrap()).unwrap();
+            if matches!(state.mode, 50 | 51 | 52) {
+                log("terminal:retained");
+                return QuitDisposition::RetainEntity;
+            }
             if state.mode == 11 {
                 drop(player.archive("unheld").unwrap());
                 log("source:ordinary-departure");
@@ -158,6 +180,66 @@ impl Plugin for Fixture {
     }
     fn on_world_task(tx: &raw::WorldTx, _task: u64, _callback: u64) {
         STATE.with_borrow_mut(|state| match state.phase {
+            0 if matches!(state.mode, 50 | 51)
+                || (state.mode == 52 && state.original.is_none()) =>
+            {
+                ()
+            }
+            0 if matches!(state.mode, 53 | 54) => {
+                state.operation = Some(
+                    unastar_api::WorldTx::__from_borrowed(tx)
+                        .inspect_source(&archive("terminal-origin"))
+                        .unwrap(),
+                );
+                state.phase = 91;
+            }
+            0 if state.mode == 52 && state.original.is_some() => {
+                let tx = unastar_api::WorldTx::__from_borrowed(tx);
+                let player = tx.player(state.original.as_ref().unwrap()).unwrap();
+                if player.vitals().is_ok_and(|vitals| vitals.health <= 0.0) {
+                    assert!(player.checkpoint_terminal_source().is_err());
+                    state.phase = 22;
+                    log("terminal:no-witness");
+                }
+            }
+            90 => match state.operation.as_ref().unwrap().status().unwrap() {
+                SourceActorStatus::Staged | SourceActorStatus::Queued => (),
+                SourceActorStatus::Observed(observed) => {
+                    assert_eq!(observed.phase, SourceActorPhase::Terminal);
+                    assert!(observed.live_applied);
+                    drop(
+                        state
+                            .operation
+                            .as_ref()
+                            .unwrap()
+                            .archive("terminal-owned")
+                            .unwrap(),
+                    );
+                    state.phase = 22;
+                    log("terminal:owned");
+                }
+                other => panic!("terminal adoption: {other:?}"),
+            },
+            91 => match state.operation.as_ref().unwrap().status().unwrap() {
+                SourceActorStatus::Staged | SourceActorStatus::Queued => (),
+                SourceActorStatus::Observed(observed) if state.mode == 53 => {
+                    assert_eq!(observed.phase, SourceActorPhase::Terminal);
+                    assert!(!observed.live_applied);
+                    assert!(
+                        unastar_api::WorldTx::__from_borrowed(tx)
+                            .source_player(state.operation.as_ref().unwrap())
+                            .unwrap()
+                            .is_none()
+                    );
+                    state.phase = 22;
+                    log("terminal:cold-owned");
+                }
+                SourceActorStatus::Unowned if state.mode == 54 => {
+                    state.phase = 22;
+                    log("terminal:cold-unowned");
+                }
+                other => panic!("terminal readback: {other:?}"),
+            },
             0 if matches!(state.mode, 42 | 46) => {
                 let intent = unastar_api::storage::read("rebind-intent")
                     .unwrap()

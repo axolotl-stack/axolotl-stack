@@ -19,6 +19,7 @@ pub use restoration::{
     RestorationCheckpoint, RestorationEffect, RestorationFoodPolicy, RestorationSupplement,
 };
 pub mod source;
+pub mod terminal;
 
 // LevelDB implementations
 mod leveldb_player;

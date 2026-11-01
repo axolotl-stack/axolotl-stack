@@ -150,13 +150,22 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
             continue;
         }
         if let InventoryAction::ItemStackRequest(packet) = &action
-            && !authorize_container_request(world, entity)
+            && (super::inventory_effects::grant_pending(world, entity)
+                || !authorize_container_request(world, entity))
         {
             reject_container_requests(world, entity, packet);
             continue;
         }
         if let InventoryAction::ItemStackRequest(packet) = &action {
             staged::apply(world, entity, packet);
+            continue;
+        }
+        if super::inventory_effects::grant_pending(world, entity)
+            && (matches!(&action, InventoryAction::BlockPick(_))
+                || matches!(&action, InventoryAction::Transaction(packet)
+                    if matches!(&packet.transaction, InventoryTransactionPacketTransaction::NormalTransactionData(_))))
+        {
+            super::send_inventory_contents(world, entity);
             continue;
         }
         let can_drop = world

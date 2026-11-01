@@ -182,6 +182,83 @@ impl HostContext {
         Ok(Resource::new_own(resource))
     }
 
+    /// Module authority starts only from the exact acknowledged native post-drop body.
+    pub(super) fn checkpoint_terminal_native_source(
+        &mut self,
+        player: u32,
+    ) -> Result<Resource<wit::SourceActorOperation>, wit::StateError> {
+        self.require(PluginCapability::RestorePlayerState)
+            .map_err(wit::StateError::Access)?;
+        let (_, actor) = self.live_player(player).map_err(wit::StateError::Access)?;
+        let world = unsafe { self.world() };
+        if world
+            .get::<crate::server::game::player_events::DetachedPlayer>(actor)
+            .is_none()
+            || world
+                .get::<crate::entity::components::PlayerSession>(actor)
+                .is_some()
+        {
+            return Err(wit::StateError::SourceGone);
+        }
+        if native::pending(world, actor) {
+            return Err(
+                if matches!(
+                    native::unowned_terminal::witness(world, actor),
+                    Err(native::Error::RecoveryRequired)
+                ) {
+                    wit::StateError::RecoveryRequired
+                } else {
+                    wit::StateError::Busy
+                },
+            );
+        }
+        let witness = Arc::new(native::unowned_terminal::witness(world, actor).map_err(error)?);
+        let image_resource = self
+            .capture_state_image(player)
+            .map_err(wit::StateError::Access)?;
+        let image = self
+            .state_image(image_resource.rep())
+            .map_err(wit::StateError::Access)?;
+        self.resources.entries.remove(&image_resource.rep());
+        let reference = native::Reference {
+            module: self.plugin_id.0.clone(),
+            uuid: uuid::Uuid::parse_str(&image.expected.data.uuid)
+                .map_err(|_| wit::StateError::InvalidImage)?,
+            xuid: image.expected.xuid.clone(),
+            name: witness.proof.name.clone(),
+            nonce: uuid::Uuid::new_v4().to_string(),
+            world: uuid::Uuid::parse_str(&witness.proof.world)
+                .map_err(|_| wit::StateError::InvalidImage)?,
+            dimension: witness.proof.dimension,
+        };
+        let intent = native::Intent::AdoptTerminal {
+            player: actor,
+            snapshot: image.expected.clone(),
+            witness,
+            reference,
+        };
+        let budget = self.resources.value_budget.clone();
+        let reserve = Arc::new(
+            move |bytes| -> Result<Arc<dyn Send + Sync>, native::Error> {
+                budget
+                    .own((), bytes)
+                    .map(|lease| lease as Arc<dyn Send + Sync>)
+                    .map_err(|_| native::Error::LimitExceeded)
+            },
+        );
+        let prepared =
+            native::prepare(unsafe { self.world() }, intent, image, reserve).map_err(error)?;
+        let resource = self
+            .resources
+            .allocate(
+                Entry::SourceActorOperation(prepared.operation.clone()),
+                self.api_limits.max_owned_resources,
+            )
+            .map_err(wit::StateError::Access)?;
+        self.source_actors.0.push(prepared);
+        Ok(Resource::new_own(resource))
+    }
+
     /// A resource is scoped to its creating component and cannot authorize another namespace.
     pub(super) fn source_operation(
         &mut self,

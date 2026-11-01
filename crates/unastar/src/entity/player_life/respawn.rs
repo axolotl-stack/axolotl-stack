@@ -112,7 +112,13 @@ fn valid_destination(position: DVec3) -> bool {
 
 /// Whether the subject is still a dead player with the state needed to respawn.
 fn can_respawn(world: &World, player: Entity) -> bool {
-    world.get::<Dead>(player).is_some()
+    !crate::server::game::inventory_effects::grant_pending(world, player)
+        && !crate::server::game::inventory_effects::grant_death_pending(world, player)
+        && world.get::<Dead>(player).is_some()
+        && !crate::server::game::player_state::source_actors::pending(world, player)
+        && world
+            .get::<crate::server::game::player_state::source_actors::ManagedSource>(player)
+            .is_none()
         && world.get::<Player>(player).is_some()
         && world.get::<Position>(player).is_some()
         && world
@@ -136,7 +142,16 @@ fn try_respawn(world: &mut World, player: Entity, acknowledge: bool) {
     }
     {
         let mut entity = world.entity_mut(player);
-        entity.remove::<(Dead, Burning, HurtTimer, LastHurt)>();
+        entity.remove::<(
+            Dead,
+            Burning,
+            HurtTimer,
+            LastHurt,
+            super::death::NativeDeathId,
+        )>();
+        entity
+            .remove::<crate::server::game::player_state::source_actors::unowned_terminal::Witness>(
+            );
         if let Some(mut health) = entity.get_mut::<Health>() {
             health.current = health.max;
         }
