@@ -1441,12 +1441,7 @@ pub(crate) fn try_set_block(
         state_flags.mark_needs_rebroadcast();
     }
 
-    world.trigger(BlockChanged {
-        chunk_entity,
-        block_pos: IVec3::new(x, y, z),
-        old_block: old_block_id,
-        new_block: block_runtime_id,
-    });
+    notify_block_change(world, chunk_entity, pos, old_block_id, block_runtime_id);
 
     world.write_message(BlockBroadcastEvent {
         chunk_entity,
@@ -1454,9 +1449,37 @@ pub(crate) fn try_set_block(
         new_block: block_runtime_id,
     });
 
-    super::falling::schedule_gravity_checks(world, pos);
+    broadcast_block_state(world, chunk_entity, pos, block_runtime_id, place_sound);
+    Ok(old_block_id)
+}
 
-    // Broadcast to viewers
+/// Notify observers of an actual installed change and schedule ordinary gravity.
+pub(crate) fn notify_block_change(
+    world: &mut World,
+    chunk_entity: Entity,
+    pos: IVec3,
+    previous: u32,
+    current: u32,
+) {
+    world.trigger(BlockChanged {
+        chunk_entity,
+        block_pos: pos,
+        old_block: previous,
+        new_block: current,
+    });
+    super::falling::schedule_gravity_checks(world, pos);
+}
+
+/// Send an already installed state; callers may publish a whole batch before
+/// notifying native observers that can author additional changes.
+pub(crate) fn broadcast_block_state(
+    world: &World,
+    chunk_entity: Entity,
+    pos: IVec3,
+    block_runtime_id: u32,
+    place_sound: bool,
+) {
+    let (x, y, z) = (pos.x, pos.y, pos.z);
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
         use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
@@ -1492,7 +1515,6 @@ pub(crate) fn try_set_block(
             }
         }
     }
-    Ok(old_block_id)
 }
 
 /// Break the block at `pos` without a breaker, as `/setblock … destroy` and

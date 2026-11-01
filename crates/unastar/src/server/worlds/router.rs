@@ -496,6 +496,14 @@ impl DimensionRouter {
                     manager.publish_ui(world.ecs.world_mut());
                 }
             }
+            // Literal block publication may notify native observers that enter components.
+            // Keep the shared cycle budget active while no manager guard is held.
+            for world in self.worlds.values_mut() {
+                crate::plugin::manager::players::apply_block_edits(world.ecs.world_mut());
+            }
+            self.check_plugins()?;
+            self.apply_requests();
+            self.refresh_directory();
             manager
                 .lock()
                 .map_err(|_| WorldTickError::PluginManagerUnavailable)?

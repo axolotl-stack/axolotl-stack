@@ -34,8 +34,12 @@ mod mechanics;
 pub(super) mod travel;
 #[path = "players/values.rs"]
 mod values;
+#[path = "players/world_blocks.rs"]
+mod world_blocks;
 pub(crate) use mechanics::apply_pending as apply_mechanics;
 pub(super) use mechanics::{MechanicsRequest, finish as finish_mechanics};
+pub(crate) use world_blocks::apply_pending as apply_block_edits;
+pub(super) use world_blocks::{Request as BlockEditRequest, finish as finish_block_edits};
 
 /// One callback's authority; tokens are invalidated before another callback can run.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,6 +68,9 @@ enum Entry {
     ArchivedState(Arc<values::Value<archive::Archived>>),
     InventoryOperation(Arc<inventory_transactions::Operation>),
     ConnectionClose(Arc<super::connection_control::RequestState>),
+    BlockCell(Arc<values::Value<world_blocks::Cell>>),
+    BlockEdit(world_blocks::Edit),
+    BlockEditRequest(Arc<world_blocks::RequestState>),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.
@@ -76,6 +83,7 @@ pub(super) struct PlayerResources {
     pub(super) operations: u32,
     pub(super) messages: u32,
     pub(super) connection_closes: u32,
+    pub(super) block_edits: u32,
     pub(super) tasks: u32,
     pub(super) value_budget: values::Budget,
 }
@@ -303,6 +311,7 @@ pub(super) fn begin_budget(context: &mut HostContext) {
     context.resources.operations = 0;
     context.resources.messages = 0;
     context.resources.connection_closes = 0;
+    context.resources.block_edits = 0;
     context.resources.tasks = 0;
 }
 

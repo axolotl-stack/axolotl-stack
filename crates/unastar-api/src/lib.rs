@@ -77,6 +77,10 @@ pub use raw::{
 };
 
 pub use raw::{
+    BlockCell, BlockEdit, BlockEditApplied, BlockEditRequest, BlockEditStatus, BlockEditSupport,
+    BlockFacts, BlockLayers, WorldBlockError,
+};
+pub use raw::{
     ConnectionCloseKind, ConnectionCloseReason, ConnectionCloseRequest, ConnectionCloseStatus,
     ConnectionControlError,
 };

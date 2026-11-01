@@ -444,6 +444,58 @@ interface types {
         player: func(handle: borrow<player-handle>) -> result<player, access-error>;
         /// Construct a detached value using this world's frozen item/block registries.
         item: func(identifier: string, count: u8) -> result<stack, access-error>;
+        /// Observe an already loaded native cell without loading or generating terrain.
+        block: func(position: block-pos) -> result<block-cell, world-block-error>;
+        edit-blocks: func() -> result<block-edit, world-block-error>;
+        /// Stage a literal replacement batch. Publication occurs after the callback succeeds.
+        apply-blocks: func(edit: borrow<block-edit>) -> result<block-edit-request, world-block-error>;
+    }
+
+    variant world-block-error {
+        access(access-error),
+        unloaded,
+        out-of-bounds,
+        reserved,
+        unsupported,
+        conflict,
+        empty-batch,
+        already-staged,
+    }
+    /// Support is an authored host capability, not a claim about every vanilla block.
+    enum block-edit-support { supported, unsupported-family, block-actor }
+    record block-layers { primary: block-value, secondary: block-value }
+    /// Material/definition flags and actual actor presence at capture time.
+    record block-facts {
+        solid: bool,
+        blocks-motion: bool,
+        liquid: bool,
+        replaceable: bool,
+        actor-present: bool,
+        edit-support: block-edit-support,
+    }
+    /// An owned observation with an inaccessible native world/chunk/state witness.
+    /// Its getters remain historical observations after the world changes.
+    resource block-cell {
+        position: func() -> result<block-pos, access-error>;
+        layers: func() -> result<block-layers, access-error>;
+        facts: func() -> result<block-facts, access-error>;
+    }
+    /// Detached bounded edits; adding a cell never changes authoritative terrain.
+    resource block-edit {
+        replace: func(expected: borrow<block-cell>, proposed: block-layers) -> result<_, world-block-error>;
+    }
+    record block-edit-applied { checked: u32, changed: u32 }
+    /// Applied describes a physical replacement; it is not a storage or client acknowledgement.
+    variant block-edit-status {
+        staged,
+        pending,
+        applied(block-edit-applied),
+        cancelled,
+        failed(world-block-error),
+    }
+    resource block-edit-request {
+        status: func() -> result<block-edit-status, access-error>;
+        cancel: func() -> result<bool, access-error>;
     }
 
     /// Instance properties use typed values; encoded item or packet buffers are not exposed.

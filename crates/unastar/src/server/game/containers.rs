@@ -197,6 +197,13 @@ fn container(world: &World, pos: IVec3) -> Option<&BlockContainer> {
     world.resource::<BlockContainers>().live.get(&pos)
 }
 
+/// Literal terrain replacements cannot discard an outstanding decoded inventory.
+pub(crate) fn has_decoded_state(world: &World, position: IVec3) -> bool {
+    world
+        .get_resource::<BlockContainers>()
+        .is_some_and(|containers| containers.live.contains_key(&position))
+}
+
 fn container_mut(world: &mut World, pos: IVec3) -> Option<Mut<'_, BlockContainer>> {
     if mutation_locked(world, pos) {
         return None;
