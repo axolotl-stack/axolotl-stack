@@ -56,6 +56,16 @@ pub(super) fn component(engine: &Engine, bodies: &[(&str, String)]) -> Component
 
 /// Encode a complete component for tests that exercise disk discovery and loading.
 pub(super) fn bytes(bodies: &[(&str, String)]) -> Vec<u8> {
+    bytes_with_start(bodies, false)
+}
+
+/// Run the same zero-argument callback once as a core start and once as on-load.
+pub(super) fn component_with_start(engine: &Engine, bodies: &[(&str, String)]) -> Component {
+    Component::new(engine, bytes_with_start(bodies, true)).unwrap()
+}
+
+/// Optionally include a real instantiation start function in the canonical component.
+fn bytes_with_start(bodies: &[(&str, String)], start: bool) -> Vec<u8> {
     let mut resolve = Resolve::default();
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../unastar-api/wit");
     let (package, _) = resolve.push_dir(path).unwrap();
@@ -90,6 +100,7 @@ pub(super) fn bytes(bodies: &[(&str, String)]) -> Vec<u8> {
         }
     }
     let mut overrides = HashMap::new();
+    let mut start_index = None;
     for (_, item) in &resolve.worlds[world].exports {
         let WorldItem::Function(function) = item else {
             continue;
@@ -111,6 +122,9 @@ pub(super) fn bytes(bodies: &[(&str, String)]) -> Vec<u8> {
             "on-player-respawn" => "i32.const 64 i32.const 1 i32.store i32.const 72 local.get 2 f64.store i32.const 80 local.get 3 f64.store i32.const 88 local.get 4 f64.store i32.const 64".into(),
             _ => String::new(),
         });
+        if function.name == "on-load" {
+            start_index = Some(exports[&export]);
+        }
         let mut body = body;
         // Large owned records indirect all parameters; resource prefixes follow
         // the canonical memory layout rather than pretending the pointer is a handle.
@@ -176,6 +190,26 @@ pub(super) fn bytes(bodies: &[(&str, String)]) -> Vec<u8> {
         .parse_core_module(&mut encoded, Parser::new(0), &module)
         .unwrap();
     let mut module = encoded.finish();
+    if start {
+        let mut output = wasm_encoder::Module::new();
+        let mut inserted = false;
+        for payload in Parser::new(0).parse_all(&module) {
+            if let Some((id, range)) = payload.unwrap().as_section() {
+                if !inserted && id > 7 {
+                    output.section(&wasm_encoder::StartSection {
+                        function_index: start_index.unwrap(),
+                    });
+                    inserted = true;
+                }
+                output.section(&wasm_encoder::RawSection {
+                    id,
+                    data: &module[range],
+                });
+            }
+        }
+        assert!(inserted);
+        module = output.finish();
+    }
     wit_component::embed_component_metadata(
         &mut module,
         &resolve,

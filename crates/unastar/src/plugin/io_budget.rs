@@ -3,7 +3,6 @@
 use std::time::{Duration, Instant};
 
 pub(super) const EPOCH_INTERVAL: Duration = Duration::from_millis(5);
-pub(super) const INVOCATION_EPOCHS: u64 = 2;
 const MAX_IO_TIME: Duration = Duration::from_millis(250);
 const MAX_STORAGE_CALLS: u16 = 64;
 
@@ -11,6 +10,7 @@ pub(super) struct IoBudget {
     started: Instant,
     io_time: Duration,
     calls: u16,
+    allowance: Duration,
 }
 
 impl Default for IoBudget {
@@ -20,16 +20,24 @@ impl Default for IoBudget {
             started: Instant::now(),
             io_time: Duration::ZERO,
             calls: 0,
+            allowance: Duration::from_millis(10),
         }
     }
 }
 
 impl IoBudget {
     /// A fresh guest export starts a new wall-time budget, never a fuel budget.
+    #[cfg(test)]
     pub fn reset(&mut self, now: Instant) {
+        self.reset_with_allowance(now, Duration::from_millis(10));
+    }
+
+    /// Startup and simulation use their own bounded allowance without changing I/O credit.
+    pub fn reset_with_allowance(&mut self, now: Instant, allowance: Duration) {
         self.started = now;
         self.io_time = Duration::ZERO;
         self.calls = 0;
+        self.allowance = allowance;
     }
 
     /// Reject excessive host calls before they perform filesystem work.
@@ -57,7 +65,7 @@ impl IoBudget {
             && now
                 .saturating_duration_since(self.started)
                 .saturating_sub(self.io_time)
-                < EPOCH_INTERVAL.saturating_mul(INVOCATION_EPOCHS as u32)
+                < self.allowance
     }
 }
 
@@ -102,5 +110,20 @@ mod tests {
         assert!(!budget.finish(io, start + Duration::from_millis(251)));
         assert!(budget.begin(start + Duration::from_millis(251)).is_none());
         assert!(!budget.may_continue(start + Duration::from_millis(251)));
+    }
+
+    #[test]
+    fn initialization_credit_uses_its_allowance_without_enlarging_callback_time() {
+        let start = Instant::now();
+        let mut budget = IoBudget::default();
+        budget.reset_with_allowance(start, Duration::from_millis(1000));
+        let io = budget.begin(start).unwrap();
+        assert!(budget.finish(io, start + Duration::from_millis(50)));
+        assert!(budget.may_continue(start + Duration::from_millis(900)));
+        assert!(!budget.may_continue(start + Duration::from_millis(1050)));
+        budget.reset(start);
+        let io = budget.begin(start).unwrap();
+        assert!(budget.finish(io, start));
+        assert!(!budget.may_continue(start + Duration::from_millis(11)));
     }
 }

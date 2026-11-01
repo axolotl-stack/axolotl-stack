@@ -46,10 +46,18 @@ pub struct PluginManifest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginLimits {
     /// Wasmtime instruction fuel shared by all event exports in one server tick.
-    /// Instantiation and on-load share a separate initialization budget of this size.
     /// Defaults to 10M; epoch interruption remains an independent per-call limit.
     #[serde(default = "default_fuel")]
     pub fuel_per_tick: u64,
+    /// One instruction budget for instantiation and on-load together, before admission.
+    #[serde(default = "default_initialization_fuel")]
+    pub fuel_per_initialization: u64,
+    /// One non-storage wall allowance for instantiation and on-load together.
+    #[serde(default = "default_initialization_timeout")]
+    pub initialization_timeout_ms: u32,
+    /// Non-storage wall allowance per ordinary callback; it does not renew cycle fuel.
+    #[serde(default = "default_callback_timeout")]
+    pub callback_timeout_ms: u32,
     /// Maximum bytes per Wasm linear memory, enforced at creation and growth.
     /// Exceeding this limit traps. Defaults to 64MB.
     #[serde(default = "default_memory")]
@@ -93,6 +101,9 @@ impl Default for PluginLimits {
     fn default() -> Self {
         Self {
             fuel_per_tick: default_fuel(),
+            fuel_per_initialization: default_initialization_fuel(),
+            initialization_timeout_ms: default_initialization_timeout(),
+            callback_timeout_ms: default_callback_timeout(),
             max_memory: default_memory(),
             max_owned_resources: default_owned_resources(),
             max_host_operations_per_tick: default_host_operations(),
@@ -107,6 +118,38 @@ impl Default for PluginLimits {
             max_view_updates_per_tick: default_view_updates(),
         }
     }
+}
+
+impl PluginLimits {
+    /// Reject unusable or unbounded execution allowances before instantiating a guest.
+    pub(crate) fn validate_execution(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.fuel_per_initialization > 0,
+            "initialization fuel must be positive"
+        );
+        anyhow::ensure!(
+            (1..=60_000).contains(&self.initialization_timeout_ms),
+            "initialization timeout must be between 1 and 60000 ms"
+        );
+        anyhow::ensure!(
+            (1..=1000).contains(&self.callback_timeout_ms),
+            "callback timeout must be between 1 and 1000 ms"
+        );
+        Ok(())
+    }
+}
+
+/// Stateful initialization has a separate finite allowance from simulation callbacks.
+fn default_initialization_fuel() -> u64 {
+    100_000_000
+}
+/// Initialization finishes before listeners and player admission open.
+fn default_initialization_timeout() -> u32 {
+    1000
+}
+/// Keep the existing short callback default, independently of startup capacity.
+fn default_callback_timeout() -> u32 {
+    10
 }
 
 fn default_fuel() -> u64 {

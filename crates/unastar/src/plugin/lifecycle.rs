@@ -144,7 +144,7 @@ impl PluginManager {
                 error!(plugin = %plugin.manifest.id, %error, "Failed to set tick fuel budget");
                 self.tick_budget_valid = false;
                 self.readiness
-                    .fail(&plugin.manifest.id.0, &error.to_string());
+                    .fail(&plugin.manifest.id.0, &super::wasm_failure_reason(&error));
             }
         }
         if self.readiness.check().is_err() {
@@ -215,7 +215,7 @@ impl PluginManager {
                 }
                 Err(error) => {
                     error!(plugin = %id, %error, "Player respawn callback failed");
-                    self.callback_failed(world, &id, &error.to_string());
+                    self.callback_failed(world, &id, &super::wasm_failure_reason(&error));
                     event.cancel();
                     break;
                 }
@@ -237,7 +237,7 @@ impl PluginManager {
                 bindings.call_on_player_respawned(store, tx, player, position)
             }) {
                 error!(plugin = %id, %error, "Player respawned callback failed");
-                self.callback_failed(world, &id, &error.to_string());
+                self.callback_failed(world, &id, &super::wasm_failure_reason(&error));
                 if self.readiness.check().is_err() {
                     break;
                 }

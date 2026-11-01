@@ -149,7 +149,7 @@ impl PluginManager {
                                 result.is_ok(),
                             );
                             if let Err(error) = &result
-                                && readiness.fail(&owner.0, &error.to_string())
+                                && readiness.fail(&owner.0, &super::wasm_failure_reason(error))
                             {
                                 super::readiness::fence_world(world);
                             }
@@ -192,7 +192,7 @@ impl PluginManager {
                 super::finish_invocation(plugin.store.data_mut(), world, result.is_ok());
                 if let Err(error) = result {
                     tracing::error!(plugin = %owner, %error, "Scheduled task failure callback failed");
-                    if readiness.fail(&owner.0, &error.to_string()) {
+                    if readiness.fail(&owner.0, &super::wasm_failure_reason(&error)) {
                         self.tick_budget_valid = false;
                         super::readiness::fence_world(world);
                         return;
