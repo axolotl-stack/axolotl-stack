@@ -346,6 +346,35 @@ impl super::super::wit_bindings::unastar::plugin::types::HostWorldTx for HostCon
     ) -> Result<Resource<wit::BlockEditRequest>, wit::WorldBlockError> {
         world_blocks::stage(self, tx.rep(), edit.rep())
     }
+    fn block_intent(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        edit: Resource<wit::BlockEdit>,
+    ) -> Result<Vec<u8>, wit::DurableBlockError> {
+        world_blocks::durable_intent(self, tx.rep(), edit.rep())
+    }
+    fn commit_blocks(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        key: String,
+        edit: Resource<wit::BlockEdit>,
+    ) -> Result<Resource<wit::DurableBlockRequest>, wit::DurableBlockError> {
+        world_blocks::durable_stage(self, tx.rep(), &key, edit.rep())
+    }
+    fn block_receipt(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        key: String,
+    ) -> Result<Option<wit::DurableBlockStatus>, wit::DurableBlockError> {
+        world_blocks::durable_lookup(self, tx.rep(), &key)
+    }
+    fn resume_blocks(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        key: String,
+    ) -> Result<Resource<wit::DurableBlockRequest>, wit::DurableBlockError> {
+        world_blocks::durable_resume(self, tx.rep(), &key)
+    }
     fn item(
         &mut self,
         tx: Resource<wit::WorldTx>,

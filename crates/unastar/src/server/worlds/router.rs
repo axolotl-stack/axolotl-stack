@@ -525,6 +525,7 @@ impl DimensionRouter {
             // Keep the shared cycle budget active while no manager guard is held.
             for world in self.worlds.values_mut() {
                 crate::plugin::manager::players::apply_block_edits(world.ecs.world_mut());
+                crate::plugin::manager::players::apply_durable_block_edits(world.ecs.world_mut());
             }
             self.check_plugins()?;
             self.apply_requests();

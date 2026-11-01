@@ -1,0 +1,14 @@
+[package]
+name = "durable_world_blocks_fixture"
+version = "0.0.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+unastar_api = { path = "../../../../unastar-api" }
+
+[workspace]

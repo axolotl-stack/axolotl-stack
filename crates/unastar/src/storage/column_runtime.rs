@@ -17,7 +17,7 @@ use crate::{
 };
 use bevy_ecs::prelude::*;
 use glam::IVec3;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 
 /// An owned observation of physical publication, not a client acknowledgement.
 #[derive(Clone, Debug)]
@@ -52,10 +52,30 @@ struct Pending {
     snapshots: Vec<ChunkSnapshot>,
     columns: Vec<ColumnWrite>,
     receiver: Option<ColumnCompletion>,
-    durable: bool,
-    unload: bool,
+    mode: Mode,
     ticket: ColumnTicket,
 }
+/// Trusted native block notifications accompanying an already-validated durable
+/// terrain candidate. These run only after its whole disk-backed image is installed.
+pub(crate) struct ColumnBlockChange {
+    pub position: IVec3,
+    pub before: u32,
+    pub after: u32,
+}
+
+/// Publication ownership is independent of guest ticket lifetime. Once IO is
+/// accepted, loss of its component owner requires receipt-backed reconciliation.
+#[derive(Default)]
+struct Mode {
+    changes: Vec<ColumnBlockChange>,
+    durable: bool,
+    unload: bool,
+    id: Option<String>,
+    intent: Option<[u8; 32]>,
+    owner: Option<Weak<()>>,
+    identity: Option<uuid::Uuid>,
+}
+
 /// Pending writes also pin chunks with zero viewers. Uncertain operations retain
 /// these reservations until world teardown and provider restart reconciliation.
 #[derive(Resource, Default)]
@@ -85,7 +105,7 @@ pub struct ColumnWriteFence(());
 pub(crate) fn any_reserved(world: &World) -> bool {
     world
         .get_resource::<ColumnPersistence>()
-        .is_some_and(|state| state.pending.iter().any(|job| job.durable))
+        .is_some_and(|state| state.pending.iter().any(|job| job.mode.durable))
 }
 
 /// Whether native terrain/container writers must defer mutation at this cell.
@@ -94,11 +114,14 @@ pub(crate) fn cell_reserved(world: &World, pos: IVec3) -> bool {
         .get_resource::<ChunkManager>()
         .and_then(|manager| manager.get_by_coords(pos.x >> 4, pos.z >> 4));
     chunk.is_some_and(|chunk| {
+        if world.get::<ColumnWriteFence>(chunk).is_some() {
+            return true;
+        }
         world
             .get_resource::<ColumnPersistence>()
             .is_some_and(|state| {
                 state.pending.iter().any(|job| {
-                    job.durable && job.snapshots.iter().any(|snapshot| snapshot.chunk == chunk)
+                    job.mode.durable && job.snapshots.iter().any(|snapshot| snapshot.chunk == chunk)
                 })
             })
     })
@@ -140,7 +163,7 @@ fn capture_inner(
     if world
         .get_resource::<ColumnPersistence>()
         .is_some_and(|state| {
-            state.pending.len() >= 16 || state.pending.iter().any(|pending| pending.durable)
+            state.pending.len() >= 16 || state.pending.iter().any(|pending| pending.mode.durable)
         })
     {
         return Err(ColumnWriteError::Busy);
@@ -206,7 +229,7 @@ fn admission_capacity(world: &World, capture: &ColumnCapture) -> Result<(), Colu
     if world
         .get_resource::<ColumnPersistence>()
         .is_some_and(|state| {
-            state.pending.len() >= 16 || state.pending.iter().any(|pending| pending.durable)
+            state.pending.len() >= 16 || state.pending.iter().any(|pending| pending.mode.durable)
         })
         || capture
             .snapshots
@@ -272,7 +295,15 @@ pub fn save(
         return Err(ColumnWriteError::Invalid);
     }
     let receiver = capture.writer.ordinary(capture.stamp, &capture.columns)?;
-    Ok(track(world, capture, receiver, false, unload))
+    Ok(track(
+        world,
+        capture,
+        receiver,
+        Mode {
+            unload,
+            ..Mode::default()
+        },
+    ))
 }
 /// Submit a durable set after acquiring its provider-wide publication fence.
 /// Candidate actor ownership is captured from live state and cannot be replaced
@@ -281,6 +312,30 @@ pub fn commit(
     world: &mut World,
     capture: ColumnCapture,
     id: &str,
+) -> Result<ColumnTicket, ColumnWriteError> {
+    commit_inner(world, capture, id, None, None, Vec::new())
+}
+
+/// Bind accepted IO to the validated component owner and a stable typed intent.
+pub(crate) fn commit_scoped(
+    world: &mut World,
+    capture: ColumnCapture,
+    id: &str,
+    intent: [u8; 32],
+    owner: Weak<()>,
+    changes: Vec<ColumnBlockChange>,
+) -> Result<ColumnTicket, ColumnWriteError> {
+    commit_inner(world, capture, id, Some(intent), Some(owner), changes)
+}
+
+/// Preserve existing native transactions while scoped callers add ownership guards.
+fn commit_inner(
+    world: &mut World,
+    capture: ColumnCapture,
+    id: &str,
+    intent: Option<[u8; 32]>,
+    owner: Option<Weak<()>>,
+    changes: Vec<ColumnBlockChange>,
 ) -> Result<ColumnTicket, ColumnWriteError> {
     admission_capacity(world, &capture)?;
     if !valid_capture(world, &capture) || capture.columns.len() != capture.snapshots.len() {
@@ -298,9 +353,65 @@ pub fn commit(
             return Err(ColumnWriteError::Invalid);
         }
     }
+    if !changes.is_empty() {
+        if !world.contains_resource::<Messages<crate::world::ecs::BlockBroadcastEvent>>() {
+            return Err(ColumnWriteError::Invalid);
+        }
+        let mut seen = std::collections::HashSet::new();
+        for change in &changes {
+            if !seen.insert(change.position) {
+                return Err(ColumnWriteError::Invalid);
+            }
+            let coordinates =
+                crate::world::ChunkPos::new(change.position.x >> 4, change.position.z >> 4);
+            let Some((candidate, source)) = capture
+                .columns
+                .iter()
+                .zip(&capture.snapshots)
+                .find(|(column, _)| column.position == coordinates)
+            else {
+                return Err(ColumnWriteError::Invalid);
+            };
+            let original = source.column.as_ref().ok_or(ColumnWriteError::Invalid)?;
+            let (x, y, z) = crate::world::ecs::world_to_local_coords(
+                change.position.x,
+                change.position.y,
+                change.position.z,
+            );
+            if original.chunk.get_block(x, y, z) != change.before
+                || candidate.column.chunk.get_block(x, y, z) != change.after
+            {
+                return Err(ColumnWriteError::Invalid);
+            }
+        }
+    }
     capture.writer.reserve()?;
-    match capture.writer.durable(capture.stamp, &capture.columns, id) {
-        Ok(receiver) => Ok(track(world, capture, receiver, true, false)),
+    let queued = match intent {
+        Some(intent) => capture
+            .writer
+            .durable_intent(capture.stamp, &capture.columns, id, intent),
+        None => capture.writer.durable(capture.stamp, &capture.columns, id),
+    };
+    let identity = owner.as_ref().and_then(|_| {
+        world
+            .get_resource::<crate::world::WorldIdentity>()
+            .map(|identity| identity.id)
+    });
+    match queued {
+        Ok(receiver) => Ok(track(
+            world,
+            capture,
+            receiver,
+            Mode {
+                durable: true,
+                id: Some(id.to_owned()),
+                intent,
+                identity,
+                owner,
+                changes,
+                ..Mode::default()
+            },
+        )),
         Err(error) => {
             capture.writer.release();
             Err(error)
@@ -312,11 +423,10 @@ fn track(
     world: &mut World,
     capture: ColumnCapture,
     receiver: ColumnCompletion,
-    durable: bool,
-    unload: bool,
+    mode: Mode,
 ) -> ColumnTicket {
     let ticket = ColumnTicket(Arc::new(Mutex::new(ColumnOperationStatus::Pending)));
-    if durable {
+    if mode.durable {
         for snapshot in &capture.snapshots {
             world
                 .entity_mut(snapshot.chunk)
@@ -333,8 +443,7 @@ fn track(
             snapshots: capture.snapshots,
             columns: capture.columns,
             receiver: Some(receiver),
-            durable,
-            unload,
+            mode,
             ticket: ticket.clone(),
         });
     ticket
@@ -385,7 +494,7 @@ pub(crate) fn poll(world: &mut World) {
         match outcome {
             Ok(ack) => {
                 if publish(world, &pending, &ack) {
-                    if pending.durable {
+                    if pending.mode.durable {
                         clear_fences(world, &pending);
                         pending.writer.release();
                     }
@@ -404,7 +513,7 @@ pub(crate) fn poll(world: &mut World) {
                 if error == ColumnWriteError::RecoveryRequired {
                     pending.receiver = None;
                     keep.push(pending);
-                } else if pending.durable {
+                } else if pending.mode.durable {
                     clear_fences(world, &pending);
                     pending.writer.release();
                 }
@@ -416,6 +525,21 @@ pub(crate) fn poll(world: &mut World) {
 }
 /// Publish a matching disk ACK, preserving new terrain and active actor state.
 fn publish(world: &mut World, pending: &Pending, ack: &ColumnWriteAck) -> bool {
+    if pending.mode.identity.is_some_and(|expected| {
+        world
+            .get_resource::<crate::world::WorldIdentity>()
+            .is_none_or(|identity| identity.id != expected)
+    }) {
+        return false;
+    }
+    if pending
+        .mode
+        .owner
+        .as_ref()
+        .is_some_and(|owner| owner.upgrade().is_none())
+    {
+        return false;
+    }
     if pending.world != world.id()
         || world
             .get_resource::<ChunkManager>()
@@ -435,7 +559,7 @@ fn publish(world: &mut World, pending: &Pending, ack: &ColumnWriteAck) -> bool {
     }
     // A replay receipt is storage evidence only. Never replay a historical
     // candidate over an already-running native world.
-    if pending.durable
+    if pending.mode.durable
         && (ack.replay
             || pending.snapshots.iter().any(|snapshot| {
                 world
@@ -447,7 +571,7 @@ fn publish(world: &mut World, pending: &Pending, ack: &ColumnWriteAck) -> bool {
         return false;
     }
     for (snapshot, candidate) in pending.snapshots.iter().zip(&pending.columns) {
-        if pending.durable {
+        if pending.mode.durable {
             mark_saved(world, snapshot);
             let Some(mut data) = world.get_mut::<ChunkData>(snapshot.chunk) else {
                 return false;
@@ -460,7 +584,44 @@ fn publish(world: &mut World, pending: &Pending, ack: &ColumnWriteAck) -> bool {
             mark_saved(world, snapshot);
         }
     }
-    if pending.unload {
+    // Every terrain buffer is installed before native observers or packets
+    // can expose a partial batch. Mutation fences remain held through this phase.
+    for change in &pending.mode.changes {
+        let Some(chunk) = world
+            .resource::<ChunkManager>()
+            .get_by_coords(change.position.x >> 4, change.position.z >> 4)
+        else {
+            return false;
+        };
+        world.write_message(crate::world::ecs::BlockBroadcastEvent {
+            chunk_entity: chunk,
+            block_pos: change.position,
+            new_block: change.after,
+        });
+        crate::server::game::blocks::broadcast_block_state(
+            world,
+            chunk,
+            change.position,
+            change.after,
+            false,
+        );
+    }
+    for change in &pending.mode.changes {
+        let Some(chunk) = world
+            .resource::<ChunkManager>()
+            .get_by_coords(change.position.x >> 4, change.position.z >> 4)
+        else {
+            return false;
+        };
+        crate::server::game::blocks::notify_block_change(
+            world,
+            chunk,
+            change.position,
+            change.before,
+            change.after,
+        );
+    }
+    if pending.mode.unload {
         for snapshot in &pending.snapshots {
             let still_clean = world
                 .get::<ChunkStateFlags>(snapshot.chunk)
@@ -530,6 +691,65 @@ fn same_actor_records(current: &[super::StoredActor], saved: &[super::StoredActo
                     .is_some_and(|(current, saved)| current == saved)
         })
     })
+}
+
+/// Recover an owner-lost acknowledgement using its actual stored receipt and
+/// original detached payload. No moving-actor recapture or guessed success is allowed.
+pub(crate) fn reconcile_scoped(
+    world: &mut World,
+    id: &str,
+    intent: [u8; 32],
+    owner: Weak<()>,
+) -> Result<ColumnTicket, ColumnWriteError> {
+    if owner.upgrade().is_none() {
+        return Err(ColumnWriteError::Closed);
+    }
+    let mut state = world
+        .remove_resource::<ColumnPersistence>()
+        .ok_or(ColumnWriteError::RecoveryRequired)?;
+    let result = (|| {
+        let index = state
+            .pending
+            .iter()
+            .position(|pending| pending.mode.id.as_deref() == Some(id))
+            .ok_or(ColumnWriteError::RecoveryRequired)?;
+        let pending = &mut state.pending[index];
+        if pending.mode.intent != Some(intent) {
+            return Err(ColumnWriteError::Conflict);
+        }
+        if pending.receiver.is_some() {
+            return Err(ColumnWriteError::Busy);
+        }
+        let receipt = pending
+            .writer
+            .peek_receipt(id)?
+            .ok_or(ColumnWriteError::RecoveryRequired)?;
+        if receipt.intent != Some(intent)
+            || receipt.outcome != super::column_writer::ReceiptOutcome::Applied
+            || receipt.hash != ColumnWriter::payload_hash(&pending.columns)?
+        {
+            return Err(ColumnWriteError::RecoveryRequired);
+        }
+        pending.mode.owner = Some(owner);
+        let ack = ColumnWriteAck {
+            epoch: receipt.epoch,
+            receipt: Some(receipt.clone()),
+            replay: false,
+        };
+        if !publish(world, pending, &ack) {
+            return Err(ColumnWriteError::RecoveryRequired);
+        }
+        clear_fences(world, pending);
+        pending.writer.release();
+        set_status(
+            &pending.ticket,
+            ColumnOperationStatus::Applied(Some(receipt)),
+        );
+        let pending = state.pending.remove(index);
+        Ok(pending.ticket)
+    })();
+    world.insert_resource(state);
+    result
 }
 
 /// Remove only the original source lifetimes' native mutation exclusions.

@@ -59,10 +59,30 @@ struct Harness {
 impl Harness {
     /// Ordinary component initialization and native admission precede every encoded input.
     async fn new(capabilities: bool, pending: u32, mode: &[u8]) -> Self {
+        Self::with_fixture(capabilities, pending, mode, component_bytes(), None).await
+    }
+    /// Exercise the same ordinary host pipeline with a real durable provider
+    /// and its configured persistent identity before component initialization.
+    async fn with_fixture(
+        capabilities: bool,
+        pending: u32,
+        mode: &[u8],
+        bytes: &[u8],
+        setup: Option<(
+            Arc<dyn crate::storage::WorldProvider>,
+            crate::world::WorldIdentity,
+        )>,
+    ) -> Self {
         let mut router = DimensionRouter::new(GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..Default::default()
         }));
+        let durable = setup.is_some();
+        if let Some((provider, identity)) = setup {
+            let world = router.world_mut(0).unwrap().ecs.world_mut();
+            world.resource_mut::<ChunkManager>().set_provider(provider);
+            world.insert_resource(identity);
+        }
         let engine = engine();
         let manifest = PluginManifest {
             id: PluginId("example.terrain".into()),
@@ -72,25 +92,30 @@ impl Harness {
             required: false,
             config: None,
             capabilities: if capabilities {
-                [
+                let mut capabilities: std::collections::HashSet<_> = [
                     PluginCapability::ReadBlocks,
                     PluginCapability::WriteBlocks,
                     PluginCapability::ItemValues,
                 ]
-                .into()
+                .into();
+                if durable {
+                    capabilities.insert(PluginCapability::WriteDurableBlocks);
+                }
+                capabilities
             } else {
                 Default::default()
             },
             subscriptions: [EventKind::PlayerCommand, EventKind::ItemAction].into(),
             limits: PluginLimits {
                 max_pending_block_edits: pending,
+                max_pending_durable_block_writes: pending,
                 ..Default::default()
             },
         };
         let mut store = store(&engine, &manifest.limits);
         store.data_mut().configuration = mode.to_vec();
         let pending = PendingPlugin {
-            component: Component::new(&engine, component_bytes()).unwrap(),
+            component: Component::new(&engine, bytes).unwrap(),
             store,
             manifest,
         };
@@ -226,6 +251,8 @@ impl Harness {
             .map(|message| {
                 message
                     .replace("BlockEditStatus::", "")
+                    .replace("DurableBlockStatus::", "")
+                    .replace("DurableBlockError::", "")
                     .replace("WorldBlockError::", "")
                     .replace("AccessError::", "")
                     .replace("BlockEditSupport::", "")
@@ -824,3 +851,6 @@ async fn raw_builder_cannot_apply_its_expected_cells_in_a_foreign_world_scope() 
     ));
     assert!(store.data().pending_block_edits.is_empty());
 }
+
+#[path = "world_durable.rs"]
+mod durable;

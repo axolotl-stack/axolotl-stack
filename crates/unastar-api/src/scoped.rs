@@ -72,6 +72,37 @@ impl<'scope> WorldTx<'scope> {
     ) -> Result<crate::BlockEditRequest, crate::WorldBlockError> {
         self.raw.apply_blocks(edit)
     }
+    /// Compute a stable requested-cell digest before persisting a guest intent.
+    pub fn block_intent(
+        &self,
+        edit: &crate::BlockEdit,
+    ) -> Result<Vec<u8>, crate::DurableBlockError> {
+        self.raw.block_intent(edit)
+    }
+    /// Stage one namespaced, loaded-only durable terrain batch. Observe the
+    /// owned request until its receipt and native publication are committed.
+    pub fn commit_blocks(
+        &self,
+        key: &str,
+        edit: &crate::BlockEdit,
+    ) -> Result<crate::DurableBlockRequest, crate::DurableBlockError> {
+        self.raw.commit_blocks(key, edit)
+    }
+    /// Query actual receipt/pending state for this module in the current world.
+    pub fn block_receipt(
+        &self,
+        key: &str,
+    ) -> Result<Option<crate::DurableBlockStatus>, crate::DurableBlockError> {
+        self.raw.block_receipt(key)
+    }
+    /// Resume an owner-lost operation only when the host can prove its durable
+    /// receipt and validate the original retained source; unknown work stays fenced.
+    pub fn resume_blocks(
+        &self,
+        key: &str,
+    ) -> Result<crate::DurableBlockRequest, crate::DurableBlockError> {
+        self.raw.resume_blocks(key)
+    }
     /// Enumerate owned actor references in this transaction's current world.
     pub fn players(&self) -> Result<Vec<PlayerHandle>, AccessError> {
         self.raw.players()

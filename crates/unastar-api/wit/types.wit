@@ -495,6 +495,14 @@ interface types {
         edit-blocks: func() -> result<block-edit, world-block-error>;
         /// Stage a literal replacement batch. Publication occurs after the callback succeeds.
         apply-blocks: func(edit: borrow<block-edit>) -> result<block-edit-request, world-block-error>;
+        /// Stable typed intent, before submitting IO; guests may persist this digest with their key.
+        block-intent: func(edit: borrow<block-edit>) -> result<list<u8>, durable-block-error>;
+        /// Stage a loaded-only whole batch; committed status requires disk ACK and native publication.
+        commit-blocks: func(key: string, edit: borrow<block-edit>) -> result<durable-block-request, durable-block-error>;
+        /// Namespace is the current module and configured persistent world identity.
+        block-receipt: func(key: string) -> result<option<durable-block-status>, durable-block-error>;
+        /// Recover retained owner-lost work only from its actual receipt and original witnesses.
+        resume-blocks: func(key: string) -> result<durable-block-request, durable-block-error>;
     }
 
     variant world-block-error {
@@ -541,6 +549,34 @@ interface types {
     }
     resource block-edit-request {
         status: func() -> result<block-edit-status, access-error>;
+        cancel: func() -> result<bool, access-error>;
+    }
+
+    variant durable-block-error {
+        access(access-error),
+        block(world-block-error),
+        invalid-key,
+        unsupported-provider,
+        conflict,
+        capacity,
+        recovery-required,
+    }
+    /// Host-validated receipt; intent is a 32-byte stable requested-cell digest.
+    record durable-block-receipt { key: string, epoch: u64, intent: list<u8> }
+    /// Committed requires storage ACK and native publication/restart reconciliation,
+    /// never a client ACK.
+    /// RecoveryRequired is neither successful application nor proven rollback.
+    variant durable-block-status {
+        staged,
+        pending,
+        committed(durable-block-receipt),
+        not-applied(durable-block-error),
+        recovery-required,
+    }
+    /// Owned historical observation. Dropping it never cancels accepted native IO.
+    resource durable-block-request {
+        status: func() -> result<durable-block-status, access-error>;
+        /// Cancellation succeeds only while status is Staged.
         cancel: func() -> result<bool, access-error>;
     }
 

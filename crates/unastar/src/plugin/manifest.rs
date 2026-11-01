@@ -51,6 +51,12 @@ pub struct PluginLimits {
     /// Maximum outstanding literal batches, including requests whose guest ticket was dropped.
     #[serde(default = "default_pending_block_edits")]
     pub max_pending_block_edits: u32,
+    /// Maximum durable block intents staged per shared cycle, hard-capped at 32.
+    #[serde(default = "default_durable_block_writes")]
+    pub max_durable_block_writes_per_tick: u32,
+    /// Accepted storage ownership remains charged after guest request drops.
+    #[serde(default = "default_pending_durable_block_writes")]
+    pub max_pending_durable_block_writes: u32,
     /// Maximum UTF-8 bytes in a connection termination notice, also capped at 4096 by the host.
     #[serde(default = "default_connection_reason_bytes")]
     pub max_connection_reason_bytes: u32,
@@ -131,6 +137,8 @@ impl Default for PluginLimits {
         Self {
             max_block_edits_per_tick: default_block_edits(),
             max_pending_block_edits: default_pending_block_edits(),
+            max_durable_block_writes_per_tick: default_durable_block_writes(),
+            max_pending_durable_block_writes: default_pending_durable_block_writes(),
             max_connection_reason_bytes: default_connection_reason_bytes(),
             max_connection_requests_per_tick: default_connection_requests(),
             max_pending_connection_requests: default_pending_connection_requests(),
@@ -276,12 +284,23 @@ fn default_pending_inventory_operations() -> u32 {
     64
 }
 
+/// Limit synchronous staging independently from accepted native storage work.
+fn default_durable_block_writes() -> u32 {
+    4
+}
+/// Keep pending ownership bounded across worlds and component resource drops.
+fn default_pending_durable_block_writes() -> u32 {
+    16
+}
+
 /// Capabilities a plugin can request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginCapability {
     ReadBlocks,
     WriteBlocks,
+    /// Submit receipt-backed loaded terrain mutations through the atomic provider writer.
+    WriteDurableBlocks,
     /// Durably capture and read complete immutable host-owned player state.
     PlayerStateArchives,
     /// Construct and inspect bounded detached item values, without granting inventory writes.

@@ -90,6 +90,8 @@ pub struct HostContext {
     mechanics_owner: std::sync::Arc<()>,
     pending_connection_closes: Vec<connection_control::Request>,
     pending_block_edits: Vec<players::BlockEditRequest>,
+    pending_durable_blocks: Vec<players::DurableStaged>,
+    durable_block_count: std::sync::Arc<std::sync::atomic::AtomicU32>,
     block_edit_count: std::sync::Arc<std::sync::atomic::AtomicU32>,
     connection_close_count: std::sync::Arc<std::sync::atomic::AtomicU32>,
     active_admission: Option<sessions::ActiveAdmission>,
@@ -162,6 +164,8 @@ impl HostContext {
             mechanics_owner: std::sync::Arc::new(()),
             pending_connection_closes: Vec::new(),
             pending_block_edits: Vec::new(),
+            pending_durable_blocks: Vec::new(),
+            durable_block_count: Default::default(),
             block_edit_count: Default::default(),
             connection_close_count: Default::default(),
             active_admission: None,
@@ -302,6 +306,7 @@ pub(super) fn finish_invocation(
     views::finish_invocation(context, world, succeeded);
     connection_control::finish(context, world, succeeded);
     players::finish_block_edits(context, world, succeeded);
+    players::finish_durable_blocks(context, world, succeeded);
     players::finish_invocation(context, world, succeeded);
 }
 

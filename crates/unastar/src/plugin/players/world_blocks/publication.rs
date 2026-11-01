@@ -54,7 +54,7 @@ impl RequestState {
 }
 
 /// Reservations follow owned work rather than the guest's status resource.
-pub(super) struct Count {
+pub(in crate::plugin::manager) struct Count {
     counter: Arc<AtomicU32>,
     amount: u32,
 }
