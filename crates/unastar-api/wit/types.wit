@@ -168,6 +168,42 @@ interface types {
         players: func() -> result<list<player-handle>, access-error>;
         /// The returned capability expires with this callback, even if retained.
         player: func(handle: borrow<player-handle>) -> result<player, access-error>;
+        /// Construct a detached value using this world's frozen item/block registries.
+        item: func(identifier: string, count: u8) -> result<stack, access-error>;
+    }
+
+    /// Instance properties use typed values; encoded item or packet buffers are not exposed.
+    variant item-value {
+        byte(u8),
+        short(s16),
+        int(s32),
+        long(s64),
+        text(string),
+        bytes(list<u8>),
+    }
+
+    record enchantment {
+        id: s16,
+        level: s16,
+    }
+
+    /// An owned detached value. Changing it never mutates authoritative inventory slots.
+    /// Unchanged metadata is preserved; changed properties encode deterministically.
+    resource stack {
+        identifier: func() -> result<string, access-error>;
+        count: func() -> result<u8, access-error>;
+        max-count: func() -> result<u8, access-error>;
+        damage: func() -> result<u16, access-error>;
+        with-count: func(count: u8) -> result<stack, access-error>;
+        with-damage: func(damage: u16) -> result<stack, access-error>;
+        name: func() -> result<option<string>, access-error>;
+        with-name: func(name: option<string>) -> result<stack, access-error>;
+        lore: func() -> result<list<string>, access-error>;
+        with-lore: func(lines: list<string>) -> result<stack, access-error>;
+        enchantments: func() -> result<list<enchantment>, access-error>;
+        with-enchantments: func(enchantments: list<enchantment>) -> result<stack, access-error>;
+        value: func(path: list<string>) -> result<option<item-value>, access-error>;
+        with-value: func(path: list<string>, value: option<item-value>) -> result<stack, access-error>;
     }
 
     /// Live access is transaction scoped. Store player-handle instead of player.

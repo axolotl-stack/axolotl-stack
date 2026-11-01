@@ -87,6 +87,147 @@ fn logs(manager: &Arc<Mutex<PluginManager>>) -> Vec<String> {
     )
 }
 
+/// Write a fixture string through ordinary guest memory, with no extra data segments.
+fn item_identifier() -> String {
+    b"minecraft:diamond"
+        .iter()
+        .enumerate()
+        .map(|(index, byte)| format!("i32.const {} i32.const {byte} i32.store8 ", 1024 + index))
+        .collect()
+}
+
+#[tokio::test]
+async fn actual_component_item_values_survive_callbacks_without_changing_inventory() {
+    let (mut router, clients) = router();
+    let before = router
+        .world(0)
+        .unwrap()
+        .ecs
+        .world()
+        .get::<crate::entity::components::MainInventory>(clients[0].0)
+        .unwrap()
+        .0
+        .slots()
+        .to_vec();
+    let manager = attach_scoped(
+        &mut router,
+        &[
+            (
+                "on-player-join",
+                format!(
+                    r#"
+            {}
+            local.get 0 i32.const 1024 i32.const 17 i32.const 3 i32.const 64 call @[method]world-tx.item@
+            i32.const 64 i32.load8_u if unreachable end
+            i32.const 68 i32.load i32.const 4 i32.const 80 call @[method]stack.with-count@
+            i32.const 80 i32.load8_u if unreachable end
+            i32.const 512 i32.const 84 i32.load i32.store
+            i32.const 68 i32.load call @stack_drop@
+        "#,
+                    item_identifier()
+                ),
+            ),
+            (
+                "on-player-chat",
+                format!(
+                    r#"
+            i32.const 512 i32.load i32.const 96 call @[method]stack.count@
+            i32.const 96 i32.load8_u if unreachable end
+            i32.const 97 i32.load8_u i32.const 4 i32.ne if unreachable end
+            i32.const 512 i32.load call @stack_drop@
+            {} i32.const 1
+        "#,
+                    witness()
+                ),
+            ),
+        ],
+    );
+    manager.lock().unwrap().pending[0]
+        .manifest
+        .capabilities
+        .insert(PluginCapability::ItemValues);
+    join(&mut router, clients[0].0);
+    router.tick().await.unwrap();
+    router
+        .world_mut(0)
+        .unwrap()
+        .ecs
+        .world_mut()
+        .resource_mut::<EventBuffer>()
+        .push(ServerEvent::PlayerChat {
+            entity: clients[0].0,
+            player_id: "1".into(),
+            message: "inspect".into(),
+        });
+    router.tick().await.unwrap();
+    assert_eq!(logs(&manager), ["x"]);
+    assert_eq!(
+        router
+            .world(0)
+            .unwrap()
+            .ecs
+            .world()
+            .get::<crate::entity::components::MainInventory>(clients[0].0)
+            .unwrap()
+            .0
+            .slots(),
+        before
+    );
+    assert_eq!(
+        manager
+            .lock()
+            .unwrap()
+            .plugins
+            .values()
+            .next()
+            .unwrap()
+            .store
+            .data()
+            .resources
+            .item_value_bytes,
+        0
+    );
+}
+
+#[tokio::test]
+async fn actual_component_item_constructor_requires_its_capability() {
+    let (mut router, clients) = router();
+    let manager = attach_scoped(
+        &mut router,
+        &[(
+            "on-player-join",
+            format!(
+                r#"
+        {}
+        local.get 0 i32.const 1024 i32.const 17 i32.const 3 i32.const 64 call @[method]world-tx.item@
+        i32.const 64 i32.load8_u i32.const 1 i32.ne if unreachable end
+        i32.const 68 i32.load8_u i32.const 6 i32.ne if unreachable end
+        {}
+    "#,
+                item_identifier(),
+                witness()
+            ),
+        )],
+    );
+    join(&mut router, clients[0].0);
+    router.tick().await.unwrap();
+    assert_eq!(logs(&manager), ["x"]);
+    assert_eq!(
+        manager
+            .lock()
+            .unwrap()
+            .plugins
+            .values()
+            .next()
+            .unwrap()
+            .store
+            .data()
+            .resources
+            .item_value_bytes,
+        0
+    );
+}
+
 #[tokio::test]
 async fn raw_guest_cannot_reuse_owned_live_player_after_the_callback() {
     let (mut router, clients) = router();

@@ -21,6 +21,22 @@ impl<'scope> WorldTx<'scope> {
     pub fn world(&self) -> Result<WorldHandle, AccessError> {
         self.raw.world()
     }
+    /// Construct an owned item value without changing a player's inventory.
+    ///
+    /// ```no_run
+    /// use unastar_api::{AccessError, ItemStack, ItemValue, WorldTx};
+    /// fn example(tx: &WorldTx<'_>) -> Result<ItemStack, AccessError> {
+    ///     let paper = tx.item("minecraft:paper", 1)?;
+    ///     let named = paper.with_name(Some("Example"))?;
+    ///     named.with_value(
+    ///         &["extension".into(), "serial".into()],
+    ///         Some(&ItemValue::Long(42)),
+    ///     )
+    /// }
+    /// ```
+    pub fn item(&self, identifier: &str, count: u8) -> Result<crate::ItemStack, AccessError> {
+        self.raw.item(identifier, count)
+    }
     /// Enumerate owned actor references in this transaction's current world.
     pub fn players(&self) -> Result<Vec<PlayerHandle>, AccessError> {
         self.raw.players()

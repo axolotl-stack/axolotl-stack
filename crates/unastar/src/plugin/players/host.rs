@@ -112,6 +112,14 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostWorldTx for HostContext {
+    fn item(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        identifier: String,
+        count: u8,
+    ) -> Result<Resource<wit::Stack>, wit::AccessError> {
+        self.create_item(tx.rep(), &identifier, count)
+    }
     fn world(
         &mut self,
         tx: Resource<wit::WorldTx>,

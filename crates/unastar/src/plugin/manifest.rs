@@ -125,6 +125,8 @@ fn default_messages() -> u32 {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginCapability {
+    /// Construct and inspect bounded detached item values, without granting inventory writes.
+    ItemValues,
     /// Read typed actor references and current-world observations.
     ReadPlayers,
     /// Send bounded direct messages to exact current connections.

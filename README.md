@@ -209,3 +209,22 @@ messages independently of fuel and linear memory. The former direct item, telepo
 kick and block mutation imports are absent from this version; new mutation
 capabilities must use authoritative host operations with their own typed contracts.
 The example component demonstrates scoped handlers and deferred player messages.
+
+### Owned WASM item values
+
+With the `item-values` capability, `WorldTx::item(identifier, count)` resolves a
+detached `ItemStack` through the current world's frozen registries. Values remain
+usable after the callback. Methods such as `with_count`, `with_name`, `with_lore`,
+`with_enchantments` and `with_value` return new values and preserve the original.
+They never mutate live inventory slots.
+
+Custom properties use bounded paths and typed bytes, integers or text. Native item
+and packet buffers stay inside the host. Scalar widths, unrelated instance data,
+block restrictions and shield state are retained. Changed compounds and enchantment
+sets encode deterministically, including when callers insert properties in a
+different order. Removing the last property restores default instance data.
+
+The host enforces stack size and aux bounds, path/string/list bounds, a 128 KiB
+per-item data bound and a 16 MiB aggregate retained-value budget per component,
+alongside its owned-resource and operation limits. Dropping values releases the
+retained-byte budget. Inventory mutation requires a separate authoritative operation.
