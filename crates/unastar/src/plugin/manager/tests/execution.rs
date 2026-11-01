@@ -87,6 +87,91 @@ async fn actual_component_can_initialize_above_its_ordinary_cycle_fuel() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn explicit_unlimited_fuel_runs_real_initialization_and_repeated_cycles_above_the_default_cap()
+ {
+    let engine = engine();
+    let component = fixture::component(
+        &engine,
+        &[
+            ("on-load", finite_loop(0, 4_000_000)),
+            ("on-tick", finite_loop(1, 4_000_000)),
+        ],
+    );
+    let limits = PluginLimits {
+        fuel_per_tick: 0,
+        fuel_per_initialization: 0,
+        callback_timeout_ms: 1000,
+        ..Default::default()
+    };
+    let encoded = toml_edit::ser::to_string(&limits).unwrap();
+    let restored: PluginLimits = toml_edit::de::from_str(&encoded).unwrap();
+    assert_eq!(restored.fuel_per_tick, 0);
+    assert_eq!(restored.fuel_per_initialization, 0);
+    let mut manager = manager(engine, component, restored);
+    let mut world = world();
+    manager.initialize_startup(&mut world).unwrap();
+    let spent = u64::MAX
+        - manager
+            .plugins
+            .values_mut()
+            .next()
+            .unwrap()
+            .store
+            .get_fuel()
+            .unwrap();
+    assert!(spent > PluginLimits::default().fuel_per_tick);
+    for _ in 0..2 {
+        assert!(manager.begin_tick(&mut world));
+        manager.tick(&mut world);
+        manager.check_required().unwrap();
+        let spent = u64::MAX
+            - manager
+                .plugins
+                .values_mut()
+                .next()
+                .unwrap()
+                .store
+                .get_fuel()
+                .unwrap();
+        assert!(spent > PluginLimits::default().fuel_per_tick);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn initialization_and_cycle_fuel_opt_out_independently() {
+    for (initial, cycle) in [(0, 100), (100, 0)] {
+        let engine = engine();
+        let component = fixture::component(
+            &engine,
+            &[
+                ("on-load", finite_loop(0, 1000)),
+                ("on-tick", finite_loop(1, 1000)),
+            ],
+        );
+        let limits = PluginLimits {
+            fuel_per_initialization: initial,
+            fuel_per_tick: cycle,
+            ..Default::default()
+        };
+        let mut manager = manager(engine, component, limits);
+        let mut world = world();
+        if initial == 0 {
+            manager.initialize_startup(&mut world).unwrap();
+            assert!(manager.begin_tick(&mut world));
+            manager.tick(&mut world);
+            assert!(manager.check_required().unwrap_err().contains("fuel"));
+        } else {
+            assert!(
+                manager
+                    .initialize_startup(&mut world)
+                    .unwrap_err()
+                    .contains("fuel")
+            );
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_start_function_and_on_load_share_one_initialization_fuel_allowance() {
     let engine = engine();
     let bodies = [("on-load", finite_loop(0, 1000))];
@@ -151,6 +236,41 @@ async fn startup_epoch_allowance_does_not_enlarge_the_next_callback_deadline() {
     assert!(wasm_failure_reason(&error).contains("deadline"));
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unlimited_instruction_fuel_does_not_disable_the_real_callback_epoch_deadline() {
+    let engine = engine();
+    let body = |local| {
+        format!(
+            "(local i32) i32.const 0 i32.const 1024 i32.const 0 call @log@ {}",
+            finite_loop(local, 2).replace("(local i32)", "")
+        )
+    };
+    let component = fixture::component(&engine, &[("on-load", body(0)), ("on-tick", body(1))]);
+    let limits = PluginLimits {
+        fuel_per_tick: 0,
+        fuel_per_initialization: 0,
+        initialization_timeout_ms: 1000,
+        callback_timeout_ms: 10,
+        ..Default::default()
+    };
+    let mut store = store(&engine, &limits);
+    store.data_mut().test_log_epoch_engine = Some(engine.clone());
+    let mut world = world();
+    let bindings = with_world(&mut store, &mut world, |store| {
+        begin_initialization_budget(store, &limits).unwrap();
+        let bindings =
+            UnastarPlugin::instantiate(&mut *store, &component, &linker(&engine)).unwrap();
+        bindings.call_on_load(&mut *store).unwrap();
+        bindings
+    });
+    let error = with_world(&mut store, &mut world, |store| {
+        begin_fuel_budget(store, &limits).unwrap();
+        prepare_invocation(store);
+        bindings.call_on_tick(store, 42).unwrap_err()
+    });
+    assert!(wasm_failure_reason(&error).starts_with("guest execution deadline exhausted"));
+}
+
 #[test]
 fn execution_limits_roundtrip_and_invalid_allowances_fail_before_guest_execution() {
     let limits = PluginLimits {
@@ -165,10 +285,6 @@ fn execution_limits_roundtrip_and_invalid_allowances_fail_before_guest_execution
     assert_eq!(restored.initialization_timeout_ms, 750);
     assert_eq!(restored.callback_timeout_ms, 25);
     for limits in [
-        PluginLimits {
-            fuel_per_initialization: 0,
-            ..Default::default()
-        },
         PluginLimits {
             initialization_timeout_ms: 0,
             ..Default::default()

@@ -308,7 +308,16 @@ fn begin_fuel_budget(store: &mut Store<HostContext>, limits: &PluginLimits) -> a
     players::begin_budget(store.data_mut());
     store.data_mut().ui_updates = 0;
     store.data_mut().view_updates = 0;
-    store.set_fuel(limits.fuel_per_tick)
+    store.set_fuel(fuel_allowance(limits.fuel_per_tick))
+}
+
+/// Exempt components use maximal engine fuel within their independent bounded deadline.
+fn fuel_allowance(configured: u64) -> u64 {
+    if configured == 0 {
+        u64::MAX
+    } else {
+        configured
+    }
 }
 
 /// Wall-clock interruption is independent of the shared per-tick fuel budget.
@@ -329,14 +338,14 @@ fn prepare_deadline(store: &mut Store<HostContext>, timeout_ms: u32) {
     store.set_epoch_deadline(epochs);
 }
 
-/// Instantiation and on-load share this single finite budget, never refreshed between them.
+/// Instantiation and on-load share the configured budget, never refreshed between them.
 fn begin_initialization_budget(
     store: &mut Store<HostContext>,
     limits: &PluginLimits,
 ) -> anyhow::Result<()> {
     limits.validate_execution()?;
     players::begin_budget(store.data_mut());
-    store.set_fuel(limits.fuel_per_initialization)?;
+    store.set_fuel(fuel_allowance(limits.fuel_per_initialization))?;
     prepare_deadline(store, limits.initialization_timeout_ms);
     Ok(())
 }

@@ -214,6 +214,14 @@ WASI output and other I/O enter that runtime inside `block_in_place`. A
 current-thread runtime or `LocalSet` is rejected before guest execution. This
 boundary does not send live worlds or scoped player resources to worker tasks.
 
+Instruction caps are optional per component. Under its manifest's `[limits]`,
+set `fuel_per_tick = 0` for no finite shared cycle cap and
+`fuel_per_initialization = 0` for no finite startup cap. Positive values retain
+their existing separate startup and shared-cycle allowances. The shared Wasmtime
+engine still counts fuel; opted-out stores receive its maximal allowance.
+`callback_timeout_ms` and `initialization_timeout_ms` remain independent bounded
+deadlines, and host-operation, memory and owned-resource limits continue to apply.
+
 A manifest may set `config = "settings.bin"`. The loader caches at most 1 MiB of
 opaque bytes from a regular file contained in the plugin directory before
 instantiation. Absolute paths, escapes and symlinks outside that directory are

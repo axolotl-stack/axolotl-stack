@@ -65,9 +65,11 @@ pub struct PluginLimits {
     pub max_block_cells: u32,
     /// Wasmtime instruction fuel shared by all event exports in one server tick.
     /// Defaults to 10M; epoch interruption remains an independent per-call limit.
+    /// Zero opts out of a finite instruction cap, while retaining the callback deadline.
     #[serde(default = "default_fuel")]
     pub fuel_per_tick: u64,
     /// One instruction budget for instantiation and on-load together, before admission.
+    /// Zero opts out of that instruction cap; the initialization deadline still applies.
     #[serde(default = "default_initialization_fuel")]
     pub fuel_per_initialization: u64,
     /// One non-storage wall allowance for instantiation and on-load together.
@@ -158,12 +160,8 @@ fn default_pending_block_edits() -> u32 {
 }
 
 impl PluginLimits {
-    /// Reject unusable or unbounded execution allowances before instantiating a guest.
+    /// Reject invalid execution deadlines before instantiating a guest.
     pub(crate) fn validate_execution(&self) -> anyhow::Result<()> {
-        anyhow::ensure!(
-            self.fuel_per_initialization > 0,
-            "initialization fuel must be positive"
-        );
         anyhow::ensure!(
             (1..=60_000).contains(&self.initialization_timeout_ms),
             "initialization timeout must be between 1 and 60000 ms"
