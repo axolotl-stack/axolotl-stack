@@ -34,6 +34,24 @@ impl Harness {
         extra: &[PluginCapability],
         required: bool,
     ) -> Self {
+        Self::component_factory(
+            permitted,
+            extra,
+            required,
+            bodies
+                .iter()
+                .any(|(name, _)| *name == "on-player-admission"),
+            |engine| fixture::component(engine, bodies),
+        )
+    }
+    /// Load either canonical fixture syntax or a real Rust component through the same host.
+    fn component_factory(
+        permitted: bool,
+        extra: &[PluginCapability],
+        required: bool,
+        admission: bool,
+        component: impl FnOnce(&wasmtime::Engine) -> wasmtime::component::Component,
+    ) -> Self {
         let mut server = GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..Default::default()
@@ -53,13 +71,11 @@ impl Harness {
             EventKind::PlayerChat,
             EventKind::PlayerDamage,
             EventKind::PlayerMove,
+            EventKind::PlayerQuit,
         ]
         .into_iter()
         .collect::<std::collections::HashSet<_>>();
-        if bodies
-            .iter()
-            .any(|(name, _)| *name == "on-player-admission")
-        {
+        if admission {
             subscriptions.insert(EventKind::PlayerJoin);
         }
         let manifest = PluginManifest {
@@ -74,7 +90,7 @@ impl Harness {
             limits: PluginLimits::default(),
         };
         let pending = PendingPlugin {
-            component: fixture::component(&engine, bodies),
+            component: component(&engine),
             store: store(&engine, &manifest.limits),
             manifest,
         };
@@ -162,6 +178,9 @@ impl Harness {
             .clone()
     }
 }
+
+#[path = "mechanics/extension.rs"]
+mod extension;
 
 /// Lower a finite effect and assert that the host returned only Staged.
 fn effect(kind: u8, amplifier: u8, duration: u32, ambient: bool, particles: bool) -> String {

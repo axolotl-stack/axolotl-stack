@@ -63,6 +63,14 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
     ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
         self.stage_remove(player.rep(), kind)
     }
+    fn apply_infinite_effect(
+        &mut self,
+        player: Resource<wit::Player>,
+        effect: wit::InfiniteEffectApplication,
+        source: Option<Resource<wit::Player>>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_infinite_effect(player.rep(), effect, source.map(|source| source.rep()))
+    }
     fn clear_effects(
         &mut self,
         player: Resource<wit::Player>,

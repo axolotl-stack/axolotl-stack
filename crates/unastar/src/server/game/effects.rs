@@ -139,6 +139,26 @@ pub(crate) fn add_effect_state_from(
     })
 }
 
+/// Apply explicit infinite native state, retaining ordinary authorization and pulse counters.
+pub(crate) fn add_infinite_effect_state_from(
+    world: &mut World,
+    player: Entity,
+    source: Option<Entity>,
+    effect: EffectType,
+    state: ActiveEffect,
+    valid: impl FnOnce(&World) -> bool,
+) -> bool {
+    if matches!(
+        effect,
+        EffectType::INSTANT_HEALTH | EffectType::INSTANT_DAMAGE | EffectType::SATURATION
+    ) {
+        return false;
+    }
+    add_effect_state_scaled_from(world, player, source, effect, state, 1.0, |world, state| {
+        state.infinite && state.duration_ticks == u32::MAX && valid(world)
+    })
+}
+
 /// Keep presentation flags in the same native precedence decision as amplifier and duration.
 fn add_effect_state_scaled_from(
     world: &mut World,
@@ -153,14 +173,19 @@ fn add_effect_state_scaled_from(
         return false;
     }
     let attribution = crate::entity::damage::DamageAttribution::for_source(world, source);
-    let Some((amplifier, duration_ticks)) = crate::entity::projectile::hooks::effect(
-        world,
-        player,
-        source,
-        effect,
-        state.level,
-        state.duration_ticks,
-    ) else {
+    let authorized = if state.infinite {
+        crate::entity::projectile::hooks::effect_state(world, player, source, effect, &state)
+    } else {
+        crate::entity::projectile::hooks::effect(
+            world,
+            player,
+            source,
+            effect,
+            state.level,
+            state.duration_ticks,
+        )
+    };
+    let Some((amplifier, duration_ticks)) = authorized else {
         return false;
     };
     state.level = amplifier;
@@ -443,7 +468,11 @@ pub fn sync_player_effects(
                     event,
                     *effect,
                     state.level,
-                    state.duration_ticks,
+                    if state.infinite {
+                        u32::MAX
+                    } else {
+                        state.duration_ticks
+                    },
                     state.show_particles,
                     state.ambient,
                 ) {

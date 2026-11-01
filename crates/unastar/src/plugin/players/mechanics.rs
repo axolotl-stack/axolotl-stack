@@ -24,7 +24,8 @@ pub(in crate::plugin::manager) struct MechanicsRequest {
 }
 
 struct EffectIntent {
-    application: wit::EffectApplication,
+    effect: EffectType,
+    state: ActiveEffect,
     source: Option<(PlayerLineage, Entity)>,
 }
 
@@ -64,7 +65,7 @@ pub(crate) fn apply_pending(world: &mut World) {
         if request.owner.upgrade().is_none()
             || !request.scope.world.matches(world)
             || !request.reference.matches(world, request.player)
-            || !ready(world, request.player)
+            || !writable(world, request.player)
             || !super::super::readiness::admission_allowed(world)
         {
             continue;
@@ -73,38 +74,44 @@ pub(crate) fn apply_pending(world: &mut World) {
         match request.mutation {
             Mutation::Apply(intent) => {
                 let EffectIntent {
-                    application,
+                    effect,
+                    state,
                     source,
                 } = *intent;
                 if !source.as_ref().is_none_or(|(reference, entity)| {
-                    reference.matches(world, *entity) && ready(world, *entity)
-                }) || !valid_application(&application)
-                {
+                    reference.matches(world, *entity) && writable(world, *entity)
+                }) {
                     continue;
                 }
-                effects::add_effect_state_from(
-                    world,
-                    player,
-                    source.as_ref().map(|(_, entity)| *entity),
-                    native_kind(application.kind),
-                    ActiveEffect {
-                        level: application.amplifier,
-                        duration_ticks: application.duration_ticks,
-                        ambient: application.ambient,
-                        show_particles: application.show_particles,
-                        infinite: false,
-                    },
-                    |world| {
-                        request.owner.upgrade().is_some()
-                            && request.scope.world.matches(world)
-                            && request.reference.matches(world, player)
-                            && ready(world, player)
-                            && super::super::readiness::admission_allowed(world)
-                            && source.as_ref().is_none_or(|(reference, entity)| {
-                                reference.matches(world, *entity) && ready(world, *entity)
-                            })
-                    },
-                );
+                let valid = |world: &World| {
+                    request.owner.upgrade().is_some()
+                        && request.scope.world.matches(world)
+                        && request.reference.matches(world, player)
+                        && writable(world, player)
+                        && super::super::readiness::admission_allowed(world)
+                        && source.as_ref().is_none_or(|(reference, entity)| {
+                            reference.matches(world, *entity) && writable(world, *entity)
+                        })
+                };
+                if state.infinite {
+                    effects::add_infinite_effect_state_from(
+                        world,
+                        player,
+                        source.as_ref().map(|(_, entity)| *entity),
+                        effect,
+                        state,
+                        valid,
+                    );
+                } else {
+                    effects::add_effect_state_from(
+                        world,
+                        player,
+                        source.as_ref().map(|(_, entity)| *entity),
+                        effect,
+                        state,
+                        valid,
+                    );
+                }
             }
             Mutation::Remove(kind) => effects::remove_effect(world, player, native_kind(kind)),
             Mutation::Clear => effects::clear_effects(world, player),
@@ -154,15 +161,52 @@ pub(crate) fn apply_pending(world: &mut World) {
     }
 }
 
-/// Mutations require a complete, published, live connection; retained actors remain readable.
-fn ready(world: &World, player: Entity) -> bool {
-    matches!(availability(world, player), wit::PlayerAvailability::Ready)
-        && world.get::<PlayerSession>(player).is_some()
+/// Only complete living actors with their original connection or retained lineage may mutate.
+fn writable(world: &World, player: Entity) -> bool {
+    let admitted = match availability(world, player) {
+        wit::PlayerAvailability::Ready => world.get::<PlayerSession>(player).is_some(),
+        wit::PlayerAvailability::Retained => {
+            world
+                .get::<crate::server::game::player_events::DetachedPlayer>(player)
+                .is_some()
+                && world.get::<PlayerSession>(player).is_none()
+        }
+        _ => false,
+    };
+    admitted
+        && world.get::<PlayerLineage>(player).is_some_and(|lineage| {
+            identity::snapshot(world, player, lineage)
+                .is_ok_and(|snapshot| snapshot.health > 0.0 && !snapshot.flags.dead)
+        })
 }
 
 /// Restrict durations to the signed native packet range; instant effects use at least one tick.
 fn valid_application(effect: &wit::EffectApplication) -> bool {
     (1..=i32::MAX as u32).contains(&effect.duration_ticks)
+}
+
+/// Instantaneous kinds cannot acquire an indefinite lifetime or periodic pulse history.
+fn valid_infinite(effect: EffectType) -> bool {
+    !matches!(
+        effect,
+        EffectType::INSTANT_HEALTH | EffectType::INSTANT_DAMAGE | EffectType::SATURATION
+    )
+}
+
+/// Embedded player-input history is authoritative when present; absence remains explicit.
+fn fall_distance(world: &World, player: Entity) -> Result<Option<f64>, wit::AccessError> {
+    let distance = world
+        .get::<crate::entity::player_life::environment::PlayerFall>(player)
+        .map(|fall| fall.fall.distance)
+        .or_else(|| {
+            world
+                .get::<crate::entity::components::FallDistance>(player)
+                .map(|fall| fall.distance)
+        });
+    if distance.is_some_and(|distance| !distance.is_finite() || distance < 0.0) {
+        return Err(wit::AccessError::Unavailable);
+    }
+    Ok(distance)
 }
 
 /// Motion uses finite wire-representable values within one native movement distance bound.
@@ -178,8 +222,9 @@ impl HostContext {
         &mut self,
         rep: u32,
     ) -> Result<wit::PlayerMechanicsState, wit::AccessError> {
-        let (_, player) = self.live_player(rep)?;
+        let (reference, player) = self.live_player(rep)?;
         let world = unsafe { self.world() };
+        identity::snapshot(world, player, &reference)?;
         if matches!(
             availability(world, player),
             wit::PlayerAvailability::Quarantined
@@ -217,6 +262,7 @@ impl HostContext {
             .collect::<Result<_, wit::AccessError>>()?;
         Ok(wit::PlayerMechanicsState {
             effects,
+            fall_distance: fall_distance(world, player)?,
             velocity: velocity.map(|velocity| wit::Vec3 {
                 x: velocity.x,
                 y: velocity.y,
@@ -245,7 +291,7 @@ impl HostContext {
         let (reference, player) = self.live_player(rep)?;
         self.require(PluginCapability::PlayerMechanics)?;
         let scope = self.resources.scope.ok_or(wit::AccessError::ExpiredScope)?;
-        if !ready(unsafe { self.world() }, player) {
+        if !writable(unsafe { self.world() }, player) {
             return Err(wit::AccessError::Unavailable);
         }
         let queued = unsafe { self.world() }
@@ -279,14 +325,55 @@ impl HostContext {
         let source = source.map(|rep| self.live_player(rep)).transpose()?;
         if source
             .as_ref()
-            .is_some_and(|(_, entity)| !ready(unsafe { self.world() }, *entity))
+            .is_some_and(|(_, entity)| !writable(unsafe { self.world() }, *entity))
         {
             return Err(wit::AccessError::Unavailable);
         }
         self.stage_mechanics(
             rep,
             Mutation::Apply(Box::new(EffectIntent {
-                application,
+                effect: native_kind(application.kind),
+                state: ActiveEffect {
+                    level: application.amplifier,
+                    duration_ticks: application.duration_ticks,
+                    ambient: application.ambient,
+                    show_particles: application.show_particles,
+                    infinite: false,
+                },
+                source,
+            })),
+        )
+    }
+    /// Stage genuine native infinite state without overloading the finite import contract.
+    pub(in crate::plugin::manager) fn stage_infinite_effect(
+        &mut self,
+        rep: u32,
+        application: wit::InfiniteEffectApplication,
+        source: Option<u32>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.operation()?;
+        let effect = native_kind(application.kind);
+        if !valid_infinite(effect) {
+            return Err(wit::AccessError::InvalidArgument);
+        }
+        let source = source.map(|rep| self.live_player(rep)).transpose()?;
+        if source
+            .as_ref()
+            .is_some_and(|(_, entity)| !writable(unsafe { self.world() }, *entity))
+        {
+            return Err(wit::AccessError::Unavailable);
+        }
+        self.stage_mechanics(
+            rep,
+            Mutation::Apply(Box::new(EffectIntent {
+                effect,
+                state: ActiveEffect {
+                    level: application.amplifier,
+                    duration_ticks: u32::MAX,
+                    ambient: application.ambient,
+                    show_particles: application.show_particles,
+                    infinite: true,
+                },
                 source,
             })),
         )

@@ -190,6 +190,7 @@ pub struct EffectApplication {
     target: Entity,
     source: Option<Entity>,
     effect: EffectType,
+    infinite: bool,
     pub amplifier: u8,
     pub duration_ticks: u32,
     cancelled: bool,
@@ -210,6 +211,10 @@ impl EffectApplication {
     /// Read the effect being applied.
     pub fn effect(&self) -> EffectType {
         self.effect
+    }
+    /// Whether the proposed native effect has an explicit infinite lifetime.
+    pub fn is_infinite(&self) -> bool {
+        self.infinite
     }
     /// Prevent this recipient from receiving the effect.
     pub fn cancel(&mut self) {
@@ -528,6 +533,23 @@ pub(crate) fn effect(
     amplifier: u8,
     duration_ticks: u32,
 ) -> Option<(u8, u32)> {
+    effect_state(
+        world,
+        target,
+        source,
+        effect,
+        &crate::entity::components::ActiveEffect::new(amplifier, duration_ticks),
+    )
+}
+
+/// Preserve explicit lifetime facts for native policy while keeping the finite entry unchanged.
+pub(crate) fn effect_state(
+    world: &mut World,
+    target: Entity,
+    source: Option<Entity>,
+    effect: EffectType,
+    state: &crate::entity::components::ActiveEffect,
+) -> Option<(u8, u32)> {
     if source.is_some_and(|source| world.get_entity(source).is_err()) {
         return None;
     }
@@ -544,8 +566,9 @@ pub(crate) fn effect(
         target,
         source,
         effect,
-        amplifier,
-        duration_ticks,
+        infinite: state.infinite,
+        amplifier: state.level,
+        duration_ticks: state.duration_ticks,
         cancelled: false,
     };
     for handler in handlers(world) {

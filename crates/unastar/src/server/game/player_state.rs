@@ -718,7 +718,11 @@ fn send_effects(world: &World, player: Entity, old: &BTreeSet<u8>, snapshot: &Pl
                 effect_id: i32::from(effect.id),
                 effect_amplifier: i32::from(effect.level),
                 show_particles: effect.show_particles,
-                effect_duration_ticks: effect.duration_ticks as i32,
+                effect_duration_ticks: if effect.infinite {
+                    -1
+                } else {
+                    effect.duration_ticks as i32
+                },
                 tick: effect_tick(world, player, effect.id),
                 ambient: effect.ambient,
             }
