@@ -108,7 +108,7 @@ fn harness_with_panel(seed: u64, door: &str, panel: Panel, difficulty: Difficult
         door_state_with_panel(door, panel, true),
     );
     built(seed, difficulty, move |pos| {
-        (pos.x == DOOR.x && (64..=66).contains(&pos.y)).then(|| match (pos.z == DOOR.z, pos.y) {
+        (pos.x == DOOR.x && (64..=66).contains(&pos.y)).then_some(match (pos.z == DOOR.z, pos.y) {
             (true, 64) => lower,
             (true, 65) => upper,
             _ => stone,
