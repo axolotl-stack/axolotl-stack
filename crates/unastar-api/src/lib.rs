@@ -74,3 +74,8 @@ pub use raw::{
     ItemActionOutcome, ItemActionProposal, ItemActionStage, ItemActionTarget, ItemActorTarget,
     ItemAmmunitionChange, ItemBlockTarget, LaunchedItemActor,
 };
+
+pub use raw::{
+    ConnectionCloseKind, ConnectionCloseReason, ConnectionCloseRequest, ConnectionCloseStatus,
+    ConnectionControlError,
+};

@@ -16,6 +16,8 @@ pub(super) use identity::{ensure_identity, resolve};
 mod admission;
 #[path = "players/archive.rs"]
 mod archive;
+#[path = "players/connection_control.rs"]
+mod connection_control;
 #[path = "players/host.rs"]
 mod host;
 #[path = "players/inventory.rs"]
@@ -59,6 +61,7 @@ enum Entry {
     InventoryImage(Arc<values::Value<inventory::Image>>),
     ArchivedState(Arc<values::Value<archive::Archived>>),
     InventoryOperation(Arc<inventory_transactions::Operation>),
+    ConnectionClose(Arc<super::connection_control::RequestState>),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.
@@ -70,6 +73,7 @@ pub(super) struct PlayerResources {
     entries: HashMap<u32, Entry>,
     pub(super) operations: u32,
     pub(super) messages: u32,
+    pub(super) connection_closes: u32,
     pub(super) tasks: u32,
     pub(super) value_budget: values::Budget,
 }
@@ -165,8 +169,16 @@ impl HostContext {
         &mut self,
         rep: u32,
     ) -> Result<(PlayerLineage, Entity), wit::AccessError> {
+        self.live_player_for(rep, crate::plugin::manifest::PluginCapability::ReadPlayers)
+    }
+    /// Validate the same live capability while authorizing a separate narrowly granted import.
+    fn live_player_for(
+        &mut self,
+        rep: u32,
+        capability: crate::plugin::manifest::PluginCapability,
+    ) -> Result<(PlayerLineage, Entity), wit::AccessError> {
         self.operation()?;
-        self.require(crate::plugin::manifest::PluginCapability::ReadPlayers)?;
+        self.require(capability)?;
         let (reference, scope) = match self.resources.entries.get(&rep) {
             Some(Entry::Player {
                 reference, scope, ..
@@ -288,6 +300,7 @@ impl HostContext {
 pub(super) fn begin_budget(context: &mut HostContext) {
     context.resources.operations = 0;
     context.resources.messages = 0;
+    context.resources.connection_closes = 0;
     context.resources.tasks = 0;
 }
 

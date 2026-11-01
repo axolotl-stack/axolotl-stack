@@ -10,6 +10,8 @@ use crate::ecs::events::{PluginAction, ServerEvent};
 
 #[path = "commands.rs"]
 pub(crate) mod commands;
+#[path = "connection_control.rs"]
+pub(crate) mod connection_control;
 #[path = "guest_runtime.rs"]
 mod guest_runtime;
 #[path = "lifecycle.rs"]
@@ -79,6 +81,8 @@ pub struct HostContext {
     pending_messages: Vec<players::BoundMessage>,
     pending_mechanics: Vec<players::MechanicsRequest>,
     mechanics_owner: std::sync::Arc<()>,
+    pending_connection_closes: Vec<connection_control::Request>,
+    connection_close_count: std::sync::Arc<std::sync::atomic::AtomicU32>,
     active_admission: Option<sessions::ActiveAdmission>,
     pending_admissions: Vec<sessions::StagedResolution>,
     inventories: players::InventoryRequests,
@@ -142,6 +146,8 @@ impl HostContext {
             pending_messages: Vec::new(),
             pending_mechanics: Vec::new(),
             mechanics_owner: std::sync::Arc::new(()),
+            pending_connection_closes: Vec::new(),
+            connection_close_count: Default::default(),
             active_admission: None,
             pending_admissions: Vec::new(),
             inventories: Default::default(),
@@ -274,6 +280,7 @@ pub(super) fn finish_invocation(
 
     ui::finish_invocation(context, world, succeeded);
     views::finish_invocation(context, world, succeeded);
+    connection_control::finish(context, world, succeeded);
     players::finish_invocation(context, world, succeeded);
 }
 
@@ -1296,6 +1303,8 @@ pub(crate) mod tests {
     mod block_tests;
     #[path = "commands.rs"]
     mod command_tests;
+    #[path = "connection_control.rs"]
+    mod connection_control_tests;
     #[path = "execution.rs"]
     mod execution_tests;
     #[path = "item_actions.rs"]

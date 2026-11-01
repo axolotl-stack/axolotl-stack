@@ -88,6 +88,13 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
         self.stage_flight(player.rep(), allowed)
     }
 
+    fn disconnect(
+        &mut self,
+        player: Resource<wit::Player>,
+        reason: wit::ConnectionCloseReason,
+    ) -> Result<Resource<wit::ConnectionCloseRequest>, wit::ConnectionControlError> {
+        super::connection_control::stage(self, player.rep(), reason)
+    }
     fn to_handle(
         &mut self,
         player: Resource<wit::Player>,

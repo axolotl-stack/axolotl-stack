@@ -496,6 +496,11 @@ impl DimensionRouter {
                 .map_err(|_| WorldTickError::PluginManagerUnavailable)?
                 .end_tick();
         }
+        // Terminal packet publication is outside every manager guard; native quit callbacks
+        // run later through the transport's ordinary departure/save/teardown path.
+        for world in self.worlds.values_mut() {
+            crate::plugin::manager::connection_control::publish(world.ecs.world_mut());
+        }
         Ok(())
     }
     /// Replace immutable directory resources without holding a world borrow.

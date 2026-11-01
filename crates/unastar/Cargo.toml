@@ -67,6 +67,7 @@ bitflags = "2.6"
 unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen", optional = true }
 
 [dev-dependencies]
+tokio-util.workspace = true
 wit-parser = "0.245"
 wit-component = { version = "0.245", features = ["dummy-module"] }
 wasm-encoder = { version = "0.245", features = ["wasmparser"] }

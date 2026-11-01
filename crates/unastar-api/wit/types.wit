@@ -592,6 +592,17 @@ interface types {
         inventory: func() -> result<inventory-image, access-error>;
     }
 
+    /// Semantic termination reasons are independent of protocol discriminants.
+    enum connection-close-kind { requested, kicked }
+    /// Display text is bounded by the component limit and the host's fixed ceiling.
+    record connection-close-reason { kind: connection-close-kind, message: string }
+    variant connection-control-error { access(access-error), not-connected, admission-pending, already-pending, timed-out }
+    /// Queued means accepted by the exact transport's outbound channel, never client acknowledgement.
+    variant connection-close-status { staged, pending, queued, failed(connection-control-error) }
+    resource connection-close-request {
+        status: func() -> result<connection-close-status, access-error>;
+    }
+
     /// Live access is transaction scoped. Store player-handle instead of player.
     resource player {
         /// Capture current authoritative state; pending requests are not reflected here.
@@ -623,6 +634,8 @@ interface types {
         submit-inventory: func(request-id: string, image: borrow<inventory-image>) -> result<inventory-operation, inventory-error>;
         inventory-receipt: func(request-id: string) -> result<option<inventory-receipt>, inventory-error>;
         message: func(message: string) -> result<_, access-error>;
+        /// Stage exact admitted-connection termination; initial admission uses reject/hold resolution.
+        disconnect: func(reason: connection-close-reason) -> result<connection-close-request, connection-control-error>;
         /// Native physical-plan completeness is independent of availability/permission.
         initial-state-ready: func() -> result<bool, access-error>;
         /// Valid only in this player's admission callback; retain the owned hold for Deferred.

@@ -707,3 +707,46 @@ and trap cleanup. Pending block correlations are bounded to 128 entries, 1 MiB p
 selected user-data value and 16 MiB combined, then cleared after the queued batch
 or source closure, and invalidated by callback failures or component removal.
 No transient correlation is a durable receipt.
+
+
+### Scoped component connection control
+
+Request the separate `connection-control` capability to call
+`player.disconnect(&ConnectionCloseReason { kind, message })` or the ergonomic
+`player.kick(message)` helper. Reasons distinguish requested departure and
+removal without exposing protocol discriminants. The host bounds UTF-8 notice
+text and rejects control characters except newlines. This capability does not
+grant player-state queries; resolving another actor's handle still requires the
+ordinary read permission.
+
+The owned `ConnectionCloseRequest` reports `Staged` inside the callback. Only a
+successful callback moves it to `Pending`; a trap discards the request. Explicit
+cancellation of default command/chat/gameplay behavior preserves the request.
+Dropping a ticket does not cancel native work or release its pending quota.
+`Queued` means the terminal notice was handed to the exact original outbound
+channel, **not** that the client received or acknowledged it. Typed failures cover
+scope and identity errors, absent transport, pending admission and expired retry.
+Owned status remains queryable independently of a live actor.
+
+The router publishes requests outside the component manager lock. Every attempt
+revalidates the original world, actor generation, session-map ownership and exact
+outbound channel, so a reconnect or migration never inherits an old request.
+Connected dead, quarantined and recovery-fenced actors can be terminated without
+fabricating a healthy snapshot or releasing inventory protection. Retained
+sessionless actors return `NotConnected`. Initial admission returns
+`AdmissionPending`; use its existing reject decision or deferred-hold resolution.
+Connection control never opens the initial publication barrier.
+
+Full channels retain bounded requests for retry until ten seconds after staging.
+Per-component defaults allow 64 new requests per shared cycle, 128 outstanding
+requests and 1,024 reason bytes. `max_connection_requests_per_tick`,
+`max_pending_connection_requests` and `max_connection_reason_bytes` configure
+these limits. The native queue independently caps outstanding work at 4,096 and
+notice text at 4,096 bytes. Quota reservations survive ticket drop and release
+when work ends. Component removal or world closure invalidates pending work.
+
+The normal network pump treats the queued Disconnect as terminal, stops accepting
+input and closes the transport with its bounded close procedure even if the peer
+ignores the notice. Actual departure continues through the existing quit policy,
+ordinary-save gates and retained-actor teardown. This import never despawns an
+actor directly or acknowledges an unrelated inventory write.

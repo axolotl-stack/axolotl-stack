@@ -80,7 +80,7 @@ impl WorldReference {
         })
     }
     /// Reject a closed/replaced world even if it uses the same dimension.
-    pub(super) fn matches(self, world: &World) -> bool {
+    pub(in crate::plugin::manager) fn matches(self, world: &World) -> bool {
         Self::of(world).is_ok_and(|current| current == self)
     }
 }

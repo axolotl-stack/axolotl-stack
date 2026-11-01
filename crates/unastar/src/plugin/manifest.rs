@@ -45,6 +45,15 @@ pub struct PluginManifest {
 /// Resource limits for a plugin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginLimits {
+    /// Maximum UTF-8 bytes in a connection termination notice, also capped at 4096 by the host.
+    #[serde(default = "default_connection_reason_bytes")]
+    pub max_connection_reason_bytes: u32,
+    /// Maximum new termination requests accepted in one shared component cycle.
+    #[serde(default = "default_connection_requests")]
+    pub max_connection_requests_per_tick: u32,
+    /// Maximum outstanding requests across callback staging and backpressure retries.
+    #[serde(default = "default_pending_connection_requests")]
+    pub max_pending_connection_requests: u32,
     /// Maximum affected cells lifted for one block authorization/completion.
     #[serde(default = "default_block_cells")]
     pub max_block_cells: u32,
@@ -106,6 +115,9 @@ pub struct PluginLimits {
 impl Default for PluginLimits {
     fn default() -> Self {
         Self {
+            max_connection_reason_bytes: default_connection_reason_bytes(),
+            max_connection_requests_per_tick: default_connection_requests(),
+            max_pending_connection_requests: default_pending_connection_requests(),
             max_block_cells: default_block_cells(),
             fuel_per_tick: default_fuel(),
             fuel_per_initialization: default_initialization_fuel(),
@@ -197,6 +209,19 @@ fn default_messages() -> u32 {
     256
 }
 
+/// Keep termination display text bounded independently of general chat messages.
+fn default_connection_reason_bytes() -> u32 {
+    1024
+}
+/// Bound accepted termination calls without replenishing during nested callbacks.
+fn default_connection_requests() -> u32 {
+    64
+}
+/// Bound backpressured transport requests independently of retained ticket resources.
+fn default_pending_connection_requests() -> u32 {
+    128
+}
+
 /// Bound metadata retained by component-owned command declarations.
 fn default_command_roots() -> u32 {
     64
@@ -249,6 +274,8 @@ pub enum PluginCapability {
     PlayerViews,
     /// Send bounded direct messages to exact current connections.
     SendMessages,
+    /// Terminate exact admitted connections without granting admission publication or live state writes.
+    ConnectionControl,
     /// Schedule bounded work on world owners with fresh transaction scopes.
     ScheduleTasks,
     /// Access to the filesystem (scoped).
