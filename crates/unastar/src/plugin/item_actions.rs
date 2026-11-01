@@ -1,6 +1,6 @@
 //! Scoped authorization of real native item actions and owned physical completions.
 
-use super::lifecycle::invoke;
+use super::lifecycle::{invoke, invoke_validated};
 use super::{HostContext, PluginManager, make_player_resource, make_world_tx, wit_types as wit};
 use crate::ecs::events::EventKind;
 use crate::entity::components::Player;
@@ -182,32 +182,48 @@ impl PluginManager {
         for owner in owners {
             let plugin = self.plugins.get_mut(&owner).expect("subscribed component");
             let owner_lease = Arc::downgrade(&plugin.store.data().command_owner);
-            let result = invoke(plugin, world, |store, bindings| {
-                let tx = make_world_tx(store)?;
-                let player = make_player_resource(store, event.player())?;
-                let target_player = target_player
-                    .map(|target| make_player_resource(store, target))
-                    .transpose()?;
-                let selected = store
-                    .data_mut()
-                    .own_item(event.stack().clone())
-                    .map_err(|error| anyhow::anyhow!("item capture failed: {error:?}"))?;
-                let rep = selected.rep();
-                let proposal = wit::ItemActionProposal {
-                    action_id: event.action_id(),
-                    dimension,
-                    stage: stage(event.kind()),
-                    slot: event.slot(),
-                    selected,
-                    target: target_facts.clone(),
-                };
-                let result =
-                    bindings.call_on_item_action(&mut *store, tx, player, target_player, &proposal);
-                if result.is_err() {
-                    discard(store.data_mut(), &[rep]);
-                }
-                result
-            });
+            let available = event.stack().count;
+            let result = invoke_validated(
+                plugin,
+                world,
+                |store, bindings| {
+                    let tx = make_world_tx(store)?;
+                    let player = make_player_resource(store, event.player())?;
+                    let target_player = target_player
+                        .map(|target| make_player_resource(store, target))
+                        .transpose()?;
+                    let selected = store
+                        .data_mut()
+                        .own_item(event.stack().clone())
+                        .map_err(|error| anyhow::anyhow!("item capture failed: {error:?}"))?;
+                    let rep = selected.rep();
+                    let proposal = wit::ItemActionProposal {
+                        action_id: event.action_id(),
+                        dimension,
+                        stage: stage(event.kind()),
+                        slot: event.slot(),
+                        selected,
+                        target: target_facts.clone(),
+                    };
+                    let result = bindings.call_on_item_action(
+                        &mut *store,
+                        tx,
+                        player,
+                        target_player,
+                        &proposal,
+                    );
+                    if result.is_err() {
+                        discard(store.data_mut(), &[rep]);
+                    }
+                    result
+                },
+                |decision| match decision {
+                    wit::ItemActionDecision::Pass | wit::ItemActionDecision::Deny => true,
+                    wit::ItemActionDecision::Handled(action) => {
+                        action.consume > 0 && action.consume <= available
+                    }
+                },
+            );
             match result {
                 Ok(wit::ItemActionDecision::Pass) => event.require_owner(owner_lease),
                 Ok(wit::ItemActionDecision::Deny) => {
@@ -215,10 +231,6 @@ impl PluginManager {
                     break;
                 }
                 Ok(wit::ItemActionDecision::Handled(action)) => {
-                    if action.consume == 0 {
-                        event.cancel();
-                        break;
-                    }
                     event.require_owner(owner_lease);
                     event.handle(native::HandledItemAction {
                         action: action.correlation.to_string(),

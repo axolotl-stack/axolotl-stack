@@ -17,6 +17,13 @@ struct Harness {
 impl Harness {
     /// Initialize the current canonical ABI before creating a real native player.
     fn new(bodies: &[(&str, String)]) -> Self {
+        Self::with_capabilities(bodies, &[])
+    }
+    /// Test a replacement effect using an explicit independent capability grant.
+    fn with_capabilities(
+        bodies: &[(&str, String)],
+        extra: &[crate::plugin::manifest::PluginCapability],
+    ) -> Self {
         let mut router = DimensionRouter::new(GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..Default::default()
@@ -29,7 +36,10 @@ impl Harness {
             api_version: PLUGIN_API_VERSION.into(),
             required: true,
             config: None,
-            capabilities: [crate::plugin::manifest::PluginCapability::ReadPlayers].into(),
+            capabilities: [crate::plugin::manifest::PluginCapability::ReadPlayers]
+                .into_iter()
+                .chain(extra.iter().cloned())
+                .collect(),
             subscriptions: [EventKind::PlayerMove, EventKind::PlayerMoved].into(),
             limits: PluginLimits::default(),
         };
@@ -351,4 +361,36 @@ async fn native_move_bound_still_applies_to_an_accepted_component_redirect() {
     harness.move_to(1.5).await.unwrap();
     assert_eq!(harness.position(), from);
     assert_eq!(harness.logs(), ["P"]);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cancelling_a_real_move_preserves_an_explicit_bounce_without_committing_the_destination() {
+    let body = "local.get 1 f64.const 0.5 f64.const 0.25 f64.const 0 i32.const 64 call @[method]player.set-velocity@ i32.const 64 i32.load8_u if unreachable end i32.const 32 i32.const 0 i32.store i32.const 32";
+    let mut h = Harness::with_capabilities(
+        &[
+            ("on-player-move", body.into()),
+            ("on-player-moved", "unreachable".into()),
+        ],
+        &[crate::plugin::manifest::PluginCapability::PlayerMechanics],
+    );
+    let before = h.position();
+    h.move_to(2.5).await.unwrap();
+    assert_eq!(h.position(), before);
+    let velocity = h
+        .router
+        .world(0)
+        .unwrap()
+        .ecs
+        .world()
+        .get::<crate::entity::components::Velocity>(h.player)
+        .unwrap()
+        .0;
+    assert_eq!(velocity, glam::DVec3::new(0.5, 0.25, 0.0));
+    assert!(
+        std::iter::from_fn(|| h.packets.try_recv().ok()).any(|packet| matches!(
+            packet.data,
+            jolyne::valentine::McpePacketData::SetActorMotionPacket(_)
+        ))
+    );
+    assert!(h.manager.lock().unwrap().readiness.check().is_ok());
 }

@@ -852,8 +852,7 @@ async fn typed_before_proposed_properties_and_actual_after_values_cross_the_real
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn composed_block_veto_preserves_explicit_ui_reply_and_image_accounting_but_discards_mechanics()
- {
+async fn composed_block_veto_preserves_explicit_bounce_ui_reply_and_image_accounting() {
     use crate::plugin::manifest::PluginCapability;
     let layout = Layout::new();
     let tx = layout.param("on-block-transaction", "tx");
@@ -894,14 +893,23 @@ async fn composed_block_veto_preserves_explicit_ui_reply_and_image_accounting_bu
         h.block(glam::IVec3::new(1, 16, 1)),
         *crate::world::chunk::blocks::AIR
     );
-    assert!(
+    assert_eq!(
+        h.block(glam::IVec3::new(1, 17, 1)),
+        *crate::world::chunk::blocks::AIR
+    );
+    // Queued block dispatch follows local simulation; explicit mechanics apply in the next batch.
+    h.router.tick().await.unwrap();
+    assert_eq!(
         h.router
             .world(0)
             .unwrap()
             .ecs
             .world()
             .get::<crate::entity::components::Velocity>(h.player)
-            .is_none()
+            .unwrap()
+            .0
+            .x,
+        0.5
     );
     let packets = std::iter::from_fn(|| h._packets.try_recv().ok()).collect::<Vec<_>>();
     assert!(
@@ -911,7 +919,7 @@ async fn composed_block_veto_preserves_explicit_ui_reply_and_image_accounting_bu
     );
     assert!(packets.iter().any(|packet|matches!(&packet.data,McpePacketData::SetTitlePacket(value) if &*value.title_text=="x")));
     assert!(
-        !packets
+        packets
             .iter()
             .any(|packet| matches!(&packet.data, McpePacketData::SetActorMotionPacket(_)))
     );

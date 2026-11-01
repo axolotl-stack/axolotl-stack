@@ -25,6 +25,15 @@ impl Harness {
         permitted: bool,
         extra: &[PluginCapability],
     ) -> Self {
+        Self::configured(bodies, permitted, extra, true)
+    }
+    /// Optional malformed callbacks still reject defaults and discard their own staged imports.
+    fn configured(
+        bodies: &[(&str, String)],
+        permitted: bool,
+        extra: &[PluginCapability],
+        required: bool,
+    ) -> Self {
         let mut server = GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..Default::default()
@@ -58,7 +67,7 @@ impl Harness {
             name: "Mechanics".into(),
             version: "1".into(),
             api_version: PLUGIN_API_VERSION.into(),
-            required: true,
+            required,
             config: None,
             capabilities,
             subscriptions,
@@ -248,7 +257,7 @@ async fn actual_component_effects_and_motion_wait_for_commit_and_encode_native_u
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn trapped_and_explicitly_vetoed_callbacks_never_apply_mechanics() {
+async fn traps_discard_explicit_mechanics_but_valid_damage_veto_preserves_replacements() {
     let mut trap = Harness::new(
         &[("on-player-jump", format!("{} unreachable", velocity(1.0)))],
         true,
@@ -273,6 +282,12 @@ async fn trapped_and_explicitly_vetoed_callbacks_never_apply_mechanics() {
         true,
     );
     let target = veto.player;
+    let before_timer = veto
+        .server
+        .ecs
+        .world()
+        .get::<crate::entity::mob::combat::HurtTimer>(target)
+        .map(|timer| (timer.until_tick, timer.last_damage));
     let lost = crate::entity::player_life::hurt_player(
         veto.server.ecs.world_mut(),
         target,
@@ -287,8 +302,32 @@ async fn trapped_and_explicitly_vetoed_callbacks_never_apply_mechanics() {
     );
     assert_eq!(lost, 0.0);
     veto.apply();
-    assert!(veto.server.ecs.world().get::<Velocity>(target).is_none());
-    assert!(veto.packets.try_recv().is_err());
+    assert_eq!(
+        veto.server.ecs.world().get::<Velocity>(target).unwrap().0.x,
+        1.0
+    );
+    assert_eq!(
+        veto.server
+            .ecs
+            .world()
+            .get::<Health>(target)
+            .unwrap()
+            .current,
+        20.0
+    );
+    assert_eq!(
+        veto.server
+            .ecs
+            .world()
+            .get::<crate::entity::mob::combat::HurtTimer>(target)
+            .map(|timer| (timer.until_tick, timer.last_damage)),
+        before_timer
+    );
+    assert!(matches!(
+        veto.packets.try_recv().unwrap().data,
+        McpePacketData::SetActorMotionPacket(_)
+    ));
+    assert!(veto.manager.lock().unwrap().readiness.check().is_ok());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1076,4 +1115,44 @@ async fn composed_handled_chat_commits_ui_and_mechanics_without_leaking_owned_in
             .iter()
             .any(|packet| matches!(&packet.data, McpePacketData::SetActorMotionPacket(_)))
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn malformed_damage_reply_discards_explicit_motion_and_reply_through_callback_failure() {
+    let (player, _) = fixture::field_layout("on-player-damage", "player", &[]);
+    let (tuning, size) = fixture::field_layout("on-player-damage", "proposal", &["tuning"]);
+    let body = format!(
+        "{} i32.const 1100 i32.const 120 i32.store8 local.get 0 i32.load offset={player} i32.const 1100 i32.const 1 i32.const 80 call @[method]player.message@ i32.const 80 i32.load8_u if unreachable end i32.const 512 i32.const 1 i32.store8 i32.const 520 local.get 0 i32.const {tuning} i32.add i32.const {size} memory.copy i32.const 520 f32.const nan f32.store i32.const 512",
+        velocity(1.0).replace(
+            "local.get 1",
+            &format!("local.get 0 i32.load offset={player}")
+        )
+    );
+    let mut h = Harness::configured(&[("on-player-damage", body)], true, &[], false);
+    let lost = crate::entity::player_life::hurt_player(
+        h.server.ecs.world_mut(),
+        h.player,
+        &crate::entity::mob::combat::Hit {
+            damage: 2.0,
+            cause: unastar_data::actor_components::body::ActorDamageCause::EntityAttack,
+            attacker: None,
+            by_player: true,
+            knockback_from: None,
+            knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+        },
+    );
+    assert_eq!(lost, 0.0);
+    h.apply();
+    assert_eq!(
+        h.server
+            .ecs
+            .world()
+            .get::<Health>(h.player)
+            .unwrap()
+            .current,
+        20.0
+    );
+    assert!(h.server.ecs.world().get::<Velocity>(h.player).is_none());
+    assert!(h.packets.try_recv().is_err());
+    assert!(h.manager.lock().unwrap().readiness.check().is_ok());
 }
