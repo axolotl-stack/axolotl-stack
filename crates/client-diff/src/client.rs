@@ -134,14 +134,14 @@ impl PlayerState {
             }
             McpePacketData::ChangeDimensionPacket(packet) => {
                 self.position = packet.position;
-                return vec![self.action(EnumsPlayerActionType::Changedimensionack)];
+                return vec![self.action(EnumsPlayerActionType::ChangeDimensionAck)];
             }
             McpePacketData::RespawnPacket(packet) => match packet.state {
-                EnumsPlayerRespawnState::Searchingforspawn => {
+                EnumsPlayerRespawnState::SearchingForSpawn => {
                     return vec![
                         McpePacket::from(RespawnPacket {
                             position: packet.position,
-                            state: EnumsPlayerRespawnState::Clientreadytospawn,
+                            state: EnumsPlayerRespawnState::ClientReadyToSpawn,
                             player_runtime_id: ActorRuntimeId {
                                 actor_runtime_id: self.runtime_id,
                             },
@@ -149,7 +149,7 @@ impl PlayerState {
                         self.action(EnumsPlayerActionType::Respawn),
                     ];
                 }
-                EnumsPlayerRespawnState::Readytospawn => self.position = packet.position,
+                EnumsPlayerRespawnState::ReadyToSpawn => self.position = packet.position,
                 _ => {}
             },
             _ => {}
@@ -444,13 +444,13 @@ mod tests {
         assert_eq!(player.expand("{x}"), "0");
 
         let replies = player.handle(McpePacketData::RespawnPacket(RespawnPacket {
-            state: EnumsPlayerRespawnState::Searchingforspawn,
+            state: EnumsPlayerRespawnState::SearchingForSpawn,
             ..Default::default()
         }));
         assert!(matches!(
             &replies[0].data,
             McpePacketData::RespawnPacket(packet)
-                if packet.state == EnumsPlayerRespawnState::Clientreadytospawn
+                if packet.state == EnumsPlayerRespawnState::ClientReadyToSpawn
                     && packet.player_runtime_id.actor_runtime_id == 7
         ));
         assert!(matches!(
