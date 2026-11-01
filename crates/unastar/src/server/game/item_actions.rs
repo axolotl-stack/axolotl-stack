@@ -20,6 +20,9 @@ pub enum ItemActionKind {
     Launch,
     /// Loading ammunition into a weapon.
     Charge,
+    /// The accepted player input explicitly reports a missed swing.
+    /// This is distinct from a resolved actor/block hit or a visual animation.
+    Punch,
 }
 
 /// A custom action selected by an extension, with engine-owned item consumption.

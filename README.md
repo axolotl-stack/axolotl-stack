@@ -901,8 +901,12 @@ all cells of a column through the complete proposal and observes actual commits.
 
 Subscribe to `item_action` for `Handler::on_item_action(ctx, target, &proposal)`.
 The selected item is an owned detached `ItemStack` from the actual server slot.
-Stages distinguish air/block/actor use, release, consuming, ammunition charging
-and launching. Block targets retain actual click facts and a typed loaded block
+Stages distinguish air/block/actor use, release, consuming, ammunition charging,
+launching and a player's explicit missed-swing report (`Punch`). A punch
+is reported after accepted input state toggles, including sneaking. It is not a
+resolved actor/block hit or a visual swing animation. Passing a punch has no
+default physical effect and emits no completion; explicit nonconsuming handling
+can use the ordinary custom committed outcome. Block targets retain actual click facts and a typed loaded block
 value or an explicit unavailable error. Actor targets retain the actual registered
 identifier, feet position and player identity when present. The optional borrowed
 `target` exists only for an actual native player; it never turns a mob or departed

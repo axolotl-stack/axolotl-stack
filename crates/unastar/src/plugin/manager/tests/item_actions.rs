@@ -1,5 +1,8 @@
 //! Actual item component decisions precede encoded-input consumption and projectile effects.
 
+#[path = "item_actions/punches.rs"]
+mod punches;
+
 use super::*;
 use crate::ecs::events::EventKind;
 use crate::entity::components::{HeldSlot, MainInventory};

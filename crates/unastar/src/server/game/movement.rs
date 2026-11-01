@@ -158,7 +158,21 @@ pub fn apply_movement(world: &mut World, system_state: &mut MovementSystemState)
                     correct_position(world, entity, to);
                 }
                 if to != from {
-                    player_events::moved(world, entity, identity, from, to);
+                    player_events::moved(world, entity, identity.clone(), from, to);
+                }
+                // Only the accepted player input reports a missed swing.
+                // State toggles above are already visible, and moved callbacks
+                // cannot redirect this action onto a replacement connection.
+                if pk
+                    .input_data
+                    .contains(&EnumsPlayerAuthInputPacketPayloadInputData::MissedSwing)
+                    && identity.matches(world, entity)
+                {
+                    let _ = super::item_actions::authorize(
+                        world,
+                        entity,
+                        super::item_actions::ItemActionKind::Punch,
+                    );
                 }
             }
             MovementInput::PlayerAction(pk) => {

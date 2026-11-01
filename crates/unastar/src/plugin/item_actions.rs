@@ -48,6 +48,7 @@ fn stage(kind: native::ItemActionKind) -> wit::ItemActionStage {
         native::ItemActionKind::Consume => wit::ItemActionStage::Consume,
         native::ItemActionKind::Charge => wit::ItemActionStage::Charge,
         native::ItemActionKind::Launch => wit::ItemActionStage::Launch,
+        native::ItemActionKind::Punch => wit::ItemActionStage::Punch,
     }
 }
 /// Snapshot account facts, rejecting malformed identities instead of inventing authentication.

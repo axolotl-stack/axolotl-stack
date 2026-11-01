@@ -3,7 +3,8 @@
 use std::cell::Cell;
 use unastar_api::{
     HandledItemAction, Handler, ItemActionCommitted, ItemActionDecision, ItemActionOutcome,
-    ItemActionProposal, LogLevel, Player, PlayerContext, WorldTx, host, server,
+    ItemActionProposal, ItemActionStage, ItemActionTarget, LogLevel, Player, PlayerContext,
+    WorldTx, host, server,
 };
 
 struct Fixture;
@@ -18,13 +19,19 @@ impl Handler for Fixture {
     fn on_item_action(
         ctx: &mut PlayerContext<'_>,
         _target: Option<&Player<'_>>,
-        _proposal: &ItemActionProposal,
+        proposal: &ItemActionProposal,
     ) -> ItemActionDecision {
-        if MODE.get() == 5 {
+        let mode = MODE.get();
+        if mode >= 7 {
+            assert_eq!(proposal.stage, ItemActionStage::Punch);
+            assert!(matches!(proposal.target, ItemActionTarget::Air));
+            assert_eq!(ctx.player().flags().unwrap().sneaking, mode != 8);
+        }
+        if matches!(mode, 5 | 9) {
             ctx.cancel();
         }
-        assert_ne!(MODE.get(), 6, "controlled nonconsuming callback trap");
-        if MODE.get() >= 3 {
+        assert!(!matches!(mode, 6 | 10), "controlled callback trap");
+        if mode >= 3 {
             ItemActionDecision::HandledWithoutConsumption(87)
         } else {
             ItemActionDecision::Handled(HandledItemAction {
@@ -36,13 +43,17 @@ impl Handler for Fixture {
 
     fn on_item_action_committed(_tx: &WorldTx<'_>, event: ItemActionCommitted) {
         let mode = MODE.get();
+        if mode >= 7 {
+            assert_eq!(event.stage, ItemActionStage::Punch);
+            assert!(matches!(event.target, ItemActionTarget::Air));
+        }
         assert_ne!(mode, 2, "conflicting claims must not commit");
         let ItemActionOutcome::Custom(outcome) = event.outcome else {
             panic!("expected a custom completion");
         };
         assert_eq!(
             outcome.correlation,
-            if matches!(mode, 0 | 3) {
+            if matches!(mode, 0 | 3 | 7 | 8 | 11) {
                 Some(87)
             } else {
                 None
@@ -51,14 +62,15 @@ impl Handler for Fixture {
         let consumed = u8::from(mode < 3);
         assert_eq!(outcome.consumed, consumed);
         let items = event.items.unwrap();
-        assert_eq!(items.selected_before.count().unwrap(), 3);
+        let original = if mode == 11 { 0 } else { 3 };
+        assert_eq!(items.selected_before.count().unwrap(), original);
         assert_eq!(
             items.selected_after.as_ref().unwrap().count().unwrap(),
-            3 - consumed
+            original - consumed
         );
         server::log(
             LogLevel::Info,
-            if matches!(mode, 0 | 3) {
+            if matches!(mode, 0 | 3 | 7 | 8 | 11) {
                 "owner"
             } else {
                 "observer"
