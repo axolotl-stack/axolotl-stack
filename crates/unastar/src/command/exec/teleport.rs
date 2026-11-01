@@ -347,8 +347,22 @@ pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32,
     if crate::server::game::player_events::initial_state_pending(world, entity) {
         return;
     }
+    let packet = player_teleport_packet(world, entity, eye, yaw, pitch);
+    if let Some(session) = world.get::<PlayerSession>(entity) {
+        let _ = session.send(packet);
+    }
+}
+
+/// Construct the current native teleport projection without changing state or sending it.
+pub(crate) fn player_teleport_packet(
+    world: &World,
+    entity: Entity,
+    eye: DVec3,
+    yaw: f32,
+    pitch: f32,
+) -> jolyne::valentine::McpePacket {
     let runtime_id = world.get::<RuntimeEntityId>(entity).map_or(0, |r| r.0);
-    let packet = MovePlayerPacket {
+    MovePlayerPacket {
         player_runtime_id: ActorRuntimeId {
             actor_runtime_id: runtime_id as u64,
         },
@@ -371,10 +385,8 @@ pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32,
         }),
         // The teleported player's own input tick, like every packet about it.
         tick: crate::entity::components::input_tick_of(world, entity),
-    };
-    if let Some(session) = world.get::<PlayerSession>(entity) {
-        let _ = session.send(packet.into());
     }
+    .into()
 }
 
 #[cfg(test)]

@@ -35,7 +35,7 @@ pub(in crate::plugin::manager) fn finish(
 }
 
 /// Native failures expose no provider paths, encoded state or historical actor identifiers.
-fn error(error: native::Error) -> wit::StateError {
+pub(super) fn error(error: native::Error) -> wit::StateError {
     match error {
         native::Error::NotInstalled => wit::StateError::NotInstalled,
         native::Error::Conflict | native::Error::NotOwned => wit::StateError::Conflict,
@@ -60,7 +60,7 @@ fn owner(reference: &native::Reference) -> wit::PlayerIdentity {
 
 impl HostContext {
     /// Stage native work with a byte lease shared by every future worker and actual body.
-    fn queue_source(
+    pub(super) fn queue_source(
         &mut self,
         intent: native::Intent,
     ) -> Result<Resource<wit::SourceActorOperation>, wit::StateError> {
@@ -183,7 +183,10 @@ impl HostContext {
     }
 
     /// A resource is scoped to its creating component and cannot authorize another namespace.
-    fn source_operation(&mut self, rep: u32) -> Result<Arc<native::Operation>, wit::AccessError> {
+    pub(super) fn source_operation(
+        &mut self,
+        rep: u32,
+    ) -> Result<Arc<native::Operation>, wit::AccessError> {
         self.operation()?;
         self.require(PluginCapability::RestorePlayerState)?;
         match self.resources.entries.get(&rep) {

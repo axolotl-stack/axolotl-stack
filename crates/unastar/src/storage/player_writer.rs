@@ -38,6 +38,7 @@ enum SourceMutation {
     Transition {
         expected: Option<SourceProof>,
         desired: Box<SourceActorRecord>,
+        terminal_handoff: Option<super::source::SourceHandoff>,
     },
 }
 
@@ -193,6 +194,39 @@ impl SerializedPlayerProvider {
                 SourceMutation::Transition {
                     expected,
                     desired: Box::new(desired),
+                    terminal_handoff: None,
+                },
+                None,
+            ),
+        )
+        .await
+        .map(|(effect, data)| SourceWrite { effect, data })
+    }
+
+    /// Only the exact acknowledged native handoff may close a death that arrived
+    /// while that handoff's physical source was still active.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn commit_handoff_terminal(
+        &self,
+        uuid: Uuid,
+        id: &str,
+        hash: [u8; 32],
+        candidate: PlayerData,
+        expected: SourceProof,
+        desired: SourceActorRecord,
+        handoff: super::source::SourceHandoff,
+    ) -> Result<SourceWrite, EffectWriteFailure> {
+        self.commit_full_effect(
+            uuid,
+            id,
+            hash,
+            candidate,
+            None,
+            (
+                SourceMutation::Transition {
+                    expected: Some(expected),
+                    desired: Box::new(desired),
+                    terminal_handoff: Some(handoff),
                 },
                 None,
             ),
@@ -508,7 +542,11 @@ fn source_update(
             (None, None) => Ok(None),
             _ => Err(conflict()),
         },
-        SourceMutation::Transition { expected, desired } => {
+        SourceMutation::Transition {
+            expected,
+            desired,
+            terminal_handoff,
+        } => {
             let generation = old
                 .map_or(Some(1), |old| old.generation.checked_add(1))
                 .ok_or_else(conflict)?;
@@ -519,7 +557,13 @@ fn source_update(
                         && old.nonce == desired.nonce
                         && old.world == desired.world
                         && old.name == desired.name
-                        && (old.phase.unresolved() || desired.phase == SourcePhase::Retired)
+                        && (old.phase.unresolved()
+                            || desired.phase == SourcePhase::Retired
+                            || (desired.phase == SourcePhase::Terminal
+                                && old.phase == SourcePhase::Transferred
+                                && terminal_handoff
+                                    .as_ref()
+                                    .is_some_and(|handoff| old.handoff.as_ref() == Some(handoff))))
                 }
                 (Some(old), None) => {
                     !old.requires_handoff()

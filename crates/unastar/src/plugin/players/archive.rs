@@ -203,6 +203,15 @@ impl super::super::wit_bindings::unastar::plugin::archives::Host for HostContext
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostArchivedPlayerState for HostContext {
+    fn rebind(
+        &mut self,
+        archive: Resource<wit::ArchivedPlayerState>,
+        tx: Resource<wit::WorldTx>,
+        request_id: String,
+    ) -> Result<Resource<wit::SourceRebindOperation>, wit::StateError> {
+        self.inspect_source_rebind(archive.rep(), tx.rep(), request_id)
+    }
+
     fn source(
         &mut self,
         archive: Resource<wit::ArchivedPlayerState>,

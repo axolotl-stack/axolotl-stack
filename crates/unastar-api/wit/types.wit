@@ -404,6 +404,8 @@ interface types {
     }
 
     resource admission-hold {
+        /// Checkpoint real live source ownership while keeping it physically active.
+        rebind-source: func(tx: borrow<world-tx>, source: borrow<source-actor-operation>, correlation: u64) -> result<source-rebind-operation, state-error>;
         submit-state: func(tx: borrow<world-tx>, request-id: string, expected: borrow<player-state-image>, desired: borrow<player-state-image>, source: option<borrow<source-fence>>) -> result<state-operation, state-error>;
         resolve: func(tx: borrow<world-tx>, decision: admission-resolution) -> result<admission-acknowledgement, access-error>;
         /// Call in a fresh transaction after Deferred admission has finished evaluating.
@@ -776,6 +778,7 @@ interface types {
         source-fence: func(tx: borrow<world-tx>) -> result<option<source-fence>, state-error>;
         /// Inspect exact canonical source ownership; an absent ledger is unowned, never consumed.
         source: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+        rebind: func(tx: borrow<world-tx>, request-id: string) -> result<source-rebind-operation, state-error>;
         reference: func() -> result<archive-reference, access-error>;
         facts: func() -> result<archive-facts, access-error>;
         inventory: func() -> result<inventory-image, access-error>;
@@ -984,6 +987,33 @@ interface types {
         recreate: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
         activate: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
         retire: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+    }
+    record source-rebind-commit {
+        receipt: inventory-receipt,
+        live-applied: bool,
+    }
+    record source-rebind-failure { receipt: inventory-receipt, reason: state-error }
+    variant source-rebind-status {
+        staged, queued, acknowledged(source-rebind-commit), rebound(source-rebind-commit),
+        terminal(source-rebind-commit), retired(source-rebind-commit), failed(source-rebind-failure), unowned, rejected(state-error), uncertain, cancelled,
+    }
+    record source-rebind-result {
+        request-id: string,
+        correlation: u64,
+        source: player-identity,
+        target: player-identity,
+        status: source-rebind-status,
+    }
+    /// Durable acknowledgement and actual publication are separate observations.
+    resource source-rebind-operation {
+        request-id: func() -> result<string, access-error>;
+        status: func() -> result<source-rebind-status, access-error>;
+        /// Request publication only after the caller has durably accepted the ACK.
+        /// Other unresolved admission owners and transport backpressure still hold it closed.
+        publish: func(tx: borrow<world-tx>) -> result<admission-acknowledgement, state-error>;
+        /// Explicitly retire the exact still-present unpublished source after ownership ACK.
+        retire: func(tx: borrow<world-tx>) -> result<source-actor-operation, state-error>;
+        player: func(tx: borrow<world-tx>) -> result<option<player-handle>, state-error>;
     }
     record state-commit {
         receipt: inventory-receipt,

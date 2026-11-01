@@ -56,9 +56,11 @@ pub use raw::{
     LogLevel, MechanicsAcknowledgement, MovementCommitted, PlayerAvailability, PlayerFlags,
     PlayerHandle, PlayerIdentity, PlayerMechanicsState, PlayerSnapshot, PlayerStateImage,
     QuitDisposition, QuitEvent, SourceActorObservation, SourceActorOperation, SourceActorPhase,
-    SourceActorPhysical, SourceActorStatus, SourceFence, SourceFenceStatus, StateCommit,
-    StateError, StateOperation, StateStatus, StateValues, Task, TaskStatus, TravelAcknowledgement,
-    TravelError, TravelLocation, TravelMoved, TravelOutcome, TravelResult, Vec3, WorldHandle,
+    SourceActorPhysical, SourceActorStatus, SourceFence, SourceFenceStatus, SourceRebindCommit,
+    SourceRebindFailure, SourceRebindOperation, SourceRebindResult, SourceRebindStatus,
+    StateCommit, StateError, StateOperation, StateStatus, StateValues, Task, TaskStatus,
+    TravelAcknowledgement, TravelError, TravelLocation, TravelMoved, TravelOutcome, TravelResult,
+    Vec3, WorldHandle,
 };
 pub use raw::{
     BlockClick, BlockCommitted, BlockFace, BlockHeldItems, BlockOperationKind, BlockProperty,

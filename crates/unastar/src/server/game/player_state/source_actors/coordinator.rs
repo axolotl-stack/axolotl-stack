@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 use std::sync::{Arc, mpsc};
 
 mod live;
+pub(crate) mod rebind;
 pub(crate) use live::{LiveSource, pending, pending_account};
 
 /// Definite rejection is distinct from a write whose durable result must be reconciled.
@@ -210,6 +211,9 @@ pub(crate) enum Action {
     Retire,
 }
 pub(crate) enum Intent {
+    RetireRebind {
+        operation: Arc<rebind::Operation>,
+    },
     Live {
         player: Entity,
         lineage: crate::plugin::manager::players::PlayerLineage,
@@ -261,6 +265,7 @@ pub(crate) fn prepare(
         return Err(Error::NotInstalled);
     }
     let reference = match &intent {
+        Intent::RetireRebind { operation } => operation.source.reference.clone(),
         Intent::Live { reference, .. }
         | Intent::Seal { reference, .. }
         | Intent::Inspect(reference)
@@ -339,6 +344,11 @@ struct Failure {
     uncertain: bool,
 }
 enum Apply {
+    RetireRebind {
+        player: Entity,
+        hold: quarantine::Handle,
+        operation: Arc<rebind::Operation>,
+    },
     Live,
     Inspect,
     Seal {
@@ -374,7 +384,7 @@ pub(crate) fn install(
 ) -> Result<(), super::super::super::inventory_effects::EffectError> {
     let world = server.ecs.world_mut();
     if world.contains_resource::<Coordinator>() {
-        return Ok(());
+        return rebind::install(server);
     }
     let writer = super::super::super::inventory_effects::prepare_shared_writer(world)?;
     let (tx, rx) = mpsc::channel();
@@ -396,7 +406,7 @@ pub(crate) fn install(
         .ecs
         .schedule_mut()
         .add_systems(super::residency::motion.in_set(crate::ecs::PhysicsSet));
-    Ok(())
+    rebind::install(server)
 }
 
 /// Requests enter the router only after every guest borrow and manager guard has been released.
@@ -506,7 +516,7 @@ impl Drop for Reply {
 fn body(world: &World, observed: &Operation) -> Result<(Entity, Arc<Observation>), Error> {
     let observation = observed.observation().ok_or(Error::Conflict)?;
     let player = observed.player(world).ok_or(Error::SourceGone)?;
-    if live::pending(world, player) {
+    if crate::server::game::player_state::source_actors::pending(world, player) {
         return Err(Error::Busy);
     }
     Ok((player, observation))
@@ -521,6 +531,9 @@ fn run(router: &mut crate::server::worlds::DimensionRouter, prepared: Prepared) 
     }
     let dimension = operation.reference.dimension;
     let allowed = match &prepared.intent {
+        Intent::RetireRebind { operation } => {
+            Some((operation.source.world, operation.source_player))
+        }
         Intent::Seal { player, .. } | Intent::Terminal { player, .. } => {
             Some((operation.world, *player))
         }
@@ -539,7 +552,7 @@ fn run(router: &mut crate::server::worlds::DimensionRouter, prepared: Prepared) 
             allowed,
             matches!(
                 prepared.intent,
-                Intent::Terminal { .. } | Intent::Seal { .. }
+                Intent::Terminal { .. } | Intent::Seal { .. } | Intent::RetireRebind { .. }
             ),
         )
     {
@@ -601,11 +614,17 @@ enum Work {
         snapshot: Arc<PlayerSnapshot>,
         proof: SourceProof,
     },
+    TerminalAfterHandoff {
+        snapshot: Arc<PlayerSnapshot>,
+        proof: SourceProof,
+        handoff: crate::storage::source::SourceHandoff,
+    },
 }
 
 /// Active retirement freezes the genuine current state before the durable write starts.
 fn prepare_work(world: &mut World, intent: &Intent) -> Result<(Work, Apply), Error> {
     match intent {
+        Intent::RetireRebind { operation } => rebind::prepare_retirement(world, operation),
         Intent::Live { .. } => Err(Error::InvalidState),
         Intent::Terminal {
             player,
@@ -721,7 +740,9 @@ fn prepare_work(world: &mut World, intent: &Intent) -> Result<(Work, Apply), Err
                     Apply::RetireAbsent,
                 ));
             };
-            if world.get::<TerminalPending>(player).is_some() || live::pending(world, player) {
+            if world.get::<TerminalPending>(player).is_some()
+                || crate::server::game::player_state::source_actors::pending(world, player)
+            {
                 return Err(Error::Busy);
             }
             if !data.source.phase.unresolved() {
@@ -931,7 +952,9 @@ impl Work {
             .ok_or_else(|| fail(Error::Conflict))?;
         let size = match &self {
             Self::Seal(snapshot, _) | Self::Live(snapshot, _) => bytes(&snapshot.data),
-            Self::Terminal { snapshot, .. } => bytes(&snapshot.data),
+            Self::Terminal { snapshot, .. } | Self::TerminalAfterHandoff { snapshot, .. } => {
+                bytes(&snapshot.data)
+            }
             Self::Transition {
                 snapshot: Some(snapshot),
                 ..
@@ -944,6 +967,10 @@ impl Work {
                 .ok_or_else(|| fail(Error::LimitExceeded))?,
         )
         .map_err(fail)?;
+        let terminal_handoff = match &self {
+            Self::TerminalAfterHandoff { handoff, .. } => Some(handoff.clone()),
+            _ => None,
+        };
         let (mut candidate, mut source, expected, label) = match self {
             Self::Live(snapshot, proof) => {
                 let mut data = snapshot.data.clone();
@@ -1087,11 +1114,18 @@ impl Work {
                     label,
                 )
             }
-            Self::Terminal { snapshot, proof } => {
+            Self::Terminal { snapshot, proof }
+            | Self::TerminalAfterHandoff {
+                snapshot, proof, ..
+            } => {
                 let actual = current.as_ref().ok_or_else(|| fail(Error::NotOwned))?;
                 let mut source = validate_reference(actual, reference).map_err(fail)?;
                 if !source.matches(&proof)
-                    || source.phase != SourcePhase::Active
+                    || !(source.phase == SourcePhase::Active
+                        || (source.phase == SourcePhase::Transferred
+                            && terminal_handoff
+                                .as_ref()
+                                .is_some_and(|handoff| source.handoff.as_ref() == Some(handoff))))
                     || snapshot.data.inventory_revision != actual.inventory_revision
                 {
                     return Err(fail(Error::Conflict));
@@ -1099,6 +1133,7 @@ impl Work {
                 source.generation = generation;
                 source.sample = 0;
                 source.phase = SourcePhase::Terminal;
+                source.handoff = None;
                 source.supplement = Some(snapshot.supplement());
                 let mut data = snapshot.data.clone();
                 data.game_mode = snapshot.base_game_mode.unwrap_or(data.game_mode);
@@ -1117,10 +1152,24 @@ impl Work {
         use sha2::Digest;
         let encoded = bounded_encode(&(&candidate, &source)).map_err(fail)?;
         let hash = sha2::Sha256::digest(&encoded).into();
-        let written = writer
-            .commit_source(reference.uuid, &key, hash, candidate, expected, source)
-            .await
-            .map_err(write_error)?;
+        let written = if let Some(handoff) = terminal_handoff {
+            writer
+                .commit_handoff_terminal(
+                    reference.uuid,
+                    &key,
+                    hash,
+                    candidate,
+                    expected.ok_or_else(|| fail(Error::Conflict))?,
+                    source,
+                    handoff,
+                )
+                .await
+        } else {
+            writer
+                .commit_source(reference.uuid, &key, hash, candidate, expected, source)
+                .await
+        }
+        .map_err(write_error)?;
         if written.data.inventory_effects.get(&key) != Some(&written.effect.record) {
             writer.require_recovery(reference.uuid);
             return Err(Failure {
@@ -1200,6 +1249,9 @@ pub(crate) fn defer_death(
     cause: crate::entity::player_life::death::DeathCause,
     attribution: crate::entity::damage::DamageAttribution,
 ) -> bool {
+    if rebind::defer_death(world, player, cause, attribution) {
+        return true;
+    }
     if live::defer_death(world, player, cause, attribution) {
         return true;
     }
@@ -1375,6 +1427,15 @@ fn apply(router: &mut crate::server::worlds::DimensionRouter, mut completion: Co
     }
     let mut actor = None;
     let applied = match completion.action {
+        Apply::RetireRebind {
+            player,
+            hold,
+            operation: rebound,
+        } if quarantine::matches(world, &hold) => {
+            world.despawn(player);
+            rebind::retired(world, &rebound, &observed);
+            true
+        }
         Apply::Live => {
             let (actual, applied) = live::apply(world, &operation, &observed);
             actor = actual;

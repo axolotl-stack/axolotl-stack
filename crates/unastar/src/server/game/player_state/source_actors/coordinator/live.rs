@@ -75,7 +75,7 @@ pub(super) fn accept(world: &mut World, operation: &Arc<Operation>) -> Result<()
     if !state.epoch_matches(world) {
         return Err(Error::Conflict);
     }
-    if pending(world, player)
+    if crate::server::game::player_state::source_actors::pending(world, player)
         || world.get::<Dead>(player).is_some()
         || crate::server::game::inventory_effects::is_quarantined(world, player)
         || crate::server::game::player_events::initial_state_pending(world, player)

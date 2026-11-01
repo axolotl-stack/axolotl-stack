@@ -793,17 +793,28 @@ fn close_window(world: &mut World, player: Entity) {
 
 /// Replace the client's known effect set and preserve each snapshot's particle flags.
 fn send_effects(world: &World, player: Entity, old: &BTreeSet<u8>, snapshot: &PlayerSnapshot) {
-    if super::player_events::initial_state_pending(world, player) {
-        return;
+    if !super::player_events::initial_state_pending(world, player)
+        && let Some(session) = world.get::<PlayerSession>(player)
+    {
+        for packet in effect_packets(world, player, old, snapshot) {
+            session.send(packet);
+        }
     }
-    let (Some(session), Some(runtime)) = (
-        world.get::<PlayerSession>(player),
-        world.get::<RuntimeEntityId>(player),
-    ) else {
-        return;
+}
+
+/// Build owned effects before reserving publication capacity for a complete initial state.
+fn effect_packets(
+    world: &World,
+    player: Entity,
+    old: &BTreeSet<u8>,
+    snapshot: &PlayerSnapshot,
+) -> Vec<jolyne::valentine::McpePacket> {
+    let Some(runtime) = world.get::<RuntimeEntityId>(player) else {
+        return Vec::new();
     };
+    let mut packets = Vec::new();
     for id in old {
-        session.send(
+        packets.push(
             MobEffectPacket {
                 target_runtime_id: ActorRuntimeId {
                     actor_runtime_id: runtime.0 as u64,
@@ -820,7 +831,7 @@ fn send_effects(world: &World, player: Entity, old: &BTreeSet<u8>, snapshot: &Pl
         );
     }
     for effect in &snapshot.effects {
-        session.send(
+        packets.push(
             MobEffectPacket {
                 target_runtime_id: ActorRuntimeId {
                     actor_runtime_id: runtime.0 as u64,
@@ -840,6 +851,7 @@ fn send_effects(world: &World, player: Entity, old: &BTreeSet<u8>, snapshot: &Pl
             .into(),
         );
     }
+    packets
 }
 
 /// Use the connection's own input timeline only for effects that change movement.
@@ -851,46 +863,109 @@ fn effect_tick(world: &World, player: Entity, effect: u8) -> PlayerInputTick {
     }
 }
 
+/// Construct native life presentation without sending or opening gameplay lifecycle UI.
+fn life_packet(
+    world: &World,
+    player: Entity,
+    snapshot: &PlayerSnapshot,
+) -> Option<jolyne::valentine::McpePacket> {
+    let runtime = world.get::<RuntimeEntityId>(player)?;
+    Some(
+        ActorEventPacket {
+            target_runtime_id: ActorRuntimeId {
+                actor_runtime_id: runtime.0 as u64,
+            },
+            event_id: if snapshot.dead {
+                jolyne::valentine::EnumsActorEvent::Death
+            } else {
+                jolyne::valentine::EnumsActorEvent::SpawnAlive
+            },
+            data: 0,
+            fire_at_position: None,
+        }
+        .into(),
+    )
+}
+
+/// Construct the exact current velocity on the original native input timeline.
+fn motion_packet(
+    world: &World,
+    player: Entity,
+    snapshot: &PlayerSnapshot,
+) -> Option<jolyne::valentine::McpePacket> {
+    let runtime = world.get::<RuntimeEntityId>(player)?;
+    Some(
+        SetActorMotionPacket {
+            target_runtime_id: ActorRuntimeId {
+                actor_runtime_id: runtime.0 as u64,
+            },
+            motion: Vec3 {
+                x: snapshot.velocity[0] as f32,
+                y: snapshot.velocity[1] as f32,
+                z: snapshot.velocity[2] as f32,
+            },
+            tick: crate::entity::components::input_tick_of(world, player),
+        }
+        .into(),
+    )
+}
+
 /// Synchronize life-state presentation and captured velocity without gameplay callbacks.
 fn send_life_and_motion(world: &World, player: Entity, snapshot: &PlayerSnapshot) {
     if super::player_events::initial_state_pending(world, player) {
         return;
     }
-    let Some(runtime) = world.get::<RuntimeEntityId>(player) else {
-        return;
-    };
-    let packet = ActorEventPacket {
-        target_runtime_id: ActorRuntimeId {
-            actor_runtime_id: runtime.0 as u64,
-        },
-        event_id: if snapshot.dead {
-            jolyne::valentine::EnumsActorEvent::Death
-        } else {
-            jolyne::valentine::EnumsActorEvent::SpawnAlive
-        },
-        data: 0,
-        fire_at_position: None,
-    };
-    crate::entity::player_life::send_to_player_and_viewers(world, player, &packet.into());
-    if let Some(session) = world.get::<PlayerSession>(player) {
-        session.send(
-            SetActorMotionPacket {
-                target_runtime_id: ActorRuntimeId {
-                    actor_runtime_id: runtime.0 as u64,
-                },
-                motion: Vec3 {
-                    x: snapshot.velocity[0] as f32,
-                    y: snapshot.velocity[1] as f32,
-                    z: snapshot.velocity[2] as f32,
-                },
-                tick: crate::entity::components::input_tick_of(world, player),
-            }
-            .into(),
-        );
+    if let Some(packet) = life_packet(world, player, snapshot) {
+        crate::entity::player_life::send_to_player_and_viewers(world, player, &packet);
+    }
+    if let Some(session) = world.get::<PlayerSession>(player)
+        && let Some(packet) = motion_packet(world, player, snapshot)
+    {
+        session.send(packet);
     }
     if snapshot.dead {
         crate::entity::player_life::respawn::open_respawn_screen(world, player);
     }
+}
+
+/// Complete a living actor's initial raw projection before any channel publication.
+/// This constructs values only; it cannot move state or bypass an admission hold.
+pub(crate) fn live_initial_packets(
+    world: &World,
+    player: Entity,
+) -> Result<Vec<jolyne::valentine::McpePacket>, SnapshotError> {
+    let snapshot = capture(world, player)?;
+    if snapshot.dead || world.get::<PlayerSession>(player).is_none() {
+        return Err(SnapshotError::MissingPlayer);
+    }
+    let mut packets = vec![crate::command::exec::player_teleport_packet(
+        world,
+        player,
+        DVec3::from_array(snapshot.data.position),
+        snapshot.data.rotation[0],
+        snapshot.data.rotation[1],
+    )];
+    packets.extend(effect_packets(world, player, &BTreeSet::new(), &snapshot));
+    packets.extend(life_packet(world, player, &snapshot));
+    packets.extend(motion_packet(world, player, &snapshot));
+    Ok(packets)
+}
+
+/// Mark only caches and chunk ownership after the complete initial projection was sent.
+pub(crate) fn note_live_initial_sent(world: &mut World, player: Entity) {
+    let position = world.get::<Position>(player).map(|position| position.0);
+    if let Some(position) = position
+        && let Some(mut loader) = world.get_mut::<crate::world::ecs::ChunkLoader>(player)
+    {
+        loader.move_to(
+            (position.x / 16.0).floor() as i32,
+            (position.z / 16.0).floor() as i32,
+        );
+    }
+    let sent = world
+        .get::<Effects>(player)
+        .map_or_else(SentEffects::default, SentEffects::sent);
+    world.entity_mut(player).insert(sent);
 }
 
 /// Convert structural and item-resolution failures to a stable public error.

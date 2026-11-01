@@ -115,16 +115,20 @@ pub(crate) fn abilities_packet(
     }
 }
 
+/// Owned packet construction is separate from atomic channel reservation.
+pub(crate) struct InitialBatch {
+    pub(crate) packets: Vec<McpePacket>,
+    pub(crate) stamp: crate::plugin::manager::commands::InitialStamp,
+}
+
 impl GameServer {
     /// Send all join packets to a newly spawned player.
-    pub(super) fn send_join_packets(&self, entity: bevy_ecs::entity::Entity) -> bool {
+    /// Construct the real actor's initial projection without publishing a partial batch.
+    pub(crate) fn initial_packet_batch(&self, entity: Entity) -> Option<InitialBatch> {
         let world = self.ecs.world();
-        let session = match world.get::<PlayerSession>(entity) {
-            Some(s) => s,
-            None => return false,
-        };
+        world.get::<PlayerSession>(entity)?;
         if !super::player_events::initial_state_ready(world, entity) {
-            return false;
+            return None;
         }
         let mut packets = Vec::new();
         let runtime_id = world
@@ -235,13 +239,24 @@ impl GameServer {
 
         // Creative content is sent via WorldTemplate during the StartGame sequence
         // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.
-        let Ok(permits) = session.outbound_tx.try_reserve_many(packets.len()) else {
+        Some(InitialBatch { packets, stamp })
+    }
+
+    pub(super) fn send_join_packets(&self, entity: Entity) -> bool {
+        let Some(batch) = self.initial_packet_batch(entity) else {
             return false;
         };
-        for (permit, packet) in permits.zip(packets) {
+        let world = self.ecs.world();
+        let Some(session) = world.get::<PlayerSession>(entity) else {
+            return false;
+        };
+        let Ok(permits) = session.outbound_tx.try_reserve_many(batch.packets.len()) else {
+            return false;
+        };
+        for (permit, packet) in permits.zip(batch.packets) {
             permit.send(packet);
         }
-        crate::plugin::manager::commands::note_initial_packet(world, entity, stamp);
+        crate::plugin::manager::commands::note_initial_packet(world, entity, batch.stamp);
         true
     }
 }

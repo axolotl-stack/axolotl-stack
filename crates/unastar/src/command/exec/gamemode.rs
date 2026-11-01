@@ -13,7 +13,7 @@ use jolyne::valentine::types::ActorUniqueId;
 
 /// The durable base mode while `GameMode` carries a temporary effective mode.
 #[derive(bevy_ecs::prelude::Component)]
-struct ModeOverride {
+pub(crate) struct ModeOverride {
     base: GameMode,
 }
 

@@ -11,7 +11,7 @@ use std::sync::{Arc, Weak};
 
 #[path = "commands/publication.rs"]
 mod publication;
-pub(crate) use publication::{initial_packet, note_initial_packet};
+pub(crate) use publication::{Stamp as InitialStamp, initial_packet, note_initial_packet};
 
 const MAX_ROOTS: usize = 4096;
 const MAX_LINE_BYTES: usize = 16_384;

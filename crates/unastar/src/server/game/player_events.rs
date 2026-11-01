@@ -15,6 +15,7 @@ use crate::entity::components::{PlayerSession, PlayerUuid};
 mod initial_state;
 pub(crate) use initial_state::{
     InitialStatePublished, initial_state_ready, mark_initial_state_published, ready_initial_states,
+    take_ready_initial_state,
 };
 pub use initial_state::{
     PendingInitialState, defer_initial_state, initial_state_pending, release_initial_state,

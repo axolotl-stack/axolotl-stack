@@ -88,6 +88,8 @@ pub struct HostContext {
     states: players::StateRequests,
     state_sources: players::StateSources,
     source_actors: players::SourceActorRequests,
+    source_rebinds: players::source_rebind::Requests,
+    rebind_results: std::sync::Arc<players::source_rebind::Results>,
     mechanics_owner: std::sync::Arc<()>,
     pending_connection_closes: Vec<connection_control::Request>,
     pending_block_edits: Vec<players::BlockEditRequest>,
@@ -164,6 +166,8 @@ impl HostContext {
             states: Default::default(),
             state_sources: Default::default(),
             source_actors: Default::default(),
+            source_rebinds: Default::default(),
+            rebind_results: Default::default(),
             mechanics_owner: std::sync::Arc::new(()),
             pending_connection_closes: Vec::new(),
             pending_block_edits: Vec::new(),
@@ -307,6 +311,7 @@ pub(super) fn finish_invocation(
     commands::finish_invocation(context, succeeded);
     players::finish_inventory_invocation(context, world, succeeded);
     players::finish_admission_invocation(context, world, succeeded);
+    players::source_rebind::finish(context, world, succeeded);
 
     ui::finish_invocation(context, world, succeeded);
     views::finish_invocation(context, world, succeeded);

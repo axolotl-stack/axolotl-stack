@@ -94,6 +94,15 @@ impl HostContext {
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostAdmissionHold for HostContext {
+    fn rebind_source(
+        &mut self,
+        hold: Resource<wit::AdmissionHold>,
+        tx: Resource<wit::WorldTx>,
+        source: Resource<wit::SourceActorOperation>,
+        correlation: u64,
+    ) -> Result<Resource<wit::SourceRebindOperation>, wit::StateError> {
+        self.stage_source_rebind(hold.rep(), tx.rep(), source.rep(), correlation)
+    }
     fn submit_state(
         &mut self,
         hold: Resource<wit::AdmissionHold>,

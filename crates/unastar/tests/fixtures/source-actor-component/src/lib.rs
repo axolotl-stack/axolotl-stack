@@ -18,6 +18,7 @@ struct State {
     target: Option<raw::PlayerHandle>,
     admission: Option<raw::AdmissionHold>,
     transfer: Option<StateOperation>,
+    rebind: Option<raw::SourceRebindOperation>,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 
@@ -38,7 +39,11 @@ fn inspect(tx: &raw::WorldTx, state: &mut State) {
     } else {
         "sealed"
     };
-    state.operation = Some(archive(key).source(tx).unwrap());
+    state.operation = Some(
+        unastar_api::WorldTx::__from_borrowed(tx)
+            .inspect_source(&archive(key))
+            .unwrap(),
+    );
     state.phase = 20;
 }
 
@@ -61,7 +66,7 @@ impl Plugin for Fixture {
     }
     fn on_player_admission(_tx: &raw::WorldTx, player: &raw::Player) -> AdmissionDecision {
         STATE.with_borrow_mut(|state| {
-            if matches!(state.mode, 6 | 10 | 38) {
+            if matches!(state.mode, 6 | 10 | 38 | 40 | 41 | 43 | 44 | 45) {
                 state.admission = Some(player.defer_admission().unwrap());
                 state.target = Some(player.to_handle().unwrap());
                 AdmissionDecision::Deferred
@@ -77,14 +82,23 @@ impl Plugin for Fixture {
             log("source:armed");
         });
     }
-    fn on_player_damaged(_tx: &raw::WorldTx, _player: &raw::Player, _damage: raw::DamageCommitted) {
+    fn on_player_damaged(_tx: &raw::WorldTx, player: &raw::Player, _damage: raw::DamageCommitted) {
         log("source:damaged");
+        STATE.with_borrow(|state| {
+            if state.mode == 40 && player.vitals().is_ok_and(|vitals| vitals.health > 0.0) {
+                let actual = player.inventory_stack(raw::InventoryArea::Main, 0).unwrap();
+                drop(player.consume_selected(&actual, 1).unwrap());
+            }
+        });
     }
     fn on_player_death(_tx: &raw::WorldTx, _death: raw::DeathCommitted) {
         log("source:death");
     }
     fn on_player_quit(tx: &raw::WorldTx, event: QuitEvent) -> QuitDisposition {
         STATE.with_borrow_mut(|state| {
+            if state.mode >= 40 && !event.previously_admitted {
+                return QuitDisposition::Remove;
+            }
             assert!(event.previously_admitted);
             let player = tx.player(state.original.as_ref().unwrap()).unwrap();
             if state.mode == 11 {
@@ -123,6 +137,16 @@ impl Plugin for Fixture {
             QuitDisposition::RetainEntity
         })
     }
+    fn on_source_rebind_result(event: raw::SourceRebindResult) {
+        assert!(!event.request_id.is_empty());
+        assert_eq!(event.correlation, 901);
+        match event.status {
+            raw::SourceRebindStatus::Acknowledged(_) => log("rebind:owned-ack"),
+            raw::SourceRebindStatus::Rebound(_) => log("rebind:owned-rebound"),
+            raw::SourceRebindStatus::Terminal(_) => log("rebind:owned-terminal"),
+            _ => (),
+        }
+    }
     fn on_tick(_tick: u64) {
         STATE.with_borrow(|state| {
             if !matches!(state.phase, 12 | 22 | 24 | 32 | 42 | 52 | 74)
@@ -134,6 +158,181 @@ impl Plugin for Fixture {
     }
     fn on_world_task(tx: &raw::WorldTx, _task: u64, _callback: u64) {
         STATE.with_borrow_mut(|state| match state.phase {
+            0 if matches!(state.mode, 42 | 46) => {
+                let intent = unastar_api::storage::read("rebind-intent")
+                    .unwrap()
+                    .unwrap();
+                let id = String::from_utf8(intent.bytes).unwrap();
+                state.rebind = Some(
+                    unastar_api::WorldTx::__from_borrowed(tx)
+                        .inspect_source_rebind(&archive("sealed"), &id)
+                        .unwrap(),
+                );
+                state.phase = 83;
+            }
+            83 => match state.rebind.as_ref().unwrap().status().unwrap() {
+                raw::SourceRebindStatus::Queued | raw::SourceRebindStatus::Staged => (),
+                raw::SourceRebindStatus::Acknowledged(commit) => {
+                    assert!(!commit.live_applied);
+                    assert!(
+                        unastar_api::WorldTx::__from_borrowed(tx)
+                            .rebound_player(state.rebind.as_ref().unwrap())
+                            .unwrap()
+                            .is_none()
+                    );
+                    assert!(matches!(
+                        unastar_api::WorldTx::__from_borrowed(tx)
+                            .publish_source_rebind(state.rebind.as_ref().unwrap()),
+                        Err(raw::StateError::SourceGone)
+                    ));
+                    state.operation = Some(
+                        unastar_api::WorldTx::__from_borrowed(tx)
+                            .inspect_source(&archive("sealed"))
+                            .unwrap(),
+                    );
+                    state.phase = 84;
+                }
+                raw::SourceRebindStatus::Retired(commit) if state.mode == 46 => {
+                    assert!(!commit.live_applied);
+                    assert!(
+                        unastar_api::WorldTx::__from_borrowed(tx)
+                            .rebound_player(state.rebind.as_ref().unwrap())
+                            .unwrap()
+                            .is_none()
+                    );
+                    assert!(matches!(
+                        unastar_api::WorldTx::__from_borrowed(tx)
+                            .publish_source_rebind(state.rebind.as_ref().unwrap()),
+                        Err(raw::StateError::SourceGone)
+                    ));
+                    state.operation = Some(
+                        unastar_api::WorldTx::__from_borrowed(tx)
+                            .inspect_source(&archive("rebind-retired"))
+                            .unwrap(),
+                    );
+                    state.phase = 88;
+                }
+                raw::SourceRebindStatus::Unowned => {
+                    state.phase = 22;
+                    log("rebind:cold-unowned");
+                }
+                other => panic!("rebind readback: {other:?}"),
+            },
+            84 => match state.operation.as_ref().unwrap().status().unwrap() {
+                SourceActorStatus::Staged | SourceActorStatus::Queued => (),
+                SourceActorStatus::Observed(observed) => {
+                    assert_eq!(observed.phase, SourceActorPhase::Transferred);
+                    state.operation = Some(
+                        unastar_api::WorldTx::__from_borrowed(tx)
+                            .recreate_source(state.operation.as_ref().unwrap())
+                            .unwrap(),
+                    );
+                    state.phase = 85;
+                }
+                other => panic!("closed source readback: {other:?}"),
+            },
+            85 => match state.operation.as_ref().unwrap().status().unwrap() {
+                SourceActorStatus::Staged | SourceActorStatus::Queued => (),
+                SourceActorStatus::Unowned => {
+                    state.phase = 22;
+                    log("rebind:cold-ack");
+                }
+                other => panic!("closed source recreation: {other:?}"),
+            },
+            88 => match state.operation.as_ref().unwrap().status().unwrap() {
+                SourceActorStatus::Staged | SourceActorStatus::Queued => (),
+                SourceActorStatus::Observed(observed) => {
+                    assert_eq!(observed.phase, SourceActorPhase::Retired);
+                    assert!(!observed.live_applied);
+                    assert!(
+                        state
+                            .operation
+                            .as_ref()
+                            .unwrap()
+                            .player(tx)
+                            .unwrap()
+                            .is_none()
+                    );
+                    state.phase = 22;
+                    log("rebind:cold-retired");
+                }
+                other => panic!("retired source readback: {other:?}"),
+            },
+            87 => match state.operation.as_ref().unwrap().status().unwrap() {
+                SourceActorStatus::Staged | SourceActorStatus::Queued => (),
+                SourceActorStatus::Observed(observed) => {
+                    assert_eq!(observed.phase, SourceActorPhase::Retired);
+                    assert!(observed.live_applied);
+                    drop(
+                        state
+                            .operation
+                            .as_ref()
+                            .unwrap()
+                            .archive("rebind-retired")
+                            .unwrap(),
+                    );
+                    state.phase = 22;
+                    log("rebind:retired");
+                }
+                other => panic!("rebind retirement: {other:?}"),
+            },
+            80 => match state.rebind.as_ref().unwrap().status().unwrap() {
+                raw::SourceRebindStatus::Queued | raw::SourceRebindStatus::Staged => (),
+                raw::SourceRebindStatus::Acknowledged(commit) => {
+                    assert!(!commit.live_applied);
+                    unastar_api::storage::compare_exchange(
+                        "rebind-accepted",
+                        None,
+                        &commit.receipt.revision.to_le_bytes(),
+                    )
+                    .unwrap();
+                    if state.mode == 45 {
+                        state.operation = Some(
+                            unastar_api::WorldTx::__from_borrowed(tx)
+                                .retire_source_rebind(state.rebind.as_ref().unwrap())
+                                .unwrap(),
+                        );
+                        state.phase = 87;
+                        return;
+                    }
+                    if state.mode == 44 {
+                        panic!("controlled accepted rebind failure");
+                    }
+                    unastar_api::WorldTx::__from_borrowed(tx)
+                        .publish_source_rebind(state.rebind.as_ref().unwrap())
+                        .unwrap();
+                    state.phase = 81;
+                    log("rebind:publish-staged");
+                }
+                raw::SourceRebindStatus::Terminal(_) => {
+                    state.phase = 22;
+                    log("rebind:terminal");
+                }
+                other => panic!("rebind acknowledgement: {other:?}"),
+            },
+            81 => match state.rebind.as_ref().unwrap().status().unwrap() {
+                raw::SourceRebindStatus::Acknowledged(_) => (),
+                raw::SourceRebindStatus::Rebound(commit) => {
+                    assert!(commit.live_applied);
+                    let player = unastar_api::WorldTx::__from_borrowed(tx)
+                        .rebound_player(state.rebind.as_ref().unwrap())
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(player.identity().unwrap().connection_id, Some(2));
+                    state.phase = 22;
+                    log("rebind:published");
+                }
+                raw::SourceRebindStatus::Terminal(_) => {
+                    state.phase = 22;
+                    log("rebind:terminal");
+                }
+                raw::SourceRebindStatus::Failed(failure) => {
+                    assert!(!failure.receipt.request_hash.is_empty());
+                    state.phase = 22;
+                    log("rebind:failed-publication");
+                }
+                other => panic!("rebind publication: {other:?}"),
+            },
             0 if state.mode == 38 => {
                 let desired = archive("origin")
                     .state_image()
@@ -270,6 +469,33 @@ impl Plugin for Fixture {
             20 => match state.operation.as_ref().unwrap().status().unwrap() {
                 SourceActorStatus::Observed(observation) => {
                     assert!(!observation.live_applied);
+                    if matches!(state.mode, 40 | 41 | 43 | 44 | 45) {
+                        assert_eq!(observation.phase, SourceActorPhase::Active);
+                        state.original = unastar_api::WorldTx::__from_borrowed(tx)
+                            .source_player(state.operation.as_ref().unwrap())
+                            .unwrap();
+                        state.rebind = Some(
+                            state
+                                .admission
+                                .as_ref()
+                                .unwrap()
+                                .rebind_source(tx, state.operation.as_ref().unwrap(), 901)
+                                .unwrap(),
+                        );
+                        let id = state.rebind.as_ref().unwrap().request_id().unwrap();
+                        unastar_api::storage::compare_exchange(
+                            "rebind-intent",
+                            None,
+                            id.as_bytes(),
+                        )
+                        .unwrap();
+                        if state.mode == 41 {
+                            panic!("controlled provisional rebind failure");
+                        }
+                        state.phase = 80;
+                        log("rebind:staged");
+                        return;
+                    }
                     if state.mode == 2 {
                         state.phase = 22;
                         log("source:observed");
@@ -285,18 +511,27 @@ impl Plugin for Fixture {
                         state.phase = 61;
                     } else if matches!(state.mode, 3 | 17) {
                         assert_eq!(observation.physical, SourceActorPhysical::Absent);
-                        state.operation =
-                            Some(state.operation.as_ref().unwrap().recreate(tx).unwrap());
+                        state.operation = Some(
+                            unastar_api::WorldTx::__from_borrowed(tx)
+                                .recreate_source(state.operation.as_ref().unwrap())
+                                .unwrap(),
+                        );
                         state.phase = 21;
                     } else if matches!(state.mode, 4 | 10) {
                         state.source =
                             Some(state.operation.as_ref().unwrap().source_fence(tx).unwrap());
-                        state.operation =
-                            Some(state.operation.as_ref().unwrap().activate(tx).unwrap());
+                        state.operation = Some(
+                            unastar_api::WorldTx::__from_borrowed(tx)
+                                .activate_source(state.operation.as_ref().unwrap())
+                                .unwrap(),
+                        );
                         state.phase = if state.mode == 10 { 50 } else { 23 };
                     } else if state.mode == 5 {
-                        state.operation =
-                            Some(state.operation.as_ref().unwrap().retire(tx).unwrap());
+                        state.operation = Some(
+                            unastar_api::WorldTx::__from_borrowed(tx)
+                                .retire_source(state.operation.as_ref().unwrap())
+                                .unwrap(),
+                        );
                         state.phase = 31;
                     } else if state.mode == 6
                         && let Some(admission) = &state.admission
@@ -424,7 +659,11 @@ impl Plugin for Fixture {
                 SourceActorStatus::Observed(observation) => {
                     assert_eq!(observation.phase, SourceActorPhase::Retired);
                     assert_eq!(observation.physical, SourceActorPhysical::Absent);
-                    state.operation = Some(state.operation.as_ref().unwrap().retire(tx).unwrap());
+                    state.operation = Some(
+                        unastar_api::WorldTx::__from_borrowed(tx)
+                            .retire_source(state.operation.as_ref().unwrap())
+                            .unwrap(),
+                    );
                     state.phase = 33;
                 }
                 SourceActorStatus::Staged | SourceActorStatus::Queued => (),

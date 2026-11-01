@@ -271,6 +271,41 @@ impl AdmissionBook {
         Arc::ptr_eq(&self.0, &other.0)
     }
 
+    /// Observe the aggregate book through one exact component-owned hold.
+    pub(crate) fn status_for_hold(&self, world: &World, hold: HoldId, owner: &str) -> Status {
+        let admission = {
+            let Ok(book) = self.0.lock() else {
+                return Status::Stale;
+            };
+            let Some(entry) = book.holds.get(&hold) else {
+                return Status::Stale;
+            };
+            if entry.owner != owner {
+                return Status::Stale;
+            }
+            entry.admission
+        };
+        self.status(world, admission)
+    }
+
+    /// Native plan failure may close its original admission after a publication vote.
+    pub(crate) fn reject_for_hold(&self, hold: HoldId, owner: &str, text: &str) -> bool {
+        let admission = {
+            let Ok(book) = self.0.lock() else {
+                return false;
+            };
+            let Some(entry) = book.holds.get(&hold) else {
+                return false;
+            };
+            if entry.owner != owner {
+                return false;
+            }
+            entry.admission
+        };
+        self.reject(admission, text);
+        true
+    }
+
     /// Preflight a token without changing its pending state before callback commit.
     pub(crate) fn validate_resolution(
         &self,

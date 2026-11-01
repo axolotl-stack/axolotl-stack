@@ -13,7 +13,7 @@ world unastar-plugin {
     use types.{world-tx, player, vec3, block-pos, access-error, admission-decision, quit-event, quit-disposition, admitted-event, movement-committed, damage-proposal, damage-tuning, damage-committed, death-committed};
     use types.{block-proposal, block-committed};
     use types.{item-action-proposal, item-action-decision, item-action-committed};
-    use types.{travel-result};
+    use types.{travel-result, source-rebind-result};
     use types.{travel-proposal, travel-committed};
 
     export on-load: func();
@@ -22,6 +22,7 @@ world unastar-plugin {
     /// Owned outcome of this component instance's accepted relocation request.
     /// Schedule a retained player/world handle for fresh scoped follow-up work.
     export on-player-travel-result: func(event: travel-result);
+    export on-source-rebind-result: func(event: source-rebind-result);
     /// Final destination authorization before native persistence or movement.
     /// False rejects the actual selected destination, including ordinary projectile teleports.
     export on-player-travel: func(tx: borrow<world-tx>, player: borrow<player>, proposal: travel-proposal) -> bool;

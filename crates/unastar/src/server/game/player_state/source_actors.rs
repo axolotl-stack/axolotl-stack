@@ -6,9 +6,19 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 mod coordinator;
 mod residency;
+pub(crate) use coordinator::rebind;
+/// Accepted persistence work is distinct from a mechanical source hold.
+pub(crate) fn pending(world: &World, player: Entity) -> bool {
+    coordinator::pending(world, player) || rebind::pending(world, player)
+}
+/// All account admission paths serialize against the same real pending actors.
+pub(crate) fn pending_account(world: &World, uuid: uuid::Uuid, xuid: Option<&str>) -> bool {
+    coordinator::pending_account(world, uuid, xuid) || rebind::pending_account(world, uuid, xuid)
+}
+
 pub(crate) use coordinator::{
     Action, Error, Intent, LiveSource, Operation, Phase, Physical, Prepared, Reference, Status,
-    defer_death, install, pending, pending_account, prepare, snapshot_bytes, submit,
+    defer_death, install, prepare, snapshot_bytes, submit,
 };
 
 /// The same actual source hold stays owned by its native actor after guest resources disappear.

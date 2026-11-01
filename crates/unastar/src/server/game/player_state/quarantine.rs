@@ -117,6 +117,12 @@ held_fields! {
     age:Age,cold:FreezingState,mode:GameMode,state:crate::entity::components::PlayerState,input:crate::entity::components::PlayerInput,
     breaking:BreakingState,using:super::super::item_use::ItemUsing,
     food_policy:super::super::hunger::PlayerFoodPolicy,food_timer:super::super::hunger::FoodTimer,
+    mode_base:crate::command::exec::ModeOverride,flight:super::super::flight::FlightOverride,
+    hurt:HurtTimer,last_hurt:LastHurt,fall:PlayerFall,
+    cold_immune:crate::entity::freezing::FreezingImmune,cold_vulnerable:crate::entity::freezing::FreezingVulnerable,
+    speed:crate::entity::components::Speed,metadata:crate::entity::definition::metadata::EntityMetadata,
+    audience:crate::entity::components::ActorAudience,
+    equipment_projection:crate::entity::components::PlayerEquipmentProjection,
 }
 
 #[derive(Component)]
@@ -334,4 +340,79 @@ pub(crate) fn apply(
         return Err(error);
     }
     Ok(true)
+}
+
+/// One synchronous physical move can roll back before any packet or ownership publication.
+/// No provider IO or guest callback is permitted while this provisional move exists.
+pub(crate) struct LiveMove {
+    source: Entity,
+    target: Handle,
+    frozen: Option<Frozen>,
+    target_ground: Option<crate::entity::components::OnGround>,
+}
+impl LiveMove {
+    /// Restore the exact live buffers if publication capacity is unavailable.
+    pub(crate) fn rollback(mut self, world: &mut World) {
+        let actual = Fields::take(world, self.target.player);
+        actual.put(world, self.source);
+        if let Some(ground) = world
+            .entity_mut(self.target.player)
+            .take::<crate::entity::components::OnGround>()
+        {
+            world.entity_mut(self.source).insert(ground);
+        }
+        if let Some(ground) = self.target_ground.take() {
+            world.entity_mut(self.target.player).insert(ground);
+        }
+        let frozen = self.frozen.take().expect("owned target buffers");
+        world.entity_mut(self.target.player).insert(frozen);
+    }
+    /// Canonical ownership and a reserved initial batch authorize the physical move.
+    pub(crate) fn commit(mut self) {
+        let mut frozen = self.frozen.take().expect("owned target buffers");
+        frozen.handle.life.store(RELEASED, Ordering::Release);
+        frozen.fields.take();
+    }
+}
+/// Move current native components, never a historical submitted snapshot. The caller
+/// must commit or roll back before releasing its exclusive world borrow.
+pub(crate) fn move_live(
+    world: &mut World,
+    source: Entity,
+    target: &Handle,
+) -> Result<LiveMove, SnapshotError> {
+    if source == target.player
+        || !matches(world, target)
+        || world
+            .get::<Frozen>(target.player)
+            .is_none_or(|frozen| frozen.role != Role::Target)
+        || super::super::inventory_effects::is_quarantined(world, source)
+        || world.get::<Dead>(source).is_some()
+        || world.get::<PlayerSession>(source).is_some()
+    {
+        return Err(invalid("live source changed before physical move"));
+    }
+    // Complete-source validation occurs while every component still belongs to it.
+    capture(world, source)?;
+    let frozen = world
+        .entity_mut(target.player)
+        .take::<Frozen>()
+        .expect("validated target buffers");
+    let actual = Fields::take(world, source);
+    actual.put(world, target.player);
+    let target_ground = world
+        .entity_mut(target.player)
+        .take::<crate::entity::components::OnGround>();
+    if let Some(ground) = world
+        .entity_mut(source)
+        .take::<crate::entity::components::OnGround>()
+    {
+        world.entity_mut(target.player).insert(ground);
+    }
+    Ok(LiveMove {
+        source,
+        target: target.clone(),
+        frozen: Some(frozen),
+        target_ground,
+    })
 }

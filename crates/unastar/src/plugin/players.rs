@@ -41,6 +41,8 @@ mod items;
 mod mechanics;
 #[path = "players/source_actors.rs"]
 mod source_actors;
+#[path = "players/source_rebind.rs"]
+pub(super) mod source_rebind;
 #[path = "players/state.rs"]
 mod state;
 #[path = "players/state_sources.rs"]
@@ -107,6 +109,7 @@ enum Entry {
     DurableBlockRequest(Arc<world_blocks::DurableState>),
     ContainerPlan(world_blocks::ContainerPlan),
     SourceActorOperation(Arc<crate::server::game::player_state::source_actors::Operation>),
+    SourceRebind(source_rebind::Resource),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.

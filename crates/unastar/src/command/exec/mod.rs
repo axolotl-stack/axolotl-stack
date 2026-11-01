@@ -28,11 +28,12 @@ mod time;
 mod weather;
 mod xp;
 
+pub(crate) use gamemode::{ModeOverride, register_transfer_components, restore_game_mode};
 pub use gamemode::{base_game_mode, mode_override, set_game_mode, set_mode_override};
-pub(crate) use gamemode::{register_transfer_components, restore_game_mode};
 pub use op::OperatorList;
 pub use stop::StopRequested;
 pub use teleport::move_entity;
+pub(crate) use teleport::player_teleport_packet;
 
 use super::registry::CommandRegistry;
 

@@ -135,3 +135,16 @@ pub(crate) fn mark_initial_state_published(world: &mut World, player: Entity) {
     }
     world.entity_mut(player).insert(InitialStatePublished);
 }
+
+/// Consume one exact ready barrier as part of an already reserved native initial batch.
+pub(crate) fn take_ready_initial_state(world: &mut World, player: Entity) -> bool {
+    let ready = world
+        .get::<PendingInitialState>(player)
+        .is_some_and(|pending| pending.ready && pending.matches(world, player))
+        && initial_state_ready(world, player)
+        && !crate::plugin::manager::sessions::blocks_publication(world, player);
+    if ready {
+        world.entity_mut(player).remove::<PendingInitialState>();
+    }
+    ready
+}

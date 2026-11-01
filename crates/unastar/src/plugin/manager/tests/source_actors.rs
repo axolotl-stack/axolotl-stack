@@ -98,6 +98,12 @@ impl Harness {
                 ..Default::default()
             })
             .unwrap();
+        manager
+            .configure_storage(&crate::config::PluginStorageConfig {
+                directory: archives.path().join("storage"),
+                ..Default::default()
+            })
+            .unwrap();
         let manager = Arc::new(Mutex::new(manager));
         PluginManager::attach_to_world(
             manager.clone(),
@@ -127,6 +133,7 @@ impl Harness {
         let mut context = store(&manager.engine, &limits);
         context.data_mut().configuration = vec![mode];
         context.data_mut().archive_registry = manager.archive_registry.clone();
+        context.data_mut().storage_registry = manager.storage_registry.clone();
         let component = Component::from_file(&manager.engine, guest()).unwrap();
         manager.pending.push(PendingPlugin {
             component,
@@ -142,6 +149,7 @@ impl Harness {
                     PluginCapability::ReadPlayers,
                     PluginCapability::ReadInventory,
                     PluginCapability::ItemValues,
+                    PluginCapability::InventoryMechanics,
                     PluginCapability::RestorePlayerState,
                     PluginCapability::PlayerStateArchives,
                     PluginCapability::ScheduleTasks,
@@ -1178,5 +1186,670 @@ async fn actual_component_unowned_provisional_archive_cannot_authorize_held_stat
             .await
             .unwrap()
             .is_none()
+    );
+}
+
+/// Real ownership IO keeps the source vulnerable; publication moves its current native buffers.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_live_rebind_moves_latest_damage_inventory_and_timers_into_reserved_initial_batch()
+ {
+    use crate::entity::components::{Age, Hunger, Position, Velocity};
+    let directory = tempfile::tempdir().unwrap();
+    let provider = Arc::new(SourceAckGate {
+        inner: Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        written: std::sync::atomic::AtomicBool::new(false),
+        release: tokio::sync::Semaphore::new(0),
+    });
+    provider.release.add_permits(1);
+    let mut h = Harness::new(30, provider.clone(), tempfile::tempdir().unwrap(), true);
+    h.prepare_subject();
+    h.retain().await;
+    h.until("source:live-ack").await;
+    let source = h.subject.unwrap();
+    let data = h.stored().await;
+    provider
+        .written
+        .store(false, std::sync::atomic::Ordering::Release);
+    h.load(40);
+    let (target, mut packets) = h.spawn(2, Some(data));
+    h.until("rebind:staged").await;
+    for _ in 0..300 {
+        h.router.tick().await.unwrap();
+        if provider.written.load(std::sync::atomic::Ordering::Acquire) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert!(provider.written.load(std::sync::atomic::Ordering::Acquire));
+    assert!(!player_state::quarantine::is_held(h.world(), source));
+    assert!(player_state::quarantine::is_held(h.world(), target));
+    assert!(packets.try_recv().is_err());
+    h.world_mut()
+        .get_mut::<crate::entity::components::Effects>(source)
+        .unwrap()
+        .add(crate::entity::components::EffectType::SPEED, 1, 600);
+    let age = h.world().get::<Age>(source).unwrap().0;
+    h.world_mut().entity_mut(source).insert((
+        Velocity(glam::DVec3::new(0.05, 0.0, 0.0)),
+        Hunger {
+            food_level: 10,
+            saturation: 0.0,
+            exhaustion: 5.0,
+        },
+        crate::server::game::hunger::PlayerFoodPolicy::default(),
+    ));
+    let damage = crate::entity::player_life::hurt_player(
+        h.world_mut(),
+        source,
+        &Hit {
+            damage: 2.0,
+            cause: ActorDamageCause::Override,
+            attacker: None,
+            by_player: false,
+            knockback_from: None,
+            knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+        },
+    );
+    assert!(damage > 0.0);
+    for _ in 0..5 {
+        h.router.tick().await.unwrap();
+    }
+    let position = h.world().get::<Position>(source).unwrap().0;
+    assert!(h.world().get::<Age>(source).unwrap().0 > age);
+    provider.release.add_permits(1);
+    h.until("rebind:published").await;
+    assert!(h.world().get_entity(source).is_err());
+    assert!(h.world().get::<Health>(target).unwrap().current <= 7.0);
+    assert!(h.world().get::<Age>(target).unwrap().0 > age);
+    assert!(h.world().get::<Hunger>(target).unwrap().food_level < 10);
+    assert!(h.world().get::<Position>(target).unwrap().0.x >= position.x);
+    assert_eq!(
+        h.world().get::<MainInventory>(target).unwrap().0.slots()[0].count,
+        6
+    );
+    assert!(!player_events::initial_state_pending(h.world(), target));
+    let mut encoded = 0;
+    let (mut effect, mut motion, mut position, mut life) = (false, false, false, false);
+    while let Ok(packet) = packets.try_recv() {
+        let mut bytes = bytes::BytesMut::new();
+        packet.data.encode_inner(&mut bytes, 0, 0).unwrap();
+        jolyne::valentine::BorrowedMcpePacket::decode_inner(&mut bytes.freeze()).unwrap();
+        match &packet.data {
+            jolyne::valentine::McpePacketData::MobEffectPacket(value) => {
+                effect |= value.effect_id == 1 && value.effect_duration_ticks > 0
+            }
+            jolyne::valentine::McpePacketData::SetActorMotionPacket(_) => motion = true,
+            jolyne::valentine::McpePacketData::MovePlayerPacket(_) => position = true,
+            jolyne::valentine::McpePacketData::ActorEventPacket(value) => {
+                life |= value.event_id == jolyne::valentine::EnumsActorEvent::SpawnAlive
+            }
+            _ => (),
+        }
+        encoded += 1;
+    }
+    assert!(encoded > 0);
+    assert!(effect && motion && position && life);
+    let row = provider
+        .inner
+        .load(uuid::Uuid::from_u128(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        row.source_actor.as_ref().unwrap().phase,
+        crate::storage::source::SourcePhase::Transferred
+    );
+    assert!(row.restoration_checkpoint.is_some());
+}
+
+/// Genuine death during ownership IO supersedes its live receipt before any publication.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_live_rebind_pending_death_keeps_replacement_unpublished_until_terminal_ack()
+ {
+    let directory = tempfile::tempdir().unwrap();
+    let provider = Arc::new(SourceAckGate {
+        inner: Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        written: std::sync::atomic::AtomicBool::new(false),
+        release: tokio::sync::Semaphore::new(1),
+    });
+    let mut h = Harness::new(30, provider.clone(), tempfile::tempdir().unwrap(), true);
+    h.prepare_subject();
+    h.retain().await;
+    h.until("source:live-ack").await;
+    let source = h.subject.unwrap();
+    let data = h.stored().await;
+    provider
+        .written
+        .store(false, std::sync::atomic::Ordering::Release);
+    h.load(40);
+    let (target, mut packets) = h.spawn(2, Some(data));
+    h.until("rebind:staged").await;
+    for _ in 0..300 {
+        h.router.tick().await.unwrap();
+        if provider.written.load(std::sync::atomic::Ordering::Acquire) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert!(provider.written.load(std::sync::atomic::Ordering::Acquire));
+    let damage = crate::entity::player_life::hurt_player(
+        h.world_mut(),
+        source,
+        &Hit {
+            damage: 100.0,
+            cause: ActorDamageCause::Override,
+            attacker: None,
+            by_player: false,
+            knockback_from: None,
+            knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+        },
+    );
+    assert!(damage > 0.0);
+    assert!(player_state::quarantine::is_held(h.world(), source));
+    provider.release.add_permits(1);
+    for _ in 0..300 {
+        h.router.tick().await.unwrap();
+        if provider
+            .inner
+            .load(uuid::Uuid::from_u128(1))
+            .await
+            .unwrap()
+            .is_some_and(|row| {
+                row.source_actor.is_some_and(|source| {
+                    source.phase == crate::storage::source::SourcePhase::Terminal
+                })
+            })
+        {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert!(packets.try_recv().is_err());
+    assert!(player_events::initial_state_pending(h.world(), target));
+    assert_eq!(
+        h.world_mut()
+            .query::<&crate::entity::components::DroppedItem>()
+            .iter(h.world())
+            .count(),
+        0
+    );
+    provider.release.add_permits(1);
+    h.until("rebind:terminal").await;
+    let row = provider
+        .inner
+        .load(uuid::Uuid::from_u128(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        row.source_actor.as_ref().unwrap().phase,
+        crate::storage::source::SourcePhase::Terminal
+    );
+    assert!(row.inventory.iter().all(|slot| slot.count == 0));
+    assert!(packets.try_recv().is_err());
+    assert!(player_events::initial_state_pending(h.world(), target));
+    assert!(
+        h.world_mut()
+            .query::<&crate::entity::components::DroppedItem>()
+            .iter(h.world())
+            .count()
+            > 0
+    );
+}
+
+/// A persisted generated intent from a failed callback never becomes an ownership ACK.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_live_rebind_trap_intent_cold_readback_has_no_receipt_or_fake_player() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut h = Harness::new(
+        30,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        tempfile::tempdir().unwrap(),
+        true,
+    );
+    h.prepare_subject();
+    h.retain().await;
+    h.until("source:live-ack").await;
+    let source = h.subject.unwrap();
+    let data = h.stored().await;
+    h.load(41);
+    let (target, mut packets) = h.spawn(2, Some(data));
+    let mut failed = false;
+    for _ in 0..300 {
+        if h.router.tick().await.is_err() {
+            failed = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert!(failed);
+    assert!(h.world().get::<Health>(source).is_some());
+    assert!(!player_state::quarantine::is_held(h.world(), source));
+    assert!(!player_state::quarantine::is_held(h.world(), target));
+    assert!(packets.try_recv().is_err());
+    let Harness {
+        router,
+        manager,
+        archives,
+        ..
+    } = h;
+    drop(router);
+    drop(manager);
+    let mut cold = Harness::new(
+        42,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        archives,
+        false,
+    );
+    cold.until("rebind:cold-unowned").await;
+    assert_eq!(
+        cold.world_mut()
+            .query::<&Player>()
+            .iter(cold.world())
+            .count(),
+        0
+    );
+}
+
+/// The post-ACK publication wait is not a protected period for the original body.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_live_rebind_backpressure_rolls_buffers_back_and_keeps_source_attackable()
+{
+    let directory = tempfile::tempdir().unwrap();
+    let provider = Arc::new(SourceAckGate {
+        inner: Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        written: std::sync::atomic::AtomicBool::new(false),
+        release: tokio::sync::Semaphore::new(1),
+    });
+    let mut h = Harness::new(30, provider.clone(), tempfile::tempdir().unwrap(), true);
+    h.prepare_subject();
+    let base_initial_count = h
+        .router
+        .world(0)
+        .unwrap()
+        .initial_packet_batch(h.subject.unwrap())
+        .unwrap()
+        .packets
+        .len();
+    h.retain().await;
+    h.until("source:live-ack").await;
+    let source = h.subject.unwrap();
+    let row = h.stored().await;
+    provider
+        .written
+        .store(false, std::sync::atomic::Ordering::Release);
+    h.load(40);
+    let (target, mut packets) = h.spawn(2, Some(row));
+    h.until("rebind:staged").await;
+    for _ in 0..300 {
+        h.router.tick().await.unwrap();
+        if provider.written.load(std::sync::atomic::Ordering::Acquire) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    let sender = h
+        .world()
+        .get::<PlayerSession>(target)
+        .unwrap()
+        .outbound_tx
+        .clone();
+    let pressure = jolyne::valentine::McpePacket::from(crate::world::clock::clock_registry_packet(
+        *h.world().resource::<crate::world::rules::WorldTime>(),
+    ));
+    while sender.try_send(pressure.clone()).is_ok() {}
+    assert_eq!(sender.capacity(), 0);
+    provider.release.add_permits(1);
+    h.until("rebind:publish-staged").await;
+    for _ in 0..3 {
+        h.router.tick().await.unwrap();
+    }
+    assert!(h.world().get::<Health>(source).is_some());
+    assert!(!player_state::quarantine::is_held(h.world(), source));
+    assert!(player_state::quarantine::is_held(h.world(), target));
+    // Capacity for the base batch alone cannot publish without final effects/position/motion.
+    for _ in 0..base_initial_count {
+        packets.try_recv().unwrap();
+    }
+    assert_eq!(sender.capacity(), base_initial_count);
+    h.router.tick().await.unwrap();
+    assert!(h.world().get::<Health>(source).is_some());
+    assert!(!player_state::quarantine::is_held(h.world(), source));
+    assert!(player_state::quarantine::is_held(h.world(), target));
+    let damage = crate::entity::player_life::hurt_player(
+        h.world_mut(),
+        source,
+        &Hit {
+            damage: 2.0,
+            cause: ActorDamageCause::Override,
+            attacker: None,
+            by_player: false,
+            knockback_from: None,
+            knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+        },
+    );
+    assert!(damage > 0.0);
+    while packets.try_recv().is_ok() {}
+    h.until("rebind:published").await;
+    assert!(h.world().get_entity(source).is_err());
+    assert!(h.world().get::<Health>(target).unwrap().current <= 7.0);
+    assert!(!player_events::initial_state_pending(h.world(), target));
+    let mut projected = false;
+    while let Ok(packet) = packets.try_recv() {
+        let mut bytes = bytes::BytesMut::new();
+        packet.data.encode_inner(&mut bytes, 0, 0).unwrap();
+        let packet = jolyne::valentine::BorrowedMcpePacket::decode_inner(&mut bytes.freeze())
+            .unwrap()
+            .into_owned(jolyne::valentine::McpePacketArgs)
+            .unwrap();
+        if let jolyne::valentine::McpePacketData::UpdateAttributesPacket(attributes) = packet.data {
+            projected |= attributes
+                .attribute_list
+                .iter()
+                .any(|value| value.name == "minecraft:health" && value.current_value <= 7.0);
+        }
+    }
+    assert!(projected);
+}
+
+/// Cold readback proves the ownership receipt but cannot revive its old source generation.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_live_rebind_cold_ack_replay_never_recreates_the_historical_source() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut h = Harness::new(
+        30,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        tempfile::tempdir().unwrap(),
+        true,
+    );
+    h.prepare_subject();
+    h.retain().await;
+    h.until("source:live-ack").await;
+    let row = h.stored().await;
+    h.load(40);
+    let (_target, _packets) = h.spawn(2, Some(row));
+    h.until("rebind:published").await;
+    let Harness {
+        router,
+        manager,
+        archives,
+        ..
+    } = h;
+    drop(router);
+    drop(manager);
+    let mut cold = Harness::new(
+        42,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        archives,
+        false,
+    );
+    cold.until("rebind:cold-ack").await;
+    assert_eq!(
+        cold.world_mut()
+            .query::<&Player>()
+            .iter(cold.world())
+            .count(),
+        0
+    );
+}
+
+/// Replacing a world before its ACK cannot bind a stale actor, despite equal durable dimension ID.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_live_rebind_world_closed_after_write_recovers_only_owned_receipt() {
+    let directory = tempfile::tempdir().unwrap();
+    let provider = Arc::new(SourceAckGate {
+        inner: Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        written: std::sync::atomic::AtomicBool::new(false),
+        release: tokio::sync::Semaphore::new(1),
+    });
+    let mut h = Harness::new(30, provider.clone(), tempfile::tempdir().unwrap(), true);
+    h.prepare_subject();
+    h.retain().await;
+    h.until("source:live-ack").await;
+    let row = h.stored().await;
+    provider
+        .written
+        .store(false, std::sync::atomic::Ordering::Release);
+    h.load(40);
+    let (_target, mut packets) = h.spawn(2, Some(row));
+    h.until("rebind:staged").await;
+    for _ in 0..300 {
+        h.router.tick().await.unwrap();
+        if provider.written.load(std::sync::atomic::Ordering::Acquire) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert!(provider.written.load(std::sync::atomic::Ordering::Acquire));
+    assert!(packets.try_recv().is_err());
+    let Harness {
+        router,
+        manager,
+        archives,
+        ..
+    } = h;
+    drop(router);
+    drop(manager);
+    provider.release.add_permits(1);
+    for _ in 0..300 {
+        if Arc::strong_count(&provider) == 1 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert_eq!(Arc::strong_count(&provider), 1);
+    drop(provider);
+    let mut cold = Harness::new(
+        42,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        archives,
+        false,
+    );
+    cold.until("rebind:cold-ack").await;
+    assert_eq!(
+        cold.world_mut()
+            .query::<&Player>()
+            .iter(cold.world())
+            .count(),
+        0
+    );
+}
+
+/// An exact original target connection is required after the canonical result as well as before it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_live_rebind_late_replaced_target_never_receives_the_original_source() {
+    let directory = tempfile::tempdir().unwrap();
+    let provider = Arc::new(SourceAckGate {
+        inner: Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        written: std::sync::atomic::AtomicBool::new(false),
+        release: tokio::sync::Semaphore::new(1),
+    });
+    let mut h = Harness::new(30, provider.clone(), tempfile::tempdir().unwrap(), true);
+    h.prepare_subject();
+    h.retain().await;
+    h.until("source:live-ack").await;
+    let source = h.subject.unwrap();
+    let row = h.stored().await;
+    provider
+        .written
+        .store(false, std::sync::atomic::Ordering::Release);
+    h.load(40);
+    let (target, mut original_packets) = h.spawn(2, Some(row));
+    h.until("rebind:staged").await;
+    for _ in 0..300 {
+        h.router.tick().await.unwrap();
+        if provider.written.load(std::sync::atomic::Ordering::Acquire) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    let (sender, mut replaced_packets) = tokio::sync::mpsc::channel(65536);
+    h.world_mut().entity_mut(target).insert(PlayerSession::new(
+        3,
+        "Replacement".into(),
+        Some("1".into()),
+        Some(uuid::Uuid::from_u128(1).to_string()),
+        sender,
+    ));
+    h.world_mut()
+        .resource_mut::<crate::server::game::SessionEntityMap>()
+        .remove(2);
+    h.world_mut()
+        .resource_mut::<crate::server::game::SessionEntityMap>()
+        .insert(3, target);
+    provider.release.add_permits(1);
+    h.until("rebind:failed-publication").await;
+    assert!(h.world().get::<Health>(source).is_some());
+    assert!(!player_state::quarantine::is_held(h.world(), source));
+    assert!(h.world().get::<Health>(target).is_none());
+    assert!(original_packets.try_recv().is_err());
+    assert!(replaced_packets.try_recv().is_err());
+}
+
+/// Explicit cleanup persists the latest real source before removal without publishing an old shell.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_live_rebind_explicit_retirement_preserves_latest_raw_recovery() {
+    let directory = tempfile::tempdir().unwrap();
+    let provider = Arc::new(SourceAckGate {
+        inner: Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        written: std::sync::atomic::AtomicBool::new(false),
+        release: tokio::sync::Semaphore::new(1),
+    });
+    let mut h = Harness::new(30, provider.clone(), tempfile::tempdir().unwrap(), true);
+    h.prepare_subject();
+    h.retain().await;
+    h.until("source:live-ack").await;
+    let source = h.subject.unwrap();
+    let row = h.stored().await;
+    provider
+        .written
+        .store(false, std::sync::atomic::Ordering::Release);
+    h.load(45);
+    let (_target, mut packets) = h.spawn(2, Some(row));
+    h.until("rebind:staged").await;
+    for _ in 0..300 {
+        h.router.tick().await.unwrap();
+        if provider.written.load(std::sync::atomic::Ordering::Acquire) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert!(
+        crate::entity::player_life::hurt_player(
+            h.world_mut(),
+            source,
+            &Hit {
+                damage: 2.0,
+                cause: ActorDamageCause::Override,
+                attacker: None,
+                by_player: false,
+                knockback_from: None,
+                knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT
+            }
+        ) > 0.0
+    );
+    provider.release.add_permits(2);
+    h.until("rebind:retired").await;
+    assert!(h.world().get_entity(source).is_err());
+    let current = provider
+        .inner
+        .load(uuid::Uuid::from_u128(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        current.source_actor.as_ref().unwrap().phase,
+        crate::storage::source::SourcePhase::Retired
+    );
+    assert!(current.source_actor.as_ref().unwrap().supplement.is_some());
+    assert_eq!(current.health, 7.0);
+    while let Ok(packet) = packets.try_recv() {
+        assert!(!matches!(
+            packet.data,
+            jolyne::valentine::McpePacketData::UpdateAttributesPacket(_)
+                | jolyne::valentine::McpePacketData::InventoryContentPacket(_)
+        ));
+    }
+    let Harness {
+        router,
+        manager,
+        archives,
+        ..
+    } = h;
+    drop(router);
+    drop(manager);
+    drop(provider);
+    let mut cold = Harness::new(
+        46,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        archives,
+        false,
+    );
+    cold.until("rebind:cold-retired").await;
+    assert_eq!(
+        cold.world_mut()
+            .query::<&Player>()
+            .iter(cold.world())
+            .count(),
+        0
+    );
+}
+
+/// A callback failure after durable ownership never publishes or erases its actual receipt.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actual_component_live_rebind_trap_after_ack_keeps_target_unpublished_and_cold_receipt_readonly()
+ {
+    let directory = tempfile::tempdir().unwrap();
+    let mut h = Harness::new(
+        30,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        tempfile::tempdir().unwrap(),
+        true,
+    );
+    h.prepare_subject();
+    h.retain().await;
+    h.until("source:live-ack").await;
+    let source = h.subject.unwrap();
+    let row = h.stored().await;
+    h.load(44);
+    let (target, mut packets) = h.spawn(2, Some(row));
+    let mut failed = false;
+    for _ in 0..300 {
+        if h.router.tick().await.is_err() {
+            failed = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    }
+    assert!(failed);
+    assert!(h.world().get::<Health>(source).is_some());
+    assert!(!player_state::quarantine::is_held(h.world(), source));
+    assert!(player_state::quarantine::is_held(h.world(), target));
+    assert!(packets.try_recv().is_err());
+    assert_eq!(
+        h.stored().await.source_actor.unwrap().phase,
+        crate::storage::source::SourcePhase::Transferred
+    );
+    let Harness {
+        router,
+        manager,
+        archives,
+        ..
+    } = h;
+    drop(router);
+    drop(manager);
+    let mut cold = Harness::new(
+        42,
+        Arc::new(LevelDBPlayerProvider::open(directory.path()).unwrap()),
+        archives,
+        false,
+    );
+    cold.until("rebind:cold-ack").await;
+    assert_eq!(
+        cold.world_mut()
+            .query::<&Player>()
+            .iter(cold.world())
+            .count(),
+        0
     );
 }

@@ -363,6 +363,34 @@ a point-in-time acknowledgement does not promise durability of later unsaved tic
 A death during initial ownership work holds only the genuinely dead body until a
 post-drop terminal row is acknowledged; a late live acknowledgement cannot undo it.
 
+`AdmissionHold::rebind_source` requests durable ownership for one actual live
+retained source and its real unpublished replacement in the same world lifetime.
+The original remains vulnerable while the ownership write runs. Persist the
+operation's generated request ID with the exact acknowledged source archive
+witness before the callback completes. `Acknowledged` contains durable receipt
+proof and does not publish or restore a player. After the caller durably accepts
+that result, explicit `publish` votes its hold; every other admission hold must
+also allow. The engine moves the current physical buffers only while reserving
+the complete real initial packet batch. Backpressure rolls those exact buffers
+back before releasing the world. Successful `Rebound` removes exactly the old
+entity and publishes the current source health, inventories, timers and motion
+through the replacement's real connection. No submitted older snapshot is
+restored. Cross-world held-admission rebinding is rejected rather than changing
+only its coordinates.
+
+Owned `on-source-rebind-result` notifications and the operation distinguish
+ownership acknowledgement, actual rebinding, terminal death, rejection and
+uncertainty. `Failed` retains the acknowledged receipt when physical publication
+cannot use its original target. Archive-bound `rebind` readback never fabricates
+an actor or past session. Dropped resources and component reload do not silently
+consume or protect the source. Explicit `retire` can close the exact remaining
+acknowledged anchor and preserve its latest raw recovery before physical removal;
+it does not choose an expiration duration. Death during pending ownership closes
+only that exact handoff receipt with the actual post-drop terminal state before
+drops or death notifications. Old source generations cannot be recreated after
+the acknowledged transfer. Crash durability of physical progress remains the
+ordinary point-in-time persistence contract.
+
 Explicit `recreate` uses the latest acknowledged canonical state to create a new
 native, sessionless retained actor. It starts held and has no historical network
 session or chunk-viewing client. Explicit `activate` acknowledges the transition

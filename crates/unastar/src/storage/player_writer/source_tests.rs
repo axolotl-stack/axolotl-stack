@@ -390,3 +390,103 @@ async fn retired_raw_source_recovery_cannot_be_erased_by_ordinary_admission_save
     );
     assert!(reloaded.source_actor.as_ref().unwrap().supplement.is_none());
 }
+
+/// A late death may supersede only its own real acknowledged handoff receipt.
+#[tokio::test]
+async fn terminal_after_handoff_requires_the_exact_canonical_receipt_and_preserves_postdrop_state()
+{
+    let directory = tempfile::tempdir().unwrap();
+    let writer = writer(directory.path());
+    let (uuid, before, mut source) = fresh();
+    source.phase = SourcePhase::Active;
+    let active = writer
+        .commit_source(uuid, "source:live", [41; 32], before, None, source.clone())
+        .await
+        .unwrap();
+    writer
+        .commit_state_effect(
+            uuid,
+            "source-rebind:example",
+            [42; 32],
+            active.data,
+            supplement(),
+            StateOrigin {
+                source: Some((&source).into()),
+                baseline: None,
+            },
+        )
+        .await
+        .unwrap();
+    let current = writer.load(uuid).await.unwrap().unwrap();
+    let closed = current.source_actor.as_ref().unwrap().clone();
+    assert_eq!(closed.phase, SourcePhase::Transferred);
+    let proof: SourceProof = (&closed).into();
+    let handoff = closed.handoff.clone().unwrap();
+    let mut terminal = closed.clone();
+    terminal.generation += 1;
+    terminal.phase = SourcePhase::Terminal;
+    terminal.handoff = None;
+    let mut raw = supplement();
+    raw.dead = true;
+    terminal.supplement = Some(raw);
+    let mut post = current;
+    post.health = 0.0;
+    post.inventory
+        .iter_mut()
+        .for_each(|slot| *slot = Default::default());
+    post.source_actor = None;
+    post.restoration_checkpoint = None;
+    assert!(
+        writer
+            .commit_source(
+                uuid,
+                "source:terminal",
+                [43; 32],
+                post.clone(),
+                Some(proof.clone()),
+                terminal.clone()
+            )
+            .await
+            .is_err()
+    );
+    let mut wrong = handoff.clone();
+    wrong.request_hash = [0; 32];
+    assert!(
+        writer
+            .commit_handoff_terminal(
+                uuid,
+                "source:terminal",
+                [43; 32],
+                post.clone(),
+                proof.clone(),
+                terminal.clone(),
+                wrong
+            )
+            .await
+            .is_err()
+    );
+    let acknowledged = writer
+        .commit_handoff_terminal(
+            uuid,
+            "source:terminal",
+            [43; 32],
+            post,
+            proof,
+            terminal,
+            handoff,
+        )
+        .await
+        .unwrap();
+    assert_eq!(acknowledged.data.health, 0.0);
+    assert!(
+        acknowledged
+            .data
+            .inventory
+            .iter()
+            .all(|slot| slot.count == 0)
+    );
+    assert_eq!(
+        acknowledged.data.source_actor.as_ref().unwrap().phase,
+        SourcePhase::Terminal
+    );
+}

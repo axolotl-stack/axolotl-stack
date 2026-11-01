@@ -23,6 +23,70 @@ impl<'scope> WorldTx<'scope> {
     ) -> Result<Option<raw::SourceFence>, raw::StateError> {
         archive.source_fence(self.raw)
     }
+    /// Read canonical ownership through a genuine immutable source archive witness.
+    pub fn inspect_source(
+        &self,
+        archive: &crate::ArchivedPlayerState,
+    ) -> Result<crate::SourceActorOperation, crate::StateError> {
+        archive.source(self.raw)
+    }
+    /// Observe only the exact surviving native source actor, never a replacement.
+    pub fn source_player(
+        &self,
+        source: &crate::SourceActorOperation,
+    ) -> Result<Option<PlayerHandle>, crate::StateError> {
+        source.player(self.raw)
+    }
+    /// Recreate an acknowledged source as a held sessionless native actor.
+    pub fn recreate_source(
+        &self,
+        source: &crate::SourceActorOperation,
+    ) -> Result<crate::SourceActorOperation, crate::StateError> {
+        source.recreate(self.raw)
+    }
+    /// Stage activation; only the returned operation reports durable and physical completion.
+    pub fn activate_source(
+        &self,
+        source: &crate::SourceActorOperation,
+    ) -> Result<crate::SourceActorOperation, crate::StateError> {
+        source.activate(self.raw)
+    }
+    /// Stage explicit retirement of the exact owned source.
+    pub fn retire_source(
+        &self,
+        source: &crate::SourceActorOperation,
+    ) -> Result<crate::SourceActorOperation, crate::StateError> {
+        source.retire(self.raw)
+    }
+    /// Reconcile only the generated request associated with this genuine source witness.
+    pub fn inspect_source_rebind(
+        &self,
+        archive: &crate::ArchivedPlayerState,
+        request_id: &str,
+    ) -> Result<crate::SourceRebindOperation, crate::StateError> {
+        archive.rebind(self.raw, request_id)
+    }
+    /// Stage the publication vote after durable application acceptance; this is not delivery.
+    pub fn publish_source_rebind(
+        &self,
+        operation: &crate::SourceRebindOperation,
+    ) -> Result<crate::AdmissionAcknowledgement, crate::StateError> {
+        operation.publish(self.raw)
+    }
+    /// Retire only the actual remaining acknowledged live-rebind anchor.
+    pub fn retire_source_rebind(
+        &self,
+        operation: &crate::SourceRebindOperation,
+    ) -> Result<crate::SourceActorOperation, crate::StateError> {
+        operation.retire(self.raw)
+    }
+    /// Return only the actual original target after physical rebind publication.
+    pub fn rebound_player(
+        &self,
+        operation: &crate::SourceRebindOperation,
+    ) -> Result<Option<PlayerHandle>, crate::StateError> {
+        operation.player(self.raw)
+    }
     /// Derive a raw image for this actual world without moving an actor.
     pub fn state_at(
         &self,
@@ -201,6 +265,15 @@ pub struct AdmissionHold {
     raw: raw::AdmissionHold,
 }
 impl AdmissionHold {
+    /// Stage live ownership without freezing its original body. Publish is a separate vote.
+    pub fn rebind_source(
+        &self,
+        tx: &WorldTx<'_>,
+        source: &crate::SourceActorOperation,
+        correlation: u64,
+    ) -> Result<crate::SourceRebindOperation, crate::StateError> {
+        self.raw.rebind_source(tx.raw, source, correlation)
+    }
     /// Stage a full-state plan on this hold's exact initializing actor in a fresh task.
     /// The operation's durable acknowledgement does not resolve this admission hold.
     pub fn submit_state(
