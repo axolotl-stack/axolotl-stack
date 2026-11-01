@@ -62,6 +62,7 @@ fields that have no published schema). Status per group:
 | Group | Values | Status |
 |---|---|---|
 | Move control | speed ramp 10 %/tick, arrival slow-down floor 0.5, descend cap 0.25, arrive at dist² < 0.1, step 0.5625, water jump trigger 0.009, jump cooldown 10 ticks, liquid jump impulse 0.04, default jump power 0.42, default max turn 30° | Confirmed against native behaviour (26.30 game build); re-check on 1.26.51 |
+| Mob walk input (`mob/ai/control.rs`, `MOB_INPUT_SCALE`) | the travel step's forward input is the move control speed × 0.98, at most 1 either way | Confirmed: a BDS 1.26.51 zombie (movement 0.23) walks 0.114189 blocks per tick on grass, 0.23² × 0.98 / (1 − 0.546) (`zombie-spear-field`) |
 | Living physics | gravity 0.08, vertical drag 0.98, friction block × 0.91 (air block 0.6) sampled at feet − 0.1, ground acceleration × (0.546/friction)³, water drag 0.8, liquid gravity 0.02, underwater speed 0.02 | Confirmed (26.30) |
 | Lava drag | 0.5 | Provisional: Java Edition value |
 | Goals | stroll 10 candidates; panic 40-tick hurt window, ±5/±4, re-path 8; tempt radius 16 when unset, stop 1.5, cooldown 100, re-path 8–11, head 30°/tick, scare 6 blocks / 0.1 / 5°; follow_parent box 8/4/8, 3–16 blocks, re-path 10; look_at_player head 10°/tick, `look_time` in seconds; random_look_around `look_time` in ticks; breed search 8, check every 60 ticks, touch 0.4, partner within 3 | Confirmed (26.30) |

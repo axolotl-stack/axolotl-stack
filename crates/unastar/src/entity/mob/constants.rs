@@ -101,6 +101,11 @@ pub const WATER_MOVE_SPEED: f32 = 0.02;
 /// Acceleration factor of a mob travelling through air: the forward input
 /// times this, whatever its movement speed (confirmed: matches BDS 1.26.51).
 pub const MOB_AIR_SPEED: f64 = 0.02;
+/// A mob's forward input (its move control speed) is scaled by this before
+/// it accelerates the mob (confirmed: a BDS 1.26.51 zombie, movement 0.23,
+/// walks 0.114189 blocks per tick on grass in `zombie-spear-field`,
+/// 0.23² × 0.98 / (1 − 0.546)).
+pub const MOB_INPUT_SCALE: f64 = 0.98;
 /// Native chicken wing-flap drag: travelling through air with a negative
 /// vertical velocity after gravity and drag, that velocity is multiplied by
 /// `1 - WING_FLAP_VERTICAL_DRAG` each tick.

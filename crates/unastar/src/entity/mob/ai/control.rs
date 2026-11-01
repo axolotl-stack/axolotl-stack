@@ -10,7 +10,7 @@
 use glam::{DVec3, IVec3};
 
 use crate::entity::mob::constants::{
-    JUMP_COOLDOWN_TICKS, LIQUID_JUMP_IMPULSE, LOOK_IDLE_HEAD_TURN, MOB_AIR_SPEED,
+    JUMP_COOLDOWN_TICKS, LIQUID_JUMP_IMPULSE, LOOK_IDLE_HEAD_TURN, MOB_AIR_SPEED, MOB_INPUT_SCALE,
     MOVE_ARRIVAL_FLOOR, MOVE_ARRIVE_DIST_SQ, MOVE_ARRIVE_HEIGHT, MOVE_DESCEND_CAP,
     MOVE_JUMP_HEIGHT_IN_WATER, MOVE_SPEED_RAMP, NORMAL_GROUND_FRICTION, PATH_STUCK_CHECK_TICKS,
     PATH_STUCK_DISTANCE, PATH_WAYPOINT_REACH, WATER_MOVE_SPEED,
@@ -289,10 +289,11 @@ impl PathFollower {
 }
 
 /// The travel step: jump, then accelerate along the body yaw by the forward
-/// input, which equals the move control's speed. On the ground the
-/// acceleration is `speed × (0.546 / (friction × 0.91))³` times that input;
-/// in the air it is [`MOB_AIR_SPEED`] times the input; in liquid the
-/// underwater speed replaces it. Returns the new velocity.
+/// input, the move control's speed × [`MOB_INPUT_SCALE`] (at most 1 either
+/// way). On the ground the acceleration is
+/// `speed × (0.546 / (friction × 0.91))³` times that input; in the air it is
+/// [`MOB_AIR_SPEED`] times the input; in liquid the underwater speed
+/// replaces it. Returns the new velocity.
 #[allow(clippy::too_many_arguments)]
 pub fn travel(
     body: &Body,
@@ -327,8 +328,7 @@ pub fn travel(
     } else {
         MOB_AIR_SPEED
     };
-    // The forward input is the speed itself, normalised when above 1.
-    let input = speed.abs().min(1.0) * speed.signum();
+    let input = (speed * MOB_INPUT_SCALE).clamp(-1.0, 1.0);
     velocity + forward(yaw) * (amount * input)
 }
 
@@ -399,13 +399,13 @@ mod tests {
     }
 
     #[test]
-    fn ground_acceleration_on_normal_blocks_is_speed_squared() {
+    fn ground_acceleration_on_normal_blocks_is_speed_squared_times_the_input_scale() {
         let mut control = MoveControl {
             speed: 0.2,
             ..MoveControl::default()
         };
         let v = travel(&body(), &mut control, false, 0.42, 0.0, 0.6, DVec3::ZERO);
-        assert!((v.z - 0.04).abs() < 1e-6, "{v}");
+        assert!((v.z - 0.2 * 0.2 * 0.98).abs() < 1e-6, "{v}");
         assert!(v.x.abs() < 1e-12);
     }
 
@@ -420,7 +420,32 @@ mod tests {
             ..body()
         };
         let v = travel(&airborne, &mut control, false, 0.42, 0.0, 0.6, DVec3::ZERO);
-        assert!((v.z - 0.004).abs() < 1e-9, "{v}");
+        assert!((v.z - 0.02 * 0.2 * 0.98).abs() < 1e-9, "{v}");
+    }
+
+    /// A zombie (movement 0.23) walking on grass settles at the 0.114189
+    /// blocks per tick a BDS 1.26.51 zombie walks in client-diff
+    /// `zombie-spear-field`: each tick the travel step adds its
+    /// acceleration, the body moves by the velocity, and ground friction
+    /// (0.6 × 0.91) slows it.
+    #[test]
+    fn a_walking_zombie_settles_at_the_recorded_bds_speed_on_grass() {
+        let walker = Body {
+            movement: 0.23,
+            ..body()
+        };
+        let mut control = MoveControl {
+            speed: 0.23,
+            ..MoveControl::default()
+        };
+        let mut velocity = DVec3::ZERO;
+        let mut moved = 0.0;
+        for _ in 0..100 {
+            velocity = travel(&walker, &mut control, false, 0.42, 0.0, 0.6, velocity);
+            moved = velocity.z;
+            velocity *= 0.6 * 0.91;
+        }
+        assert!((moved - 0.114189).abs() < 1e-6, "{moved}");
     }
 
     fn follow(points: &[DVec3]) -> (PathFollower, MoveControl) {
