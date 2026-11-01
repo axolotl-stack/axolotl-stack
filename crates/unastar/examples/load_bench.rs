@@ -23,7 +23,7 @@
 
 #![allow(clippy::too_many_arguments)]
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Write as _;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -53,6 +53,10 @@ const MAX_SUBCHUNK_OFFSETS: usize = 1024;
 const SQUARE_GRACE: Duration = Duration::from_secs(3);
 /// Bound for joining and loading one view.
 const VIEW_TIMEOUT: Duration = Duration::from_secs(60);
+/// A column of the render disk still missing this long after it entered the
+/// disk counts as a hole: about two client ticks plus one server tick, the
+/// round trip a column needs once it is requested.
+const HOLE_GRACE: Duration = Duration::from_millis(250);
 
 #[derive(Debug, Clone)]
 struct Args {
@@ -205,6 +209,17 @@ struct FlightResult {
     missing_disk_max: f64,
     /// Nearest missing chunk (in chunks from the player) at the worst sample.
     nearest_missing_at_worst: Option<f64>,
+    /// Columns that entered the render disk while flying.
+    columns_entered: usize,
+    /// Columns of the render disk missing for more than [`HOLE_GRACE`]
+    /// after they entered it, per second of flight.
+    holes_per_second: f64,
+    /// Time from a column entering the render disk until it is complete on
+    /// the client (0 when it arrived before): p50, p99 and max. Columns that
+    /// left the disk before arriving count with the time they spent in it.
+    view_latency_p50_ms: f64,
+    view_latency_p99_ms: f64,
+    view_latency_max_ms: f64,
     /// After stopping: time until the render disk is complete again.
     catch_up_ms: Option<f64>,
 }
@@ -780,6 +795,12 @@ async fn fly(
     let mut stopped_at: Option<Instant> = None;
     let mut catch_up_ms = None;
     let deadline = flying_until + VIEW_TIMEOUT;
+    // Columns of the render disk at the last sample; columns that entered it
+    // missing (when, and whether they already counted as a hole).
+    let mut in_disk: HashSet<(i32, i32)> = terrain.disk(center(position)).collect();
+    let mut waiting: HashMap<(i32, i32), (Instant, bool)> = HashMap::new();
+    let (mut entered, mut holes) = (0usize, 0usize);
+    let mut latencies: Vec<f64> = Vec::new();
     loop {
         tokio::select! {
             raw = play.recv_packet_raw() => {
@@ -788,6 +809,9 @@ async fn fly(
                     for column in columns {
                         if terrain.received.insert(column) && stopped_at.is_none() {
                             new_chunks += 1;
+                        }
+                        if let Some((at, _)) = waiting.remove(&column) {
+                            latencies.push(ms(at.elapsed()));
                         }
                     }
                 }
@@ -799,6 +823,28 @@ async fn fly(
                 send_input(play, position, velocity, *tick).await;
                 flush_requests(play, &mut requests, center(position)).await;
                 let (missing, total, nearest) = terrain.missing_disk(center(position));
+                let now = Instant::now();
+                let disk: HashSet<(i32, i32)> = terrain.disk(center(position)).collect();
+                for &column in disk.difference(&in_disk) {
+                    entered += 1;
+                    if terrain.received.contains(&column) {
+                        latencies.push(0.0);
+                    } else {
+                        waiting.insert(column, (now, false));
+                    }
+                }
+                waiting.retain(|column, (at, counted)| {
+                    if !disk.contains(column) {
+                        latencies.push(ms(now - *at));
+                        return false;
+                    }
+                    if !*counted && now - *at > HOLE_GRACE {
+                        *counted = true;
+                        holes += 1;
+                    }
+                    true
+                });
+                in_disk = disk;
                 if flying {
                     let share = missing as f64 / total as f64;
                     samples += 1;
@@ -820,6 +866,15 @@ async fn fly(
         }
     }
     let flown = ((position.x - start.x).powi(2) + (position.z - start.z).powi(2)).sqrt();
+    let now = Instant::now();
+    latencies.extend(waiting.values().map(|(at, _)| ms(now - *at)));
+    latencies.sort_by(f64::total_cmp);
+    let percentile = |p: f64| {
+        latencies
+            .get(((latencies.len() as f64 - 1.0) * p).round() as usize)
+            .copied()
+            .unwrap_or(0.0)
+    };
     FlightResult {
         seconds: args.fly_seconds,
         speed: args.fly_speed,
@@ -832,6 +887,11 @@ async fn fly(
         },
         missing_disk_max: worst.0,
         nearest_missing_at_worst: worst.1,
+        columns_entered: entered,
+        holes_per_second: holes as f64 / f64::from(args.fly_seconds),
+        view_latency_p50_ms: percentile(0.5),
+        view_latency_p99_ms: percentile(0.99),
+        view_latency_max_ms: latencies.last().copied().unwrap_or(0.0),
         catch_up_ms,
     }
 }

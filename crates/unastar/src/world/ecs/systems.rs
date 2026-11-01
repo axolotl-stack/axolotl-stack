@@ -361,9 +361,12 @@ fn send_column(
 /// reads, or generation for worlds without storage) and generation requests,
 /// and the players' wishes are then started in turns (one per player per
 /// round, nearest first), up to [`MAX_STORAGE_READS`] loads and
-/// [`PENDING_GENERATIONS_PER_WORKER`] per pool worker in flight. Nothing is
-/// read, generated or encoded on the tick: an edited chunk is copied and
-/// encoded in the background, and sent once that finished.
+/// [`PENDING_GENERATIONS_PER_WORKER`] per pool worker in flight. What the
+/// views leave of those budgets loads the columns each moving player reaches
+/// next ([`ChunkLoader::prefetch`]), so they are in memory when they enter
+/// the view. Nothing is read, generated or encoded on the tick: an edited
+/// chunk is copied and encoded in the background, and sent once that
+/// finished.
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn stream_chunks(
     mut commands: Commands,
@@ -398,12 +401,14 @@ pub fn stream_chunks(
     };
     let generation_budget = (manager.generation_threads() * PENDING_GENERATIONS_PER_WORKER)
         .saturating_sub(loads.generations_in_flight());
-    // Per player, nearest first: columns to load and columns to generate.
-    let mut wishes: Vec<(Vec<(i32, i32)>, Vec<(i32, i32)>)> = Vec::new();
+    // Per player, nearest first: columns to load and columns to generate, for
+    // the view, then ahead of it.
+    let mut wishes: Vec<Wish> = Vec::new();
+    let mut prefetches: Vec<Wish> = Vec::new();
 
     for (player, session, mut loader, publisher) in players.iter_mut() {
         // `send_chunk_publisher_updates` ran first; terrain waits for the view.
-        if !publisher.published() || !loader.has_pending() {
+        if !publisher.published() {
             continue;
         }
         let unacked = loader.window_mut().expire(now);
@@ -479,11 +484,33 @@ pub fn stream_chunks(
             stats.sent.record_many(sent.len() as u64, started.elapsed());
         }
         wishes.push((reads, generations));
+        // Columns about to enter the view are loaded (not sent) with what
+        // the view leaves of the budgets.
+        let (mut reads, mut generations) = (Vec::new(), Vec::new());
+        for pos in loader.prefetch() {
+            if reads.len() >= read_budget && generations.len() >= generation_budget {
+                break;
+            }
+            if manager.contains_coords(pos.0, pos.1) {
+                continue;
+            }
+            match loads.state(pos) {
+                Some(LoadState::Missing) if generations.len() < generation_budget => {
+                    generations.push(pos);
+                }
+                None if loads_first && reads.len() < read_budget => reads.push(pos),
+                None if !loads_first && generations.len() < generation_budget => {
+                    generations.push(pos);
+                }
+                _ => {}
+            }
+        }
+        prefetches.push((reads, generations));
     }
     for (pos, player) in pending_viewers.drain(..) {
         manager.pending_viewers.entry(pos).or_default().push(player);
     }
-    start_loads(
+    let (reads_left, generations_left) = start_loads(
         &manager,
         &mut loads,
         &stats,
@@ -492,13 +519,22 @@ pub fn stream_chunks(
         read_budget,
         generation_budget,
     );
+    start_loads(
+        &manager,
+        &mut loads,
+        &stats,
+        ids,
+        prefetches,
+        reads_left,
+        generations_left,
+    );
 
     // Now and then, forget storage misses no player wants any more.
     *ticks += 1;
     if (*ticks).is_multiple_of(200) {
         let wanted: HashSet<(i32, i32)> = players
             .iter()
-            .flat_map(|(_, _, loader, _)| loader.queue().iter().copied())
+            .flat_map(|(_, _, loader, _)| loader.queue().iter().copied().chain(loader.prefetch()))
             .collect();
         loads.retain_missing(|pos| wanted.contains(&pos));
     }
@@ -508,6 +544,7 @@ pub fn stream_chunks(
 type Wish = (Vec<(i32, i32)>, Vec<(i32, i32)>);
 
 /// Starts the players' wished loads in turns, one per player per round.
+/// Returns the reads and generations left of the budgets.
 fn start_loads(
     manager: &ChunkManager,
     loads: &mut ColumnLoads,
@@ -516,7 +553,7 @@ fn start_loads(
     wishes: Vec<Wish>,
     read_budget: usize,
     generation_budget: usize,
-) {
+) -> (usize, usize) {
     let (mut reads_left, mut generations_left) = (read_budget, generation_budget);
     let mut round = 0;
     while reads_left + generations_left > 0 {
@@ -548,6 +585,7 @@ fn start_loads(
         }
         round += 1;
     }
+    (reads_left, generations_left)
 }
 
 /// System: Handle ChunkRadius changes.
