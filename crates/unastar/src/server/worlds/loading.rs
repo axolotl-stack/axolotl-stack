@@ -31,7 +31,7 @@ pub(crate) fn intercept(world: &mut World, player: Entity, packet: &BorrowedMcpe
     if let BorrowedMcpePacketData::ServerboundLoadingScreenPacket(response) = &packet.data {
         if response.loading_screen_id == Some(loading.id)
             && response.loading_screen_packet_type
-                == jolyne::valentine::EnumsServerboundLoadingScreenPacketType::Endloadingscreen
+                == jolyne::valentine::EnumsServerboundLoadingScreenPacketType::EndLoadingScreen
         {
             world.entity_mut(player).remove::<DimensionLoading>();
         }

@@ -35,7 +35,7 @@ fn craft(creative_item_net_id: u32) -> Action {
 
 /// The created output as the client names it: slot 50, net ID = request ID.
 fn created(request: i32) -> ItemStackRequestCerealSlotInfoData {
-    info(Name::Createdoutputcontainer, 50, request)
+    info(Name::CreatedOutputContainer, 50, request)
 }
 
 fn take(
@@ -185,7 +185,7 @@ fn with_creative_player(test: impl FnOnce(Session) + Send + 'static) {
             let mut session = Session { server, player, rx };
             // Pressing E: the client opens its (creative) inventory screen.
             session.send(InventoryAction::Interact(InteractPacket {
-                action: EnumsInteractPacketPayloadAction::Openinventory,
+                action: EnumsInteractPacketPayloadAction::OpenInventory,
                 ..Default::default()
             }));
             test(session);
@@ -211,7 +211,7 @@ fn creative_menu_take_to_cursor_then_place_full_stack() {
             -1,
             vec![
                 craft(stone),
-                take(64, created(-1), info(Name::Cursorcontainer, 0, 0)),
+                take(64, created(-1), info(Name::CursorContainer, 0, 0)),
             ],
         );
         assert_eq!(result, EnumsItemStackNetResult::Success);
@@ -224,8 +224,8 @@ fn creative_menu_take_to_cursor_then_place_full_stack() {
             -3,
             vec![place(
                 64,
-                info(Name::Cursorcontainer, 0, cursor_id),
-                info(Name::Hotbarcontainer, 2, 0),
+                info(Name::CursorContainer, 0, cursor_id),
+                info(Name::HotbarContainer, 2, 0),
             )],
         );
         assert_eq!(result, EnumsItemStackNetResult::Success);
@@ -246,7 +246,7 @@ fn creative_menu_places_into_empty_and_occupied_slots_and_splits_shift_clicks() 
             -1,
             vec![
                 craft(diamond),
-                place(1, created(-1), info(Name::Inventorycontainer, 9, 0)),
+                place(1, created(-1), info(Name::InventoryContainer, 9, 0)),
             ],
         );
         assert_eq!(result, EnumsItemStackNetResult::Success);
@@ -257,7 +257,7 @@ fn creative_menu_places_into_empty_and_occupied_slots_and_splits_shift_clicks() 
             -3,
             vec![
                 craft(diamond),
-                place(1, created(-3), info(Name::Inventorycontainer, 9, first_id)),
+                place(1, created(-3), info(Name::InventoryContainer, 9, first_id)),
             ],
         );
         assert_eq!(result, EnumsItemStackNetResult::Success);
@@ -267,8 +267,8 @@ fn creative_menu_places_into_empty_and_occupied_slots_and_splits_shift_clicks() 
             -5,
             vec![
                 craft(diamond),
-                place(62, created(-5), info(Name::Inventorycontainer, 9, first_id)),
-                place(2, created(-5), info(Name::Hotbarcontainer, 0, 0)),
+                place(62, created(-5), info(Name::InventoryContainer, 9, first_id)),
+                place(2, created(-5), info(Name::HotbarContainer, 0, 0)),
             ],
         );
         assert_eq!(result, EnumsItemStackNetResult::Success);
@@ -283,7 +283,7 @@ fn creative_menu_places_into_empty_and_occupied_slots_and_splits_shift_clicks() 
                 take(
                     64,
                     created(-7),
-                    info(Name::Combinedhotbarandinventorycontainer, 35, 0),
+                    info(Name::CombinedHotbarAndInventoryContainer, 35, 0),
                 ),
             ],
         );
@@ -301,7 +301,7 @@ fn creative_stacks_resync_with_the_advertised_hashed_block_id() {
                 -1,
                 vec![
                     craft(stone),
-                    place(64, created(-1), info(Name::Hotbarcontainer, 0, 0))
+                    place(64, created(-1), info(Name::HotbarContainer, 0, 0))
                 ]
             ),
             EnumsItemStackNetResult::Success

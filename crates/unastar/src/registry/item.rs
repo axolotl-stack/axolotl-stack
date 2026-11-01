@@ -475,7 +475,7 @@ impl ItemRegistry {
 fn itemstate_version(version: i32) -> jolyne::valentine::EnumsItemVersion {
     match version {
         0 => EnumsItemVersion::Legacy,
-        1 => EnumsItemVersion::Datadriven,
+        1 => EnumsItemVersion::DataDriven,
         2 => EnumsItemVersion::None,
         other => EnumsItemVersion::Unknown(other),
     }

@@ -349,6 +349,31 @@ impl StartGameWorldState {
         let snapshot = self.0.lock();
         start.level_current_time = snapshot.time.ticks;
         start.settings.game_difficulty = snapshot.difficulty.legacy();
-        start.settings.rule_data = snapshot.rules.packet_data();
+        start.settings.rule_data = jolyne::valentine::GameRulesChangedPacketDatajson {
+            rules_list: snapshot
+                .rules
+                .packet_data()
+                .rules_list
+                .into_iter()
+                .map(|rule| jolyne::valentine::GameRulejson {
+                    rule_name: rule.rule_name,
+                    rule_can_be_modified: rule.rule_can_be_modified,
+                    rule_value: match rule.rule_value {
+                        GameRuleRuleValue::Empty0 => {
+                            jolyne::valentine::GameRulejsonRuleValue::Variant0
+                        }
+                        GameRuleRuleValue::Bool(value) => {
+                            jolyne::valentine::GameRulejsonRuleValue::Variant1(value)
+                        }
+                        GameRuleRuleValue::Int32(value) => {
+                            jolyne::valentine::GameRulejsonRuleValue::Variant2(value)
+                        }
+                        GameRuleRuleValue::Float(value) => {
+                            jolyne::valentine::GameRulejsonRuleValue::Variant3(value)
+                        }
+                    },
+                })
+                .collect(),
+        };
     }
 }

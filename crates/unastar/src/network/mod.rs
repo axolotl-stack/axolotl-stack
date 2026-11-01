@@ -15,7 +15,7 @@ fn terminates_connection(packet: &McpePacket) -> bool {
     match &packet.data {
         McpePacketData::DisconnectPacket(_) => true,
         McpePacketData::PacketViolationWarningPacket(warning) => {
-            warning.violation_severity == EnumsPacketViolationSeverity::Terminatingconnection
+            warning.violation_severity == EnumsPacketViolationSeverity::TerminatingConnection
         }
         _ => false,
     }

@@ -102,6 +102,7 @@ pub fn add_actor_packet(
         actor_data: metadata.snapshot(),
         synched_properties: properties_snapshot(properties),
         actor_links: Vec::new(),
+        passenger_block_data: None,
     }
 }
 

@@ -24,7 +24,7 @@ bytes.workspace = true
 thiserror = "1.0"  # Keep at 1.0 for now - jolyne uses thiserror 1.x API
 tokio-raknet = { workspace = true, optional = true }
 tokio-nethernet = { workspace = true, optional = true }
-valentine = { workspace = true, default-features = false, features = ["bedrock_1_26_51"] }
+valentine = { workspace = true, default-features = false, features = ["bedrock_1_26_51", "bedrock_1_26_60"] }
 flate2 = { version = "1.1.10", default-features = false, features = ["zlib-rs", "runtime_detection"] }
 libdeflater = "1.26"
 snap.workspace = true

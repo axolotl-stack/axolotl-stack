@@ -5,9 +5,8 @@
 use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::actor_flags;
-use jolyne::valentine::{AddActorPacket, McpePacket, McpePacketData};
+use jolyne::valentine::{McpePacket, McpePacketData};
 use tokio::sync::mpsc::Receiver;
-use valentine::bedrock::codec::BedrockCodec;
 
 use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
@@ -142,10 +141,7 @@ fn spawned_adult_chicken_add_actor_matches_native_summon() {
     let bytes = include_bytes!(
         "../../../../../bds-extractor/captures/1.26.51/operator/summons/chicken.bin"
     );
-    assert_eq!(bytes[0], 0x0d);
-    let mut input = &bytes[1..];
-    let native = AddActorPacket::decode(&mut input, ()).unwrap();
-    assert!(input.is_empty());
+    let native = crate::entity::test_support::legacy_actor(bytes);
     let rotation = *world.get::<Rotation>(chicken).unwrap();
     let ours = add_actor_packet(
         "minecraft:chicken",
@@ -448,11 +444,7 @@ fn summoned_egg_add_actor_matches_native_summon() {
         let bytes = include_bytes!(
             "../../../../../bds-extractor/captures/1.26.51/operator/summons/egg.bin"
         );
-        assert_eq!(bytes[0], 0x0d);
-        let mut input = &bytes[1..];
-        let packet = AddActorPacket::decode(&mut input, ()).unwrap();
-        assert!(input.is_empty());
-        packet
+        crate::entity::test_support::legacy_actor(bytes)
     };
     let feet = DVec3::new(
         f64::from(native.position.x),

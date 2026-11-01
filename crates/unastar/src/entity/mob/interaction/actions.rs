@@ -68,7 +68,7 @@ pub fn apply_mob_actions(world: &mut World) {
                     );
                 }
             }
-            ActionType::Iteminteract | ActionType::Unknown(_) => {}
+            ActionType::ItemInteract | ActionType::Unknown(_) => {}
         }
     }
 }

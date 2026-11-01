@@ -447,7 +447,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bedrock-protocol-1-26-51"
+name = "bedrock-protocol-contract-1-26-51"
 version = "0.1.0"
 dependencies = [
  "bytes",
@@ -5606,7 +5606,7 @@ name = "valentine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bedrock-protocol-1-26-51",
+ "bedrock-protocol-contract-1-26-51",
  "bitflags 2.10.0",
  "bytes",
  "criterion",
@@ -5619,11 +5619,22 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "valentine_bedrock_1_26_51",
+ "valentine_bedrock_1_26_60",
  "valentine_bedrock_core",
 ]
 
 [[package]]
 name = "valentine_bedrock_1_26_51"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.10.0",
+ "bytes",
+ "uuid",
+ "valentine_bedrock_core",
+]
+
+[[package]]
+name = "valentine_bedrock_1_26_60"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.10.0",

@@ -5,7 +5,7 @@
 use glam::DVec3;
 use jolyne::auth::ValidatedIdentity;
 use jolyne::stream::{BedrockStream, Failed, Handshake, Play, Server, Transport};
-use jolyne::valentine::types::{BlockPos, Vec2, Vec3};
+use jolyne::valentine::types::{Vec2, Vec3};
 use jolyne::{JolyneError, WorldTemplate};
 use p384::SecretKey;
 
@@ -131,7 +131,7 @@ pub(crate) async fn accept_join_sequence_in_worlds<T: Transport>(
         let error = JolyneError::from(jolyne::error::AuthError::NotAuthenticated);
         let _ = packs
             .disconnect(
-                jolyne::valentine::EnumsConnectionDisconnectFailReason::Notauthenticated,
+                jolyne::valentine::EnumsConnectionDisconnectFailReason::NotAuthenticated,
                 error.disconnect_message(),
             )
             .await;
@@ -203,18 +203,19 @@ pub(crate) async fn accept_join_sequence_in_worlds<T: Transport>(
     world.state.apply(&mut join_params.start_game);
     if let Some(saved) = &saved_data {
         join_params.start_game.game_type = match saved.game_mode {
-            0 => jolyne::valentine::EnumsGameType::Survival,
-            1 => jolyne::valentine::EnumsGameType::Creative,
-            2 => jolyne::valentine::EnumsGameType::Adventure,
-            6 => jolyne::valentine::EnumsGameType::Spectator,
+            0 => jolyne::valentine::GameTypejson::Survival,
+            1 => jolyne::valentine::GameTypejson::Creative,
+            2 => jolyne::valentine::GameTypejson::Adventure,
+            6 => jolyne::valentine::GameTypejson::Spectator,
             _ => unreachable!("player state validated on load"),
         };
     }
-    join_params.start_game.settings.default_spawn_block_position = BlockPos {
-        x: spawn.x.floor() as i32,
-        y: spawn.y.floor() as i32,
-        z: spawn.z.floor() as i32,
-    };
+    join_params.start_game.settings.default_spawn_block_position =
+        jolyne::valentine::BlockPosjson {
+            x: spawn.x.floor() as i32,
+            y: spawn.y.floor() as i32,
+            z: spawn.z.floor() as i32,
+        };
     join_params.start_game.rotation = Vec2 {
         x: spawn.pitch,
         y: spawn.yaw,

@@ -1021,8 +1021,8 @@ fn check_zombie_fight(bot: &Bot, fight: &ZombieFight, zombie: u64) {
     assert_eq!(
         states,
         [
-            EnumsPlayerRespawnState::Searchingforspawn,
-            EnumsPlayerRespawnState::Readytospawn
+            EnumsPlayerRespawnState::SearchingForSpawn,
+            EnumsPlayerRespawnState::ReadyToSpawn
         ],
         "the respawn screen opens: Respawn state 0 then 1"
     );
@@ -1045,7 +1045,7 @@ async fn answer_respawn_screen(bot: &mut Bot) {
     bot.log("-> Respawn ClientReadyToSpawn, PlayerAction Respawn".into());
     bot.send(RespawnPacket {
         position: Vec3::default(),
-        state: EnumsPlayerRespawnState::Clientreadytospawn,
+        state: EnumsPlayerRespawnState::ClientReadyToSpawn,
         player_runtime_id: ActorRuntimeId {
             actor_runtime_id: me,
         },
@@ -1097,7 +1097,7 @@ async fn answer_respawn_screen(bot: &mut Bot) {
     }
     assert_eq!(
         acknowledged,
-        Some(EnumsPlayerRespawnState::Readytospawn),
+        Some(EnumsPlayerRespawnState::ReadyToSpawn),
         "the server acknowledges the client's ready-to-spawn"
     );
     let (position, mode) = moved.expect("MovePlayer after the respawn");
@@ -1695,7 +1695,7 @@ impl Bot {
         // created-output and combined containers while it is open.
         self.log("-> Interact OpenInventory".into());
         self.send(InteractPacket {
-            action: EnumsInteractPacketPayloadAction::Openinventory,
+            action: EnumsInteractPacketPayloadAction::OpenInventory,
             ..Default::default()
         });
         self.log(format!(
@@ -1709,7 +1709,7 @@ impl Bot {
                 actions: vec![
                     ItemStackRequestPacketDataRequestDataActionsItem::CraftCreativeActionData(
                         ItemStackRequestCerealCraftCreativeActionData {
-                            actiontype: EnumsItemStackRequestActionType::Craftcreative,
+                            actiontype: EnumsItemStackRequestActionType::CraftCreative,
                             creative_item_net_id,
                             numberofrequestedcrafts: 1,
                         },
@@ -1721,12 +1721,12 @@ impl Bot {
                             // The client's created-output slot, whose stack
                             // the client names by this request's id.
                             source: slot_info(
-                                EnumsContainerEnumName::Createdoutputcontainer,
+                                EnumsContainerEnumName::CreatedOutputContainer,
                                 50,
                                 REQUEST,
                             ),
                             destination: slot_info(
-                                EnumsContainerEnumName::Combinedhotbarandinventorycontainer,
+                                EnumsContainerEnumName::CombinedHotbarAndInventoryContainer,
                                 slot,
                                 0,
                             ),
@@ -2058,7 +2058,7 @@ impl Bot {
             z: eye.z - self.position.z,
         };
         self.position = eye.clone();
-        let mut input_data = vec![EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision];
+        let mut input_data = vec![EnumsPlayerAuthInputPacketPayloadInputData::VerticalCollision];
         if walking {
             input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Up);
         }

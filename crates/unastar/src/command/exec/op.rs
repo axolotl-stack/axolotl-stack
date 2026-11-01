@@ -167,7 +167,7 @@ mod tests {
         assert!(abilities(&mut h, alice).is_empty());
         assert_eq!(
             abilities(&mut h, bob),
-            [EnumsCommandPermissionLevel::Gamedirectors]
+            [EnumsCommandPermissionLevel::GameDirectors]
         );
     }
 
@@ -199,7 +199,7 @@ mod tests {
         let sent = h.sent(bob);
         assert!(sent.iter().any(|p| matches!(p,
             McpePacketData::UpdateAbilitiesPacket(p)
-                if p.data.command_permissions == EnumsCommandPermissionLevel::Gamedirectors)));
+                if p.data.command_permissions == EnumsCommandPermissionLevel::GameDirectors)));
         assert!(
             sent.iter()
                 .any(|p| matches!(p, McpePacketData::TextPacket(t)

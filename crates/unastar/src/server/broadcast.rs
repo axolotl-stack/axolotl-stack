@@ -10,8 +10,8 @@ pub mod player_views;
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{
     ActorRuntimeId, ActorUniqueId, CerealizerNetworkItemStackDescriptorSerializedData,
-    EnumsBuildPlatform, EnumsCommandPermissionLevel, EnumsGameType, EnumsPlayerPermissionLevel,
-    EnumsPlayerPositionModeComponentPositionMode, PlayerInputTick, PropertySyncData,
+    EnumsBuildPlatform, EnumsCommandPermissionLevel, EnumsPlayerPermissionLevel,
+    EnumsPlayerPositionModeComponentPositionMode, GameTypejson, PlayerInputTick, PropertySyncData,
     SerializedAbilitiesData, SerializedAbilitiesDataSerializedLayer,
     SynchedActorDataCopyableDataList, Vec2, Vec3,
 };
@@ -82,10 +82,10 @@ fn build_add_player_packet(
     game_mode: GameMode,
 ) -> AddPlayerPacket {
     let protocol_gamemode = match game_mode {
-        GameMode::Survival => EnumsGameType::Survival,
-        GameMode::Creative => EnumsGameType::Creative,
-        GameMode::Adventure => EnumsGameType::Adventure,
-        GameMode::Spectator => EnumsGameType::Creative, // No spectator in protocol
+        GameMode::Survival => GameTypejson::Survival,
+        GameMode::Creative => GameTypejson::Creative,
+        GameMode::Adventure => GameTypejson::Adventure,
+        GameMode::Spectator => GameTypejson::Creative, // No spectator in protocol
     };
 
     AddPlayerPacket {
@@ -126,6 +126,7 @@ fn build_add_player_packet(
             }],
         },
         actor_links: vec![],
+        passenger_block_data: None,
         device_id: "".into(),
         build_platform: EnumsBuildPlatform::Unknown,
     }
@@ -1031,6 +1032,7 @@ pub fn relay_player_swing(
         },
         data: packet.data,
         swing_source: packet.swing_source.clone(),
+        hand: packet.hand,
     });
     for viewer in nearby {
         if viewer == player {
@@ -1078,6 +1080,7 @@ mod swing_tests {
             },
             data: 0.0,
             swing_source: Some("attack".into()),
+            hand: jolyne::valentine::EnumsHandSlot::Mainhand,
         }
     }
 
@@ -1124,7 +1127,7 @@ mod swing_tests {
         relay_player_swing(
             &mut world,
             swinger,
-            &swing(1, EnumsAnimatePacketPayloadAction::Criticalhit),
+            &swing(1, EnumsAnimatePacketPayloadAction::CriticalHit),
         );
         assert!(near.try_recv().is_err());
         assert!(world.resource_mut::<EventBuffer>().drain().is_empty());

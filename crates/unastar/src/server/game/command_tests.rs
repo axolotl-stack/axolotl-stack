@@ -10,7 +10,7 @@ use crate::world::rules::{Difficulty, GameRules, StartGameWorldState, WorldTime}
 use bevy_ecs::prelude::Entity;
 use glam::DVec3;
 use jolyne::valentine::types::{
-    EnumsGameType, EnumsSharedTypesLegacyDifficulty, GameRule as WireGameRule, GameRuleRuleValue,
+    EnumsSharedTypesLegacyDifficulty, GameRule as WireGameRule, GameRuleRuleValue, GameTypejson,
     SyncWorldClocksPacketData,
 };
 use jolyne::valentine::{McpePacket, McpePacketData, StartGamePacket};
@@ -216,7 +216,19 @@ fn gamerule_keepinventory_changes_the_rule_and_broadcasts_it() {
         assert_eq!(announced, [vec![changed.clone()]]);
     }
     let start = start_game(&server);
-    assert!(start.settings.rule_data.rules_list.contains(&changed));
+    assert!(
+        start
+            .settings
+            .rule_data
+            .rules_list
+            .iter()
+            .any(|rule| rule.rule_name == changed.rule_name
+                && rule.rule_can_be_modified == changed.rule_can_be_modified
+                && matches!(
+                    rule.rule_value,
+                    jolyne::valentine::GameRulejsonRuleValue::Variant1(true)
+                ))
+    );
     // StartGame carries every BDS rule.
     assert_eq!(start.settings.rule_data.rules_list.len(), 39);
 
@@ -298,7 +310,7 @@ fn gamemode_creative_switches_mode_with_the_bds_packets() {
     for packets in [&to_op, &to_other] {
         assert!(packets.iter().any(|packet| matches!(packet,
             McpePacketData::UpdatePlayerGameTypePacket(p)
-                if p.player_game_type == EnumsGameType::Creative
+                if p.player_game_type == GameTypejson::Creative
                     && p.targetplayer.actor_unique_id == 1)));
         let abilities = packets
             .iter()
@@ -329,7 +341,7 @@ fn gamemode_creative_switches_mode_with_the_bds_packets() {
     );
     assert!(drain(&mut other).iter().any(|packet| matches!(packet,
         McpePacketData::UpdatePlayerGameTypePacket(p)
-            if p.player_game_type == EnumsGameType::Adventure && p.targetplayer.actor_unique_id == 2)));
+            if p.player_game_type == GameTypejson::Adventure && p.targetplayer.actor_unique_id == 2)));
 }
 
 #[test]

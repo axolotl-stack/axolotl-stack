@@ -50,7 +50,7 @@ async fn listener_advertises_status_and_enforces_max_players() {
     let addr: SocketAddr = listener.local_addr().unwrap();
     let pong = String::from_utf8(listener.inner().get_advertisement()).unwrap();
     assert!(
-        pong.starts_with("MCPE;Test MOTD;2193;1.26.51;0;1;"),
+        pong.starts_with("MCPE;Test MOTD;2225;1.26.60;0;1;"),
         "{pong}"
     );
     let guid = listener.inner().guid();
@@ -95,7 +95,7 @@ async fn listener_advertises_status_and_enforces_max_players() {
     assert!(
         matches!(
             refused,
-            JolyneError::LoginRefused(PlayStatusPacketStatus::LoginfailedServerfullsubclient)
+            JolyneError::LoginRefused(PlayStatusPacketStatus::LoginFailedServerFullSubClient)
         ),
         "{refused}"
     );

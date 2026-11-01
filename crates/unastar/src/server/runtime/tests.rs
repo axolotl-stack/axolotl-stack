@@ -140,7 +140,7 @@ impl Harness {
                 outbound_tx
                     .send(
                         PlayStatusPacket {
-                            status: PlayStatusPacketStatus::Playerspawn,
+                            status: PlayStatusPacketStatus::PlayerSpawn,
                         }
                         .into(),
                     )
@@ -160,6 +160,17 @@ async fn endpoint_transport(
     login: &ClientHandshakeConfig,
     signed: bool,
 ) -> NetherNetTransport {
+    try_endpoint_transport(address, login, signed)
+        .await
+        .unwrap()
+}
+
+/// A full listener may close a rejected connection before dial completes.
+async fn try_endpoint_transport(
+    address: SocketAddr,
+    login: &ClientHandshakeConfig,
+    signed: bool,
+) -> Result<NetherNetTransport, tokio_nethernet::NetherNetError> {
     let identity = signed.then(|| {
         Arc::new(
             tokio_nethernet::identity::Identity::generate_server(
@@ -177,8 +188,8 @@ async fn endpoint_transport(
             ..Default::default()
         },
     );
-    let stream = dialer.dial(format!("http://{address}")).await.unwrap();
-    NetherNetTransport::new(stream)
+    let stream = dialer.dial(format!("http://{address}")).await?;
+    Ok(NetherNetTransport::new(stream))
 }
 
 /// Run the normal client protocol over either real native transport.
@@ -262,8 +273,11 @@ async fn endpoint_and_raknet_join_share_routing_capacity_and_unique_session_ids(
             }
         }
         let login = ClientHandshakeConfig::random(endpoint, "Full");
-        let transport = endpoint_transport(endpoint, &login, true).await;
-        assert!(client_join(transport, login).await.is_err());
+        match try_endpoint_transport(endpoint, &login, true).await {
+            Ok(transport) => assert!(client_join(transport, login).await.is_err()),
+            Err(tokio_nethernet::NetherNetError::ConnectionClosed) => {}
+            Err(error) => panic!("unexpected capacity rejection: {error}"),
+        }
         assert_eq!(harness.state.next_session_id.load(Ordering::Relaxed), 3);
         tasks.stop().await;
         assert!(tokio::net::TcpStream::connect(endpoint).await.is_err());

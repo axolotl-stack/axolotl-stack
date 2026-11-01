@@ -420,7 +420,7 @@ and all tracked decoration counts with `cargo test -p unastar --all-features
 
 ## Compatibility Evidence
 
-The server targets Bedrock 1.26.51 (protocol 2193). Game packet handlers use the
+The server targets Bedrock 1.26.60 (protocol 2225). Game packet handlers use the
 canonical protocolgen enum names and required transaction/input collections.
 Subchunk heightmaps retain 16 columns per row in the generated `[Vec<i8>; 16]`
 representation; item-stack responses omit the optional redacted name when unused.

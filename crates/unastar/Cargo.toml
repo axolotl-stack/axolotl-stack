@@ -32,7 +32,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 p384.workspace = true
 rand.workspace = true
 zuri_nbt.workspace = true
-valentine = { workspace = true, default-features = false, features = ["bedrock_1_26_51"] }
+valentine = { workspace = true, default-features = false, features = ["bedrock_1_26_60"] }
 serde.workspace = true
 thiserror.workspace = true
 toml_edit = { workspace = true, features = ["serde"] }

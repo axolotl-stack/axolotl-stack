@@ -12,20 +12,15 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-<<<<<<< HEAD
-| [Entities](#entities): actor rows (summon and replication) | 137 | 117 | 4 | 3 | 9 | 4 | 9.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1121 | 2738 | 170 | 7 | 46 | 4.4% |
-=======
-| [Entities](#entities): actor rows (summon and replication) | 137 | 120 | 1 | 3 | 9 | 4 | 9.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1106 | 2753 | 170 | 7 | 46 | 4.4% |
->>>>>>> e2d1b1324228474fc9d0c65868a36c617e19e3ce
+| [Entities](#entities): actor rows (summon and replication) | 137 | 115 | 6 | 3 | 9 | 4 | 9.0% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1094 | 2764 | 171 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 166 | 903 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 136 | 22 | 46 | 12 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
-| [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
+| [Gameplay systems](#gameplay-systems) | 72 | 34 | 34 | 4 | 0 | 0 | 5.6% |
 
 ## Where to help
 
@@ -41,7 +36,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---:|---:|---:|
 | passive (part claimed) | 21 | 21 | 0 |
 | object | 16 | 15 | 1 |
-| projectile | 15 | 12 | 3 |
+| projectile | 15 | 11 | 4 |
 | built_in | 4 | 4 | 0 |
 | village | 4 | 4 | 0 |
 | boss | 2 | 2 | 0 |
@@ -104,7 +99,7 @@ Nothing in this domain is claimed.
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | player (part claimed) | 15 | 5 | 10 |
-| world (part claimed) | 14 | 6 | 8 |
+| world (part claimed) | 14 | 5 | 9 |
 | mobs | 10 | 8 | 2 |
 | interface | 6 | 4 | 2 |
 | crafting (part claimed) | 4 | 2 | 2 |
@@ -128,16 +123,11 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | aquatic | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
 | boss | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
 | built_in | 9 | 4 | 0 | 0 | 2 | 3 | 33.3% |
-<<<<<<< HEAD
-| hostile | 38 | 37 | 0 | 0 | 1 | 0 | 2.6% |
-| object | 18 | 15 | 1 | 0 | 1 | 1 | 5.9% |
-=======
 | hostile | 38 | 36 | 1 | 0 | 1 | 0 | 2.6% |
-| object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
->>>>>>> e2d1b1324228474fc9d0c65868a36c617e19e3ce
+| object | 18 | 15 | 1 | 0 | 1 | 1 | 5.9% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| projectile | 18 | 12 | 3 | 2 | 1 | 0 | 16.7% |
+| projectile | 18 | 11 | 4 | 2 | 1 | 0 | 16.7% |
 | village | 4 | 4 | 0 | 0 | 0 | 0 | 0.0% |
 
 Sub-rows by facet, most incomplete first (30 of 371):
@@ -209,8 +199,9 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 - `minecraft:ender_pearl`: actual launch and safe owner teleport work; endermite spawning and dimension travel remain unsupported; complete native parity is unverified
 - `minecraft:lingering_potion`: actual impact creates a replicated finite cloud with radius and recipient cooldowns; complete vanilla parity is unverified
+- `minecraft:small_fireball`: spawn, launch, flight, damage, ignition and reflection implemented; bandwidth optimization, general external pushing, and native RNG seed matching remain incomplete
 - `minecraft:splash_potion`: actual aux-valued launch, configured splash profiles and water extinguishing work; complete vanilla profile/effect parity is unverified
-- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile`, `minecraft:wither_skull`, `minecraft:wither_skull_dangerous`, `minecraft:xp_bottle`
+- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile`, `minecraft:wither_skull`, `minecraft:wither_skull_dangerous`, `minecraft:xp_bottle`
 
 **village**
 
@@ -819,7 +810,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 | performance | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | platform | 6 | 0 | 3 | 3 | 0 | 0 | 50.0% |
 | player | 17 | 5 | 11 | 1 | 0 | 0 | 5.9% |
-| world | 19 | 10 | 9 | 0 | 0 | 0 | 0.0% |
+| world | 19 | 9 | 10 | 0 | 0 | 0 | 0.0% |
 
 ### Gameplay systems gaps
 
@@ -856,11 +847,11 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 
 **player**
 
-- `player.abilities_permissions`: abilities follow the game mode; configured operators get operator commands, member/operator command levels answer like BDS and /op, /deop change them until restart (not saved); no visitor or custom permission levels, RequestAbility/RequestPermissions or UpdateAdventureSettings
+- `player.abilities_permissions`: abilities follow the game mode with an independent temporary flight overlay retained by raw snapshots and native migration; configured operators get operator commands, member/operator command levels answer like BDS and /op, /deop change them until restart (not saved); no visitor or custom permission levels, RequestAbility/RequestPermissions or UpdateAdventureSettings
 - `player.block_breaking`: break times, tool tiers, wear and loot drops work; breaking runs no neighbour updates (attached blocks and door halves stay), no ore experience
 - `player.block_placing`: logs, stairs, slabs, facing blocks, doors, hoppers and torches place with orientation, and hoes, shovels, axes, shears, flint and steel, fire charges, bone meal and buckets act on blocks; no crops/seeds, beds, signs, buttons, fence/wall/pane connections or support checks
-- `player.combat`: melee against mobs and players, and mob attacks on players with hurt timer, armour and knockback; bows, crossbows and snowballs; hits wear the weapon; no melee critical hits, shields or thrown tridents
-- `player.damage_sources`: fall, lava, fire blocks, burning, void and mob attacks; no drowning, suffocation, freezing, cactus, starvation, magic, lightning or explosion damage; block identities resolved by name string for fall damage
+- `player.combat`: melee against mobs and players, and mob attacks on players with a configurable full-hit player hurt timer, armour and knockback; bows, crossbows and snowballs; hits wear the weapon; no melee critical hits, shields or thrown tridents
+- `player.damage_sources`: fall, lava, fire blocks, burning, freezing, void and mob attacks; no drowning, suffocation, cactus, starvation, magic, lightning or explosion damage; block identities resolved by name string for fall damage
 - 6 more partial rows with other gaps (see [systems.toml](systems.toml))
 - missing: `player.achievements`, `player.books`, `player.fishing`, `player.maps`, `player.sleeping`
 
@@ -870,7 +861,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 - `world.chunk_ticking`: chunks load around players and entities tick in loaded chunks; no ticking areas and no random block ticks
 - `world.day_cycle`: clock, daylight cycle and moon phase work; no sleeping skip and time is not persisted
 - `world.difficulty`: mob damage scaling, peaceful monsters, regional difficulty and hard-only door breaking; no hunger effects (starvation floors, peaceful regeneration) and effects of unimplemented mobs
-- `world.falling_blocks`: gravity blocks fall, land and drop on non-full blocks; no falling anvil/dripstone damage, anvil wear or concrete powder hardening
-- 4 more partial rows with other gaps (see [systems.toml](systems.toml))
-- missing: `world.dimensions`, `world.explosions`, `world.fire`, `world.liquids`, `world.pistons`, `world.random_ticks`, `world.redstone`, `world.structure_blocks`, `world.structures_hardcoded`, `world.world_border`
+- `world.dimensions`: native applications can register isolated worlds, define portal routes and migrate authenticated actors with loaded safe destinations and dimension-correct chunks; automatic vanilla portal construction/routing and native Nether/End terrain generation are not implemented
+- 5 more partial rows with other gaps (see [systems.toml](systems.toml))
+- missing: `world.explosions`, `world.fire`, `world.liquids`, `world.pistons`, `world.random_ticks`, `world.redstone`, `world.structure_blocks`, `world.structures_hardcoded`, `world.world_border`
 

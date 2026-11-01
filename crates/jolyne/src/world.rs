@@ -4,12 +4,17 @@
 use crate::valentine::GAME_VERSION;
 use crate::valentine::{
     ActorRuntimeId, ActorUniqueId, AvailableActorIdentifiersPacket, BiomeDefinitionListPacket,
-    BlockPos, CreativeContentPacket, DimensionDataPacket, EduSharedUriResource,
-    EnumsChatRestrictionLevel, EnumsEditorWorldType, EnumsEducationEditionOffer, EnumsGameType,
-    EnumsGeneratorType, EnumsPlayerPermissionLevel, EnumsServerEditorConnectionPolicy,
-    EnumsSharedTypesLegacyDifficulty, EnumsSocialGamePublishSetting, Experiments,
-    GameRulesChangedPacketData, ItemRegistryPacket, JigsawStructureDataPacket, LevelSettings,
-    NetworkPermissions, SocialEventsServerTelemetryData, SpawnSettings, StartGamePacket,
+    BlockPosjson as BlockPos, ChatRestrictionLeveljson as EnumsChatRestrictionLevel,
+    CreativeContentPacket, Difficultyjson as EnumsSharedTypesLegacyDifficulty, DimensionDataPacket,
+    EditorWorldTypejson as EnumsEditorWorldType, EduSharedUriResourcejson as EduSharedUriResource,
+    EducationEditionOfferjson as EnumsEducationEditionOffer, Experimentsjson as Experiments,
+    GamePublishSettingjson as EnumsSocialGamePublishSetting,
+    GameRulesChangedPacketDatajson as GameRulesChangedPacketData, GameTypejson as EnumsGameType,
+    GeneratorTypejson as EnumsGeneratorType, ItemRegistryPacket, JigsawStructureDataPacket,
+    LevelSettingsjson as LevelSettings, NetworkPermissions,
+    PlayerPermissionLeveljson as EnumsPlayerPermissionLevel,
+    ServerEditorConnectionPolicyjson as EnumsServerEditorConnectionPolicy,
+    SocialEventsServerTelemetryData, SpawnSettingsjson as SpawnSettings, StartGamePacket,
     SyncedPlayerMovementSettings, Vec2, Vec3, VoxelShapesPacket,
 };
 use bytes::Bytes;
@@ -138,7 +143,7 @@ impl Default for WorldTemplate {
             game_difficulty: EnumsSharedTypesLegacyDifficulty::Peaceful,
             default_spawn_block_position: BlockPos { x: 0, y: 0, z: 0 },
             achievements_disabled: true,
-            editor_world_type: EnumsEditorWorldType::Noneditor,
+            editor_world_type: EnumsEditorWorldType::NonEditor,
             education_edition_offer: EnumsEducationEditionOffer::None,
             education_features_enabled: false,
             education_product_id: "".into(),
@@ -146,8 +151,8 @@ impl Default for WorldTemplate {
             lightning_level: 0.0,
             multiplayer_game_intent: true,
             lan_broadcast_intent: false,
-            xbox_live_broadcast_setting: EnumsSocialGamePublishSetting::Nomultiplay,
-            platform_broadcast_setting: EnumsSocialGamePublishSetting::Nomultiplay,
+            xbox_live_broadcast_setting: EnumsSocialGamePublishSetting::NoMultiPlay,
+            platform_broadcast_setting: EnumsSocialGamePublishSetting::NoMultiPlay,
             commands_enabled: true,
             texture_packs_required: false,
             rule_data: GameRulesChangedPacketData { rules_list: vec![] },
@@ -181,7 +186,7 @@ impl Default for WorldTemplate {
             override_force_experimental_gameplay: None,
             chat_restriction_level: EnumsChatRestrictionLevel::None,
             disable_player_interactions: false,
-            server_editor_connection_policy: EnumsServerEditorConnectionPolicy::Matchworldtype,
+            server_editor_connection_policy: EnumsServerEditorConnectionPolicy::MatchWorldType,
             allow_anonymous_block_drops_in_editor_worlds: false,
             ..Default::default()
         };

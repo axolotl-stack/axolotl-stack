@@ -80,8 +80,8 @@ pub fn open_respawn_screen(world: &World, player: Entity) {
     let spawn = respawn_position(world, player);
     if let Some(session) = world.get::<PlayerSession>(player) {
         for state in [
-            EnumsPlayerRespawnState::Searchingforspawn,
-            EnumsPlayerRespawnState::Readytospawn,
+            EnumsPlayerRespawnState::SearchingForSpawn,
+            EnumsPlayerRespawnState::ReadyToSpawn,
         ] {
             let _ = session.send(respawn_packet(spawn, state));
         }
@@ -132,7 +132,7 @@ fn try_respawn(world: &mut World, player: Entity, acknowledge: bool) {
     }
     let spawn = event.position;
     if acknowledge && let Some(session) = world.get::<PlayerSession>(player) {
-        let _ = session.send(respawn_packet(spawn, EnumsPlayerRespawnState::Readytospawn));
+        let _ = session.send(respawn_packet(spawn, EnumsPlayerRespawnState::ReadyToSpawn));
     }
     {
         let mut entity = world.entity_mut(player);

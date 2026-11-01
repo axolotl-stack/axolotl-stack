@@ -51,8 +51,8 @@ pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
 pub(crate) use join::send_inventory_contents;
 use jolyne::WorldTemplate;
-use jolyne::valentine::EnumsGameType;
-use jolyne::valentine::types::{BlockPos, Vec3};
+use jolyne::valentine::GameTypejson;
+use jolyne::valentine::types::Vec3;
 pub(crate) use loot::{LootContext, LootLevel};
 pub use placement::is_replaceable;
 use std::sync::Arc;
@@ -343,14 +343,14 @@ impl GameServer {
         world_template
             .start_game_template
             .settings
-            .default_spawn_block_position = BlockPos { x: 0, y: 17, z: 0 };
+            .default_spawn_block_position = jolyne::valentine::BlockPosjson { x: 0, y: 17, z: 0 };
         world_template
             .start_game_template
             .settings
             .spawn_settings
             .dimension = config.world.dimension;
-        world_template.start_game_template.game_type = EnumsGameType::Survival;
-        world_template.start_game_template.settings.game_type = EnumsGameType::Survival;
+        world_template.start_game_template.game_type = GameTypejson::Survival;
+        world_template.start_game_template.settings.game_type = GameTypejson::Survival;
         world_template
             .start_game_template
             .enable_item_stack_net_manager = true;

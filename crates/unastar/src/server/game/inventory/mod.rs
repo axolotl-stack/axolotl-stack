@@ -349,14 +349,14 @@ fn reject_container_requests(
 /// BDS 1.26.51, entity-player-drop-20261026-v4 seq 468/471: positive ID 1
 /// receives this terminating warning, then RakNet closes. There is no
 /// Minecraft Disconnect packet. The network loop owns flushing the warning
-/// and closing the transport when it sees Terminatingconnection.
+/// and closing the transport when it sees TerminatingConnection.
 fn invalid_request_warning() -> jolyne::valentine::PacketViolationWarningPacket {
     use jolyne::valentine::{
         EnumsPacketViolationSeverity, EnumsPacketViolationType, PacketViolationWarningPacket,
     };
     PacketViolationWarningPacket {
-        violation_type: EnumsPacketViolationType::Packetmalformed,
-        violation_severity: EnumsPacketViolationSeverity::Terminatingconnection,
+        violation_type: EnumsPacketViolationType::PacketMalformed,
+        violation_severity: EnumsPacketViolationSeverity::TerminatingConnection,
         violation_packet_id: 147,
         violation_context:
             "expected a valid ItemStackRequestId\nreadNoHeader failed! packetId: 147".into(),
@@ -434,7 +434,7 @@ pub(crate) const UI_WINDOW: u8 = 124;
 /// windows: the zero value (`AnvilInputContainer`, no dynamic ID).
 pub(crate) const UNNAMED_CONTAINER: jolyne::valentine::FullContainerName =
     jolyne::valentine::FullContainerName {
-        container_name: EnumsContainerEnumName::Anvilinputcontainer,
+        container_name: EnumsContainerEnumName::AnvilInputContainer,
         dynamic_id: None,
     };
 
@@ -584,7 +584,7 @@ fn handle_interact(entity: Entity, pk: &InteractPacket, player: &mut PlayerInven
     debug!(entity = ?entity, action = ?pk.action, "Interact packet");
 
     match pk.action {
-        EnumsInteractPacketPayloadAction::Openinventory => {
+        EnumsInteractPacketPayloadAction::OpenInventory => {
             // A second ContainerOpen for an open window crashes the client.
             if player.windows.open_id().is_some() {
                 debug!(entity = ?entity, "Window already open, skipping");
@@ -606,7 +606,7 @@ fn handle_interact(entity: Entity, pk: &InteractPacket, player: &mut PlayerInven
                 },
             }));
         }
-        EnumsInteractPacketPayloadAction::Interactupdate => {}
+        EnumsInteractPacketPayloadAction::InteractUpdate => {}
         _ => {
             debug!(entity = ?entity, action = ?pk.action, "Unhandled Interact action");
         }
@@ -730,7 +730,7 @@ fn apply_normal_actions(
         return false;
     }
     for action in actions {
-        if action.source.source_type != EnumsInventorySourceType::Containerinventory
+        if action.source.source_type != EnumsInventorySourceType::ContainerInventory
             || action.source.container_id != Some(0)
             || action.source.bit_flags.is_some()
         {
@@ -858,7 +858,7 @@ mod tests {
     fn action(slot: u32, from: u16, to: u16) -> jolyne::valentine::InventoryAction {
         jolyne::valentine::InventoryAction {
             source: jolyne::valentine::InventorySource {
-                source_type: EnumsInventorySourceType::Containerinventory,
+                source_type: EnumsInventorySourceType::ContainerInventory,
                 container_id: Some(0),
                 ..Default::default()
             },
@@ -948,7 +948,7 @@ mod tests {
             },
             {
                 let mut a = action(1, 0, 1);
-                a.source.source_type = EnumsInventorySourceType::Worldinteraction;
+                a.source.source_type = EnumsInventorySourceType::WorldInteraction;
                 a
             },
             action(99, 0, 1),
@@ -1079,7 +1079,7 @@ mod tests {
                     // The client names created output by its request ID.
                     source: ItemStackRequestCerealSlotInfoData {
                         fullcontainername: FullContainerName {
-                            container_name: EnumsContainerEnumName::Createdoutputcontainer,
+                            container_name: EnumsContainerEnumName::CreatedOutputContainer,
                             dynamic_id: None,
                         },
                         slot: 50,
@@ -1088,7 +1088,7 @@ mod tests {
                     destination: ItemStackRequestCerealSlotInfoData {
                         fullcontainername: FullContainerName {
                             container_name:
-                                EnumsContainerEnumName::Combinedhotbarandinventorycontainer,
+                                EnumsContainerEnumName::CombinedHotbarAndInventoryContainer,
                             dynamic_id: None,
                         },
                         ..Default::default()
@@ -1166,7 +1166,7 @@ mod tests {
             (
                 GameMode::Creative,
                 0,
-                EnumsItemStackNetResult::Invalidadjustedamount,
+                EnumsItemStackNetResult::InvalidAdjustedAmount,
             ),
             (GameMode::Survival, 16, EnumsItemStackNetResult::Error),
         ] {
@@ -1213,7 +1213,7 @@ mod tests {
         *world.get_mut::<ContainerWindows>(entity).unwrap() = ContainerWindows::default();
         let open = || {
             super::InventoryAction::Interact(InteractPacket {
-                action: EnumsInteractPacketPayloadAction::Openinventory,
+                action: EnumsInteractPacketPayloadAction::OpenInventory,
                 ..Default::default()
             })
         };
@@ -1490,7 +1490,7 @@ mod drop_tests {
         }
         let source = ItemStackRequestCerealSlotInfoData {
             fullcontainername: FullContainerName {
-                container_name: EnumsContainerEnumName::Combinedhotbarandinventorycontainer,
+                container_name: EnumsContainerEnumName::CombinedHotbarAndInventoryContainer,
                 dynamic_id: None,
             },
             slot: 0,
@@ -1590,7 +1590,7 @@ mod drop_tests {
         };
         assert_eq!(
             packet.responses[0].result,
-            EnumsItemStackNetResult::Invalidadjustedamount
+            EnumsItemStackNetResult::InvalidAdjustedAmount
         );
         assert!(packet.responses[0].containers.is_none());
         assert!(rx.try_recv().is_err());
@@ -1615,7 +1615,7 @@ mod drop_tests {
         };
         assert_eq!(
             packet.responses[0].result,
-            EnumsItemStackNetResult::Cannotdropitem
+            EnumsItemStackNetResult::CannotDropItem
         );
     }
 
@@ -1775,7 +1775,7 @@ mod real_player_drop_test {
                                         source: ItemStackRequestCerealSlotInfoData {
                                             fullcontainername: FullContainerName {
                                                 container_name:
-                                                    EnumsContainerEnumName::Hotbarcontainer,
+                                                    EnumsContainerEnumName::HotbarContainer,
                                                 dynamic_id: None,
                                             },
                                             slot: 0,
@@ -1905,7 +1905,7 @@ mod grid_transaction_tests {
             actions.push(Action::DropActionData(
                 ItemStackRequestCerealDropActionData {
                     amount: 2,
-                    source: slot(Name::Combinedhotbarandinventorycontainer, 0, drop_id),
+                    source: slot(Name::CombinedHotbarAndInventoryContainer, 0, drop_id),
                     ..Default::default()
                 },
             ));
@@ -1920,20 +1920,20 @@ mod grid_transaction_tests {
             }),
             Action::ConsumeActionData(ItemStackRequestCerealConsumeActionData {
                 amount: 1,
-                source: slot(Name::Craftinginputcontainer, 28, input_id),
+                source: slot(Name::CraftingInputContainer, 28, input_id),
                 ..Default::default()
             }),
             take(
                 4,
-                slot(Name::Createdoutputcontainer, 50, -1),
-                slot(Name::Combinedhotbarandinventorycontainer, 1, 0),
+                slot(Name::CreatedOutputContainer, 50, -1),
+                slot(Name::CombinedHotbarAndInventoryContainer, 1, 0),
             ),
         ]);
         if late_failure {
             actions.push(take(
                 0,
-                slot(Name::Combinedhotbarandinventorycontainer, 1, -1),
-                slot(Name::Combinedhotbarandinventorycontainer, 2, 0),
+                slot(Name::CombinedHotbarAndInventoryContainer, 1, -1),
+                slot(Name::CombinedHotbarAndInventoryContainer, 2, 0),
             ));
         }
         let mut requests = vec![ItemStackRequestPacketDataRequestData {
@@ -1946,8 +1946,8 @@ mod grid_transaction_tests {
                 client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 { id: -3 },
                 actions: vec![take(
                     4,
-                    slot(Name::Combinedhotbarandinventorycontainer, 1, -1),
-                    slot(Name::Combinedhotbarandinventorycontainer, 2, 0),
+                    slot(Name::CombinedHotbarAndInventoryContainer, 1, -1),
+                    slot(Name::CombinedHotbarAndInventoryContainer, 2, 0),
                 )],
                 ..Default::default()
             });
@@ -2040,7 +2040,7 @@ mod grid_transaction_tests {
         assert_eq!(packet.responses.len(), 1);
         assert_eq!(
             packet.responses[0].result,
-            EnumsItemStackNetResult::Invalidadjustedamount
+            EnumsItemStackNetResult::InvalidAdjustedAmount
         );
         assert!(packet.responses[0].containers.is_none());
         assert!(rx.try_recv().is_err());

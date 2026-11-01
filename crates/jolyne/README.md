@@ -6,7 +6,7 @@
 
 **Jolyne** is a Minecraft: Bedrock Edition protocol engine for Rust: servers,
 clients, proxies and protocol tools over RakNet, NetherNet (WebRTC) or your own
-transport. It is pinned to one version, Bedrock 1.26.51 (protocol 2193,
+transport. It is pinned to one version, Bedrock 1.26.60 (protocol 2225,
 `jolyne::GAME_VERSION` / `jolyne::PROTOCOL_VERSION`); the protocol check is
 exact. A runtime-free (sans-IO) core does the framing, compression, encryption
 and join phases, and an async Tokio driver runs it over a transport. Game
@@ -147,7 +147,7 @@ the vanilla reference). Tests are in `crates/jolyne` unless noted.
 | Packet borrowing / zero-copy | ✅ | `proto::raw::tests::compact_copy_detaches_from_batch_allocation`, `RawPacket` slices |
 | Custom packets (registry + user codec) | ✅ | `proto::tests::unknown_and_custom_packets_follow_the_configured_policy`, `proto::custom::tests::registry_rejects_valentine_and_out_of_range_ids`, `proto::raw::tests::custom_packets_must_use_free_ten_bit_ids` |
 | Unknown packet IDs (reject / skip / passthrough; server default reject) | ✅ | `proto::raw::tests::unknown_policy_rejects_skips_or_passes_through`, `proto::tests::unknown_and_custom_packets_follow_the_configured_policy` |
-| Multi-protocol versions | ❌ out of scope | repo policy: Bedrock 1.26.51 / protocol 2193 only (exact check in `proto::server`) |
+| Multi-protocol versions | ❌ out of scope | repo policy: Bedrock 1.26.60 / protocol 2225 only (exact check in `proto::server`) |
 | Flush control (immediate, manual, 50 ms-style interval) | ✅ | `proto::conn::tests::{flush_modes_immediate_manual_interval_and_auto_seal_limits, switching_to_interval_arms_the_timer_for_pending_packets, failed_encode_keeps_the_pending_batch_intact}`, `stream::tests::manual_and_interval_flush_batch_packets` |
 | Bounded queues / backpressure | ✅ | `proto::conn::tests::refused_batch_leaves_the_cipher_in_sync`, `stream::tests::sends_wait_for_transport_capacity` |
 | Typed decode packet cap; 16 MiB decompression limit | ✅ | `proto::batch::tests::{typed_decode_enforces_packet_cap, size_guard_covers_compressed_none_and_plain_payloads}` |

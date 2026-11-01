@@ -13,7 +13,7 @@ use bevy_ecs::prelude::{Entity, World};
 use jolyne::valentine::types::{
     ActorRuntimeId, CerealizerNetworkItemStackDescriptorSerializedData, DataItemEntry,
     DataItemEntryPayload, DataItemFloatPayload, DataItemInt64Payload, DataItemShortPayload,
-    EnumsCommandPermissionLevel, EnumsDataItemType, EnumsGameType, EnumsPlayerPermissionLevel,
+    EnumsCommandPermissionLevel, EnumsDataItemType, EnumsPlayerPermissionLevel, GameTypejson,
     PropertySyncData, SerializedAbilitiesData, SerializedAbilitiesDataSerializedLayer,
     SynchedActorDataCopyableDataList,
 };
@@ -106,7 +106,7 @@ pub(crate) fn abilities_packet(
                 EnumsPlayerPermissionLevel::Member
             },
             command_permissions: if operator {
-                EnumsCommandPermissionLevel::Gamedirectors
+                EnumsCommandPermissionLevel::GameDirectors
             } else {
                 EnumsCommandPermissionLevel::Any
             },
@@ -284,12 +284,12 @@ pub(crate) fn send_inventory_contents(world: &World, entity: Entity) {
 }
 
 /// A game mode as the wire names it.
-pub(crate) fn game_type(game_mode: GameMode) -> EnumsGameType {
+pub(crate) fn game_type(game_mode: GameMode) -> GameTypejson {
     match game_mode {
-        GameMode::Survival => EnumsGameType::Survival,
-        GameMode::Creative => EnumsGameType::Creative,
-        GameMode::Adventure => EnumsGameType::Adventure,
-        GameMode::Spectator => EnumsGameType::Spectator,
+        GameMode::Survival => GameTypejson::Survival,
+        GameMode::Creative => GameTypejson::Creative,
+        GameMode::Adventure => GameTypejson::Adventure,
+        GameMode::Spectator => GameTypejson::Spectator,
     }
 }
 

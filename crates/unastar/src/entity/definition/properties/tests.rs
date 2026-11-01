@@ -123,10 +123,7 @@ fn native_integer_snapshots_exclude_interleaved_server_only_properties() {
             None,
         ),
     ] {
-        let mut input = bytes;
-        let _header = VarUInt::decode(&mut input, ()).unwrap();
-        let native = jolyne::valentine::AddActorPacket::decode(&mut input, ()).unwrap();
-        assert!(input.is_empty());
+        let native = crate::entity::test_support::legacy_actor(bytes);
         let definition = definitions.get(identifier).unwrap();
         let layout = Arc::new(PropertyLayout::compile(&definition.description).unwrap());
         let mut state = ActorProperties::new(Arc::clone(&layout), &mut LiteralOnly).unwrap();

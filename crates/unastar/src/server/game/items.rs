@@ -67,7 +67,7 @@ fn slot_packet(slot: usize, item: WireItem) -> InventorySlotPacket {
         container_id: 0,
         slot: slot as u32,
         full_container_name: Some(FullContainerName {
-            container_name: EnumsContainerEnumName::Combinedhotbarandinventorycontainer,
+            container_name: EnumsContainerEnumName::CombinedHotbarAndInventoryContainer,
             dynamic_id: None,
         }),
         storage_item: Some(item.clone()),

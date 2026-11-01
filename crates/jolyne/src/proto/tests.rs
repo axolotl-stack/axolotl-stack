@@ -430,7 +430,7 @@ impl TerrainGatedStartup {
                         .insert((chunk.chunk_position.x, chunk.chunk_position.z));
                 }
                 McpePacketData::PlayStatusPacket(status) => {
-                    self.spawned |= status.status == PlayStatusPacketStatus::Playerspawn;
+                    self.spawned |= status.status == PlayStatusPacketStatus::PlayerSpawn;
                 }
                 _ => {}
             }
@@ -571,7 +571,7 @@ async fn streamed_spawn_lets_the_application_deliver_the_view_first() {
     }
     conn.queue_packet(
         &McpePacket::from(PlayStatusPacket {
-            status: PlayStatusPacketStatus::Playerspawn,
+            status: PlayStatusPacketStatus::PlayerSpawn,
         }),
         now,
     )
@@ -707,7 +707,7 @@ async fn post_encryption_packets_match_bds_bytes() {
     bds_info.extend(b"\x050.0.0"); // world template version
     bds_info.push(0); // no packs (varuint count)
     let mut stack = vec![0u8, 0]; // not required, no packs
-    stack.extend(b"\x071.26.51"); // base game version
+    stack.extend(b"\x071.26.60"); // active base game version
     stack.extend([0, 0, 0, 0, 0, 0]); // no experiments, never toggled, no editor packs
     assert_eq!(
         sent[handshake + 1..handshake + 4],
@@ -888,7 +888,7 @@ async fn resource_pack_timeouts_and_failures_have_their_own_disconnect_reasons()
     assert_eq!(timeout.disconnect_reason(), Some(R::Timeout));
 
     let refused = JolyneError::from(crate::error::PackError::Refused);
-    assert_eq!(refused.disconnect_reason(), Some(R::Resourcepackproblem));
+    assert_eq!(refused.disconnect_reason(), Some(R::ResourcePackProblem));
     assert_eq!(
         refused.disconnect_message(),
         "Resource pack negotiation failed."
@@ -973,7 +973,7 @@ async fn protocol_mismatch_answers_play_status_and_client_reports_refusal() {
     let mut raw = Connection::new(Framing::RakNet, ConnectionOptions::default());
     raw.queue_packet(
         &McpePacket::from(RequestNetworkSettingsPacket {
-            client_network_version: 1,
+            client_network_version: 2193,
         }),
         Instant::now(),
     )
@@ -991,7 +991,7 @@ async fn protocol_mismatch_answers_play_status_and_client_reports_refusal() {
     assert!(matches!(
         failure.error,
         JolyneError::Protocol(ProtocolError::IncompatibleProtocol {
-            client_protocol: 1,
+            client_protocol: 2193,
             ..
         })
     ));
@@ -1004,7 +1004,7 @@ async fn protocol_mismatch_answers_play_status_and_client_reports_refusal() {
     pump(&mut server, &mut client);
     assert!(matches!(
         error_of(client, Instant::now()),
-        JolyneError::LoginRefused(PlayStatusPacketStatus::LoginfailedClientold)
+        JolyneError::LoginRefused(PlayStatusPacketStatus::LoginFailedClientOld)
     ));
 }
 
@@ -1037,7 +1037,7 @@ async fn server_full_and_admission_refusals_reach_the_client_typed() {
     pump(&mut refused, &mut client);
     assert!(matches!(
         error_of(client, Instant::now()),
-        JolyneError::LoginRefused(PlayStatusPacketStatus::LoginfailedServerfullsubclient)
+        JolyneError::LoginRefused(PlayStatusPacketStatus::LoginFailedServerFullSubClient)
     ));
 
     let denying = Harness::new(BedrockListenerConfig {
@@ -1112,12 +1112,12 @@ fn failure_disconnects_never_send_internal_error_text() {
     for (error, reason, message) in [
         (
             JolyneError::from(AuthError::BadSignature("x5u=MHYwEAYH secret".into())),
-            EnumsConnectionDisconnectFailReason::Notauthenticated,
+            EnumsConnectionDisconnectFailReason::NotAuthenticated,
             "Authentication failed.",
         ),
         (
             ProtocolError::DecompressionFailed("preview 0a0b0c".into()).into(),
-            EnumsConnectionDisconnectFailReason::Badpacket,
+            EnumsConnectionDisconnectFailReason::BadPacket,
             "Received an invalid packet.",
         ),
     ] {
@@ -1157,7 +1157,7 @@ fn unknown_and_custom_packets_follow_the_configured_policy() {
     ));
     assert_eq!(
         JolyneError::from(ProtocolError::UnknownPacket(1000)).disconnect_reason(),
-        Some(EnumsConnectionDisconnectFailReason::Unknownpacket)
+        Some(EnumsConnectionDisconnectFailReason::UnknownPacket)
     );
 
     // Client default / proxies: passthrough, byte-identical.
@@ -1297,7 +1297,7 @@ async fn online_mode_without_encryption_is_refused_on_raknet() {
     ));
     assert_eq!(
         error.disconnect_reason(),
-        Some(EnumsConnectionDisconnectFailReason::Notauthenticated)
+        Some(EnumsConnectionDisconnectFailReason::NotAuthenticated)
     );
 }
 
@@ -1364,5 +1364,45 @@ async fn client_can_require_encryption() {
             }
             Ok(Step::Wait(_)) => panic!("LoginSuccess was not handled"),
         }
+    }
+}
+
+/// Both framing modes advertise the same real codec version and retain online
+/// key proof through the complete current-version world-join sequence.
+#[tokio::test]
+async fn protocol_2225_online_join_binds_both_version_fields_and_current_start_game() {
+    use valentine::bedrock::codec::BedrockCodec;
+    for framing in [Framing::RakNet, Framing::Unprefixed] {
+        let client_sent = Log::default();
+        let mut harness = Harness::online(BedrockListenerConfig::default(), framing);
+        harness.client.connection = recording(&client_sent);
+        let (server, client) = harness.join(params(42)).await;
+        assert!(server.login.identity.is_authenticated());
+        assert_eq!(client.game_data.start_game.server_version, "1.26.60");
+        assert_eq!(
+            client.game_data.start_game.settings.base_game_version,
+            "1.26.60"
+        );
+        let sent = client_sent.lock();
+        let settings = sent
+            .iter()
+            .find(|(name, _)| *name == McpePacketName::RequestNetworkSettingsPacket)
+            .unwrap();
+        assert_eq!(
+            RequestNetworkSettingsPacket::decode(&mut settings.1.as_slice(), ())
+                .unwrap()
+                .client_network_version,
+            2225
+        );
+        let login = sent
+            .iter()
+            .find(|(name, _)| *name == McpePacketName::LoginPacket)
+            .unwrap();
+        assert_eq!(
+            crate::valentine::LoginPacket::decode(&mut login.1.as_slice(), ())
+                .unwrap()
+                .client_network_version,
+            2225
+        );
     }
 }
