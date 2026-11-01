@@ -5,6 +5,8 @@ pub mod chunk;
 pub mod clock;
 pub mod ecs;
 pub mod generator;
+mod identity;
+pub use identity::WorldIdentity;
 pub mod regional_difficulty;
 pub mod rules;
 pub mod weather;

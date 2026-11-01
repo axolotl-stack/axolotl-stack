@@ -10,6 +10,8 @@ use crate::world::WorldConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
+mod worlds;
+pub use worlds::{SecondaryWorldConfig, WorldStorageConfig};
 
 #[cfg(test)]
 mod tests;
@@ -35,6 +37,8 @@ where
 pub struct UnastarConfig {
     pub server: ServerConfigFile,
     pub world: WorldConfig,
+    pub world_storage: WorldStorageConfig,
+    pub secondary_worlds: Vec<SecondaryWorldConfig>,
     pub players: PlayerStorageConfig,
     pub plugins: PluginConfig,
     #[serde(alias = "spawn")]
@@ -46,6 +50,8 @@ impl Default for UnastarConfig {
         Self {
             server: ServerConfigFile::default(),
             world: WorldConfig::default(),
+            world_storage: WorldStorageConfig::default(),
+            secondary_worlds: Vec::new(),
             players: PlayerStorageConfig::default(),
             plugins: PluginConfig::default(),
             spawn_rules: vec![SpawnRule::default()],
@@ -165,19 +171,8 @@ impl UnastarConfig {
 
     pub fn validate(&self) -> Result<(), String> {
         self.validate_network()?;
-        if let crate::world::WorldGenerator::JavaTerrain { preset, .. } = self.world.generator
-            && preset.dimension_id() != self.world.dimension
-        {
-            return Err("`world.generator.preset` must match `world.dimension`".into());
-        }
+        self.validate_worlds()?;
         self.plugins.validate()?;
-        #[cfg(not(feature = "bedrock-worldgen"))]
-        if matches!(
-            self.world.generator,
-            crate::world::WorldGenerator::Bedrock { .. }
-        ) {
-            return Err(crate::world::BEDROCK_BUILD_REQUIREMENT.to_owned());
-        }
         if self.spawn_rules.is_empty() {
             return Err("config requires at least one `[[spawn_rules]]` rule".into());
         }
@@ -190,18 +185,6 @@ impl UnastarConfig {
         if self.server.default_chunk_radius > self.server.max_chunk_radius {
             return Err(
                 "`server.default_chunk_radius` cannot exceed `server.max_chunk_radius`".into(),
-            );
-        }
-        if matches!(
-            self.world.generator,
-            crate::world::WorldGenerator::Java { .. }
-        ) && !unastar_noise::structures::template_data::TEMPLATES_EMBEDDED
-        {
-            return Err(
-                "the Java-style generator (`world.generator.kind = \"java\"`) needs structure templates \
-                 from the Java server jar: build with `--features java-worldgen` and \
-                 UNASTAR_JAVA_SERVER_JAR=<path to the Java Edition 1.21.11 server.jar>"
-                    .into(),
             );
         }
         Ok(())

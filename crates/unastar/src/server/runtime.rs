@@ -24,6 +24,7 @@ use crate::server::connect::{JoinWorldTemplate, accept_join_sequence_in_worlds, 
 use crate::server::worlds::DimensionRouter;
 use crate::server::{GameServer, PlayerSpawnData};
 use crate::storage::LevelDBPlayerProvider;
+mod configured_worlds;
 
 /// Tick rate (20 TPS = 50ms per tick).
 const TICK_DURATION: Duration = Duration::from_millis(50);
@@ -50,7 +51,8 @@ pub struct UnastarServer {
 impl UnastarServer {
     /// Create a new server instance from config.
     pub async fn new(config: Arc<UnastarConfig>) -> Result<Self, Box<dyn std::error::Error>> {
-        config.plugins.validate().map_err(std::io::Error::other)?;
+        config.validate().map_err(std::io::Error::other)?;
+        configured_worlds::validate_directories(&config)?;
         let player_data_store = Arc::new(PlayerDataStore::new(config.players.data_dir.clone()));
 
         // Create ECS-based game server
@@ -61,69 +63,31 @@ impl UnastarServer {
             );
         }
 
-        // Initialize LevelDB player provider (if enabled)
         if config.players.leveldb_enabled {
             let player_db_path = config.players.data_dir.join("db");
-            match LevelDBPlayerProvider::open(&player_db_path) {
-                Ok(provider) => {
-                    info!(path = %player_db_path.display(), "Opened player LevelDB");
-                    server.ecs.world_mut().insert_resource(
-                        crate::server::game::types::PlayerProviderResource(Arc::new(provider)),
-                    );
-                }
-                Err(e) => {
-                    warn!(error = %e, "Failed to open player LevelDB, persistence disabled");
-                }
-            }
+            let provider = LevelDBPlayerProvider::open(&player_db_path)?;
+            server.ecs.world_mut().insert_resource(
+                crate::server::game::types::PlayerProviderResource(Arc::new(provider)),
+            );
+            crate::server::game::inventory_effects::prepare_shared_writer(server.ecs.world_mut())?;
         }
-
-        // Initialize world provider based on config
-        let world_db_path = std::path::PathBuf::from("worlds")
-            .join("default")
-            .join("db");
-        let dimension = config.server_config().world.dimension;
-        let storage_provider = config.server_config().world.storage_provider;
-
-        let provider: Option<Arc<dyn crate::storage::WorldProvider>> = match storage_provider {
-            crate::world::StorageProvider::LevelDb => {
-                match crate::storage::LevelDBWorldProvider::open(&world_db_path, dimension) {
-                    Ok(provider) => {
-                        info!(path = %world_db_path.display(), "Opened world LevelDB");
-                        Some(Arc::new(provider))
-                    }
-                    Err(e) => {
-                        warn!(error = %e, "Failed to open world LevelDB, chunk persistence disabled");
-                        None
-                    }
-                }
+        let primary_id =
+            configured_worlds::install(&mut server, &config.world_storage, config.world)?;
+        let mut server = DimensionRouter::new(server);
+        let mut identities = std::collections::BTreeSet::from([primary_id]);
+        for entry in &config.secondary_worlds {
+            let mut native = config.server_config();
+            native.world = entry.world;
+            let mut world = server.create_world(native)?;
+            let id = configured_worlds::install(&mut world, &entry.storage(), entry.world)?;
+            if !identities.insert(id) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "configured worlds have duplicate durable identities",
+                )
+                .into());
             }
-            crate::world::StorageProvider::BlazeDb => {
-                let cache_capacity = config.server_config().world.blazedb_cache_chunks;
-                let blaze_config = crate::storage::blazedb::BlazeConfig {
-                    cache_capacity,
-                    ..Default::default()
-                };
-                match crate::storage::BlazeDBProvider::open(&world_db_path, Some(blaze_config)) {
-                    Ok(provider) => {
-                        info!(path = %world_db_path.display(), cache_capacity, "Opened world BlazeDB");
-                        Some(provider as Arc<dyn crate::storage::WorldProvider>)
-                    }
-                    Err(e) => {
-                        warn!(error = %e, "Failed to open world BlazeDB, chunk persistence disabled");
-                        None
-                    }
-                }
-            }
-        };
-
-        if let Some(provider) = provider {
-            // Set provider on ChunkManager resource for load-before-generate
-            let world = server.ecs.world_mut();
-            if let Some(mut chunk_manager) =
-                world.get_resource_mut::<crate::world::ecs::ChunkManager>()
-            {
-                chunk_manager.set_provider(provider);
-            }
+            server.add(world)?;
         }
 
         // Server key for encryption
@@ -145,9 +109,9 @@ impl UnastarServer {
         }
 
         let plugin_manager = Arc::new(Mutex::new(plugin_manager));
-        PluginManager::attach_to_world(Arc::clone(&plugin_manager), server.ecs.world_mut());
-
-        let mut server = DimensionRouter::new(server);
+        for (_, world) in server.iter_mut() {
+            PluginManager::attach_to_world(Arc::clone(&plugin_manager), world.ecs.world_mut());
+        }
         server.set_plugin_manager(plugin_manager.clone());
         info!("Plugin manager initialized, creating server struct");
         Ok(Self {
@@ -244,6 +208,17 @@ impl UnastarServer {
                 .0
                 .clone();
             let mut config = (*self.config).clone();
+            config.spawn_rules = self
+                .config
+                .spawn_rules_for(
+                    server
+                        .ecs
+                        .world()
+                        .resource::<crate::world::ecs::ChunkManager>()
+                        .dimension(),
+                )
+                .unwrap_or(&self.config.spawn_rules)
+                .to_vec();
             config.world = *server
                 .ecs
                 .world()
