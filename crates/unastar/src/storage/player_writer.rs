@@ -391,4 +391,80 @@ mod tests {
         assert_eq!(stale.kind, WriteFailureKind::NotApplied);
         assert_eq!(provider.load(uuid).await.unwrap().unwrap(), before);
     }
+
+    #[tokio::test]
+    async fn inventory_effect_after_state_restore_retires_the_checkpoint_without_losing_either_receipt()
+     {
+        let directory = tempfile::tempdir().unwrap();
+        let uuid = Uuid::new_v4();
+        let supplement = super::super::RestorationSupplement {
+            version: 1,
+            xuid: Some("42".into()),
+            effective_mode: 0,
+            base_mode: None,
+            flight_override: None,
+            velocity: [0.0; 3],
+            head_yaw: 0.0,
+            absorption: 0.0,
+            air_current: 17,
+            air_max: 300,
+            on_fire_ticks: 0,
+            burning_remaining: 0,
+            burning_next: 0,
+            effects: Vec::new(),
+            dead: false,
+        };
+        {
+            let provider = SerializedPlayerProvider::new(Arc::new(
+                LevelDBPlayerProvider::open(directory.path()).unwrap(),
+            ));
+            let original = data(uuid);
+            provider.save(uuid, &original).await.unwrap();
+            provider
+                .commit_state_effect(
+                    uuid,
+                    "state:1",
+                    [4; 32],
+                    original.clone(),
+                    supplement.clone(),
+                )
+                .await
+                .unwrap();
+            let mut candidate = provider.load(uuid).await.unwrap().unwrap();
+            assert!(candidate.restoration_checkpoint.is_some());
+            candidate.food = 15;
+            candidate.inventory.resize_with(36, Default::default);
+            candidate.inventory[0] = super::super::StoredItemStack {
+                item_id: "minecraft:stone".into(),
+                runtime_id: 0,
+                count: 3,
+                damage: 0,
+                nbt: None,
+            };
+            provider
+                .commit_effect(uuid, "items:1", [5; 32], candidate)
+                .await
+                .unwrap();
+            let advanced = provider.load(uuid).await.unwrap().unwrap();
+            assert!(advanced.restoration_checkpoint.is_none());
+            assert_eq!(advanced.inventory_revision, 2);
+            assert_eq!(advanced.inventory_effects.len(), 2);
+            let replay = provider
+                .commit_state_effect(uuid, "state:1", [4; 32], original, supplement)
+                .await
+                .unwrap();
+            assert!(replay.already_committed);
+            assert_eq!(provider.load(uuid).await.unwrap().unwrap(), advanced);
+        }
+        let provider = SerializedPlayerProvider::new(Arc::new(
+            LevelDBPlayerProvider::open(directory.path()).unwrap(),
+        ));
+        let stored = provider.load(uuid).await.unwrap().unwrap();
+        assert!(stored.restoration_checkpoint.is_none());
+        assert_eq!(stored.inventory_revision, 2);
+        assert_eq!(stored.food, 15);
+        assert_eq!(stored.inventory[0].count, 3);
+        assert_eq!(stored.inventory_effects["state:1"].request_hash, [4; 32]);
+        assert_eq!(stored.inventory_effects["items:1"].request_hash, [5; 32]);
+    }
 }
