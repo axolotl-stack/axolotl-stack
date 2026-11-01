@@ -191,7 +191,7 @@ fn movement_x(field: &str) -> usize {
     unreachable!()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_veto_prevents_real_movement_and_never_emits_a_commit() {
     let mut harness = Harness::new(&[
         (
@@ -217,7 +217,7 @@ async fn component_veto_prevents_real_movement_and_never_emits_a_commit() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_redirect_reports_actual_final_feet_once_and_suppresses_buffered_duplicates() {
     let committed = format!(
         "local.get 0 f64.load offset={} f64.const 0.5 f64.ne if unreachable end local.get 0 f64.load offset={} f64.const 2.75 f64.ne if unreachable end {}",
@@ -252,7 +252,7 @@ async fn component_redirect_reports_actual_final_feet_once_and_suppresses_buffer
     assert_eq!(harness.logs(), ["P", "C"]);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_later_native_veto_or_invalid_destination_never_emits_a_component_commit() {
     for invalid in [false, true] {
         let mut harness = Harness::new(&[
@@ -282,7 +282,7 @@ async fn a_later_native_veto_or_invalid_destination_never_emits_a_component_comm
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn replaced_connection_never_receives_a_stale_component_movement_commit() {
     let mut harness = Harness::new(&[
         (
@@ -309,7 +309,7 @@ async fn replaced_connection_never_receives_a_stale_component_movement_commit() 
     assert_eq!(harness.logs(), ["P"]);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn required_movement_trap_or_nonfinite_decision_fails_before_position_commit() {
     for body in ["unreachable".into(), accept("f64.const nan")] {
         let mut harness =
@@ -325,7 +325,7 @@ async fn required_movement_trap_or_nonfinite_decision_fails_before_position_comm
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn default_proposal_preserves_ordinary_movement_and_unchanged_input_has_no_commit() {
     let mut harness = Harness::new(&[("on-player-moved", witness(b'C'))]);
     harness.move_to(1.5).await.unwrap();
@@ -335,7 +335,7 @@ async fn default_proposal_preserves_ordinary_movement_and_unchanged_input_has_no
     assert_eq!(harness.logs(), ["C"]);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn native_move_bound_still_applies_to_an_accepted_component_redirect() {
     let mut harness = Harness::new(&[
         (

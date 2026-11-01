@@ -136,7 +136,7 @@ fn deferred() -> String {
     format!("{} i32.const 32 i32.const 2 i32.store i32.const 32", hold())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_admission_deny_sends_exact_rejection_without_any_initial_state() {
     let reason = "Please retry later.\nInitialization is unavailable.";
     let mut harness = Harness::new(
@@ -175,7 +175,7 @@ async fn component_admission_deny_sends_exact_rejection_without_any_initial_stat
     assert!(harness.manager.lock().unwrap().check_required().is_ok());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_admitted_notification_follows_the_actual_initial_batch_once() {
     let mut harness = Harness::new(
         &[
@@ -206,7 +206,7 @@ async fn component_admitted_notification_follows_the_actual_initial_batch_once()
     assert!(harness.logs().is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_deferred_hold_blocks_legacy_early_release_until_explicit_acknowledgement() {
     let mut harness = Harness::new(
         &[
@@ -229,7 +229,7 @@ async fn component_deferred_hold_blocks_legacy_early_release_until_explicit_ackn
     ));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_quit_retains_the_original_actor_without_a_network_session() {
     let mut harness = Harness::new(
         &[("on-player-quit", format!("{} i32.const 1", witness(b'Q')))],
@@ -263,7 +263,7 @@ fn schedule_initialization() -> &'static str {
     "#
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_initialization_task_can_ack_while_initializing_and_drop_the_staged_hold() {
     let admission = format!(
         "{} {} i32.const 32 i32.const 2 i32.store i32.const 32",
@@ -307,7 +307,7 @@ async fn component_initialization_task_can_ack_while_initializing_and_drop_the_s
     assert!(packets.try_recv().is_ok());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_dropping_a_deferred_hold_rejects_without_claiming_admission() {
     let admission = format!(
         "{} {} i32.const 32 i32.const 2 i32.store i32.const 32",
@@ -349,7 +349,7 @@ async fn component_dropping_a_deferred_hold_rejects_without_claiming_admission()
     assert!(harness.manager.lock().unwrap().check_required().is_ok());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_default_quit_removes_actor_and_legacy_queued_quit_is_suppressed() {
     let mut harness = Harness::new(
         &[("on-player-quit", format!("{} i32.const 0", witness(b'Q')))],
@@ -381,7 +381,7 @@ async fn component_default_quit_removes_actor_and_legacy_queued_quit_is_suppress
     assert!(harness.manager.lock().unwrap().check_required().is_ok());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_required_admission_trap_is_fatal_without_initial_publication() {
     let mut harness = Harness::new(
         &[("on-player-admission", format!("{} unreachable", hold()))],
@@ -398,7 +398,7 @@ async fn component_required_admission_trap_is_fatal_without_initial_publication(
     assert!(harness.manager.lock().unwrap().check_required().is_err());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_required_quit_trap_fences_before_native_save_or_teardown() {
     use crate::storage::PlayerProvider;
     let directory = tempfile::tempdir().unwrap();
@@ -445,7 +445,7 @@ async fn component_required_quit_trap_fences_before_native_save_or_teardown() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_unresolved_admission_cannot_overwrite_the_native_account_record() {
     use crate::storage::PlayerProvider;
     let directory = tempfile::tempdir().unwrap();
@@ -503,7 +503,7 @@ impl crate::server::game::player_events::PlayerEventHandler for ReplaceChannel {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_late_replacement_never_receives_stale_initial_state_or_player_task() {
     let admission = format!(
         "{} {} i32.const 32 i32.const 2 i32.store i32.const 32",
@@ -536,7 +536,7 @@ async fn component_late_replacement_never_receives_stale_initial_state_or_player
     assert!(harness.manager.lock().unwrap().check_required().is_ok());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_admission_waits_for_whole_initial_batch_capacity() {
     let mut harness = Harness::new(&[("on-player-admitted", witness(b'A'))], true);
     let (player, mut packets) = harness.join();
@@ -660,7 +660,7 @@ fn quit_offsets() -> (usize, usize, usize, usize, usize, usize) {
     )
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_quit_owns_exact_cause_and_health_after_original_actor_is_removed() {
     let (observation, health, admitted, reason, code, message) = quit_offsets();
     let quit = format!(
@@ -722,7 +722,7 @@ async fn component_quit_owns_exact_cause_and_health_after_original_actor_is_remo
     assert_eq!(harness.logs(), ["O"]);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_acknowledgement_cannot_release_another_components_hold() {
     let first = format!(
         "{} {} i32.const 32 i32.const 2 i32.store i32.const 32",
@@ -773,7 +773,7 @@ async fn component_acknowledgement_cannot_release_another_components_hold() {
     assert!(harness.manager.lock().unwrap().check_required().is_ok());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_quit_storage_error_then_trap_fences_before_native_player_save() {
     use crate::plugin::storage::{Limits, Registry};
     use crate::storage::PlayerProvider;
@@ -870,7 +870,7 @@ async fn component_quit_storage_error_then_trap_fences_before_native_player_save
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn owned_initialization_plan_can_commit_while_ordinary_saves_and_publication_wait() {
     use crate::entity::components::{GameMode, MainInventory};
     use crate::server::game::inventory_effects::{self, InventoryEffect, InventoryState};

@@ -93,7 +93,7 @@ fn item_identifier() -> String {
         .collect()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn actual_component_item_values_survive_callbacks_without_changing_inventory() {
     let (mut router, clients) = router();
     let before = router
@@ -186,7 +186,7 @@ async fn actual_component_item_values_survive_callbacks_without_changing_invento
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn actual_component_item_constructor_requires_its_capability() {
     let (mut router, clients) = router();
     let manager = attach_scoped(
@@ -225,7 +225,7 @@ async fn actual_component_item_constructor_requires_its_capability() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn raw_guest_cannot_reuse_owned_live_player_after_the_callback() {
     let (mut router, clients) = router();
     let manager = attach_scoped(
@@ -291,7 +291,7 @@ fn schedule() -> &'static str {
 "#
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn scheduled_player_callback_receives_a_fresh_scope_once() {
     let (mut router, clients) = router();
     let manager = attach_scoped(
@@ -319,7 +319,7 @@ async fn scheduled_player_callback_receives_a_fresh_scope_once() {
     assert!(logs(&manager).is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trapping_scheduled_callback_latches_required_failure_before_further_work() {
     let (mut router, clients) = router();
     let manager = attach_scoped(
@@ -346,7 +346,7 @@ impl RouterTickHandler for Depart {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn departed_player_reports_typed_failure_without_forging_a_live_callback() {
     let (mut router, clients) = router();
     let manager = attach_scoped(
@@ -370,7 +370,7 @@ async fn departed_player_reports_typed_failure_without_forging_a_live_callback()
     assert!(manager.lock().unwrap().check_required().is_ok());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn explicit_task_cancellation_reports_cancelled_and_never_runs_player_code() {
     let (mut router, clients) = router();
     let body = schedule().replace(
@@ -401,7 +401,7 @@ async fn explicit_task_cancellation_reports_cancelled_and_never_runs_player_code
     assert_eq!(logs(&manager), ["x"]);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exact_connection_handle_follows_actual_world_migration_before_scheduled_execution() {
     let (mut router, clients) = router();
     let manager = attach_scoped(
@@ -449,7 +449,7 @@ async fn exact_connection_handle_follows_actual_world_migration_before_scheduled
     assert_eq!(observed, ["1", "x"]);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn replaced_world_with_same_dimension_reports_typed_world_closed_failure() {
     let (mut router, _clients) = router();
     let manager = attach_scoped(&mut router, &[

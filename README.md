@@ -208,6 +208,12 @@ all dimension worlds, discards queued component actions and terminally fences
 connected player state against ordinary saves. Restart with validated durable
 state after correcting the failure; another tick does not reopen admission.
 
+Synchronous component calls run on the world owner thread. When embedding the
+server in Tokio, use a multi-thread runtime that permits blocking scopes; sync
+WASI output and other I/O enter that runtime inside `block_in_place`. A
+current-thread runtime or `LocalSet` is rejected before guest execution. This
+boundary does not send live worlds or scoped player resources to worker tasks.
+
 A manifest may set `config = "settings.bin"`. The loader caches at most 1 MiB of
 opaque bytes from a regular file contained in the plugin directory before
 instantiation. Absolute paths, escapes and symlinks outside that directory are

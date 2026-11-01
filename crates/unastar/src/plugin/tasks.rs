@@ -3,7 +3,7 @@
 use super::players::{PlayerLineage, WorldReference};
 use super::{
     HostContext, PluginManager, make_player_resource, make_world_tx, players, wit_types as wit,
-    with_world,
+    with_guest_world,
 };
 use crate::plugin::manifest::PluginId;
 use parking_lot::Mutex;
@@ -117,7 +117,7 @@ impl PluginManager {
                                 .world_mut(dimension)
                                 .ok_or(wit::AccessError::WorldClosed)?;
                             let world = server.ecs.world_mut();
-                            let result = with_world(
+                            let result = with_guest_world(
                                 &mut plugin.store,
                                 world,
                                 |store| -> anyhow::Result<()> {
@@ -180,7 +180,7 @@ impl PluginManager {
                     continue;
                 };
                 let world = primary.ecs.world_mut();
-                let result = with_world(&mut plugin.store, world, |store| {
+                let result = with_guest_world(&mut plugin.store, world, |store| {
                     super::prepare_invocation(store);
                     plugin.bindings.call_on_task_failed(
                         store,

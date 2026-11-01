@@ -124,7 +124,7 @@ fn actions(router: &mut DimensionRouter, dimension: i32) -> Vec<PluginAction> {
         .drain()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_tick_runs_once_with_the_global_player_directory_and_primary_clock() {
     let (mut router, _clients) = router();
     let manager = attach(
@@ -253,7 +253,7 @@ impl crate::entity::player_life::hooks::PlayerLifecycleHandler for RecordFuel {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn component_fuel_is_not_replenished_between_worlds_or_deferred_router_work() {
     let (mut router, clients) = router();
     let manager = attach(
@@ -325,7 +325,7 @@ fn require(manager: &Arc<Mutex<PluginManager>>) {
     manager.readiness.require(&id);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn required_tick_trap_fences_all_worlds_and_never_recovers_on_next_fuel_cycle() {
     use crate::server::game::{inventory_effects, player_state};
     let (mut router, clients) = router();
@@ -369,7 +369,7 @@ async fn required_tick_trap_fences_all_worlds_and_never_recovers_on_next_fuel_cy
     assert_eq!(router.save_all_players().await, 0);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn required_damage_trap_vetoes_before_commit_and_fences_the_exact_player() {
     use crate::server::game::inventory_effects;
     let (mut router, clients) = router();
@@ -411,7 +411,7 @@ async fn required_damage_trap_vetoes_before_commit_and_fences_the_exact_player()
     ));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn required_legitimate_damage_veto_preserves_readiness_and_player_state() {
     let (mut router, clients) = router();
     let manager = attach(
