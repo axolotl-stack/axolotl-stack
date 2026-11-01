@@ -51,7 +51,7 @@ async fn another_real_component_observes_the_destination_without_an_owned_reques
 }
 
 /// Compile the real scoped Handler independently of the native artifact directory.
-fn guest() -> &'static [u8] {
+pub(super) fn guest() -> &'static [u8] {
     static BYTES: OnceLock<Vec<u8>> = OnceLock::new();
     BYTES.get_or_init(|| {
         let manifest =

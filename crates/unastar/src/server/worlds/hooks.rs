@@ -268,6 +268,7 @@ pub(super) fn proposed(
 }
 /// Notify native callbacks and destination observers before deferred publication.
 pub(super) fn committed(source: &mut World, target: &mut World, mut event: PlayerWorldTransferred) {
+    crate::server::game::travel_authorization::transferred(source, target, &event);
     for handler in handlers(source) {
         handler.on_committed(source, target, &event);
     }

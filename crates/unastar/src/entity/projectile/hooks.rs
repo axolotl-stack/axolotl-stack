@@ -184,6 +184,7 @@ pub(crate) struct TeleportPermit {
 impl TeleportPermit {
     /// Notify native handlers and observers after authoritative position commit.
     pub(crate) fn commit(self, world: &mut World) {
+        crate::server::game::travel_authorization::teleported(world, &self.committed);
         for handler in handlers(world) {
             handler.on_teleported(world, &self.committed);
         }

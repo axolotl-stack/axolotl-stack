@@ -676,6 +676,20 @@ staged effects and reject travel; valid cancellation preserves independent
 explicit intents. This guard is authorization, and the existing owned
 `on_player_travel_result` remains the durable queued-request outcome.
 
+Subscribe to `player_travelled` with `read-players` for
+`Handler::on_player_travelled(TravelCommitted)`. This owned observation contains
+the original identity, cause and actual before/after feet, including ordinary
+projectile and chorus-fruit teleports. Available world-lifetime and tick facts
+are optional. Only the originating component instance receives a queued
+request's correlation. The record retains no live player or world capability
+and remains readable after departure.
+
+The notification runs after native movement, before ordinary post-move handlers
+can replace the actor or consume request ownership. Rejected destinations and
+uncertain storage acknowledgements that prevented movement emit no notification.
+It does not prove a durable write or client acknowledgement. A callback trap uses
+the normal component failure rules; it cannot veto movement that already occurred.
+
 ### Scoped component player mechanics
 
 With `read-players`, `Player::mechanics()` copies the current native effects,

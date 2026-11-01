@@ -1378,6 +1378,9 @@ Water impacts authorize each extinguished actor and changed fire/campfire block.
 Pearls authorize their final rewritten destination, require loaded collision-free
 space, and apply owner fall damage only after a successful teleport. The immutable
 `PlayerTeleported` notification exposes final feet coordinates only after commit.
+Components can subscribe to the owned `player_travelled` observation for actual
+native teleports and world transfers, including moves without a queued request.
+The final `player_travel` callback remains the pre-movement authorization gate.
 
 Lingering bottles create replicated, nonliving area-effect-cloud actors with a
 warm-up, finite lifetime, shrinking radius and per-recipient reapplication delay.
