@@ -245,6 +245,7 @@ fn shoot_bow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, tic
         world.despawn(projectile);
         return;
     }
+    crate::entity::projectile::enchantments::capture(world, projectile, stack);
     if let (Some(ammo), false, false) = (ammo, creative, infinity) {
         take_arrow(world, player, ammo);
     }
@@ -576,4 +577,6 @@ mod tests {
         assert!(charged(&loaded));
         assert!(!charged(&with_charge(&loaded, false)));
     }
+
+    mod enchantments;
 }

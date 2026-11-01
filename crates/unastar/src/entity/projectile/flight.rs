@@ -129,6 +129,7 @@ fn step(
     ) else {
         return;
     };
+    super::enchantments::tick(world, projectile);
     // Frozen until its chunk loads, like every physics body; a stuck
     // projectile no longer flies.
     if world.block_at(from.floor().as_ivec3()).is_none()
