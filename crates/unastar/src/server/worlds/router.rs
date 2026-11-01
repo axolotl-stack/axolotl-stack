@@ -387,6 +387,14 @@ impl DimensionRouter {
         }
         saved
     }
+    /// Propagate rejected or ambiguous ordinary terrain writes to shutdown.
+    pub async fn try_save_all_chunks(&mut self) -> crate::storage::StorageResult<usize> {
+        let mut saved = 0;
+        for world in self.worlds.values_mut() {
+            saved += world.try_save_all_chunks().await?;
+        }
+        Ok(saved)
+    }
     /// Acknowledge pending terrain writes in every registered dimension. A failed
     /// provider flush remains an error instead of reporting a completed shutdown.
     pub async fn flush_worlds(&self) -> crate::storage::StorageResult<()> {

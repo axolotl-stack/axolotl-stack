@@ -67,9 +67,10 @@ fn enabled(world: &World, actor: Entity, goal: &CarryGoal) -> bool {
 
 /// Locked, unloaded, outside-height and block-actor cells cannot participate.
 fn cell(world: &World, position: IVec3) -> Option<u32> {
-    if world
-        .get_resource::<ContainerMutationLocks>()
-        .is_some_and(|locks| locks.is_locked(position))
+    if crate::storage::column_runtime::cell_reserved(world, position)
+        || world
+            .get_resource::<ContainerMutationLocks>()
+            .is_some_and(|locks| locks.is_locked(position))
     {
         return None;
     }

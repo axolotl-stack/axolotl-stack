@@ -8,6 +8,8 @@
 //! - LevelDB (default) - standard Bedrock-compatible storage
 //! - BlazeDB - high-performance with spatial indexing
 
+pub mod column_runtime;
+pub mod column_writer;
 mod keys;
 pub mod player_writer;
 mod provider;

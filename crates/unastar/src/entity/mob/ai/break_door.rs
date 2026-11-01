@@ -408,6 +408,11 @@ fn break_door(world: &mut World, cell: IVec3) {
     let other_state = world
         .block_at(other)
         .filter(|&other| (entry.min_state_id..=entry.max_state_id).contains(&other));
+    if crate::storage::column_runtime::cell_reserved(world, cell)
+        || crate::storage::column_runtime::cell_reserved(world, other)
+    {
+        return;
+    }
     // Particle data names the block by its wire id.
     let ids = crate::server::game::types::block_network_ids(world);
 

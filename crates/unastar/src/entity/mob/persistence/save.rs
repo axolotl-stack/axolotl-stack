@@ -22,7 +22,14 @@ pub(super) fn list<T: Into<NBTTag>>(values: impl IntoIterator<Item = T>) -> NBTT
 }
 
 /// Encode one mob as Bedrock actor NBT. `mob` must be a mob entity.
+#[cfg(test)]
 pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> {
+    encode_mob_at(world, mob, unique_id, current_tick(world))
+}
+
+/// Encode against a fixed capture clock for late physical-state comparisons;
+/// unchanged absolute deadlines must not look like new actor mutations.
+pub(super) fn encode_mob_at(world: &World, mob: Entity, unique_id: i64, now: u64) -> Vec<u8> {
     let archetype = &world.get::<MobKind>(mob).expect("saved actors are mobs").0;
     let state = world
         .get::<DefinitionState>(mob)
@@ -112,7 +119,6 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
             NBTTag::Int(i32::from(hover.remaining).into()),
         );
     }
-    let now = current_tick(world);
     if let Some(teleport) = world.get::<crate::entity::mob::components::teleport::Teleport>(mob) {
         put(
             "UnastarTeleportWaits",

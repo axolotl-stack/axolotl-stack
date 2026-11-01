@@ -79,6 +79,11 @@ const SYSTEMS: &[(&str, &str, &str)] = &[
     ),
     (
         "world",
+        "world.atomic_column_writes",
+        "serialized column persistence with durable epochs and atomic effect receipts",
+    ),
+    (
+        "world",
         "world.portable_terrain_configuration",
         "portable generator preset configuration and built-in biome decoration",
     ),

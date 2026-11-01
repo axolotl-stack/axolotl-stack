@@ -395,6 +395,8 @@ impl BlockStateSpace {
 /// A chunk with fixed physical storage and explicit logical dimension build bounds.
 #[derive(Debug, Clone)]
 pub struct Chunk {
+    mutation_identity: uuid::Uuid,
+    mutation_revision: u64,
     pub x: i32,
     pub z: i32,
     state_space: BlockStateSpace,
@@ -609,6 +611,8 @@ impl Chunk {
             biomes,
             block_entities: Vec::new(),
             recalculate_height_map: false,
+            mutation_identity: uuid::Uuid::new_v4(),
+            mutation_revision: 0,
         }
     }
 
@@ -676,7 +680,23 @@ impl Chunk {
             block_entities: Vec::new(),
             height_map,
             recalculate_height_map: false,
+            mutation_identity: uuid::Uuid::new_v4(),
+            mutation_revision: 0,
         }
+    }
+
+    /// Exact in-process terrain lifetime and mutation generation. Cloning a
+    /// snapshot preserves its witness; newly constructed terrain never does.
+    pub(crate) fn mutation_witness(&self) -> (uuid::Uuid, u64) {
+        (self.mutation_identity, self.mutation_revision)
+    }
+
+    /// Conservatively invalidate captured terrain before a mutable operation.
+    fn mark_mutated(&mut self) {
+        self.mutation_revision = self
+            .mutation_revision
+            .checked_add(1)
+            .expect("chunk mutation generation exhausted");
     }
 
     /// The identity domain of every block id returned by this chunk.
@@ -703,6 +723,7 @@ impl Chunk {
     /// Adopt a generator's build bounds without reallocating or copying blocks.
     /// Used at the pipeline boundary for generators that return shared-size storage.
     pub fn set_block_bounds(&mut self, bounds: Range<i32>) {
+        self.mark_mutated();
         Self::assert_bounds(&bounds);
         if self.bounds == bounds {
             return;
@@ -739,6 +760,7 @@ impl Chunk {
     /// containing fluid-bearing native blocks. Unrepresentable Java properties
     /// remain exact before this boundary. Never invert this conversion.
     pub fn convert_to_bedrock(&mut self) -> std::io::Result<()> {
+        self.mark_mutated();
         if self.state_space == BlockStateSpace::Bedrock {
             return Ok(());
         }
@@ -825,6 +847,7 @@ impl Chunk {
     /// # Arguments
     /// * `layers` - Number of Y layers to fill (from world Y=0 upward).
     pub fn fill_floor(&mut self, layers: u32, block_id: u32) {
+        self.mark_mutated();
         let layers = layers.min(self.bounds.end.max(0) as u32);
         self.retain_block_entities_for_fill(0, layers.min(320) as i32, block_id);
         // Y=0 is at subchunk index 4 (since MIN_Y=-64, so subchunk 0 covers Y=-64 to -48)
@@ -868,6 +891,7 @@ impl Chunk {
     /// * `subchunk_idx` - Array index of subchunk to fill (0-23)
     /// * `block_id` - Runtime block ID to fill with
     pub fn fill_subchunk_solid(&mut self, subchunk_idx: usize, block_id: u32) {
+        self.mark_mutated();
         if subchunk_idx >= self.sub_chunks.len() {
             return;
         }
@@ -937,6 +961,7 @@ impl Chunk {
     /// Set one biome id for the whole chunk.
     /// This affects grass/foliage color tinting on the client.
     pub fn set_biome(&mut self, biome_id: u32) {
+        self.mark_mutated();
         for section in &mut self.biomes {
             *section = PalettedStorage::single_block(biome_id);
         }
@@ -964,6 +989,7 @@ impl Chunk {
         quarts: &QuartBiomes,
         mut to_bedrock: impl FnMut(NativeBiome) -> u32,
     ) {
+        self.mark_mutated();
         for (index, section) in self.biomes.iter_mut().enumerate() {
             let mut ids = [0u32; 64];
             for qy in 0..4 {
@@ -1102,6 +1128,7 @@ impl Chunk {
         data: &[u8],
         dimension: i32,
     ) -> Result<(), String> {
+        self.mark_mutated();
         let mut decoded = self.clone();
         decoded.decode_biomes_disk(data)?;
         let bounds = crate::world::dimension_block_bounds(dimension);
@@ -1139,6 +1166,7 @@ impl Chunk {
     /// than [`SUBCHUNK_COUNT`] sections are present the last one repeats upward.
     /// On error the chunk's biomes are unchanged.
     pub fn decode_biomes_disk(&mut self, data: &[u8]) -> Result<(), String> {
+        self.mark_mutated();
         let mut rest = data.get(DATA3D_HEIGHTMAP_LEN..).ok_or_else(|| {
             format!(
                 "Data3D value is {} bytes, shorter than its {DATA3D_HEIGHTMAP_LEN}-byte height map",
@@ -1180,6 +1208,7 @@ impl Chunk {
     /// [`SUBCHUNK_COUNT`] network-format storages, a zero border-block count, and no
     /// other bytes. On error the chunk's biomes are unchanged.
     pub fn decode_biomes_network(&mut self, data: &[u8]) -> Result<(), String> {
+        self.mark_mutated();
         let mut rest = data;
         let mut sections = Vec::with_capacity(SUBCHUNK_COUNT as usize);
         for index in 0..SUBCHUNK_COUNT {
@@ -1273,6 +1302,7 @@ impl Chunk {
     }
 
     fn insert_block_entity(&mut self, entity: BlockEntity) -> bool {
+        self.mark_mutated();
         let position = entity.position();
         if let Some(old) = self
             .block_entities
@@ -1289,6 +1319,7 @@ impl Chunk {
     /// FULL-status promotion of native pending actors. Markers outside build
     /// height are dropped; the rest instantiate from the current block state.
     pub(crate) fn promote_java_pending_actors(&mut self) {
+        self.mark_mutated();
         assert_eq!(self.state_space, BlockStateSpace::Java);
         let mut actors = std::mem::take(&mut self.block_entities);
         actors.retain_mut(|actor| {
@@ -1310,6 +1341,7 @@ impl Chunk {
 
     /// Remove an actor at an absolute position; returns whether one existed.
     pub fn remove_block_entity(&mut self, x: i32, y: i32, z: i32) -> bool {
+        self.mark_mutated();
         if !self.bounds.contains(&y) {
             return false;
         }
@@ -1434,6 +1466,7 @@ impl Chunk {
         block_id: u32,
         secondary: Option<u32>,
     ) -> Option<u32> {
+        self.mark_mutated();
         let adjusted_y = (y as i32) - MIN_Y;
         if x >= 16 || z >= 16 || !self.bounds.contains(&i32::from(y)) {
             return None;
@@ -1512,6 +1545,7 @@ impl Chunk {
     ///
     /// Returns an error string if decoding failed.
     pub fn decode_subchunk(&mut self, y_index: i32, data: &[u8]) -> Result<(), String> {
+        self.mark_mutated();
         self.assert_bedrock();
         // Convert absolute Y index to array index
         let array_idx = (y_index - (MIN_Y >> 4)) as usize;
