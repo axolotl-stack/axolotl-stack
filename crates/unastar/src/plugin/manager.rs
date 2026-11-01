@@ -19,6 +19,8 @@ mod storage_bridge;
 #[path = "tasks.rs"]
 mod tasks;
 
+#[path = "movements.rs"]
+mod movements;
 #[path = "sessions.rs"]
 pub(crate) mod sessions;
 
@@ -945,6 +947,8 @@ pub(crate) mod tests {
     use crate::plugin::manifest::PluginLimits;
     use wit_bindings::unastar::plugin::host::Host;
     mod fixture;
+    #[path = "movements.rs"]
+    mod movement_tests;
     #[path = "sessions.rs"]
     mod session_tests;
 

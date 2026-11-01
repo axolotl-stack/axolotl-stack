@@ -106,6 +106,7 @@ pub(super) fn bytes(bodies: &[(&str, String)]) -> Vec<u8> {
             "on-player-chat" | "on-block-break" | "on-block-place" | "on-player-interact-block" => "i32.const 1".into(),
             "on-player-admission" => "i32.const 32 i32.const 0 i32.store i32.const 32".into(),
             "on-player-quit" => "i32.const 0".into(),
+            "on-player-move" => "i32.const 32 i32.const 1 i32.store i32.const 40 local.get 5 f64.store i32.const 48 local.get 6 f64.store i32.const 56 local.get 7 f64.store i32.const 32".into(),
             "on-player-damage" => "i32.const 32 i32.const 1 i32.store i32.const 36 local.get 5 f32.store i32.const 32".into(),
             "on-player-respawn" => "i32.const 64 i32.const 1 i32.store i32.const 72 local.get 2 f64.store i32.const 80 local.get 3 f64.store i32.const 88 local.get 4 f64.store i32.const 64".into(),
             _ => String::new(),

@@ -39,6 +39,7 @@ pub enum EventKind {
     BlockPlace,
     Timer,
     PlayerMove,
+    PlayerMoved,
     PlayerJump,
     PlayerToggleSneak,
     PlayerToggleSprint,

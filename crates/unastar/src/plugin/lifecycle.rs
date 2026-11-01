@@ -91,6 +91,7 @@ impl PluginManager {
             .clone();
         world.insert_resource(readiness);
         super::sessions::install(manager.clone(), world);
+        super::movements::install(manager.clone(), world);
         LifecycleBridge::install(manager, world);
     }
 
@@ -274,7 +275,7 @@ impl PluginManager {
 }
 
 /// Scope handles to a single call and discard actions from a trapped callback.
-fn invoke<R>(
+pub(super) fn invoke<R>(
     plugin: &mut LoadedPlugin,
     world: &mut World,
     call: impl FnOnce(&mut Store<HostContext>, &UnastarPlugin) -> anyhow::Result<R>,
@@ -300,7 +301,7 @@ fn player_attacker(world: &World, attacker: Option<Entity>) -> Option<Entity> {
 }
 
 /// The component API uses feet; native player components continue to use eye height.
-fn to_wit(position: DVec3) -> wit_types::Vec3 {
+pub(super) fn to_wit(position: DVec3) -> wit_types::Vec3 {
     wit_types::Vec3 {
         x: position.x,
         y: position.y - crate::entity::PLAYER_EYE_HEIGHT,

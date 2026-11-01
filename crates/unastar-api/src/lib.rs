@@ -35,8 +35,8 @@ pub mod raw {
 pub use raw::{
     AccessError, AdmissionAcknowledgement, AdmissionDecision, AdmissionResolution, AdmittedEvent,
     BlockPos, DamageCause, DisconnectDetail, DisconnectReason, GameMode, LogLevel,
-    PlayerAvailability, PlayerFlags, PlayerHandle, PlayerIdentity, PlayerSnapshot, QuitDisposition,
-    QuitEvent, Task, TaskStatus, Vec3, WorldHandle,
+    MovementCommitted, PlayerAvailability, PlayerFlags, PlayerHandle, PlayerIdentity,
+    PlayerSnapshot, QuitDisposition, QuitEvent, Task, TaskStatus, Vec3, WorldHandle,
 };
 mod scoped;
 pub use scoped::{AdmissionHold, Player, PlayerContext, WorldTx, server};

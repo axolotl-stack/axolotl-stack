@@ -241,4 +241,20 @@ A retained handle may resolve that sessionless actor, while reconnecting players
 receive a new identity lineage. Departure callbacks run before ordinary native
 saves and teardown; required failures apply recovery fences before those saves.
 Legacy buffered join, quit and movement placeholders do not dispatch live-player
-callbacks. Typed movement proposals and commits remain a separate binding.
+callbacks.
+
+### Scoped component movement
+
+Subscribe to `player_move` to authorize an actual native input before it changes
+position, rotation, exhaustion or forwarded block actions. `on_player_move`
+returns `None` to reject or `Some(destination)` to propose a redirect in feet
+coordinates. The scoped `Handler` receives a mutable destination and can call
+`PlayerContext::cancel`. A successful proposal still passes all later native
+observers, exact-connection revalidation and ordinary movement bounds.
+
+Subscribe separately to `player_moved` for the committed notification. It carries
+an owned identity, dimension and actual final `from`/`to` feet coordinates along
+with fresh scoped player and world access. Rejected, stale, unchanged and invalid
+movement emits no commit; required callback failures stop the runtime and fence
+its players. Movement callbacks share the router cycle's existing component
+budget and do not dispatch duplicate buffered movement events.

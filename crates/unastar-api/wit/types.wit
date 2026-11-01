@@ -192,6 +192,14 @@ interface types {
         observation: player-snapshot,
     }
 
+    /// Owned feet-coordinate facts from a movement that actually committed.
+    record movement-committed {
+        identity: player-identity,
+        dimension: s32,
+        %from: vec3,
+        to: vec3,
+    }
+
     variant task-status {
         pending,
         running,

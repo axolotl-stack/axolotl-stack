@@ -140,6 +140,9 @@ fn default_body(resolve: &Resolve, func: &wit_parser::Function) -> String {
     match &func.result {
         Some(Type::Bool) => "true".into(),
         Some(Type::Id(id)) => {
+            if func.name == "on-player-move" {
+                return "Some(new_position)".into();
+            }
             match resolve.types[*id].name.as_deref() {
                 Some("admission-decision") => return "AdmissionDecision::Allow".into(),
                 Some("quit-disposition") => return "QuitDisposition::Remove".into(),
@@ -271,7 +274,9 @@ fn handler_params(resolve: &Resolve, func: &wit_parser::Function) -> String {
             "Option<&Player<'_>>".into()
         } else if func.name == "on-player-damage" && name == "damage" {
             "&mut f32".into()
-        } else if func.name == "on-player-respawn" && name == "position" {
+        } else if (func.name == "on-player-respawn" && name == "position")
+            || (func.name == "on-player-move" && name == "new_position")
+        {
             "&mut Vec3".into()
         } else {
             type_to_rust(resolve, &param.ty, false)
@@ -348,6 +353,9 @@ fn generate_handler(
         if func.name == "on-player-respawn" {
             writeln!(out, "let mut position = position;")?;
         }
+        if func.name == "on-player-move" {
+            writeln!(out, "let mut new_position = new_position;")?;
+        }
         let mut args = Vec::new();
         if has_player {
             args.push("&mut ctx".to_string());
@@ -363,6 +371,7 @@ fn generate_handler(
                 "attacker.as_ref()".into()
             } else if (func.name == "on-player-damage" && name == "damage")
                 || (func.name == "on-player-respawn" && name == "position")
+                || (func.name == "on-player-move" && name == "new_position")
             {
                 format!("&mut {name}")
             } else {
@@ -388,6 +397,10 @@ fn generate_handler(
             Some(_) if func.name == "on-player-respawn" => writeln!(
                 out,
                 "if ctx.is_cancelled() {{ None }} else {{ Some(position) }}"
+            )?,
+            Some(_) if func.name == "on-player-move" => writeln!(
+                out,
+                "if ctx.is_cancelled() {{ None }} else {{ Some(new_position) }}"
             )?,
             Some(_) if func.name == "on-player-admission" => writeln!(
                 out,
