@@ -282,3 +282,34 @@ The host enforces stack size and aux bounds, path/string/list bounds, a 128 KiB
 per-item data bound and a 16 MiB aggregate retained-value budget per component,
 alongside its owned-resource and operation limits. Dropping values releases the
 retained-byte budget. Inventory mutation requires a separate authoritative operation.
+### Component command handlers
+
+Request the `commands` capability and call
+`unastar_api::commands::register_root(&Root { name, description })` during `on_load`
+to advertise a command with an optional remaining-text argument. Custom names use
+lowercase ASCII letters, digits, underscores or hyphens, begin with a letter and
+contain at most 32 bytes; descriptions allow at most 256 UTF-8 bytes without
+control characters. `max_command_roots` defaults to 64 per component.
+
+Registration returns `Created`, `ExistingOwned` or `ExistingBuiltin`. Repeating an
+owned declaration preserves its metadata. Builtins and their aliases preserve
+all native metadata and permissions. Another component's root returns `Conflict`.
+Reservations commit after successful callbacks and roll back on traps; unloading
+an owner removes only its declarations. Owned overlays extend outgoing command
+advertisements without leaking or replacing the immutable native parser syntax.
+Changes reach exact current connections, respect initial publication barriers and
+retry bounded-channel backpressure.
+
+Subscribe to `player_command` and implement
+`Handler::on_player_command(ctx, line, request_id)`. The handler runs before native
+lookup, parsing and permission checks, including for roots it did not advertise.
+`ctx.cancel()` handles the request and stops subsequent/default execution. A pass
+continues through the existing native command behavior; registering a root grants
+no command authority. A custom root that every handler passes remains unknown to
+the native executor.
+
+`request_id` preserves the optional opaque identifier from a real command request.
+It is client supplied, neither an authorization fact nor a guaranteed unique
+receipt. Internal player execution has no packet identifier, and console execution
+is not fabricated as a player callback. The native response still echoes the
+original complete request origin. The example advertises and handles `/greet`.

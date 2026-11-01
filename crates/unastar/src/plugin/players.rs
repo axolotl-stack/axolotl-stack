@@ -160,6 +160,14 @@ impl HostContext {
         let entity = resolve(world, &reference)?;
         Ok((reference, entity))
     }
+    /// Require a live callback scope for imports that have no transaction argument.
+    pub(super) fn validate_callback(&self) -> Result<(), wit::AccessError> {
+        let scope = self.resources.scope.ok_or(wit::AccessError::ExpiredScope)?;
+        if self.world_ptr.is_null() || !scope.world.matches(unsafe { self.world() }) {
+            return Err(wit::AccessError::ExpiredScope);
+        }
+        Ok(())
+    }
     /// Validate a callback transaction for additional capability interfaces.
     pub(super) fn validate_transaction(&mut self, rep: u32) -> Result<(), wit::AccessError> {
         self.transaction(rep).map(|_| ())

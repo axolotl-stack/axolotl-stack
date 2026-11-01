@@ -1,0 +1,24 @@
+package unastar:plugin@0.4.0;
+
+/// Command declarations advertise syntax; they do not confer command permissions.
+interface commands {
+    record root {
+        name: string,
+        description: string,
+    }
+    enum registration {
+        created,
+        existing-builtin,
+        existing-owned,
+    }
+    enum command-error {
+        invalid-root,
+        conflict,
+        permission-denied,
+        limit-exceeded,
+        unavailable,
+    }
+    /// Reserve an owned root, committing only if this callback succeeds.
+    /// Existing builtins retain their metadata and native permission checks.
+    register-root: func(root: root) -> result<registration, command-error>;
+}

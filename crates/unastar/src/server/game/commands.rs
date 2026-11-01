@@ -113,7 +113,12 @@ pub fn run_commands(world: &mut World) {
             continue;
         };
         debug!(player = %source.name, command = %request.command, "Command");
-        let output = execute(world, source, &request.command);
+        let output = crate::command::execute_with_request_id(
+            world,
+            source,
+            &request.command,
+            (!request.origin.request_id.is_empty()).then_some(request.origin.request_id.as_ref()),
+        );
         // BDS answers `/say` and `/me` with their chat line only.
         if output.messages.is_empty() {
             continue;

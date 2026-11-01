@@ -34,6 +34,7 @@ pub enum EventKind {
     Tick,
     PlayerJoin,
     PlayerChat,
+    PlayerCommand,
     BlockBreak,
     BlockPlace,
     Timer,

@@ -20,6 +20,12 @@ impl Handler for Scoped {
 fn generated_handler_dispatches_and_uses_the_canonical_transaction_signature() {
     let _: fn(&unastar_api::raw::WorldTx, &unastar_api::raw::Player, String) -> bool =
         <__UnastarHandlerBridge as Guest>::on_player_chat;
+    let _: fn(
+        &unastar_api::raw::WorldTx,
+        &unastar_api::raw::Player,
+        String,
+        Option<String>,
+    ) -> bool = <__UnastarHandlerBridge as Guest>::on_player_command;
     <__UnastarHandlerBridge as Guest>::on_tick(123);
     assert_eq!(LAST_TICK.load(Ordering::SeqCst), 123);
 }

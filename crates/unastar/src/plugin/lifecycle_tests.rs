@@ -81,6 +81,7 @@ impl Harness {
             tick_budget_valid: true,
             readiness: Default::default(),
             storage_registry: Default::default(),
+            command_roots: Default::default(),
         }));
         let mut world = World::new();
         world.insert_resource(crate::world::ChunkManager::new(
@@ -284,6 +285,7 @@ fn old_api_manifest_is_rejected_before_reading_or_compiling_wasm() {
         tick_budget_valid: true,
         readiness: Default::default(),
         storage_registry: Default::default(),
+        command_roots: Default::default(),
     };
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(

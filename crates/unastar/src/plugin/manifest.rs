@@ -72,6 +72,9 @@ pub struct PluginLimits {
     /// Maximum direct messages staged in one shared tick.
     #[serde(default = "default_messages")]
     pub max_messages_per_tick: u32,
+    /// Maximum owned command roots, including provisional registrations.
+    #[serde(default = "default_command_roots")]
+    pub max_command_roots: u32,
 }
 
 impl Default for PluginLimits {
@@ -85,6 +88,7 @@ impl Default for PluginLimits {
             max_pending_tasks: default_pending_tasks(),
             max_message_bytes: default_message_bytes(),
             max_messages_per_tick: default_messages(),
+            max_command_roots: default_command_roots(),
         }
     }
 }
@@ -121,6 +125,11 @@ fn default_messages() -> u32 {
     256
 }
 
+/// Bound metadata retained by component-owned command declarations.
+fn default_command_roots() -> u32 {
+    64
+}
+
 /// Capabilities a plugin can request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -129,6 +138,8 @@ pub enum PluginCapability {
     ItemValues,
     /// Read typed actor references and current-world observations.
     ReadPlayers,
+    /// Advertise owned command roots; handling still uses explicit subscriptions.
+    Commands,
     /// Send bounded direct messages to exact current connections.
     SendMessages,
     /// Schedule bounded work on world owners with fresh transaction scopes.

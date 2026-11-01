@@ -47,6 +47,7 @@ fn attach_scoped(
         tick_budget_valid: true,
         readiness: Default::default(),
         storage_registry: Default::default(),
+        command_roots: Default::default(),
     }));
     for (_, server) in router.iter_mut() {
         PluginManager::attach_to_world(manager.clone(), server.ecs.world_mut());

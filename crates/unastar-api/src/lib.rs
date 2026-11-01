@@ -25,6 +25,8 @@ pub mod bindings {
 pub use bindings::Guest;
 #[doc(hidden)]
 pub use bindings::export;
+/// Advertise owned command roots without replacing native builtin permissions.
+pub use bindings::unastar::plugin::commands;
 pub use bindings::unastar::plugin::host;
 pub use bindings::unastar::plugin::storage;
 /// Canonical WIT bindings for advanced component integrations.

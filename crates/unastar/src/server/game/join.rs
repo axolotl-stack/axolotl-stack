@@ -217,12 +217,16 @@ impl GameServer {
         let _ = session.send(McpePacket::from(crafting));
         // BDS ends the join with its command list (identical for every
         // permission level; the client filters by UpdateAbilities).
-        let commands = world
-            .resource::<crate::command::CommandRegistry>()
-            .schema()
-            .packet()
-            .clone();
-        let _ = session.send(McpePacket::from(commands));
+        let (commands, stamp) = crate::plugin::manager::commands::initial_packet(
+            world,
+            world
+                .resource::<crate::command::CommandRegistry>()
+                .schema()
+                .clone(),
+        );
+        if session.send(McpePacket::from(commands)) {
+            crate::plugin::manager::commands::note_initial_packet(world, entity, stamp);
+        }
 
         // Creative content is sent via WorldTemplate during the StartGame sequence
         // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.

@@ -459,6 +459,14 @@ impl DimensionRouter {
             self.apply_requests();
             self.check_plugins()?;
             self.refresh_directory();
+            {
+                let manager = manager
+                    .lock()
+                    .map_err(|_| WorldTickError::PluginManagerUnavailable)?;
+                for world in self.worlds.values_mut() {
+                    manager.publish_command_roots(world.ecs.world_mut());
+                }
+            }
             manager
                 .lock()
                 .map_err(|_| WorldTickError::PluginManagerUnavailable)?
