@@ -803,7 +803,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 
 **performance**
 
-- `performance.chunk_streaming`: not yet checked with the real client; the BDS 1.26.51 comparison covers radius 4-6 only (BDS stops answering the benchmark client's sub-chunk requests from radius 8) and no BDS flight; eight players flying apart into fresh terrain outrun generation
+- `performance.chunk_streaming`: respawn/teleport not yet checked with the real client; the BDS 1.26.51 comparison covers radius 4-6 only (BDS stops answering the benchmark client's sub-chunk requests from radius 8), fresh-world jumps only (joins to a restarted BDS failed intermittently) and no BDS flight; accepted difference: BDS sends a moved view nearest first in bursts of 20 LevelChunks (20-40 per 50 ms), we send the same order bounded by unanswered columns and 512 KiB of queued answers per player (about 72 columns per 50 ms on loopback); eight players flying apart into fresh terrain outrun generation
 - `performance.generation_speed`: the worldgen_bench example measures generation throughput and allocations (tools/worldgen-perf); no committed comparison with BDS 1.26.51 on the same machine
 
 **platform**
@@ -825,7 +825,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **world**
 
 - `world.block_updates`: only gravity blocks react to a neighbour change; no general neighbour updates, survival checks or scheduled block ticks
-- `world.chunk_ticking`: chunks load around players in a view disk (nearest first with look-ahead, storage reads and generation off the tick, acknowledgement-paced sending; timings in tools/perf/README.md) and entities tick in loaded chunks; the disk is centred on the player's chunk, BDS appears to centre it on the block position (153 columns at radius 6 against our 149); no ticking areas and no random block ticks
+- `world.chunk_ticking`: chunks load around players in a view disk (nearest first with look-ahead; storage reads, generation and network encoding off the tick; spawning loaded columns, restoring their actors and unloading take at most 4 ms of a tick each; sending paced by acknowledgements and the transport's queue; timings in tools/perf/README.md) and entities tick in loaded chunks; the disk is centred on the player's chunk, BDS appears to centre it on the block position (153 columns at radius 6 against our 149); no ticking areas and no random block ticks
 - `world.day_cycle`: clock, daylight cycle and moon phase work; no sleeping skip and time is not persisted
 - `world.difficulty`: mob damage scaling, peaceful monsters, regional difficulty and hard-only door breaking; no hunger effects (starvation floors, peaceful regeneration) and effects of unimplemented mobs
 - `world.falling_blocks`: gravity blocks fall, land and drop on non-full blocks; no falling anvil/dripstone damage, anvil wear or concrete powder hardening

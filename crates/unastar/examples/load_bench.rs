@@ -904,7 +904,7 @@ async fn jump(
     let mut requests = Vec::new();
     let mut input = tokio::time::interval(INPUT_INTERVAL);
     let deadline = started + VIEW_TIMEOUT;
-    let mut respawned = false;
+    let (mut pressed_respawn, mut ready) = (false, false);
     while result.disk_view_ms.is_none() {
         tokio::select! {
             raw = play.recv_packet_raw() => {
@@ -919,17 +919,31 @@ async fn jump(
                         }
                         continue;
                     }
+                    Some(McpePacketName::CommandOutputPacket) => {
+                        if let Ok(McpePacketData::CommandOutputPacket(out)) = raw.decode().map(|p| p.data) {
+                            eprintln!("jump: command output {:?}", out.output);
+                        }
+                        continue;
+                    }
+                    // The respawn screen: once it opens, press respawn like
+                    // the client (`Respawn` client-ready-to-spawn); once the
+                    // server is ready, respawn (`PlayerAction` respawn) where
+                    // it says.
                     Some(McpePacketName::RespawnPacket) => {
-                        if let Ok(McpePacketData::RespawnPacket(respawn)) = raw.decode().map(|p| p.data)
-                            && respawn.state == EnumsPlayerRespawnState::Readytospawn
-                            && !respawned
-                        {
-                            respawned = true;
+                        let Ok(McpePacketData::RespawnPacket(respawn)) = raw.decode().map(|p| p.data) else {
+                            continue;
+                        };
+                        if !pressed_respawn {
+                            pressed_respawn = true;
                             let _ = play.send_packet(McpePacket::from(RespawnPacket {
                                 position: respawn.position.clone(),
                                 state: EnumsPlayerRespawnState::Clientreadytospawn,
                                 player_runtime_id: runtime_id.clone(),
                             })).await;
+                        }
+                        if respawn.state == EnumsPlayerRespawnState::Readytospawn && !ready {
+                            ready = true;
+                            *position = respawn.position.clone();
                             let _ = play.send_packet(McpePacket::from(PlayerActionPacket {
                                 player_runtime_id: runtime_id.clone(),
                                 action: EnumsPlayerActionType::Respawn,
@@ -975,7 +989,8 @@ async fn jump(
         if Instant::now() >= deadline {
             let (missing, _, _) = terrain.missing_disk(new_center);
             eprintln!(
-                "jump: render disk incomplete after {VIEW_TIMEOUT:?}: {missing} columns missing"
+                "jump: render disk incomplete after {VIEW_TIMEOUT:?}: {missing} columns missing \
+                 (respawn screen seen: {pressed_respawn}, ready to spawn: {ready}, at {position:?})"
             );
             result.disk_missing_at_timeout = Some(missing);
             break;

@@ -53,7 +53,7 @@ impl TickStages {
     /// The `count` slowest stages, slowest first, as `name=ms` text.
     pub fn slowest(&self, end: std::time::Instant, count: usize) -> String {
         let mut stages = self.durations(end);
-        stages.sort_by(|a, b| b.1.cmp(&a.1));
+        stages.sort_by_key(|&(_, duration)| std::cmp::Reverse(duration));
         stages
             .iter()
             .take(count)
