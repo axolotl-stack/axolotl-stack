@@ -755,6 +755,12 @@ selected user-data value and 16 MiB combined, then cleared after the queued batc
 or source closure, and invalidated by callback failures or component removal.
 No transient correlation is a durable receipt.
 
+`HandledWithoutConsumption(correlation)` explicitly suppresses the default without
+removing items. The ordinary source/target checks and all later vetoes still apply;
+only a completed native action produces the owned custom completion with zero
+consumed items. The positive `Handled` form continues to reject a zero count.
+It completes through the ordinary item-action path while health and physics remain active.
+
 Custom item-action correlations belong to the originating component instance.
 Other subscribers still observe the native action ID, actual outcome and costs,
 but receive no correlation echo. Reloaded instances cannot inherit an earlier

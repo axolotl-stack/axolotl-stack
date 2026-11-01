@@ -229,7 +229,9 @@ impl PluginManager {
                     result
                 },
                 |decision| match decision {
-                    wit::ItemActionDecision::Pass | wit::ItemActionDecision::Deny => true,
+                    wit::ItemActionDecision::Pass
+                    | wit::ItemActionDecision::Deny
+                    | wit::ItemActionDecision::HandledWithoutConsumption(_) => true,
                     wit::ItemActionDecision::Handled(action) => {
                         action.consume > 0 && action.consume <= available
                     }
@@ -246,6 +248,13 @@ impl PluginManager {
                     event.handle(native::HandledItemAction {
                         action: custom_action(plugin.store.data(), action.correlation),
                         consume: action.consume,
+                    });
+                }
+                Ok(wit::ItemActionDecision::HandledWithoutConsumption(correlation)) => {
+                    event.require_owner(owner_lease);
+                    event.handle(native::HandledItemAction {
+                        action: custom_action(plugin.store.data(), correlation),
+                        consume: 0,
                     });
                 }
                 Err(error) => {

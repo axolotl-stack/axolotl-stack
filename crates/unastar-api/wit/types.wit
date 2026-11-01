@@ -705,7 +705,14 @@ interface types {
     /// Correlation is echoed only. It does not name or dispatch host behavior.
     /// Consume must be positive and within the captured selected count.
     record handled-item-action { correlation: u64, consume: u8 }
-    variant item-action-decision { pass, deny, handled(handled-item-action) }
+    variant item-action-decision {
+        pass,
+        deny,
+        /// Positive, bounded consumption. Zero is malformed; use the explicit nonconsuming case.
+        handled(handled-item-action),
+        /// Suppress the default with zero consumption and an instance-owned correlation echo.
+        handled-without-consumption(u64),
+    }
     record launched-item-actor { identifier: string, feet: vec3 }
     record custom-item-outcome { correlation: option<u64>, consumed: u8 }
     variant item-action-outcome {
@@ -721,7 +728,8 @@ interface types {
     /// This is not a complete inventory diff or a durable inventory acknowledgement.
     record item-ammunition-change { main-slot: option<u32>, before: stack, after: option<stack> }
     record item-action-items { selected-before: stack, selected-after: option<stack>, ammunition: option<item-ammunition-change> }
-    /// A physical native completion, never a durable receipt or an accepted gesture.
+    /// A completed native item action, never a durable inventory receipt.
+    /// Explicit custom handling may consume nothing; vetoed or stale actions never complete.
     record item-action-committed {
         action-id: u64,
         dimension: s32,

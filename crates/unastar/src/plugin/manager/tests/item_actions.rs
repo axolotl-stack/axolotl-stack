@@ -1193,3 +1193,121 @@ async fn a_native_numeric_action_label_is_not_forged_into_a_component_correlatio
     assert_eq!(h.count(), 2);
     assert_eq!(h.logs(), ["observer"]);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn explicit_nonconsuming_handling_reports_real_completion_without_changing_items_or_default_effects()
+ {
+    let mut h = Harness::new("unreachable".into(), "unreachable".into()).await;
+    correlation_instances(
+        &mut h,
+        &[("example.items", 3, true), ("example.observer", 4, false)],
+    );
+    h.held("minecraft:snowball", 3);
+    let before = h
+        .world()
+        .get::<MainInventory>(h.player)
+        .unwrap()
+        .0
+        .slots()
+        .to_vec();
+    h.air(crate::server::game::item_use::UseRequest::UseAir)
+        .await
+        .unwrap();
+    assert_eq!(
+        h.world().get::<MainInventory>(h.player).unwrap().0.slots(),
+        before
+    );
+    assert_eq!(h.projectiles(), 0);
+    assert!(
+        h.world()
+            .get::<crate::entity::components::Health>(h.player)
+            .is_some()
+    );
+    assert!(!crate::server::game::inventory_effects::is_quarantined(
+        h.world(),
+        h.player
+    ));
+    assert_eq!(h.logs(), ["owner"]);
+    let manager = h.manager.lock().unwrap();
+    assert_eq!(
+        manager.plugins[&PluginId("example.observer".into())]
+            .store
+            .data()
+            .test_logs,
+        ["observer"]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn explicit_nonconsuming_handling_still_obeys_late_native_veto_and_exact_selection() {
+    use crate::server::game::item_actions::PlayerItemAction;
+    for stale in [false, true] {
+        let mut h = Harness::new("unreachable".into(), "unreachable".into()).await;
+        correlation_instances(&mut h, &[("example.items", 3, true)]);
+        h.held("minecraft:snowball", 3);
+        h.world_mut().add_observer(
+            move |mut event: On<PlayerItemAction>, mut slots: Query<&mut HeldSlot>| {
+                if stale {
+                    slots.get_mut(event.player()).unwrap().0 = 1;
+                } else {
+                    event.cancel();
+                }
+            },
+        );
+        h.air(crate::server::game::item_use::UseRequest::UseAir)
+            .await
+            .unwrap();
+        assert_eq!(h.count(), 3);
+        assert_eq!(h.projectiles(), 0);
+        assert!(h.logs().is_empty());
+        assert!(h.manager.lock().unwrap().check_required().is_ok());
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn distinct_nonconsuming_component_claims_cannot_collapse_through_the_same_opaque_id() {
+    let mut h = Harness::new("unreachable".into(), "unreachable".into()).await;
+    correlation_instances(
+        &mut h,
+        &[("example.items", 3, true), ("example.other", 3, true)],
+    );
+    h.held("minecraft:paper", 3);
+    h.air(crate::server::game::item_use::UseRequest::UseAir)
+        .await
+        .unwrap();
+    assert_eq!(h.count(), 3);
+    assert!(
+        h.manager
+            .lock()
+            .unwrap()
+            .plugins
+            .values()
+            .all(|plugin| plugin.store.data().test_logs.is_empty())
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn explicit_nonconsuming_decisions_still_obey_context_cancellation_and_required_traps() {
+    for mode in [5, 6] {
+        let mut h = Harness::new("unreachable".into(), "unreachable".into()).await;
+        correlation_instances(&mut h, &[("example.items", mode, true)]);
+        h.held("minecraft:snowball", 3);
+        assert_eq!(
+            h.air(crate::server::game::item_use::UseRequest::UseAir)
+                .await
+                .is_err(),
+            mode == 6
+        );
+        if mode == 6 {
+            assert!(crate::server::game::inventory_effects::is_recovery_fenced(
+                h.world(),
+                h.player
+            ));
+            assert!(h.world().get::<MainInventory>(h.player).is_none());
+        } else {
+            assert_eq!(h.count(), 3);
+        }
+        assert_eq!(h.projectiles(), 0);
+        assert!(h.logs().is_empty());
+    }
+}
