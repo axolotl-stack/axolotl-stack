@@ -228,8 +228,10 @@ pub fn set_open(world: &mut World, pos: IVec3, state: u32, open: bool) -> bool {
 
 /// A mob broke the door half at `cell` (see `annotation.break_door`): the
 /// half goes without drops, with quiet destroy particles of the door's
-/// default state; the other half, left alone, breaks a tick later with its
-/// drops and destroy particles. Returns whether a door half was there.
+/// default state at once and its UpdateBlock at the start of the next tick
+/// (an actor's change, [`crate::server::game::blocks::changed_by_actor`]);
+/// the other half, left alone, breaks a tick later with its drops and
+/// destroy particles. Returns whether a door half was there.
 pub fn break_by_mob(world: &mut World, cell: IVec3) -> bool {
     let Some(state) = world.block_at(cell) else {
         return false;
@@ -250,7 +252,9 @@ pub fn break_by_mob(world: &mut World, cell: IVec3) -> bool {
         entry.default_state_id,
         super::LEVEL_EVENT_PARTICLES_DESTROY_BLOCK_NO_SOUND,
     );
-    crate::server::game::blocks::set_block(world, cell, super::air(&registry), false);
+    crate::server::game::blocks::changed_by_actor(world, |world| {
+        crate::server::game::blocks::set_block(world, cell, super::air(&registry), false);
+    });
     true
 }
 
@@ -502,5 +506,87 @@ mod tests {
                 .any(|(id, _)| *id == super::super::LEVEL_EVENT_PARTICLES_DESTROY_BLOCK)
         );
         assert!(!break_by_mob(&mut h.world, LOWER), "nothing left to break");
+    }
+
+    /// As on BDS 1.26.51 (a zombie breaking an oak door, recorded): the
+    /// mob's half reaches viewers as the first UpdateBlock of the next tick,
+    /// and every cell gets exactly one UpdateBlock.
+    #[test]
+    fn a_mob_break_reaches_viewers_a_tick_later_with_one_update_per_half() {
+        let mut h = Harness::new();
+        place_door(&mut h, "minecraft:wooden_door", LOWER);
+        h.packets();
+        assert!(break_by_mob(&mut h.world, LOWER));
+        assert!(h.updates().is_empty(), "the break waits for the next tick");
+        h.tick(1);
+        let air = state("minecraft:air", &[]);
+        assert_eq!(h.updates(), vec![(LOWER, air), (UPPER, air)]);
+        h.tick(3);
+        assert!(h.updates().is_empty());
+    }
+
+    /// UpdateBlocks per cell.
+    fn update_counts(
+        packets: &[McpePacketData],
+    ) -> std::collections::BTreeMap<(i32, i32, i32), usize> {
+        let mut counts = std::collections::BTreeMap::new();
+        for packet in packets {
+            if let McpePacketData::UpdateBlockPacket(u) = packet {
+                *counts
+                    .entry((u.block_position.x, u.block_position.y, u.block_position.z))
+                    .or_default() += 1;
+            }
+        }
+        counts
+    }
+
+    #[test]
+    fn a_server_tick_sends_each_block_change_once() {
+        use super::super::utility::tnt::tests::Server;
+        let mut s = Server::new();
+        s.set(LOWER, state("minecraft:wooden_door", &[]));
+        s.set(
+            UPPER,
+            state("minecraft:wooden_door", &[(UPPER_BIT, StateValue::Byte(1))]),
+        );
+        s.tick(2);
+        s.packets();
+        // A player's use: the change goes out at once, and only once.
+        s.flip(LOWER);
+        s.tick(3);
+        let counts = update_counts(&s.packets());
+        assert_eq!(
+            counts.get(&(LOWER.x, LOWER.y, LOWER.z)),
+            Some(&1),
+            "{counts:?}"
+        );
+        assert!(counts.values().all(|&n| n == 1), "{counts:?}");
+        // A mob's break: nothing until the next tick, which starts with it.
+        assert!(break_by_mob(s.world(), LOWER));
+        assert!(update_counts(&s.packets()).is_empty());
+        s.tick(1);
+        let mut packets = s.packets();
+        let first_update = packets.iter().find_map(|p| match p {
+            McpePacketData::UpdateBlockPacket(u) => Some(IVec3::new(
+                u.block_position.x,
+                u.block_position.y,
+                u.block_position.z,
+            )),
+            _ => None,
+        });
+        assert_eq!(first_update, Some(LOWER));
+        s.tick(3);
+        packets.extend(s.packets());
+        let counts = update_counts(&packets);
+        assert_eq!(
+            counts.get(&(LOWER.x, LOWER.y, LOWER.z)),
+            Some(&1),
+            "{counts:?}"
+        );
+        assert_eq!(
+            counts.get(&(UPPER.x, UPPER.y, UPPER.z)),
+            Some(&1),
+            "{counts:?}"
+        );
     }
 }

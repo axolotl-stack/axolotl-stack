@@ -11,8 +11,10 @@
 //! # One change path
 //!
 //! Every block change goes through [`super::blocks::set_block`]: it writes
-//! the chunk, sends the chunk's viewers UpdateBlock in the session's block
-//! numbering and then calls [`block_changed`], which queues a neighbour
+//! the chunk, sends the chunk's viewers one UpdateBlock in the session's
+//! block numbering (an actor's change at the start of the next tick, see
+//! [`super::blocks::changed_by_actor`]) and then calls [`block_changed`],
+//! which queues a neighbour
 //! update for each of the six neighbours (down, up, north, south, west,
 //! east). Updates drain breadth-first from one queue: a change made while
 //! handling an update queues further updates instead of recursing, so a

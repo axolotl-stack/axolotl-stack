@@ -156,9 +156,12 @@ impl Harness {
             .state_value(state, property)
     }
 
-    /// Advance `ticks` game ticks of block ticks (scheduled and random).
+    /// Advance `ticks` game ticks of block ticks (scheduled and random);
+    /// each starts by sending the block changes actors made in the previous
+    /// one, as the server tick does.
     pub fn tick(&mut self, ticks: u64) {
         for _ in 0..ticks {
+            crate::server::game::blocks::send_actor_block_changes(&mut self.world);
             self.world.resource_mut::<TickCounter>().current += 1;
             tick_blocks(&mut self.world);
         }

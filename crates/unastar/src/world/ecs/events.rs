@@ -2,13 +2,15 @@
 //!
 //! This module provides two event types for block modifications:
 //! - `BlockChanged`: Immediate trigger for game logic (physics, lighting, redstone)
-//! - `BlockBroadcastEvent`: Batched event for network broadcasting
+//! - `BlockBroadcastEvent`: a change whose UpdateBlock waits for the next tick
 //!
 //! ## Architecture
 //!
 //! Block changes follow a three-consumer pattern:
 //! 1. **Game Logic** (immediate): Observers react to `BlockChanged` synchronously
-//! 2. **Network** (batched): `BlockBroadcastEvent` collected per-tick for efficient packets
+//! 2. **Network**: `blocks::set_block` sends UpdateBlock at once; changes made
+//!    by actors (and plugins) are `BlockBroadcastEvent`s sent at the start of
+//!    the next tick (`blocks::send_actor_block_changes`)
 //! 3. **Persistence** (lazy): ChunkStateFlags::DIRTY marked for eventual save
 
 use bevy_ecs::prelude::*;
@@ -36,14 +38,10 @@ pub struct BlockChanged {
     pub new_block: u32,
 }
 
-/// Batched event for network broadcasting.
-///
-/// Collected per-tick and processed by `broadcast_block_updates` system
-/// for efficient packet bundling. Multiple block changes in the same chunk
-/// during a single tick are grouped into fewer network packets.
-///
-/// Note: This is a standard Bevy event, not an observer trigger.
-/// Use `event_writer.send(BlockBroadcastEvent { ... })` to emit.
+/// A block change made by an actor or a plugin during the tick: its
+/// UpdateBlock goes to the chunk's viewers at the start of the next tick
+/// (`blocks::send_actor_block_changes`), as BDS 1.26.51 sends actor-made
+/// block changes. Every other change is sent at once by `blocks::set_block`.
 #[derive(Message, Debug, Clone)]
 pub struct BlockBroadcastEvent {
     /// The chunk entity containing this block.

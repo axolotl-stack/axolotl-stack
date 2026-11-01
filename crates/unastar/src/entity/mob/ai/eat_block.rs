@@ -157,7 +157,8 @@ pub(super) fn replace_block(
 }
 
 /// Set the block at `pos` to `state`: block-change observers run and the
-/// chunk's viewers get the update.
+/// chunk's viewers get the update at the start of the next tick (an actor's
+/// change, `blocks::send_actor_block_changes`).
 pub(super) fn set_block(world: &mut World, pos: IVec3, state: u32) {
     let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
     let Some(chunk) = world.resource::<ChunkManager>().get_by_coords(cx, cz) else {

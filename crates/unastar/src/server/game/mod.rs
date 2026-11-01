@@ -66,9 +66,8 @@ use crate::entity::systems::{
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
 use crate::server::broadcast::{
-    EntityGrid, broadcast_block_updates, broadcast_despawn_system, broadcast_movement_system,
-    broadcast_spawn_system, cleanup_despawned_entities, sync_actor_viewers, sync_spatial_chunks,
-    tick_block_breaking,
+    EntityGrid, broadcast_despawn_system, broadcast_movement_system, broadcast_spawn_system,
+    cleanup_despawned_entities, sync_actor_viewers, sync_spatial_chunks, tick_block_breaking,
 };
 use crate::storage::PlayerData;
 use crate::world::ChunkManager;
@@ -419,6 +418,14 @@ impl GameServer {
             )
                 .in_set(PacketApplySet),
         );
+        // Block changes actors made last tick go out first, before this
+        // tick's input and actors.
+        ecs.schedule_mut().add_systems(
+            blocks::send_actor_block_changes
+                .in_set(PacketApplySet)
+                .before(movement::apply_movement)
+                .before(blocks::apply_block_actions),
+        );
         // Exclusive block system runs after movement (which forwards block actions)
         ecs.schedule_mut().add_systems(
             blocks::apply_block_actions
@@ -701,7 +708,6 @@ impl GameServer {
                 broadcast_spawn_system,
                 broadcast_movement_system,
                 broadcast_despawn_system,
-                broadcast_block_updates,
                 sync_actor_viewers,
                 crate::entity::mob::net::network::sync_mob_viewers,
                 crate::world::explosion::send_explosion_sounds,

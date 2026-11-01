@@ -32,7 +32,7 @@ const MAX_BLOCK_ACTIONS: usize = 64;
 ///
 /// Runs in `PacketApplySet` after `apply_movement` (which forwards block
 /// actions from PlayerAuthInput). Exclusive because it fires observers
-/// (`BlockChanged`) and writes messages (`BlockBroadcastEvent`).
+/// (`BlockChanged`).
 pub fn apply_block_actions(world: &mut World) {
     let actions: Vec<_> = {
         let Some(mut queue) = world.get_resource_mut::<BlockPacketQueue>() else {
@@ -1054,11 +1054,15 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 }
 
 /// Set a block at world coordinates: the one path every block change takes.
-/// Writes the chunk, broadcasts the change to the chunk's viewers (with the
+/// Writes the chunk, sends the chunk's viewers one UpdateBlock (with the
 /// place sound when `place_sound`), schedules gravity checks for the block
 /// and the one above it, then runs the neighbour updates of
 /// [`super::block_behaviour`] (attached blocks that lost their support
 /// break, connections recompute).
+///
+/// The UpdateBlock goes out at once, except for a change an actor makes
+/// ([`changed_by_actor`]): that one waits for the start of the next tick
+/// ([`send_actor_block_changes`]).
 pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
@@ -1102,11 +1106,16 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
         new_block: block_runtime_id,
     });
 
-    world.write_message(BlockBroadcastEvent {
-        chunk_entity,
-        block_pos: IVec3::new(x, y, z),
-        new_block: block_runtime_id,
-    });
+    let by_actor = world
+        .get_resource::<ActorBlockChanges>()
+        .is_some_and(|changes| changes.0 > 0);
+    if by_actor {
+        world.write_message(BlockBroadcastEvent {
+            chunk_entity,
+            block_pos: IVec3::new(x, y, z),
+            new_block: block_runtime_id,
+        });
+    }
 
     super::falling::schedule_gravity_checks(world, pos);
 
@@ -1139,7 +1148,9 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
 
         for viewer_entity in chunk_viewers.iter() {
             if let Some(session) = world.get::<PlayerSession>(viewer_entity) {
-                let _ = session.send(McpePacket::from(update_packet.clone()));
+                if !by_actor {
+                    let _ = session.send(McpePacket::from(update_packet.clone()));
+                }
                 if let Some(sound) = &sound_packet {
                     let _ = session.send(McpePacket::from(sound.clone()));
                 }
@@ -1149,6 +1160,60 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
 
     if old_block_id != block_runtime_id {
         super::block_behaviour::block_changed(world, pos);
+    }
+}
+
+/// Nesting depth of [`changed_by_actor`]: above zero, [`set_block`] queues
+/// the UpdateBlock for the next tick.
+#[derive(Resource, Debug, Default)]
+pub(crate) struct ActorBlockChanges(u32);
+
+/// Run `change`, a block change an actor makes during the entity tick (a
+/// mob breaking a door, a projectile putting out fire). BDS 1.26.51 sends
+/// those changes with the next tick's block updates, before that tick's
+/// actors move (measured: a zombie's door break reaches the client one
+/// tick after its crash event, as the next tick's first packet), so their
+/// UpdateBlocks wait for [`send_actor_block_changes`]. Sounds and particles
+/// still go out at once.
+pub(crate) fn changed_by_actor<R>(world: &mut World, change: impl FnOnce(&mut World) -> R) -> R {
+    world.get_resource_or_init::<ActorBlockChanges>().0 += 1;
+    let result = change(world);
+    world.resource_mut::<ActorBlockChanges>().0 -= 1;
+    result
+}
+
+/// Exclusive system (start of `PacketApplySet`, before the tick's actors):
+/// send the block changes actors (and plugins) made during the previous
+/// tick, one UpdateBlock each, in the order they were made.
+pub fn send_actor_block_changes(world: &mut World) {
+    let changes: Vec<BlockBroadcastEvent> =
+        match world.get_resource_mut::<bevy_ecs::message::Messages<BlockBroadcastEvent>>() {
+            Some(mut messages) => messages.drain().collect(),
+            None => return,
+        };
+    if changes.is_empty() {
+        return;
+    }
+    let ids = super::types::block_network_ids(world);
+    for change in changes {
+        let Some(viewers) = world.get::<ChunkViewers>(change.chunk_entity) else {
+            continue;
+        };
+        let packet = McpePacket::from(jolyne::valentine::UpdateBlockPacket {
+            block_position: BlockPos {
+                x: change.block_pos.x,
+                y: change.block_pos.y,
+                z: change.block_pos.z,
+            },
+            block_runtime_id: ids.to_wire(change.new_block),
+            flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
+            layer: 0,
+        });
+        for viewer in viewers.iter() {
+            if let Some(session) = world.get::<PlayerSession>(viewer) {
+                let _ = session.send(packet.clone());
+            }
+        }
     }
 }
 
