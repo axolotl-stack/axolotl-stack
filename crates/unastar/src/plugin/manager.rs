@@ -65,6 +65,7 @@ pub struct HostContext {
     pending_messages: Vec<players::BoundMessage>,
     active_admission: Option<sessions::ActiveAdmission>,
     pending_admissions: Vec<sessions::StagedResolution>,
+    inventories: players::InventoryRequests,
     pending_tasks: Vec<tasks::TaskRequest>,
     task_requests: VecDeque<tasks::TaskRequest>,
     task_failures: VecDeque<tasks::TaskFailure>,
@@ -113,6 +114,7 @@ impl HostContext {
             pending_messages: Vec::new(),
             active_admission: None,
             pending_admissions: Vec::new(),
+            inventories: Default::default(),
             pending_tasks: Vec::new(),
             task_requests: VecDeque::new(),
             task_failures: VecDeque::new(),
@@ -211,6 +213,7 @@ pub(super) fn finish_invocation(
     succeeded: bool,
 ) {
     commands::finish_invocation(context, succeeded);
+    players::finish_inventory_invocation(context, world, succeeded);
     players::finish_admission_invocation(context, world, succeeded);
     players::finish_invocation(context, world, succeeded);
 }

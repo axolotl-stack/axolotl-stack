@@ -481,3 +481,6 @@ async fn replaced_world_with_same_dimension_reports_typed_world_closed_failure()
 
 #[path = "inventory.rs"]
 mod inventory_tests;
+
+#[path = "inventory_writes.rs"]
+mod inventory_write_tests;

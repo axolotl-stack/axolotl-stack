@@ -94,6 +94,15 @@ impl HostContext {
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostAdmissionHold for HostContext {
+    fn submit_inventory(
+        &mut self,
+        hold: Resource<wit::AdmissionHold>,
+        tx: Resource<wit::WorldTx>,
+        request_id: String,
+        image: Resource<wit::InventoryImage>,
+    ) -> Result<Resource<wit::InventoryOperation>, wit::InventoryError> {
+        self.submit_initial_inventory(hold.rep(), tx.rep(), request_id, image.rep())
+    }
     fn resolve(
         &mut self,
         resource: Resource<wit::AdmissionHold>,

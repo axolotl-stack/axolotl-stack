@@ -4,6 +4,21 @@ use super::*;
 use crate::plugin::manifest::PluginCapability;
 
 impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
+    fn submit_inventory(
+        &mut self,
+        player: Resource<wit::Player>,
+        request_id: String,
+        image: Resource<wit::InventoryImage>,
+    ) -> Result<Resource<wit::InventoryOperation>, wit::InventoryError> {
+        self.submit_player_inventory(player.rep(), request_id, image.rep())
+    }
+    fn inventory_receipt(
+        &mut self,
+        player: Resource<wit::Player>,
+        request_id: String,
+    ) -> Result<Option<wit::InventoryReceipt>, wit::InventoryError> {
+        self.player_inventory_receipt(player.rep(), request_id)
+    }
     fn inventory(
         &mut self,
         player: Resource<wit::Player>,

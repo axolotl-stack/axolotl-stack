@@ -75,6 +75,9 @@ pub struct PluginLimits {
     /// Maximum owned command roots, including provisional registrations.
     #[serde(default = "default_command_roots")]
     pub max_command_roots: u32,
+    /// Maximum outstanding staged or provider-owned inventory writes per instance.
+    #[serde(default = "default_pending_inventory_operations")]
+    pub max_pending_inventory_operations: u32,
 }
 
 impl Default for PluginLimits {
@@ -89,6 +92,7 @@ impl Default for PluginLimits {
             max_message_bytes: default_message_bytes(),
             max_messages_per_tick: default_messages(),
             max_command_roots: default_command_roots(),
+            max_pending_inventory_operations: default_pending_inventory_operations(),
         }
     }
 }
@@ -130,6 +134,11 @@ fn default_command_roots() -> u32 {
     64
 }
 
+/// Bound accepted asynchronous writes independently of guest resource drops.
+fn default_pending_inventory_operations() -> u32 {
+    64
+}
+
 /// Capabilities a plugin can request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -138,6 +147,8 @@ pub enum PluginCapability {
     ItemValues,
     /// Capture complete owned inventory images for the current scoped player.
     ReadInventory,
+    /// Replace exact inventory images through durable idempotent transactions.
+    WriteInventory,
     /// Read typed actor references and current-world observations.
     ReadPlayers,
     /// Advertise owned command roots; handling still uses explicit subscriptions.

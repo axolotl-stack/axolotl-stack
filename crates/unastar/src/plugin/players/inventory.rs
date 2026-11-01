@@ -30,8 +30,15 @@ fn state_bytes(state: &InventoryState) -> usize {
 }
 
 impl Image {
+    /// Only a live capture can authorize an ordinary replacement, never an archived value.
+    pub(super) fn captured_binding(
+        &self,
+    ) -> Result<(PlayerLineage, WorldReference), wit::AccessError> {
+        Ok((self.player.clone(), self.world))
+    }
+
     /// Immutable images remain bounded independently of guest linear memory.
-    fn bytes(&self) -> usize {
+    pub(super) fn bytes(&self) -> usize {
         state_bytes(&self.expected) + state_bytes(&self.candidate) + self.player.retained_bytes()
     }
 
@@ -85,7 +92,7 @@ impl HostContext {
     }
 
     /// Owned observations need no borrowed ECS world after their original capture.
-    fn inventory_image(
+    pub(super) fn inventory_image(
         &mut self,
         rep: u32,
     ) -> Result<Arc<super::values::Value<Image>>, wit::AccessError> {
@@ -121,6 +128,15 @@ impl HostContext {
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostInventoryImage for HostContext {
+    fn request_hash(
+        &mut self,
+        image: Resource<wit::InventoryImage>,
+    ) -> Result<Vec<u8>, wit::AccessError> {
+        let image = self.inventory_image(image.rep())?;
+        crate::server::game::inventory_effects::request_hash(&image.candidate)
+            .map(|hash| hash.to_vec())
+            .map_err(|_| wit::AccessError::InvalidArgument)
+    }
     fn identity(
         &mut self,
         image: Resource<wit::InventoryImage>,

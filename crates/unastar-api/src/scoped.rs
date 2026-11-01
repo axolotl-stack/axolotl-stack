@@ -64,6 +64,16 @@ pub struct AdmissionHold {
     raw: raw::AdmissionHold,
 }
 impl AdmissionHold {
+    /// Stage this hold's inventory in a fresh task after Deferred admission has finished.
+    pub fn submit_inventory(
+        &self,
+        tx: &WorldTx<'_>,
+        request_id: &str,
+        image: &crate::InventoryImage,
+    ) -> Result<crate::InventoryOperation, crate::InventoryError> {
+        self.raw.submit_inventory(tx.raw, request_id, image)
+    }
+
     /// Stage a decision in a fresh world transaction; publication has a separate notification.
     pub fn resolve(
         &self,
@@ -162,6 +172,21 @@ impl<'scope> Player<'scope> {
     /// Capture a complete owned inventory image without granting a live inventory borrow.
     pub fn inventory(&self) -> Result<crate::InventoryImage, AccessError> {
         self.raw().inventory()
+    }
+    /// Stage an exact-source replacement; inspect the returned operation for a durable result.
+    pub fn submit_inventory(
+        &self,
+        request_id: &str,
+        image: &crate::InventoryImage,
+    ) -> Result<crate::InventoryOperation, crate::InventoryError> {
+        self.raw().submit_inventory(request_id, image)
+    }
+    /// Read a receipt already loaded or durably acknowledged for this account and component.
+    pub fn inventory_receipt(
+        &self,
+        request_id: &str,
+    ) -> Result<Option<crate::InventoryReceipt>, crate::InventoryError> {
+        self.raw().inventory_receipt(request_id)
     }
     /// Stage a bounded message for this exact connection after callback success.
     pub fn message(&self, message: &str) -> Result<(), AccessError> {

@@ -301,6 +301,44 @@ Resource allocation and byte reservations fail atomically; capacity is released
 only after the last owner of a retained value drops. This layer provides observations
 and candidate construction; it does not submit inventory writes.
 
+### Durable WASM inventory transactions
+
+The `write-inventory` capability adds `Player::submit_inventory(request_id, image)`.
+The stock runtime installs the shared durable player writer in each world before
+required components initialize. Required components fail startup when their
+configured player provider cannot atomically persist complete records.
+
+New writes return an owned operation in `Staged` state. A matching loaded receipt
+can return `Committed` immediately, including after reconnect while an older
+connection's completed ticket is still retained. A successful callback
+allows exact actor, connection, world and expected-image validation before the
+native coordinator queues storage work. `Queued` means the write is pending.
+`Committed` carries the acknowledged revision, candidate fingerprint and whether
+the original live actor received its slots. Replaying a matching durable receipt
+returns its existing result. Request IDs are scoped to the component's manifest
+identity and account; `inventory_receipt` reads that namespace's loaded or
+acknowledged receipts. `InventoryImage::request_hash()` supplies the same
+revision-independent candidate proof for a component's durable intent log.
+
+Callbacks that trap discard their staged requests. Dropping guest handles leaves
+accepted storage work intact. Its byte reservations and pending capacity stay
+owned through worker completion, undelivered replies and any retained protected
+source buffers. `limits.max_pending_inventory_operations` defaults to 64 per
+instance, independently of the resource and retained-value limits.
+
+`Rejected` reports a proven rejection. `Uncertain` requires reconciliation with
+canonical player storage before another grant is authorized. Components should
+persist their intent before submission and expose delivery success after the
+acknowledged receipt is committed to their own state.
+
+Initialization uses the owning `AdmissionHold::submit_inventory` in a fresh world
+task after the admission callback returns `Deferred`. The provisional callback
+itself returns `Unavailable` for mutation, preserving the aggregate admission
+decision boundary. Keep the hold until the durable inventory receipt is handled,
+then resolve it. Physical initialization readiness and the hold jointly gate the
+initial packet batch. A rejection staged in the same callback discards that
+callback's initialization inventory request.
+
 ### Component command handlers
 
 Request the `commands` capability and call

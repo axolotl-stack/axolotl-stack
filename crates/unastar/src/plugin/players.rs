@@ -17,6 +17,10 @@ mod admission;
 mod host;
 #[path = "players/inventory.rs"]
 mod inventory;
+#[path = "players/inventory_transactions.rs"]
+mod inventory_transactions;
+pub(super) use inventory_transactions::Requests as InventoryRequests;
+pub(super) use inventory_transactions::finish as finish_inventory_invocation;
 #[path = "players/items.rs"]
 mod items;
 #[path = "players/values.rs"]
@@ -46,6 +50,7 @@ enum Entry {
     Item(Arc<values::Value<crate::item::ItemStack>>),
     AdmissionHold(super::sessions::OwnedHold),
     InventoryImage(Arc<values::Value<inventory::Image>>),
+    InventoryOperation(Arc<inventory_transactions::Operation>),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.

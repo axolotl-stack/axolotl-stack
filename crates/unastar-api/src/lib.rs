@@ -37,7 +37,8 @@ pub mod raw {
 pub use raw::{
     AccessError, AdmissionAcknowledgement, AdmissionDecision, AdmissionResolution, AdmittedEvent,
     BlockPos, DamageCause, DisconnectDetail, DisconnectReason, Enchantment, GameMode,
-    InventoryArea, InventoryImage, ItemValue, LogLevel, MovementCommitted, PlayerAvailability,
+    InventoryArea, InventoryCommit, InventoryError, InventoryImage, InventoryOperation,
+    InventoryReceipt, InventoryStatus, ItemValue, LogLevel, MovementCommitted, PlayerAvailability,
     PlayerFlags, PlayerHandle, PlayerIdentity, PlayerSnapshot, QuitDisposition, QuitEvent, Task,
     TaskStatus, Vec3, WorldHandle,
 };
