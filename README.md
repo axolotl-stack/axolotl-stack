@@ -683,6 +683,15 @@ Fall distance reads the player's actual input history when present, then the
 standalone native fall component. Missing history returns `None`; malformed
 present history returns `Unavailable` rather than inventing a zero value.
 
+`Player::vitals()` copies actual health, maximum health, absorption, food,
+saturation, exhaustion and the optional native food-policy override from this
+scope. Pending mutations are excluded. `heal(amount)` stages finite nonnegative
+healing through native health clamping; it cannot revive dead, held, incomplete
+or recovery-fenced actors. `set_food_policy(Some(policy))` controls native
+exhaustion, food drain, natural regeneration and starvation. `None` restores the
+ordinary policy. This transient override does not rewrite food values or native
+timers, and requires `player-mechanics` just like healing.
+
 `player-mechanics` additionally permits finite or explicit infinite effect application/removal,
 velocity, durable mode changes, temporary mode overlays and independent flight
 permission. `EffectApplication` includes the zero-based amplifier, a duration of

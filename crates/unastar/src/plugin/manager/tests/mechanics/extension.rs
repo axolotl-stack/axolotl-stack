@@ -10,6 +10,9 @@ use std::path::Path;
 use std::process::Command;
 use std::sync::OnceLock;
 
+#[path = "vitals.rs"]
+mod vitals;
+
 /// Compile a real SDK component without contending for the outer native artifact directory.
 fn guest() -> &'static [u8] {
     static BYTES: OnceLock<Vec<u8>> = OnceLock::new();

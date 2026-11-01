@@ -4,6 +4,26 @@ use super::*;
 use crate::plugin::manifest::PluginCapability;
 
 impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
+    fn vitals(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<wit::PlayerVitals, wit::AccessError> {
+        self.vitals_state(player.rep())
+    }
+    fn heal(
+        &mut self,
+        player: Resource<wit::Player>,
+        amount: f32,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_heal(player.rep(), amount)
+    }
+    fn set_food_policy(
+        &mut self,
+        player: Resource<wit::Player>,
+        policy: Option<wit::FoodPolicy>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.stage_food_policy(player.rep(), policy)
+    }
     fn inventory_stack(
         &mut self,
         player: Resource<wit::Player>,

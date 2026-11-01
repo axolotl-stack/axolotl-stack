@@ -86,5 +86,6 @@ pub use raw::{
     ConnectionCloseKind, ConnectionCloseReason, ConnectionCloseRequest, ConnectionCloseStatus,
     ConnectionControlError,
 };
+pub use raw::{FoodPolicy, PlayerVitals};
 pub use raw::{InventoryMechanicsOperation, InventoryMechanicsStatus};
 pub use raw::{TravelCause, TravelProposal};

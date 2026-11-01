@@ -345,6 +345,21 @@ impl<'scope> Player<'scope> {
     pub fn mechanics(&self) -> Result<crate::PlayerMechanicsState, AccessError> {
         self.raw().mechanics()
     }
+    /// Copy actual native health, absorption and food values, excluding pending imports.
+    pub fn vitals(&self) -> Result<crate::PlayerVitals, AccessError> {
+        self.raw().vitals()
+    }
+    /// Stage finite nonnegative healing through native health clamping without reviving an actor.
+    pub fn heal(&self, amount: f32) -> Result<crate::MechanicsAcknowledgement, AccessError> {
+        self.raw().heal(amount)
+    }
+    /// Set transient native food-processing gates; none restores ordinary processing.
+    pub fn set_food_policy(
+        &self,
+        policy: Option<crate::FoodPolicy>,
+    ) -> Result<crate::MechanicsAcknowledgement, AccessError> {
+        self.raw().set_food_policy(policy)
+    }
     /// Stage a finite native effect. A source must be a real player in this same callback.
     /// Native precedence, immunity and effect authorization remain authoritative.
     pub fn apply_effect(

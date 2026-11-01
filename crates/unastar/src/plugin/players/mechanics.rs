@@ -2,10 +2,11 @@
 
 use super::*;
 use crate::entity::components::{
-    ActiveEffect, EffectType, Effects, GameMode, PlayerSession, PlayerState, RuntimeEntityId,
-    Velocity,
+    ActiveEffect, EffectType, Effects, GameMode, Health, Hunger, PlayerSession, PlayerState,
+    RuntimeEntityId, Velocity,
 };
 use crate::plugin::manifest::PluginCapability;
+use crate::server::game::hunger::PlayerFoodPolicy;
 use crate::server::game::{effects, flight};
 use glam::DVec3;
 use std::sync::Weak;
@@ -37,6 +38,8 @@ enum Mutation {
     Mode(wit::GameMode),
     ModeOverride(Option<wit::GameMode>),
     Flight(Option<bool>),
+    Heal(f32),
+    FoodPolicy(Option<PlayerFoodPolicy>),
 }
 
 #[derive(Resource, Default)]
@@ -156,6 +159,17 @@ pub(crate) fn apply_pending(world: &mut World) {
             Mutation::Flight(value) => {
                 flight::set_override(world, player, value);
             }
+            Mutation::Heal(amount) => {
+                if let Some(mut health) = world.get_mut::<Health>(player) {
+                    health.heal(amount);
+                }
+            }
+            Mutation::FoodPolicy(Some(policy)) => {
+                world.entity_mut(player).insert(policy);
+            }
+            Mutation::FoodPolicy(None) => {
+                world.entity_mut(player).remove::<PlayerFoodPolicy>();
+            }
             Mutation::Velocity(_) => {}
         }
     }
@@ -217,6 +231,85 @@ fn valid_velocity(value: DVec3) -> bool {
 }
 
 impl HostContext {
+    /// Read actual complete state without projecting any queued healing or policy change.
+    pub(in crate::plugin::manager) fn vitals_state(
+        &mut self,
+        rep: u32,
+    ) -> Result<wit::PlayerVitals, wit::AccessError> {
+        let (reference, player) = self.live_player(rep)?;
+        let world = unsafe { self.world() };
+        let snapshot = identity::snapshot(world, player, &reference)?;
+        if matches!(
+            availability(world, player),
+            wit::PlayerAvailability::Quarantined
+                | wit::PlayerAvailability::Recovering
+                | wit::PlayerAvailability::Incomplete
+        ) {
+            return Err(wit::AccessError::Unavailable);
+        }
+        let hunger = world
+            .get::<Hunger>(player)
+            .ok_or(wit::AccessError::Unavailable)?;
+        let absorption = world
+            .get::<crate::server::game::attributes::Absorption>(player)
+            .map_or(0.0, |value| value.0);
+        if !(0..=Hunger::MAX_FOOD).contains(&hunger.food_level)
+            || !hunger.saturation.is_finite()
+            || !(0.0..=Hunger::MAX_FOOD as f32).contains(&hunger.saturation)
+            || !hunger.exhaustion.is_finite()
+            || !(0.0..=Hunger::MAX_EXHAUSTION).contains(&hunger.exhaustion)
+            || !absorption.is_finite()
+            || absorption < 0.0
+        {
+            return Err(wit::AccessError::Unavailable);
+        }
+        Ok(wit::PlayerVitals {
+            health: snapshot.health,
+            max_health: snapshot.max_health,
+            absorption,
+            food_level: hunger.food_level,
+            saturation: hunger.saturation,
+            exhaustion: hunger.exhaustion,
+            food_policy_override: world.get::<PlayerFoodPolicy>(player).map(|policy| {
+                wit::FoodPolicy {
+                    exhaustion: policy.exhaustion,
+                    food_drain: policy.food_drain,
+                    natural_regeneration: policy.natural_regeneration,
+                    starvation: policy.starvation,
+                }
+            }),
+            captured_tick: world
+                .get_resource::<crate::ecs::resources::TickCounter>()
+                .ok_or(wit::AccessError::Unavailable)?
+                .current,
+        })
+    }
+    /// Keep arbitrary exact-amount healing on the existing bounded living-actor mechanics lane.
+    pub(in crate::plugin::manager) fn stage_heal(
+        &mut self,
+        rep: u32,
+        amount: f32,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        self.operation()?;
+        if !amount.is_finite() || amount < 0.0 {
+            return Err(wit::AccessError::InvalidArgument);
+        }
+        self.stage_mechanics(rep, Mutation::Heal(amount))
+    }
+    /// Change native processing gates without recreating hunger timers in the component.
+    pub(in crate::plugin::manager) fn stage_food_policy(
+        &mut self,
+        rep: u32,
+        policy: Option<wit::FoodPolicy>,
+    ) -> Result<wit::MechanicsAcknowledgement, wit::AccessError> {
+        let policy = policy.map(|policy| PlayerFoodPolicy {
+            exhaustion: policy.exhaustion,
+            food_drain: policy.food_drain,
+            natural_regeneration: policy.natural_regeneration,
+            starvation: policy.starvation,
+        });
+        self.stage_mechanics(rep, Mutation::FoodPolicy(policy))
+    }
     /// Capture owned current mechanics without using an observation from a previous tick.
     pub(in crate::plugin::manager) fn mechanics_state(
         &mut self,
