@@ -613,6 +613,7 @@ pub(crate) fn disconnect(world: &mut World, session_id: crate::network::SessionI
         match disposition {
             Some(DisconnectDisposition::RetainEntity) => {
                 player_state::remember_identity(world, entity);
+                let state_held = player_state::quarantine::is_held(world, entity);
                 // Remove transport ownership and chunk views; the actor keeps
                 // its gameplay state and remains visible to other sessions.
                 if let Ok(mut actor) = world.get_entity_mut(entity) {
@@ -624,7 +625,10 @@ pub(crate) fn disconnect(world: &mut World, session_id: crate::network::SessionI
                         BreakingState,
                         item_use::ItemUsing,
                     )>();
-                    actor.insert((DetachedPlayer, PlayerState::default()));
+                    actor.insert(DetachedPlayer);
+                    if !state_held {
+                        actor.insert(PlayerState::default());
+                    }
                 }
             }
             Some(DisconnectDisposition::Despawn) => {

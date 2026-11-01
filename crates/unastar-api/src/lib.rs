@@ -54,8 +54,10 @@ pub use raw::{
     InventoryError, InventoryImage, InventoryOperation, InventoryReceipt, InventoryStatus,
     ItemValue, Knockback, LogLevel, MechanicsAcknowledgement, MovementCommitted,
     PlayerAvailability, PlayerFlags, PlayerHandle, PlayerIdentity, PlayerMechanicsState,
-    PlayerSnapshot, QuitDisposition, QuitEvent, Task, TaskStatus, TravelAcknowledgement,
-    TravelError, TravelLocation, TravelMoved, TravelOutcome, TravelResult, Vec3, WorldHandle,
+    PlayerSnapshot, PlayerStateImage, QuitDisposition, QuitEvent, SourceFence, SourceFenceStatus,
+    StateCommit, StateError, StateOperation, StateStatus, StateValues, Task, TaskStatus,
+    TravelAcknowledgement, TravelError, TravelLocation, TravelMoved, TravelOutcome, TravelResult,
+    Vec3, WorldHandle,
 };
 pub use raw::{
     BlockClick, BlockCommitted, BlockFace, BlockHeldItems, BlockOperationKind, BlockProperty,

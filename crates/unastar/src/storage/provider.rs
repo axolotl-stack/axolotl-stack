@@ -147,6 +147,10 @@ pub struct PlayerData {
     /// Lifetime tick phase used by periodic actor conditions.
     #[serde(default)]
     pub age_ticks: u64,
+    /// One-shot full-state handoff data, atomically bound to its canonical receipt.
+    /// Ordinary captures omit this field after genuine live state was installed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restoration_checkpoint: Option<super::RestorationCheckpoint>,
 }
 
 impl Default for PlayerData {
@@ -175,6 +179,7 @@ impl Default for PlayerData {
             inventory_effects: BTreeMap::new(),
             cold_exposure: 0.0,
             age_ticks: 0,
+            restoration_checkpoint: None,
         }
     }
 }
@@ -256,6 +261,9 @@ impl StoredItemStack {
 impl PlayerData {
     /// Validate structural state; typed item resolution occurs atomically at spawn.
     pub fn validate(&self, uuid: Uuid) -> StorageResult<()> {
+        if let Some(checkpoint) = &self.restoration_checkpoint {
+            checkpoint.validate(self)?;
+        }
         if self.uuid != uuid.to_string()
             || !self.position.iter().all(|n| n.is_finite())
             || !self.rotation.iter().all(|n| n.is_finite())

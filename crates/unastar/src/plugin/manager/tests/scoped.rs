@@ -490,3 +490,5 @@ mod inventory_write_tests;
 
 #[path = "item_comparisons.rs"]
 mod item_comparison_tests;
+#[path = "state_restoration.rs"]
+mod state_restoration_tests;

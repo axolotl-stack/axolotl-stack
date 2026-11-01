@@ -359,6 +359,7 @@ interface types {
     }
 
     resource admission-hold {
+        submit-state: func(tx: borrow<world-tx>, request-id: string, expected: borrow<player-state-image>, desired: borrow<player-state-image>, source: option<borrow<source-fence>>) -> result<state-operation, state-error>;
         resolve: func(tx: borrow<world-tx>, decision: admission-resolution) -> result<admission-acknowledgement, access-error>;
         /// Call in a fresh transaction after Deferred admission has finished evaluating.
         /// The owning hold authorizes only its exact initializing actor.
@@ -665,6 +666,10 @@ interface types {
     /// Native full state remains host-owned, including unknown item metadata.
     /// This resource only reads immutable observations; restoration is a separate capability.
     resource archived-player-state {
+        state-image: func() -> result<player-state-image, access-error>;
+        /// Reacquire only an existing exact native source hold in this transaction world.
+        /// Absence never recreates an actor or grants a historical player capability.
+        source-fence: func(tx: borrow<world-tx>) -> result<option<source-fence>, state-error>;
         reference: func() -> result<archive-reference, access-error>;
         facts: func() -> result<archive-facts, access-error>;
         inventory: func() -> result<inventory-image, access-error>;
@@ -686,6 +691,10 @@ interface types {
         /// Stage a native durable relocation, not a movement acknowledgement.
         /// Destination is one actual world lifetime; coordinates are player feet.
         relocate: func(destination: borrow<world-handle>, feet: vec3, safe-y-radius: u16, correlation: u64) -> result<travel-acknowledgement, access-error>;
+        state-image: func() -> result<player-state-image, access-error>;
+        fence-state: func(expected: borrow<player-state-image>) -> result<source-fence, state-error>;
+        submit-state: func(request-id: string, expected: borrow<player-state-image>, desired: borrow<player-state-image>, source: option<borrow<source-fence>>) -> result<state-operation, state-error>;
+        state-receipt: func(request-id: string) -> result<option<inventory-receipt>, state-error>;
         /// Capture current authoritative state; pending requests are not reflected here.
         mechanics: func() -> result<player-mechanics-state, access-error>;
         apply-effect: func(effect: effect-application, source: option<borrow<player>>) -> result<mechanics-acknowledgement, access-error>;
@@ -760,6 +769,65 @@ interface types {
         requested: travel-location,
         outcome: travel-outcome,
     }
+    /// Detached raw state. Account identity and receipt lineage are never editable.
+    record state-values {
+        position: vec3,
+        rotation: tuple<f32,f32>,
+        head-yaw: f32,
+        velocity: vec3,
+        health: f32,
+        max-health: f32,
+        absorption: f32,
+        food: u8,
+        saturation: f32,
+        exhaustion: f32,
+        experience: u32,
+        experience-progress: f32,
+        base-mode: game-mode,
+        mode-override: option<game-mode>,
+        flight-override: option<bool>,
+        air-current: u32,
+        air-max: u32,
+        on-fire-ticks: u32,
+        burning-remaining: u64,
+        burning-next: u64,
+        effects: list<active-status-effect>,
+        age-ticks: u64,
+        cold-exposure: f32,
+        dead: bool,
+    }
+    resource player-state-image {
+        values: func() -> result<state-values, access-error>;
+        with-values: func(values: state-values) -> result<player-state-image, access-error>;
+        /// Select the actual current transaction world, without moving any actor.
+        at: func(tx: borrow<world-tx>, feet: vec3, rotation: tuple<f32,f32>) -> result<player-state-image, access-error>;
+        dimension: func() -> result<s32, access-error>;
+        inventory: func() -> result<inventory-image, access-error>;
+        with-inventory: func(inventory: borrow<inventory-image>) -> result<player-state-image, access-error>;
+        fingerprint: func() -> result<string, access-error>;
+    }
+    variant state-error {
+        access(access-error), invalid-image, wrong-account, conflict, busy,
+        not-installed, unsupported-provider, invalid-identifier, not-applied,
+        recovery-required, source-gone, unsafe-position, timed-out,
+    }
+    enum source-fence-status { staged, held, consumed, gone, cancelled }
+    /// Dropping this observer never reactivates an accepted native source hold.
+    resource source-fence {
+        status: func() -> result<source-fence-status, access-error>;
+        state-image: func() -> result<player-state-image, access-error>;
+        archive: func(key: string) -> result<archive-reference, archive-error>;
+    }
+    record state-commit {
+        receipt: inventory-receipt,
+        already-committed: bool,
+        live-applied: bool,
+    }
+    /// Only committed contains durable proof; live-applied refers to the original actor.
+    variant state-status {
+        staged, queued, committed(state-commit), rejected(state-error), uncertain, cancelled,
+    }
+    resource state-operation { status: func() -> result<state-status, access-error>; }
     /// Each stage is independently authorized before its native costs and effects.
     enum item-action-stage { %use, release, consume, charge, launch }
     record item-block-target { click: block-click, block: result<block-value, access-error> }

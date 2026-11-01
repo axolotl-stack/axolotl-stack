@@ -45,6 +45,30 @@ use super::types::{ItemRegistryResource, ServerConfigResource};
 
 const SNAPSHOT_VERSION: u32 = 1;
 
+mod checkpoint;
+pub(crate) use checkpoint::resume_checkpoint;
+pub(crate) mod quarantine;
+pub(crate) mod restoration;
+
+/// Validate complete raw state and item resolution before any accepted state write.
+pub(crate) fn preflight_restore(
+    world: &World,
+    player: Entity,
+    snapshot: &PlayerSnapshot,
+) -> Result<(), SnapshotError> {
+    snapshot.validate()?;
+    validate_target(world, player, snapshot)?;
+    prepare(world, snapshot)?;
+    let now = world
+        .get_resource::<TickCounter>()
+        .map_or(0, |tick| tick.current);
+    now.checked_add(snapshot.burning_remaining)
+        .ok_or_else(|| invalid("burning deadline overflow"))?;
+    now.checked_add(snapshot.burning_next)
+        .ok_or_else(|| invalid("burning pulse overflow"))?;
+    Ok(())
+}
+
 /// Account binding retained after transport ownership is removed.
 #[derive(Component)]
 pub(super) struct DetachedIdentity(Option<String>);
@@ -383,7 +407,9 @@ pub fn restore(
     player: Entity,
     snapshot: &PlayerSnapshot,
 ) -> Result<(), SnapshotError> {
-    if super::inventory_effects::is_recovery_fenced(world, player) {
+    if quarantine::is_held(world, player)
+        || super::inventory_effects::is_recovery_fenced(world, player)
+    {
         return Err(invalid("player state requires explicit runtime recovery"));
     }
     snapshot.validate()?;

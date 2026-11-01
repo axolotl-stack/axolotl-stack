@@ -322,6 +322,9 @@ fn space_is_clear(world: &World, feet: DVec3) -> bool {
 
 /// Moves one entity; `position` is its new feet position.
 pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32, pitch: f32) {
+    if crate::server::game::inventory_effects::is_quarantined(world, entity) {
+        return;
+    }
     if let Some(mut rotation) = world.get_mut::<Rotation>(entity) {
         *rotation = Rotation::new(yaw, pitch);
     }

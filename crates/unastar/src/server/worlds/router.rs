@@ -216,6 +216,19 @@ impl DimensionRouter {
             .ok_or(TransferError::UnsafeDestination)
     }
 
+    /// Load a literal raw-state position without inventing support or changing its coordinates.
+    pub(crate) fn prepare_state_position(
+        &mut self,
+        dimension: i32,
+        feet: glam::DVec3,
+    ) -> Result<bool, TransferError> {
+        let server = self
+            .worlds
+            .get_mut(&dimension)
+            .ok_or(TransferError::UnknownDimension)?;
+        super::transfer::prepare_chunks(server.ecs.world_mut(), feet)
+    }
+
     /// Share one account provider so reconnects and cross-world receipts cannot
     /// race independent player databases. World terrain providers are unaffected.
     fn inherit_account_storage(&self, world: &mut GameServer) -> Result<(), TransferError> {
@@ -302,7 +315,11 @@ impl DimensionRouter {
             .and_then(|value| uuid::Uuid::parse_str(value).ok())
             .unwrap_or_else(uuid::Uuid::nil);
         if self.worlds.values().any(|world| {
-            crate::server::game::inventory_effects::recovery_account_fenced(
+            crate::server::game::player_state::restoration::account_pending(
+                world.ecs.world(),
+                uuid,
+                data.xuid.as_deref(),
+            ) || crate::server::game::inventory_effects::recovery_account_fenced(
                 world.ecs.world(),
                 uuid,
                 data.xuid.as_deref(),

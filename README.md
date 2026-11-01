@@ -264,6 +264,44 @@ are errors. Capture rejects unavailable, incomplete or quarantined player state.
 This interface captures and reads state; it does not detach, fence or restore an
 actor, and it cannot recapture a pre-death inventory after drops have occurred.
 
+### Complete player-state handoff
+
+The separate `restore-player-state` capability exposes owned `PlayerStateImage`
+values and scoped submission. A fresh `Player::state_image()` supplies the exact
+expected target. Detached edits can change typed life, effects, movement, mode
+and inventory values; account identity, item instance data and receipt lineage
+remain host-owned. `WorldTx::state_at` selects an actual current destination
+world. It neither moves an actor nor grants access to a historical world.
+
+`Player::submit_state` is staged until its callback succeeds. An owning deferred
+`AdmissionHold` can submit from a fresh transaction without publishing the player.
+The engine withholds the original target's complete state during destination
+loading and the account-serialized write. Only a committed operation carries a
+durable receipt; `live_applied` reports whether the original actor received it.
+Actor loss or a changed connection never redirects a completion to a replacement.
+An uncertain write keeps state withheld for explicit recovery.
+
+Every other live or retained actor for the account blocks installation unless it
+is the exact supplied `SourceFence`. `Player::fence_state` freezes only a fresh
+native source after successful callback completion. The native hold outlives
+guest resource drops and component unload. Its immutable archive may reacquire
+that same existing hold through `WorldTx::source_fence`; real absence returns
+`None`. Historical identifiers never recreate or select a player. Accepted source
+holds remain unavailable until a separate explicit retirement operation.
+The source archive may be persisted while its hold is still staged, closing the
+reload gap before physical withholding. Archive acknowledgement alone does not
+mean a hold exists; its status and exact native-anchor resolution remain separate.
+
+Complete installation saves a nonrecursive checkpoint and the new receipt in one
+canonical record before live application. Stock hydration restores its typed
+supplement silently behind aggregate admission. A later ordinary save retires
+that one-shot supplement and retains current canonical receipts; it does not
+replay old effects, motion or temporary modes onto advanced state. This handoff
+does not change ordinary player persistence into continuous full-state storage.
+Raw dead state remains dead and does not invoke gameplay respawn or death hooks.
+Opaque request identifiers are module/account scoped; replay reports the current
+canonical proof and never reinstalls an old receipt history or grants state twice.
+
 Archive files use a separately leased module namespace outside both guest byte
 storage and filesystem preopens. Configure its directory and encoded-file quotas
 under `[plugins.archives]`; `archives::limits()` reports the effective bounds.

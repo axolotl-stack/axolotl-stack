@@ -83,6 +83,8 @@ pub struct HostContext {
     pending_inventory_mechanics: Vec<players::InventoryMechanicsRequest>,
     pending_travel: Vec<players::travel::Request>,
     travel_results: std::sync::Arc<players::travel::Results>,
+    states: players::StateRequests,
+    state_sources: players::StateSources,
     mechanics_owner: std::sync::Arc<()>,
     pending_connection_closes: Vec<connection_control::Request>,
     pending_block_edits: Vec<players::BlockEditRequest>,
@@ -153,6 +155,8 @@ impl HostContext {
             pending_inventory_mechanics: Vec::new(),
             pending_travel: Vec::new(),
             travel_results: Default::default(),
+            states: Default::default(),
+            state_sources: Default::default(),
             mechanics_owner: std::sync::Arc::new(()),
             pending_connection_closes: Vec::new(),
             pending_block_edits: Vec::new(),
@@ -283,6 +287,8 @@ pub(super) fn finish_invocation(
     world: &mut bevy_ecs::world::World,
     succeeded: bool,
 ) {
+    players::finish_state_sources(context, world, succeeded);
+    players::finish_state_transactions(context, world, succeeded);
     players::finish_inventory_mechanics(context, world, succeeded);
     players::finish_mechanics(context, world, succeeded);
     players::travel::finish(context, world, succeeded);

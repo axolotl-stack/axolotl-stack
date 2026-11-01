@@ -90,7 +90,33 @@ impl SerializedPlayerProvider {
         uuid: Uuid,
         id: &str,
         request_hash: [u8; 32],
+        candidate: PlayerData,
+    ) -> Result<EffectWrite, EffectWriteFailure> {
+        self.commit_full_effect(uuid, id, request_hash, candidate, None)
+            .await
+    }
+
+    /// Atomically preserve canonical history while installing one full-state handoff.
+    pub(crate) async fn commit_state_effect(
+        &self,
+        uuid: Uuid,
+        id: &str,
+        request_hash: [u8; 32],
+        candidate: PlayerData,
+        supplement: super::RestorationSupplement,
+    ) -> Result<EffectWrite, EffectWriteFailure> {
+        self.commit_full_effect(uuid, id, request_hash, candidate, Some(supplement))
+            .await
+    }
+
+    /// Inventory and full-state effects share one account lock, epoch and proof ledger.
+    async fn commit_full_effect(
+        &self,
+        uuid: Uuid,
+        id: &str,
+        request_hash: [u8; 32],
         mut candidate: PlayerData,
+        supplement: Option<super::RestorationSupplement>,
     ) -> Result<EffectWrite, EffectWriteFailure> {
         if !self.inner.atomic_durable_records() {
             return Err(uncertain(
@@ -141,6 +167,16 @@ impl SerializedPlayerProvider {
             error.resume_source = false;
             return Err(error);
         }
+        if supplement.is_some()
+            && current
+                .as_ref()
+                .map_or_else(BTreeMap::new, |data| data.inventory_effects.clone())
+                != candidate.inventory_effects
+        {
+            let mut error = rejected("state receipt lineage changed before the effect write");
+            error.resume_source = false;
+            return Err(error);
+        }
         if current
             .as_ref()
             .is_some_and(|data| data.inventory_effects.len() >= 65_536)
@@ -160,6 +196,13 @@ impl SerializedPlayerProvider {
         candidate
             .inventory_effects
             .insert(id.into(), record.clone());
+        candidate.restoration_checkpoint =
+            supplement.map(|supplement| super::RestorationCheckpoint {
+                id: id.into(),
+                revision: next,
+                request_hash,
+                supplement,
+            });
         candidate
             .validate(uuid)
             .map_err(|error| rejected(error.to_string()))?;
@@ -222,6 +265,9 @@ impl PlayerProvider for SerializedPlayerProvider {
             return Err(StorageError::PlayerRevisionConflict);
         }
         let mut candidate = data.clone();
+        // This ordinary-save boundary retires the one-shot raw handoff. Keeping
+        // old extras beside newly advanced life/position would replay stale state.
+        candidate.restoration_checkpoint = None;
         // Ordinary saves retain history from storage; callers cannot erase or mint receipts.
         candidate.inventory_effects =
             current.map_or_else(BTreeMap::new, |data| data.inventory_effects);

@@ -35,6 +35,12 @@ pub(super) use inventory_transactions::finish as finish_inventory_invocation;
 mod items;
 #[path = "players/mechanics.rs"]
 mod mechanics;
+#[path = "players/state.rs"]
+mod state;
+#[path = "players/state_sources.rs"]
+mod state_sources;
+#[path = "players/state_transactions.rs"]
+mod state_transactions;
 #[path = "players/travel.rs"]
 pub(super) mod travel;
 #[path = "players/values.rs"]
@@ -43,6 +49,10 @@ mod values;
 mod world_blocks;
 pub(crate) use mechanics::apply_pending as apply_mechanics;
 pub(super) use mechanics::{MechanicsRequest, finish as finish_mechanics};
+pub(super) use state_sources::Pending as StateSources;
+pub(super) use state_sources::finish as finish_state_sources;
+pub(super) use state_transactions::Requests as StateRequests;
+pub(super) use state_transactions::finish as finish_state_transactions;
 pub(crate) use world_blocks::apply_pending as apply_block_edits;
 pub(super) use world_blocks::{Request as BlockEditRequest, finish as finish_block_edits};
 
@@ -77,6 +87,9 @@ enum Entry {
     BlockCell(Arc<values::Value<world_blocks::Cell>>),
     BlockEdit(world_blocks::Edit),
     BlockEditRequest(Arc<world_blocks::RequestState>),
+    StateImage(Arc<values::Value<state::Image>>),
+    SourceFence(Arc<state_sources::Fence>),
+    StateOperation(Arc<state_transactions::Operation>),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.
