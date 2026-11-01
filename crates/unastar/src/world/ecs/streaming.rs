@@ -1117,8 +1117,9 @@ impl std::ops::Deref for StreamStats {
 const STATS_INTERVAL_TICKS: u32 = 20;
 
 /// System: logs and resets the streaming statistics every
-/// [`STATS_INTERVAL_TICKS`], when anything was streamed.
-pub fn log_stream_stats(stats: Res<StreamStats>, mut ticks: Local<u32>) {
+/// [`STATS_INTERVAL_TICKS`], when anything was streamed, with the loads in
+/// flight and the finished columns still waiting to be spawned.
+pub fn log_stream_stats(stats: Res<StreamStats>, loads: Res<ColumnLoads>, mut ticks: Local<u32>) {
     *ticks += 1;
     if *ticks < STATS_INTERVAL_TICKS {
         return;
@@ -1137,11 +1138,17 @@ pub fn log_stream_stats(stats: Res<StreamStats>, mut ticks: Local<u32>) {
     let (acked, acked_ms) = stats.acked.take();
     let unacked = stats.unacked.swap(0, Ordering::Relaxed);
     let peak_queue_kib = stats.peak_queue.swap(0, Ordering::Relaxed) / 1024;
+    let (reading, generating, ready, saving) = (
+        loads.reads_in_flight(),
+        loads.generations_in_flight(),
+        loads.ready_len(),
+        loads.saves_in_flight(),
+    );
     info!(
         target: "unastar::stream",
         read, read_ms, missed, missed_ms, generated, generated_ms, encoded, encoded_ms,
         reencoded, reencoded_ms, sent, sent_ms, answered, answered_ms, acked, acked_ms, unacked,
-        peak_queue_kib,
+        peak_queue_kib, reading, generating, ready, saving,
         "chunk streaming (counts and mean ms over the last second)"
     );
 }

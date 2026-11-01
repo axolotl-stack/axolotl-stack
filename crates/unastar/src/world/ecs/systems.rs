@@ -726,17 +726,24 @@ impl HeldChunkReport {
 const UNLOAD_BUDGET: Duration = Duration::from_millis(4);
 /// Expired chunks unloaded together (one pass over the mobs per batch).
 const UNLOAD_BATCH: usize = 16;
+/// Unloads stop while this many writes are in flight. Each write holds a
+/// blocking-pool thread for its storage write, which can stall for a while
+/// when storage compacts; storage reads (and so generation of fresh terrain,
+/// which starts with a read) share that pool, so writes must never take all
+/// of it. Expired chunks wait in memory until the writes catch up.
+const MAX_SAVES_IN_FLIGHT: usize = 64;
 
 /// System: Process pending chunk unloads.
 /// Ticks down grace periods. An expired chunk is written in the background
 /// together with the mobs standing in it (when anything changed), and the mobs
 /// and the chunk are removed from the world; the column is not read again
 /// until the write finished. Unloading stops for the tick after
-/// [`UNLOAD_BUDGET`]. If a write fails the column comes back with its edits
-/// and mobs (see [`ColumnLoads::take_held`]) and its unload is retried with an
-/// exponential backoff per chunk (see
-/// [`ChunkPendingUnload::after_failed_save`]); one rate-limited summary
-/// reports how many chunks are held (see [`HeldChunkReport`]).
+/// [`UNLOAD_BUDGET`], or while [`MAX_SAVES_IN_FLIGHT`] writes are pending. If a
+/// write fails the column comes back with its edits and mobs (see
+/// [`ColumnLoads::take_held`]) and its unload is retried with an exponential
+/// backoff per chunk (see [`ChunkPendingUnload::after_failed_save`]); one
+/// rate-limited summary reports how many chunks are held (see
+/// [`HeldChunkReport`]).
 pub fn process_chunk_unloads(world: &mut World) {
     let started = Instant::now();
     let mut pending = world.query::<(Entity, &mut ChunkPendingUnload)>();
@@ -745,7 +752,9 @@ pub fn process_chunk_unloads(world: &mut World) {
         .filter_map(|(entity, mut grace)| grace.tick().then_some(entity))
         .collect();
     for batch in expired.chunks(UNLOAD_BATCH) {
-        if started.elapsed() >= UNLOAD_BUDGET {
+        if started.elapsed() >= UNLOAD_BUDGET
+            || world.resource::<ColumnLoads>().saves_in_flight() >= MAX_SAVES_IN_FLIGHT
+        {
             break;
         }
         unload_expired_chunks(world, batch);

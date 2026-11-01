@@ -26,11 +26,11 @@ use crate::world::ecs::{ChunkManager, ChunkViewers};
 /// How far ahead (in ticks of the current velocity) the load order looks.
 const LOOKAHEAD_TICKS: f32 = 40.0;
 /// How far ahead (in ticks of the current velocity) columns are loaded before
-/// they enter the view: three seconds, so a burst of demand (eight players
-/// flying apart at 30 blocks/s ask about 375 new columns a second) is
-/// absorbed before the columns are visible. Prefetched columns enter the view
-/// well within the unload grace of columns nobody views (5 s).
-const PREFETCH_TICKS: f32 = 60.0;
+/// they enter the view: two seconds. Measured with eight players flying apart
+/// at 30 blocks/s, three seconds removed no more holes, and a shorter horizon
+/// wastes less when a player turns. Prefetched columns enter the view well
+/// within the unload grace of columns nobody views (5 s).
+const PREFETCH_TICKS: f32 = 40.0;
 /// Weight of the newest movement sample in the velocity estimate.
 const VELOCITY_SMOOTHING: f32 = 0.25;
 /// A move longer than this in one tick is a teleport, not motion.
@@ -440,7 +440,7 @@ mod tests {
     fn flying_prefetches_the_columns_about_to_enter_the_view() {
         let mut loader = ChunkLoader::new_at(12, (0, 0));
         assert!(loader.prefetch().is_empty(), "standing still");
-        // 1.5 blocks per tick east; 60 ticks of it reach 5.6 chunks ahead.
+        // 1.5 blocks per tick east; 40 ticks of it reach 3.75 chunks ahead.
         for tick in 0..40 {
             loader.observe_position(f64::from(tick) * 1.5, 0.0);
         }
@@ -452,10 +452,10 @@ mod tests {
         );
         assert!(prefetch.iter().all(|&(x, _)| x > 0), "only columns ahead");
         // The next columns straight ahead, up to the prefetch distance.
-        for x in 14..=18 {
+        for x in 14..=16 {
             assert!(prefetch.contains(&(x, 0)), "{x} chunks ahead");
         }
-        assert!(!prefetch.contains(&(19, 0)));
+        assert!(!prefetch.contains(&(17, 0)));
         // Nearest first: the columns just outside the view's edge lead.
         let d = |(x, z): (i32, i32)| x * x + z * z;
         assert!(prefetch.windows(2).all(|w| d(w[0]) <= d(w[1])));

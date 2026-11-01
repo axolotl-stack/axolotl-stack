@@ -220,6 +220,9 @@ struct FlightResult {
     view_latency_p50_ms: f64,
     view_latency_p99_ms: f64,
     view_latency_max_ms: f64,
+    /// The first holes: seconds into the flight, and the column's position in
+    /// chunks from the player along and across the flight direction.
+    hole_samples: Vec<(f32, f32, f32)>,
     /// After stopping: time until the render disk is complete again.
     catch_up_ms: Option<f64>,
 }
@@ -801,6 +804,7 @@ async fn fly(
     let mut waiting: HashMap<(i32, i32), (Instant, bool)> = HashMap::new();
     let (mut entered, mut holes) = (0usize, 0usize);
     let mut latencies: Vec<f64> = Vec::new();
+    let mut hole_samples: Vec<(f32, f32, f32)> = Vec::new();
     loop {
         tokio::select! {
             raw = play.recv_packet_raw() => {
@@ -833,6 +837,7 @@ async fn fly(
                         waiting.insert(column, (now, false));
                     }
                 }
+                let here = center(position);
                 waiting.retain(|column, (at, counted)| {
                     if !disk.contains(column) {
                         latencies.push(ms(now - *at));
@@ -841,6 +846,14 @@ async fn fly(
                     if !*counted && now - *at > HOLE_GRACE {
                         *counted = true;
                         holes += 1;
+                        if hole_samples.len() < 64 {
+                            let (ox, oz) = ((column.0 - here.0) as f32, (column.1 - here.1) as f32);
+                            hole_samples.push((
+                                (now - flight_started).as_secs_f32(),
+                                ox * dx + oz * dz,
+                                oz * dx - ox * dz,
+                            ));
+                        }
                     }
                     true
                 });
@@ -892,6 +905,7 @@ async fn fly(
         view_latency_p50_ms: percentile(0.5),
         view_latency_p99_ms: percentile(0.99),
         view_latency_max_ms: latencies.last().copied().unwrap_or(0.0),
+        hole_samples,
         catch_up_ms,
     }
 }
