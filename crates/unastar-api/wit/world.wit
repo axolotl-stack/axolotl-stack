@@ -7,6 +7,7 @@ world unastar-plugin {
     import commands;
 
     use types.{world-tx, player, vec3, block-pos, damage-cause, access-error, admission-decision, quit-event, quit-disposition, admitted-event, movement-committed, damage-proposal, damage-tuning, damage-committed};
+    use types.{block-proposal, block-committed};
 
     export on-load: func();
     export on-unload: func();
@@ -18,6 +19,10 @@ world unastar-plugin {
     /// client-supplied request identifier is opaque, not permission or uniqueness.
     export on-player-command: func(tx: borrow<world-tx>, player: borrow<player>, line: string, request-id: option<string>) -> bool;
     export on-player-chat: func(tx: borrow<world-tx>, player: borrow<player>, message: string) -> bool;
+    /// One veto rejects the entire actual planned batch before ordinary effects.
+    export on-block-transaction: func(tx: borrow<world-tx>, player: borrow<player>, proposal: block-proposal) -> bool;
+    /// Owned completed changes never manufacture a live player after departure.
+    export on-block-committed: func(tx: borrow<world-tx>, event: block-committed);
     export on-block-break: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, block-id: u32) -> bool;
     export on-block-place: func(tx: borrow<world-tx>, player: borrow<player>, position: block-pos, block-id: u32) -> bool;
     /// Return none to reject, or a feet-coordinate destination subject to final native validation.

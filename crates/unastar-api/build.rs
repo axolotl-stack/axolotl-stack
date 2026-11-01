@@ -280,8 +280,14 @@ fn handler_params(resolve: &Resolve, func: &wit_parser::Function) -> String {
         let name = param.name.replace('-', "_");
         let ty = if name == "attacker" {
             "Option<&Player<'_>>".into()
-        } else if func.name == "on-player-damage" && name == "proposal" {
-            "&DamageProposal".into()
+        } else if (func.name == "on-player-damage" || func.name == "on-block-transaction")
+            && name == "proposal"
+        {
+            if func.name == "on-player-damage" {
+                "&DamageProposal".into()
+            } else {
+                "&BlockProposal".into()
+            }
         } else if (func.name == "on-player-respawn" && name == "position")
             || (func.name == "on-player-move" && name == "new_position")
         {
@@ -384,7 +390,9 @@ fn generate_handler(
                 || (func.name == "on-player-move" && name == "new_position")
             {
                 format!("&mut {name}")
-            } else if func.name == "on-player-damage" && name == "proposal" {
+            } else if (func.name == "on-player-damage" || func.name == "on-block-transaction")
+                && name == "proposal"
+            {
                 "&proposal".into()
             } else {
                 name

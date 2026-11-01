@@ -62,7 +62,10 @@ impl HostContext {
     }
 
     /// Charge resource and retained-byte limits before exposing an owned value.
-    fn own_item(&mut self, stack: Stack) -> Result<Resource<wit::Stack>, wit::AccessError> {
+    pub(in crate::plugin::manager) fn own_item(
+        &mut self,
+        stack: Stack,
+    ) -> Result<Resource<wit::Stack>, wit::AccessError> {
         let stack = if stack.is_empty() {
             Stack::empty()
         } else {

@@ -128,6 +128,46 @@ interface types {
         count: u8,
     }
 
+    /// Registered block state values, independent of protocol runtime IDs or NBT codecs.
+    variant block-property-value { byte(u8), integer(s32), text(string) }
+    record block-property { name: string, value: block-property-value }
+    record block-value { identifier: string, properties: list<block-property> }
+    enum block-operation-kind { break, place, %use }
+    enum block-face { down, up, north, south, west, east }
+    record block-click { position: block-pos, face: option<block-face>, offset: option<vec3> }
+    record planned-block-cell {
+        position: block-pos,
+        before: block-value,
+        proposed: block-value,
+    }
+    /// Operation IDs correlate only within the current actual world lifetime.
+    record block-proposal {
+        operation-id: u64,
+        dimension: s32,
+        kind: block-operation-kind,
+        cells: list<planned-block-cell>,
+        click: option<block-click>,
+        held-slot: option<u8>,
+        held: option<stack>,
+    }
+    record committed-block-cell {
+        position: block-pos,
+        before: block-value,
+        /// Missing only when a native callback removed the loaded cell after commit.
+        after: option<block-value>,
+    }
+    record block-held-items { slot: option<u8>, before: option<stack>, after: option<stack> }
+    record block-committed {
+        operation-id: u64,
+        dimension: s32,
+        player: player-identity,
+        kind: block-operation-kind,
+        /// A failed value conversion is explicit, never a fabricated empty batch.
+        cells: result<list<committed-block-cell>, access-error>,
+        click: option<block-click>,
+        held-items: result<block-held-items, access-error>,
+    }
+
     /// Scope and identity failures never return fabricated player values.
     enum access-error {
         expired-scope,

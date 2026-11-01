@@ -38,6 +38,8 @@ pub enum EventKind {
     PlayerCommand,
     BlockBreak,
     BlockPlace,
+    BlockTransaction,
+    BlockCommitted,
     Timer,
     PlayerMove,
     PlayerMoved,
@@ -85,6 +87,7 @@ pub enum ServerEvent {
         player_id: String,
         position: (i32, i32, i32),
         block_id: u32,
+        click: Option<crate::server::game::block_interaction::BlockClick>,
     },
     Timer {
         id: u64,

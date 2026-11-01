@@ -42,6 +42,10 @@ pub use raw::{
     PlayerHandle, PlayerIdentity, PlayerSnapshot, QuitDisposition, QuitEvent, Task, TaskStatus,
     Vec3, WorldHandle,
 };
+pub use raw::{
+    BlockClick, BlockCommitted, BlockFace, BlockHeldItems, BlockOperationKind, BlockProperty,
+    BlockPropertyValue, BlockProposal, BlockValue, CommittedBlockCell, PlannedBlockCell,
+};
 mod scoped;
 pub use scoped::{AdmissionHold, Player, PlayerContext, WorldTx, server};
 
