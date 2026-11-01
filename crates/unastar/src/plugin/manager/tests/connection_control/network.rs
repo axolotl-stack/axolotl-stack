@@ -77,7 +77,10 @@ async fn component_request_closes_the_real_pump_before_the_peer_reads_and_preser
         let pump=tokio::spawn(crate::network::run_network_loop(server,42,events,outbound,tick_rx));
         client.send_packet(CommandRequestPacket{command:"/notice".into(),origin:types::CommandOriginDatajson{type_:"player".into(),request_id:"network-42".into(),..Default::default()},is_internal:false,version:"latest".into()}.into()).await.unwrap();client.flush().await.unwrap();
         loop {if let crate::network::NetworkEvent::Packet{session_id,packet_args,packet}=inbound.recv().await.unwrap() && packet.packet_id()==McpePacketName::CommandRequestPacket {assert_eq!(session_id,42);h.router.route_packet(session_id,packet_args,*packet);h.router.tick().await.unwrap();break;}}
-        ticks.send(()).unwrap();
+        // A terminal request can already have flushed and closed the pump.
+        // A missing tick receiver is valid; the checks below still require its
+        // real departure, transport completion and exact terminal notice.
+        let _ = ticks.send(());
         // Deliberately do not read or acknowledge the terminal notice yet.
         loop {if matches!(inbound.recv().await.unwrap(),crate::network::NetworkEvent::Disconnected{session_id:42}){break;}}
         pump.await.unwrap();
