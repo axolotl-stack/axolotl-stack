@@ -250,7 +250,7 @@ fn eat_mine_and_shoot_over_loopback() {
             auth_input(
                 2,
                 60.0,
-                vec![action(EnumsPlayerActionType::Startdestroyblock)],
+                vec![action(EnumsPlayerActionType::StartDestroyBlock)],
             ),
         )
         .await;
@@ -260,7 +260,7 @@ fn eat_mine_and_shoot_over_loopback() {
             auth_input(
                 32,
                 60.0,
-                vec![action(EnumsPlayerActionType::Stopdestroyblock)],
+                vec![action(EnumsPlayerActionType::StopDestroyBlock)],
             ),
         )
         .await;

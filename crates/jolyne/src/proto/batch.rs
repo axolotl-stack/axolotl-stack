@@ -592,8 +592,8 @@ pub(crate) mod tests {
     #[test]
     fn threshold_selects_marker_and_roundtrips_all_algorithms() {
         let packets = [
-            status(PlayStatusPacketStatus::Loginsuccess),
-            status(PlayStatusPacketStatus::Playerspawn),
+            status(PlayStatusPacketStatus::LoginSuccess),
+            status(PlayStatusPacketStatus::PlayerSpawn),
         ];
         for algorithm in [BatchCompression::Deflate, BatchCompression::Snappy] {
             for (threshold, marker) in [(0, algorithm), (512, BatchCompression::None)] {
@@ -612,8 +612,8 @@ pub(crate) mod tests {
                     [
                         McpePacket { data: McpePacketData::PlayStatusPacket(a), .. },
                         McpePacket { data: McpePacketData::PlayStatusPacket(b), .. },
-                    ] if a.status == PlayStatusPacketStatus::Loginsuccess
-                        && b.status == PlayStatusPacketStatus::Playerspawn
+                    ] if a.status == PlayStatusPacketStatus::LoginSuccess
+                        && b.status == PlayStatusPacketStatus::PlayerSpawn
                 ));
             }
         }
@@ -630,7 +630,7 @@ pub(crate) mod tests {
     #[test]
     fn size_guard_covers_compressed_none_and_plain_payloads() {
         let packets: Vec<_> = (0..10)
-            .map(|_| status(PlayStatusPacketStatus::Loginsuccess))
+            .map(|_| status(PlayStatusPacketStatus::LoginSuccess))
             .collect();
         let tiny = BatchLimits {
             max_decompressed: 1,
@@ -658,7 +658,7 @@ pub(crate) mod tests {
     /// path enforced 1,600.
     #[test]
     fn typed_decode_enforces_packet_cap() {
-        let packet = status(PlayStatusPacketStatus::Loginsuccess);
+        let packet = status(PlayStatusPacketStatus::LoginSuccess);
         let packets = vec![packet; 1_601];
         let batch = encode_batch_multi(&packets, settings(false, 0, 0, true)).unwrap();
         assert!(matches!(
@@ -680,7 +680,7 @@ pub(crate) mod tests {
 
     #[test]
     fn raw_packets_reencode_byte_identically() {
-        let packets = [status(PlayStatusPacketStatus::Playerspawn)];
+        let packets = [status(PlayStatusPacketStatus::PlayerSpawn)];
         for encoding in [settings(true, 7, 0, true), settings(false, 0, 0, true)] {
             let batch = encode_batch_multi(&packets, encoding).unwrap();
             let raw = decode_batch_raw(&mut batch.clone(), encoding.enabled, usize::MAX).unwrap();

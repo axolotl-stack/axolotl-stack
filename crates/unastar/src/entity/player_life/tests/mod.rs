@@ -209,7 +209,7 @@ impl Harness {
                 z: position.z as f32,
             },
             input_data: if landed {
-                vec![EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision]
+                vec![EnumsPlayerAuthInputPacketPayloadInputData::VerticalCollision]
             } else {
                 Vec::new()
             },

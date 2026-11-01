@@ -227,7 +227,7 @@ fn a_respawn_destination_override_is_committed_and_reported_once() {
     assert_eq!(
         respawns(&h.drain()),
         [(
-            EnumsPlayerRespawnState::Readytospawn,
+            EnumsPlayerRespawnState::ReadyToSpawn,
             destination.as_vec3().as_dvec3()
         )]
     );

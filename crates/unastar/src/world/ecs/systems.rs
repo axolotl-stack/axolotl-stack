@@ -108,7 +108,7 @@ pub fn send_spawn_status(
             continue; // the view comes first
         }
         let spawned = session.send(McpePacket::from(PlayStatusPacket {
-            status: PlayStatusPacketStatus::Playerspawn,
+            status: PlayStatusPacketStatus::PlayerSpawn,
         }));
         if spawned {
             debug!(player = ?player_entity, "Sent PlayStatus(PlayerSpawn)");
@@ -369,6 +369,7 @@ pub fn process_chunk_load_queues(
                 cache_enabled: false,
                 cache_metadata: vec![],
                 serialized_chunk_data: payload.into(),
+                is_client_biome_update: false,
             }));
 
             if !send_result {
@@ -497,6 +498,7 @@ pub fn request_chunk_generation(
                         cache_enabled: false,
                         cache_metadata: vec![],
                         serialized_chunk_data: payload.into(),
+                        is_client_biome_update: false,
                     };
 
                     if session.send(McpePacket::from(packet)) {
@@ -629,6 +631,7 @@ pub fn process_completed_generations(
                     cache_enabled: false,
                     cache_metadata: vec![],
                     serialized_chunk_data: biome_data.clone().into(),
+                    is_client_biome_update: false,
                 };
 
                 if session.send(McpePacket::from(packet)) {

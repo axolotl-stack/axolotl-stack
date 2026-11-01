@@ -3307,10 +3307,15 @@ pub fn generate_enum_type_codec(
         && matches!(underlying, Primitive::U8 | Primitive::I8))
     .then(|| quote! { #[inline] });
     let mut match_arms = Vec::new();
+    let mut decoded_values = std::collections::HashSet::new();
     for (var_name, val) in variants {
-        let variant_ident = format_ident!("{}", var_name);
-        let val_lit = enum_value_literal(underlying, *val)?;
-        match_arms.push(quote! { #val_lit => Ok(#struct_ident::#variant_ident), });
+        // Source vocabularies may give aliases the same numeric value. Every
+        // alias encodes normally; decoding chooses the first declared name.
+        if decoded_values.insert(*val) {
+            let variant_ident = format_ident!("{}", var_name);
+            let val_lit = enum_value_literal(underlying, *val)?;
+            match_arms.push(quote! { #val_lit => Ok(#struct_ident::#variant_ident), });
+        }
     }
 
     let encode_logic = match underlying {

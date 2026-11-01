@@ -124,7 +124,7 @@ impl EntityMetadata {
         m.set_payload(
             id::HITBOX,
             DataItemEntryPayload::DataItemCompoundTagPayload(DataItemCompoundTagPayload {
-                type_: EnumsDataItemType::Compoundtag,
+                type_: EnumsDataItemType::CompoundTag,
                 value: Nbt(bytes::Bytes::from_static(b"\n\0\0")),
             }),
         );

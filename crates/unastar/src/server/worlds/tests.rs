@@ -189,12 +189,12 @@ async fn migration_moves_owned_state_routes_real_world_input_and_waits_for_match
             }
         })
         .unwrap();
-    assert!(outgoing.iter().any(|packet|matches!(packet,McpePacketData::PlayerActionPacket(action) if action.action==EnumsPlayerActionType::Changedimensionack)));
+    assert!(outgoing.iter().any(|packet|matches!(packet,McpePacketData::PlayerActionPacket(action) if action.action==EnumsPlayerActionType::ChangeDimensionAck)));
     route(
         &mut router,
         1,
         McpePacket::from(ServerboundLoadingScreenPacket {
-            loading_screen_packet_type: EnumsServerboundLoadingScreenPacketType::Endloadingscreen,
+            loading_screen_packet_type: EnumsServerboundLoadingScreenPacketType::EndLoadingScreen,
             loading_screen_id: Some(loading_id + 1),
         }),
     );
@@ -203,7 +203,7 @@ async fn migration_moves_owned_state_routes_real_world_input_and_waits_for_match
         &mut router,
         1,
         McpePacket::from(ServerboundLoadingScreenPacket {
-            loading_screen_packet_type: EnumsServerboundLoadingScreenPacketType::Endloadingscreen,
+            loading_screen_packet_type: EnumsServerboundLoadingScreenPacketType::EndLoadingScreen,
             loading_screen_id: Some(loading_id),
         }),
     );
@@ -900,7 +900,7 @@ async fn transport_backpressure_retries_without_preparing_or_partially_publishin
         .clone();
     while tx
         .try_send(McpePacket::from(PlayStatusPacket {
-            status: PlayStatusPacketStatus::Playerspawn,
+            status: PlayStatusPacketStatus::PlayerSpawn,
         }))
         .is_ok()
     {}

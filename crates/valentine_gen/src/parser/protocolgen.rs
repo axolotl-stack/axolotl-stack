@@ -256,12 +256,19 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
     let kind = node.kind.clone();
     let type_id = node.type_id.clone().filter(|type_id| !type_id.is_empty());
     let lowered = match kind.as_str() {
-        "primitive" => Type::Primitive(lower_primitive(
-            node.primitive
+        "primitive" => {
+            let code = node
+                .primitive
                 .ok_or("protocolgen primitive node has no primitive shape")?
-                .code
-                .as_str(),
-        )?),
+                .code;
+            Type::Primitive(
+                if code == "nbt_le" && node.encoding.as_deref() == Some("network_compound") {
+                    Primitive::NbtCompoundBody
+                } else {
+                    lower_primitive(&code)?
+                },
+            )
+        }
         "void" => Type::Primitive(Primitive::Void),
         "string" => Type::String {
             count_type: Box::new(lower_node(
@@ -750,6 +757,21 @@ mod tests {
             parsed.packets[0].body.fields[1].type_def,
             Type::Primitive(Primitive::NbtCompoundBody)
         );
+    }
+
+    #[test]
+    fn explicit_rootless_nbt_survives_current_and_previous_manifests() {
+        for protocol in [2193, 2225] {
+            let fixture = level_event_generic_manifest(
+                protocol,
+                r#"{"kind":"primitive","primitive":{"code":"nbt_le"},"encoding":"network_compound"}"#,
+            );
+            let parsed = parse_reader(fixture.as_bytes()).unwrap();
+            assert_eq!(
+                parsed.packets[0].body.fields[1].type_def,
+                Type::Primitive(Primitive::NbtCompoundBody)
+            );
+        }
     }
 
     #[test]

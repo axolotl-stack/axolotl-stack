@@ -16,7 +16,9 @@
 //! * otherwise the 80-tick timer resets every tick.
 
 use bevy_ecs::prelude::*;
-use jolyne::valentine::types::{EnumsSharedTypesLegacyDifficulty, GameRuleRuleValue};
+use jolyne::valentine::types::{
+    EnumsSharedTypesLegacyDifficulty, GameRulejsonRuleValue as GameRuleRuleValue,
+};
 use serde::Deserialize;
 use unastar_data::actor_components::body::ActorDamageCause;
 
@@ -131,7 +133,7 @@ impl FoodRules {
             .rules_list
             .iter()
             .find(|rule| rule.rule_name.eq_ignore_ascii_case("naturalregeneration"))
-            .is_none_or(|rule| !matches!(rule.rule_value, GameRuleRuleValue::Bool(false)));
+            .is_none_or(|rule| !matches!(rule.rule_value, GameRuleRuleValue::Variant1(false)));
         Self {
             difficulty,
             natural_regeneration,

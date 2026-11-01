@@ -366,8 +366,8 @@ fn retained_window_cannot_move_items_and_completion_discards_stale_decoded_conte
         assert_ne!(
             h.take(
                 12,
-                (Name::Hotbarcontainer, 0, net),
-                (Name::Levelentitycontainer, 3, 0)
+                (Name::HotbarContainer, 0, net),
+                (Name::LevelEntityContainer, 3, 0)
             ),
             Status::Success
         );
@@ -431,8 +431,8 @@ fn retained_window_cannot_move_items_and_completion_discards_stale_decoded_conte
         assert_eq!(
             h.take(
                 5,
-                (Name::Levelentitycontainer, 0, net),
-                (Name::Hotbarcontainer, 1, 0)
+                (Name::LevelEntityContainer, 0, net),
+                (Name::HotbarContainer, 1, 0)
             ),
             Status::Success
         );
@@ -637,8 +637,8 @@ fn native_retained_container_permission_is_checked_before_stack_request_mutation
         assert_eq!(
             h.take(
                 4,
-                (Name::Hotbarcontainer, 0, net),
-                (Name::Levelentitycontainer, 0, 0)
+                (Name::HotbarContainer, 0, net),
+                (Name::LevelEntityContainer, 0, 0)
             ),
             Status::Success
         );
@@ -652,8 +652,8 @@ fn native_retained_container_permission_is_checked_before_stack_request_mutation
         denied.store(true, Ordering::SeqCst);
         let action = h.transfer(
             2,
-            (Name::Levelentitycontainer, 0, source.net_id),
-            (Name::Hotbarcontainer, 1, 0),
+            (Name::LevelEntityContainer, 0, source.net_id),
+            (Name::HotbarContainer, 1, 0),
         );
         h.run_inventory(action);
         assert_eq!(h.saved(chest).items.item(0).unwrap(), &source);
@@ -693,8 +693,8 @@ fn native_retained_container_permission_covers_the_other_double_chest_half() {
         assert_eq!(
             h.take(
                 5,
-                (Name::Hotbarcontainer, 0, net),
-                (Name::Levelentitycontainer, 30, 0)
+                (Name::HotbarContainer, 0, net),
+                (Name::LevelEntityContainer, 30, 0)
             ),
             Status::Error
         );
@@ -717,8 +717,8 @@ fn native_retained_container_callback_despawn_preserves_stored_items() {
             .register(DespawnContainerUser);
         let action = h.transfer(
             5,
-            (Name::Hotbarcontainer, 0, net),
-            (Name::Levelentitycontainer, 0, 0),
+            (Name::HotbarContainer, 0, net),
+            (Name::LevelEntityContainer, 0, 0),
         );
         h.run_inventory(action);
         let player = h.player;
@@ -779,16 +779,16 @@ fn chest_window_opens_moves_through_the_engine_saves_and_animates_the_lid() {
         assert_eq!(
             h.take(
                 1,
-                (Name::Hotbarcontainer, 0, net),
-                (Name::Armorcontainer, 0, 0)
+                (Name::HotbarContainer, 0, net),
+                (Name::ArmorContainer, 0, 0)
             ),
-            Status::Failedtovalidatedstslot
+            Status::FailedToValidateDstSlot
         );
         assert_eq!(
             h.take(
                 12,
-                (Name::Hotbarcontainer, 0, net),
-                (Name::Levelentitycontainer, 3, 0)
+                (Name::HotbarContainer, 0, net),
+                (Name::LevelEntityContainer, 3, 0)
             ),
             Status::Success
         );
@@ -863,8 +863,8 @@ fn double_chest_pairs_with_the_existing_chest_as_lead_and_unpairs_on_break() {
         assert_eq!(
             h.take(
                 5,
-                (Name::Hotbarcontainer, 0, net),
-                (Name::Levelentitycontainer, 30, 0)
+                (Name::HotbarContainer, 0, net),
+                (Name::LevelEntityContainer, 30, 0)
             ),
             Status::Success
         );
@@ -910,17 +910,17 @@ fn barrel_flips_open_bit_and_uses_its_own_container_name() {
         assert_eq!(
             h.take(
                 3,
-                (Name::Hotbarcontainer, 0, net),
-                (Name::Levelentitycontainer, 0, 0)
+                (Name::HotbarContainer, 0, net),
+                (Name::LevelEntityContainer, 0, 0)
             ),
-            Status::Failedtovalidatedstslot,
+            Status::FailedToValidateDstSlot,
             "a barrel window has no level-entity container"
         );
         assert_eq!(
             h.take(
                 3,
-                (Name::Hotbarcontainer, 0, net),
-                (Name::Barrelcontainer, 26, 0)
+                (Name::HotbarContainer, 0, net),
+                (Name::BarrelContainer, 26, 0)
             ),
             Status::Success
         );
@@ -947,8 +947,8 @@ fn ender_chest_shows_and_keeps_the_players_own_inventory() {
         assert_eq!(
             h.take(
                 2,
-                (Name::Hotbarcontainer, 0, net),
-                (Name::Levelentitycontainer, 26, 0)
+                (Name::HotbarContainer, 0, net),
+                (Name::LevelEntityContainer, 26, 0)
             ),
             Status::Success
         );
@@ -979,34 +979,34 @@ fn furnace_smelts_with_bds_timing_swaps_lit_state_and_pays_xp_on_take() {
         assert_eq!(
             h.take(
                 1,
-                (Name::Hotbarcontainer, 1, coal),
-                (Name::Furnaceingredientcontainer, 1, 0)
+                (Name::HotbarContainer, 1, coal),
+                (Name::FurnaceIngredientContainer, 1, 0)
             ),
-            Status::Failedtovalidatedstslot,
+            Status::FailedToValidateDstSlot,
             "slot 0 is the ingredient container's only slot"
         );
         assert_eq!(
             h.take(
                 2,
-                (Name::Hotbarcontainer, 0, ore),
-                (Name::Furnacefuelcontainer, 1, 0)
+                (Name::HotbarContainer, 0, ore),
+                (Name::FurnaceFuelContainer, 1, 0)
             ),
-            Status::Cannotplaceitem,
+            Status::CannotPlaceItem,
             "raw iron is not fuel"
         );
         assert_eq!(
             h.take(
                 2,
-                (Name::Hotbarcontainer, 0, ore),
-                (Name::Furnaceingredientcontainer, 0, 0)
+                (Name::HotbarContainer, 0, ore),
+                (Name::FurnaceIngredientContainer, 0, 0)
             ),
             Status::Success
         );
         assert_eq!(
             h.take(
                 1,
-                (Name::Hotbarcontainer, 1, coal),
-                (Name::Furnacefuelcontainer, 1, 0)
+                (Name::HotbarContainer, 1, coal),
+                (Name::FurnaceFuelContainer, 1, 0)
             ),
             Status::Success
         );
@@ -1062,8 +1062,8 @@ fn furnace_smelts_with_bds_timing_swaps_lit_state_and_pays_xp_on_take() {
         assert_eq!(
             h.take(
                 1,
-                (Name::Furnaceresultcontainer, 2, net),
-                (Name::Hotbarcontainer, 5, 0)
+                (Name::FurnaceResultContainer, 2, net),
+                (Name::HotbarContainer, 5, 0)
             ),
             Status::Success
         );
@@ -1548,8 +1548,8 @@ fn mutation_hooks_distinguish_reorder_extraction_and_insert_over_complete_pair()
         assert_eq!(
             h.take(
                 4,
-                (Name::Levelentitycontainer, 0, source),
-                (Name::Levelentitycontainer, 30, 0)
+                (Name::LevelEntityContainer, 0, source),
+                (Name::LevelEntityContainer, 30, 0)
             ),
             Status::Success
         );
@@ -1562,8 +1562,8 @@ fn mutation_hooks_distinguish_reorder_extraction_and_insert_over_complete_pair()
         assert_eq!(
             h.take(
                 2,
-                (Name::Levelentitycontainer, 30, moved),
-                (Name::Hotbarcontainer, 0, 0)
+                (Name::LevelEntityContainer, 30, moved),
+                (Name::HotbarContainer, 0, 0)
             ),
             Status::Success
         );
@@ -1571,8 +1571,8 @@ fn mutation_hooks_distinguish_reorder_extraction_and_insert_over_complete_pair()
         assert_eq!(
             h.take(
                 1,
-                (Name::Hotbarcontainer, 1, insert),
-                (Name::Levelentitycontainer, 0, 0)
+                (Name::HotbarContainer, 1, insert),
+                (Name::LevelEntityContainer, 0, 0)
             ),
             Status::Error
         );
@@ -1627,13 +1627,13 @@ fn late_mutation_veto_preserves_entire_player_container_aliases_and_world_drops(
             vec![
                 Action::TakeActionData(ItemStackRequestCerealTakeActionData {
                     amount: 1,
-                    source: mutation_slot(Name::Levelentitycontainer, 0, net),
-                    destination: mutation_slot(Name::Hotbarcontainer, 0, 0),
+                    source: mutation_slot(Name::LevelEntityContainer, 0, net),
+                    destination: mutation_slot(Name::HotbarContainer, 0, 0),
                     ..Default::default()
                 }),
                 Action::DropActionData(jolyne::valentine::ItemStackRequestCerealDropActionData {
                     amount: 1,
-                    source: mutation_slot(Name::Hotbarcontainer, 0, -1),
+                    source: mutation_slot(Name::HotbarContainer, 0, -1),
                     ..Default::default()
                 }),
             ],
@@ -1683,8 +1683,8 @@ fn mutation_revalidates_exact_connection_without_sending_to_replacement_session(
         assert_eq!(
             h.take(
                 1,
-                (Name::Hotbarcontainer, 0, net),
-                (Name::Levelentitycontainer, 0, 0)
+                (Name::HotbarContainer, 0, net),
+                (Name::LevelEntityContainer, 0, 0)
             ),
             Status::Error
         );
@@ -1776,8 +1776,8 @@ fn mutation_revalidates_untouched_player_slots_cached_raw_actor_and_late_reserva
             assert_eq!(
                 h.take(
                     1,
-                    (Name::Hotbarcontainer, 1, earlier),
-                    (Name::Hotbarcontainer, 2, 0)
+                    (Name::HotbarContainer, 1, earlier),
+                    (Name::HotbarContainer, 2, 0)
                 ),
                 Status::Success
             );
@@ -1793,8 +1793,8 @@ fn mutation_revalidates_untouched_player_slots_cached_raw_actor_and_late_reserva
             assert_eq!(
                 h.take(
                     1,
-                    (Name::Hotbarcontainer, 0, net),
-                    (Name::Levelentitycontainer, 0, 0)
+                    (Name::HotbarContainer, 0, net),
+                    (Name::LevelEntityContainer, 0, 0)
                 ),
                 Status::Error
             );
@@ -1971,8 +1971,8 @@ impl ContainerMutationHandler for NestedMutation {
                     actions: vec![Action::TakeActionData(
                         ItemStackRequestCerealTakeActionData {
                             amount: 1,
-                            source: mutation_slot(Name::Levelentitycontainer, 0, self.net),
-                            destination: mutation_slot(Name::Hotbarcontainer, 1, 0),
+                            source: mutation_slot(Name::LevelEntityContainer, 0, self.net),
+                            destination: mutation_slot(Name::HotbarContainer, 1, 0),
                             ..Default::default()
                         },
                     )],
@@ -2015,8 +2015,8 @@ fn mutation_nested_request_and_registry_update_do_not_overwrite_accepted_inner_f
         );
         let _ = h.take(
             1,
-            (Name::Levelentitycontainer, 0, net),
-            (Name::Hotbarcontainer, 0, 0),
+            (Name::LevelEntityContainer, 0, net),
+            (Name::HotbarContainer, 0, 0),
         );
         assert!(h.main_slot(0).is_empty());
         assert_eq!(h.main_slot(1).count, 1);

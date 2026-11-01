@@ -2,7 +2,6 @@ use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::AddActorPacket;
 use jolyne::valentine::actor_flags;
-use valentine::bedrock::codec::BedrockCodec;
 
 use crate::entity::EntityRandom;
 use crate::entity::components::Health;
@@ -23,11 +22,7 @@ fn server() -> GameServer {
 }
 
 fn native(bytes: &[u8]) -> AddActorPacket {
-    assert_eq!(bytes[0], 0x0d);
-    let mut input = &bytes[1..];
-    let packet = AddActorPacket::decode(&mut input, ()).unwrap();
-    assert!(input.is_empty());
-    packet
+    crate::entity::test_support::legacy_actor(bytes)
 }
 
 fn is_baby(world: &World, entity: Entity) -> bool {

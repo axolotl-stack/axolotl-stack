@@ -173,7 +173,7 @@ fn authoritative_input_requires_real_permission_before_clearing_fall_state() {
             },
             ..Default::default()
         };
-        input.input_data.push(Flag::Startflying);
+        input.input_data.push(Flag::StartFlying);
         world
             .resource_mut::<MovementPacketQueue>()
             .0

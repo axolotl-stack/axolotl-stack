@@ -715,7 +715,7 @@ mod tests {
 
     fn status() -> McpePacket {
         McpePacket::from(PlayStatusPacket {
-            status: PlayStatusPacketStatus::Loginsuccess,
+            status: PlayStatusPacketStatus::LoginSuccess,
         })
     }
 

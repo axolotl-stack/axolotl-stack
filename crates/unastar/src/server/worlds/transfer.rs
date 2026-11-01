@@ -645,13 +645,13 @@ pub(super) async fn attempt(
             stop_music_legacy: true,
         }),
         McpePacket::from(PlayStatusPacket {
-            status: PlayStatusPacketStatus::Playerspawn,
+            status: PlayStatusPacketStatus::PlayerSpawn,
         }),
         McpePacket::from(PlayerActionPacket {
             player_runtime_id: ActorRuntimeId {
                 actor_runtime_id: runtime as u64,
             },
-            action: EnumsPlayerActionType::Changedimensionack,
+            action: EnumsPlayerActionType::ChangeDimensionAck,
             block_position: BlockPos::default(),
             result_pos: BlockPos::default(),
             face: 0,

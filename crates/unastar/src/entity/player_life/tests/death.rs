@@ -97,8 +97,8 @@ fn a_player_killed_by_a_mob_dies_drops_everything_and_sees_the_respawn_screen() 
     assert_eq!(
         respawns(&packets),
         [
-            (EnumsPlayerRespawnState::Searchingforspawn, spawn),
-            (EnumsPlayerRespawnState::Readytospawn, spawn),
+            (EnumsPlayerRespawnState::SearchingForSpawn, spawn),
+            (EnumsPlayerRespawnState::ReadyToSpawn, spawn),
         ]
     );
     let seen = drain(&mut viewer);

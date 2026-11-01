@@ -9,7 +9,6 @@ use jolyne::valentine::types::EnumsActorEvent;
 use jolyne::valentine::{AddActorPacket, McpePacket, McpePacketData};
 use tokio::sync::mpsc;
 use unastar_data::actor_components::body::ActorDamageCause;
-use valentine::bedrock::codec::BedrockCodec;
 
 use crate::entity::EntityRandom;
 use crate::entity::components::{
@@ -97,11 +96,7 @@ fn flag(world: &World, mob: Entity, index: u32) -> bool {
 }
 
 fn native(bytes: &[u8]) -> AddActorPacket {
-    assert_eq!(bytes[0], 0x0d);
-    let mut input = &bytes[1..];
-    let packet = AddActorPacket::decode(&mut input, ()).unwrap();
-    assert!(input.is_empty());
-    packet
+    crate::entity::test_support::legacy_actor(bytes)
 }
 
 impl Harness {

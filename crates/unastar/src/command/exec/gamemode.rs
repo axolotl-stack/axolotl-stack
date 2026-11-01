@@ -211,7 +211,7 @@ mod tests {
     use super::*;
     use crate::command::exec::test_support::Harness;
     use jolyne::valentine::McpePacketData;
-    use jolyne::valentine::types::EnumsGameType;
+    use jolyne::valentine::types::GameTypejson;
 
     #[test]
     fn temporary_mode_applies_engine_packets_while_commands_update_the_durable_base() {
@@ -233,7 +233,7 @@ mod tests {
         assert_eq!(h.world().get::<GameMode>(alice), Some(&GameMode::Creative));
         assert_eq!(base_game_mode(h.world(), alice), Some(GameMode::Survival));
         let sent = h.sent(alice);
-        assert!(sent.iter().any(|packet| matches!(packet, McpePacketData::UpdatePlayerGameTypePacket(p) if p.player_game_type == EnumsGameType::Creative)));
+        assert!(sent.iter().any(|packet| matches!(packet, McpePacketData::UpdatePlayerGameTypePacket(p) if p.player_game_type == GameTypejson::Creative)));
         assert!(
             sent.iter()
                 .any(|packet| matches!(packet, McpePacketData::UpdateAbilitiesPacket(_)))
@@ -261,7 +261,7 @@ mod tests {
         assert!(set_mode_override(h.world(), alice, None));
         assert_eq!(h.world().get::<GameMode>(alice), Some(&GameMode::Adventure));
         assert_eq!(mode_override(h.world(), alice), None);
-        assert!(h.sent(alice).iter().any(|packet| matches!(packet, McpePacketData::UpdatePlayerGameTypePacket(p) if p.player_game_type == EnumsGameType::Adventure)));
+        assert!(h.sent(alice).iter().any(|packet| matches!(packet, McpePacketData::UpdatePlayerGameTypePacket(p) if p.player_game_type == GameTypejson::Adventure)));
         assert_eq!(
             h.world().get::<MainInventory>(alice).unwrap().0.item(4),
             Some(&item)
@@ -321,7 +321,7 @@ mod tests {
         let sent = h.sent(alice);
         assert!(sent.iter().any(
             |p| matches!(p, McpePacketData::UpdatePlayerGameTypePacket(p)
-            if p.player_game_type == EnumsGameType::Creative)
+            if p.player_game_type == GameTypejson::Creative)
         ));
         assert!(
             sent.iter()

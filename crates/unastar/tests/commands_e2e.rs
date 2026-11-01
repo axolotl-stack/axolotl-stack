@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use jolyne::valentine::bedrock::codec::BedrockCodec;
-use jolyne::valentine::types::{EnumsGameType, SyncWorldClocksPacketData};
+use jolyne::valentine::types::{GameTypejson, SyncWorldClocksPacketData};
 use jolyne::valentine::{CommandOriginDatajson, CommandRequestPacket, McpePacket, McpePacketData};
 use jolyne::{BedrockStream, ClientHandshakeConfig};
 use sha2::{Digest, Sha256};
@@ -242,7 +242,7 @@ async fn run_client(addr: SocketAddr) {
     );
     assert!(side.iter().any(
         |p| matches!(p, McpePacketData::UpdatePlayerGameTypePacket(u)
-        if u.player_game_type == EnumsGameType::Creative)
+        if u.player_game_type == GameTypejson::Creative)
     ));
     assert!(texts(&side).iter().any(|t| t.contains("gameMode.changed")));
 

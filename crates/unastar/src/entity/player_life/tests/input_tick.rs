@@ -61,7 +61,7 @@ impl Client {
                 y: position.y as f32,
                 z: position.z as f32,
             },
-            input_data: vec![EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision],
+            input_data: vec![EnumsPlayerAuthInputPacketPayloadInputData::VerticalCollision],
             client_tick: PlayerInputTick {
                 inputtick: self.tick,
             },
@@ -132,7 +132,7 @@ fn every_tick_field_sent_to_a_player_follows_its_input_timeline() {
             y: 0.0,
             z: 0.0,
         },
-        state: EnumsPlayerRespawnState::Clientreadytospawn,
+        state: EnumsPlayerRespawnState::ClientReadyToSpawn,
         player_runtime_id: ActorRuntimeId {
             actor_runtime_id: SESSION,
         },

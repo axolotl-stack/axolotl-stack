@@ -80,7 +80,7 @@ fn process_auth_input_block_actions(
         if !can_interact(world, player_entity, (x, y, z))
             && !matches!(
                 action_item.player_action_type,
-                EnumsPlayerActionType::Abortdestroyblock | EnumsPlayerActionType::Stopdestroyblock
+                EnumsPlayerActionType::AbortDestroyBlock | EnumsPlayerActionType::StopDestroyBlock
             )
         {
             correct_block(world, player_entity, (x, y, z));
@@ -88,12 +88,12 @@ fn process_auth_input_block_actions(
         }
 
         match action_item.player_action_type {
-            EnumsPlayerActionType::Predictdestroyblock
-            | EnumsPlayerActionType::Creativedestroyblock => {
+            EnumsPlayerActionType::PredictDestroyBlock
+            | EnumsPlayerActionType::CreativeDestroyBlock => {
                 trace!(pos = ?(x, y, z), "Creative/Predict block break");
                 break_block(world, player_entity, x, y, z);
             }
-            EnumsPlayerActionType::Startdestroyblock => {
+            EnumsPlayerActionType::StartDestroyBlock => {
                 let is_creative = world
                     .get::<crate::entity::components::GameMode>(player_entity)
                     .map(|gm| gm.instant_break())
@@ -123,7 +123,7 @@ fn process_auth_input_block_actions(
                     broadcast_block_crack_start(world, x, y, z, break_time_ticks);
                 }
             }
-            EnumsPlayerActionType::Crackblock | EnumsPlayerActionType::Continuedestroyblock => {
+            EnumsPlayerActionType::CrackBlock | EnumsPlayerActionType::ContinueDestroyBlock => {
                 let needs_start = world
                     .get::<BreakingState>(player_entity)
                     .map(|b| b.position.is_none())
@@ -148,7 +148,7 @@ fn process_auth_input_block_actions(
                     }
                 }
             }
-            EnumsPlayerActionType::Stopdestroyblock => {
+            EnumsPlayerActionType::StopDestroyBlock => {
                 trace!("StopBreak received");
                 let instant_break = world
                     .get::<crate::entity::components::GameMode>(player_entity)
@@ -185,7 +185,7 @@ fn process_auth_input_block_actions(
                     broadcast_block_crack_stop(world, x, y, z);
                 }
             }
-            EnumsPlayerActionType::Abortdestroyblock => {
+            EnumsPlayerActionType::AbortDestroyBlock => {
                 debug!(pos = ?(x, y, z), "AbortBreak");
 
                 if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {

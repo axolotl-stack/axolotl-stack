@@ -145,7 +145,7 @@ fn handle_text(
         TextPacketBody::MessageOnly(message)
             if matches!(
                 message.message_type,
-                EnumsTextPacketType::Raw | EnumsTextPacketType::Systemmessage
+                EnumsTextPacketType::Raw | EnumsTextPacketType::SystemMessage
             ) =>
         {
             &*message.message

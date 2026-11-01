@@ -62,6 +62,12 @@ pub(super) fn correction_for(
     else {
         return Ok(None);
     };
+    // Current manifests encode the rootless framing explicitly. Retain the
+    // fingerprinted correction only for older manifests lacking that distinction.
+    if kind == "primitive" && code == Some("nbt_le") && encoding == Some("network_compound") {
+        applied.insert((correction.packet, correction.field));
+        return Ok(None);
+    }
     if kind != "primitive"
         || code != Some(correction.expected_code)
         || encoding != Some(correction.expected_encoding)

@@ -454,7 +454,7 @@ fn form_packet(
     let packet = McpePacket::from(ModalFormResponsePacket {
         form_id: id,
         json_response: data.map(Into::into),
-        form_cancel_reason: cancelled.then_some(EnumsModalFormCancelReason::Userclosed),
+        form_cancel_reason: cancelled.then_some(EnumsModalFormCancelReason::UserClosed),
     });
     let mut bytes = BytesMut::new();
     packet.data.encode_inner(&mut bytes, 0, 0).unwrap();

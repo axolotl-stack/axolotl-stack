@@ -12,7 +12,6 @@ use jolyne::valentine::types::{
 };
 use jolyne::valentine::{AddActorPacket, McpePacket, McpePacketData, actor_data_i_ds as ids};
 use tokio::sync::mpsc;
-use valentine::bedrock::codec::BedrockCodec;
 
 use crate::entity::EntityRandom;
 use crate::entity::components::{
@@ -209,11 +208,7 @@ fn color_index(world: &World, mob: Entity) -> Option<i8> {
 }
 
 fn native(bytes: &[u8]) -> AddActorPacket {
-    assert_eq!(bytes[0], 0x0d);
-    let mut input = &bytes[1..];
-    let packet = AddActorPacket::decode(&mut input, ()).unwrap();
-    assert!(input.is_empty());
-    packet
+    crate::entity::test_support::legacy_actor(bytes)
 }
 
 fn ours(world: &World, identifier: &str, mob: Entity, native: &AddActorPacket) -> AddActorPacket {

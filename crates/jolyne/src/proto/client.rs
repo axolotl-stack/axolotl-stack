@@ -129,7 +129,7 @@ impl Phase for ClientSettings {
             Err(error) => return Err(Failure::new(error, self)),
         };
         let (algorithm, level) = match settings.compression_algorithm {
-            NetworkSettingsPacketCompressionAlgorithm::Zlib => (BatchCompression::Deflate, 7),
+            NetworkSettingsPacketCompressionAlgorithm::ZLib => (BatchCompression::Deflate, 7),
             NetworkSettingsPacketCompressionAlgorithm::Snappy => (BatchCompression::Snappy, 1),
             NetworkSettingsPacketCompressionAlgorithm::None => (BatchCompression::None, 0),
             NetworkSettingsPacketCompressionAlgorithm::Unknown(value) => {
@@ -259,7 +259,7 @@ impl Phase for ClientHandshake {
                 data: McpePacketData::PlayStatusPacket(status),
                 ..
             }) => match status.status {
-                PlayStatusPacketStatus::Loginsuccess
+                PlayStatusPacketStatus::LoginSuccess
                     if self.shared.require_encryption && !self.conn.is_encrypted() =>
                 {
                     Err(ProtocolError::InvalidHandshake(
@@ -267,7 +267,7 @@ impl Phase for ClientHandshake {
                     )
                     .into())
                 }
-                PlayStatusPacketStatus::Loginsuccess => Ok(true),
+                PlayStatusPacketStatus::LoginSuccess => Ok(true),
                 other => Err(JolyneError::LoginRefused(other)),
             },
             Ok(_) => Err(unexpected(Self::PHASE, &packet)),
@@ -478,7 +478,7 @@ impl ClientSpawn {
                     self.requested_radius = true;
                     self.conn.queue_packet(
                         &Self::loading_screen(
-                            EnumsServerboundLoadingScreenPacketType::Startloadingscreen,
+                            EnumsServerboundLoadingScreenPacketType::StartLoadingScreen,
                         ),
                         now,
                     )?;
@@ -502,8 +502,8 @@ impl ClientSpawn {
             McpePacketData::VoxelShapesPacket(shapes) => self.voxel_shapes = Some(shapes),
             McpePacketData::ItemRegistryPacket(registry) => self.item_registry = Some(registry),
             McpePacketData::PlayStatusPacket(status) => match status.status {
-                PlayStatusPacketStatus::Playerspawn => self.spawned = true,
-                PlayStatusPacketStatus::Loginsuccess => {}
+                PlayStatusPacketStatus::PlayerSpawn => self.spawned = true,
+                PlayStatusPacketStatus::LoginSuccess => {}
                 other => return Err(JolyneError::LoginRefused(other)),
             },
             McpePacketData::ChunkRadiusUpdatedPacket(update) => {
@@ -553,7 +553,7 @@ impl Phase for ClientSpawn {
         let runtime_id = start_game.runtime_id.actor_runtime_id;
         let sent = (|| {
             self.conn.queue_packet(
-                &Self::loading_screen(EnumsServerboundLoadingScreenPacketType::Endloadingscreen),
+                &Self::loading_screen(EnumsServerboundLoadingScreenPacketType::EndLoadingScreen),
                 now,
             )?;
             self.conn.queue_packet(

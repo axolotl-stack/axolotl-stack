@@ -87,35 +87,35 @@ const fn rule(store: Store, first: u8, len: u8, kind: SlotKind) -> ContainerRule
 
 const VALIDATORS: &[(Name, ContainerRule)] = &[
     (
-        Name::Hotbarcontainer,
+        Name::HotbarContainer,
         rule(Store::Main, 0, 9, SlotKind::Plain),
     ),
     (
-        Name::Inventorycontainer,
+        Name::InventoryContainer,
         rule(Store::Main, 9, 27, SlotKind::Plain),
     ),
     (
-        Name::Combinedhotbarandinventorycontainer,
+        Name::CombinedHotbarAndInventoryContainer,
         rule(Store::Main, 0, 36, SlotKind::Plain),
     ),
     (
-        Name::Cursorcontainer,
+        Name::CursorContainer,
         rule(Store::Ui, 0, 1, SlotKind::Plain),
     ),
     (
-        Name::Armorcontainer,
+        Name::ArmorContainer,
         rule(Store::Armor, 0, 4, SlotKind::Armor),
     ),
     (
-        Name::Offhandcontainer,
+        Name::OffhandContainer,
         rule(Store::Offhand, 0, 2, SlotKind::Offhand),
     ),
     (
-        Name::Craftinginputcontainer,
+        Name::CraftingInputContainer,
         rule(Store::Ui, 28, 4, SlotKind::Plain),
     ),
     (
-        Name::Createdoutputcontainer,
+        Name::CreatedOutputContainer,
         rule(Store::Ui, 50, 1, SlotKind::CreatedOutput),
     ),
 ];
@@ -129,19 +129,19 @@ struct ScreenPolicy {
 }
 
 const OPEN_CONTAINERS: &[Name] = &[
-    Name::Hotbarcontainer,
-    Name::Inventorycontainer,
-    Name::Combinedhotbarandinventorycontainer,
-    Name::Cursorcontainer,
-    Name::Armorcontainer,
-    Name::Offhandcontainer,
-    Name::Craftinginputcontainer,
-    Name::Createdoutputcontainer,
+    Name::HotbarContainer,
+    Name::InventoryContainer,
+    Name::CombinedHotbarAndInventoryContainer,
+    Name::CursorContainer,
+    Name::ArmorContainer,
+    Name::OffhandContainer,
+    Name::CraftingInputContainer,
+    Name::CreatedOutputContainer,
 ];
 const SCREENS: &[ScreenPolicy] = &[
     ScreenPolicy {
         screen: ScreenKind::None,
-        allowed: &[Name::Hotbarcontainer],
+        allowed: &[Name::HotbarContainer],
         crafting_first: 0,
         crafting_len: 0,
         destroy: false,
@@ -164,10 +164,10 @@ const SCREENS: &[ScreenPolicy] = &[
 
 /// Player containers every block-container screen also allows (BDS "+std").
 const BLOCK_SCREEN_STANDARD: &[Name] = &[
-    Name::Combinedhotbarandinventorycontainer,
-    Name::Hotbarcontainer,
-    Name::Inventorycontainer,
-    Name::Cursorcontainer,
+    Name::CombinedHotbarAndInventoryContainer,
+    Name::HotbarContainer,
+    Name::InventoryContainer,
+    Name::CursorContainer,
 ];
 
 /// The block's own containers on its screen: chest, ender chest and hopper
@@ -180,20 +180,20 @@ fn block_rule(screen: BlockScreen, name: Name) -> Option<ContainerRule> {
         | ContainerKind::TrappedChest
         | ContainerKind::EnderChest
         | ContainerKind::Hopper => {
-            (name == Name::Levelentitycontainer).then_some(())?;
+            (name == Name::LevelEntityContainer).then_some(())?;
             block(0, screen.size, SlotKind::Plain)
         }
         ContainerKind::Barrel => {
-            (name == Name::Barrelcontainer).then_some(())?;
+            (name == Name::BarrelContainer).then_some(())?;
             block(0, screen.size, SlotKind::Plain)
         }
         ContainerKind::Furnace | ContainerKind::BlastFurnace | ContainerKind::Smoker => {
             let smelter = screen.kind.smelter().expect("furnace kinds smelt");
             match name {
                 _ if name == smelter.ingredient => block(0, 1, SlotKind::Plain),
-                Name::Furnacefuelcontainer => block(1, 1, SlotKind::FurnaceFuel),
+                Name::FurnaceFuelContainer => block(1, 1, SlotKind::FurnaceFuel),
                 // BDS does not forbid placing into the result slot.
-                Name::Furnaceresultcontainer => block(2, 1, SlotKind::Plain),
+                Name::FurnaceResultContainer => block(2, 1, SlotKind::Plain),
                 _ => None,
             }
         }
@@ -223,7 +223,7 @@ impl ScreenKind {
             return None;
         }
         let mut rule = VALIDATORS.iter().find(|(kind, _)| *kind == name)?.1;
-        if name == Name::Craftinginputcontainer {
+        if name == Name::CraftingInputContainer {
             rule.first = screen.crafting_first;
             rule.len = screen.crafting_len;
         }
@@ -248,17 +248,17 @@ mod tests {
         for &(name, _) in VALIDATORS {
             assert_eq!(
                 ScreenKind::None.rule(name).is_some(),
-                name == Name::Hotbarcontainer
+                name == Name::HotbarContainer
             );
         }
         assert!(
             ScreenKind::Inventory
-                .rule(Name::Levelentitycontainer)
+                .rule(Name::LevelEntityContainer)
                 .is_none()
         );
         assert!(
             ScreenKind::Workbench
-                .rule(Name::Furnacefuelcontainer)
+                .rule(Name::FurnaceFuelContainer)
                 .is_none()
         );
     }
@@ -266,24 +266,24 @@ mod tests {
     #[test]
     fn container_slot_ranges_follow_screen_data() {
         let inventory = ScreenKind::Inventory
-            .rule(Name::Inventorycontainer)
+            .rule(Name::InventoryContainer)
             .unwrap();
         assert_eq!(
             (inventory.index(8), inventory.index(9), inventory.index(36)),
             (None, Some(Some(9)), None)
         );
         let grid = ScreenKind::Inventory
-            .rule(Name::Craftinginputcontainer)
+            .rule(Name::CraftingInputContainer)
             .unwrap();
         assert_eq!((grid.index(28), grid.index(32)), (Some(Some(28)), None));
         let grid = ScreenKind::Workbench
-            .rule(Name::Craftinginputcontainer)
+            .rule(Name::CraftingInputContainer)
             .unwrap();
         assert_eq!(
             (grid.index(32), grid.index(40), grid.index(41)),
             (Some(Some(32)), Some(Some(40)), None)
         );
-        let offhand = ScreenKind::Inventory.rule(Name::Offhandcontainer).unwrap();
+        let offhand = ScreenKind::Inventory.rule(Name::OffhandContainer).unwrap();
         assert_eq!(
             (offhand.index(0), offhand.index(1), offhand.index(2)),
             (Some(None), Some(Some(0)), None)
@@ -295,18 +295,18 @@ mod tests {
         let shield = stack("minecraft:shield", 1);
         let helmet = stack("minecraft:iron_helmet", 1);
         let sword = stack("minecraft:diamond_sword", 1);
-        let offhand = ScreenKind::Inventory.rule(Name::Offhandcontainer).unwrap();
+        let offhand = ScreenKind::Inventory.rule(Name::OffhandContainer).unwrap();
         assert!(offhand.accepts(1, &shield));
         assert!(!offhand.accepts(0, &shield));
         assert!(!offhand.accepts(1, &sword));
-        let armor = ScreenKind::Inventory.rule(Name::Armorcontainer).unwrap();
+        let armor = ScreenKind::Inventory.rule(Name::ArmorContainer).unwrap();
         assert!(armor.accepts(0, &helmet));
         assert!(!armor.accepts(1, &helmet));
         assert!(!armor.accepts(0, &sword));
         assert_eq!(armor.set_count(&helmet), 1);
         assert!(
             !ScreenKind::Inventory
-                .rule(Name::Createdoutputcontainer)
+                .rule(Name::CreatedOutputContainer)
                 .unwrap()
                 .accepts(50, &shield)
         );

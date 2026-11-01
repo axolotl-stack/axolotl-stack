@@ -212,18 +212,18 @@ impl GridCraftError {
     fn status(self) -> Status {
         match self {
             Self::Validation(ValidationError::UnknownRecipe(_)) => {
-                Status::Failedtofindrecipebynetid
+                Status::FailedToFindRecipeByNetId
             }
             Self::Validation(ValidationError::UnsupportedRecipe(_))
             | Self::AutomaticSources
-            | Self::IngredientRemainders => Status::Invalidrequestcraftactiontype,
-            Self::Validation(ValidationError::ZeroCrafts) => Status::Invalidnumcrafts,
+            | Self::IngredientRemainders => Status::InvalidRequestCraftActionType,
+            Self::Validation(ValidationError::ZeroCrafts) => Status::InvalidNumCrafts,
             Self::Validation(ValidationError::RequiresThreeByThree) => {
-                Status::Mismatchedcraftingsize
+                Status::MismatchedCraftingSize
             }
             Self::Validation(
                 ValidationError::GridMismatch | ValidationError::InsufficientInput { .. },
-            ) => Status::Mismatchedrecipeforinputgriditems,
+            ) => Status::MismatchedRecipeForInputGridItems,
             // Native statuses for multi-result placement and totals above u8
             // have not been measured. Fail the whole request, never truncate.
             Self::Validation(ValidationError::OutputCountOverflow)
@@ -308,18 +308,18 @@ impl Request<'_, '_> {
     }
 
     fn source(&mut self, info: &ItemStackRequestCerealSlotInfoData) -> Result<Slot, Status> {
-        let slot = self.resolve(info).ok_or(Status::Failedtovalidatesrcslot)?;
+        let slot = self.resolve(info).ok_or(Status::FailedToValidateSrcSlot)?;
         if self.stack(&slot).is_empty() || !self.net_id_matches(info.net_id_variant, &slot) {
-            return Err(Status::Failedtovalidatesrcslot);
+            return Err(Status::FailedToValidateSrcSlot);
         }
         self.touch(info, slot.key);
         Ok(slot)
     }
 
     fn destination(&mut self, info: &ItemStackRequestCerealSlotInfoData) -> Result<Slot, Status> {
-        let slot = self.resolve(info).ok_or(Status::Failedtovalidatedstslot)?;
+        let slot = self.resolve(info).ok_or(Status::FailedToValidateDstSlot)?;
         if !self.net_id_matches(info.net_id_variant, &slot) {
-            return Err(Status::Failedtovalidatedstslot);
+            return Err(Status::FailedToValidateDstSlot);
         }
         self.touch(info, slot.key);
         Ok(slot)
@@ -332,19 +332,19 @@ impl Request<'_, '_> {
         source: &ItemStackRequestCerealSlotInfoData,
         destination: &ItemStackRequestCerealSlotInfoData,
     ) -> Result<(), Status> {
-        if destination.fullcontainername.container_name == Name::Createdoutputcontainer {
-            return Err(Status::Dstcontainerequaltocreatedoutputcontainer);
+        if destination.fullcontainername.container_name == Name::CreatedOutputContainer {
+            return Err(Status::DstContainerEqualToCreatedOutputContainer);
         }
         if let (Some(a), Some(b)) = (self.resolve(source), self.resolve(destination))
             && a.key.is_some()
             && a.key == b.key
         {
-            return Err(Status::Dstcontainerandslotequaltosrccontainerandslot);
+            return Err(Status::DstContainerAndSlotEqualToSrcContainerAndSlot);
         }
         let src = self.source(source)?;
         let from = self.stack(&src).clone();
         if amount == 0 || (self.crafted && amount > from.count) {
-            return Err(Status::Invalidadjustedamount);
+            return Err(Status::InvalidAdjustedAmount);
         }
         let amount = amount.min(from.count);
         let dst = self.destination(destination)?;
@@ -352,22 +352,22 @@ impl Request<'_, '_> {
 
         let (moved, placed) = if !to.is_empty() {
             if !to.comparable(&from) {
-                return Err(Status::Cannotplaceitem);
+                return Err(Status::CannotPlaceItem);
             }
             let room = dst.rule.set_count(&from).saturating_sub(to.count);
             let moved = amount.min(room);
             if moved == 0 {
-                return Err(Status::Cannotplaceitem);
+                return Err(Status::CannotPlaceItem);
             }
             let count = to.count + moved;
             (moved, to.with_count(count))
         } else {
             if dst.key.is_none() || !dst.rule.accepts(dst.requested, &from) {
-                return Err(Status::Cannotplaceitem);
+                return Err(Status::CannotPlaceItem);
             }
             let moved = amount.min(dst.rule.set_count(&from));
             if moved == 0 {
-                return Err(Status::Cannotplaceitem);
+                return Err(Status::CannotPlaceItem);
             }
             if moved == from.count {
                 self.staging
@@ -399,10 +399,10 @@ impl Request<'_, '_> {
         let src = self.source(source)?;
         let dst = self.destination(destination)?;
         let (Some(src_key), Some(dst_key)) = (src.key, dst.key) else {
-            return Err(Status::Cannotswapitem);
+            return Err(Status::CannotSwapItem);
         };
         if src_key == dst_key {
-            return Err(Status::Dstcontainerandslotequaltosrccontainerandslot);
+            return Err(Status::DstContainerAndSlotEqualToSrcContainerAndSlot);
         }
         let a = self.stack(&src).clone();
         let b = self.stack(&dst).clone();
@@ -412,7 +412,7 @@ impl Request<'_, '_> {
                     && stack.count <= slot.rule.set_count(stack))
         };
         if !fits(&a, &dst) || !fits(&b, &src) {
-            return Err(Status::Cannotswapitem);
+            return Err(Status::CannotSwapItem);
         }
         self.staging.set(src_key, b);
         self.staging.set(dst_key, a);
@@ -425,12 +425,12 @@ impl Request<'_, '_> {
         source: &ItemStackRequestCerealSlotInfoData,
     ) -> Result<(), Status> {
         if !self.ctx.can_drop {
-            return Err(Status::Cannotdropitem);
+            return Err(Status::CannotDropItem);
         }
-        let src = self.source(source).map_err(|_| Status::Cannotdropitem)?;
+        let src = self.source(source).map_err(|_| Status::CannotDropItem)?;
         let from = self.stack(&src).clone();
         if amount == 0 {
-            return Err(Status::Invalidadjustedamount);
+            return Err(Status::InvalidAdjustedAmount);
         }
         let amount = amount.min(from.count);
         let remaining = from.count - amount;
@@ -453,12 +453,12 @@ impl Request<'_, '_> {
         source: &ItemStackRequestCerealSlotInfoData,
     ) -> Result<(), Status> {
         if !self.ctx.creative || !self.ctx.screen.allows_destroy() {
-            return Err(Status::Cannotdestroyitem);
+            return Err(Status::CannotDestroyItem);
         }
         let src = self.source(source)?;
         let from = self.stack(&src).clone();
         if amount == 0 {
-            return Err(Status::Invalidadjustedamount);
+            return Err(Status::InvalidAdjustedAmount);
         }
         let remaining = from.count - amount.min(from.count);
         self.staging.set(
@@ -473,7 +473,7 @@ impl Request<'_, '_> {
             return Err(Status::Error);
         }
         let stack =
-            (self.ctx.creative_item)(creative_net_id).ok_or(Status::Failedtocraftcreative)?;
+            (self.ctx.creative_item)(creative_net_id).ok_or(Status::FailedToCraftCreative)?;
         let count = stack.max_stack_size();
         self.staging.set(
             (Store::Ui, CREATED_OUTPUT_SLOT),
@@ -488,7 +488,7 @@ impl Request<'_, '_> {
             .requires_3x3(net_id)
             .map_err(|error| GridCraftError::Validation(error).status())?;
         if large && self.ctx.screen != ScreenKind::Workbench {
-            return Err(Status::Mismatchedcraftingsize);
+            return Err(Status::MismatchedCraftingSize);
         }
         let grid = if self.ctx.screen == ScreenKind::Workbench {
             CraftingGrid::Workbench(std::array::from_fn(|index| {
@@ -503,7 +503,7 @@ impl Request<'_, '_> {
             .validate(net_id, grid, num_crafts)
             .map_err(|error| GridCraftError::Validation(error).status())?;
         let mut outputs = plan.outputs();
-        let output = outputs.next().ok_or(Status::Emptycraftresults)?;
+        let output = outputs.next().ok_or(Status::EmptyCraftResults)?;
         if outputs.next().is_some() {
             return Err(GridCraftError::MultipleOutputs.status());
         }
@@ -546,9 +546,9 @@ impl Request<'_, '_> {
     ) -> Result<(), Status> {
         let slot = self
             .resolve(source)
-            .ok_or(Status::Consumeditemoutofallowedslotrange)?;
+            .ok_or(Status::ConsumedItemOutOfAllowedSlotRange)?;
         let Some((Store::Ui, index)) = slot.key else {
-            return Err(Status::Consumeditemoutofallowedslotrange);
+            return Err(Status::ConsumedItemOutOfAllowedSlotRange);
         };
         let expected_index = self
             .consumption
@@ -558,24 +558,24 @@ impl Request<'_, '_> {
                     .as_ref()
                     .is_some_and(|expected| usize::from(expected.ui_slot) == index)
             })
-            .ok_or(Status::Consumeditemnotallowed)?;
+            .ok_or(Status::ConsumedItemNotAllowed)?;
         let expected = self.consumption[expected_index]
             .as_ref()
             .expect("matched expected input");
         if expected.remaining == 0 {
-            return Err(Status::Itemalreadyconsumedfromslot);
+            return Err(Status::ItemAlreadyConsumedFromSlot);
         }
         if amount == 0 || amount > expected.remaining {
-            return Err(Status::Consumedtoomuchfromslot);
+            return Err(Status::ConsumedTooMuchFromSlot);
         }
         let from = self.stack(&slot);
         if !from.comparable(&expected.stack) || from.count < amount {
-            return Err(Status::Mismatchslotexpectedconsumeditem);
+            return Err(Status::MismatchSlotExpectedConsumedItem);
         }
         if from.net_id != expected.stack.net_id
             || !self.net_id_matches(source.net_id_variant, &slot)
         {
-            return Err(Status::Mismatchslotexpectedconsumeditemnetidvariant);
+            return Err(Status::MismatchSlotExpectedConsumedItemNetIdVariant);
         }
         let remaining = from.count - amount;
         let from = from.clone().with_count(remaining);
@@ -596,7 +596,7 @@ impl Request<'_, '_> {
             .flatten()
             .any(|expected| expected.remaining != 0)
         {
-            return Err(Status::Expecteditemslotnotfullyconsumed);
+            return Err(Status::ExpectedItemSlotNotFullyConsumed);
         }
         Ok(())
     }
@@ -612,7 +612,7 @@ impl Request<'_, '_> {
             Action::SwapActionData(swap) if !self.crafted => {
                 self.swap(&swap.source, &swap.destination)
             }
-            Action::SwapActionData(_) => Err(Status::Actionrequestnotallowed),
+            Action::SwapActionData(_) => Err(Status::ActionRequestNotAllowed),
             Action::DropActionData(drop) => self.drop_item(drop.amount, &drop.source),
             Action::DestroyActionData(destroy) => self.destroy(destroy.amount, &destroy.source),
             Action::CraftCreativeActionData(_)
@@ -624,7 +624,7 @@ impl Request<'_, '_> {
             | Action::CraftNonImplementedActionData(_)
                 if self.crafted =>
             {
-                Err(Status::Actionrequestnotallowed)
+                Err(Status::ActionRequestNotAllowed)
             }
             Action::CraftCreativeActionData(craft) => {
                 self.crafted = true;
@@ -643,7 +643,7 @@ impl Request<'_, '_> {
             | Action::CraftResultsActionData(_)
                 if !self.crafted =>
             {
-                Err(Status::Actionrequestnotallowed)
+                Err(Status::ActionRequestNotAllowed)
             }
             Action::ConsumeActionData(consume) => self.consume(consume.amount, &consume.source),
             Action::CreateActionData(_) => Err(GridCraftError::IngredientRemainders.status()),
@@ -654,7 +654,7 @@ impl Request<'_, '_> {
             | Action::CraftRepairAndDisenchantActionData(_)
             | Action::CraftLoomActionData(_)
             | Action::CraftNonImplementedActionData(_) => {
-                Err(Status::Invalidrequestcraftactiontype)
+                Err(Status::InvalidRequestCraftActionType)
             }
             _ => Err(Status::Error),
         }
@@ -759,7 +759,7 @@ pub fn process(
     let containers: Vec<ItemStackResponseContainerInfo> = req
         .touched
         .iter()
-        .filter(|t| t.name.container_name != Name::Createdoutputcontainer)
+        .filter(|t| t.name.container_name != Name::CreatedOutputContainer)
         .map(|t| ItemStackResponseContainerInfo {
             full_container_name: t.name.clone(),
             slots: t
@@ -969,7 +969,7 @@ mod tests {
                         screen,
                         creative: false,
                         // BDS answered every drop of this scripted
-                        // (gophertunnel) client with Cannotdropitem: cursor,
+                        // (gophertunnel) client with CannotDropItem: cursor,
                         // hotbar and inventory sources, screen open or closed.
                         // Real-client drops succeed (bds-1.26.51-player-drop);
                         // the replay models the refused thrower, not a rule
@@ -1123,7 +1123,7 @@ mod regressions {
     }
 
     fn main(slot_index: u8, id: i32) -> ItemStackRequestCerealSlotInfoData {
-        slot(Name::Combinedhotbarandinventorycontainer, slot_index, id)
+        slot(Name::CombinedHotbarAndInventoryContainer, slot_index, id)
     }
 
     fn take(
@@ -1214,7 +1214,7 @@ mod regressions {
                 take(0, main(1, -1), main(2, 0)),
             ],
         );
-        assert_eq!(status(&outcome), Status::Invalidadjustedamount);
+        assert_eq!(status(&outcome), Status::InvalidAdjustedAmount);
         assert!(outcome.response.unwrap().containers.is_none());
         assert!(outcome.drops.is_empty());
         assert_eq!(outcome.equipment, EquipmentChanges::default());
@@ -1232,15 +1232,15 @@ mod regressions {
     #[test]
     fn valid_hotbar_inventory_and_whole_stack_drops_are_staged_once() {
         for (screen, name, amount) in [
-            (ScreenKind::None, Name::Hotbarcontainer, 1),
+            (ScreenKind::None, Name::HotbarContainer, 1),
             (
                 ScreenKind::Inventory,
-                Name::Combinedhotbarandinventorycontainer,
+                Name::CombinedHotbarAndInventoryContainer,
                 2,
             ),
             (
                 ScreenKind::Inventory,
-                Name::Combinedhotbarandinventorycontainer,
+                Name::CombinedHotbarAndInventoryContainer,
                 8,
             ),
         ] {
@@ -1275,7 +1275,7 @@ mod regressions {
                 original
             };
             let outcome = h.run(-1, vec![drop_action(1, main(0, supplied))]);
-            assert_eq!(status(&outcome), Status::Cannotdropitem);
+            assert_eq!(status(&outcome), Status::CannotDropItem);
             assert!(outcome.drops.is_empty());
             assert_eq!(h.main.item(0).unwrap().count, 8);
         }
@@ -1294,10 +1294,10 @@ mod regressions {
             Status::Success
         );
         let stale = h.run(-5, vec![take(1, main(2, -1), main(3, 0))]);
-        assert_eq!(status(&stale), Status::Failedtovalidatesrcslot);
+        assert_eq!(status(&stale), Status::FailedToValidateSrcSlot);
         h.now += REQUEST_ID_LIFETIME + Duration::from_nanos(1);
         let expired = h.run(-7, vec![take(1, main(2, -3), main(3, 0))]);
-        assert_eq!(status(&expired), Status::Failedtovalidatesrcslot);
+        assert_eq!(status(&expired), Status::FailedToValidateSrcSlot);
         assert_eq!(h.main.item(2).unwrap().count, 3);
     }
 
@@ -1310,11 +1310,11 @@ mod regressions {
             vec![
                 take(
                     2,
-                    slot(Name::Hotbarcontainer, 0, original),
-                    slot(Name::Cursorcontainer, 0, 0),
+                    slot(Name::HotbarContainer, 0, original),
+                    slot(Name::CursorContainer, 0, 0),
                 ),
-                take(2, slot(Name::Cursorcontainer, 0, -1), main(9, 0)),
-                take(1, main(9, -1), slot(Name::Hotbarcontainer, 0, original)),
+                take(2, slot(Name::CursorContainer, 0, -1), main(9, 0)),
+                take(1, main(9, -1), slot(Name::HotbarContainer, 0, original)),
             ],
         );
         assert_eq!(status(&outcome), Status::Success);
@@ -1325,9 +1325,9 @@ mod regressions {
                 .map(|c| c.full_container_name.container_name)
                 .collect::<Vec<_>>(),
             [
-                Name::Hotbarcontainer,
-                Name::Cursorcontainer,
-                Name::Combinedhotbarandinventorycontainer,
+                Name::HotbarContainer,
+                Name::CursorContainer,
+                Name::CombinedHotbarAndInventoryContainer,
             ]
         );
         assert_eq!(containers[0].slots.len(), 1);
@@ -1347,29 +1347,29 @@ mod regressions {
                 vec![take(
                     0,
                     main(0, 999),
-                    slot(Name::Createdoutputcontainer, 50, 0)
+                    slot(Name::CreatedOutputContainer, 50, 0)
                 )]
             )),
-            Status::Dstcontainerequaltocreatedoutputcontainer
+            Status::DstContainerEqualToCreatedOutputContainer
         );
         assert_eq!(
             status(&h.run(
                 -3,
-                vec![take(0, main(0, 999), slot(Name::Hotbarcontainer, 0, 0))]
+                vec![take(0, main(0, 999), slot(Name::HotbarContainer, 0, 0))]
             )),
-            Status::Dstcontainerandslotequaltosrccontainerandslot
+            Status::DstContainerAndSlotEqualToSrcContainerAndSlot
         );
         assert_eq!(
             status(&h.run(-5, vec![take(0, main(0, 999), main(1, 0))])),
-            Status::Failedtovalidatesrcslot
+            Status::FailedToValidateSrcSlot
         );
         assert_eq!(
             status(&h.run(-7, vec![take(0, main(0, original), main(99, 0))])),
-            Status::Invalidadjustedamount
+            Status::InvalidAdjustedAmount
         );
         assert_eq!(
             status(&h.run(-9, vec![take(1, main(0, original), main(99, 0))])),
-            Status::Failedtovalidatedstslot
+            Status::FailedToValidateDstSlot
         );
         h.screen = ScreenKind::None;
         assert_eq!(
@@ -1377,20 +1377,20 @@ mod regressions {
                 -11,
                 vec![take(
                     1,
-                    slot(Name::Hotbarcontainer, 0, original),
+                    slot(Name::HotbarContainer, 0, original),
                     main(1, 0)
                 )]
             )),
-            Status::Failedtovalidatedstslot
+            Status::FailedToValidateDstSlot
         );
-        let mut dynamic = slot(Name::Hotbarcontainer, 1, 0);
+        let mut dynamic = slot(Name::HotbarContainer, 1, 0);
         dynamic.fullcontainername.dynamic_id = Some(1);
         assert_eq!(
             status(&h.run(
                 -13,
-                vec![take(1, slot(Name::Hotbarcontainer, 0, original), dynamic)]
+                vec![take(1, slot(Name::HotbarContainer, 0, original), dynamic)]
             )),
-            Status::Failedtovalidatedstslot
+            Status::FailedToValidateDstSlot
         );
         assert_eq!(h.main.item(0).unwrap().count, 8);
     }
@@ -1408,13 +1408,13 @@ mod regressions {
         };
         assert_eq!(
             status(&h.run(-1, vec![destroy()])),
-            Status::Cannotdestroyitem
+            Status::CannotDestroyItem
         );
         h.creative = true;
         h.screen = ScreenKind::None;
         assert_eq!(
             status(&h.run(-3, vec![destroy()])),
-            Status::Cannotdestroyitem
+            Status::CannotDestroyItem
         );
         h.screen = ScreenKind::Inventory;
         let consume = Action::ConsumeActionData(ItemStackRequestCerealConsumeActionData {
@@ -1424,7 +1424,7 @@ mod regressions {
         });
         assert_eq!(
             status(&h.run(-5, vec![destroy(), consume])),
-            Status::Actionrequestnotallowed
+            Status::ActionRequestNotAllowed
         );
         assert_eq!(h.main.item(0).unwrap().count, 8);
         assert_eq!(status(&h.run(-7, vec![destroy()])), Status::Success);
@@ -1492,14 +1492,14 @@ mod regressions {
                     main(2, destination_id + 10_000)
                 )]
             )),
-            Status::Failedtovalidatedstslot
+            Status::FailedToValidateDstSlot
         );
         assert_eq!(
             status(&h.run(
                 -7,
                 vec![take(1, main(1, split.net_id), main(2, destination_id))]
             )),
-            Status::Cannotplaceitem
+            Status::CannotPlaceItem
         );
         assert_eq!(h.main.item(1).unwrap().count, 2);
     }
@@ -1514,7 +1514,7 @@ mod regressions {
         let id = h.armor.slot(0).unwrap().net_id;
         let outcome = h.run(
             -1,
-            vec![take(1, slot(Name::Armorcontainer, 0, id), main(0, 0))],
+            vec![take(1, slot(Name::ArmorContainer, 0, id), main(0, 0))],
         );
         assert_eq!(status(&outcome), Status::Success);
         assert!(h.armor.slot(0).unwrap().is_empty());
@@ -1533,7 +1533,7 @@ mod regressions {
                 Action::CraftRecipeActionData(Default::default()),
             ],
         );
-        assert_eq!(status(&outcome), Status::Failedtofindrecipebynetid);
+        assert_eq!(status(&outcome), Status::FailedToFindRecipeByNetId);
         assert!(outcome.response.unwrap().containers.is_none());
         assert_eq!(h.main.item(0).unwrap().count, 8);
         assert!(h.main.item(1).unwrap().is_empty());
@@ -1597,7 +1597,7 @@ mod regressions {
         fn consume(count: u8, index: u8, net_id: i32) -> Action {
             Action::ConsumeActionData(ItemStackRequestCerealConsumeActionData {
                 amount: count,
-                source: slot(Name::Craftinginputcontainer, index, net_id),
+                source: slot(Name::CraftingInputContainer, index, net_id),
                 ..Default::default()
             })
         }
@@ -1605,7 +1605,7 @@ mod regressions {
         fn output(count: u8, request_id: i32, destination: u8) -> Action {
             take(
                 count,
-                slot(Name::Createdoutputcontainer, 50, request_id),
+                slot(Name::CreatedOutputContainer, 50, request_id),
                 main(destination, 0),
             )
         }
@@ -1640,7 +1640,7 @@ mod regressions {
                 match action {
                     Action::CraftRecipeActionData(action) => action.recipe_net_id.raw_id = planks(),
                     Action::ConsumeActionData(action) => {
-                        action.source = slot(Name::Craftinginputcontainer, 28, input_id);
+                        action.source = slot(Name::CraftingInputContainer, 28, input_id);
                     }
                     _ => {}
                 }
@@ -1663,7 +1663,7 @@ mod regressions {
             assert_eq!(containers.len(), 2);
             assert_eq!(
                 containers[0].full_container_name.container_name,
-                Name::Craftinginputcontainer
+                Name::CraftingInputContainer
             );
             assert_eq!(containers[0].slots[0].slot, 28);
             // The recorded destination addresses InventoryContainer slot 13; BDS
@@ -1671,7 +1671,7 @@ mod regressions {
             // normalise to the combined container.
             assert_eq!(
                 containers[1].full_container_name.container_name,
-                Name::Inventorycontainer
+                Name::InventoryContainer
             );
             assert_eq!(containers[1].slots[0].slot, 13);
         }
@@ -1684,21 +1684,21 @@ mod regressions {
                     "minecraft:oak_log",
                     2,
                     1,
-                    Status::Failedtofindrecipebynetid,
+                    Status::FailedToFindRecipeByNetId,
                 ),
                 (
                     planks(),
                     "minecraft:stone",
                     2,
                     1,
-                    Status::Mismatchedrecipeforinputgriditems,
+                    Status::MismatchedRecipeForInputGridItems,
                 ),
                 (
                     planks(),
                     "minecraft:oak_log",
                     1,
                     2,
-                    Status::Mismatchedrecipeforinputgriditems,
+                    Status::MismatchedRecipeForInputGridItems,
                 ),
             ] {
                 let mut h = Harness::new();
@@ -1720,15 +1720,15 @@ mod regressions {
             let mut h = Harness::new();
             assert_eq!(
                 status(&h.run(-1, vec![craft(large.net_id.raw_id, 1)])),
-                Status::Mismatchedcraftingsize
+                Status::MismatchedCraftingSize
             );
             assert_eq!(
                 status(&h.run(-3, vec![craft(packet.multi_recipes[0].net_id.raw_id, 1)])),
-                Status::Invalidrequestcraftactiontype
+                Status::InvalidRequestCraftActionType
             );
             assert_eq!(
                 status(&h.run(-5, vec![craft(planks(), 0)])),
-                Status::Invalidnumcrafts
+                Status::InvalidNumCrafts
             );
         }
 
@@ -1740,18 +1740,18 @@ mod regressions {
                 let unrelated = h.seed(0, 3);
                 let mut actions = vec![craft(planks(), 2)];
                 let expected = match mode {
-                    0 => Status::Expecteditemslotnotfullyconsumed,
+                    0 => Status::ExpectedItemSlotNotFullyConsumed,
                     1 => {
                         actions.push(consume(1, 28, id));
-                        Status::Expecteditemslotnotfullyconsumed
+                        Status::ExpectedItemSlotNotFullyConsumed
                     }
                     2 => {
                         actions.extend([consume(2, 28, id), consume(1, 28, -1)]);
-                        Status::Itemalreadyconsumedfromslot
+                        Status::ItemAlreadyConsumedFromSlot
                     }
                     3 => {
                         actions.push(consume(3, 28, id));
-                        Status::Consumedtoomuchfromslot
+                        Status::ConsumedTooMuchFromSlot
                     }
                     _ => {
                         actions.push(Action::ConsumeActionData(
@@ -1761,7 +1761,7 @@ mod regressions {
                                 ..Default::default()
                             },
                         ));
-                        Status::Consumeditemoutofallowedslotrange
+                        Status::ConsumedItemOutOfAllowedSlotRange
                     }
                 };
                 actions.push(output(8, -1, 1));
@@ -1783,7 +1783,7 @@ mod regressions {
             let outcome = h.run(
                 -1,
                 vec![
-                    take(1, main(0, first), slot(Name::Cursorcontainer, 0, 0)),
+                    take(1, main(0, first), slot(Name::CursorContainer, 0, 0)),
                     craft(planks(), 2),
                     consume(2, 29, input),
                     output(8, -1, 2),
@@ -1799,9 +1799,9 @@ mod regressions {
                     .map(|container| container.full_container_name.container_name)
                     .collect::<Vec<_>>(),
                 [
-                    Name::Combinedhotbarandinventorycontainer,
-                    Name::Cursorcontainer,
-                    Name::Craftinginputcontainer
+                    Name::CombinedHotbarAndInventoryContainer,
+                    Name::CursorContainer,
+                    Name::CraftingInputContainer
                 ]
             );
             assert_eq!(
@@ -1830,7 +1830,7 @@ mod regressions {
                     take(0, main(1, -1), main(2, 0)),
                 ],
             );
-            assert_eq!(status(&outcome), Status::Invalidadjustedamount);
+            assert_eq!(status(&outcome), Status::InvalidAdjustedAmount);
             assert!(outcome.drops.is_empty());
             assert!(h.cache.entries.is_empty());
             assert_eq!(h.main.item(0).unwrap().count, 5);
@@ -1838,11 +1838,11 @@ mod regressions {
             assert_eq!(h.ui.item(28).unwrap().count, 3);
             assert_eq!(
                 status(&h.run(-3, vec![craft(planks(), 1), consume(1, 28, input + 10_000)])),
-                Status::Mismatchslotexpectedconsumeditemnetidvariant
+                Status::MismatchSlotExpectedConsumedItemNetIdVariant
             );
             assert_eq!(
                 status(&h.run(-5, vec![craft(planks(), 1), craft(planks(), 1)])),
-                Status::Actionrequestnotallowed
+                Status::ActionRequestNotAllowed
             );
             assert_eq!(
                 status(&h.run(
@@ -1852,7 +1852,7 @@ mod regressions {
                         Action::SwapActionData(Default::default())
                     ]
                 )),
-                Status::Actionrequestnotallowed
+                Status::ActionRequestNotAllowed
             );
         }
 
@@ -1934,7 +1934,7 @@ mod regressions {
                     -3,
                     vec![Action::CraftRecipeAutoActionData(Default::default())]
                 )),
-                Status::Invalidrequestcraftactiontype
+                Status::InvalidRequestCraftActionType
             );
             assert_eq!(
                 status(&h.run(
@@ -1944,7 +1944,7 @@ mod regressions {
                         Action::CreateActionData(Default::default())
                     ]
                 )),
-                Status::Invalidrequestcraftactiontype
+                Status::InvalidRequestCraftActionType
             );
             assert_eq!(h.ui.item(28).unwrap().count, 64);
         }

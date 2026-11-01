@@ -149,7 +149,7 @@ pub fn process_plugin_actions(
                             slot: empty_slot as u32,
                             full_container_name: Some(FullContainerName {
                                 container_name:
-                                    EnumsContainerEnumName::Combinedhotbarandinventorycontainer,
+                                    EnumsContainerEnumName::CombinedHotbarAndInventoryContainer,
                                 dynamic_id: None,
                             }),
                             storage_item: Some(protocol_item.clone()),

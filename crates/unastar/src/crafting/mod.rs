@@ -353,15 +353,15 @@ fn native_ingredient(ingredient: &BuiltinIngredient) -> WireIngredient {
 
 fn wire_unlock(unlock: &Unlock) -> Result<WireUnlock> {
     let (unlocking_context, unlocking_ingredients) = match unlock {
-        Unlock::Always => (UnlockContext::Alwaysunlocked, None),
+        Unlock::Always => (UnlockContext::AlwaysUnlocked, None),
         Unlock::Items(items) => (
             UnlockContext::None,
             Some(items.iter().map(wire_ingredient).collect()),
         ),
         Unlock::Context(context) => (
             match context.as_str() {
-                "PlayerInWater" => UnlockContext::Playerinwater,
-                "PlayerHasManyItems" => UnlockContext::Playerhasmanyitems,
+                "PlayerInWater" => UnlockContext::PlayerInWater,
+                "PlayerHasManyItems" => UnlockContext::PlayerHasManyItems,
                 _ => bail!("unknown recipe unlocking context {context}"),
             },
             None,
@@ -546,7 +546,7 @@ mod tests {
             })
             .unwrap();
         let deprecated = furnace.unlocking_requirement.as_ref().unwrap();
-        assert_eq!(deprecated.unlocking_context, UnlockContext::Alwaysunlocked);
+        assert_eq!(deprecated.unlocking_context, UnlockContext::AlwaysUnlocked);
         assert_eq!(deprecated.unlocking_ingredients, None);
     }
 

@@ -236,7 +236,7 @@ impl GameServer {
             }
             McpePacketData::RespawnPacket(pk) => {
                 // Only the client-ready state is the client's to send.
-                if pk.state == jolyne::valentine::types::EnumsPlayerRespawnState::Clientreadytospawn
+                if pk.state == jolyne::valentine::types::EnumsPlayerRespawnState::ClientReadyToSpawn
                     && let Some(mut q) = world
                         .get_resource_mut::<crate::entity::player_life::respawn::RespawnQueue>()
                 {

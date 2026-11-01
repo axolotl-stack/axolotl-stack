@@ -91,9 +91,9 @@ impl ServerHandshake {
 
     fn protocol_mismatch(mut self, client_protocol: i32, now: Instant) -> Failure<Self> {
         let status = if client_protocol < PROTOCOL_VERSION {
-            PlayStatusPacketStatus::LoginfailedClientold
+            PlayStatusPacketStatus::LoginFailedClientOld
         } else {
-            PlayStatusPacketStatus::LoginfailedServerold
+            PlayStatusPacketStatus::LoginFailedServerOld
         };
         let queued = self
             .conn
@@ -146,7 +146,7 @@ impl Phase for ServerHandshake {
             compression_threshold: compression.threshold,
             compression_algorithm: match compression.algorithm {
                 crate::proto::batch::BatchCompression::Deflate => {
-                    NetworkSettingsPacketCompressionAlgorithm::Zlib
+                    NetworkSettingsPacketCompressionAlgorithm::ZLib
                 }
                 crate::proto::batch::BatchCompression::Snappy => {
                     NetworkSettingsPacketCompressionAlgorithm::Snappy
@@ -214,9 +214,9 @@ impl Phase for ServerLogin {
         };
         if protocol != PROTOCOL_VERSION {
             let status = if protocol < PROTOCOL_VERSION {
-                PlayStatusPacketStatus::LoginfailedClientold
+                PlayStatusPacketStatus::LoginFailedClientOld
             } else {
-                PlayStatusPacketStatus::LoginfailedServerold
+                PlayStatusPacketStatus::LoginFailedServerOld
             };
             let _ = self
                 .conn
@@ -268,7 +268,7 @@ impl LoginRequest {
         let queued = self
             .conn
             .queue_packet(
-                &status_packet(PlayStatusPacketStatus::LoginfailedServerfullsubclient),
+                &status_packet(PlayStatusPacketStatus::LoginFailedServerFullSubClient),
                 now,
             )
             .and_then(|()| self.conn.flush());
@@ -397,7 +397,7 @@ impl Authenticated {
 }
 
 fn login_success(conn: &mut Connection, now: Instant) -> Result<(), JolyneError> {
-    conn.queue_packet(&status_packet(PlayStatusPacketStatus::Loginsuccess), now)?;
+    conn.queue_packet(&status_packet(PlayStatusPacketStatus::LoginSuccess), now)?;
     conn.flush()
 }
 
@@ -720,7 +720,7 @@ impl ServerSpawn {
         if self.streamed {
             self.conn.send_batch(&[updated], true, now)?;
         } else {
-            let spawn = status_packet(PlayStatusPacketStatus::Playerspawn);
+            let spawn = status_packet(PlayStatusPacketStatus::PlayerSpawn);
             self.conn.send_batch(&[updated, spawn], true, now)?;
         }
         Ok(radius)
