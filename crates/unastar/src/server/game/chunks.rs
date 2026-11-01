@@ -48,28 +48,37 @@ pub fn apply_chunk_requests(
     mut chunk_viewers_q: Query<&mut ChunkViewers>,
 ) {
     let _span = tracing::info_span!("apply_chunk_requests", count = queue.0.len()).entered();
-    // Requests naming an edited column wait until its new encoding is ready.
+    // Requests that wait (an edited column being encoded again, or the
+    // player's transport holding its terrain budget) are retried next tick;
+    // once one of a player's requests waits, the later ones wait too, so the
+    // player's requests are answered in order.
     let mut deferred = Vec::new();
+    let mut waiting: Vec<Entity> = Vec::new();
     for (entity, action) in queue.0.drain(..) {
         match action {
             ChunkAction::RadiusRequest(req) => {
                 handle_chunk_radius_request(entity, &req, &config, &sessions, &mut chunk_radii);
             }
             ChunkAction::SubchunkRequest(req) => {
-                let answered = handle_subchunk_request(
-                    entity,
-                    &req,
-                    config.0.block_network_ids,
-                    &chunk_manager,
-                    &mut loads,
-                    &stats,
-                    &sessions,
-                    &mut loaders,
-                    &mut chunk_data_q,
-                    &mut chunk_viewers_q,
-                );
-                if !answered {
-                    deferred.push((entity, ChunkAction::SubchunkRequest(req)));
+                let rest = if waiting.contains(&entity) {
+                    Some(req)
+                } else {
+                    handle_subchunk_request(
+                        entity,
+                        &req,
+                        config.0.block_network_ids,
+                        &chunk_manager,
+                        &mut loads,
+                        &stats,
+                        &sessions,
+                        &mut loaders,
+                        &mut chunk_data_q,
+                        &mut chunk_viewers_q,
+                    )
+                };
+                if let Some(rest) = rest {
+                    waiting.push(entity);
+                    deferred.push((entity, ChunkAction::SubchunkRequest(rest)));
                 }
             }
         }
@@ -101,12 +110,18 @@ fn handle_chunk_radius_request(
     }
 }
 
-/// Answers a `SubChunkRequest` from the columns' shared encodings. The request
-/// acknowledges every column it names in the player's send window, and its
-/// answers count against the player's send budget. Returns `false`, answering
-/// nothing, while a named column is being encoded again after an edit (the
-/// caller retries next tick), so an answer never shows a column as it was
-/// before an edit the client was already told about.
+/// Answers a `SubChunkRequest` from the columns' shared encodings, column by
+/// column in request order, and acknowledges the answered columns in the
+/// player's send window. Returns what must wait for a later tick, if
+/// anything:
+///
+/// - the whole request while a named column is being encoded again after an
+///   edit, so an answer never shows a column as it was before an edit the
+///   client was already told about;
+/// - the columns whose answers no longer fit the terrain bytes the player's
+///   transport may hold (see [`crate::world::ecs::SendWindow`]). One request
+///   can name 1024 sub-chunks, megabytes of dense terrain, so a request is
+///   split between columns rather than answered whole.
 #[allow(clippy::too_many_arguments)]
 fn handle_subchunk_request(
     entity: Entity,
@@ -119,7 +134,7 @@ fn handle_subchunk_request(
     loaders: &mut Query<&mut ChunkLoader>,
     chunk_data_q: &mut Query<(&ChunkData, Option<&mut ChunkNetCache>)>,
     chunk_viewers_q: &mut Query<&mut ChunkViewers>,
-) -> bool {
+) -> Option<jolyne::valentine::SubChunkRequestPacket> {
     let started = Instant::now();
     let session_id = sessions.get(entity).map(|s| s.session_id).unwrap_or(0);
 
@@ -145,9 +160,10 @@ fn handle_subchunk_request(
         )
     };
 
-    // Every named column, looked up once.
+    // Every named column, looked up once, in request order.
     let mut columns: std::collections::HashMap<(i32, i32), ColumnLookup> =
         std::collections::HashMap::new();
+    let mut order = Vec::new();
     for offset in offsets {
         let target = column_of(offset);
         if columns.contains_key(&target) {
@@ -165,7 +181,7 @@ fn handle_subchunk_request(
                     stats,
                 ) {
                     Some(encoded) => ColumnLookup::Ready(encoded),
-                    None => return false,
+                    None => return Some(req.clone()),
                 },
                 // A chunk entity spawned without the streaming components
                 // (built by hand in tools and tests) is encoded for the answer.
@@ -176,14 +192,49 @@ fn handle_subchunk_request(
             },
         };
         columns.insert(target, lookup);
+        order.push(target);
     }
+
+    // The columns whose terrain fits what the transport may hold, in order.
+    let now = Instant::now();
+    let mut loader = loaders.get_mut(entity).ok();
+    let transport_queued = sessions
+        .get(entity)
+        .map_or(0, PlayerSession::transport_queued_bytes);
+    let mut fitting = 0;
+    for target in &order {
+        let bytes = match &columns[target] {
+            ColumnLookup::Ready(encoded) => encoded.wire_bytes(),
+            _ => 0,
+        };
+        if let Some(loader) = loader.as_mut() {
+            if !loader.window_mut().may_answer(bytes, transport_queued, now) {
+                break;
+            }
+            loader.window_mut().answered(bytes, now);
+        }
+        fitting += 1;
+    }
+    if fitting == 0 {
+        return Some(req.clone());
+    }
+    let answering: std::collections::HashSet<(i32, i32)> =
+        order[..fitting].iter().copied().collect();
+    let rest: Vec<_> = offsets
+        .iter()
+        .filter(|offset| !answering.contains(&column_of(offset)))
+        .cloned()
+        .collect();
 
     let min_sub_y = crate::world::chunk::MIN_Y >> 4;
     let max_sub_y = min_sub_y + (crate::world::SUBCHUNK_COUNT as i32) - 1;
-    let mut entries = Vec::with_capacity(offsets.len());
+    let mut entries = Vec::with_capacity(offsets.len() - rest.len());
     for offset in offsets {
-        let sub_y = origin.subchunk_position_y + offset.subchunk_offset_y as i32;
         let target = column_of(offset);
+        if !answering.contains(&target) {
+            continue;
+        }
+        let sub_y = origin.subchunk_position_y + offset.subchunk_offset_y as i32;
         if sub_y < min_sub_y || sub_y > max_sub_y {
             entries.push(empty_entry(
                 offset.clone(),
@@ -211,23 +262,17 @@ fn handle_subchunk_request(
         entries.push(entry);
     }
 
-    // Add player as viewer for served chunks, acknowledge them, and count
-    // their answers against the player's send budget.
-    let now = Instant::now();
-    let mut loader = loaders.get_mut(entity).ok();
-    for (&(cx, cz), lookup) in &columns {
+    // Add player as viewer for served chunks and acknowledge them.
+    for &(cx, cz) in &order[..fitting] {
         if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz)
             && let Ok(mut viewers) = chunk_viewers_q.get_mut(chunk_entity)
         {
             viewers.insert(entity);
         }
-        let Some(loader) = loader.as_mut() else {
-            continue;
-        };
-        if let Some(delay) = loader.window_mut().ack((cx, cz), now) {
+        if let Some(loader) = loader.as_mut()
+            && let Some(delay) = loader.window_mut().ack((cx, cz), now)
+        {
             stats.acked.record(delay);
-        } else if let ColumnLookup::Ready(encoded) = lookup {
-            loader.window_mut().answered(encoded.wire_bytes(), now);
         }
     }
 
@@ -249,7 +294,10 @@ fn handle_subchunk_request(
         }
     }
     stats.answered.record(started.elapsed());
-    true
+    (!rest.is_empty()).then(|| jolyne::valentine::SubChunkRequestPacket {
+        sub_chunk_position_offset_list: rest,
+        ..req.clone()
+    })
 }
 
 /// Groups a request's answers into packets of about

@@ -271,31 +271,32 @@ impl ChunkNetCache {
 // Send window: acknowledgement-clocked and bounded by the transport's queue
 // =============================================================================
 
-/// Which columns a player may be sent next.
+/// What a player may be sent next.
 ///
 /// Two bounds apply, and there is no per-tick cap besides them:
 ///
-/// - **Columns.** A column is acknowledged by the client's first
-///   `SubChunkRequest` for it, which the client sends only once the
-///   `LevelChunk` reached it. The column limit grows by one per
-///   acknowledgement that arrives within [`SendWindow::TARGET_ACK`] (doubling
-///   every round trip, like slow start) and halves, at most once per target
-///   interval, when acknowledgements arrive later. Columns never acknowledged
-///   stop counting after [`SendWindow::ACK_TIMEOUT`].
-/// - **Bytes.** Each column commits its sub-chunk answers ([`EncodedColumn::wire_bytes`]).
-///   A column is sent only while the bytes the transport still has queued for
-///   the player, plus the answers of columns sent but not yet requested, plus
-///   answers queued in the last [`SendWindow::ANSWER_VISIBLE`] (not yet
-///   reported by the transport), stay within [`SendWindow::BYTE_BUDGET`]. The
-///   budget is half of the RakNet session's queue limit, so terrain alone can
-///   never fill the queue that disconnects a player: only a peer that stops
-///   acknowledging lets the queue grow.
+/// - **Columns.** A column (its `LevelChunk`, about a hundred bytes) is
+///   acknowledged when its sub-chunks are answered, which happens once the
+///   client requested them and the answer fits the byte bound below. The
+///   column limit grows by one per acknowledgement within
+///   [`SendWindow::TARGET_ACK`] (doubling every round trip, like slow start)
+///   and halves, at most once per target interval, when acknowledgements come
+///   later. Columns never acknowledged stop counting after
+///   [`SendWindow::ACK_TIMEOUT`].
+/// - **Bytes.** The answers carry the terrain. A request is answered only
+///   while the bytes the transport still holds for the player, plus answers
+///   queued within [`SendWindow::ANSWER_VISIBLE`] (not yet reported by the
+///   transport), plus this answer stay within [`SendWindow::BYTE_BUDGET`]
+///   (one answer always goes out when nothing is queued); otherwise it waits
+///   for the next tick. New columns are not sent while that queue is at the
+///   budget. The budget is half of the RakNet session's queue limit, so
+///   terrain can never fill the queue that disconnects a player: only a peer
+///   that stops acknowledging lets the queue grow.
 #[derive(Debug)]
 pub struct SendWindow {
     limit: usize,
-    /// Sent, not yet requested: when, and the answer bytes it commits.
-    awaiting: HashMap<(i32, i32), (Instant, usize)>,
-    awaiting_bytes: usize,
+    /// Sent, not yet acknowledged.
+    awaiting: HashMap<(i32, i32), Instant>,
     /// Answers queued recently, possibly not yet in the transport's queue.
     answered: std::collections::VecDeque<(Instant, usize)>,
     last_shrink: Option<Instant>,
@@ -306,7 +307,6 @@ impl Default for SendWindow {
         Self {
             limit: Self::INITIAL,
             awaiting: HashMap::new(),
-            awaiting_bytes: 0,
             answered: std::collections::VecDeque::new(),
             last_shrink: None,
         }
@@ -323,14 +323,15 @@ impl SendWindow {
     /// behind, and the window shrinks.
     pub const TARGET_ACK: Duration = Duration::from_millis(400);
     pub const ACK_TIMEOUT: Duration = Duration::from_secs(3);
-    /// Terrain bytes committed towards one player at most: half of the
-    /// RakNet session's 1 MiB queue limit.
+    /// Terrain bytes queued towards one player at most: half of the RakNet
+    /// session's 1 MiB queue limit.
     pub const BYTE_BUDGET: usize = 512 * 1024;
     /// How long queued answers are counted before the transport's reported
-    /// queue is trusted to include them: they leave on the flush right after
-    /// the tick that answered them, so the next tick normally sees them in
-    /// the transport; they are counted until the tick after that.
-    pub const ANSWER_VISIBLE: Duration = Duration::from_millis(80);
+    /// queue is trusted to include them. Answers leave on the flush that ends
+    /// their tick, so the next tick (50 ms later) sees them in the transport;
+    /// if a flush ran late, the 2x margin of the budget to the session limit
+    /// still holds.
+    pub const ANSWER_VISIBLE: Duration = Duration::from_millis(45);
 
     /// Current limit of unacknowledged columns.
     pub fn limit(&self) -> usize {
@@ -342,10 +343,10 @@ impl SendWindow {
         self.awaiting.len()
     }
 
-    /// Bytes committed towards the player: `transport_queued` (as the
-    /// transport reports it), answers of unacknowledged columns, and answers
-    /// queued within [`Self::ANSWER_VISIBLE`].
-    pub fn committed(&mut self, transport_queued: usize, now: Instant) -> usize {
+    /// Terrain bytes queued towards the player: `transport_queued` (as the
+    /// transport reports it) and answers queued within
+    /// [`Self::ANSWER_VISIBLE`].
+    pub fn queued(&mut self, transport_queued: usize, now: Instant) -> usize {
         while self
             .answered
             .front()
@@ -354,27 +355,26 @@ impl SendWindow {
             self.answered.pop_front();
         }
         let answered: usize = self.answered.iter().map(|&(_, bytes)| bytes).sum();
-        transport_queued + self.awaiting_bytes + answered
+        transport_queued + answered
     }
 
-    /// Whether a column committing `bytes` may be sent now. With nothing
-    /// committed one column always may, however large.
-    pub fn has_room_for(&mut self, bytes: usize, transport_queued: usize, now: Instant) -> bool {
-        if self.awaiting.len() >= self.limit {
-            return false;
-        }
-        let committed = self.committed(transport_queued, now);
-        committed == 0 || committed + bytes <= Self::BYTE_BUDGET
+    /// Whether another column may be sent now.
+    pub fn may_send(&mut self, transport_queued: usize, now: Instant) -> bool {
+        self.awaiting.len() < self.limit && self.queued(transport_queued, now) < Self::BYTE_BUDGET
+    }
+
+    /// Whether an answer of `bytes` may be queued now. With nothing queued
+    /// one answer always may, however large.
+    pub fn may_answer(&mut self, bytes: usize, transport_queued: usize, now: Instant) -> bool {
+        let queued = self.queued(transport_queued, now);
+        queued == 0 || queued + bytes <= Self::BYTE_BUDGET
     }
 
     /// A column was sent. Columns without sub-chunks are never requested and
     /// do not count.
-    pub fn sent(&mut self, pos: (i32, i32), requests_subchunks: bool, bytes: usize, now: Instant) {
+    pub fn sent(&mut self, pos: (i32, i32), requests_subchunks: bool, now: Instant) {
         if requests_subchunks {
-            if let Some((_, old)) = self.awaiting.insert(pos, (now, bytes)) {
-                self.awaiting_bytes -= old;
-            }
-            self.awaiting_bytes += bytes;
+            self.awaiting.insert(pos, now);
         }
     }
 
@@ -383,13 +383,10 @@ impl SendWindow {
         self.answered.push_back((now, bytes));
     }
 
-    /// The client requested `pos`'s sub-chunks. Returns the acknowledgement
-    /// delay for a column that was awaited; its committed bytes count as
-    /// queued answers from now on.
+    /// `pos`'s sub-chunks were answered. Returns the acknowledgement delay
+    /// for a column that was awaited.
     pub fn ack(&mut self, pos: (i32, i32), now: Instant) -> Option<Duration> {
-        let (sent, bytes) = self.awaiting.remove(&pos)?;
-        self.awaiting_bytes -= bytes;
-        self.answered(bytes, now);
+        let sent = self.awaiting.remove(&pos)?;
         let delay = now.saturating_duration_since(sent);
         if delay <= Self::TARGET_ACK {
             self.limit = (self.limit + 1).min(Self::MAX);
@@ -402,23 +399,14 @@ impl SendWindow {
     /// Drops columns not acknowledged within [`Self::ACK_TIMEOUT`]; returns how many.
     pub fn expire(&mut self, now: Instant) -> usize {
         let before = self.awaiting.len();
-        let mut released = 0;
-        self.awaiting.retain(|_, &mut (sent, bytes)| {
-            let keep = now.saturating_duration_since(sent) < Self::ACK_TIMEOUT;
-            if !keep {
-                released += bytes;
-            }
-            keep
-        });
-        self.awaiting_bytes -= released;
+        self.awaiting
+            .retain(|_, sent| now.saturating_duration_since(*sent) < Self::ACK_TIMEOUT);
         before - self.awaiting.len()
     }
 
     /// The column left the view; it no longer counts.
     pub fn forget(&mut self, pos: (i32, i32)) {
-        if let Some((_, bytes)) = self.awaiting.remove(&pos) {
-            self.awaiting_bytes -= bytes;
-        }
+        self.awaiting.remove(&pos);
     }
 
     fn shrink(&mut self, now: Instant) {
@@ -1056,49 +1044,44 @@ mod tests {
         let now = Instant::now();
         let mut window = SendWindow::default();
         for i in 0..SendWindow::INITIAL as i32 {
-            assert!(window.has_room_for(1, 0, now));
-            window.sent((i, 0), true, 1, now);
+            assert!(window.may_send(0, now));
+            window.sent((i, 0), true, now);
         }
-        assert!(!window.has_room_for(1, 0, now));
+        assert!(!window.may_send(0, now));
         // All-air columns are never requested, so they never block the window.
-        window.sent((99, 99), false, 0, now);
+        window.sent((99, 99), false, now);
         assert_eq!(window.in_flight(), SendWindow::INITIAL);
     }
 
     #[test]
-    fn bytes_committed_and_queued_in_the_transport_bound_what_is_sent() {
+    fn answers_wait_while_the_transport_holds_the_byte_budget() {
         let start = Instant::now();
         let budget = SendWindow::BYTE_BUDGET;
         let mut window = SendWindow::default();
-        // Nothing committed: one column goes out however large it is.
-        assert!(window.has_room_for(budget * 2, 0, start));
-        window.sent((0, 0), true, budget / 2, start);
-        assert!(window.has_room_for(budget / 2, 0, start));
-        assert!(!window.has_room_for(budget / 2 + 1, 0, start));
+        // Nothing queued: one answer goes out however large it is.
+        assert!(window.may_answer(budget * 2, 0, start));
+        window.answered(budget / 2, start);
+        assert!(window.may_answer(budget / 2, 0, start));
+        assert!(!window.may_answer(budget / 2 + 1, 0, start));
         // Bytes the transport still holds count too.
-        assert!(!window.has_room_for(budget / 4, budget / 2, start));
-        // Requested: the answers stay counted until the transport reports
-        // them, then only the transport's queue counts.
-        window.ack((0, 0), start + ms(10));
-        assert_eq!(window.committed(0, start + ms(20)), budget / 2);
-        let visible = start + ms(10) + SendWindow::ANSWER_VISIBLE;
-        assert_eq!(window.committed(budget / 2, visible), budget / 2);
-        assert_eq!(window.committed(0, visible), 0);
-        // Answers to columns not awaited (a repeated request) count as well.
-        window.answered(1000, visible);
-        assert_eq!(window.committed(0, visible), 1000);
+        assert!(!window.may_answer(budget / 4, budget / 4 + 1, start));
+        // Queued answers count until the transport reports them; after that
+        // only the transport's own report counts.
+        let visible = start + SendWindow::ANSWER_VISIBLE;
+        assert_eq!(window.queued(0, start + ms(10)), budget / 2);
+        assert_eq!(window.queued(budget / 2, visible), budget / 2);
+        assert_eq!(window.queued(0, visible), 0);
+        assert!(window.may_answer(budget, 0, visible));
     }
 
     #[test]
-    fn forgotten_and_expired_columns_release_their_bytes() {
-        let start = Instant::now();
+    fn no_new_columns_while_the_transport_is_full() {
+        let now = Instant::now();
         let mut window = SendWindow::default();
-        window.sent((0, 0), true, 300, start);
-        window.sent((1, 0), true, 500, start);
-        window.forget((0, 0));
-        assert_eq!(window.committed(0, start), 500);
-        window.expire(start + SendWindow::ACK_TIMEOUT);
-        assert_eq!(window.committed(0, start + SendWindow::ACK_TIMEOUT), 0);
+        assert!(window.may_send(SendWindow::BYTE_BUDGET - 1, now));
+        assert!(!window.may_send(SendWindow::BYTE_BUDGET, now));
+        window.answered(SendWindow::BYTE_BUDGET, now);
+        assert!(!window.may_send(0, now));
     }
 
     #[test]
@@ -1106,7 +1089,7 @@ mod tests {
         let start = Instant::now();
         let mut window = SendWindow::default();
         for i in 0..2000 {
-            window.sent((i, 0), true, 1, start);
+            window.sent((i, 0), true, start);
             assert_eq!(window.ack((i, 0), start + ms(10)), Some(ms(10)));
         }
         assert_eq!(window.limit(), SendWindow::MAX);
@@ -1121,7 +1104,7 @@ mod tests {
         let late = SendWindow::TARGET_ACK + ms(1);
         let mut window = SendWindow::default();
         for i in 0..12 {
-            window.sent((i, 0), true, 1, start);
+            window.sent((i, 0), true, start);
         }
         window.ack((0, 0), start + late);
         assert_eq!(window.limit(), SendWindow::INITIAL / 2);
@@ -1140,7 +1123,7 @@ mod tests {
         assert_eq!(window.limit(), SendWindow::MIN);
         for i in 10..20 {
             t += SendWindow::TARGET_ACK;
-            window.sent((i, 0), true, 1, start);
+            window.sent((i, 0), true, start);
             window.ack((i, 0), t);
         }
         assert_eq!(window.limit(), SendWindow::MIN);
@@ -1150,8 +1133,8 @@ mod tests {
     fn unacknowledged_columns_stop_counting_after_the_timeout() {
         let start = Instant::now();
         let mut window = SendWindow::default();
-        window.sent((0, 0), true, 1, start);
-        window.sent((1, 0), true, 1, start + ms(500));
+        window.sent((0, 0), true, start);
+        window.sent((1, 0), true, start + ms(500));
         assert_eq!(window.expire(start + SendWindow::ACK_TIMEOUT - ms(1)), 0);
         assert_eq!(window.expire(start + SendWindow::ACK_TIMEOUT), 1);
         assert_eq!(window.in_flight(), 1);

@@ -8,7 +8,8 @@ generatable" to "on the client". Generation speed alone is measured by
 
 | Tool | What it does |
 |---|---|
-| `crates/unastar/examples/load_bench.rs` | Real jolyne clients join over loopback RakNet, request a render radius, answer every `LevelChunk` with sub-chunk requests (batched per client tick, relative to the player's chunk, like a client), and record join, first chunk, render disk complete and streamed square complete. `--fly-seconds` then flies in a straight line at elytra speed (30 blocks/s) and samples how much of the render disk is missing. `--world generated` loads the same view once, stops the server with `stop` (chunks saved), restarts it and measures the second join, so terrain comes from storage. |
+| `crates/unastar/examples/load_bench.rs` | Real jolyne clients join over loopback RakNet, request a render radius, answer every `LevelChunk` with sub-chunk requests (batched per client tick, relative to the player's chunk, like a client), and record join, first chunk, render disk complete and streamed square complete. `--fly-seconds` then flies in a straight line at elytra speed (30 blocks/s) and samples how much of the render disk is missing. `--world generated` loads the same view once, stops the server with `stop` (chunks saved), restarts it and measures the second join, so terrain comes from storage. `--jump tp|respawn` then moves the whole view `--jump-distance` blocks (default 3000) with `/tp`, or with `/spawnpoint` + `/kill` and a client-like respawn, and records how the new view arrives (`LevelChunk`s and completed columns per 50 ms, header distances from the new centre). With `--world generated` the jump target is generated and saved in the first run too, so both views come from storage. |
+| `crates/unastar/examples/stream_bench.rs` | Headless: stores a Java world in a temp directory, then joins a radius-12 player, respawns it 3000 blocks away, teleports it back and away again, ticking at the 50 ms cadence over a simulated link (`--link-kib-per-tick`, default 200). Prints per phase the ticks until the view is complete, tick p50/p99/max, the slowest tick's stages and the peak send queue; `--assert` fails on a tick over 50 ms or a queue over the 1 MiB session limit. |
 | `tools/perf/load_matrix.sh` | Runs the standard matrix (radius 8/12/16, fresh and generated, flight, 1 and 8 players) for one server executable into one JSON file. |
 | `tools/perf/load_summary.py` | Markdown table of one or more result files (times in ms from the RakNet connection; several players: the slowest). |
 | `tools/perf/bds_reference.py` | The same client against BDS 1.26.51 on port 19140 (never 19132), fresh world then restarted on the stored world; always restores `server.properties`. Needs the native lock. |
@@ -31,10 +32,12 @@ Server logs: `LOAD_BENCH_SERVER_LOG=<filter>` with
 `LOAD_BENCH_SERVER_STDOUT=<file>` keeps the launched server's output. The
 filter `warn,unastar::stream=info` adds the server's per-second streaming
 summary: storage reads (`read`, `missed`), generation (`generated`, request to
-column), background network encoding (`encoded`), re-encoding of edited chunks
-on the tick (`reencoded`), `LevelChunk`s sent and sub-chunk requests answered
-with the tick time they took, and the client acknowledgement delay (`acked`,
-`LevelChunk` to its first `SubChunkRequest`), each as a count and a mean in ms.
+column), background network encoding (`encoded`, `reencoded` for edited
+chunks), `LevelChunk`s sent and sub-chunk requests answered with the tick
+time they took, the acknowledgement delay (`acked`, `LevelChunk` to its
+answered `SubChunkRequest`), each as a count and a mean in ms, and the largest
+transport queue seen at a tick (`peak_queue_kib`). A tick over 50 ms logs
+`SLOW TICK detected` with its slowest stages (`slowest_stages_ms`).
 
 Timing runs need the native lock
 (`bash C:/Users/jvigu/orca/stab-coord/native-lock.sh acquire <lane> <s> <purpose>`).
@@ -48,13 +51,21 @@ flight, outside the generation pool); a storage miss goes straight to the
 generation pool when one of its slots (three per worker) is free, else the
 tick requests it in priority order; every loaded column is encoded for the
 network once on a background thread and the encoding is shared by every
-player and every sub-chunk answer (an edited chunk is re-encoded when next
-needed); unloaded chunks are written in the background. Sending is not capped
-per tick: each player has a send window of columns sent but not yet
-acknowledged by a `SubChunkRequest`, which starts at 128, grows with prompt
-acknowledgements (up to 256) and halves when they come late. The view is the
-disk `dx² + dz² <= (r + 1)²` around the player's chunk, the column count BDS
-streams. Sealed batches stay under 256 KiB and
+player and every sub-chunk answer (an edited chunk is re-encoded in the
+background when next needed, and answered once that finished); unloaded
+chunks are written in the background. The tick never reads,
+generates or encodes: it hands work to the workers and spends at most 4 ms
+each spawning finished columns, restoring their actors and unloading.
+Sending is not capped per tick; two bounds apply per player. Columns: a send
+window of columns sent but not yet answered, which starts at 128, grows with
+prompt acknowledgements (up to 256) and halves when they come late. Bytes: a
+sub-chunk request is answered column by column only while the bytes the
+player's RakNet session still holds, plus answers queued in the last 45 ms,
+stay within 512 KiB (half the session's 1 MiB limit, past which RakNet
+disconnects with `QueueTooLong`); the rest of the request waits for the next
+tick, and no new columns are sent while the queue is at the budget. The view
+is the disk `dx² + dz² <= (r + 1)²` around the player's chunk, the column
+count BDS streams. Sealed batches stay under 256 KiB and
 sub-chunk answers are split between columns at 128 KiB, because a RakNet peer
 drops messages of more than 512 split parts, which stalls the ordered channel
 for good.
@@ -62,6 +73,51 @@ for good.
 ## Results
 
 Result files are in `results/` (one JSON array of runs per file).
+
+### 2026-10-31: respawn and teleport into a stored view (QueueTooLong fix)
+
+Files: `2026-10-31-jump-java.json` (loopback), `2026-10-31-stream-bench.json`
+(headless), `2026-10-31-bds-jump.json` (BDS).
+
+Release builds, Java world, seed 12345, radius 12, native lock held.
+`mainline3` is the playtest build that kicked the player (ec487d44),
+`paced` the fix. Loopback `load_bench --world generated --jump ...`
+(3000 blocks; ms from the command):
+
+| build | jump | first chunk | view complete | most `LevelChunk`s in 50 ms | slow ticks | kicked |
+|---|---|---|---|---|---|---|
+| mainline3 | respawn | 158 | 453 | 256 | 89, 103 ms | no |
+| mainline3 | tp | 78 | 331 | 256 | 97, 91, 60 ms | in 1 of 2 runs (`QueueTooLong`) |
+| paced | respawn | 169 | 625 | 164 | none | no |
+| paced | tp | 105 | 671 | 256 | none | no |
+
+The paced build completes about 72 columns per 50 ms on loopback (512 KiB of
+answers). The old build queued every requested answer at once: 256 dense
+columns are about 2.5 MiB, past the session's 1 MiB limit whenever RakNet
+had not sent them yet.
+
+Headless `stream_bench --link-kib-per-tick 200` (a 4 MB/s link), tick times
+in ms; `before` is the same benchmark on the server before the fix
+(8bbfd47b):
+
+| phase | before p50/p99/max | before peak queue | paced p50/p99/max | paced peak queue | paced ticks to view |
+|---|---|---|---|---|---|
+| join (storage) | 4.0 / 6.0 / 6.0 | 2881 KiB | 1.0 / 6.4 / 6.4 | 433 KiB | 18 |
+| respawn 3000 away (storage) | 3.0 / 16.1 / 16.1 | 2555 KiB | 1.2 / 10.6 / 10.6 | 423 KiB | 16 |
+| tp back (in memory) | 2.3 / 2.4 / 2.4 | 5020 KiB | 1.0 / 1.5 / 1.5 | 430 KiB | 17 |
+| tp away (storage) | 4.1 / 6.9 / 6.9 | 2554 KiB | 1.1 / 13.3 / 13.3 | 422 KiB | 16 |
+
+Normal play (`tick_bench`, 1200 ticks): one player p50 0.09 ms, p99 0.21 ms;
+with 50 cows and 50 zombies nearby p50 0.35 ms, p99 0.65 ms.
+
+BDS 1.26.51 on the same client (fresh world, the jump target generated on
+demand): it sends the new view nearest first, in bursts of 20 `LevelChunk`s
+(20 to 40 per 50 ms). `/tp` at radius 4: first chunk 630 ms, view 892 ms;
+radius 6: 1018 ms and 1451 ms. Respawn at radius 4: 460 ms and 1088 ms. Our
+order is the same (nearest first); we send more per tick, bounded by the
+byte budget instead of a fixed count. Joins to BDS on a restarted (stored)
+world failed intermittently in this session (the client is never placed), so
+there is no stored-world BDS number for the jump.
 
 ### 2026-10-29: streaming rewrite (`2026-10-29-stream-java.json`)
 

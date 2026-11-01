@@ -341,12 +341,9 @@ fn send_column(
     )) {
         return false;
     }
-    loader.window_mut().sent(
-        pos,
-        encoded.highest_subchunk() > 0,
-        encoded.wire_bytes(),
-        now,
-    );
+    loader
+        .window_mut()
+        .sent(pos, encoded.highest_subchunk() > 0, now);
     loader.mark_loaded(pos.0, pos.1);
     true
 }
@@ -355,10 +352,12 @@ fn send_column(
 ///
 /// Walks each player's queue in priority order and sends the columns that are
 /// in memory and encoded while the player's
-/// [`SendWindow`](super::streaming::SendWindow) has room (by columns and by
-/// bytes against the transport's queue); there is no per-tick cap, and the
-/// first column that does not fit ends the player's sending for the tick so
-/// the order holds. Columns not in memory are collected as loads (storage
+/// [`SendWindow`](super::streaming::SendWindow) has room (unacknowledged
+/// columns, and the transport's queue below the byte budget; the answers
+/// carrying the terrain are bounded when they are queued, in
+/// `apply_chunk_requests`); there is no per-tick cap, and the first column
+/// that does not fit ends the player's sending for the tick so the order
+/// holds. Columns not in memory are collected as loads (storage
 /// reads, or generation for worlds without storage) and generation requests,
 /// and the players' wishes are then started in turns (one per player per
 /// round, nearest first), up to [`MAX_STORAGE_READS`] loads and
@@ -451,10 +450,7 @@ pub fn stream_chunks(
                 };
                 // Being encoded: it goes out once the encoding finished.
                 let Some(encoded) = encoded else { continue };
-                if !loader
-                    .window_mut()
-                    .has_room_for(encoded.wire_bytes(), transport_queued, now)
-                {
+                if !loader.window_mut().may_send(transport_queued, now) {
                     can_send = false;
                     continue;
                 }
@@ -508,13 +504,16 @@ pub fn stream_chunks(
     }
 }
 
+/// One player's wished loads: storage reads, then generations, nearest first.
+type Wish = (Vec<(i32, i32)>, Vec<(i32, i32)>);
+
 /// Starts the players' wished loads in turns, one per player per round.
 fn start_loads(
     manager: &ChunkManager,
     loads: &mut ColumnLoads,
     stats: &StreamStats,
     ids: BlockNetworkIds,
-    wishes: Vec<(Vec<(i32, i32)>, Vec<(i32, i32)>)>,
+    wishes: Vec<Wish>,
     read_budget: usize,
     generation_budget: usize,
 ) {

@@ -1,0 +1,122 @@
+{
+ "before": {
+  "radius": 12,
+  "link_kib_per_tick": 200,
+  "phases": [
+   {
+    "name": "join at A (storage)",
+    "ticks_to_view": 5,
+    "p50_ms": 4.0314,
+    "p99_ms": 5.9795,
+    "max_ms": 5.9795,
+    "worst_tick_stages": "",
+    "peak_queue_kib": 2880.935546875
+   },
+   {
+    "name": "idle at A",
+    "ticks_to_view": 1,
+    "p50_ms": 0.5268999999999999,
+    "p99_ms": 1.0265,
+    "max_ms": 1.0265,
+    "worst_tick_stages": "",
+    "peak_queue_kib": 2680.935546875
+   },
+   {
+    "name": "respawn at B (storage)",
+    "ticks_to_view": 5,
+    "p50_ms": 3.0025999999999997,
+    "p99_ms": 16.1256,
+    "max_ms": 16.1256,
+    "worst_tick_stages": "",
+    "peak_queue_kib": 2555.2666015625
+   },
+   {
+    "name": "tp to A (memory)",
+    "ticks_to_view": 4,
+    "p50_ms": 2.2766,
+    "p99_ms": 2.3939,
+    "max_ms": 2.3939,
+    "worst_tick_stages": "",
+    "peak_queue_kib": 5020.02734375
+   },
+   {
+    "name": "idle at A",
+    "ticks_to_view": 1,
+    "p50_ms": 0.8318000000000001,
+    "p99_ms": 2.3646000000000003,
+    "max_ms": 12.5454,
+    "worst_tick_stages": "",
+    "peak_queue_kib": 4727.1826171875
+   },
+   {
+    "name": "tp to B (storage)",
+    "ticks_to_view": 5,
+    "p50_ms": 4.0992,
+    "p99_ms": 6.9434,
+    "max_ms": 6.9434,
+    "worst_tick_stages": "",
+    "peak_queue_kib": 2554.38671875
+   }
+  ]
+ },
+ "paced": {
+  "radius": 12,
+  "link_kib_per_tick": 200,
+  "phases": [
+   {
+    "name": "join at A (storage)",
+    "ticks_to_view": 18,
+    "p50_ms": 0.9768000000000001,
+    "p99_ms": 6.3689,
+    "max_ms": 6.3689,
+    "worst_tick_stages": "chunks: stream=5.1 chunks: apply loads=0.5 chunks: unloads=0.3 entities=0.1",
+    "peak_queue_kib": 432.576171875
+   },
+   {
+    "name": "idle at A",
+    "ticks_to_view": 1,
+    "p50_ms": 0.7403000000000001,
+    "p99_ms": 1.6172,
+    "max_ms": 1.6172,
+    "worst_tick_stages": "entities=1.0 packets=0.2 physics: mob ai=0.1 chunks: restore actors=0.1",
+    "peak_queue_kib": 78.3369140625
+   },
+   {
+    "name": "respawn at B (storage)",
+    "ticks_to_view": 16,
+    "p50_ms": 1.1911,
+    "p99_ms": 10.5772,
+    "max_ms": 10.5772,
+    "worst_tick_stages": "chunks: unloads=8.8 cleanup=0.6 chunks: stream=0.4 entities=0.3",
+    "peak_queue_kib": 422.71484375
+   },
+   {
+    "name": "tp to A (memory)",
+    "ticks_to_view": 17,
+    "p50_ms": 1.0177,
+    "p99_ms": 1.5029,
+    "max_ms": 1.5029,
+    "worst_tick_stages": "entities=0.5 packets=0.4 chunks: unloads=0.1 chunks: restore actors=0.1",
+    "peak_queue_kib": 430.1123046875
+   },
+   {
+    "name": "idle at A",
+    "ticks_to_view": 1,
+    "p50_ms": 0.5798,
+    "p99_ms": 3.7435,
+    "max_ms": 4.8854,
+    "worst_tick_stages": "chunks: unloads=4.4 entities=0.2 network send=0.1 physics: mob ai=0.0",
+    "peak_queue_kib": 71.806640625
+   },
+   {
+    "name": "tp to B (storage)",
+    "ticks_to_view": 16,
+    "p50_ms": 1.0545,
+    "p99_ms": 13.2778,
+    "max_ms": 13.2778,
+    "worst_tick_stages": "chunks: stream=10.8 entities=1.3 chunks: restore actors=0.5 chunks: unloads=0.2",
+    "peak_queue_kib": 422.490234375
+   }
+  ]
+ }
+}

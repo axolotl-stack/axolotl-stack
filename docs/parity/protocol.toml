@@ -153,7 +153,7 @@
 "JigsawStructureDataPacket" = { status = "verified", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture", "crates/unastar/src/server/game/join_data.rs::vendored_payloads_decode_exactly_and_reencode_identically"], evidence = "crates/unastar/data/bds-1.26.51/jigsaw_structure_data.nbt", notes = "sends the BDS payload verbatim; the test checks it decodes and re-encodes to the captured bytes" }  # id 313
 "LegacyTelemetryEventPacket" = { status = "missing" }  # id 65
 "LessonProgressPacket" = { status = "not_applicable", notes = "lessons are Education Edition only; vanilla Bedrock servers never use it" }  # id 183
-"LevelChunkPacket" = { status = "done", owner = "protocol", tests = ["crates/unastar/src/server/game/mod.rs::first_tick_after_join_sends_view_chunks_then_player_spawn", "crates/jolyne/src/proto/tests.rs::streamed_spawn_lets_the_application_deliver_the_view_first"] }  # id 58
+"LevelChunkPacket" = { status = "done", owner = "protocol", tests = ["crates/unastar/src/server/game/mod.rs::first_tick_after_join_sends_view_then_player_spawn_and_terrain_follows", "crates/jolyne/src/proto/tests.rs::streamed_spawn_lets_the_application_deliver_the_view_first"] }  # id 58
 "LevelEventGenericPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not" }  # id 124
 "LevelEventPacket" = { status = "partial", owner = "blocks", tests = ["crates/unastar/src/entity/mob/tests/chicken.rs::thrown_egg_follows_its_arc_breaks_on_the_floor_and_uses_one_egg", "crates/unastar/src/entity/mob/tests/doors.rs::breaker_breaks_a_closed_oak_door_after_the_native_time_on_hard"], gaps = "block cracking/destroy, door breaking, egg and grazing particles only; most vanilla level events (weather, sleeping, redstone, portals, ...) never sent" }  # id 25
 "LocatorBarPacket" = { status = "missing" }  # id 341
@@ -164,7 +164,7 @@
 "MoveActorAbsolutePacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/broadcast.rs::items_spawn_move_resize_and_leave_with_their_chunk_viewers"] }  # id 18
 "MoveActorDeltaPacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::walking_cow_sends_move_actor_delta_to_viewers"] }  # id 111
 "MovementEffectPacket" = { status = "missing" }  # id 318
-"NetworkChunkPublisherUpdatePacket" = { status = "done", owner = "protocol", tests = ["crates/unastar/src/server/game/mod.rs::first_tick_after_join_sends_view_chunks_then_player_spawn", "crates/jolyne/src/proto/tests.rs::spawn_does_not_announce_terrain_it_does_not_send"] }  # id 121
+"NetworkChunkPublisherUpdatePacket" = { status = "done", owner = "protocol", tests = ["crates/unastar/src/server/game/mod.rs::first_tick_after_join_sends_view_then_player_spawn_and_terrain_follows", "crates/jolyne/src/proto/tests.rs::spawn_does_not_announce_terrain_it_does_not_send"] }  # id 121
 "NetworkSettingsPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture"], notes = "send order matches the BDS 1.26.51 join trace (bds-1.26.51-join-s2c.txt); content is not compared against a capture" }  # id 143
 "NpcDialoguePacket" = { status = "missing" }  # id 169
 "OnScreenTextureAnimationPacket" = { status = "missing" }  # id 130
