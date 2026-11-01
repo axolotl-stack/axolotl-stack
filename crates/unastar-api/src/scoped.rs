@@ -248,6 +248,40 @@ impl<'scope> Player<'scope> {
     pub fn inventory(&self) -> Result<crate::InventoryImage, AccessError> {
         self.raw().inventory()
     }
+    /// Observe an exact main, armour or offhand stack for a later bounded physical change.
+    pub fn inventory_stack(
+        &self,
+        area: crate::InventoryArea,
+        index: u32,
+    ) -> Result<crate::ItemStack, AccessError> {
+        self.raw().inventory_stack(area, index)
+    }
+    /// Move existing hotbar stacks without granting arbitrary replacements or durable delivery.
+    /// Destination i receives original slot order[i]; the selection index stays unchanged.
+    pub fn reorder_hotbar(
+        &self,
+        order: [u8; 9],
+    ) -> Result<crate::InventoryMechanicsOperation, AccessError> {
+        self.raw().reorder_hotbar(&order)
+    }
+    /// Stage consumption of the exact original selected stack at this callback's boundary.
+    pub fn consume_selected(
+        &self,
+        expected: &crate::ItemStack,
+        count: u8,
+    ) -> Result<crate::InventoryMechanicsOperation, AccessError> {
+        self.raw().consume_selected(expected, count)
+    }
+    /// Repair an exact captured main, armour or offhand stack without changing its other data.
+    pub fn repair_item(
+        &self,
+        area: crate::InventoryArea,
+        index: u32,
+        expected: &crate::ItemStack,
+        points: u32,
+    ) -> Result<crate::InventoryMechanicsOperation, AccessError> {
+        self.raw().repair_item(area, index, expected, points)
+    }
     /// Copy current native effects, optional stored motion and mode/flight state.
     pub fn mechanics(&self) -> Result<crate::PlayerMechanicsState, AccessError> {
         self.raw().mechanics()

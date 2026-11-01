@@ -80,6 +80,7 @@ pub struct HostContext {
     generation: uuid::Uuid,
     pending_messages: Vec<players::BoundMessage>,
     pending_mechanics: Vec<players::MechanicsRequest>,
+    pending_inventory_mechanics: Vec<players::InventoryMechanicsRequest>,
     pending_travel: Vec<players::travel::Request>,
     travel_results: std::sync::Arc<players::travel::Results>,
     mechanics_owner: std::sync::Arc<()>,
@@ -149,6 +150,7 @@ impl HostContext {
             generation: uuid::Uuid::new_v4(),
             pending_messages: Vec::new(),
             pending_mechanics: Vec::new(),
+            pending_inventory_mechanics: Vec::new(),
             pending_travel: Vec::new(),
             travel_results: Default::default(),
             mechanics_owner: std::sync::Arc::new(()),
@@ -281,6 +283,7 @@ pub(super) fn finish_invocation(
     world: &mut bevy_ecs::world::World,
     succeeded: bool,
 ) {
+    players::finish_inventory_mechanics(context, world, succeeded);
     players::finish_mechanics(context, world, succeeded);
     players::travel::finish(context, world, succeeded);
     commands::finish_invocation(context, succeeded);

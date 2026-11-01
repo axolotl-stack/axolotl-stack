@@ -356,6 +356,34 @@ native item type to allow stacking; it does not check remaining capacity. Identi
 unstackable tools can match for selection without becoming mergeable. Both queries
 work after actor departure and leave live slots and retained values unchanged.
 
+### Bounded live inventory mechanics
+
+The `inventory-mechanics` capability permits three scoped physical changes:
+`Player::reorder_hotbar` accepts a bijection of the existing nine slots,
+`consume_selected` removes a positive count from an exact selected stack, and
+`repair_item` reduces native wear by a bounded number of points. Repair supports
+main, armour and offhand slots and preserves unrelated item metadata. None of
+these operations grants arbitrary item replacement or creation.
+
+Use `Player::inventory_stack(area, index)` with `read-inventory` and `item-values`
+to observe the exact physical source. That owned stack retains its private native
+slot identity. An inventory image's reconstructed slot is a saved value, so it
+cannot substitute for this exact source witness. The host also revalidates the
+original actor, transport, world, held selection and touched slots.
+
+The returned `InventoryMechanicsOperation` is initially `Staged`. A valid callback
+commits its explicit changes at the callback boundary, including when it cancels
+an unrelated default. Traps and invalid replies produce `Cancelled`; a changed or
+unavailable source produces `Rejected`. `Applied` records an actual physical
+change, without claiming a durable receipt or client acknowledgement. Multiple
+requests are considered in order, and an earlier change can invalidate a later
+request's original source. Dropping a ticket does not discard an accepted intent.
+
+Health and physics remain active throughout. Complete living retained actors are
+eligible; initializing, dead, loading, quarantined, recovering and incomplete
+actors are rejected. Bounded live changes use the ordinary player save lifecycle;
+durable grants and complete replacements use the transaction protocol below.
+
 ### Durable WASM inventory transactions
 
 The `write-inventory` capability adds `Player::submit_inventory(request_id, image)`.

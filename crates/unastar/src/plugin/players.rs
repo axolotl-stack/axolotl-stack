@@ -22,8 +22,13 @@ mod connection_control;
 mod host;
 #[path = "players/inventory.rs"]
 mod inventory;
+#[path = "players/inventory_mechanics.rs"]
+mod inventory_mechanics;
 #[path = "players/inventory_transactions.rs"]
 mod inventory_transactions;
+pub(super) use inventory_mechanics::{
+    Request as InventoryMechanicsRequest, finish as finish_inventory_mechanics,
+};
 pub(super) use inventory_transactions::Requests as InventoryRequests;
 pub(super) use inventory_transactions::finish as finish_inventory_invocation;
 #[path = "players/items.rs"]
@@ -67,6 +72,7 @@ enum Entry {
     InventoryImage(Arc<values::Value<inventory::Image>>),
     ArchivedState(Arc<values::Value<archive::Archived>>),
     InventoryOperation(Arc<inventory_transactions::Operation>),
+    InventoryMechanicsOperation(Arc<inventory_mechanics::Operation>),
     ConnectionClose(Arc<super::connection_control::RequestState>),
     BlockCell(Arc<values::Value<world_blocks::Cell>>),
     BlockEdit(world_blocks::Edit),

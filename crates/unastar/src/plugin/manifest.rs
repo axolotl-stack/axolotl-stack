@@ -279,6 +279,8 @@ pub enum PluginCapability {
     ItemValues,
     /// Capture complete owned inventory images for the current scoped player.
     ReadInventory,
+    /// Permute existing hotbar stacks, consume exact selected items and repair bounded wear.
+    InventoryMechanics,
     /// Stage bounded native status, motion, mode and flight changes.
     PlayerMechanics,
     /// Replace exact inventory images through durable idempotent transactions.
