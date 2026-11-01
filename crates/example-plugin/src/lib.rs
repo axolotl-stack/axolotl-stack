@@ -1,6 +1,9 @@
 //! Scoped Component Model example; build for `wasm32-wasip2`.
 
-use unastar_api::{BlockPos, Handler, LogLevel, PlayerContext, commands, server};
+use unastar_api::{
+    BlockPos, FormResponse, Handler, LogLevel, PlayerContext, Sidebar, SidebarLine, SimpleForm,
+    commands, server,
+};
 
 struct ExamplePlugin;
 
@@ -31,7 +34,44 @@ impl Handler for ExamplePlugin {
             let _ = ctx
                 .player()
                 .message("Hello from an advertised component command");
+            let _ = ctx.tx().sidebar(
+                ctx.player(),
+                Some(&Sidebar {
+                    title: "Example".into(),
+                    lines: vec![SidebarLine {
+                        key: "status".into(),
+                        text: "Scoped widgets are active".into(),
+                    }],
+                }),
+            );
+            let _ = ctx.tx().show_form(
+                ctx.player(),
+                &SimpleForm {
+                    title: "Greeting".into(),
+                    content: "Choose a response".into(),
+                    buttons: vec!["Hello".into(), "Clear sidebar".into()],
+                },
+                1,
+            );
             ctx.cancel();
+        }
+    }
+    fn on_player_form_response(
+        ctx: &mut PlayerContext<'_>,
+        _request_id: u64,
+        callback_id: u64,
+        response: FormResponse,
+    ) {
+        if callback_id == 1 {
+            match response {
+                FormResponse::Selected(0) => {
+                    let _ = ctx.tx().action_bar(ctx.player(), Some("Hello!"));
+                }
+                FormResponse::Selected(1) => {
+                    let _ = ctx.tx().sidebar(ctx.player(), None);
+                }
+                _ => {}
+            }
         }
     }
     fn on_player_chat(ctx: &mut PlayerContext<'_>, message: String) {

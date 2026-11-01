@@ -91,6 +91,12 @@ impl PluginManager {
             .clone();
         world.insert_resource(readiness);
         super::commands::install(manager.clone(), world);
+        let ui = manager
+            .lock()
+            .expect("component manager lock")
+            .ui_registry
+            .clone();
+        super::ui::install(ui, world);
         LifecycleBridge::install(manager, world);
     }
 

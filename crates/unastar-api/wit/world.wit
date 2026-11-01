@@ -5,6 +5,8 @@ world unastar-plugin {
     import host;
     import storage;
     import commands;
+    import presentation;
+    use presentation.{form-response, form-close-reason};
 
     use types.{world-tx, player, vec3, block-pos, damage-cause, access-error};
 
@@ -35,6 +37,10 @@ world unastar-plugin {
     /// Return none to remain dead, or a feet-coordinate destination to respawn at.
     export on-player-respawn: func(tx: borrow<world-tx>, player: borrow<player>, position: vec3) -> option<vec3>;
     export on-player-respawned: func(tx: borrow<world-tx>, player: borrow<player>, position: vec3);
+    /// An accepted, bounded response to this component's exact current request.
+    export on-player-form-response: func(tx: borrow<world-tx>, player: borrow<player>, request-id: u64, callback-id: u64, response: form-response);
+    /// Lifetime closures carry no fabricated live player or transaction.
+    export on-form-closed: func(request-id: u64, callback-id: u64, reason: form-close-reason);
     /// Scheduled callbacks always receive fresh scope and identity validation.
     export on-world-task: func(tx: borrow<world-tx>, task-id: u64, callback-id: u64);
     export on-player-task: func(tx: borrow<world-tx>, player: borrow<player>, task-id: u64, callback-id: u64);

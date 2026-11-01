@@ -10,7 +10,8 @@ use wasmtime::component::Resource;
 mod identity;
 pub(super) use identity::WorldReference;
 pub(crate) use identity::{ComponentDirectory, PlayerLineage};
-use identity::{availability, ensure_identity, observe, resolve, snapshot};
+use identity::{availability, observe, snapshot};
+pub(super) use identity::{ensure_identity, resolve};
 #[path = "players/host.rs"]
 mod host;
 

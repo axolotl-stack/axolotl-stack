@@ -242,3 +242,31 @@ It is client supplied, neither an authorization fact nor a guaranteed unique
 receipt. Internal player execution has no packet identifier, and console execution
 is not fabricated as a player callback. The native response still echoes the
 original complete request origin. The example advertises and handles `/greet`.
+
+### Component presentation
+
+The `presentation` capability provides typed, scoped forms, sidebars and action
+bars. Use `ctx.tx().sidebar(ctx.player(), Some(&Sidebar { title, lines }))` or
+`action_bar(ctx.player(), Some(text))`; `None` releases the current component's
+widget. Sidebar row keys are stable component values, independent of visible text.
+The host diffs changes and retries bounded outbound channels without acknowledging
+unsent packets. Action bars refresh while owned. All widgets wait for the native
+initial player state to be published.
+
+`show_form(player, &SimpleForm { title, content, buttons }, callback_id)` returns
+an opaque request ID. A real response invokes
+`Handler::on_player_form_response(ctx, request_id, callback_id, response)` with a
+bounded `Selected(index)` or typed `Closed(reason)`; raw response strings are
+never executed or passed through as commands. Responses must match the exact
+connection, sent request and button bounds, and are consumed before the callback.
+Closing a stale request cannot close its replacement. Replaced, expired and
+disconnected requests invoke `on_form_closed` without inventing a live player.
+Forms expire 60 seconds after their actual first send.
+
+Widget writes commit after a successful callback. Traps discard provisional
+updates, and dropping a component removes its widgets. Another live component's
+widget returns `Conflict` rather than silently replacing it. Each component
+defaults to 512 owned widget slots and 512 updates per shared tick, configured
+with `max_ui_widgets` and `max_ui_updates_per_tick`. Text and list sizes are
+validated before allocation; invalid values return a typed error. The example
+command demonstrates a typed menu and a sidebar.
