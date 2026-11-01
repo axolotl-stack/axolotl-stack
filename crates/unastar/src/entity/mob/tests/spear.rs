@@ -11,15 +11,15 @@
 //! matching hit.
 
 use bevy_ecs::prelude::*;
-use bytes::Bytes;
 use glam::{DVec3, IVec3};
 use jolyne::valentine::actor_data_i_ds as ids;
 use jolyne::valentine::actor_flags;
 use jolyne::valentine::types::{DataItemEntryPayload, EnumsActorEvent};
-use jolyne::valentine::{McpePacketArgs, McpePacketData, SetActorDataPacket};
+use jolyne::valentine::{McpePacketData, SetActorDataPacket};
 use unastar_data::actor_components::body::ActorDamageCause;
 
 use super::doors::{Harness, air, built, door_facing};
+use super::recording::{PLAYER_RUNTIME_ID, RECORDED_Y_OFFSET, Recorded, TICK_MS, frame, recording};
 use crate::entity::components::{Health, Position, RuntimeId};
 use crate::entity::mob::combat;
 use crate::entity::mob::components::KnockbackPower;
@@ -36,72 +36,16 @@ const DOOR_REACH: &str = include_str!(
     "../../../../../client-diff/tests/fixtures/bds-zombie/zombie-door-reach-spear.jsonl"
 );
 
-/// The recorded worlds' floor is at y = -61; ours is at 63.
-const RECORDED_Y_OFFSET: f64 = 124.0;
-/// Milliseconds per server tick.
-const TICK_MS: f64 = 50.0;
-/// Runtime ID of the recorded player and of the harness player.
-const PLAYER_RUNTIME_ID: u64 = 1;
-
-/// One decoded packet of a recording.
-struct Recorded {
-    t_ms: f64,
-    s2c: bool,
-    /// The packet as recorded: its header and body.
-    bytes: Vec<u8>,
-    packet: McpePacketData,
-}
-
-/// The packets of `text` (a client-diff JSONL recording) these tests read,
-/// decoded.
-fn recording(text: &str) -> Vec<Recorded> {
-    const READ: [&str; 7] = [
-        "AddActor",
-        "ActorEvent",
-        "MobEquipment",
-        "PlayerAuthInput",
-        "SetActorData",
-        "SetActorMotion",
-        "UpdateAttributes",
-    ];
-    text.lines()
-        .filter(|line| !line.trim().is_empty())
-        .filter_map(|line| {
-            let record: serde_json::Value = serde_json::from_str(line).expect("JSONL record");
-            let name = record["name"].as_str().expect("packet name");
-            if !READ.contains(&name) {
-                return None;
-            }
-            let hex = record["hex"].as_str().expect("packet hex");
-            let bytes: Vec<u8> = (0..hex.len())
-                .step_by(2)
-                .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).expect("hex byte"))
-                .collect();
-            let (_, packet) =
-                McpePacketData::decode_inner_bytes(&mut frame(&bytes), McpePacketArgs)
-                    .unwrap_or_else(|error| panic!("{name}: {error:?}"));
-            Some(Recorded {
-                t_ms: record["t_ms"].as_f64().expect("t_ms"),
-                s2c: record["dir"] == "s2c",
-                bytes,
-                packet,
-            })
-        })
-        .collect()
-}
-
-/// `bytes` behind their length, as a batch carries a packet.
-fn frame(bytes: &[u8]) -> Bytes {
-    let mut framed = Vec::with_capacity(bytes.len() + 5);
-    let mut len = bytes.len() as u32;
-    while len >= 0x80 {
-        framed.push(len as u8 | 0x80);
-        len >>= 7;
-    }
-    framed.push(len as u8);
-    framed.extend_from_slice(bytes);
-    framed.into()
-}
+/// The packets these tests read from a recording.
+const READ: [&str; 7] = [
+    "AddActor",
+    "ActorEvent",
+    "MobEquipment",
+    "PlayerAuthInput",
+    "SetActorData",
+    "SetActorMotion",
+    "UpdateAttributes",
+];
 
 /// The first actor flag word a `SetActorData` carries.
 fn flag_word(packet: &SetActorDataPacket) -> Option<i64> {
@@ -429,7 +373,7 @@ fn kinds(seen: &[(u64, Seen)]) -> Vec<Seen> {
 /// kills the player and the zombie lowers the spear the next tick.
 #[test]
 fn spear_zombie_fight_in_the_open_matches_the_recording() {
-    let recorded = recorded_fight(&recording(FIELD), false);
+    let recorded = recorded_fight(&recording(FIELD, &READ), false);
     assert_eq!(recorded.hits().len(), 3, "recorded: {:?}", recorded.seen);
 
     let mut h = built(21, Difficulty::Hard, |_| None);
@@ -467,7 +411,7 @@ fn spear_zombie_fight_in_the_open_matches_the_recording() {
 /// for its cooldown and raises it again.
 #[test]
 fn spear_zombie_at_a_closed_door_matches_the_recording() {
-    let recorded = recorded_fight(&recording(DOOR_REACH), true);
+    let recorded = recorded_fight(&recording(DOOR_REACH, &READ), true);
     assert!(recorded.hits().is_empty(), "recorded: {:?}", recorded.seen);
 
     let planks = BlockRegistry::vanilla()
@@ -535,7 +479,7 @@ fn spear_zombie_at_a_closed_door_matches_the_recording() {
 /// container 0.
 #[test]
 fn spear_mob_equipment_matches_the_recorded_bytes() {
-    let records = recording(FIELD);
+    let records = recording(FIELD, &READ);
     let recorded = records
         .iter()
         .find(|r| r.s2c && matches!(r.packet, McpePacketData::MobEquipmentPacket(_)))

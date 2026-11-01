@@ -23,7 +23,7 @@ use jolyne::valentine::{
 };
 
 use crate::entity::components::{
-    ActorViewers, OnGround, PlayerSession, Position, Rotation, RuntimeId, Velocity,
+    ActorViewers, OnGround, PlayerSession, Position, Rotation, RuntimeEntityId, RuntimeId, Velocity,
 };
 use crate::entity::definition::attributes::ActorAttributes;
 use crate::entity::definition::metadata::EntityMetadata;
@@ -58,6 +58,17 @@ pub struct Teleported;
 /// Degrees to the protocol's 1/256-turn rotation byte.
 pub fn rotation_byte(degrees: f32) -> u8 {
     (degrees.rem_euclid(360.0) * 256.0 / 360.0).round() as u32 as u8
+}
+
+/// The actor's unique id on the wire: a mob's runtime id (its `AddActor`
+/// sends both as one), a player's runtime entity id (`StartGame` and
+/// `AddPlayer` do the same).
+pub fn actor_unique_id(world: &World, actor: Entity) -> i64 {
+    world
+        .get::<RuntimeId>(actor)
+        .map(|id| id.0)
+        .or_else(|| world.get::<RuntimeEntityId>(actor).map(|id| id.0))
+        .unwrap_or(0)
 }
 
 fn wire(v: DVec3) -> Vec3 {

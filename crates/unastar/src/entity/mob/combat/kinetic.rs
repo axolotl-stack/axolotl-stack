@@ -41,9 +41,7 @@ use unastar_data::item_components::{KineticConditions, KineticWeapon};
 use super::melee::attack_damage_with;
 use super::{Hit, hurt_mob, knockback_power_of, send_actor_event};
 use crate::ecs::TickCounter;
-use crate::entity::components::{
-    GameMode, PhysicsBody, Player, Position, Rotation, RuntimeEntityId, RuntimeId,
-};
+use crate::entity::components::{GameMode, PhysicsBody, Player, Position, Rotation};
 use crate::entity::mob::MobKind;
 use crate::entity::mob::ai::Candidate;
 use crate::entity::mob::ai::sensing::{first_block_hit, segment_entry};
@@ -52,6 +50,7 @@ use crate::entity::mob::constants::{
     KINETIC_HITBOX_MARGIN_SCALE, KINETIC_MIN_SPEED_EPSILON, KINETIC_REHIT_TICKS,
     MOB_HEAD_ATTACH_RATIO, TICKS_PER_SECOND,
 };
+use crate::entity::mob::net::network::actor_unique_id;
 use crate::entity::mob::state::Dead;
 use crate::entity::player_life::hurt_player;
 use crate::registry::collision::Aabb;
@@ -345,7 +344,7 @@ fn strike(
             world,
             holder,
             EnumsActorEvent::KineticDamageDealt,
-            unique_id(world, target) as i32,
+            actor_unique_id(world, target) as i32,
         );
     }
 }
@@ -358,15 +357,6 @@ fn look_direction(yaw: f32, pitch: f32) -> DVec3 {
         -pitch.sin(),
         yaw.cos() * pitch.cos(),
     )
-}
-
-/// The actor's unique id (a mob's runtime id, a player's runtime entity id).
-fn unique_id(world: &World, actor: Entity) -> i64 {
-    world
-        .get::<RuntimeId>(actor)
-        .map(|id| id.0)
-        .or_else(|| world.get::<RuntimeEntityId>(actor).map(|id| id.0))
-        .unwrap_or(0)
 }
 
 #[cfg(test)]

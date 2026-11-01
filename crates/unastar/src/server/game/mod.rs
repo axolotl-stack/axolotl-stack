@@ -649,11 +649,13 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // `minecraft:spawn_entity` (egg laying) and ambient sound names.
+        // `minecraft:spawn_entity` (egg laying), ambient sound names and the
+        // warnings of mobs that took a target last tick.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::life::spawn_entity::tick_spawn_entity,
                 crate::entity::mob::net::ambient::update_ambient_sound_names,
+                crate::entity::mob::net::target::play_target_warnings,
             )
                 .chain()
                 .in_set(EntityLogicSet)

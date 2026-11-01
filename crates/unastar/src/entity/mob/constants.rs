@@ -823,6 +823,10 @@ pub const MOB_EYES_ATTACH_RATIO: f64 = 0.9;
 /// feet: where the fuse hiss plays (confirmed: the BDS 1.26.51 creeper
 /// capture plays it 1.53 above a 1.8-block creeper's feet).
 pub const MOB_HEAD_ATTACH_RATIO: f64 = 0.85;
+/// The level sound a mob plays at its head the tick after it takes a
+/// target it did not have (matches the BDS 1.26.51 recordings
+/// `skeleton-bow-field`, `stray-bow-field` and `zombie-spear-field`).
+pub const TARGET_WARNING_SOUND: &str = "mob.warning";
 /// The swing source of the arm swing a `minecraft:interact` row with
 /// `swing` sends (confirmed against BDS: the interact source; the wire
 /// casing is provisional, matching unastar's lowercase `attack`).
