@@ -353,19 +353,25 @@ impl DimensionRouter {
     /// local ECS borrows. Aggregate application ticks run exactly once.
     pub async fn tick(&mut self) -> Result<(), WorldTickError> {
         self.refresh_directory();
+        if let Some(manager) = self.plugin_manager.clone() {
+            manager
+                .lock()
+                .map_err(|_| WorldTickError::PluginManagerUnavailable)?
+                .begin_tick(
+                    self.worlds
+                        .get_mut(&self.primary)
+                        .expect("primary world")
+                        .ecs
+                        .world_mut(),
+                );
+        }
         for world in self.worlds.values_mut() {
-            if let Some(manager) = &self.plugin_manager {
-                manager
-                    .lock()
-                    .map_err(|_| WorldTickError::PluginManagerUnavailable)?
-                    .begin_tick(world.ecs.world_mut());
-            }
             world.tick();
             if let Some(manager) = &self.plugin_manager {
                 manager
                     .lock()
                     .map_err(|_| WorldTickError::PluginManagerUnavailable)?
-                    .tick(world.ecs.world_mut());
+                    .drain_world_events(world.ecs.world_mut());
             }
             super::loading::expire(world);
         }
@@ -379,6 +385,26 @@ impl DimensionRouter {
             handler.on_tick(self, &directory);
         }
         self.refresh_directory();
+        if let Some(manager) = self.plugin_manager.clone() {
+            manager
+                .lock()
+                .map_err(|_| WorldTickError::PluginManagerUnavailable)?
+                .dispatch_global_tick(
+                    self.worlds
+                        .get_mut(&self.primary)
+                        .expect("primary world")
+                        .ecs
+                        .world_mut(),
+                );
+            // Global callbacks queue work rather than reentering borrowed worlds.
+            // Its synchronous plugin hooks still share this cycle's original fuel.
+            self.apply_requests();
+            self.refresh_directory();
+            manager
+                .lock()
+                .map_err(|_| WorldTickError::PluginManagerUnavailable)?
+                .end_tick();
+        }
         Ok(())
     }
     /// Replace immutable directory resources without holding a world borrow.

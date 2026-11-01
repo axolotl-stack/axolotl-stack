@@ -241,6 +241,9 @@ impl wit_bindings::unastar::plugin::host::Host for HostContext {
 
     fn get_player_count(&mut self) -> u32 {
         let world = self.world_mut();
+        if let Some(directory) = world.get_resource::<crate::server::worlds::WorldDirectory>() {
+            return directory.players().count().min(u32::MAX as usize) as u32;
+        }
         world
             .query_filtered::<(), bevy_ecs::prelude::With<crate::entity::components::Player>>()
             .iter(world)
@@ -300,6 +303,12 @@ impl wit_bindings::unastar::plugin::host::Host for HostContext {
 
     fn list_players(&mut self) -> Vec<String> {
         let world = self.world_mut();
+        if let Some(directory) = world.get_resource::<crate::server::worlds::WorldDirectory>() {
+            return directory
+                .players()
+                .map(|player| player.identity().name().to_owned())
+                .collect();
+        }
         let mut names = Vec::new();
         for name in world
             .query_filtered::<&crate::entity::components::PlayerName, bevy_ecs::prelude::With<crate::entity::components::Player>>()
@@ -577,22 +586,44 @@ impl PluginManager {
         }
     }
 
-    /// Run the tick loop for all plugins.
+    /// Run a complete standalone world cycle. Routers drain individual worlds
+    /// before dispatching their single aggregate tick and ending its budget.
     pub fn tick(&mut self, ecs_world: &mut bevy_ecs::world::World) {
-        let budget_valid = self.begin_tick(ecs_world);
-        // Drain events from ECS
-        let all_events = {
-            let mut event_buffer = ecs_world
-                .get_resource_mut::<crate::ecs::events::EventBuffer>()
-                .unwrap();
-            let mut events = event_buffer.drain();
-            let tick_id = ecs_world
-                .get_resource::<crate::ecs::resources::TickCounter>()
-                .unwrap()
-                .current;
-            events.push(ServerEvent::Tick { tick_id });
-            events
-        };
+        self.drain_world_events(ecs_world);
+        self.dispatch_global_tick(ecs_world);
+        self.end_tick();
+    }
+
+    /// Drain local events without synthesizing a game tick or renewing fuel.
+    pub(crate) fn drain_world_events(&mut self, ecs_world: &mut bevy_ecs::world::World) {
+        self.begin_tick(ecs_world);
+        let events = ecs_world
+            .resource_mut::<crate::ecs::events::EventBuffer>()
+            .drain();
+        self.dispatch_events(ecs_world, events);
+    }
+
+    /// Dispatch one aggregate tick while retaining the budget for queued work.
+    pub(crate) fn dispatch_global_tick(&mut self, ecs_world: &mut bevy_ecs::world::World) {
+        self.begin_tick(ecs_world);
+        let tick_id = ecs_world
+            .resource::<crate::ecs::resources::TickCounter>()
+            .current;
+        self.dispatch_events(ecs_world, vec![ServerEvent::Tick { tick_id }]);
+    }
+
+    /// End the shared cycle only after its deferred callbacks have completed.
+    pub(crate) fn end_tick(&mut self) {
+        self.tick_prepared = false;
+    }
+
+    /// Apply a buffered batch without changing the component's cycle budget.
+    fn dispatch_events(
+        &mut self,
+        ecs_world: &mut bevy_ecs::world::World,
+        all_events: Vec<ServerEvent>,
+    ) {
+        let budget_valid = self.tick_budget_valid;
 
         if all_events.is_empty() {
             return;
@@ -646,7 +677,6 @@ impl PluginManager {
                 crate::server::game::reject_block_event(ecs_world, &event);
             }
         }
-        self.tick_prepared = false;
     }
 
     /// Dispatch a single ServerEvent to a plugin's typed export.
@@ -1094,13 +1124,17 @@ mod tests {
             (core func $player-drop (canon resource.drop $player))
             (import "unastar:plugin/host@0.3.0" (instance $host
                 (export "get-tick-id" (func (result u64)))
+                (export "get-player-count" (func (result u32)))
                 (export "set-block" (func (param "pos" $pos) (param "block-id" u32)))))
             (alias export $host "get-tick-id" (func $tick))
+            (alias export $host "get-player-count" (func $player-count))
             (alias export $host "set-block" (func $set-block))
             (core func $tick-lowered (canon lower (func $tick)))
+            (core func $player-count-lowered (canon lower (func $player-count)))
             (core func $set-block-lowered (canon lower (func $set-block)))
             (core module $module
                 (import "host" "tick" (func $tick (result i64)))
+                (import "host" "player-count" (func $player-count (result i32)))
                 (import "host" "set-block" (func $set-block (param i32 i32 i32 i32)))
                 (import "host" "drop-player" (func $drop-player (param i32)))
                 (memory (export "memory") 1)
@@ -1154,6 +1188,7 @@ mod tests {
             r#")
             (core instance $host-core
                 (export "tick" (func $tick-lowered))
+                (export "player-count" (func $player-count-lowered))
                 (export "set-block" (func $set-block-lowered))
                 (export "drop-player" (func $player-drop)))
             (core instance $instance (instantiate $module (with "host" (instance $host-core))))
@@ -1547,6 +1582,8 @@ mod tests {
         prepare_invocation(&mut store);
         assert_eq!(ok.call(&mut store, ()).unwrap(), 7);
     }
+
+    mod router_ticks;
 }
 
 #[cfg(test)]
