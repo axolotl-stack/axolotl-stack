@@ -794,7 +794,9 @@ to remote representations.
 Native actor audiences, invisibility and initial publication remain authoritative.
 `actor_visible` or `equipment_visible` set to `false` restricts the native view;
 `true` preserves the native baseline. `invisible: Some(false)` does not remove a
-native invisibility effect. Initial actor packets, subsequent reconciliation and
+native invisibility effect. `armour_visible: Some(false)` hides remote armour
+while preserving both native hands. Allowing armour never reveals gear hidden
+by `equipment_visible: Some(false)`. Initial actor packets, subsequent reconciliation and
 immediate native flag updates use the same projection. Clearing with `None` or
 dropping the owner restores current native presentation, including current gear.
 Failed sends retry without acknowledging an unsent metadata or equipment change.

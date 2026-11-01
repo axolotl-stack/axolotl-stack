@@ -14,6 +14,8 @@ interface views {
         actor-visible: option<bool>,
         /// False hides remote equipment without changing physical slots.
         equipment-visible: option<bool>,
+        /// False hides only remote armour; true never reveals equipment hidden by another rule.
+        armour-visible: option<bool>,
     }
     variant projection-error {
         access(access-error),
