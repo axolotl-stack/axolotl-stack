@@ -416,7 +416,7 @@ fn required_projectile_references_close_over_later_validation_failures() {
         registry
             .unsupported_reason("minecraft:blaze")
             .unwrap()
-            .contains("not a spawnable")
+            .contains("minecraft:small_fireball")
     );
 }
 
