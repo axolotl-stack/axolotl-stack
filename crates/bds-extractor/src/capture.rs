@@ -625,7 +625,7 @@ pub fn write_outputs(
         .collect();
     let manifest = json!({
         "format": 1,
-        "protocol_version": valentine::bedrock::version::v1_26_51::PROTOCOL_VERSION,
+        "protocol_version": jolyne::PROTOCOL_VERSION,
         "server_version": server_version,
         "captured_at": crate::output::chrono_lite_now(),
         "packets": {
@@ -788,6 +788,9 @@ mod tests {
             feedback: vec![],
         }];
         let manifest = write_outputs(&dir, &records, phases, &summons).unwrap();
+
+        assert_eq!(manifest["protocol_version"], 2225);
+        assert_eq!(manifest["protocol_version"], jolyne::PROTOCOL_VERSION);
 
         let sequence: Vec<Value> =
             serde_json::from_slice(&std::fs::read(dir.join("join-sequence.json")).unwrap())
