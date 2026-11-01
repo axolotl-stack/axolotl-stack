@@ -148,7 +148,7 @@ impl Harness {
         if archives.is_some() {
             capabilities.insert(PluginCapability::PlayerStateArchives);
         }
-        let pending = PendingPlugin {
+        let mut pending = PendingPlugin {
             component: Component::from_file(&engine, guest()).unwrap(),
             store: context,
             manifest: PluginManifest {
@@ -194,7 +194,11 @@ impl Harness {
                 })
                 .unwrap();
         }
-        manager.lock().unwrap().pending.push(pending);
+        {
+            let mut manager = manager.lock().unwrap();
+            pending.store.data_mut().archive_registry = manager.archive_registry.clone();
+            manager.pending.push(pending);
+        }
         let world = router.world_mut(0).unwrap().ecs.world_mut();
         world.insert_resource(crate::world::WorldIdentity {
             id: uuid::Uuid::from_u128(9),
