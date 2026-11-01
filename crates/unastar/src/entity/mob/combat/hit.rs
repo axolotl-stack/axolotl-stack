@@ -105,6 +105,9 @@ pub fn player_attack(
     let selected_slot = world.get::<HeldSlot>(player).map(|slot| slot.0);
     let held = held_item(world, player).cloned();
     let damage = unastar_data::melee::attack_damage(held.as_ref().map(|stack| stack.item_id()));
+    let fire_ticks = held
+        .as_ref()
+        .map_or(0, crate::item::enchant::fire_aspect_ticks);
     let hit = Hit {
         damage,
         cause: ActorDamageCause::EntityAttack,
@@ -122,6 +125,9 @@ pub fn player_attack(
     } else {
         hurt_mob(world, target, hit)
     };
+    if applied > 0.0 {
+        super::fire::ignite_living(world, target, fire_ticks);
+    }
     // The attacker pays food and, for a hit that landed, weapon durability.
     crate::server::game::hunger::exhaust_player(world, player, |values| values.attack);
     if applied > 0.0

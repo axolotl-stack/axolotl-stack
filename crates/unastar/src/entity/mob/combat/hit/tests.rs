@@ -516,3 +516,5 @@ fn landed_hits_wear_the_weapon_and_cost_food() {
         .clone();
     assert_eq!(durability_damage(&held), 0);
 }
+
+mod fire_aspect;

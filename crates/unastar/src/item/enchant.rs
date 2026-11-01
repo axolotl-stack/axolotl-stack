@@ -19,6 +19,7 @@ use super::ItemStack;
 #[repr(i16)]
 pub enum Enchantment {
     AquaAffinity = 8,
+    FireAspect = 13,
     Looting = 14,
     Efficiency = 15,
     SilkTouch = 16,
@@ -34,6 +35,7 @@ impl Enchantment {
     pub fn from_name(name: &str) -> Option<Self> {
         Some(match name.strip_prefix("minecraft:").unwrap_or(name) {
             "aqua_affinity" => Self::AquaAffinity,
+            "fire_aspect" => Self::FireAspect,
             "looting" => Self::Looting,
             "efficiency" => Self::Efficiency,
             "silk_touch" => Self::SilkTouch,
@@ -242,6 +244,18 @@ pub fn enchantment_ids(stack: &ItemStack) -> Vec<(i16, u8)> {
             _ => None,
         })
         .collect()
+}
+
+/// Fire Aspect burn duration from a captured sword stack, in server ticks.
+/// Other weapon classes do not acquire sword behavior from arbitrary NBT.
+pub fn fire_aspect_ticks(stack: &ItemStack) -> u64 {
+    if stack
+        .item()
+        .is_none_or(|item| item.tool_info().kind != Some(crate::registry::item::ToolKind::Sword))
+    {
+        return 0;
+    }
+    u64::from(enchantment_level(stack, Enchantment::FireAspect)) * 80
 }
 
 /// Tool wear (`Damage`) of `stack`.

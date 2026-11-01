@@ -26,7 +26,7 @@ use unastar_data::actor_components::body::ActorDamageCause;
 
 use super::{Hit, hurt_mob};
 use crate::ecs::resources::TickCounter;
-use crate::entity::components::{PhysicsBody, Position};
+use crate::entity::components::{GameMode, Health, PhysicsBody, Player, Position};
 use crate::entity::conditions::fire_immune;
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::mob::MobKind;
@@ -87,6 +87,27 @@ pub fn ignite(world: &mut World, mob: Entity, ticks: u64) {
     };
     world.entity_mut(mob).insert(burning);
     set_on_fire_flag(world, mob, true);
+}
+
+/// Ignite a living target through its ordinary player or mob fire lane.
+/// Dead, fire-immune, creative and spectator actors cannot acquire this fire.
+pub fn ignite_living(world: &mut World, target: Entity, ticks: u64) {
+    if ticks == 0
+        || world.get::<Dead>(target).is_some()
+        || world.get::<Health>(target).is_none_or(Health::is_dead)
+        || matches!(
+            world.get::<GameMode>(target),
+            Some(GameMode::Creative | GameMode::Spectator)
+        )
+    {
+        return;
+    }
+    if world.get::<Player>(target).is_some() {
+        let now = world.resource::<TickCounter>().current;
+        crate::entity::player_life::environment::ignite_player(world, target, now, ticks);
+    } else {
+        ignite(world, target, ticks);
+    }
 }
 
 /// Put out `mob`'s fire.

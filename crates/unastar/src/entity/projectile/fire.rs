@@ -4,31 +4,14 @@ use bevy_ecs::prelude::*;
 use glam::IVec3;
 
 use super::config::BlockFire;
-use crate::ecs::resources::TickCounter;
-use crate::entity::components::{GameMode, Health, Player};
-use crate::entity::mob::state::Dead;
+use crate::entity::components::Player;
 use crate::entity::systems::BlockSource;
 use crate::server::game::types::BlockRegistryResource;
 use crate::world::rules::GameRules;
 
 /// Ignite a living collision target through its ordinary, immunity-aware lane.
 pub(super) fn actor(world: &mut World, target: Entity, ticks: u64) {
-    if ticks == 0
-        || world.get::<Dead>(target).is_some()
-        || world.get::<Health>(target).is_none_or(Health::is_dead)
-        || matches!(
-            world.get::<GameMode>(target),
-            Some(GameMode::Creative | GameMode::Spectator)
-        )
-    {
-        return;
-    }
-    if world.get::<Player>(target).is_some() {
-        let now = world.resource::<TickCounter>().current;
-        crate::entity::player_life::environment::ignite_player(world, target, now, ticks);
-    } else {
-        crate::entity::mob::combat::fire::ignite(world, target, ticks);
-    }
+    crate::entity::mob::combat::fire::ignite_living(world, target, ticks);
 }
 
 /// Ignite only the air cell immediately outside the authoritative hit face.

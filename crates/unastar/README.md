@@ -1577,3 +1577,14 @@ their existing boundaries. Switching weapons or removing the shooter does not
 change an arrow's captured enchantments. Punch and tipped-arrow ammunition remain
 unimplemented. These formulas follow a public library reference; no additional
 Bedrock version conformance is claimed. See [third-party notices](THIRD_PARTY_NOTICES.md).
+
+## Fire Aspect
+
+Accepted player melee attacks and equipped mob melee attacks capture Fire Aspect
+from the original sword before damage callbacks. A hit that removes health ignites
+its living target for `80 * level` ticks through the ordinary player or mob fire
+lane. Dead, fire-immune, creative and spectator targets do not catch this fire.
+Later held-item changes cannot add or remove the captured fire effect. Attack
+damage calculations are unchanged. Sword classification uses the registered tool
+kind; adding sword enchantment NBT to another item does not grant its behavior.
+The duration follows the public library formula in the [third-party notices](THIRD_PARTY_NOTICES.md).

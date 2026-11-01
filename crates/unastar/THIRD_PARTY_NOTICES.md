@@ -1,6 +1,6 @@
 # Third-party notices
 
-The bow enchantment behavior follows the published Power and Flame formulas in
+The weapon enchantment behavior follows the published Power, Flame and Fire Aspect formulas in
 [Dragonfly v0.10.13](https://github.com/df-mc/dragonfly/tree/v0.10.13).
 
 ## Dragonfly
