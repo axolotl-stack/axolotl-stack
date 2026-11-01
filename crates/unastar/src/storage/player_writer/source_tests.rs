@@ -2,7 +2,7 @@ use super::*;
 use crate::storage::{LevelDBPlayerProvider, RestorationSupplement};
 
 /// Native raw extras are stored beside the canonical slots without a recursive player row.
-fn supplement() -> RestorationSupplement {
+pub(super) fn supplement() -> RestorationSupplement {
     RestorationSupplement {
         version: 1,
         xuid: Some("73".into()),
@@ -57,7 +57,7 @@ fn fresh() -> (Uuid, PlayerData, SourceActorRecord) {
 }
 
 /// Open the actual durable provider through the same account serializer used by ordinary saves.
-fn writer(path: &std::path::Path) -> SerializedPlayerProvider {
+pub(super) fn writer(path: &std::path::Path) -> SerializedPlayerProvider {
     SerializedPlayerProvider::new(Arc::new(LevelDBPlayerProvider::open(path).unwrap()))
 }
 

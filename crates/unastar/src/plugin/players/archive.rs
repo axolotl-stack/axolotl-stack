@@ -203,6 +203,20 @@ impl super::super::wit_bindings::unastar::plugin::archives::Host for HostContext
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostArchivedPlayerState for HostContext {
+    fn death_occurrence(
+        &mut self,
+        archive: Resource<wit::ArchivedPlayerState>,
+    ) -> Result<Option<wit::DeathOccurrence>, wit::AccessError> {
+        Ok(self
+            .archived(archive.rep())?
+            .loaded
+            .record
+            .state
+            .data
+            .death_occurrence
+            .as_ref()
+            .map(super::occurrences::death))
+    }
     fn rebind(
         &mut self,
         archive: Resource<wit::ArchivedPlayerState>,

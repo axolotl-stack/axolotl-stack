@@ -246,6 +246,24 @@ impl GameServer {
         let Some(batch) = self.initial_packet_batch(entity) else {
             return false;
         };
+        self.enqueue_initial_batch(entity, batch)
+    }
+
+    /// Deferred initialization publishes the raw projection in the same reserved native batch.
+    pub(super) fn send_deferred_join_packets(&self, entity: Entity) -> bool {
+        let Some(mut batch) = self.initial_packet_batch(entity) else {
+            return false;
+        };
+        let Ok(raw) = super::player_state::deferred_initial_packets(self.ecs.world(), entity)
+        else {
+            return false;
+        };
+        batch.packets.extend(raw);
+        self.enqueue_initial_batch(entity, batch)
+    }
+
+    /// Channel capacity is reserved for every packet before exposing any of this state.
+    fn enqueue_initial_batch(&self, entity: Entity, batch: InitialBatch) -> bool {
         let world = self.ecs.world();
         let Some(session) = world.get::<PlayerSession>(entity) else {
             return false;

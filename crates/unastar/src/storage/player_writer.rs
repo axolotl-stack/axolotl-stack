@@ -34,6 +34,7 @@ pub(crate) struct StateOrigin {
 
 enum SourceMutation {
     Ordinary,
+    NativeTerminal,
     Handoff(StateOrigin),
     InitialTerminal {
         witness: super::terminal::NativeTerminalRecord,
@@ -220,7 +221,7 @@ impl SerializedPlayerProvider {
             hash,
             candidate,
             Some(supplement),
-            (SourceMutation::Ordinary, None),
+            (SourceMutation::NativeTerminal, None),
         )
         .await
         .map(|(effect, data)| SourceWrite { effect, data })
@@ -405,6 +406,21 @@ impl SerializedPlayerProvider {
         {
             return Err(rejected("inventory receipt history is full"));
         }
+        let terminal = matches!(&source, SourceMutation::NativeTerminal)
+            || matches!(&source, SourceMutation::Transition { desired, .. } if desired.phase == SourcePhase::Terminal);
+        // Historical state installs and ordinary saves cannot erase, rewind or mint an event.
+        if !terminal
+            || candidate.death_occurrence.is_none()
+            || current
+                .as_ref()
+                .and_then(|data| data.death_occurrence.as_ref())
+                .zip(candidate.death_occurrence.as_ref())
+                .is_some_and(|(old, new)| old.id == new.id)
+        {
+            candidate.death_occurrence = current
+                .as_ref()
+                .and_then(|data| data.death_occurrence.clone());
+        }
         candidate.source_actor =
             source_update(current.as_ref(), &candidate, source, id, request_hash)?;
         candidate.inventory_effects =
@@ -420,6 +436,17 @@ impl SerializedPlayerProvider {
         candidate
             .inventory_effects
             .insert(id.into(), record.clone());
+        if terminal
+            && let Some(event) = &mut candidate.death_occurrence
+            && event.post_drop.is_none()
+        {
+            event.post_drop = Some(
+                crate::entity::player_life::occurrence::RecordedDeathReceipt {
+                    id: id.into(),
+                    receipt: record.clone(),
+                },
+            );
+        }
         candidate.restoration_checkpoint =
             supplement.map(|supplement| super::RestorationCheckpoint {
                 id: id.into(),
@@ -523,6 +550,9 @@ impl PlayerProvider for SerializedPlayerProvider {
         }
         let mut candidate = data.clone();
         candidate.source_actor = ordinary_source(current.as_ref(), data)?;
+        candidate.death_occurrence = current
+            .as_ref()
+            .and_then(|data| data.death_occurrence.clone());
         // This ordinary-save boundary retires the one-shot raw handoff. Keeping
         // old extras beside newly advanced life/position would replay stale state.
         candidate.restoration_checkpoint = None;
@@ -600,7 +630,9 @@ fn source_update(
     };
     let old = current.and_then(|data| data.source_actor.as_ref());
     match mutation {
-        SourceMutation::Ordinary => ordinary_source(current, candidate).map_err(|_| conflict()),
+        SourceMutation::Ordinary | SourceMutation::NativeTerminal => {
+            ordinary_source(current, candidate).map_err(|_| conflict())
+        }
         SourceMutation::Handoff(StateOrigin { source: proof, .. }) => match (old, proof) {
             (Some(old), Some(proof)) if old.phase.unresolved() && old.matches(&proof) => {
                 let mut next = old.clone();
@@ -718,6 +750,10 @@ fn uncertain(message: impl Into<String>) -> EffectWriteFailure {
 #[cfg(test)]
 #[path = "player_writer/source_tests.rs"]
 mod source_tests;
+
+#[cfg(test)]
+#[path = "player_writer/occurrence_tests.rs"]
+mod occurrence_tests;
 
 #[cfg(test)]
 mod tests {

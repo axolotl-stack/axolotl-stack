@@ -115,15 +115,20 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
     }
 }
 
-/// The stored state of a player. A player saved while dead is stored as it
-/// will respawn (respawn position, full health, fresh hunger), so it never
-/// reloads with zero health.
+/// Ordinary captures retain the current canonical death until a real new life begins.
+/// Legacy deaths without a native terminal witness use their next respawn state.
 pub(super) fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
     if crate::plugin::manager::sessions::blocks_publication(world, entity)
         || player_state::source_actors::admission_blocked(world, entity)
         || player_state::source_actors::pending(world, entity)
         || inventory_effects::grant_pending(world, entity)
         || inventory_effects::grant_death_pending(world, entity)
+        || (world
+            .get::<crate::entity::player_life::Dead>(entity)
+            .is_some()
+            && world
+                .get::<player_state::source_actors::unowned_terminal::Witness>(entity)
+                .is_some())
     {
         return None;
     }
@@ -212,6 +217,19 @@ pub(super) fn capture_player_record(
             restoration_checkpoint: None,
             source_actor: None,
             native_terminal: None,
+            death_occurrence: {
+                let persisted = world
+                    .get::<inventory_effects::InventoryPersistence>(entity)
+                    .and_then(|state| state.death_occurrence());
+                let current = world.get::<crate::entity::player_life::death::NativeDeathId>(entity);
+                match (current, persisted) {
+                    (Some(current), Some(persisted)) if current.1.id == persisted.id => {
+                        Some(persisted.clone())
+                    }
+                    (Some(current), _) => Some((*current.1).clone()),
+                    (None, persisted) => persisted.cloned(),
+                }
+            },
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -1001,6 +1019,10 @@ impl GameServer {
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;
         let mut saved_data = data.saved_data;
+        if let Some(saved) = &saved_data {
+            saved.validate(player_uuid)?;
+        }
+        let canonical_initial = saved_data.as_ref().map(|saved| Arc::new(saved.clone()));
         let restore_checkpoint = saved_data
             .as_ref()
             .filter(|data| data.restoration_checkpoint.is_some())
@@ -1013,7 +1035,6 @@ impl GameServer {
             inventory_effects::InventoryPersistence::from_record(saved_data.as_ref());
         let (main_inventory, armour, offhand, ui, ender_chest) = match saved_data.as_mut() {
             Some(saved) => {
-                saved.validate(player_uuid)?;
                 let items = &self.ecs.world().resource::<types::ItemRegistryResource>().0;
                 restore_items(saved, items)?
             }
@@ -1122,6 +1143,20 @@ impl GameServer {
 
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
             session_map.insert(data.session_id, entity);
+        }
+
+        if let Some(record) = canonical_initial
+            && let Err(error) =
+                player_state::remember_initial_record(self.ecs.world_mut(), entity, record)
+        {
+            self.ecs
+                .world_mut()
+                .resource_mut::<SessionEntityMap>()
+                .remove(data.session_id);
+            self.ecs.world_mut().despawn(entity);
+            return Err(crate::storage::StorageError::Deserialization(
+                error.to_string(),
+            ));
         }
 
         if let Some(checkpoint) = restore_checkpoint
@@ -1233,7 +1268,7 @@ impl GameServer {
                 continue;
             };
             if self.ecs.world().get::<PlayerSession>(entity).is_some() {
-                if !self.send_join_packets(entity) {
+                if !self.send_deferred_join_packets(entity) {
                     player_events::defer_initial_state(self.ecs.world_mut(), entity);
                     player_events::release_initial_state(self.ecs.world_mut(), entity);
                     continue;
@@ -1241,7 +1276,7 @@ impl GameServer {
                 if let Some(session) = self.ecs.world().get::<PlayerSession>(entity) {
                     session.release_initial_packets();
                 }
-                player_state::publish_deferred_state(self.ecs.world_mut(), entity);
+                player_state::note_live_initial_sent(self.ecs.world_mut(), entity);
             }
             self.ecs.world_mut().write_message(PlayerSpawnedEvent {
                 entity,

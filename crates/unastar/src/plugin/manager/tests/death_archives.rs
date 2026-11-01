@@ -132,6 +132,9 @@ impl Harness {
         });
         world.insert_resource(crate::entity::EntityRandom::seeded(17));
         world.init_resource::<Observed>();
+        world.insert_resource(crate::entity::player_life::occurrence::TestOccurrenceTime(
+            Some(1_710_000_000_123),
+        ));
         world
             .resource_mut::<crate::world::rules::GameRules>()
             .show_death_messages = false;
@@ -454,6 +457,28 @@ async fn actual_death_archive_preserves_exact_pre_drop_raw_state_and_native_meta
     );
 }
 
+/// Missing native clock evidence remains unknown after archival and a later callback.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unknown_native_occurrence_time_is_not_replaced_by_archive_or_callback_time() {
+    let root = tempfile::tempdir().unwrap();
+    let mut h = Harness::new(root.path(), 17, false, true);
+    h.router
+        .world_mut(0)
+        .unwrap()
+        .ecs
+        .world_mut()
+        .insert_resource(crate::entity::player_life::occurrence::TestOccurrenceTime(
+            None,
+        ));
+    h.kill(None);
+    assert!(h.logs().iter().any(|line| line == "archived"));
+    let loaded = h.loaded().unwrap();
+    let event = loaded.record.state.data.death_occurrence.as_ref().unwrap();
+    assert_eq!(event.unix_time_millis, None);
+    assert_eq!(event.id, loaded.record.death.as_ref().unwrap().capture_id);
+    assert!(event.runtime.is_some());
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn early_source_removal_keeps_owned_death_and_authenticated_attribution_archivable() {
     let root = tempfile::tempdir().unwrap();
@@ -506,6 +531,14 @@ async fn owned_death_capture_can_archive_from_later_global_tick_after_actual_dep
     h.kill(None);
     assert!(h.loaded().is_none());
     h.router.despawn_player(42);
+    h.router
+        .world_mut(0)
+        .unwrap()
+        .ecs
+        .world_mut()
+        .insert_resource(crate::entity::player_life::occurrence::TestOccurrenceTime(
+            Some(1_810_000_000_999),
+        ));
     h.router.tick().await.unwrap();
     assert!(h.logs().iter().any(|line| line == "archived-after-removal"));
     assert!(h.loaded().is_some());
@@ -679,6 +712,9 @@ async fn archive_demand_follows_the_shared_component_into_secondary_worlds_and_e
         name: "example-secondary".into(),
         dimension: 1,
     });
+    world.insert_resource(crate::entity::player_life::occurrence::TestOccurrenceTime(
+        Some(1_710_000_000_123),
+    ));
     world.init_resource::<Observed>();
     world
         .resource_mut::<crate::world::rules::GameRules>()

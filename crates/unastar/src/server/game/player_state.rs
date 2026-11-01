@@ -46,7 +46,9 @@ use super::types::{ItemRegistryResource, ServerConfigResource};
 const SNAPSHOT_VERSION: u32 = 1;
 
 mod checkpoint;
-pub(crate) use checkpoint::resume_checkpoint;
+pub(crate) use checkpoint::{
+    canonical_initial_record, forget_initial_record, remember_initial_record, resume_checkpoint,
+};
 pub(crate) mod death_capture;
 pub(crate) mod quarantine;
 pub(crate) mod restoration;
@@ -585,7 +587,11 @@ pub fn restore(
         if snapshot.dead {
             entity.insert(Dead);
         } else {
-            entity.remove::<Dead>();
+            entity.remove::<(
+                Dead,
+                crate::entity::player_life::death::NativeDeathId,
+                source_actors::unowned_terminal::Witness,
+            )>();
         }
         if let Some(mut breaking) = entity.get_mut::<BreakingState>() {
             breaking.stop();
@@ -934,8 +940,20 @@ pub(crate) fn live_initial_packets(
     world: &World,
     player: Entity,
 ) -> Result<Vec<jolyne::valentine::McpePacket>, SnapshotError> {
+    if world.get::<Dead>(player).is_some() {
+        return Err(SnapshotError::MissingPlayer);
+    }
+    deferred_initial_packets(world, player)
+}
+
+/// Reserve complete current raw presentation, including a genuine dead state's respawn UI.
+/// Packet construction does not mutate or publish any native component.
+pub(crate) fn deferred_initial_packets(
+    world: &World,
+    player: Entity,
+) -> Result<Vec<jolyne::valentine::McpePacket>, SnapshotError> {
     let snapshot = capture(world, player)?;
-    if snapshot.dead || world.get::<PlayerSession>(player).is_none() {
+    if world.get::<PlayerSession>(player).is_none() {
         return Err(SnapshotError::MissingPlayer);
     }
     let mut packets = vec![crate::command::exec::player_teleport_packet(
@@ -948,6 +966,9 @@ pub(crate) fn live_initial_packets(
     packets.extend(effect_packets(world, player, &BTreeSet::new(), &snapshot));
     packets.extend(life_packet(world, player, &snapshot));
     packets.extend(motion_packet(world, player, &snapshot));
+    if snapshot.dead {
+        packets.extend(crate::entity::player_life::respawn::initial_respawn_packets(world, player));
+    }
     Ok(packets)
 }
 
@@ -971,35 +992,6 @@ pub(crate) fn note_live_initial_sent(world: &mut World, player: Entity) {
 /// Convert structural and item-resolution failures to a stable public error.
 fn invalid(error: impl std::fmt::Display) -> SnapshotError {
     SnapshotError::InvalidState(error.to_string())
-}
-
-/// Publish current raw presentation once the deferred initial batch has been sent.
-/// Effects, final position, velocity and life presentation are reconstructed from
-/// a validated current snapshot without gameplay actions.
-pub(crate) fn publish_deferred_state(world: &mut World, player: Entity) {
-    let Ok(snapshot) = capture(world, player) else {
-        return;
-    };
-    let feet = DVec3::from_array(snapshot.data.position) - DVec3::Y * PLAYER_EYE_HEIGHT;
-    crate::command::exec::move_entity(
-        world,
-        player,
-        feet,
-        snapshot.data.rotation[0],
-        snapshot.data.rotation[1],
-    );
-    if let Some(mut position) = world.get_mut::<Position>(player) {
-        position.0 = DVec3::from_array(snapshot.data.position);
-    }
-    if let Some(mut rotation) = world.get_mut::<Rotation>(player) {
-        rotation.head_yaw = snapshot.head_yaw;
-    }
-    send_effects(world, player, &BTreeSet::new(), &snapshot);
-    send_life_and_motion(world, player, &snapshot);
-    let sent = world
-        .get::<Effects>(player)
-        .map_or_else(SentEffects::default, SentEffects::sent);
-    world.entity_mut(player).insert(sent);
 }
 
 #[cfg(test)]

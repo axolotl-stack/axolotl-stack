@@ -5,6 +5,8 @@
 //! proof. Trusted embedding applications may construct PlayerSession themselves;
 //! they own that ingress boundary and must never put guest claims in its XUID.
 
+pub(crate) mod owned;
+
 use bevy_ecs::prelude::*;
 use bevy_ecs::world::WorldId;
 use uuid::Uuid;

@@ -95,8 +95,11 @@ pub fn kill_player(world: &mut World, player: Entity) -> bool {
 }
 
 /// One actual engine death, preserved while its durable continuation is pending.
-#[derive(Component, Clone, Copy)]
-pub(crate) struct NativeDeathId(pub(crate) uuid::Uuid);
+#[derive(Component, Clone)]
+pub(crate) struct NativeDeathId(
+    pub(crate) uuid::Uuid,
+    pub(crate) std::sync::Arc<super::occurrence::NativeDeathOccurrence>,
+);
 
 /// The death of `player`, whose health just reached zero.
 pub(super) fn die(
@@ -108,9 +111,20 @@ pub(super) fn die(
     if world.get::<Dead>(player).is_some() || world.get::<Player>(player).is_none() {
         return;
     }
+    // Capture a genuine engine generation even before the first component callback.
+    let _ = crate::plugin::manager::players::ensure_identity(world, player);
+    let id = uuid::Uuid::new_v4();
+    let occurrence = super::occurrence::NativeDeathOccurrence::capture(
+        world,
+        player,
+        id,
+        cause,
+        &attribution,
+        world.resource::<GameRules>().keep_inventory,
+    );
     world
         .entity_mut(player)
-        .insert((Dead, NativeDeathId(uuid::Uuid::new_v4())))
+        .insert((Dead, NativeDeathId(id, std::sync::Arc::new(occurrence))))
         .remove::<(Burning, HurtTimer)>();
     if let Some(mut fall) = world.get_mut::<PlayerFall>(player) {
         *fall = PlayerFall::default();

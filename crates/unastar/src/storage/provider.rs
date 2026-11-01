@@ -169,6 +169,9 @@ pub struct PlayerData {
     /// Exact native post-drop proof; a later ordinary capture retires this one-shot evidence.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_terminal: Option<super::terminal::NativeTerminalRecord>,
+    /// Recorded native event in this captured frame; descriptive, never restoration authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub death_occurrence: Option<super::NativeDeathOccurrence>,
 }
 
 impl Default for PlayerData {
@@ -200,6 +203,7 @@ impl Default for PlayerData {
             restoration_checkpoint: None,
             source_actor: None,
             native_terminal: None,
+            death_occurrence: None,
         }
     }
 }
@@ -281,6 +285,15 @@ impl StoredItemStack {
 impl PlayerData {
     /// Validate structural state; typed item resolution occurs atomically at spawn.
     pub fn validate(&self, uuid: Uuid) -> StorageResult<()> {
+        if self
+            .death_occurrence
+            .as_ref()
+            .is_some_and(|event| !event.valid() || !event.matches_history(self))
+        {
+            return Err(StorageError::Deserialization(
+                "invalid native death occurrence".into(),
+            ));
+        }
         if let Some(terminal) = &self.native_terminal {
             terminal.validate(self)?;
         }

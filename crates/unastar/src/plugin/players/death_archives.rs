@@ -22,32 +22,7 @@ pub(super) fn facts(facts: &archive_store::DeathFacts) -> wit::DeathFacts {
             }
         },
         cause: super::super::lifecycle::damage_cause(facts.cause.into()),
-        attribution: wit::DamageAttribution {
-            source_dimension: facts.attribution.source_dimension,
-            source_world_lifetime: facts.attribution.source_world_lifetime.clone(),
-            owner: facts
-                .attribution
-                .owner
-                .as_ref()
-                .map(|owner| wit::DamageOwner {
-                    is_player: owner.is_player,
-                    uuid: owner.uuid.clone(),
-                    authenticated: owner.authenticated.as_ref().map(|account| {
-                        wit::AuthenticatedDamageAccount {
-                            uuid: account.uuid.clone(),
-                            xuid: account.xuid,
-                        }
-                    }),
-                    connection_id: owner.connection_id,
-                    dimension: owner.dimension,
-                    world_lifetime: owner.world_lifetime.clone(),
-                    feet: owner.feet.map(|feet| wit::Vec3 {
-                        x: feet[0],
-                        y: feet[1],
-                        z: feet[2],
-                    }),
-                }),
-        },
+        attribution: super::occurrences::attribution(&facts.attribution),
         fall_distance: facts.fall_distance,
         keep_inventory: facts.keep_inventory,
     }
@@ -131,6 +106,19 @@ impl HostContext {
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostDeathState for HostContext {
+    fn death_occurrence(
+        &mut self,
+        state: Resource<wit::DeathState>,
+    ) -> Result<Option<wit::DeathOccurrence>, wit::AccessError> {
+        Ok(self
+            .death_archive(state.rep())?
+            .capture
+            .snapshot
+            .data
+            .death_occurrence
+            .as_ref()
+            .map(super::occurrences::death))
+    }
     fn facts(
         &mut self,
         state: Resource<wit::DeathState>,

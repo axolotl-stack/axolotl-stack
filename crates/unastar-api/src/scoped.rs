@@ -265,6 +265,13 @@ pub struct AdmissionHold {
     raw: raw::AdmissionHold,
 }
 impl AdmissionHold {
+    /// Read immutable loaded death facts without admitting or restoring this held connection.
+    pub fn death_occurrence(
+        &self,
+        tx: &WorldTx<'_>,
+    ) -> Result<Option<crate::DeathOccurrence>, AccessError> {
+        self.raw.death_occurrence(tx.raw)
+    }
     /// Stage live ownership without freezing its original body. Publish is a separate vote.
     pub fn rebind_source(
         &self,
@@ -319,6 +326,10 @@ pub struct Player<'scope> {
     scope: PhantomData<&'scope WorldTx<'scope>>,
 }
 impl<'scope> Player<'scope> {
+    /// Read this actual engine generation even while inventory mutations are pending.
+    pub fn runtime_identity(&self) -> Result<Option<crate::RuntimeIdentity>, AccessError> {
+        self.raw().runtime_identity()
+    }
     /// Commit exact quantities to compatible inventory slots and durable overflow actors.
     /// A committed receipt covers both in one native atomic record set.
     pub fn grant_items(

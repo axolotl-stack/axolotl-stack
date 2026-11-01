@@ -402,6 +402,46 @@ values remain unavailable to ordinary admission/saves until an explicit complete
 state handoff acknowledges their replacement. Frozen operations remain held on
 uncertain writes or source-world closure.
 
+When the canonical source runtime is installed, genuine source-free connected
+and retained deaths also wait for a native post-drop checkpoint and canonical
+receipt before publishing drops or death notifications. This
+engine-owned witness binds the actual account, world lifetime, actor lineage and
+native death UUID; it does not create module source ownership. The owned death
+capture uses that same UUID. `Player::checkpoint_terminal_source` can adopt only
+that exact acknowledged witness on the still-present retained dead body. Its
+provisional archive is not ownership, and a trapped adoption remains `Unowned`.
+Raw dead restoration and historical pre-drop captures cannot create this witness.
+Online native inventory continuations use the same barrier with their exact ACK
+and original death rules. A genuine ordinary respawn releases its native witness;
+a later current save retires the one-shot raw checkpoint while retaining receipts.
+Ordinary autosaves keep an acknowledged still-dead witness intact instead of
+normalizing it into a synthetic new life. Both manual and immediate native
+respawn remain available after acknowledgement. Without the supported canonical
+runtime, ordinary engine death retains its existing persistence behavior and has
+no durable terminal-acknowledgement guarantee.
+Native pending work and module-owned bodies cannot bypass the barrier through
+ordinary respawn. Sessionless automatic respawn does not create a new life for a
+caller-managed retained actor.
+
+After an acknowledged transfer loses its original target, a genuine fresh
+connection may initialize from the current canonical row under its own deferred
+admission hold. The ordinary full-state request must still validate the exact
+current expected image and acknowledge a new canonical receipt before the caller
+accepts it. Neither the old target's identity nor a historical source body is
+recreated. A retired raw source instead supplies its genuinely observed current
+canonical state image as the desired state, with the fresh target image as the
+expected state. Its earlier handoff marker cannot release this newer recovery
+sample. Native terminal hydration likewise supplies the actual post-drop dead
+state; choosing a new life requires an explicit typed state change and its own
+acknowledgement. Hydration alone does not respawn or clear death policy.
+
+Deferred publication reserves the complete ordinary initial batch together with
+current raw position, motion, effects and life presentation. A genuine dead state
+also receives its native respawn UI. Rejection publishes none of those values,
+and insufficient channel capacity retries the whole batch. Explicit accepted
+new-life restoration clears obsolete runtime death markers without reinstalling
+old canonical ownership or receipt history.
+
 An active source's death withholds native drops until its canonical terminal
 record contains the actual post-drop inventory. A `CommittedBeforeDrops` death
 archive remains historical evidence and cannot become source recreation

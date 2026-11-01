@@ -378,6 +378,7 @@ impl Plugin for Fixture {
                 })
             {
                 assert!(player.inventory_busy().unwrap());
+                assert!(player.runtime_identity().unwrap().is_some());
                 assert!(player.grant_receipt("exact-grant").unwrap().is_none());
                 log("uncertain-grant-readback-hidden");
             }
@@ -391,6 +392,7 @@ impl Plugin for Fixture {
                     raw::PlayerAvailability::Ready
                 );
                 assert!(player.inventory_busy().unwrap());
+                assert!(player.runtime_identity().unwrap().is_some());
                 assert!(player.health().unwrap() > 0.0);
                 assert!(player.inventory().is_ok());
                 log("live-inventory-busy");

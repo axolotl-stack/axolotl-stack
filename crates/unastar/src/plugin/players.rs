@@ -8,6 +8,8 @@ use wasmtime::component::Resource;
 
 #[path = "players/identity.rs"]
 mod identity;
+#[path = "players/occurrences.rs"]
+mod occurrences;
 pub(super) use identity::WorldReference;
 pub(super) use identity::resolve;
 pub(crate) use identity::{ComponentDirectory, PlayerLineage, ensure_identity};

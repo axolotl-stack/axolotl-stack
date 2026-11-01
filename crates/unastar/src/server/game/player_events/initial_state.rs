@@ -130,6 +130,7 @@ pub(crate) fn ready_initial_states(world: &mut World) -> Vec<Entity> {
 
 /// Open ordinary producers only after the complete native initial batch was enqueued.
 pub(crate) fn mark_initial_state_published(world: &mut World, player: Entity) {
+    super::super::player_state::forget_initial_record(world, player);
     if let Some(session) = world.get::<PlayerSession>(player) {
         session.release_initial_packets();
     }

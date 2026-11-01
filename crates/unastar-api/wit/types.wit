@@ -77,6 +77,29 @@ interface types {
         owner: option<damage-owner>,
     }
 
+    /// Descriptive native generations, never account, connection or restoration authority.
+    record runtime-identity {
+        lineage: string,
+        world-lifetime: string,
+    }
+    /// A receipt bound by the actual canonical post-drop writer.
+    record death-receipt {
+        request-id: string,
+        receipt: inventory-receipt,
+    }
+    /// Original native boundary facts. Missing legacy time or generations remain unknown.
+    /// Loading historical state cannot create another occurrence or rewind this metadata.
+    record death-occurrence {
+        id: string,
+        unix-time-millis: option<u64>,
+        runtime: option<runtime-identity>,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        fall-distance: option<f64>,
+        keep-inventory: bool,
+        post-drop: option<death-receipt>,
+    }
+
     record knockback {
         horizontal: f64,
         vertical: f64,
@@ -152,6 +175,7 @@ interface types {
     }
     /// Genuine raw dead state captured before drops, usable after the source actor departs.
     resource death-state {
+        death-occurrence: func() -> result<option<death-occurrence>, access-error>;
         facts: func() -> result<death-facts, access-error>;
         state-image: func() -> result<player-state-image, access-error>;
         archive: func(key: string) -> result<archive-reference, archive-error>;
@@ -404,6 +428,8 @@ interface types {
     }
 
     resource admission-hold {
+        /// Read the genuine loaded initialization row in this hold's exact world transaction.
+        death-occurrence: func(tx: borrow<world-tx>) -> result<option<death-occurrence>, access-error>;
         /// Checkpoint real live source ownership while keeping it physically active.
         rebind-source: func(tx: borrow<world-tx>, source: borrow<source-actor-operation>, correlation: u64) -> result<source-rebind-operation, state-error>;
         submit-state: func(tx: borrow<world-tx>, request-id: string, expected: borrow<player-state-image>, desired: borrow<player-state-image>, source: option<borrow<source-fence>>) -> result<state-operation, state-error>;
@@ -771,6 +797,7 @@ interface types {
     /// Native full state remains host-owned, including unknown item metadata.
     /// This resource only reads immutable observations; restoration is a separate capability.
     resource archived-player-state {
+        death-occurrence: func() -> result<option<death-occurrence>, access-error>;
         death-facts: func() -> result<option<death-facts>, access-error>;
         state-image: func() -> result<player-state-image, access-error>;
         /// Reacquire only an existing exact native source hold in this transaction world.
@@ -797,6 +824,8 @@ interface types {
 
     /// Live access is transaction scoped. Store player-handle instead of player.
     resource player {
+        /// Available while an inventory write is pending; neither string grants another actor.
+        runtime-identity: func() -> result<option<runtime-identity>, access-error>;
         /// Stage a native durable relocation, not a movement acknowledgement.
         /// Destination is one actual world lifetime; coordinates are player feet.
         relocate: func(destination: borrow<world-handle>, feet: vec3, safe-y-radius: u16, correlation: u64) -> result<travel-acknowledgement, access-error>;
@@ -985,6 +1014,8 @@ interface types {
     }
     /// Owned canonical observations do not synthesize a scoped player or a past connection.
     resource source-actor-operation {
+        /// Only an observed canonical generation supplies facts, never a provisional archive.
+        death-occurrence: func() -> result<option<death-occurrence>, access-error>;
         status: func() -> result<source-actor-status, access-error>;
         state-image: func() -> result<player-state-image, access-error>;
         archive: func(key: string) -> result<archive-reference, archive-error>;

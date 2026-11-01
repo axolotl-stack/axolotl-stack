@@ -2178,3 +2178,9 @@ async fn actual_component_initial_terminal_world_close_preserves_native_proof_wi
     assert!(row.inventory.iter().all(|item| item.count == 0));
     row.validate(uuid::Uuid::from_u128(1)).unwrap();
 }
+
+#[path = "source_cold.rs"]
+mod cold;
+
+#[path = "source_online_deaths.rs"]
+mod online_deaths;

@@ -108,19 +108,19 @@ pub(super) fn install(server: &mut super::super::super::super::GameServer) {
         .schedule_mut()
         .add_systems(poll.before(crate::ecs::PacketApplySet));
 }
-/// Ordinary native retention never implies module/source ownership.
-pub(super) fn retained(
+/// Ordinary canonical death never implies module/source ownership.
+pub(super) fn ordinary(
     world: &mut World,
     player: Entity,
     cause: crate::entity::player_life::death::DeathCause,
     attribution: crate::entity::damage::DamageAttribution,
     rules: crate::world::rules::GameRules,
 ) -> bool {
-    if world
+    let retained = world
         .get::<super::super::super::super::player_events::DetachedPlayer>(player)
-        .is_none()
-        || world.get::<PlayerSession>(player).is_some()
-    {
+        .is_some();
+    let connected = world.get::<PlayerSession>(player).is_some();
+    if retained == connected {
         return false;
     }
     begin(world, player, cause, attribution, rules)

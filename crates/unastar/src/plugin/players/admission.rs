@@ -94,6 +94,28 @@ impl HostContext {
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostAdmissionHold for HostContext {
+    fn death_occurrence(
+        &mut self,
+        resource: Resource<wit::AdmissionHold>,
+        tx: Resource<wit::WorldTx>,
+    ) -> Result<Option<wit::DeathOccurrence>, wit::AccessError> {
+        self.operation()?;
+        self.require(crate::plugin::manifest::PluginCapability::RestorePlayerState)?;
+        let hold = match self.resources.entries.get(&resource.rep()) {
+            Some(Entry::AdmissionHold(hold)) => hold.clone(),
+            _ => return Err(wit::AccessError::StalePlayer),
+        };
+        self.initialization_owner(tx.rep(), hold.player, resource.rep())?;
+        Ok(crate::server::game::player_state::canonical_initial_record(
+            unsafe { self.world() },
+            hold.player,
+        )
+        .and_then(|data| {
+            data.death_occurrence
+                .as_ref()
+                .map(super::occurrences::death)
+        }))
+    }
     fn rebind_source(
         &mut self,
         hold: Resource<wit::AdmissionHold>,

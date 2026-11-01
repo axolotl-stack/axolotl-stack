@@ -352,6 +352,20 @@ impl HostContext {
 }
 
 impl super::super::wit_bindings::unastar::plugin::types::HostSourceActorOperation for HostContext {
+    fn death_occurrence(
+        &mut self,
+        operation: Resource<wit::SourceActorOperation>,
+    ) -> Result<Option<wit::DeathOccurrence>, wit::AccessError> {
+        let observation = self
+            .source_operation(operation.rep())?
+            .observation()
+            .ok_or(wit::AccessError::Unavailable)?;
+        Ok(observation
+            .data
+            .death_occurrence
+            .as_ref()
+            .map(super::occurrences::death))
+    }
     fn source_fence(
         &mut self,
         operation: Resource<wit::SourceActorOperation>,

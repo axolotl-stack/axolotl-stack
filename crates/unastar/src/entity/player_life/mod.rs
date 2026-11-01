@@ -24,6 +24,7 @@ pub mod death;
 pub mod environment;
 pub mod hooks;
 pub mod hurt;
+pub(crate) mod occurrence;
 pub mod respawn;
 pub mod rules;
 #[cfg(test)]

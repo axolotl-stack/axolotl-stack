@@ -30,6 +30,7 @@ pub mod blazedb;
 pub mod cache;
 pub mod morton;
 
+pub use crate::entity::player_life::occurrence::NativeDeathOccurrence;
 pub use blazedb::BlazeDBProvider;
 pub use keys::*;
 pub use leveldb_player::LevelDBPlayerProvider;

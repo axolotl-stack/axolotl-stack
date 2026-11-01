@@ -252,6 +252,20 @@ impl super::super::wit_bindings::unastar::plugin::types::HostPlayer for HostCont
         self.live_player(player.rep())
             .map(|(reference, _)| reference.identity)
     }
+    fn runtime_identity(
+        &mut self,
+        player: Resource<wit::Player>,
+    ) -> Result<Option<wit::RuntimeIdentity>, wit::AccessError> {
+        let (_, actor) = self.live_player(player.rep())?;
+        Ok(
+            crate::entity::player_life::occurrence::runtime_identity(
+                unsafe { self.world() },
+                actor,
+            )
+            .as_ref()
+            .map(super::occurrences::runtime),
+        )
+    }
     fn position(&mut self, player: Resource<wit::Player>) -> Result<wit::Vec3, wit::AccessError> {
         self.live_snapshot(player.rep())
             .map(|snapshot| snapshot.position)

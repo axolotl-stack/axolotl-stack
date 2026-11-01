@@ -3,6 +3,52 @@
 use super::*;
 use crate::storage::{RestorationCheckpoint, RestorationEffect, RestorationSupplement};
 
+/// Provider-loaded initialization evidence is immutable and bound to this exact transport.
+#[derive(Component)]
+struct InitialCanonicalRecord {
+    identity: super::super::player_events::ConnectionIdentity,
+    record: std::sync::Arc<PlayerData>,
+}
+
+/// Retain the validated actual spawn input before item restoration consumes its fields.
+pub(crate) fn remember_initial_record(
+    world: &mut World,
+    player: Entity,
+    record: std::sync::Arc<PlayerData>,
+) -> Result<(), SnapshotError> {
+    let identity = super::super::player_events::ConnectionIdentity::capture(world, player)
+        .ok_or(SnapshotError::MissingPlayer)?;
+    if world
+        .get::<PlayerUuid>(player)
+        .is_none_or(|uuid| uuid.0.to_string() != record.uuid)
+    {
+        return Err(SnapshotError::WrongAccount);
+    }
+    world
+        .entity_mut(player)
+        .insert(InitialCanonicalRecord { identity, record });
+    Ok(())
+}
+
+/// Read genuine loaded evidence only; it never authorizes life, ownership or restoration.
+pub(crate) fn canonical_initial_record(
+    world: &World,
+    player: Entity,
+) -> Option<std::sync::Arc<PlayerData>> {
+    let loaded = world.get::<InitialCanonicalRecord>(player)?;
+    loaded
+        .identity
+        .matches(world, player)
+        .then(|| loaded.record.clone())
+}
+
+/// Normal complete initial publication releases its immutable bootstrap-only evidence.
+pub(crate) fn forget_initial_record(world: &mut World, player: Entity) {
+    if let Ok(mut entity) = world.get_entity_mut(player) {
+        entity.remove::<InitialCanonicalRecord>();
+    }
+}
+
 impl PlayerSnapshot {
     /// Keep extra fields typed and separate from inventory and proof history.
     pub(crate) fn supplement(&self) -> RestorationSupplement {

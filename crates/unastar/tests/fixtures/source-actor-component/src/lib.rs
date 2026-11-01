@@ -19,6 +19,7 @@ struct State {
     admission: Option<raw::AdmissionHold>,
     transfer: Option<StateOperation>,
     rebind: Option<raw::SourceRebindOperation>,
+    occurrence: Option<raw::DeathOccurrence>,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 
@@ -66,8 +67,35 @@ impl Plugin for Fixture {
     }
     fn on_player_admission(_tx: &raw::WorldTx, player: &raw::Player) -> AdmissionDecision {
         STATE.with_borrow_mut(|state| {
-            if matches!(state.mode, 6 | 10 | 38 | 40 | 41 | 43 | 44 | 45) {
+            if state.mode == 61 {
+                assert_eq!(player.vitals().unwrap().health, 0.0);
+                log("cold:rejected");
+                return AdmissionDecision::Reject("Controlled cold rejection".into());
+            }
+            if matches!(
+                state.mode,
+                6 | 10 | 38 | 40 | 41 | 43 | 44 | 45 | 60 | 62 | 63 | 64
+            ) {
                 state.admission = Some(player.defer_admission().unwrap());
+                if matches!(state.mode, 60 | 62 | 63 | 64) {
+                    state.occurrence = state
+                        .admission
+                        .as_ref()
+                        .unwrap()
+                        .death_occurrence(_tx)
+                        .unwrap();
+                    let runtime = player.runtime_identity().unwrap().unwrap();
+                    if matches!(state.mode, 62 | 63) {
+                        let occurrence = state.occurrence.as_ref().unwrap();
+                        assert!(occurrence.post_drop.is_some());
+                        assert_ne!(
+                            occurrence.runtime.as_ref().unwrap().lineage,
+                            runtime.lineage
+                        );
+                    } else {
+                        assert!(state.occurrence.is_none());
+                    }
+                }
                 state.target = Some(player.to_handle().unwrap());
                 AdmissionDecision::Deferred
             } else {
@@ -95,6 +123,14 @@ impl Plugin for Fixture {
         log("source:death");
         STATE.with_borrow_mut(|state| {
             if matches!(state.mode, 50 | 51) {
+                state.occurrence = _death.state.as_ref().unwrap().death_occurrence().unwrap();
+                let occurrence = state.occurrence.as_ref().unwrap();
+                assert_eq!(
+                    occurrence.id,
+                    _death.state.as_ref().unwrap().facts().unwrap().capture_id
+                );
+                assert!(occurrence.runtime.is_some());
+                assert!(occurrence.post_drop.is_some());
                 log(&format!(
                     "terminal:death:{}",
                     _death.state.as_ref().unwrap().facts().unwrap().capture_id
@@ -102,6 +138,10 @@ impl Plugin for Fixture {
                 let tx = unastar_api::WorldTx::__from_borrowed(tx);
                 let player = tx.player(state.original.as_ref().unwrap()).unwrap();
                 let operation = player.checkpoint_terminal_source().unwrap();
+                assert!(matches!(
+                    operation.death_occurrence(),
+                    Err(raw::AccessError::Unavailable)
+                ));
                 drop(operation.archive("terminal-origin").unwrap());
                 if state.mode == 51 {
                     panic!("controlled terminal adoption failure");
@@ -119,7 +159,7 @@ impl Plugin for Fixture {
             }
             assert!(event.previously_admitted);
             let player = tx.player(state.original.as_ref().unwrap()).unwrap();
-            if matches!(state.mode, 50 | 51 | 52) {
+            if matches!(state.mode, 50 | 51 | 52 | 56) {
                 log("terminal:retained");
                 return QuitDisposition::RetainEntity;
             }
@@ -159,6 +199,15 @@ impl Plugin for Fixture {
             QuitDisposition::RetainEntity
         })
     }
+    fn on_player_admitted(event: unastar_api::AdmittedEvent) {
+        STATE.with_borrow_mut(|state| {
+            if matches!(state.mode, 60 | 62 | 63 | 64) {
+                assert_eq!(event.observation.identity.connection_id, Some(3));
+                state.phase = 102;
+                log("cold:admitted");
+            }
+        });
+    }
     fn on_source_rebind_result(event: raw::SourceRebindResult) {
         assert!(!event.request_id.is_empty());
         assert_eq!(event.correlation, 901);
@@ -171,7 +220,7 @@ impl Plugin for Fixture {
     }
     fn on_tick(_tick: u64) {
         STATE.with_borrow(|state| {
-            if !matches!(state.phase, 12 | 22 | 24 | 32 | 42 | 52 | 74)
+            if !matches!(state.phase, 12 | 22 | 24 | 32 | 42 | 52 | 74 | 102)
                 && let Some(world) = &state.world
             {
                 drop(world.schedule(100).unwrap());
@@ -180,6 +229,80 @@ impl Plugin for Fixture {
     }
     fn on_world_task(tx: &raw::WorldTx, _task: u64, _callback: u64) {
         STATE.with_borrow_mut(|state| match state.phase {
+            0 if state.mode == 64 && state.operation.is_none() => {
+                state.operation = Some(
+                    unastar_api::WorldTx::__from_borrowed(tx)
+                        .inspect_source(&archive("rebind-retired"))
+                        .unwrap(),
+                );
+            }
+            0 if matches!(state.mode, 60 | 62 | 63 | 64) && state.target.is_some() => {
+                let player = tx.player(state.target.as_ref().unwrap()).unwrap();
+                let expected = player.state_image().unwrap();
+                let desired = if state.mode == 64 {
+                    let operation = state.operation.as_ref().unwrap();
+                    match operation.status().unwrap() {
+                        SourceActorStatus::Staged | SourceActorStatus::Queued => return,
+                        SourceActorStatus::Observed(observed) => {
+                            assert_eq!(observed.phase, SourceActorPhase::Retired)
+                        }
+                        other => panic!("cold retired source: {other:?}"),
+                    }
+                    operation.state_image().unwrap()
+                } else if state.mode == 62 {
+                    let mut values = expected.values().unwrap();
+                    assert!(values.dead);
+                    assert_eq!(values.health, 0.0);
+                    values.dead = false;
+                    values.health = 5.0;
+                    expected.with_values(&values).unwrap()
+                } else {
+                    expected.with_values(&expected.values().unwrap()).unwrap()
+                };
+                state.transfer = Some(
+                    state
+                        .admission
+                        .as_ref()
+                        .unwrap()
+                        .submit_state(tx, "cold-current", &expected, &desired, None)
+                        .unwrap(),
+                );
+                state.phase = 100;
+                log("cold:state-staged");
+            }
+            0 if matches!(state.mode, 56 | 60 | 61 | 62 | 63) => (),
+            100 => match state.transfer.as_ref().unwrap().status().unwrap() {
+                StateStatus::Staged | StateStatus::Queued => (),
+                StateStatus::Committed(commit) => {
+                    assert!(commit.live_applied);
+                    let original = state
+                        .admission
+                        .as_ref()
+                        .unwrap()
+                        .death_occurrence(tx)
+                        .unwrap();
+                    assert_eq!(
+                        original.as_ref().map(|event| &event.id),
+                        state.occurrence.as_ref().map(|event| &event.id)
+                    );
+                    unastar_api::storage::compare_exchange(
+                        "cold-current-accepted",
+                        None,
+                        &commit.receipt.revision.to_le_bytes(),
+                    )
+                    .unwrap();
+                    state
+                        .admission
+                        .as_ref()
+                        .unwrap()
+                        .resolve(tx, &AdmissionResolution::Allow)
+                        .unwrap();
+                    state.phase = 101;
+                    log("cold:accepted");
+                }
+                other => panic!("cold initialization: {other:?}"),
+            },
+
             0 if matches!(state.mode, 50 | 51)
                 || (state.mode == 52 && state.original.is_none()) =>
             {
@@ -207,6 +330,28 @@ impl Plugin for Fixture {
                 SourceActorStatus::Observed(observed) => {
                     assert_eq!(observed.phase, SourceActorPhase::Terminal);
                     assert!(observed.live_applied);
+                    let event = state
+                        .operation
+                        .as_ref()
+                        .unwrap()
+                        .death_occurrence()
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(event.id, state.occurrence.as_ref().unwrap().id);
+                    assert_eq!(
+                        event.unix_time_millis,
+                        state.occurrence.as_ref().unwrap().unix_time_millis
+                    );
+                    let proof = event.post_drop.unwrap();
+                    let original = state
+                        .occurrence
+                        .as_ref()
+                        .unwrap()
+                        .post_drop
+                        .as_ref()
+                        .unwrap();
+                    assert_eq!(proof.request_id, original.request_id);
+                    assert_eq!(proof.receipt.request_hash, original.receipt.request_hash);
                     drop(
                         state
                             .operation

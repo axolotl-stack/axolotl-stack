@@ -213,6 +213,7 @@ pub(crate) struct InventoryBuffersReleased {
 pub struct InventoryPersistence {
     revision: u64,
     receipts: BTreeMap<String, InventoryEffectRecord>,
+    death_occurrence: Option<crate::storage::NativeDeathOccurrence>,
 }
 
 /// Exact internal metadata evidence; it grants no authority over inventory values.
@@ -252,6 +253,7 @@ impl InventoryPersistence {
         data.map_or_else(Self::default, |data| Self {
             revision: data.inventory_revision,
             receipts: data.inventory_effects.clone(),
+            death_occurrence: data.death_occurrence.clone(),
         })
     }
     /// Read the epoch retained by ordinary autosave/disconnect snapshots.
@@ -261,6 +263,10 @@ impl InventoryPersistence {
     /// Read durable receipts retained by ordinary autosave/disconnect snapshots.
     pub fn receipts(&self) -> &BTreeMap<String, InventoryEffectRecord> {
         &self.receipts
+    }
+    /// Retain the last genuine terminal occurrence across respawn and ordinary saves.
+    pub(crate) fn death_occurrence(&self) -> Option<&crate::storage::NativeDeathOccurrence> {
+        self.death_occurrence.as_ref()
     }
 }
 

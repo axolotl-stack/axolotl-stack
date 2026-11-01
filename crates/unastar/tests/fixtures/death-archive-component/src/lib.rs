@@ -79,6 +79,15 @@ fn check_archive() {
         unastar_api::DeathCapturePhase::CommittedBeforeDrops
     );
     assert_eq!(facts.cause, DamageCause::Override);
+    let occurrence = archive.death_occurrence().unwrap().unwrap();
+    assert_eq!(occurrence.id, facts.capture_id);
+    assert_eq!(occurrence.cause, facts.cause);
+    assert_eq!(occurrence.keep_inventory, facts.keep_inventory);
+    assert!(
+        occurrence
+            .unix_time_millis
+            .is_none_or(|time| time == 1_710_000_000_123)
+    );
     let raw = archive.facts().unwrap();
     assert!(raw.dead);
     assert_eq!(raw.experience, 8);
@@ -156,6 +165,21 @@ impl Plugin for Fixture {
             }
             let death = event.state.unwrap();
             let facts = death.facts().unwrap();
+            let occurrence = death.death_occurrence().unwrap().unwrap();
+            assert_eq!(occurrence.id, facts.capture_id);
+            assert_eq!(occurrence.cause, event.cause);
+            assert_eq!(
+                occurrence.unix_time_millis,
+                if state.mode == 17 {
+                    None
+                } else {
+                    Some(1_710_000_000_123)
+                }
+            );
+            let runtime = occurrence.runtime.as_ref().unwrap();
+            assert_eq!(runtime.lineage.len(), 36);
+            assert_eq!(runtime.world_lifetime.len(), 36);
+            assert!(occurrence.post_drop.is_none());
             assert_eq!(facts.cause, event.cause);
             assert_eq!(facts.keep_inventory, event.keep_inventory);
             assert_eq!(facts.fall_distance, event.fall_distance);

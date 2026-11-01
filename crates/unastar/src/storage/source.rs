@@ -49,7 +49,9 @@ pub struct SourceHandoff {
 impl SourceActorRecord {
     /// Canonical raw recovery values require an explicit acknowledged state handoff.
     pub(crate) fn requires_handoff(&self) -> bool {
-        self.phase.unresolved() || (self.supplement.is_some() && self.handoff.is_none())
+        self.phase.unresolved()
+            || (self.supplement.is_some()
+                && (self.phase == SourcePhase::Retired || self.handoff.is_none()))
     }
 
     /// Reject malformed authority before startup, a provider operation or any actor creation.

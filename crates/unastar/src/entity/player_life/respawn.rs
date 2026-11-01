@@ -75,15 +75,23 @@ fn respawn_packet(spawn: DVec3, state: EnumsPlayerRespawnState) -> McpePacket {
     })
 }
 
+/// Construct the two native UI states without publishing or starting a gameplay respawn.
+pub(crate) fn initial_respawn_packets(world: &World, player: Entity) -> Vec<McpePacket> {
+    let spawn = respawn_position(world, player);
+    [
+        EnumsPlayerRespawnState::SearchingForSpawn,
+        EnumsPlayerRespawnState::ReadyToSpawn,
+    ]
+    .into_iter()
+    .map(|state| respawn_packet(spawn, state))
+    .collect()
+}
+
 /// Open the respawn screen of a dead `player`.
 pub fn open_respawn_screen(world: &World, player: Entity) {
-    let spawn = respawn_position(world, player);
     if let Some(session) = world.get::<PlayerSession>(player) {
-        for state in [
-            EnumsPlayerRespawnState::SearchingForSpawn,
-            EnumsPlayerRespawnState::ReadyToSpawn,
-        ] {
-            let _ = session.send(respawn_packet(spawn, state));
+        for packet in initial_respawn_packets(world, player) {
+            let _ = session.send(packet);
         }
     }
 }

@@ -1236,6 +1236,10 @@ impl Work {
                 source.generation = generation;
                 source.sample = 0;
                 source.phase = phase;
+                if phase == SourcePhase::Retired {
+                    // This new recovery sample needs its own future target handoff.
+                    source.handoff = None;
+                }
                 let data = if let Some(snapshot) = snapshot {
                     source.supplement = Some(snapshot.supplement());
                     let mut data = snapshot.data.clone();
@@ -1418,7 +1422,7 @@ pub(crate) fn defer_death_with_rules(
         return true;
     }
     let Some(managed) = world.get::<ManagedSource>(player) else {
-        return unowned_terminal::retained(world, player, cause, attribution, rules);
+        return unowned_terminal::ordinary(world, player, cause, attribution, rules);
     };
     if managed.record.phase != SourcePhase::Active {
         return false;

@@ -48,6 +48,16 @@ impl NativeTerminalRecord {
             || checkpoint.revision != self.receipt.revision
             || checkpoint.request_hash != self.receipt.request_hash
             || !checkpoint.supplement.dead
+            || data.death_occurrence.as_ref().is_some_and(|event| {
+                event.id != self.death
+                    || event.runtime.as_ref().is_some_and(|runtime| {
+                        runtime.lineage != self.lineage || runtime.world_lifetime != self.lifetime
+                    })
+                    || event
+                        .post_drop
+                        .as_ref()
+                        .is_none_or(|proof| proof.id != self.id || proof.receipt != self.receipt)
+            })
         {
             return Err(StorageError::Deserialization(
                 "inconsistent native terminal proof".into(),
