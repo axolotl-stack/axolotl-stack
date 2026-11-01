@@ -50,6 +50,7 @@ pub enum EventKind {
     PlayerItemUse,
     PlayerSwing,
     PlayerDamage,
+    PlayerDamaged,
     PlayerDeath,
     PlayerRespawn,
     PlayerRespawned,

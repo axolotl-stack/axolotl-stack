@@ -54,6 +54,62 @@ interface types {
         all,
     }
 
+    /// Authenticated account facts captured at the native launch or deflection boundary.
+    record authenticated-damage-account {
+        uuid: string,
+        xuid: u64,
+    }
+
+    /// Descriptive origin facts never authorize live access or substitute a reconnected player.
+    record damage-owner {
+        is-player: bool,
+        uuid: option<string>,
+        authenticated: option<authenticated-damage-account>,
+        connection-id: option<u64>,
+        dimension: option<s32>,
+        world-lifetime: option<string>,
+        feet: option<vec3>,
+    }
+
+    record damage-attribution {
+        source-dimension: option<s32>,
+        source-world-lifetime: option<string>,
+        owner: option<damage-owner>,
+    }
+
+    record knockback {
+        horizontal: f64,
+        vertical: f64,
+        vertical-cap: f64,
+        retain: f64,
+    }
+
+    /// Only these proposal fields may be adjusted; attribution and cause remain immutable.
+    record damage-tuning {
+        damage: f32,
+        knockback: knockback,
+        hurt-ticks: u32,
+        bypass-armour: bool,
+        post-armour-multiplier: f32,
+    }
+
+    record damage-proposal {
+        cause: damage-cause,
+        attribution: damage-attribution,
+        tuning: damage-tuning,
+    }
+
+    /// Positive actual health loss after native immunity, timer and armour rules.
+    record damage-committed {
+        identity: player-identity,
+        dimension: s32,
+        cause: damage-cause,
+        attribution: damage-attribution,
+        incoming-damage: f32,
+        actual-health-loss: f32,
+        knockback: knockback,
+    }
+
     enum game-mode {
         survival,
         creative,

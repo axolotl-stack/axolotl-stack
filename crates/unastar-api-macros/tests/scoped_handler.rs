@@ -26,6 +26,15 @@ impl Handler for Scoped {
         new_position.x += 1.0;
         ctx.cancel();
     }
+    fn on_player_damage(
+        ctx: &mut PlayerContext<'_>,
+        _attacker: Option<&unastar_api::Player<'_>>,
+        _proposal: &unastar_api::DamageProposal,
+        tuning: &mut unastar_api::DamageTuning,
+    ) {
+        tuning.hurt_ticks = 5;
+        ctx.cancel();
+    }
 }
 
 #[test]

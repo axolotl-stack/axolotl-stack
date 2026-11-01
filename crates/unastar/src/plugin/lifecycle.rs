@@ -15,8 +15,8 @@ use super::{begin_fuel_budget, prepare_invocation, wit_types, with_world};
 use crate::ecs::events::{ActionQueue, EventKind};
 use crate::entity::components::Player;
 use crate::entity::player_life::hooks::{
-    PlayerDamage, PlayerDeath, PlayerLifecycleHandler, PlayerLifecycleHooks, PlayerRespawn,
-    PlayerRespawned,
+    PlayerDamage, PlayerDamaged, PlayerDeath, PlayerLifecycleHandler, PlayerLifecycleHooks,
+    PlayerRespawn, PlayerRespawned,
 };
 
 /// Shared manager adapter used while the runtime ticks its ECS world.
@@ -52,6 +52,16 @@ impl PlayerLifecycleHandler for LifecycleBridge {
         match self.manager.try_lock() {
             Ok(mut manager) => manager.player_death(world, event),
             Err(error) => error!(%error, "Plugin manager unavailable during player death"),
+        }
+    }
+
+    fn on_damaged(&self, world: &mut World, event: &PlayerDamaged) {
+        match self.manager.try_lock() {
+            Ok(mut manager) => manager.player_damaged(world, event),
+            Err(error) => {
+                error!(%error, "Component manager unavailable after player health loss");
+                super::readiness::fence_world(world);
+            }
         }
     }
 
@@ -136,49 +146,6 @@ impl PluginManager {
             .collect();
         ids.sort_by(|a, b| a.0.cmp(&b.0));
         ids
-    }
-
-    /// Apply ordered damage decisions while the hit has no committed side effects.
-    fn player_damage(&mut self, world: &mut World, event: &mut PlayerDamage) {
-        if !self.begin_tick(world) {
-            event.cancel();
-            return;
-        }
-        for id in self.subscribers(EventKind::PlayerDamage) {
-            let plugin = self.plugins.get_mut(&id).expect("subscribed plugin exists");
-            let player = event.player();
-            let attacker = player_attacker(world, event.hit.attacker);
-            let cause = damage_cause(event.hit.cause);
-            let damage = event.hit.damage;
-            let result = invoke(plugin, world, |store, bindings| {
-                let tx = make_world_tx(store)?;
-                let player = make_player_resource(store, player)?;
-                let attacker = attacker
-                    .map(|entity| make_player_resource(store, entity))
-                    .transpose()?;
-                bindings.call_on_player_damage(store, tx, player, attacker, cause, damage)
-            });
-            match result {
-                Ok(Some(damage)) if damage.is_finite() && damage >= 0.0 => {
-                    event.hit.damage = damage;
-                }
-                Ok(None) => {
-                    event.cancel();
-                    break;
-                }
-                Ok(Some(_)) => {
-                    self.callback_failed(world, &id, "invalid damage decision");
-                    event.cancel();
-                    break;
-                }
-                Err(error) => {
-                    error!(plugin = %id, %error, "Player damage callback failed");
-                    self.callback_failed(world, &id, &error.to_string());
-                    event.cancel();
-                    break;
-                }
-            }
-        }
     }
 
     /// Notify subscribers after the native death has committed.
@@ -310,7 +277,7 @@ pub(super) fn to_wit(position: DVec3) -> wit_types::Vec3 {
 }
 
 /// Map semantic causes explicitly so Rust enum numbering is never an API contract.
-fn damage_cause(cause: ActorDamageCause) -> wit_types::DamageCause {
+pub(super) fn damage_cause(cause: ActorDamageCause) -> wit_types::DamageCause {
     match cause {
         ActorDamageCause::None => wit_types::DamageCause::None,
         ActorDamageCause::Override => wit_types::DamageCause::Override,

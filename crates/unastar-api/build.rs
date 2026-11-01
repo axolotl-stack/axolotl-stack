@@ -140,6 +140,9 @@ fn default_body(resolve: &Resolve, func: &wit_parser::Function) -> String {
     match &func.result {
         Some(Type::Bool) => "true".into(),
         Some(Type::Id(id)) => {
+            if func.name == "on-player-damage" {
+                return "Some(proposal.tuning)".into();
+            }
             if func.name == "on-player-move" {
                 return "Some(new_position)".into();
             }
@@ -272,8 +275,8 @@ fn handler_params(resolve: &Resolve, func: &wit_parser::Function) -> String {
         let name = param.name.replace('-', "_");
         let ty = if name == "attacker" {
             "Option<&Player<'_>>".into()
-        } else if func.name == "on-player-damage" && name == "damage" {
-            "&mut f32".into()
+        } else if func.name == "on-player-damage" && name == "proposal" {
+            "&DamageProposal".into()
         } else if (func.name == "on-player-respawn" && name == "position")
             || (func.name == "on-player-move" && name == "new_position")
         {
@@ -282,6 +285,9 @@ fn handler_params(resolve: &Resolve, func: &wit_parser::Function) -> String {
             type_to_rust(resolve, &param.ty, false)
         };
         params.push(format!("{name}: {ty}"));
+    }
+    if func.name == "on-player-damage" {
+        params.push("tuning: &mut DamageTuning".into());
     }
     params.join(", ")
 }
@@ -348,7 +354,7 @@ fn generate_handler(
             )?;
         }
         if func.name == "on-player-damage" {
-            writeln!(out, "let mut damage = damage;")?;
+            writeln!(out, "let mut tuning = proposal.tuning;")?;
         }
         if func.name == "on-player-respawn" {
             writeln!(out, "let mut position = position;")?;
@@ -369,14 +375,18 @@ fn generate_handler(
             let name = param.name.replace('-', "_");
             args.push(if name == "attacker" {
                 "attacker.as_ref()".into()
-            } else if (func.name == "on-player-damage" && name == "damage")
-                || (func.name == "on-player-respawn" && name == "position")
+            } else if (func.name == "on-player-respawn" && name == "position")
                 || (func.name == "on-player-move" && name == "new_position")
             {
                 format!("&mut {name}")
+            } else if func.name == "on-player-damage" && name == "proposal" {
+                "&proposal".into()
             } else {
                 name
             });
+        }
+        if func.name == "on-player-damage" {
+            args.push("&mut tuning".into());
         }
         writeln!(
             out,
@@ -392,7 +402,7 @@ fn generate_handler(
             Some(Type::Bool) => writeln!(out, "!ctx.is_cancelled()")?,
             Some(_) if func.name == "on-player-damage" => writeln!(
                 out,
-                "if ctx.is_cancelled() {{ None }} else {{ Some(damage) }}"
+                "if ctx.is_cancelled() {{ None }} else {{ Some(tuning) }}"
             )?,
             Some(_) if func.name == "on-player-respawn" => writeln!(
                 out,

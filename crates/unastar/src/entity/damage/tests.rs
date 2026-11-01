@@ -1,6 +1,38 @@
 use super::*;
 use tokio::sync::mpsc;
 
+#[test]
+fn lifetime_evidence_is_optional_captured_and_distinct_across_world_replacement() {
+    let mut source = World::new();
+    let actor = owner(
+        &mut source,
+        Some("123"),
+        Uuid::from_u128(7),
+        Some(Uuid::from_u128(7).to_string()),
+    );
+    assert!(
+        DamageAttribution::capture(&source, Some(actor), Some(actor))
+            .world_lifetime()
+            .is_none()
+    );
+    source.init_resource::<DamageWorldLifetime>();
+    let origin = DamageAttribution::capture(&source, Some(actor), Some(actor));
+    let source_id = origin.world_lifetime().unwrap();
+    assert_eq!(origin.owner().unwrap().world_lifetime(), Some(source_id));
+    drop(source);
+    let mut replacement = World::new();
+    replacement.init_resource::<DamageWorldLifetime>();
+    let cloud = replacement.spawn_empty().id();
+    let propagated = origin.with_source(&replacement, cloud);
+    assert_ne!(propagated.world_lifetime(), Some(source_id));
+    assert_eq!(
+        propagated.owner().unwrap().world_lifetime(),
+        Some(source_id)
+    );
+    assert_eq!(origin.world_lifetime(), Some(source_id));
+    assert!(origin.live_owner(&replacement).is_none());
+}
+
 /// Build a trusted host-ingress fixture without creating any authentication token.
 fn owner(
     world: &mut World,
