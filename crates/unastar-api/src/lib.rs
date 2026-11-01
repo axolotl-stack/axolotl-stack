@@ -80,8 +80,8 @@ pub use raw::{
 
 pub use raw::{
     BlockCell, BlockEdit, BlockEditApplied, BlockEditRequest, BlockEditStatus, BlockEditSupport,
-    BlockFacts, BlockLayers, DurableBlockError, DurableBlockReceipt, DurableBlockRequest,
-    DurableBlockStatus, WorldBlockError,
+    BlockFacts, BlockLayers, ContainerCreateKind, ContainerPlan, DurableBlockError,
+    DurableBlockReceipt, DurableBlockRequest, DurableBlockStatus, WorldBlockError,
 };
 pub use raw::{
     ConnectionCloseKind, ConnectionCloseReason, ConnectionCloseRequest, ConnectionCloseStatus,

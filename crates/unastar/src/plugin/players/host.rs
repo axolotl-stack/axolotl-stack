@@ -361,6 +361,30 @@ impl super::super::wit_bindings::unastar::plugin::types::HostWorldTx for HostCon
     ) -> Result<Resource<wit::DurableBlockRequest>, wit::DurableBlockError> {
         world_blocks::durable_stage(self, tx.rep(), &key, edit.rep())
     }
+    fn plan_container(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        expected: Resource<wit::BlockCell>,
+        kind: wit::ContainerCreateKind,
+        facing: wit::BlockFace,
+    ) -> Result<Resource<wit::ContainerPlan>, wit::DurableBlockError> {
+        world_blocks::plan_container(self, tx.rep(), expected.rep(), kind, facing)
+    }
+    fn container_intent(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        plan: Resource<wit::ContainerPlan>,
+    ) -> Result<Vec<u8>, wit::DurableBlockError> {
+        world_blocks::container_intent(self, tx.rep(), plan.rep())
+    }
+    fn commit_container(
+        &mut self,
+        tx: Resource<wit::WorldTx>,
+        key: String,
+        plan: Resource<wit::ContainerPlan>,
+    ) -> Result<Resource<wit::DurableBlockRequest>, wit::DurableBlockError> {
+        world_blocks::stage_container(self, tx.rep(), &key, plan.rep())
+    }
     fn block_receipt(
         &mut self,
         tx: Resource<wit::WorldTx>,

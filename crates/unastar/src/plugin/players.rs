@@ -96,6 +96,7 @@ enum Entry {
     StateOperation(Arc<state_transactions::Operation>),
     DeathState(Arc<values::Value<death_archives::Image>>),
     DurableBlockRequest(Arc<world_blocks::DurableState>),
+    ContainerPlan(world_blocks::ContainerPlan),
 }
 
 /// Per-component resource ownership and bounded per-tick host operation counters.

@@ -88,6 +88,30 @@ impl<'scope> WorldTx<'scope> {
     ) -> Result<crate::DurableBlockRequest, crate::DurableBlockError> {
         self.raw.commit_blocks(key, edit)
     }
+    /// Plan a new loaded container from an actor-free owned cell witness.
+    pub fn plan_container(
+        &self,
+        expected: &crate::BlockCell,
+        kind: crate::ContainerCreateKind,
+        facing: crate::BlockFace,
+    ) -> Result<crate::ContainerPlan, crate::DurableBlockError> {
+        self.raw.plan_container(expected, kind, facing)
+    }
+    /// Compute a semantic slot/block digest before persisting the caller's intent.
+    pub fn container_intent(
+        &self,
+        plan: &crate::ContainerPlan,
+    ) -> Result<Vec<u8>, crate::DurableBlockError> {
+        self.raw.container_intent(plan)
+    }
+    /// Stage creation through the same actual ACK/receipt/publication contract as block batches.
+    pub fn commit_container(
+        &self,
+        key: &str,
+        plan: &crate::ContainerPlan,
+    ) -> Result<crate::DurableBlockRequest, crate::DurableBlockError> {
+        self.raw.commit_container(key, plan)
+    }
     /// Query actual receipt/pending state for this module in the current world.
     pub fn block_receipt(
         &self,

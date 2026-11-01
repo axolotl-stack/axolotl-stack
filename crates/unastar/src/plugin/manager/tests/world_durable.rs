@@ -63,6 +63,7 @@ impl DurableHarness {
             b"",
             durable_component(),
             Some((provider, identity)),
+            &[],
         )
         .await;
         Self {
@@ -96,6 +97,7 @@ impl DurableHarness {
             b"",
             durable_component(),
             Some((provider, identity)),
+            &[],
         )
         .await;
         Self {
@@ -383,6 +385,7 @@ async fn uncertain_post_commit_ack_stays_fenced_until_reopen_and_real_receipt_qu
         b"",
         durable_component(),
         Some((provider, identity)),
+        &[],
     )
     .await;
     assert_eq!(reopened.block(1), "minecraft:obsidian");
@@ -473,6 +476,7 @@ async fn accepted_io_survives_actual_world_closure_and_reopens_only_canonical_re
         b"",
         durable_component(),
         Some((provider, identity)),
+        &[],
     )
     .await;
     assert_eq!(reopened.block(1), "minecraft:obsidian");

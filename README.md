@@ -1112,3 +1112,70 @@ Receipts carrying logical intent use version-two column metadata. Existing
 version-one data remains readable; an older binary rejects newer metadata rather
 than silently dropping its ownership history. Receipt IDs remain bounded and are
 never implicitly pruned or reused.
+
+### Durable single-container creation
+
+`write-durable-containers` enables `WorldTx::plan_container`,
+`container_intent` and `commit_container`. Creation starts with an original owned
+actor-free `BlockCell` from the supported literal families. It creates a new
+barrel or an unpaired single chest with up to 27 typed owned item values. The
+caller supplies a `BlockFace`; barrels support all six faces, while chests support
+horizontal faces. The native planner resolves the complete block state and creates
+the block actor itself. Components never supply raw actor NBT.
+
+Single chests additionally capture all four horizontal neighbors. Every neighbor
+must already be loaded, actor-free and in a supported literal family; existing
+chests, cached inventories and other unsupported blocks are rejected. These
+witnesses participate in the full-column reservation and late revalidation. This
+operation never creates, repairs or updates a chest pair. Existing-container
+replacement and other container kinds use separate capabilities.
+
+```rust
+use unastar_api::{
+    BlockFace, BlockPos, ContainerCreateKind, DurableBlockError,
+    DurableBlockRequest, WorldTx,
+};
+
+fn create_loaded_barrel(
+    tx: &WorldTx<'_>,
+    position: BlockPos,
+    key: &str,
+) -> Result<DurableBlockRequest, DurableBlockError> {
+    let expected = tx.block(position).map_err(DurableBlockError::Block)?;
+    let plan = tx.plan_container(&expected, ContainerCreateKind::Barrel, BlockFace::North)?;
+    let paper = tx.item("minecraft:paper", 8).map_err(DurableBlockError::Access)?;
+    plan.set_slot(0, &paper)?;
+    tx.commit_container(key, &plan)
+}
+```
+
+`ContainerPlan::set_slot` accepts slots 0–26 and retains immutable item values;
+an empty value clears a planned slot. Reads require `read-blocks`, and creating
+or assigning stack values requires `item-values`. Container creation has its own
+capability and does not grant literal block-edit permission. It shares the
+outstanding-work limits, namespace, owned request statuses, receipts and recovery
+contract above. `block_receipt` can observe either operation family;
+`resume_blocks` additionally checks the retained operation's original capability.
+
+`container_intent(&plan)` binds the expected footprint, complete proposed block
+state and every slot's semantic contents. Item identifiers, counts, damage,
+block states, typed NBT and native instance restrictions are retained. Compound
+map order and transient stack network IDs do not change logical intent. Native
+instance metadata preserves the complete item envelope through container saves;
+malformed or unknown owned metadata leaves the container unavailable rather than
+silently dropping its contents. Older readers that ignore these native extensions
+cannot preserve the complete instance envelope. Accepted plans retain charges for
+both decoded values and their encoded actor until completion; oversized plans
+return a typed limit error before IO.
+
+The block, block actor, items and receipt share one synchronous atomic column
+batch. Before the actual ACK, the native block and runtime cache remain unchanged.
+After acknowledgement, the host installs all column buffers and genuine
+container cache state, then publishes ordinary block/actor updates with fresh
+slot network identities. Normal windows and authoritative item requests use that
+same inventory. Later ordinary container changes participate in the same column
+writer; receipt replay never refills changed or removed containers.
+
+Creation grants the specified new slot values. Player inventory costs use their
+separate authoritative transaction path. The loaded-only, supported-provider,
+owner-loss, uncertain-ACK and cold-reopen rules above continue to apply.

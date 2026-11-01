@@ -59,7 +59,7 @@ struct Harness {
 impl Harness {
     /// Ordinary component initialization and native admission precede every encoded input.
     async fn new(capabilities: bool, pending: u32, mode: &[u8]) -> Self {
-        Self::with_fixture(capabilities, pending, mode, component_bytes(), None).await
+        Self::with_fixture(capabilities, pending, mode, component_bytes(), None, &[]).await
     }
     /// Exercise the same ordinary host pipeline with a real durable provider
     /// and its configured persistent identity before component initialization.
@@ -72,6 +72,7 @@ impl Harness {
             Arc<dyn crate::storage::WorldProvider>,
             crate::world::WorldIdentity,
         )>,
+        extra: &[PluginCapability],
     ) -> Self {
         let mut router = DimensionRouter::new(GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
@@ -101,6 +102,7 @@ impl Harness {
                 if durable {
                     capabilities.insert(PluginCapability::WriteDurableBlocks);
                 }
+                capabilities.extend(extra.iter().cloned());
                 capabilities
             } else {
                 Default::default()
@@ -854,3 +856,6 @@ async fn raw_builder_cannot_apply_its_expected_cells_in_a_foreign_world_scope() 
 
 #[path = "world_durable.rs"]
 mod durable;
+
+#[path = "world_containers.rs"]
+mod container_creation;

@@ -17,7 +17,7 @@ pub(super) fn nbt_stream(hash: &mut Sha256, bytes: &[u8]) -> Result<(), ColumnWr
     Ok(())
 }
 /// Hash one bounded typed tree without allocating a second serialized payload.
-fn tag(hash: &mut Sha256, value: &NBTTag, depth: usize) -> Result<(), ColumnWriteError> {
+pub(crate) fn tag(hash: &mut Sha256, value: &NBTTag, depth: usize) -> Result<(), ColumnWriteError> {
     if depth > 64 {
         return Err(ColumnWriteError::Invalid);
     }

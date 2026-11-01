@@ -14,6 +14,13 @@ use glam::IVec3;
 use std::sync::Arc;
 use wasmtime::component::Resource;
 
+#[path = "world_blocks/containers.rs"]
+mod containers;
+pub(in crate::plugin::manager) use containers::Plan as ContainerPlan;
+pub(super) use containers::{
+    intent as container_intent, plan as plan_container, stage as stage_container,
+};
+
 #[path = "world_blocks/durable.rs"]
 mod durable;
 #[path = "world_blocks/publication.rs"]
