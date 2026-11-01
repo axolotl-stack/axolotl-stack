@@ -21,7 +21,9 @@
 //! A full hit with a source position first knocks the player back (the
 //! player moves itself, so the push goes to its own client as
 //! `SetActorMotion`), then sends `ActorEvent` hurt, its data the damage
-//! cause id, to the player and its viewers.
+//! cause id, to the player and its viewers. A hit that kills sends neither,
+//! only the death's event (matches BDS 1.26.51: the killing spear hits of
+//! client-diff `zombie-spear-field`).
 //! The health change reaches the client through
 //! `server::game::attributes::sync_player_attributes`; at zero health the player dies
 //! (`death`).
@@ -145,7 +147,7 @@ pub(super) fn apply_hit(
     // The knockback reaches the client before the hurt event, as BDS sends
     // them.
     let mut knockback = None;
-    if full {
+    if full && !dead {
         if let Some(from) = hit.knockback_from {
             knockback = knock_back(world, player, from, hit.knockback_power);
         }
