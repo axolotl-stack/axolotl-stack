@@ -46,7 +46,7 @@ impl Default for ServerConfig {
             difficulty: crate::world::rules::Difficulty::Easy,
             block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
             operators: Vec::new(),
-            simulation_distance: 6,  // 2 more than default view
+            simulation_distance: crate::world::ecs::systems::DEFAULT_SIMULATION_DISTANCE,
             chunk_unload_ticks: 100, // 5 second grace period
             world: WorldConfig::default(),
         }

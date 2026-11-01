@@ -13,7 +13,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 109 | 0 | 8 | 16 | 4 | 18.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 945 | 2699 | 375 | 17 | 46 | 9.7% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 945 | 2701 | 373 | 17 | 46 | 9.7% |
 | [Blocks](#blocks) | 1477 | 0 | 599 | 709 | 2 | 167 | 54.3% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 154 | 543 | 1443 | 28 | 179 | 67.9% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |

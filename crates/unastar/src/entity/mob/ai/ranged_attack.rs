@@ -14,15 +14,19 @@
 //! [`RANGED_FOLLOW_STOP_MARGIN`]); closer than `attack_radius_min` it backs
 //! off. It always looks at the target.
 //!
-//! The reload timer counts down whether or not the target is seen. When it
+//! The reload timer counts down whether or not the target is seen, and
+//! while the goal runs on with its target lost (only the counting is done
+//! then; matches BDS 1.26.51 `skeleton-bow-field-hard`). When it
 //! reaches 0 a burst of `burst_shots` is armed; each shot of the burst
 //! waits until the target is seen, within `[attack_radius_min,
 //! attack_radius]` and inside `ranged_fov`, `burst_interval` apart. A shot
 //! sets the reload to `attack_interval_min + (max − min) × distance /
 //! attack_radius` ticks, so a reload of `n` ticks shoots every `n + 1`. The
-//! first tick of the goal with no reload left starts one. The counters are
-//! not reset when the goal stops (matches BDS 1.26.51), only when the goal
-//! composition is rebuilt.
+//! first tick of the goal with no reload left starts one. The goal's first
+//! tick comes the tick after it starts, so its first shot is one tick later
+//! than its cadence (matches BDS 1.26.51). The counters are not reset when
+//! the goal stops (matches BDS 1.26.51), only when the goal composition is
+//! rebuilt.
 
 use glam::DVec3;
 
@@ -44,6 +48,8 @@ pub struct RangedState {
     /// Shots left in the armed burst, and ticks until the next one.
     burst_remaining: i32,
     burst_timer: i32,
+    /// The goal started this tick: its first tick is the next one.
+    started: bool,
 }
 
 impl RangedState {
@@ -89,19 +95,36 @@ impl<'a> GoalContext<'a> {
     }
 
     pub(super) fn ranged_start(&mut self) {
+        self.states.ranged.started = true;
         self.effects.facing_target = Some(true);
     }
 
     pub(super) fn ranged_stop(&mut self) {
         self.states.ranged.see_time = 0;
+        self.states.ranged.started = false;
         self.effects.facing_target = Some(false);
     }
 
     pub(super) fn ranged_tick(&mut self) {
+        if std::mem::take(&mut self.states.ranged.started) {
+            return;
+        }
         let Some(goal) = self.ranged_config() else {
             return;
         };
         let Some(target) = self.ranged_target() else {
+            // A target lost while the goal still runs (its path is not
+            // done): the reload and the burst keep counting down.
+            let state = &mut self.states.ranged;
+            if state.burst_remaining > 0 {
+                state.burst_timer -= 1;
+            } else if state.attack_time > 0 {
+                state.attack_time -= 1;
+                if state.attack_time == 0 {
+                    state.burst_remaining = goal.burst_shots;
+                    state.burst_timer = 0;
+                }
+            }
             return;
         };
         let feet = self.body.feet;

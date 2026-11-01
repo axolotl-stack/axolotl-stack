@@ -1023,6 +1023,13 @@ pub const MOB_SHOT_MIN_HORIZONTAL: f64 = 1.0e-7;
 /// A mob shot the ballistic solve cannot reach flies at this pitch, upward
 /// (confirmed against BDS).
 pub const MOB_SHOT_OUT_OF_REACH_PITCH: f32 = -45.0;
+/// The level sound a mob's shot plays, with no source actor, at the centre
+/// of the shooter's box right before the shooter's own `minecraft:shooter`
+/// sound. BDS 1.26.51 sends it for every skeleton and stray arrow in the
+/// recordings `skeleton-bow-field`, `skeleton-bow-field-hard` and
+/// `stray-bow-field`; the arrow's `minecraft:projectile` sets no
+/// `shoot_sound`, and a projectile that sets one is not accepted yet.
+pub const MOB_SHOT_SOUND: &str = "undefined";
 /// `difficulty_randomization` speed damage: per difficulty level (0–3) and
 /// per standard gaussian, added to `power_multiplier` (`multiplicative`,
 /// times the speed) or to the speed damage (`additive`) (confirmed against

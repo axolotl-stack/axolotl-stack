@@ -124,6 +124,16 @@ pub(super) fn built(
     difficulty: Difficulty,
     layout: impl Fn(IVec3) -> Option<u32>,
 ) -> Harness {
+    built_with_radius(seed, difficulty, 1, layout)
+}
+
+/// [`built`] with grass columns `radius` chunks around the origin chunk.
+pub(super) fn built_with_radius(
+    seed: u64,
+    difficulty: Difficulty,
+    radius: i32,
+    layout: impl Fn(IVec3) -> Option<u32>,
+) -> Harness {
     let mut server = GameServer::with_config(ServerConfig {
         world: crate::world::WorldConfig::void_spawn_platform(1),
         ..ServerConfig::default()
@@ -158,8 +168,8 @@ pub(super) fn built(
             ),
         ))
         .id();
-    for cx in -1..=1 {
-        for cz in -1..=1 {
+    for cx in -radius..=radius {
+        for cz in -radius..=radius {
             let mut column = Chunk::new(cx, cz);
             for x in 0..16u8 {
                 for z in 0..16u8 {

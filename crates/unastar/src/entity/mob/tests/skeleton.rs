@@ -760,19 +760,26 @@ const BOW_FIELD: &str =
     include_str!("../../../../../client-diff/tests/fixtures/bds-skeleton/skeleton-bow-field.jsonl");
 const STRAY_BOW_FIELD: &str =
     include_str!("../../../../../client-diff/tests/fixtures/bds-skeleton/stray-bow-field.jsonl");
+const BOW_FIELD_HARD: &str = include_str!(
+    "../../../../../client-diff/tests/fixtures/bds-skeleton/skeleton-bow-field-hard.jsonl"
+);
 
 /// The packets the bow replays read from a recording.
-const BOW_READ: [&str; 9] = [
+const BOW_READ: [&str; 10] = [
     "ActorEvent",
     "AddActor",
     "Animate",
     "AnimateEntity",
     "LevelSoundEvent",
+    "MobEffect",
     "MobEquipment",
     "MoveActorDelta",
     "PlayerAuthInput",
     "SetActorData",
 ];
+/// The wire id of `instant_health`: the recordings heal the player with it
+/// between the phases of a fight.
+const INSTANT_HEALTH: i32 = 6;
 
 /// Where the recorded world's x and z map into the harness (whose chunks
 /// span -16..32): the recorded player stood at (0.5, 0.5), ours at
@@ -948,6 +955,8 @@ struct RecordedBow {
     teleports: Vec<(f64, DVec3)>,
     /// The recorded player's eye: `(t_ms, eye)` in our coordinates.
     eyes: Vec<(f64, DVec3)>,
+    /// When the recorded player was healed (`instant_health`).
+    heals: Vec<f64>,
 }
 
 fn ours(recorded: DVec3) -> DVec3 {
@@ -975,6 +984,7 @@ fn recorded_bow(text: &str, identifier: &str) -> RecordedBow {
     // few milliseconds. The player's eye from its own inputs.
     let mut batches: Vec<(f64, Vec<&McpePacketData>)> = Vec::new();
     let mut eyes = Vec::new();
+    let mut heals = Vec::new();
     for record in &records {
         if !record.s2c {
             if let McpePacketData::PlayerAuthInputPacket(input) = &record.packet {
@@ -985,6 +995,12 @@ fn recorded_bow(text: &str, identifier: &str) -> RecordedBow {
                 }
             }
             continue;
+        }
+        if let McpePacketData::MobEffectPacket(effect) = &record.packet
+            && effect.target_runtime_id.actor_runtime_id == recording::PLAYER_RUNTIME_ID
+            && effect.effect_id == INSTANT_HEALTH
+        {
+            heals.push(record.t_ms);
         }
         match batches.last_mut() {
             Some((t_ms, batch)) if record.t_ms - *t_ms <= 10.0 => batch.push(&record.packet),
@@ -1031,6 +1047,21 @@ fn recorded_bow(text: &str, identifier: &str) -> RecordedBow {
         // its own would add the target's rounding error to every tick.
         let tick = ((t_ms - took_target_ms) / recording::TICK_MS).round() as i64;
         reader.tick(tick, batch.iter().copied());
+        if std::env::var("BOWDBG").is_ok() && tick >= 0 {
+            let s = ours(feet);
+            let p = eye_at(&eyes, *t_ms).unwrap_or_default();
+            eprintln!(
+                "DBG rec {} s=({:.2},{:.2},{:.2}) p=({:.2},{:.2},{:.2}) d={:.2}",
+                tick,
+                s.x,
+                s.y,
+                s.z,
+                p.x,
+                p.y,
+                p.z,
+                s.distance(p)
+            );
+        }
     }
     assert_eq!(reader.took_target, Some(0));
     RecordedBow {
@@ -1040,6 +1071,7 @@ fn recorded_bow(text: &str, identifier: &str) -> RecordedBow {
         start: start.expect("the recording moves the skeleton into range"),
         teleports,
         eyes,
+        heals,
     }
 }
 
@@ -1053,15 +1085,18 @@ fn eye_at(eyes: &[(f64, DVec3)], t_ms: f64) -> Option<DVec3> {
 
 /// Replay `recorded` with a fresh `identifier` put where the recorded one
 /// was put before it took its target; once ours takes its target, the
-/// player and the skeleton move as they did on the recording the same
-/// time after the recorded skeleton took its target.
+/// player and the skeleton move (and the player is healed) as they were on
+/// the recording the same time after the recorded skeleton took its
+/// target.
 fn our_bow(
     identifier: &str,
     difficulty: Difficulty,
     recorded: &RecordedBow,
     ticks: i64,
 ) -> BowFight {
-    let mut h = super::doors::built(41, difficulty, |_| None);
+    // The recorded arrows knock the player back past x -16, so the ground
+    // reaches three chunks out (an unloaded chunk would block sight).
+    let mut h = super::doors::built_with_radius(41, difficulty, 3, |_| None);
     let player = h.player;
     let start_eye = eye_at(&recorded.eyes, recorded.start.0).expect("the player reported itself");
     h.world().get_mut::<Position>(player).unwrap().0 = start_eye;
@@ -1100,8 +1135,32 @@ fn our_bow(
                     h.world().get_mut::<Position>(skeleton).unwrap().0 = feet;
                 }
             }
+            if recorded.heals.iter().any(|&t| t > previous && t <= now) {
+                let mut health = h.world().get_mut::<Health>(player).unwrap();
+                health.current = health.max;
+            }
         }
         h.server.tick();
+        if std::env::var("BOWDBG").is_ok()
+            && let Some(from) = took_target
+        {
+            let w = h.world();
+            let s = w.get::<Position>(skeleton).unwrap().0;
+            let p = w.get::<Position>(player).unwrap().0;
+            let hp = w.get::<Health>(player).map(|h| h.current);
+            eprintln!(
+                "DBG ours {} s=({:.2},{:.2},{:.2}) p=({:.2},{:.2},{:.2}) d={:.2} hp={:?}",
+                tick - from,
+                s.x,
+                s.y,
+                s.z,
+                p.x,
+                p.y,
+                p.z,
+                s.distance(p),
+                hp
+            );
+        }
         let packets: Vec<McpePacketData> =
             std::iter::from_fn(|| h.rx.try_recv().ok().map(|p| p.data)).collect();
         reader.tick(tick, &packets);
@@ -1143,24 +1202,44 @@ fn assert_bow_matches(
     );
 }
 
-/// A fight's target events: the `TARGET` actor data, the raised bow and the
-/// warning.
-fn target_events(bow: &Bow) -> bool {
-    match bow {
-        Bow::Target(_) | Bow::Facing(_) => true,
-        Bow::Sound(sound) => sound == crate::entity::mob::constants::TARGET_WARNING_SOUND,
-        _ => false,
-    }
+/// Every event of a fight.
+fn all_events(_: &Bow) -> bool {
+    true
 }
 
-/// `skeleton-bow-field` and `stray-bow-field` (Normal): a skeleton (a
-/// stray) summoned 24 blocks from the player is put 6 blocks away. It takes
-/// the player as its target and raises its bow in one `SetActorData`
-/// (`TARGET` and `FACING_TARGET_TO_RANGE_ATTACK`), says `mob.warning` the
-/// next tick, and drops target and bow together when it is put out of its
-/// 16-block follow range.
+/// `skeleton-bow-field` (Normal): a skeleton summoned 24 blocks from the
+/// player is put 6 blocks away. It takes the player as its target and
+/// raises its bow in one `SetActorData` (`TARGET` and
+/// `FACING_TARGET_TO_RANGE_ATTACK`), says `mob.warning` the next tick,
+/// shoots 62 ticks after the target and every 61 ticks after that (from 6
+/// blocks, then from 9.4): the arrow names it as `OWNER`, then `undefined`
+/// and `bow` play. It drops target and bow together when it is put out of
+/// its 16-block follow range.
 #[test]
-fn a_skeleton_shows_its_target_and_bow_as_recorded() {
-    assert_bow_matches(BOW_FIELD, SKELETON, Difficulty::Normal, target_events);
-    assert_bow_matches(STRAY_BOW_FIELD, STRAY, Difficulty::Normal, target_events);
+fn skeleton_bow_fight_matches_the_recording() {
+    assert_bow_matches(BOW_FIELD, SKELETON, Difficulty::Normal, all_events);
+}
+
+/// `stray-bow-field` (Normal): the stray's fight is the skeleton's, its
+/// arrows carry the slowness potion (`CUSTOM_DISPLAY` 19).
+#[test]
+fn stray_bow_fight_matches_the_recording() {
+    assert_bow_matches(STRAY_BOW_FIELD, STRAY, Difficulty::Normal, all_events);
+}
+
+/// `skeleton-bow-field-hard` (Hard): the same layout; the skeleton takes
+/// the player 15.9 blocks away, walks into its 15-block range, shoots 42
+/// ticks after the target and every 41 ticks after that.
+///
+/// Compared: the shots and their sounds. Not compared yet: when the target
+/// is lost and taken again. Each arrow knocks the recorded player back past
+/// the 16-block follow range; the recorded skeleton keeps its target after
+/// the first shot and loses it 13 ticks after the later ones, while ours
+/// loses it 17-23 ticks after every shot, because ours starts closing in on
+/// a target beyond its attack range later than the recorded one.
+#[test]
+fn hard_skeleton_bow_fight_matches_the_recording() {
+    assert_bow_matches(BOW_FIELD_HARD, SKELETON, Difficulty::Hard, |event| {
+        matches!(event, Bow::Arrow(_) | Bow::Sound(_)) && *event != Bow::Sound("mob.warning".into())
+    });
 }

@@ -120,6 +120,102 @@ pub fn add_actor_packet(
     }
 }
 
+/// Spawn the new `mob` on the players viewing its chunk now rather than at
+/// the tick's replication ([`sync_mob_viewers`]), which then treats them as
+/// existing viewers: a mob's shot reaches the client before the sounds of
+/// the shot (matches BDS 1.26.51).
+pub fn spawn_on_viewers_now(world: &mut World, mob: Entity) {
+    let Some(position) = world.get::<Position>(mob).map(|p| p.0) else {
+        return;
+    };
+    let (cx, cz) = crate::world::ecs::world_to_chunk_coords(
+        position.x.floor() as i32,
+        position.z.floor() as i32,
+    );
+    let viewers: Vec<Entity> = world
+        .get_resource::<ChunkManager>()
+        .and_then(|chunks| chunks.get_by_coords(cx, cz))
+        .and_then(|chunk| world.get::<ChunkViewers>(chunk))
+        .map(|viewers| viewers.iter().collect())
+        .unwrap_or_default();
+    let entity = world.entity(mob);
+    let (
+        Some(kind),
+        Some(runtime_id),
+        Some(rotation),
+        Some(velocity),
+        Some(on_ground),
+        Some(metadata),
+        Some(properties),
+        Some(attributes),
+        Some(known),
+    ) = (
+        entity.get::<MobKind>(),
+        entity.get::<RuntimeId>(),
+        entity.get::<Rotation>(),
+        entity.get::<Velocity>(),
+        entity.get::<OnGround>(),
+        entity.get::<EntityMetadata>(),
+        entity.get::<ActorProperties>(),
+        entity.get::<ActorAttributes>(),
+        entity.get::<ActorViewers>(),
+    )
+    else {
+        return;
+    };
+    let spawn = McpePacket::from(add_actor_packet(
+        &kind.0.identifier,
+        runtime_id.0,
+        position,
+        velocity.0,
+        rotation,
+        metadata,
+        properties,
+        attributes,
+    ));
+    let equipment = entity
+        .get::<MobEquipment>()
+        .filter(|gear| gear.count() > 0)
+        .zip(world.get_resource::<ItemRegistryResource>())
+        .map(|(gear, items)| {
+            let block_ids = world
+                .get_resource::<ServerConfigResource>()
+                .map_or_else(Default::default, |config| config.0.block_network_ids);
+            replicate::inventory_packets(runtime_id.0, gear, &items.0, block_ids)
+        });
+    let mut added = Vec::new();
+    for viewer in viewers {
+        if known.viewers.contains(&viewer) {
+            continue;
+        }
+        if let Some(session) = world.get::<PlayerSession>(viewer)
+            && session.send(spawn.clone())
+        {
+            added.push(viewer);
+            for packet in equipment.iter().flatten() {
+                let _ = session.send(packet.clone());
+            }
+        }
+    }
+    // What the viewers now know of it: no move or motion update this tick.
+    let rotation = [
+        rotation_byte(rotation.pitch),
+        rotation_byte(rotation.yaw),
+        rotation_byte(rotation.head_yaw),
+    ];
+    let (on_ground, velocity) = (on_ground.0, velocity.0);
+    let mut entity = world.entity_mut(mob);
+    if let Some(mut known) = entity.get_mut::<ActorViewers>() {
+        known.viewers.extend(added);
+    }
+    if let Some(mut net) = entity.get_mut::<MobNetState>() {
+        net.position = position;
+        net.rotation = rotation;
+        net.on_ground = on_ground;
+        net.velocity = velocity;
+    }
+}
+
 /// System: keep every mob spawned on exactly the clients that view its
 /// chunk and replicate what changed this tick.
 #[allow(clippy::type_complexity)]
