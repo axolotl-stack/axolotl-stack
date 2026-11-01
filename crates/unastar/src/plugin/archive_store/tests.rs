@@ -159,6 +159,47 @@ fn immutable_keys_reject_overwrite_and_every_forged_reference_field() {
 }
 
 #[test]
+fn native_archive_reopen_preserves_fractional_position_bits() {
+    let root = tempfile::tempdir().unwrap();
+    let mut registry = Registry::new(root.path().into(), storage::Limits::default());
+    let namespace = registry.namespace("sample.policy").unwrap();
+    let mut saved = Vec::new();
+    for index in 1..=32 {
+        let fraction = f64::from(index as f32 / 10.0);
+        let mut original = record("sample.policy");
+        original.state.data.position = [fraction, 64.0 + fraction, -fraction];
+        let reference = namespace
+            .lock()
+            .unwrap()
+            .capture(&format!("fraction-{index}"), &original)
+            .unwrap();
+        saved.push((reference, original));
+    }
+    let mut zero = record("sample.policy");
+    zero.state.data.position = [-0.0, 64.0, 0.0];
+    let reference = namespace
+        .lock()
+        .unwrap()
+        .capture("signed-zero", &zero)
+        .unwrap();
+    saved.push((reference, zero));
+    drop(namespace);
+    drop(registry);
+
+    let mut reopened = Registry::new(root.path().into(), storage::Limits::default());
+    let namespace = reopened.namespace("sample.policy").unwrap();
+    for (reference, original) in saved {
+        let loaded = namespace.lock().unwrap().read(&reference).unwrap();
+        assert_eq!(
+            loaded.record.state.data.position.map(f64::to_bits),
+            original.state.data.position.map(f64::to_bits),
+            "native coordinates must retain their captured bits through durable storage"
+        );
+        assert!(loaded.record == original);
+    }
+}
+
+#[test]
 fn module_namespaces_cannot_read_or_import_each_others_native_payload() {
     let root = tempfile::tempdir().unwrap();
     let mut registry = Registry::new(root.path().into(), storage::Limits::default());
