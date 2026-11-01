@@ -6,7 +6,7 @@ world unastar-plugin {
     import storage;
     import commands;
 
-    use types.{world-tx, player, vec3, block-pos, damage-cause, access-error, admission-decision, quit-event, quit-disposition, admitted-event, movement-committed};
+    use types.{world-tx, player, vec3, block-pos, damage-cause, access-error, admission-decision, quit-event, quit-disposition, admitted-event, movement-committed, damage-proposal, damage-tuning, damage-committed};
 
     export on-load: func();
     export on-unload: func();
@@ -33,8 +33,10 @@ world unastar-plugin {
     export on-player-item-use: func(tx: borrow<world-tx>, player: borrow<player>);
     export on-player-swing: func(tx: borrow<world-tx>, player: borrow<player>);
     export on-timer: func(tx: borrow<world-tx>, timer-id: u64);
-    /// Return none to cancel, or the incoming damage to apply before armour and immunity.
-    export on-player-damage: func(tx: borrow<world-tx>, player: borrow<player>, attacker: option<borrow<player>>, cause: damage-cause, damage: f32) -> option<f32>;
+    /// Return none to cancel, or tuning subject to final native rules. Origin facts are immutable.
+    export on-player-damage: func(tx: borrow<world-tx>, player: borrow<player>, attacker: option<borrow<player>>, proposal: damage-proposal) -> option<damage-tuning>;
+    /// A notification of actual positive health loss; it cannot cancel committed effects.
+    export on-player-damaged: func(tx: borrow<world-tx>, player: borrow<player>, damage: damage-committed);
     export on-player-death: func(tx: borrow<world-tx>, player: borrow<player>, attacker: option<borrow<player>>, cause: damage-cause);
     /// Return none to remain dead, or a feet-coordinate destination to respawn at.
     export on-player-respawn: func(tx: borrow<world-tx>, player: borrow<player>, position: vec3) -> option<vec3>;

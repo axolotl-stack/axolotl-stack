@@ -21,6 +21,8 @@ mod storage_bridge;
 #[path = "tasks.rs"]
 mod tasks;
 
+#[path = "damage.rs"]
+mod damage;
 #[path = "movements.rs"]
 mod movements;
 #[path = "sessions.rs"]
@@ -961,6 +963,8 @@ pub(crate) mod tests {
     use super::*;
     use crate::plugin::manifest::PluginLimits;
     use wit_bindings::unastar::plugin::host::Host;
+    #[path = "damage.rs"]
+    mod damage_tests;
     mod fixture;
     #[path = "movements.rs"]
     mod movement_tests;
@@ -1072,7 +1076,7 @@ pub(crate) mod tests {
                 "on-player-damage",
                 format!(
                     "i32.const 400 i32.const 400 i32.load i32.const 1 i32.add i32.store {}",
-                    scoped(damage_body)
+                    fixture::legacy_damage_body(damage_body)
                 ),
             ),
             ("on-player-respawn", scoped(respawn_body)),

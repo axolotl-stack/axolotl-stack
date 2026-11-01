@@ -397,6 +397,8 @@ impl GameServer {
         let world_config = config.world;
         let mut ecs = UnastarEcs::new();
         ecs.world_mut()
+            .init_resource::<crate::entity::damage::DamageWorldLifetime>();
+        ecs.world_mut()
             .init_resource::<player_events::PlayerEventHooks>();
 
         // Insert all game state as ECS Resources

@@ -363,3 +363,26 @@ with fresh scoped player and world access. Rejected, stale, unchanged and invali
 movement emits no commit; required callback failures stop the runtime and fence
 its players. Movement callbacks share the router cycle's existing component
 budget and do not dispatch duplicate buffered movement events.
+
+### Component damage transactions
+
+`player_damage` supplies an immutable `DamageProposal` with native launch or
+deflection attribution, plus adjustable `DamageTuning`. Scoped handlers may
+change incoming damage, knockback, the full-hit hurt window, armour bypass and
+the final health-loss multiplier, or cancel through their player context. The
+canonical callback returns only tuning; it cannot rewrite the damage cause or
+origin. Adjustments must be finite and nonnegative, and ordinary native immunity,
+timer, armour, durability and food rules still determine the result.
+
+Subscribe separately to `player_damaged` for `DamageCommitted`, emitted only for
+positive actual health loss after those rules. Its incoming damage and actual
+loss are separate values. Vetoed, invalid, immune and hurt-timer-suppressed hits
+do not produce this notification. Proposal acceptance alone is not a committed
+hit. Required callback failures apply the runtime's terminal recovery policy.
+
+Attribution carries owned authenticated account and original feet facts even
+after an owner leaves or migrates. An optional scoped attacker exists only when
+the exact native owner still resolves in this world. Optional world-lifetime
+UUIDs identify captured runtime instances for observation; they differ from
+durable configured world identity and never grant access. Missing engine
+lifetime evidence remains absent.
