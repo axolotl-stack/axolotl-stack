@@ -121,6 +121,8 @@ max_owned_resources = {resources}
             storage_registry: Default::default(),
             archive_registry: Default::default(),
             command_roots: Default::default(),
+            ui_registry: Default::default(),
+            view_registry: Default::default(),
         };
         manager.configure_storage(&crate::config::PluginStorageConfig {
             directory: root.join("guest-store"),

@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use unastar_api::{
     AccessError, AdmissionDecision, AdmissionResolution, AdmittedEvent, InventoryArea,
     InventoryError, InventoryImage, InventoryOperation, InventoryStatus, LogLevel, Plugin,
-    QuitDisposition, QuitEvent, WorldHandle, host, raw, server,
+    QuitDisposition, QuitEvent, Vec3, WorldHandle, archives, host, raw, server,
 };
 
 #[derive(Default)]
@@ -93,6 +93,20 @@ impl Plugin for Fixture {
     fn on_player_jump(tx: &raw::WorldTx, player: &raw::Player) {
         STATE.with_borrow_mut(|state| {
             match state.mode {
+                26 => {
+                    let reference = player.archive("historical").unwrap();
+                    let archived = archives::read(&reference).unwrap();
+                    let image = archived.inventory().unwrap();
+                    let item = tx.item("minecraft:diamond", 3).unwrap();
+                    let candidate = image.with_slot(InventoryArea::Main, 0, &item).unwrap();
+                    assert!(matches!(
+                        player.submit_inventory("grant", &candidate),
+                        Err(InventoryError::Access(AccessError::InvalidArgument))
+                    ));
+                    assert!(player.inventory_receipt("grant").unwrap().is_none());
+                    log("archive-is-observation");
+                    return;
+                }
                 24 if state.phase == 2 => {
                     assert!(matches!(
                         state.operation.as_ref().unwrap().status().unwrap(),
@@ -224,6 +238,28 @@ impl Plugin for Fixture {
                 }
             }
         });
+    }
+
+    fn on_player_move(
+        tx: &raw::WorldTx,
+        player: &raw::Player,
+        _old: Vec3,
+        destination: Vec3,
+    ) -> Option<Vec3> {
+        STATE.with_borrow_mut(|state| {
+            if !matches!(state.mode, 27 | 28) {
+                return Some(destination);
+            }
+            submit(state, tx, player);
+            if state.mode == 27 {
+                None
+            } else {
+                Some(Vec3 {
+                    x: f64::NAN,
+                    ..destination
+                })
+            }
+        })
     }
 
     fn on_tick(_tick: u64) {

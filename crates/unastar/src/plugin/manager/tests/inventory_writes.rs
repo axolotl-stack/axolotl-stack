@@ -105,6 +105,7 @@ struct Harness {
     manager: Arc<Mutex<PluginManager>>,
     player: Entity,
     _packets: tokio::sync::mpsc::Receiver<jolyne::valentine::McpePacket>,
+    _archives: Option<tempfile::TempDir>,
 }
 impl Harness {
     /// Ordinary router startup installs transaction support from the manifest before a real join.
@@ -143,6 +144,10 @@ impl Harness {
         if write {
             capabilities.insert(PluginCapability::WriteInventory);
         }
+        let archives = (mode == 26).then(|| tempfile::tempdir().unwrap());
+        if archives.is_some() {
+            capabilities.insert(PluginCapability::PlayerStateArchives);
+        }
         let manager = Arc::new(Mutex::new(PluginManager {
             pending: vec![PendingPlugin {
                 component: Component::from_file(&engine, guest()).unwrap(),
@@ -160,6 +165,7 @@ impl Harness {
                         EventKind::PlayerJoin,
                         EventKind::PlayerQuit,
                         EventKind::PlayerAdmitted,
+                        EventKind::PlayerMove,
                         EventKind::Tick,
                     ]
                     .into(),
@@ -172,9 +178,27 @@ impl Harness {
             tick_budget_valid: true,
             readiness: Default::default(),
             storage_registry: Default::default(),
+            archive_registry: Default::default(),
             command_roots: Default::default(),
+            ui_registry: Default::default(),
+            view_registry: Default::default(),
         }));
+        if let Some(directory) = &archives {
+            manager
+                .lock()
+                .unwrap()
+                .configure_archives(&crate::config::PluginArchiveConfig {
+                    directory: directory.path().join("archives"),
+                    ..Default::default()
+                })
+                .unwrap();
+        }
         let world = router.world_mut(0).unwrap().ecs.world_mut();
+        world.insert_resource(crate::world::WorldIdentity {
+            id: uuid::Uuid::from_u128(9),
+            name: "example-overworld".into(),
+            dimension: 0,
+        });
         world.init_resource::<Completions>();
         world.add_observer(
             |_: On<native::InventoryEffectCommitted>, mut done: ResMut<Completions>| done.0 += 1,
@@ -207,7 +231,29 @@ impl Harness {
             manager,
             player,
             _packets: packets,
+            _archives: archives,
         }
+    }
+
+    /// Use the ordinary decoded input queue to reach the cancellable native movement boundary.
+    async fn move_to(&mut self, x: f32) -> Result<(), crate::server::worlds::WorldTickError> {
+        use jolyne::valentine::{BorrowedMcpePacket, McpePacket, McpePacketArgs};
+        let packet = McpePacket::from(jolyne::valentine::PlayerAuthInputPacket {
+            position: jolyne::valentine::Vec3 {
+                x,
+                y: 17.62,
+                z: 0.5,
+            },
+            ..Default::default()
+        });
+        let mut bytes = bytes::BytesMut::new();
+        packet.data.encode_inner(&mut bytes, 0, 0).unwrap();
+        let borrowed = BorrowedMcpePacket::decode_inner(&mut bytes.freeze()).unwrap();
+        self.router
+            .world_mut(0)
+            .unwrap()
+            .route_packet(1, McpePacketArgs, borrowed);
+        self.router.tick().await
     }
 
     /// Read counters from the real context, never from mirrored test bookkeeping.
@@ -797,4 +843,75 @@ async fn a_proven_rejected_request_can_retry_while_its_original_ticket_is_retain
     assert_eq!(harness.count(), 3);
     assert_eq!(harness.retained(), (0, 0));
     assert_eq!(provider.writes.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn historical_archive_inventory_cannot_authorize_a_live_inventory_replacement() {
+    let provider = Arc::new(Provider::new());
+    let mut harness = Harness::new(26, provider.clone(), PluginLimits::default(), true);
+    harness.action().await.unwrap();
+    assert!(
+        harness
+            .logs()
+            .iter()
+            .any(|log| log == "archive-is-observation")
+    );
+    assert_eq!(harness.count(), 0);
+    assert_eq!(provider.writes.load(Ordering::SeqCst), 0);
+    assert_eq!(harness.retained(), (0, 0));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn valid_default_cancellation_preserves_an_independent_durable_inventory_intent() {
+    let provider = Arc::new(Provider::new());
+    let mut harness = Harness::new(27, provider.clone(), PluginLimits::default(), true);
+    let position = harness
+        .router
+        .world(0)
+        .unwrap()
+        .ecs
+        .world()
+        .get::<crate::entity::components::Position>(harness.player)
+        .unwrap()
+        .0;
+    harness.move_to(3.5).await.unwrap();
+    assert_eq!(
+        harness
+            .router
+            .world(0)
+            .unwrap()
+            .ecs
+            .world()
+            .get::<crate::entity::components::Position>(harness.player)
+            .unwrap()
+            .0,
+        position
+    );
+    assert_eq!(harness.retained().1, 1);
+    provider.gate.add_permits(1);
+    harness.acknowledge(1).await;
+    harness.router.tick().await.unwrap();
+    assert_eq!(harness.count(), 3);
+    assert_eq!(provider.writes.load(Ordering::SeqCst), 1);
+    assert_eq!(harness.retained(), (0, 0));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_malformed_callback_result_discards_its_staged_durable_inventory_intent() {
+    let provider = Arc::new(Provider::new());
+    let mut harness = Harness::new(28, provider.clone(), PluginLimits::default(), true);
+    assert!(harness.move_to(3.5).await.is_err());
+    assert_eq!(provider.writes.load(Ordering::SeqCst), 0);
+    assert_eq!(harness.retained(), (0, 0));
+    assert_eq!(
+        harness
+            .router
+            .world(0)
+            .unwrap()
+            .ecs
+            .world()
+            .resource::<Completions>()
+            .0,
+        0
+    );
 }
