@@ -617,6 +617,27 @@ follow-up work. Source closure and destination replacement produce failures;
 unloading a component revokes outstanding authority and discards notifications
 owned by that destroyed instance. Replacement components never inherit them.
 
+### Final component destination authorization
+
+Subscribe to `player_travel` for `Handler::on_player_travel(ctx, &proposal)`.
+The proposal contains the actual selected feet after native safe-Y selection,
+ordinary native destination handlers and observers. It covers same-world moves,
+world transfers, projectile teleports and chorus fruit. `ctx.cancel()` rejects
+that destination before native persistence or movement. Choose new destinations
+through scoped relocation requests rather than mutating this final observation.
+
+The callback's `WorldTx` is the genuine source world. Destination dimension and
+opaque world-lifetime facts are observations, not another live transaction.
+Only the instance that originated a queued request receives its correlation;
+other observers and ordinary item teleports have no echo.
+
+Each approval retains the exact feet and originating instance lifetime. A later
+internal rewrite or instance removal invalidates it before native effects.
+Existing source identity, state and geometry checks still apply. Traps discard
+staged effects and reject travel; valid cancellation preserves independent
+explicit intents. This guard is authorization, and the existing owned
+`on_player_travel_result` remains the durable queued-request outcome.
+
 ### Scoped component player mechanics
 
 With `read-players`, `Player::mechanics()` copies the current native effects,

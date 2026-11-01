@@ -94,6 +94,18 @@ fn server(dimension: i32) -> GameServer {
 impl Harness {
     /// Load a genuine current-WIT component and a durable provider before trusted native join.
     fn new(bodies: &[(&str, String)], permitted: bool) -> Self {
+        Self::component_factory(permitted, false, false, &[], |engine| {
+            fixture::component(engine, bodies)
+        })
+    }
+    /// Use the same real join/runtime path for canonical fixtures and actual Rust SDK handlers.
+    fn component_factory(
+        permitted: bool,
+        guarded: bool,
+        required: bool,
+        configuration: &[u8],
+        component: impl FnOnce(&Engine) -> wasmtime::component::Component,
+    ) -> Self {
         let directory = tempfile::tempdir().unwrap();
         let provider = Arc::new(Provider {
             inner: LevelDBPlayerProvider::open(directory.path()).unwrap(),
@@ -112,20 +124,26 @@ impl Harness {
         if permitted {
             capabilities.insert(PluginCapability::PlayerTravel);
         }
+        let mut subscriptions = HashSet::from([EventKind::PlayerJump, EventKind::PlayerChat]);
+        if guarded {
+            subscriptions.insert(EventKind::PlayerTravel);
+        }
         let manifest = PluginManifest {
             id: PluginId("example.travel".into()),
             name: "Travel".into(),
             version: "1".into(),
             api_version: PLUGIN_API_VERSION.into(),
-            required: false,
+            required,
             config: None,
             capabilities,
-            subscriptions: [EventKind::PlayerJump, EventKind::PlayerChat].into(),
+            subscriptions,
             limits: PluginLimits::default(),
         };
+        let mut store = store(&engine, &manifest.limits);
+        store.data_mut().configuration = configuration.to_vec();
         let pending = PendingPlugin {
-            component: fixture::component(&engine, bodies),
-            store: store(&engine, &manifest.limits),
+            component: component(&engine),
+            store,
             manifest,
         };
         let manager = Arc::new(Mutex::new(PluginManager {
@@ -202,8 +220,7 @@ impl Harness {
             .lock()
             .unwrap()
             .plugins
-            .values()
-            .next()
+            .get(&PluginId("example.travel".into()))
             .unwrap()
             .store
             .data()
@@ -221,6 +238,9 @@ impl Harness {
         panic!("native operation did not produce its bounded result");
     }
 }
+
+#[path = "travel/authorization.rs"]
+mod authorization;
 
 /// Obtain the exact destination world lifetime during initialization, never a fabricated handle.
 fn load_destination(dimension: i32) -> String {

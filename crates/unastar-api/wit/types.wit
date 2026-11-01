@@ -742,6 +742,18 @@ interface types {
     }
     enum travel-acknowledgement { staged }
     record travel-location { dimension: s32, feet: vec3 }
+    enum travel-cause { command, projectile, chorus-fruit, world-transfer }
+    /// The native selected destination after safe-Y selection and ordinary native rewrites.
+    /// The transaction is the actual source world; destination facts grant no live world borrow.
+    record travel-proposal {
+        cause: travel-cause,
+        origin: travel-location,
+        destination: travel-location,
+        origin-world-lifetime: string,
+        destination-world-lifetime: string,
+        /// Only the originating component instance sees its request's opaque correlation.
+        correlation: option<u64>,
+    }
     enum travel-error {
         cancelled, source-closed, destination-closed, stale-source,
         unavailable, unsafe-destination, rejected, pending, invalid-request,

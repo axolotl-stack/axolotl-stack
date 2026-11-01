@@ -37,6 +37,7 @@ pub mod player_events;
 pub mod player_state;
 mod plugins;
 pub mod potions;
+pub(crate) mod travel_authorization;
 pub mod types;
 
 use bevy_ecs::prelude::*;

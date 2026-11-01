@@ -21,8 +21,16 @@ pub struct PlayerWorldTransfer {
     pub(super) from: DVec3,
     pub feet: DVec3,
     pub(super) cancelled: bool,
+    pub(super) approvals: Vec<crate::server::game::travel_authorization::Approval>,
 }
 impl PlayerWorldTransfer {
+    /// Bind a component's final approval to its actual selected feet and instance lifetime.
+    pub(crate) fn approve_destination(&mut self, owner: std::sync::Weak<()>) {
+        self.approvals
+            .push(crate::server::game::travel_authorization::Approval::new(
+                owner, self.feet,
+            ));
+    }
     /// Read the actor in the source ECS world.
     pub fn player(&self) -> Entity {
         self.player
@@ -247,7 +255,16 @@ pub(super) fn proposed(
         handler.on_transfer(source, target, event);
     }
     source.trigger_ref(event);
+    source.flush();
+    target.flush();
+    crate::server::game::travel_authorization::transfer(source, target, event);
+    source.flush();
+    target.flush();
     !event.cancelled
+        && event
+            .approvals
+            .iter()
+            .all(|approval| approval.matches(event.feet))
 }
 /// Notify native callbacks and destination observers before deferred publication.
 pub(super) fn committed(source: &mut World, target: &mut World, mut event: PlayerWorldTransferred) {
