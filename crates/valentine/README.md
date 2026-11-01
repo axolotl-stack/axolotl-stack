@@ -4,36 +4,46 @@
 
 It re-exports generated version crates behind feature flags and keeps the shared Bedrock codec/runtime in `bedrock_core`.
 
-## Current Workspace Version
+## Workspace versions
 
-The checked-in workspace targets Bedrock **26.51**, network protocol **2193**.
-The canonical protocolgen manifest labels this release `1.26.51`; Valentine
-uses that schema label for its module and Cargo feature names.
+Jolyne and Unastar explicitly select Bedrock **26.60**, network protocol
+**2225**, from `bedrock_1_26_60`. The generator's default manifest is
+`1.26.60`; schema labels determine the module and Cargo feature names.
 
-- `bedrock_1_26_51` (default feature)
-- `valentine::bedrock::protocol::v1_26_51::*`
-- `valentine::bedrock::version::v1_26_51::*`
-- `valentine::bedrock::v1_26_51::*` (compatibility alias)
+The low-level Valentine crate keeps **26.51 / protocol 2193** as its default
+feature for existing callers. To use current packets directly, select
+`bedrock_1_26_60` explicitly; enable both features to use both generated
+codecs. Runtime connections still require exactly protocol 2225.
+
+- `bedrock_1_26_60`: `valentine::bedrock::version::v1_26_60::*`
+- `bedrock_1_26_51` (low-level default): `valentine::bedrock::version::v1_26_51::*`
 
 ## Layout
 
 - `src/bedrock/`: shared Bedrock-facing API, version aliases, codec/context/error re-exports
 - `bedrock_core/`: shared codec/runtime primitives used by every generated version crate
-- `bedrock_versions/v1_26_51/`: generated protocol crate for the current version
+- `bedrock_versions/v1_26_60/`: generated protocol 2225 codec
+- `bedrock_versions/v1_26_51/`: retained protocol 2193 codec
 
-## Import Paths
+## Import paths
 
-Prefer:
+With `bedrock_1_26_60` enabled, prefer:
 
 ```rust
-use valentine::bedrock::version::v1_26_51::*;
+use valentine::bedrock::version::v1_26_60::*;
 ```
 
-Compatibility aliases still exist:
+With both version features enabled, keep their types distinct:
 
 ```rust
-use valentine::bedrock::v1_26_51::*;
-use valentine::bedrock::protocol::v1_26_51::*;
+use valentine::bedrock::version::{v1_26_51 as legacy, v1_26_60 as current};
+```
+
+Compatibility aliases exist for each enabled version:
+
+```rust
+use valentine::bedrock::v1_26_60::*;
+use valentine::bedrock::protocol::v1_26_60::*;
 ```
 
 Use `protocol::vX_Y_Z` when you explicitly want the raw generated version crate/module layout.
