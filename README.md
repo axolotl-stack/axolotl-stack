@@ -715,6 +715,12 @@ selected user-data value and 16 MiB combined, then cleared after the queued batc
 or source closure, and invalidated by callback failures or component removal.
 No transient correlation is a durable receipt.
 
+Custom item-action correlations belong to the originating component instance.
+Other subscribers still observe the native action ID, actual outcome and costs,
+but receive no correlation echo. Reloaded instances cannot inherit an earlier
+instance's echo. Identical opaque IDs from separate handlers do not make their
+custom claims agree; conflicting native handling cancels before any cost.
+
 
 ### Scoped component connection control
 

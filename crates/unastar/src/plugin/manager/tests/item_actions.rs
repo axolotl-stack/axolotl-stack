@@ -1038,3 +1038,158 @@ async fn required_malformed_item_reply_uses_the_existing_terminal_callback_failu
     ));
     assert_eq!(h.projectiles(), 0);
 }
+
+/// Compile the typed SDK fixture once, outside the host Cargo target lock.
+fn correlation_fixture() -> &'static std::path::PathBuf {
+    static GUEST: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+    GUEST.get_or_init(|| {
+        let package = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let target = std::env::var_os("CARGO_TARGET_DIR")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| package.join("../../target"))
+            .join("guest-item-correlation");
+        let output =
+            std::process::Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
+                .args([
+                    "build",
+                    "--locked",
+                    "--release",
+                    "--target",
+                    "wasm32-wasip2",
+                    "--manifest-path",
+                ])
+                .arg(package.join("tests/fixtures/item-correlation/Cargo.toml"))
+                .env("CARGO_TARGET_DIR", &target)
+                .output()
+                .expect("build item correlation fixture");
+        assert!(
+            output.status.success(),
+            "item fixture build failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        target.join("wasm32-wasip2/release/item_correlation_fixture.wasm")
+    })
+}
+
+/// Replace only this idle harness's module with genuine independent instances of one Rust guest.
+fn correlation_instances(harness: &mut Harness, instances: &[(&str, u8, bool)]) {
+    {
+        let mut manager = harness.manager.lock().unwrap();
+        manager.plugins.clear();
+        let engine = manager.engine.clone();
+        let component =
+            wasmtime::component::Component::from_file(&engine, correlation_fixture()).unwrap();
+        for &(id, mode, handles) in instances {
+            let limits = PluginLimits::default();
+            let mut context = store(&engine, &limits);
+            context.data_mut().configuration = vec![mode];
+            let mut subscriptions =
+                std::collections::HashSet::from([EventKind::ItemActionCommitted]);
+            if handles {
+                subscriptions.insert(EventKind::ItemAction);
+            }
+            manager.pending.push(PendingPlugin {
+                component: component.clone(),
+                store: context,
+                manifest: PluginManifest {
+                    id: PluginId(id.into()),
+                    name: "Correlation example".into(),
+                    version: "1".into(),
+                    api_version: PLUGIN_API_VERSION.into(),
+                    required: true,
+                    config: None,
+                    capabilities: [
+                        crate::plugin::manifest::PluginCapability::ReadPlayers,
+                        crate::plugin::manifest::PluginCapability::ItemValues,
+                    ]
+                    .into(),
+                    subscriptions,
+                    limits,
+                },
+            });
+        }
+    }
+    harness.router.initialize_plugins().unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn real_component_custom_correlations_echo_only_to_the_originating_instance() {
+    let mut h = Harness::new("unreachable".into(), "unreachable".into()).await;
+    correlation_instances(
+        &mut h,
+        &[("example.items", 0, true), ("example.observer", 1, false)],
+    );
+    h.held("minecraft:paper", 3);
+    h.air(crate::server::game::item_use::UseRequest::UseAir)
+        .await
+        .unwrap();
+    assert_eq!(h.count(), 2);
+    let manager = h.manager.lock().unwrap();
+    assert_eq!(
+        manager.plugins[&PluginId("example.items".into())]
+            .store
+            .data()
+            .test_logs,
+        ["owner"]
+    );
+    assert_eq!(
+        manager.plugins[&PluginId("example.observer".into())]
+            .store
+            .data()
+            .test_logs,
+        ["observer"]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn different_component_instances_cannot_agree_accidentally_through_identical_guest_correlations()
+ {
+    let mut h = Harness::new("unreachable".into(), "unreachable".into()).await;
+    correlation_instances(
+        &mut h,
+        &[("example.items", 0, true), ("example.other", 2, true)],
+    );
+    h.held("minecraft:paper", 3);
+    h.air(crate::server::game::item_use::UseRequest::UseAir)
+        .await
+        .unwrap();
+    assert_eq!(h.count(), 3);
+    let manager = h.manager.lock().unwrap();
+    assert!(
+        manager
+            .plugins
+            .values()
+            .all(|plugin| plugin.store.data().test_logs.is_empty())
+    );
+    assert!(manager.check_required().is_ok());
+}
+
+/// An unrelated native callback's numeric label is not a component-owned correlation.
+struct NumericNativeAction;
+impl crate::server::game::item_actions::ItemActionHandler for NumericNativeAction {
+    fn on_item_action(
+        &self,
+        _world: &mut World,
+        event: &mut crate::server::game::item_actions::PlayerItemAction,
+    ) {
+        event.handle(crate::server::game::item_actions::HandledItemAction {
+            action: "87".into(),
+            consume: 1,
+        });
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_native_numeric_action_label_is_not_forged_into_a_component_correlation() {
+    let mut h = Harness::new("unreachable".into(), "unreachable".into()).await;
+    correlation_instances(&mut h, &[("example.items", 1, false)]);
+    h.world_mut()
+        .resource_mut::<crate::server::game::item_actions::ItemActionHooks>()
+        .register(NumericNativeAction);
+    h.held("minecraft:paper", 3);
+    h.air(crate::server::game::item_use::UseRequest::UseAir)
+        .await
+        .unwrap();
+    assert_eq!(h.count(), 2);
+    assert_eq!(h.logs(), ["observer"]);
+}

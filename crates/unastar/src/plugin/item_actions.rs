@@ -115,6 +115,17 @@ fn discard(context: &mut HostContext, reps: &[u32]) {
         let _ = wit::HostStack::drop(context, Resource::new_own(*rep));
     }
 }
+/// Keep a guest correlation inside its originating component instance's native claim.
+fn custom_action(context: &HostContext, correlation: u64) -> String {
+    format!("component:{}:{correlation}", context.generation.simple())
+}
+
+/// Only the original component instance can observe its own opaque correlation echo.
+fn custom_correlation(context: &HostContext, action: &str) -> Option<u64> {
+    let prefix = format!("component:{}:", context.generation.simple());
+    action.strip_prefix(&prefix)?.parse().ok()
+}
+
 /// Capture a bounded complete known cost batch; partial quota allocations never survive failure.
 fn items(
     context: &mut HostContext,
@@ -233,7 +244,7 @@ impl PluginManager {
                 Ok(wit::ItemActionDecision::Handled(action)) => {
                     event.require_owner(owner_lease);
                     event.handle(native::HandledItemAction {
-                        action: action.correlation.to_string(),
+                        action: custom_action(plugin.store.data(), action.correlation),
                         consume: action.consume,
                     });
                 }
@@ -274,15 +285,23 @@ impl PluginManager {
                     })
                     .ok_or(wit::AccessError::Unavailable),
             ),
-            native::ItemActionOutcome::Custom { action, count } => {
+            native::ItemActionOutcome::Custom { count, .. } => {
                 wit::ItemActionOutcome::Custom(wit::CustomItemOutcome {
-                    correlation: action.parse().ok(),
+                    correlation: None,
                     consumed: *count,
                 })
             }
         };
         for owner in self.subscribers(EventKind::ItemActionCommitted) {
             let plugin = self.plugins.get_mut(&owner).expect("subscribed component");
+            let mut outcome = outcome.clone();
+            if let (
+                wit::ItemActionOutcome::Custom(custom),
+                native::ItemActionOutcome::Custom { action, .. },
+            ) = (&mut outcome, &event.outcome)
+            {
+                custom.correlation = custom_correlation(plugin.store.data(), action);
+            }
             let result = invoke(plugin, world, |store, bindings| {
                 let tx = make_world_tx(store)?;
                 let (items, reps) = match items(store.data_mut(), event) {
