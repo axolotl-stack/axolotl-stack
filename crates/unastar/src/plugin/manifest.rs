@@ -13,8 +13,10 @@ impl std::fmt::Display for PluginId {
     }
 }
 
-/// The manifest file (`plugin.toml`) for a plugin.
+/// The manifest file (`plugin.toml`) for a plugin. Unknown keys are rejected,
+/// like the server config, so a misspelt key fails loading instead of being ignored.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PluginManifest {
     /// The unique ID of the plugin (e.g., "author.plugin-name").
     pub id: PluginId,
@@ -37,6 +39,7 @@ pub struct PluginManifest {
 
 /// Resource limits for a plugin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PluginLimits {
     /// Wasmtime instruction fuel shared by all event exports in one server tick.
     /// Instantiation and on-load share a separate initialization budget of this size.
@@ -77,4 +80,39 @@ pub enum PluginCapability {
     WritePlayerData,
     /// Ability to spawn processes (restricted).
     Process,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MINIMAL: &str = r#"
+id = "test.plugin"
+name = "Test"
+version = "1.0.0"
+api_version = "0.2.0"
+"#;
+
+    fn parse(toml: &str) -> Result<PluginManifest, toml_edit::de::Error> {
+        toml_edit::de::from_str(toml)
+    }
+
+    #[test]
+    fn minimal_manifest_parses_with_default_limits() {
+        let manifest = parse(MINIMAL).unwrap();
+        assert_eq!(manifest.limits.fuel_per_tick, default_fuel());
+        assert!(manifest.subscriptions.is_empty());
+    }
+
+    #[test]
+    fn unknown_top_level_key_is_rejected() {
+        let error = parse(&format!("{MINIMAL}subscription = [\"tick\"]\n")).unwrap_err();
+        assert!(error.to_string().contains("subscription"), "{error}");
+    }
+
+    #[test]
+    fn unknown_limits_key_is_rejected() {
+        let error = parse(&format!("{MINIMAL}[limits]\nmax_memroy = 1\n")).unwrap_err();
+        assert!(error.to_string().contains("max_memroy"), "{error}");
+    }
 }

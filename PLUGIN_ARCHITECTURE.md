@@ -47,6 +47,8 @@ Install each plugin in its own directory beneath the server working directory's
 `target/wasm32-wasip2/debug/example_plugin.wasm`. Its manifest subscriptions select
 which exported callbacks receive server events. The current WIT package version
 is `0.2.0`; the manifest's `api_version` should match it.
+`plugin.toml` and its `[limits]` table reject unknown keys, so a misspelt key
+fails that plugin's load instead of being silently ignored.
 
 ## Loading and Host Access
 
