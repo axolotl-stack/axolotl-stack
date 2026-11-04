@@ -749,30 +749,45 @@ Trapping plugin callbacks are logged, and cancellable callbacks fail closed.
 
 ## Persistence
 
-Both LevelDB (the default) and BlazeDB use load-before-generate chunk requests.
-For Java-style terrain, storage reads and generation run off the ECS tick thread;
-only a confirmed storage miss generates terrain. Storage read errors are logged
-and never become generated replacement columns. A stored subchunk, biome or
-block-entity record that doesn't decode fails the load of its column the same
-way, in both providers, rather than loading as air. Loaded columns start clean,
-while generated or edited columns are saved on unload/shutdown.
+The world database opens at `worlds/default/db` (LevelDB by default, or BlazeDB
+with `world.blazedb_cache_chunks` cached columns). If it can't be opened, for
+example because another instance holds it, startup fails rather than running
+without chunk persistence.
+
+Both providers use load-before-generate chunk requests. For Java-style terrain,
+storage reads and generation run off the ECS tick thread; only a confirmed
+storage miss generates terrain. A storage read error is logged and drops that
+chunk request on both the asynchronous and the synchronous path: it never
+becomes a generated replacement column and never panics the tick thread. A
+stored subchunk, biome or block-entity record that doesn't decode fails the load
+of its column the same way, in both providers, rather than loading as air.
+Loaded columns start clean, while generated or edited columns are saved on
+unload and shutdown. A chunk whose save before unload fails stays loaded, with
+its edits and mobs, and the unload is retried after another grace period.
+Shutdown (Ctrl+C or `/stop`) saves every player, then every chunk with something
+to write, then closes the world and player databases so queued writes reach
+disk; a failed close makes the process exit with an error.
 
 Player state is loaded through the configured player provider before StartGame
 and restored before initial inventory, abilities, and attributes are sent.
 Disconnect and shutdown use the same snapshot: position/rotation, dimension,
 gamemode, main inventory, armour, offhand, cursor, held slot, health, hunger,
 and experience. Older player records without inventory fields load with empty
-slots. Missing records use first-join defaults; corrupt records are logged and
-left in storage rather than deleted. When `players.save_previous_position` is
+slots. Missing records use first-join defaults. A record that can't be read,
+parsed or validated refuses the join with a disconnect message and is left in
+storage untouched, so no save can overwrite it with first-join state; the same
+happens when its items don't resolve. When `players.save_previous_position` is
 enabled, saves also update the per-player TOML position used by spawn rules.
 Spawn rules retain their ordering and only use saved positions in the current
 dimension.
 
 Regression coverage: `cargo test -p unastar --test persistence` exercises both
 world providers, stored-column preservation through asynchronous loading and
-the save cycle, player disconnect/reconnect, corrupt player data, storage errors,
-and out-of-range block heights. On Windows, set
-`VCPKG_ROOT=C:\Users\jvigu\vcpkg` before building the LevelDB dependency.
+the save cycle, player disconnect/reconnect, corrupt player data, storage errors
+on both load paths, and out-of-range block heights. Unload save failures, the
+shutdown order and undecodable subchunks are covered by unit tests in
+`entity/mob/persistence`, `server/game` and `storage/leveldb_world`. On Windows,
+set `VCPKG_ROOT=C:\Users\jvigu\vcpkg` before building the LevelDB dependency.
 
 ## Bedrock-style generator
 
