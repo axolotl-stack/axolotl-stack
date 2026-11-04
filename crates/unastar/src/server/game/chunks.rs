@@ -276,7 +276,7 @@ mod tests {
         }));
         world.insert_resource(ServerConfigResource(Default::default()));
         world.init_resource::<ChunkPacketQueue>();
-        let chunk = world.get_or_create_chunk(0, 0);
+        let chunk = world.get_or_create_chunk(0, 0).unwrap();
         // Replace the grass at y=3 with stone.
         let edited = {
             let mut data = world.get_mut::<ChunkData>(chunk).unwrap();

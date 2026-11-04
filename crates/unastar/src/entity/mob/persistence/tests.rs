@@ -137,7 +137,7 @@ fn cows_round_trip_through_leveldb_across_a_restart() {
     let (adult, baby) = {
         let mut server = stored_server(&dir.0);
         let world = server.ecs.world_mut();
-        world.get_or_create_chunk(0, 0);
+        world.get_or_create_chunk(0, 0).unwrap();
         let adult = spawn_cow(world, false);
         let baby = spawn_cow(world, true);
         world.get_mut::<Health>(adult).unwrap().current = 7.0;
@@ -183,7 +183,7 @@ fn cows_round_trip_through_leveldb_across_a_restart() {
     // A new server over the same storage.
     let mut server = stored_server(&dir.0);
     let world = server.ecs.world_mut();
-    world.get_or_create_chunk(0, 0);
+    world.get_or_create_chunk(0, 0).unwrap();
     let mut restored: Vec<Saved> = cows(world)
         .into_iter()
         .map(|cow| saved(world, cow))
@@ -202,7 +202,7 @@ fn unloading_saves_and_removes_the_cow_and_reloading_restores_it() {
         .resource_mut::<ChunkLoadConfig>()
         .unload_grace_ticks = 1;
     let world = server.ecs.world_mut();
-    world.get_or_create_chunk(0, 0);
+    world.get_or_create_chunk(0, 0).unwrap();
     let cow = spawn_cow(world, false);
     let unique_id = unique_id(world, cow);
 
@@ -229,7 +229,7 @@ fn unloading_saves_and_removes_the_cow_and_reloading_restores_it() {
     assert!(world.get_entity(cow).is_err());
     assert!(cows(world).is_empty());
 
-    let chunk = world.get_or_create_chunk(0, 0);
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
     let [restored] = cows(world)[..] else {
         panic!("exactly one cow restored");
     };
@@ -257,7 +257,7 @@ fn a_dead_cow_is_deleted_from_storage_on_the_next_save() {
     let dir = TempDir::new();
     let mut server = stored_server(&dir.0);
     let world = server.ecs.world_mut();
-    world.get_or_create_chunk(0, 0);
+    world.get_or_create_chunk(0, 0).unwrap();
     let cow = spawn_cow(world, false);
     save_all_chunks(&mut server);
     server.ecs.world_mut().despawn(cow);
@@ -266,7 +266,7 @@ fn a_dead_cow_is_deleted_from_storage_on_the_next_save() {
 
     let mut server = stored_server(&dir.0);
     let world = server.ecs.world_mut();
-    world.get_or_create_chunk(0, 0);
+    world.get_or_create_chunk(0, 0).unwrap();
     assert!(cows(world).is_empty());
 }
 
@@ -275,7 +275,7 @@ fn unknown_stored_actors_are_kept_and_written_back() {
     let dir = TempDir::new();
     let mut server = stored_server(&dir.0);
     let world = server.ecs.world_mut();
-    let chunk = world.get_or_create_chunk(0, 0);
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
     let mut nbt = Vec::new();
     NBTTag::Compound(
         tag::Compound::builder()
@@ -299,7 +299,7 @@ fn unknown_stored_actors_are_kept_and_written_back() {
 
     let mut server = stored_server(&dir.0);
     let world = server.ecs.world_mut();
-    let chunk = world.get_or_create_chunk(0, 0);
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
     assert_eq!(
         world.get::<ChunkActorStore>(chunk).unwrap().foreign,
         [StoredActor { unique_id: 42, nbt }]

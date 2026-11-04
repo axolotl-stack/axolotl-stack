@@ -416,7 +416,7 @@ async fn synchronous_world_extension_does_not_replace_stored_column() {
     let mut manager = ChunkManager::new(WorldConfig::void_spawn_platform(1));
     manager.set_provider(provider.clone());
     world.insert_resource(manager);
-    let entity = world.get_or_create_chunk(0, 0);
+    let entity = world.get_or_create_chunk(0, 0).unwrap();
     assert_eq!(
         world
             .get::<ChunkData>(entity)
@@ -464,26 +464,39 @@ async fn corrupt_player_record_falls_back_without_deleting_data() {
     std::fs::remove_dir_all(directory).unwrap();
 }
 
+/// A world provider whose every read fails.
+struct UnreadableWorld;
+
+#[async_trait::async_trait]
+impl WorldProvider for UnreadableWorld {
+    async fn load_column(
+        &self,
+        _: ChunkPos,
+        _: i32,
+    ) -> unastar::storage::StorageResult<Option<ChunkColumn>> {
+        Err(unastar::storage::StorageError::Database(
+            "unreadable column".into(),
+        ))
+    }
+    async fn save_column(
+        &self,
+        _: ChunkPos,
+        _: i32,
+        _: &ChunkColumn,
+    ) -> unastar::storage::StorageResult<()> {
+        panic!("failed reads must never produce terrain to save")
+    }
+    async fn flush(&self) -> unastar::storage::StorageResult<()> {
+        Ok(())
+    }
+    async fn close(&self) -> unastar::storage::StorageResult<()> {
+        Ok(())
+    }
+}
+
 #[tokio::test]
 async fn storage_read_errors_never_generate_replacement_terrain() {
-    use async_trait::async_trait;
-    use unastar::storage::{StorageError, StorageResult};
-    struct UnreadableWorld;
-    #[async_trait]
-    impl WorldProvider for UnreadableWorld {
-        async fn load_column(&self, _: ChunkPos, _: i32) -> StorageResult<Option<ChunkColumn>> {
-            Err(StorageError::Database("unreadable column".into()))
-        }
-        async fn save_column(&self, _: ChunkPos, _: i32, _: &ChunkColumn) -> StorageResult<()> {
-            panic!("failed reads must never produce terrain to save")
-        }
-        async fn flush(&self) -> StorageResult<()> {
-            Ok(())
-        }
-        async fn close(&self) -> StorageResult<()> {
-            Ok(())
-        }
-    }
+    use unastar::storage::StorageError;
     let mut manager = ChunkManager::new(WorldConfig {
         generator: WorldGenerator::Java { seed: 12345 },
         ..WorldConfig::default()
@@ -496,4 +509,23 @@ async fn storage_read_errors_never_generate_replacement_terrain() {
         receiver.await.unwrap(),
         Err(StorageError::Database(_))
     ));
+}
+
+/// The synchronous path returns a storage read error instead of panicking the
+/// tick thread or generating terrain, and creates no chunk entity.
+#[test]
+fn synchronous_storage_read_error_creates_no_chunk_and_does_not_panic() {
+    use unastar::storage::StorageError;
+    use unastar::world::ecs::ChunkManagerWorldExt;
+    let mut manager = ChunkManager::new(WorldConfig::void_spawn_platform(1));
+    manager.set_provider(Arc::new(UnreadableWorld));
+    let mut world = World::new();
+    world.insert_resource(manager);
+
+    assert!(matches!(
+        world.get_or_create_chunk(0, 0),
+        Err(StorageError::Database(_))
+    ));
+    assert!(world.resource::<ChunkManager>().is_empty());
+    assert_eq!(world.query::<&ChunkData>().iter(&world).count(), 0);
 }

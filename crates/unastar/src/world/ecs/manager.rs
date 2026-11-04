@@ -9,7 +9,7 @@ use super::components::{
     PendingActorRestore,
 };
 use super::generation_worker::{ChunkGenerationWorker, generation_threads};
-use crate::storage::{ChunkColumn, WorldProvider};
+use crate::storage::{ChunkColumn, StorageResult, WorldProvider};
 use crate::world::generator::ChunkPipeline;
 use crate::world::{Chunk, ChunkPos, WorldConfig};
 
@@ -75,6 +75,10 @@ pub(crate) fn chunk_entity_components(
         restore,
     )
 }
+
+/// A newly created chunk's encoded biomes and highest subchunk, ready for
+/// `LevelChunk`.
+pub type EncodedNewChunk = (Vec<u8>, u16);
 
 /// Global resource for chunk entity management.
 ///
@@ -227,29 +231,33 @@ impl ChunkManager {
     /// Returns (column, was_loaded) where was_loaded indicates if the column
     /// was loaded from disk (true, with its stored actors) or newly generated
     /// (false).
-    pub fn load_or_generate_chunk(&self, x: i32, z: i32) -> (ChunkColumn, bool) {
+    ///
+    /// Only a storage miss generates terrain. A storage error is returned so
+    /// the caller drops the request: generating would replace the stored
+    /// column, and panicking would take down the tick thread.
+    pub fn load_or_generate_chunk(&self, x: i32, z: i32) -> StorageResult<(ChunkColumn, bool)> {
         let pos = ChunkPos::new(x, z);
         let dim = self.world_config.dimension;
 
         // Try to load from provider if available
         if let Some(provider) = &self.provider {
             let provider = provider.clone();
-            let column = block_on_storage(async move { provider.load_column(pos, dim).await })
-                .expect("chunk storage read failed; refusing to generate replacement terrain");
+            let column = block_on_storage(async move { provider.load_column(pos, dim).await })?;
             if let Some(column) = column {
-                return (column, true);
+                return Ok((column, true));
             }
         }
 
         // Fall through to generation
-        (ChunkColumn::new(self.generate_chunk(x, z)), false)
+        Ok((ChunkColumn::new(self.generate_chunk(x, z)), false))
     }
 
     /// Get or create a chunk entity using deferred Commands.
     /// If the chunk doesn't exist, loads from disk or generates it and spawns an entity.
     ///
     /// Returns `(entity, Some((encoded_biomes, highest_subchunk)))` for newly created chunks,
-    /// or `(entity, None)` for existing chunks.
+    /// or `(entity, None)` for existing chunks. A storage read error creates
+    /// nothing and is returned (see [`Self::load_or_generate_chunk`]).
     ///
     /// ## Phase 3 Optimization
     /// Encodes chunk data BEFORE spawning to avoid cloning ~200KB chunk data.
@@ -262,16 +270,16 @@ impl ChunkManager {
         z: i32,
         commands: &mut Commands,
         viewer: Entity,
-    ) -> (Entity, Option<(Vec<u8>, u16)>) {
+    ) -> StorageResult<(Entity, Option<EncodedNewChunk>)> {
         // Check if chunk entity already exists
         if let Some(entity) = self.get_by_coords(x, z) {
             // Chunk exists - add viewer to pending list for flush_pending_viewers to handle
             self.pending_viewers.entry((x, z)).or_default().push(viewer);
-            return (entity, None);
+            return Ok((entity, None));
         }
 
         // Chunk doesn't exist - try to load from disk, otherwise generate
-        let (column, was_loaded) = self.load_or_generate_chunk(x, z);
+        let (column, was_loaded) = self.load_or_generate_chunk(x, z)?;
         let pos = ChunkPosition::new(x, z);
 
         // Encode BEFORE spawning to avoid clone (Phase 3 optimization)
@@ -294,7 +302,7 @@ impl ChunkManager {
         // Add viewer to pending list - flush_pending_viewers will apply it once entity is ready
         self.pending_viewers.entry((x, z)).or_default().push(viewer);
 
-        (entity, Some((encoded_biomes, highest_subchunk)))
+        Ok((entity, Some((encoded_biomes, highest_subchunk))))
     }
 
     // =========================================================================
@@ -367,26 +375,27 @@ impl ChunkManager {
 pub trait ChunkManagerWorldExt {
     /// Get or create a chunk entity synchronously.
     /// Unlike get_or_create(), this spawns immediately without deferral and
-    /// restores the chunk's stored actors before returning.
-    fn get_or_create_chunk(&mut self, x: i32, z: i32) -> Entity;
+    /// restores the chunk's stored actors before returning. A storage read
+    /// error creates nothing and is returned.
+    fn get_or_create_chunk(&mut self, x: i32, z: i32) -> StorageResult<Entity>;
 }
 
 impl ChunkManagerWorldExt for bevy_ecs::world::World {
-    fn get_or_create_chunk(&mut self, x: i32, z: i32) -> Entity {
+    fn get_or_create_chunk(&mut self, x: i32, z: i32) -> StorageResult<Entity> {
         // Check if entity already exists
         {
             let chunk_manager = self
                 .get_resource::<ChunkManager>()
                 .expect("ChunkManager must exist");
             if let Some(entity) = chunk_manager.get_by_coords(x, z) {
-                return entity;
+                return Ok(entity);
             }
         }
 
         let (column, was_loaded) = self
             .get_resource::<ChunkManager>()
             .expect("ChunkManager must exist")
-            .load_or_generate_chunk(x, z);
+            .load_or_generate_chunk(x, z)?;
         let pos = ChunkPosition::new(x, z);
         let (components, actors) = chunk_entity_components(pos, column, was_loaded);
         let mut spawned = self.spawn(components);
@@ -402,7 +411,7 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
         chunk_manager.insert(pos, entity);
 
         crate::entity::mob::persistence::restore_actors_of_chunk(self, entity);
-        entity
+        Ok(entity)
     }
 }
 

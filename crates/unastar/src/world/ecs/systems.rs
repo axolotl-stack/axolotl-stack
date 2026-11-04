@@ -307,8 +307,21 @@ pub fn process_chunk_load_queues(
             // Get or create chunk entity - returns (entity, Option<(encoded_biomes, highest_subchunk)>)
             // Phase 3: Now returns pre-encoded data to avoid ~200KB chunk clone
             // This also registers the player as a pending viewer in the ChunkManager
-            let (chunk_entity, new_chunk_encoded) =
-                chunk_manager.get_or_create(cx, cz, &mut commands, player_entity);
+            let (chunk_entity, new_chunk_encoded) = match chunk_manager.get_or_create(
+                cx,
+                cz,
+                &mut commands,
+                player_entity,
+            ) {
+                Ok(created) => created,
+                Err(error) => {
+                    // As on the asynchronous path: drop the request rather
+                    // than generate over the stored column.
+                    warn!(chunk = ?(cx, cz), %error, "Chunk storage load failed; refusing to generate replacement terrain");
+                    loader.mark_load_failed(cx, cz);
+                    continue;
+                }
+            };
 
             // Track if this is a new chunk for logging
             let is_new_chunk = new_chunk_encoded.is_some();
