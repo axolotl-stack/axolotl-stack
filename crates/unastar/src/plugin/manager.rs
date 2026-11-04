@@ -571,6 +571,7 @@ impl PluginManager {
         }
         let manifest_content = std::fs::read_to_string(&manifest_path)?;
         let manifest: PluginManifest = toml_edit::de::from_str(&manifest_content)?;
+        manifest.check_api_version()?;
         let plugin_id = manifest.id.clone();
 
         if self.plugins.contains_key(&plugin_id)
@@ -1657,6 +1658,29 @@ mod tests {
         let mut store = store(&engine, &PluginLimits::default());
         store.data_mut().tps = 12.5;
         assert_eq!(store.data_mut().get_tps().unwrap(), 12.5);
+    }
+
+    #[test]
+    fn plugin_with_incompatible_api_version_is_not_loaded() {
+        let dir = tempfile::tempdir().unwrap();
+        // No plugin.wasm: the version check must reject the plugin before the
+        // component is read, so the error names the version, not the file.
+        let plugin = dir.path().join("old");
+        std::fs::create_dir(&plugin).unwrap();
+        std::fs::write(
+            plugin.join("plugin.toml"),
+            "id = 'old'\nname = 'old'\nversion = '1.0.0'\napi_version = '0.1.0'\n",
+        )
+        .unwrap();
+        let mut manager = PluginManager {
+            engine: engine(),
+            plugins: HashMap::new(),
+            pending: Vec::new(),
+            tps: TpsMeter::default(),
+        };
+        let old = manager.load_plugin(&dir.path().join("old")).unwrap_err();
+        assert!(old.to_string().contains("0.1.0"), "{old}");
+        assert!(manager.pending.is_empty());
     }
 
     #[test]

@@ -46,7 +46,10 @@ Install each plugin in its own directory beneath the server working directory's
 `crates/example-plugin/plugin.toml` and
 `target/wasm32-wasip2/debug/example_plugin.wasm`. Its manifest subscriptions select
 which exported callbacks receive server events. The current WIT package version
-is `0.2.0`; the manifest's `api_version` should match it.
+is `0.2.0`. The manifest's `api_version` is checked at load with Cargo's caret
+rule: while the major version is 0 the minor must match, and a plugin needing a
+newer patch than the server provides is rejected. An incompatible or malformed
+`api_version` skips that plugin with an error.
 `plugin.toml` and its `[limits]` table reject unknown keys, so a misspelt key
 fails that plugin's load instead of being silently ignored.
 
