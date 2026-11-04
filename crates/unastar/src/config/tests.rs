@@ -215,3 +215,38 @@ fn bedrock_config_requires_the_build_time_pack_feature() {
         cfg!(feature = "bedrock-worldgen")
     );
 }
+
+#[test]
+fn world_bounds_contain_their_inclusive_chunk_ranges() {
+    use crate::world::{ChunkPos, WorldBounds};
+    let inside = |bounds: WorldBounds, x, z| bounds.contains(ChunkPos::new(x, z));
+
+    assert!(inside(WorldBounds::Infinite, i32::MIN, i32::MAX));
+
+    let radius = WorldBounds::Radius { radius_chunks: 2 };
+    assert!(inside(radius, 2, -2));
+    assert!(inside(radius, -2, 0));
+    assert!(!inside(radius, 3, 0));
+    assert!(!inside(radius, 0, -3));
+    // `unsigned_abs` keeps i32::MIN out of a huge radius instead of overflowing.
+    assert!(!inside(
+        WorldBounds::Radius {
+            radius_chunks: i32::MAX as u32
+        },
+        i32::MIN,
+        0
+    ));
+
+    let rect = WorldBounds::Rect {
+        min_x: -1,
+        max_x: 2,
+        min_z: -3,
+        max_z: 4,
+    };
+    for (x, z) in [(-1, -3), (2, 4), (0, 0)] {
+        assert!(inside(rect, x, z), "({x}, {z})");
+    }
+    for (x, z) in [(-2, 0), (3, 0), (0, -4), (0, 5)] {
+        assert!(!inside(rect, x, z), "({x}, {z})");
+    }
+}

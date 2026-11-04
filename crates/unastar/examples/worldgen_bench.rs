@@ -387,7 +387,11 @@ fn pool_run(
         .enable_all()
         .build()?;
     runtime.block_on(async {
-        let pool = ChunkGenerationWorker::spawn(pipeline.clone(), workers);
+        let pool = ChunkGenerationWorker::spawn(
+            pipeline.clone(),
+            unastar::world::WorldBounds::Infinite,
+            workers,
+        );
         let generation_started = Instant::now();
         let receivers: Vec<_> = positions
             .iter()
