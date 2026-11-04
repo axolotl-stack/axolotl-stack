@@ -64,6 +64,15 @@ git submodule update --init --recursive
 Submodules are pinned by commit. Some pins, such as `crates/valentine_gen/bedrock-protocol-docs`,
 are not the tip of any branch, so git fetches them by SHA; `git submodule update` does this for you.
 
+If `git submodule update` fails with "clone of 'C:/...' failed" or another local path, your
+clone's git config points the submodules at old local mirrors. Reset them to the URLs in
+`.gitmodules` and fetch again:
+
+```bash
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
 ### Building
 ```bash
 cargo build --workspace
