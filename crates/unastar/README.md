@@ -64,6 +64,10 @@ sending faster than the budget for several ticks) closes its own connection; oth
 sessions' queues are unaffected. A leaving session's queued packets are applied
 before it is saved and despawned.
 
+`PlayerAuthInput` is rejected whole (the player stays where it was) when its
+position, rotation, head yaw or move vector is not finite, or when the position is
+more than 64 blocks from the server-tracked one.
+
 ## Joining
 
 Players join through jolyne's streamed spawn (`start_game_streamed`, BDS order):
