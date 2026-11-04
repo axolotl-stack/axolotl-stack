@@ -242,6 +242,9 @@ distinguishes successful joins from server-rejected login captures.
 allow_legacy)` returns `Result<AuthenticatedLogin, AuthError>` with
 `AuthenticatedLogin { identity: ValidatedIdentity, client_data: ClientData }`;
 `authenticate_login_with` takes an explicit `auth::openid::OpenIdProvider`.
+The async listener path uses `BedrockListenerConfig::key_provider` when it is
+set (a per-listener cache and refresh policy, or a custom `KeySetSource`) and
+`OpenIdProvider::minecraft()` otherwise.
 Issuer, audience and temporal failures have distinct `AuthError` variants;
 key/signature mismatches are `AuthError::BadSignature`.
 

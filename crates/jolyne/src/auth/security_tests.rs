@@ -397,6 +397,46 @@ mod client_server {
         );
     }
 
+    /// The async server path verifies with the listener's injected key
+    /// source, not only the process-wide Minecraft provider: a token signed
+    /// by the injected issuer is accepted, and one signed by another key is
+    /// rejected by that same source.
+    #[tokio::test]
+    async fn listener_key_provider_verifies_online_logins() {
+        use crate::config::BedrockListenerConfig;
+        use crate::stream::server::verify_login;
+        let issuer = key(2);
+        let connection_key = key(5);
+        let request = |signer: &SecretKey| {
+            let credentials = LoginCredentials::Online(Arc::new(TestIssuer(signer.clone())));
+            let connection_key = connection_key.clone();
+            async move {
+                let login = build_login(&connection_key, "Player", uuid::Uuid::nil(), &credentials)
+                    .await
+                    .unwrap();
+                crate::auth::client::encode_login_request(
+                    &login.auth_info_json,
+                    &login.client_data_jwt,
+                )
+                .unwrap()
+            }
+        };
+        let config = BedrockListenerConfig {
+            online_mode: true,
+            key_provider: Some(Arc::new(provider(&issuer))),
+            ..Default::default()
+        };
+        let accepted = verify_login(&request(&issuer).await, &config)
+            .await
+            .unwrap();
+        assert_eq!(accepted.identity.claimed_xuid(), Some("2535428123456789"));
+        assert!(
+            verify_login(&request(&key(3)).await, &config)
+                .await
+                .is_err()
+        );
+    }
+
     #[tokio::test]
     async fn offline_client_login_is_rejected_online_and_accepted_offline() {
         let connection_key = key(5);

@@ -163,7 +163,8 @@ impl Harness {
     ) -> Result<crate::auth::AuthenticatedLogin, JolyneError> {
         match &self.provider {
             None => {
-                crate::stream::server::verify_login(request.connection_request(), false, true).await
+                crate::stream::server::verify_login(request.connection_request(), &offline_config())
+                    .await
             }
             Some(provider) => {
                 use crate::auth::security_tests::{claims, client_data, sign, verifier_for};
@@ -266,6 +267,15 @@ fn finish_spawn(
     let mut joined = next(client); // sends SetLocalPlayerAsInitialized
     pump(&mut joined.session, &mut spawn);
     (next(spawn), joined)
+}
+
+/// The settings the harness verifies offline logins with.
+fn offline_config() -> BedrockListenerConfig {
+    BedrockListenerConfig {
+        online_mode: false,
+        allow_legacy_auth: true,
+        ..Default::default()
+    }
 }
 
 fn params(runtime_id: i64) -> WorldJoinParams {
@@ -1104,9 +1114,10 @@ async fn server_full_and_admission_refusals_reach_the_client_typed() {
         .unwrap();
     pump(&mut client, &mut server);
     let request = next(server);
-    let identity = crate::stream::server::verify_login(request.connection_request(), false, true)
-        .await
-        .unwrap();
+    let identity =
+        crate::stream::server::verify_login(request.connection_request(), &offline_config())
+            .await
+            .unwrap();
     let failure = match request.authenticated(identity, PEER, Instant::now()) {
         Err(failure) => failure,
         Ok(_) => panic!("admission hook ignored"),

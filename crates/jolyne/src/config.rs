@@ -191,6 +191,12 @@ pub struct BedrockListenerConfig {
     pub status_refresh: Duration,
     /// Codec options for every accepted connection.
     pub connection: ConnectionOptions,
+    /// Key source that verifies the online-mode Login `Token`. `None` uses
+    /// the process-wide provider bootstrapped from Minecraft build discovery
+    /// ([`crate::auth::openid::OpenIdProvider::minecraft`]); set it to give a
+    /// listener its own cache and refresh policy, or a custom trust source.
+    /// Unused in offline mode. Default: `None`.
+    pub key_provider: Option<Arc<crate::auth::openid::OpenIdProvider>>,
 }
 
 #[cfg(feature = "server")]
@@ -210,6 +216,7 @@ impl Default for BedrockListenerConfig {
             status: None,
             status_refresh: Duration::from_secs(4),
             connection: ConnectionOptions::default(),
+            key_provider: None,
         }
     }
 }
@@ -230,6 +237,7 @@ impl std::fmt::Debug for BedrockListenerConfig {
             .field("admission", &self.admission.is_some())
             .field("status", &self.status.is_some())
             .field("connection", &self.connection)
+            .field("key_provider", &self.key_provider.is_some())
             .finish()
     }
 }

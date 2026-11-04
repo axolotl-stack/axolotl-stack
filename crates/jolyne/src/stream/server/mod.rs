@@ -46,17 +46,26 @@ impl PhaseOf<Server> for Play {
     type Owner = core::ServerSession;
 }
 
-/// Decodes and verifies a `LoginPacket.connection_request`.
+/// Decodes and verifies a `LoginPacket.connection_request` with the
+/// listener's settings and key source
+/// ([`BedrockListenerConfig::key_provider`]).
 pub(crate) async fn verify_login(
     connection_request: &[u8],
-    online_mode: bool,
-    allow_legacy: bool,
+    config: &BedrockListenerConfig,
 ) -> Result<AuthenticatedLogin, JolyneError> {
     let (auth_info, client_data) = crate::auth::decode_login_request(connection_request)?;
-    Ok(
-        crate::auth::authenticate_login(&auth_info, &client_data, online_mode, allow_legacy)
-            .await?,
+    let provider = match &config.key_provider {
+        Some(provider) => provider.as_ref(),
+        None => crate::auth::openid::OpenIdProvider::minecraft(),
+    };
+    Ok(crate::auth::authenticate_login_with(
+        provider,
+        &auth_info,
+        &client_data,
+        config.online_mode,
+        config.allow_legacy_auth,
     )
+    .await?)
 }
 
 /// A verified, admitted player before the encryption handshake, as returned
@@ -210,11 +219,7 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
         let deadline = tokio::time::Instant::from_std(request.deadline());
         let verified = tokio::time::timeout_at(
             deadline,
-            verify_login(
-                request.connection_request(),
-                config.online_mode,
-                config.allow_legacy_auth,
-            ),
+            verify_login(request.connection_request(), &config),
         )
         .await;
         let login = match verified {
