@@ -70,6 +70,9 @@ jobs:
           cargo test -p axolotl-xbl
           cargo check -p unastar --all-targets
           cargo test -p unastar --lib --tests
+          # Build-time worldgen toolchains; their BDS-install tests skip
+          # without UNASTAR_BDS_DIR.
+          cargo test -p unastar_noise -p unastar_bedrock_codegen
 
   test-windows:
     runs-on: windows-latest
