@@ -827,6 +827,38 @@ mod tests {
     }
 
     #[test]
+    fn registering_a_taken_test_name_fails_and_keeps_the_first() {
+        let mut registry = FilterRegistry::default();
+        let def = TestDef {
+            name: "addon_glowing",
+            value: ValueKind::Bool,
+            default: Some(DefaultValue::Bool(true)),
+        };
+        let id = registry.register(def).unwrap();
+        let again = registry.register(TestDef {
+            value: ValueKind::Int,
+            default: None,
+            ..def
+        });
+        assert_eq!(
+            again,
+            Err("filter test addon_glowing is already registered".to_owned())
+        );
+        assert_eq!(registry.lookup("addon_glowing"), Some(id));
+        assert_eq!(registry.def(id).value, ValueKind::Bool);
+        // A built-in name is taken too.
+        let builtin = TestDef {
+            name: "is_family",
+            ..def
+        };
+        assert!(registry.register(builtin).is_err());
+        assert_eq!(
+            registry.lookup("is_family").and_then(TestId::builtin),
+            Some(BuiltinTest::IsFamily)
+        );
+    }
+
+    #[test]
     fn unknown_test_is_kept_logged_and_false() {
         let (f, diags) = parse(json!({"test": "made_up", "value": 3}));
         assert_eq!(diags.len(), 1);
