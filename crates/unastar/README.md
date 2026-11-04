@@ -54,6 +54,16 @@ directory. The old sample's `[world.storage]` table and its `data_dir`,
 a configuration error: remove that table and use the supported `[world]` keys.
 Player storage remains configured separately under `[players]`.
 
+## Client input limits
+
+Each joined session has its own bounded queue of decoded packets (512 packets). The
+tick loop applies at most 64 packets per session per tick, oldest first, and leaves
+the rest queued for the next tick, so a legitimate burst is delayed, never dropped
+or reordered. A network task that finds its own queue full (the client has kept
+sending faster than the budget for several ticks) closes its own connection; other
+sessions' queues are unaffected. A leaving session's queued packets are applied
+before it is saved and despawned.
+
 ## Joining
 
 Players join through jolyne's streamed spawn (`start_game_streamed`, BDS order):

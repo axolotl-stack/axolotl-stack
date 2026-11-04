@@ -1,6 +1,7 @@
 //! Network module - connection handling and sessions.
 
 pub mod events;
+pub mod inbound;
 
 use jolyne::BedrockStream;
 use jolyne::stream::{Play, Server as ServerRole};
@@ -10,6 +11,7 @@ use tracing::{info, trace, warn};
 
 // Re-export types
 pub use events::{NetworkEvent, SessionId};
+pub use inbound::{InboundPacket, InboundQueues};
 
 fn terminates_connection(packet: &McpePacket) -> bool {
     match &packet.data {
@@ -34,6 +36,7 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     stream: BedrockStream<Play, ServerRole, T>,
     session_id: SessionId,
     event_tx: mpsc::Sender<NetworkEvent>,
+    inbound_tx: mpsc::Sender<InboundPacket>,
     mut outbound_rx: mpsc::Receiver<McpePacket>,
     mut tick_rx: broadcast::Receiver<()>,
 ) {
@@ -81,21 +84,18 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
             result = stream.recv_packet_borrowed() => {
                 match result {
                     Ok(packet) => {
-                        let packet_args = McpePacketArgs;
-                        if let Err(e) = event_tx.try_send(NetworkEvent::Packet {
-                            session_id,
-                            packet_args,
-                            packet: Box::new(packet),
-                        }) {
+                        // This session's own queue: a full one means this client has
+                        // outrun the per-tick budget for several ticks.
+                        if let Err(e) = inbound_tx.try_send((McpePacketArgs, Box::new(packet))) {
                             match e {
                                 mpsc::error::TrySendError::Full(_) => {
                                     tracing::warn!(
                                         session_id,
-                                        "Inbound event channel full; closing noisy connection"
+                                        "Inbound packet queue full; closing noisy connection"
                                     );
                                 }
                                 mpsc::error::TrySendError::Closed(_) => {
-                                    tracing::error!(session_id, "Main thread dropped event channel");
+                                    tracing::error!(session_id, "Main thread dropped inbound queue");
                                 }
                             }
                             break;
@@ -164,6 +164,9 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     if let Err(e) = closed {
         trace!(session_id, "Closing connection failed: {e}");
     }
+    // Close the inbound queue first, so the tick loop's drain of it on
+    // `Disconnected` is finite.
+    drop(inbound_tx);
     let _ = event_tx
         .send(NetworkEvent::Disconnected { session_id })
         .await;

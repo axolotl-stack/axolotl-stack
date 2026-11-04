@@ -8,7 +8,6 @@ use jolyne::status::StaticStatus;
 use jolyne::{BedrockListener, BedrockListenerConfig, FlushMode};
 use p384::SecretKey;
 use rand::thread_rng;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Semaphore, broadcast, mpsc};
@@ -16,7 +15,8 @@ use tokio_raknet::RaknetListener;
 use tracing::{error, info, trace, warn};
 
 use crate::config::{PlayerDataStore, UnastarConfig};
-use crate::network::{NetworkEvent, run_network_loop};
+use crate::network::inbound::session_inbound;
+use crate::network::{InboundPacket, InboundQueues, NetworkEvent, run_network_loop};
 use crate::plugin::PluginManager;
 use crate::server::connect::{accept_join_sequence, spawn_to_dvec3};
 use crate::server::{GameServer, PlayerSpawnData};
@@ -24,12 +24,9 @@ use crate::storage::LevelDBPlayerProvider;
 
 /// Tick rate (20 TPS = 50ms per tick).
 const TICK_DURATION: Duration = Duration::from_millis(50);
-/// Inbound events buffered per configured player before network tasks apply backpressure.
-const NETWORK_EVENTS_PER_PLAYER: usize = 128;
-/// Minimum inbound queue capacity for small servers.
-const MIN_NETWORK_EVENT_CAPACITY: usize = 1024;
-/// Maximum packets from one session applied to domain queues in a single tick.
-const MAX_PACKET_EVENTS_PER_SESSION_PER_TICK: u32 = 64;
+/// Join and disconnect events buffered before network tasks wait for the tick loop.
+/// Client packets use per-session queues instead (`network::inbound`).
+const SESSION_EVENT_CAPACITY: usize = 256;
 
 /// The main server runtime.
 ///
@@ -209,12 +206,10 @@ impl UnastarServer {
             )),
         );
 
-        // Consolidated bounded event channel. This is the main inbound
-        // backpressure point between network tasks and the 20 TPS game loop.
-        let event_channel_capacity = (self.config.server.max_players.max(1) as usize)
-            .saturating_mul(NETWORK_EVENTS_PER_PLAYER)
-            .max(MIN_NETWORK_EVENT_CAPACITY);
-        let (event_tx, mut event_rx) = mpsc::channel::<NetworkEvent>(event_channel_capacity);
+        // Session lifecycle events. Each session's packets arrive on its own
+        // bounded queue, registered here when its `Joined` event is applied.
+        let (event_tx, mut event_rx) = mpsc::channel::<NetworkEvent>(SESSION_EVENT_CAPACITY);
+        let mut inbound = InboundQueues::default();
 
         // Tick signal channel - signals network tasks to flush their buffers
         let (tick_tx, _) = broadcast::channel::<()>(16);
@@ -314,9 +309,10 @@ impl UnastarServer {
 
                     let tick_start = std::time::Instant::now();
 
-                    // Drain network events
-                    let mut events_processed = 0u32;
-                    let mut per_session_packets: HashMap<_, u32> = HashMap::new();
+                    // Drain session events, then each session's packets (up to
+                    // its per-tick budget; the rest wait for the next tick).
+                    let mut events_processed = 0usize;
+                    let mut disconnected = Vec::new();
                     while let Ok(event) = event_rx.try_recv() {
                         events_processed += 1;
                         match event {
@@ -330,7 +326,11 @@ impl UnastarServer {
                                 saved_data,
                                 chunk_radius,
                                 outbound_tx,
+                                inbound_rx,
                             } => {
+                                // Registered even when the spawn is refused: the
+                                // router drops packets of sessions without a player.
+                                inbound.register(session_id, inbound_rx);
                                 let reject_tx = outbound_tx.clone();
                                 let spawn_data = PlayerSpawnData {
                                     session_id,
@@ -361,33 +361,28 @@ impl UnastarServer {
                                     }));
                                 }
                             }
-                            NetworkEvent::Packet {
-                                session_id,
-                                packet_args,
-                                packet,
-                            } => {
-                                let count = per_session_packets.entry(session_id).or_default();
-                                *count += 1;
-                                if *count > MAX_PACKET_EVENTS_PER_SESSION_PER_TICK {
-                                    warn!(
-                                        session_id,
-                                        budget = MAX_PACKET_EVENTS_PER_SESSION_PER_TICK,
-                                        "dropping inbound packet over per-tick session budget"
-                                    );
-                                    continue;
-                                }
-                                self.server.route_packet(session_id, packet_args, *packet);
-                            }
                             NetworkEvent::Disconnected { session_id } => {
-                                if self.config.players.save_on_disconnect {
-                                    let saved = self.server.save_player(session_id).await;
-                                    if saved {
-                                        info!(session_id, "Player data saved on disconnect");
-                                    }
-                                }
-                                self.server.despawn_player(session_id);
+                                disconnected.push(session_id);
                             }
                         }
+                    }
+                    let server = &mut self.server;
+                    let mut route = |session_id, (packet_args, packet): InboundPacket| {
+                        server.route_packet(session_id, packet_args, *packet);
+                    };
+                    events_processed += inbound.drain_tick(&mut route);
+                    // A leaving session's last packets are applied before it despawns.
+                    for &session_id in &disconnected {
+                        events_processed += inbound.close(session_id, &mut route);
+                    }
+                    for session_id in disconnected {
+                        if self.config.players.save_on_disconnect {
+                            let saved = self.server.save_player(session_id).await;
+                            if saved {
+                                info!(session_id, "Player data saved on disconnect");
+                            }
+                        }
+                        self.server.despawn_player(session_id);
                     }
 
                     let events_elapsed = tick_start.elapsed();
@@ -544,6 +539,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                 const OUTBOUND_CHANNEL_CAPACITY: usize = 1024;
                                 let (outbound_tx, outbound_rx) =
                                     mpsc::channel(OUTBOUND_CHANNEL_CAPACITY);
+                                let (inbound_tx, inbound_rx) = session_inbound();
 
                                 // Send joined event
                                 if event_tx
@@ -557,6 +553,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                         saved_data: saved_data.map(Box::new),
                                         chunk_radius,
                                         outbound_tx: outbound_tx.clone(),
+                                        inbound_rx,
                                     })
                                     .await
                                     .is_err()
@@ -568,6 +565,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                     play_stream,
                                     session_id,
                                     event_tx,
+                                    inbound_tx,
                                     outbound_rx,
                                     tick_rx,
                                 )
