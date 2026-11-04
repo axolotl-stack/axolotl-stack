@@ -8,7 +8,6 @@
 //! - **Sessions**: Xbox session creation for multiplayer visibility
 //! - **Presence**: Online status updates
 //! - **PlayFab**: Minecraft session start for signaling
-//! - **Multiplayer**: cached OpenID discovery and cryptographic multiplayer JWT verification
 //!
 //! # Quick Start
 //!
@@ -43,7 +42,6 @@ pub mod discovery;
 pub mod error;
 pub mod friends;
 pub mod gallery;
-pub mod multiplayer;
 pub mod playfab;
 pub mod presence;
 pub mod rta;
@@ -55,7 +53,6 @@ pub use constants::{SERVICE_CONFIG_ID, TEMPLATE_NAME, TITLE_ID, endpoints};
 pub use error::{XblError, XblResult};
 pub use friends::{FriendsClient, MAX_FRIENDS, Person, SocialSummary, SocialSummaryInfo};
 pub use gallery::{GalleryClient, GalleryImage, SetShowcaseResult};
-pub use multiplayer::MultiplayerTokenVerifier;
 pub use playfab::PlayFabClient;
 pub use presence::{PresenceClient, PresenceState};
 pub use rta::RtaClient;
