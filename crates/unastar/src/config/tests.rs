@@ -217,6 +217,46 @@ fn bedrock_config_requires_the_build_time_pack_feature() {
 }
 
 #[test]
+fn default_gamemode_parses_strictly_and_reaches_runtime_configuration() {
+    use crate::entity::components::GameMode;
+    let file = ConfigFile::new();
+    std::fs::write(&file.0, VOID_WORLD).unwrap();
+    let config = UnastarConfig::load_or_create(&file.0).unwrap();
+    assert_eq!(config.server_config().default_gamemode, GameMode::Survival);
+
+    for (name, mode) in [
+        ("survival", GameMode::Survival),
+        ("creative", GameMode::Creative),
+        ("adventure", GameMode::Adventure),
+        ("spectator", GameMode::Spectator),
+    ] {
+        std::fs::write(
+            &file.0,
+            format!("{VOID_WORLD}[server]\ndefault_gamemode = '{name}'"),
+        )
+        .unwrap();
+        let config = UnastarConfig::load_or_create(&file.0).unwrap();
+        assert_eq!(config.server_config().default_gamemode, mode);
+    }
+
+    // A typo used to load as survival without a word.
+    for typo in ["creativ", "Creative", "1", ""] {
+        std::fs::write(
+            &file.0,
+            format!("{VOID_WORLD}[server]\ndefault_gamemode = '{typo}'"),
+        )
+        .unwrap();
+        assert!(
+            matches!(
+                UnastarConfig::load_or_create(&file.0),
+                Err(ConfigError::Parse { .. })
+            ),
+            "accepted default_gamemode = '{typo}'"
+        );
+    }
+}
+
+#[test]
 fn world_bounds_contain_their_inclusive_chunk_ranges() {
     use crate::world::{ChunkPos, WorldBounds};
     let inside = |bounds: WorldBounds, x, z| bounds.contains(ChunkPos::new(x, z));

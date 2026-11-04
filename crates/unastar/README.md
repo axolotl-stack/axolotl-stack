@@ -39,7 +39,9 @@ All defaults, including both samples, enable Xbox Live authentication with
 `server.online_mode = true`. Offline mode requires an explicit `false`.
 Unknown keys in the root, server, world (including bounds and generator variants),
 players, spawn-rule, and spawn-location tables are rejected rather than silently
-ignored.
+ignored. Enumerated values parse strictly: `server.default_gamemode` must be one of
+`survival`, `creative`, `adventure` or `spectator` (lower case), like `difficulty`
+and `block_network_ids`, so a typo is a load error instead of silent survival.
 
 `world.bounds` (`infinite`, `radius` or `rect`, inclusive chunk coordinates) limits
 terrain generation on every path, the inline generators and the generation pool
