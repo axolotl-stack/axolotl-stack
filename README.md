@@ -130,6 +130,10 @@ We welcome contributions! Whether it's fixing a protocol bug in Valentine, optim
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first; the individual crate directories have crate-specific guidelines.
 A gameplay feature is not finished until its rows in `docs/parity/` are updated in the same commit.
 
+Coding agents (Claude Code, Codex) and humans share one set of instructions, [AGENTS.md](AGENTS.md),
+and one knowledge system: OpenSpec specs and changes in [`openspec/`](openspec/), and decisions,
+quirks, lessons and research in [`docs/`](docs/README.md).
+
 ---
 
 ## 🔮 Overall Roadmap
