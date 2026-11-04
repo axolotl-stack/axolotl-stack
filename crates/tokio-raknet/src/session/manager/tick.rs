@@ -857,4 +857,71 @@ mod tests {
         assert_eq!(ms.rtt_micros(), before);
         assert!(ms.is_connected());
     }
+
+    /// Optimized close sends a Reliable `DisconnectionNotification` at once,
+    /// then drains: it stays `Closing` while reliable data is unacknowledged
+    /// and closes 5 s after `close` even if nothing is ever acknowledged.
+    #[test]
+    fn optimized_close_drains_unacknowledged_sends_for_at_most_five_seconds() {
+        let start = Instant::now();
+        let mut ms = connected_client(TransmissionPolicy::Optimized, start);
+        ack_all(&mut ms, start);
+        ms.queue_app_packet(
+            RaknetPacket::UserData {
+                id: 0x80,
+                payload: Bytes::from_static(b"must arrive"),
+            },
+            Reliability::ReliableOrdered,
+            0,
+            RakPriority::Normal,
+        )
+        .unwrap();
+        // The close reads the clock itself; measure the drain from after it.
+        ms.close(DisconnectReason::Disconnected, start).unwrap();
+        let closed_at = Instant::now();
+        assert_eq!(ms.state(), ConnectionState::Closing);
+        let frames = tick_frames(&mut ms, closed_at + EPSILON);
+        let notification: Vec<&EncapsulatedPacket> = frames
+            .iter()
+            .filter(|frame| matches!(decode(frame), RaknetPacket::DisconnectionNotification(_)))
+            .collect();
+        assert_eq!(notification.len(), 1);
+        assert_eq!(notification[0].header.reliability, Reliability::Reliable);
+        assert!(in_flight(&ms) > 0);
+
+        for elapsed in [1_000, 3_000, 4_900] {
+            let now = closed_at + Duration::from_millis(elapsed);
+            ms.record_activity(now);
+            tick_frames(&mut ms, now);
+            assert_eq!(
+                ms.state(),
+                ConnectionState::Closing,
+                "draining at {elapsed} ms"
+            );
+        }
+        let now = closed_at + Duration::from_millis(5_000);
+        ms.record_activity(now);
+        tick_frames(&mut ms, now);
+        assert_eq!(ms.state(), ConnectionState::Closed, "bounded at 5 s");
+    }
+
+    /// With everything acknowledged the Optimized drain ends after 1 s.
+    #[test]
+    fn optimized_close_with_nothing_unacknowledged_closes_after_one_second() {
+        let start = Instant::now();
+        let mut ms = connected_client(TransmissionPolicy::Optimized, start);
+        ack_all(&mut ms, start);
+        ms.close(DisconnectReason::Disconnected, start).unwrap();
+        let closed_at = Instant::now();
+        tick_frames(&mut ms, closed_at + EPSILON);
+        ack_all(&mut ms, closed_at + EPSILON);
+        let now = closed_at + Duration::from_millis(900);
+        ms.record_activity(now);
+        tick_frames(&mut ms, now);
+        assert_eq!(ms.state(), ConnectionState::Closing);
+        let now = closed_at + Duration::from_millis(1_000);
+        ms.record_activity(now);
+        tick_frames(&mut ms, now);
+        assert_eq!(ms.state(), ConnectionState::Closed);
+    }
 }
