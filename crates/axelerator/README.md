@@ -4,6 +4,14 @@
 cargo run -p axelerator
 ```
 
+## Exit status
+
+The process exits `0` only after a requested shutdown (Ctrl+C or `SIGTERM`).
+Any failure it cannot recover from (startup failure, exhausted token refreshes,
+a failed transfer-server recovery, a transfer-server error or panic) is returned
+from `Axelerator::run` and the process exits non-zero, so the systemd unit's
+`Restart=on-failure` restarts it.
+
 ## Token cache security
 
 OAuth credentials are saved to a uniquely named temporary file in the cache

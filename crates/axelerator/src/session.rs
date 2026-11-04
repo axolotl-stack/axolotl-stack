@@ -553,7 +553,12 @@ impl Axelerator {
         }
 
         // Send shutdown notification to Discord
-        self.discord.notify_shutdown("Graceful shutdown");
+        match &result {
+            Ok(()) => self.discord.notify_shutdown("Graceful shutdown"),
+            Err(e) => self
+                .discord
+                .notify_shutdown(&format!("Exited with error: {e:#}")),
+        }
 
         info!("Cleanup complete");
         result
@@ -739,7 +744,9 @@ impl Axelerator {
             );
         }
 
-        loop {
+        // Every exit that is not a requested shutdown is an error, so the
+        // process exits non-zero and its supervisor restarts it.
+        let outcome: Result<()> = loop {
             tokio::select! {
                 biased;
 
@@ -749,145 +756,132 @@ impl Axelerator {
                     self.transfer_shutdown.notify_waiters();
                     // Give transfer server time to shutdown gracefully
                     tokio::time::sleep(Duration::from_millis(500)).await;
-                    break;
+                    break Ok(());
                 }
 
                 // Transfer server completion
                 res = transfer_task.join() => {
-                    match res {
-                        Ok(Ok(reason)) => {
-                            match reason {
-                                ShutdownReason::Requested => {
-                                    info!("Transfer server shutdown completed");
-                                    break;
-                                }
-                                ShutdownReason::AuthenticationError => {
-                                    // Token expired - refresh and restart
-                                    token_refresh_attempts += 1;
-                                    if token_refresh_attempts > MAX_TOKEN_REFRESH_ATTEMPTS {
-                                        let err_msg = format!(
-                                            "Token refresh failed {} times, giving up",
-                                            token_refresh_attempts
-                                        );
-                                        error!("{}", err_msg);
-                                        self.discord.notify_auth_error(&err_msg);
-                                        break;
-                                    }
+                    let reason = match transfer_exit(res) {
+                        Ok(reason) => reason,
+                        Err(err_msg) => {
+                            error!("{}", err_msg);
+                            self.discord.notify_crash(&err_msg);
+                            break Err(anyhow::anyhow!(err_msg));
+                        }
+                    };
+                    match reason {
+                        ShutdownReason::Requested => {
+                            info!("Transfer server shutdown completed");
+                            break Ok(());
+                        }
+                        ShutdownReason::AuthenticationError => {
+                            // Token expired - refresh and restart
+                            token_refresh_attempts += 1;
+                            if token_refresh_attempts > MAX_TOKEN_REFRESH_ATTEMPTS {
+                                let err_msg = format!(
+                                    "Token refresh failed {} times, giving up",
+                                    token_refresh_attempts
+                                );
+                                error!("{}", err_msg);
+                                self.discord.notify_auth_error(&err_msg);
+                                break Err(anyhow::anyhow!(err_msg));
+                            }
 
-                                    warn!(
-                                        attempt = token_refresh_attempts,
-                                        "Transfer server auth failed, refreshing tokens..."
+                            warn!(
+                                attempt = token_refresh_attempts,
+                                "Transfer server auth failed, refreshing tokens..."
+                            );
+
+                            // Force refresh the XBL token for PlayFab
+                            playfab.invalidate_service_token(&mc_token).await;
+                            if let Err(e) = token_cache.force_refresh_xbl().await {
+                                error!("Failed to refresh XBL token: {}", e);
+                                // Re-enter this branch after a delay, counting the attempt.
+                                transfer_task = TransferTask::retry_after(
+                                    TOKEN_REFRESH_RETRY_DELAY,
+                                    ShutdownReason::AuthenticationError,
+                                );
+                                continue;
+                            }
+
+                            // Get new mc_token
+                            match get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await {
+                                Ok(new_token) => {
+                                    mc_token = new_token;
+                                    info!("Token refresh successful, restarting transfer server...");
+
+                                    // Reset refresh counter on success
+                                    token_refresh_attempts = 0;
+
+                                    // Restart transfer server with new token
+                                    transfer_task = spawn_transfer_server(
+                                        signaling_url.clone(),
+                                        nethernet_id,
+                                        mc_token.clone(),
+                                        self.config.clone(),
+                                        self.transfer_shutdown.clone(),
+                                        transfer_stats.clone(),
+                                        player_history.clone(),
                                     );
-
-                                    // Force refresh the XBL token for PlayFab
-                                    playfab.invalidate_service_token(&mc_token).await;
-                                    if let Err(e) = token_cache.force_refresh_xbl().await {
-                                        error!("Failed to refresh XBL token: {}", e);
-                                        // Re-enter this branch after a delay, counting the attempt.
-                                        transfer_task = TransferTask::retry_after(
-                                            TOKEN_REFRESH_RETRY_DELAY,
-                                            ShutdownReason::AuthenticationError,
-                                        );
-                                        continue;
-                                    }
-
-                                    // Get new mc_token
-                                    match get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await {
-                                        Ok(new_token) => {
-                                            mc_token = new_token;
-                                            info!("Token refresh successful, restarting transfer server...");
-
-                                            // Reset refresh counter on success
-                                            token_refresh_attempts = 0;
-
-                                            // Restart transfer server with new token
-                                            transfer_task = spawn_transfer_server(
-                                                signaling_url.clone(),
-                                                nethernet_id,
-                                                mc_token.clone(),
-                                                self.config.clone(),
-                                                self.transfer_shutdown.clone(),
-                                                transfer_stats.clone(),
-                                                player_history.clone(),
-                                            );
-                                        }
-                                        Err(e) => {
-                                            error!("Failed to get new mc_token: {}", e);
-                                            // Re-enter this branch after a delay, counting the attempt.
-                                            transfer_task = TransferTask::retry_after(
-                                                TOKEN_REFRESH_RETRY_DELAY,
-                                                ShutdownReason::AuthenticationError,
-                                            );
-                                        }
-                                    }
-                                    continue;
                                 }
-                                ShutdownReason::ListenerClosed => {
-                                    // Signaling connection died - try to recover by refreshing
-                                    // MC token and restarting the transfer server.
-                                    // This matches Broadcaster's checkConnection() -> createSession() pattern.
-                                    warn!("Transfer server listener closed, attempting recovery...");
+                                Err(e) => {
+                                    error!("Failed to get new mc_token: {}", e);
+                                    // Re-enter this branch after a delay, counting the attempt.
+                                    transfer_task = TransferTask::retry_after(
+                                        TOKEN_REFRESH_RETRY_DELAY,
+                                        ShutdownReason::AuthenticationError,
+                                    );
+                                }
+                            }
+                            continue;
+                        }
+                        ShutdownReason::ListenerClosed => {
+                            // Signaling connection died - try to recover by refreshing
+                            // MC token and restarting the transfer server.
+                            // This matches Broadcaster's checkConnection() -> createSession() pattern.
+                            warn!("Transfer server listener closed, attempting recovery...");
 
-                                    // Refresh MC token
-                                    match get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await {
-                                        Ok(new_token) => {
-                                            mc_token = new_token;
-                                            info!("MC token refreshed, restarting transfer server...");
+                            // Refresh MC token
+                            match get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await {
+                                Ok(new_token) => {
+                                    mc_token = new_token;
+                                    info!("MC token refreshed, restarting transfer server...");
 
-                                            // Re-PUT session to keep it alive
-                                            let session_token = match token_cache.get_or_authenticate().await {
-                                                Ok(t) => t,
-                                                Err(e) => {
-                                                    let err_msg = format!("Failed to get XBL token for session refresh during recovery: {}", e);
-                                                    error!("{}", err_msg);
-                                                    self.discord.notify_crash(&err_msg);
-                                                    break;
-                                                }
-                                            };
-                                            if let Err(e) = session_client.create_session(&session_token, &current_session).await {
-                                                warn!("Failed to refresh session during recovery: {}", e);
-                                                // Continue anyway - transfer server restart is more important
-                                            }
-
-                                            transfer_task = spawn_transfer_server(
-                                                signaling_url.clone(),
-                                                nethernet_id,
-                                                mc_token.clone(),
-                                                self.config.clone(),
-                                                self.transfer_shutdown.clone(),
-                                                transfer_stats.clone(),
-                                                player_history.clone(),
-                                            );
-                                            continue;
-                                        }
+                                    // Re-PUT session to keep it alive
+                                    let session_token = match token_cache.get_or_authenticate().await {
+                                        Ok(t) => t,
                                         Err(e) => {
-                                            let err_msg = format!("Failed to refresh MC token during recovery: {}", e);
+                                            let err_msg = format!("Failed to get XBL token for session refresh during recovery: {}", e);
                                             error!("{}", err_msg);
                                             self.discord.notify_crash(&err_msg);
-                                            break;
+                                            break Err(anyhow::anyhow!(err_msg));
                                         }
+                                    };
+                                    if let Err(e) = session_client.create_session(&session_token, &current_session).await {
+                                        warn!("Failed to refresh session during recovery: {}", e);
+                                        // Continue anyway - transfer server restart is more important
                                     }
+
+                                    transfer_task = spawn_transfer_server(
+                                        signaling_url.clone(),
+                                        nethernet_id,
+                                        mc_token.clone(),
+                                        self.config.clone(),
+                                        self.transfer_shutdown.clone(),
+                                        transfer_stats.clone(),
+                                        player_history.clone(),
+                                    );
+                                    continue;
                                 }
-                                ShutdownReason::FatalError => {
-                                    let err_msg = format!("Transfer server fatal error: {:?}", reason);
+                                Err(e) => {
+                                    let err_msg = format!("Failed to refresh MC token during recovery: {}", e);
                                     error!("{}", err_msg);
                                     self.discord.notify_crash(&err_msg);
-                                    break;
+                                    break Err(anyhow::anyhow!(err_msg));
                                 }
                             }
                         }
-                        Ok(Err(e)) => {
-                            let err_msg = format!("Transfer server error: {}", e);
-                            error!("{}", err_msg);
-                            self.discord.notify_crash(&err_msg);
-                            break;
-                        }
-                        Err(e) => {
-                            let err_msg = format!("Transfer server task panicked: {}", e);
-                            error!("{}", err_msg);
-                            self.discord.notify_crash(&err_msg);
-                            break;
-                        }
+                        ShutdownReason::FatalError => break Err(anyhow::anyhow!("Transfer server fatal error")),
                     }
                 }
 
@@ -1193,7 +1187,7 @@ impl Axelerator {
                     }
                 }
             }
-        }
+        };
 
         // Summary at shutdown
         info!(stats = %transfer_stats.summary(), "Transfer server final stats");
@@ -1212,7 +1206,7 @@ impl Axelerator {
             }
         }
 
-        Ok(())
+        outcome
     }
 
     /// Request shutdown.
@@ -1901,6 +1895,20 @@ async fn run_friend_expiry_check(
     }
 }
 
+/// The transfer server's exit reason, or the message for an exit the
+/// signaling loop cannot recover from (an error, a panic or a fatal
+/// configuration problem).
+fn transfer_exit(
+    res: std::result::Result<TransferResult, tokio::task::JoinError>,
+) -> std::result::Result<ShutdownReason, String> {
+    match res {
+        Ok(Ok(ShutdownReason::FatalError)) => Err("Transfer server fatal error".to_string()),
+        Ok(Ok(reason)) => Ok(reason),
+        Ok(Err(e)) => Err(format!("Transfer server error: {e:#}")),
+        Err(e) => Err(format!("Transfer server task panicked: {e}")),
+    }
+}
+
 fn is_rate_limited_error(error: &axolotl_xbl::XblError) -> bool {
     error.status().is_some_and(|status| status.as_u16() == 429)
         || matches!(error, axolotl_xbl::XblError::RateLimited)
@@ -1921,6 +1929,22 @@ fn is_guest_account(xuid: &str) -> bool {
 #[cfg(test)]
 mod auth_scheduling_tests {
     use super::*;
+
+    /// Fatal exits used to `break` the loop and return `Ok(())`, so the
+    /// process exited 0 and systemd (`Restart=on-failure`) never restarted it.
+    #[tokio::test]
+    async fn unrecoverable_transfer_exits_are_errors() {
+        assert!(transfer_exit(Ok(Err(anyhow::anyhow!("boom")))).is_err());
+        assert!(transfer_exit(Ok(Ok(ShutdownReason::FatalError))).is_err());
+        let panicked = tokio::spawn(async { panic!("transfer task exploded") })
+            .await
+            .map(|()| Ok(ShutdownReason::Requested));
+        assert!(transfer_exit(panicked).unwrap_err().contains("panicked"));
+        assert_eq!(
+            transfer_exit(Ok(Ok(ShutdownReason::Requested))),
+            Ok(ShutdownReason::Requested)
+        );
+    }
 
     /// After a failed token refresh the loop used to `continue` and poll
     /// the already-finished transfer `JoinHandle` again, which panics.
