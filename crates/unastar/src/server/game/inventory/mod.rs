@@ -89,7 +89,7 @@ use std::time::Instant;
 use bevy_ecs::prelude::*;
 use bevy_ecs::query::QueryData;
 use bevy_ecs::system::SystemState;
-use tracing::{debug, info, trace};
+use tracing::{debug, trace};
 
 pub use engine::RequestIdAssignments;
 
@@ -590,7 +590,8 @@ fn handle_inventory_transaction(
 ) {
     let transaction = &pk.transaction;
 
-    info!(transaction = ?transaction, "InventoryTransaction");
+    // Clients choose how many transactions they send, so the full form stays at trace.
+    trace!(entity = ?entity, transaction = ?transaction, "InventoryTransaction");
 
     match transaction {
         InventoryTransactionPacketTransaction::NormalTransactionData(normal) => {
@@ -1787,6 +1788,91 @@ mod real_player_drop_test {
                     responses[0].responses[0].result,
                     EnumsItemStackNetResult::Success
                 );
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    /// Records the level and target of every event the thread logs.
+    struct EventLevels(std::sync::Arc<std::sync::Mutex<Vec<(tracing::Level, String)>>>);
+
+    impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for EventLevels {
+        fn on_event(
+            &self,
+            event: &tracing::Event<'_>,
+            _: tracing_subscriber::layer::Context<'_, S>,
+        ) {
+            let meta = event.metadata();
+            self.0
+                .lock()
+                .unwrap()
+                .push((*meta.level(), meta.target().to_owned()));
+        }
+    }
+
+    /// A client decides how many `InventoryTransaction`s it sends, so handling them
+    /// must not log at info or above.
+    #[test]
+    fn inventory_transactions_are_not_logged_at_info() {
+        use tracing_subscriber::layer::SubscriberExt;
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
+                let _guard = runtime.enter();
+                let mut server = crate::GameServer::with_config(crate::ServerConfig {
+                    default_gamemode: GameMode::Survival,
+                    world: crate::world::WorldConfig::void_spawn_platform(1),
+                    ..Default::default()
+                });
+                let (tx, mut rx) = tokio::sync::mpsc::channel(256);
+                let player = server
+                    .spawn_player(crate::PlayerSpawnData {
+                        session_id: 12,
+                        display_name: "chatty".into(),
+                        xuid: None,
+                        uuid: Some(uuid::Uuid::from_u128(12).to_string()),
+                        runtime_id: 42,
+                        position: glam::DVec3::new(0.5, 17.0, 0.5),
+                        saved_data: None,
+                        outbound_tx: tx,
+                        chunk_radius: 0,
+                    })
+                    .unwrap();
+                while rx.try_recv().is_ok() {}
+
+                let events = std::sync::Arc::default();
+                let subscriber = tracing_subscriber::registry()
+                    .with(EventLevels(std::sync::Arc::clone(&events)))
+                    .with(tracing_subscriber::filter::LevelFilter::INFO);
+                tracing::subscriber::with_default(subscriber, || {
+                    let mut queue = server
+                        .ecs
+                        .world_mut()
+                        .resource_mut::<InventoryPacketQueue>();
+                    for _ in 0..32 {
+                        queue.0.push((
+                            player,
+                            InventoryAction::Transaction(InventoryTransactionPacket::default()),
+                        ));
+                    }
+                    let world = server.ecs.world_mut();
+                    let mut state = InventorySystemState::new(world);
+                    apply_inventory(world, &mut state);
+                });
+                let (inventory_target, _) = module_path!().rsplit_once("::").unwrap();
+                let logged: Vec<_> = events
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .filter(|(_, target)| target.starts_with(inventory_target))
+                    .cloned()
+                    .collect();
+                assert_eq!(logged, []);
             })
             .unwrap()
             .join()
