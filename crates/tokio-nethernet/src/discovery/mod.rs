@@ -194,7 +194,10 @@ pub struct DiscoveryListener {
     config: DiscoveryListenerConfig,
     addresses: RwLock<HashMap<u64, AddressEntry>>,
     responses: RwLock<HashMap<u64, ResponseEntry>>,
-    pong_data: RwLock<Option<Vec<u8>>>,
+    /// Encoded server data. A synchronous lock: `Signaling::set_pong_data`
+    /// is not async and must never drop an update, and no guard is held
+    /// across an await.
+    pong_data: parking_lot::RwLock<Option<Vec<u8>>>,
     signal_tx: mpsc::Sender<Signal>,
     signal_rx: RwLock<Option<mpsc::Receiver<Signal>>>,
     /// Reused wire-text buffer for outgoing signals; held only while encoding.
@@ -226,7 +229,7 @@ impl DiscoveryListener {
             config,
             addresses: RwLock::new(HashMap::new()),
             responses: RwLock::new(HashMap::new()),
-            pong_data: RwLock::new(None),
+            pong_data: parking_lot::RwLock::new(None),
             signal_tx,
             signal_rx: RwLock::new(Some(signal_rx)),
             signal_text: parking_lot::Mutex::new(String::new()),
@@ -256,7 +259,7 @@ impl DiscoveryListener {
     /// client only broadcasts while browsing).
     pub async fn set_server_data(&self, data: ServerData) {
         let bytes = data.encode();
-        *self.pong_data.write().await = Some(bytes);
+        *self.pong_data.write() = Some(bytes);
     }
 
     /// Send the current server data to `addr` without a request. The client
@@ -264,7 +267,7 @@ impl DiscoveryListener {
     /// request state), so this makes a server visible to a client whose
     /// broadcasts cannot reach this socket, e.g. a loopback-only one.
     pub async fn send_server_data_to(&self, addr: SocketAddr) -> std::io::Result<()> {
-        let response = match self.pong_data.read().await.as_ref() {
+        let response = match self.pong_data.read().as_ref() {
             Some(data) => packet::encode_response(self.config.network_id, data),
             None => {
                 return Err(std::io::Error::new(
@@ -342,7 +345,7 @@ impl DiscoveryListener {
 
             self.expire_peers(Instant::now()).await;
 
-            if self.pong_data.read().await.is_some() {
+            if self.pong_data.read().is_some() {
                 continue;
             }
             let request = packet::encode_request(self.config.network_id);
@@ -407,7 +410,7 @@ impl DiscoveryListener {
             // Requests are answered at their source but teach no address
             // (the client's peer database learns from responses and messages).
             packet::Packet::Request => {
-                if let Some(data) = self.pong_data.read().await.as_ref() {
+                if let Some(data) = self.pong_data.read().as_ref() {
                     trace!(to = %addr, len = data.len(), "Sending discovery response");
                     let response = packet::encode_response(self.config.network_id, data);
                     // A saturated UDP send queue must not stall inbound signaling.
@@ -522,9 +525,7 @@ impl Signaling for DiscoveryListener {
                 ..Default::default()
             };
             let bytes = server_data.encode();
-            if let Ok(mut guard) = self.pong_data.try_write() {
-                *guard = Some(bytes);
-            }
+            *self.pong_data.write() = Some(bytes);
         }
     }
 }
@@ -551,7 +552,7 @@ mod tests {
             },
             addresses: RwLock::new(HashMap::new()),
             responses: RwLock::new(HashMap::new()),
-            pong_data: RwLock::new(None),
+            pong_data: parking_lot::RwLock::new(None),
             signal_tx,
             signal_rx: RwLock::new(Some(signal_rx)),
             signal_text: parking_lot::Mutex::new(String::new()),
@@ -771,5 +772,38 @@ mod tests {
                 RecvErrorAction::Backoff
             );
         }
+    }
+
+    /// `set_pong_data` used to `try_write` and drop the update whenever a
+    /// discovery reply was reading the current data at the same moment.
+    #[tokio::test]
+    async fn contended_pong_data_update_is_not_dropped() {
+        let listener = Arc::new(listener().await);
+        let (held, release) = std::sync::mpsc::channel::<()>();
+        let (locked_tx, locked_rx) = std::sync::mpsc::channel::<()>();
+        let reader = listener.clone();
+        let holder = std::thread::spawn(move || {
+            let _guard = reader.pong_data.read();
+            locked_tx.send(()).unwrap();
+            let _ = release.recv_timeout(Duration::from_millis(100));
+        });
+        locked_rx.recv().unwrap();
+        listener.set_pong_data(b"MCPE;Server;1;1.0;2;10;1;Level;Survival;");
+        drop(held);
+        holder.join().unwrap();
+        let encoded = listener.pong_data.read().clone().expect("update dropped");
+        let expected = ServerData {
+            server_name: "Server".into(),
+            level_name: "Level".into(),
+            player_count: 2,
+            max_player_count: 10,
+            game_type: 0,
+            editor_world: false,
+            hardcore: false,
+            transport_layer: TransportLayer::NetherNet,
+            connection_type: 4,
+            ..Default::default()
+        };
+        assert_eq!(encoded, expected.encode());
     }
 }
