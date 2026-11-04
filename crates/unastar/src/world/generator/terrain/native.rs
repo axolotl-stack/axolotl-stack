@@ -144,8 +144,28 @@ impl JavaGenerator {
             self.seed,
             OverworldFluidPicker::new(settings::SEA_LEVEL),
         );
+        let dense = self.overworld_native_cells(pos, &source, &flat, &columns, &mut aquifer);
+        self.finish_native_stage(pos, stage, dense, biomes, &source, |x, y, z| {
+            aquifer.carve_substance(x, y, z).map(java_aquifer_substance)
+        })
+    }
+
+    /// Overworld noise-stage blocks in Java-exact arithmetic: interpolated
+    /// density cells, aquifer fluids (barriers fall through to the ore veins,
+    /// then the default block) and ore veins. Shared by the Java backend (its
+    /// source adds the structure beardifier) and the Bedrock backend (plain
+    /// noise, no Java structures).
+    pub(super) fn overworld_native_cells<N: NoiseSource>(
+        &self,
+        pos: ChunkPos,
+        source: &N,
+        flat: &noise::FlatCacheGrid,
+        columns: &noise::ColumnContextGrid,
+        aquifer: &mut NoiseBasedAquifer<'_, OverworldFluidPicker, N>,
+    ) -> DenseBlocks {
+        use noise::overworld_settings as settings;
         let veins = NativeOreVeinifier::new(self.ore_random.clone());
-        let mut sampler = noise::NativeCellSampler::new(pos.x, pos.z, &flat, &columns, &source);
+        let mut sampler = noise::NativeCellSampler::new(pos.x, pos.z, flat, columns, source);
         let mut dense = DenseBlocks::filled_with_bounds(
             u32::from(states::AIR.0),
             BlockStateSpace::Java,
@@ -204,9 +224,7 @@ impl JavaGenerator {
                 }
             }
         }
-        self.finish_native_stage(pos, stage, dense, biomes, &source, |x, y, z| {
-            aquifer.carve_substance(x, y, z).map(java_aquifer_substance)
-        })
+        dense
     }
 
     secondary_stage!(
