@@ -648,6 +648,34 @@ impl PluginManager {
         }
     }
 
+    /// Call `on-unload` on every loaded plugin and drop them all.
+    ///
+    /// The World is attached for the call like any other invocation, with a fresh
+    /// fuel budget. Actions a plugin requests in `on-unload` are queued in the
+    /// `ActionQueue`; at server shutdown no further tick runs, so they are not
+    /// applied. A trap is logged and does not stop the other plugins unloading.
+    /// Pending plugins never ran `on-load`, so they are dropped without a call.
+    pub fn unload_all(&mut self, world: &mut bevy_ecs::world::World) {
+        self.pending.clear();
+        for (id, mut plugin) in self.plugins.drain() {
+            let result = with_world(&mut plugin.store, world, |store| -> anyhow::Result<()> {
+                begin_fuel_budget(store, &plugin.manifest.limits)?;
+                prepare_invocation(store);
+                plugin.bindings.call_on_unload(&mut *store)
+            });
+            let actions = std::mem::take(&mut plugin.store.data_mut().pending_actions);
+            if let Some(mut queue) = world.get_resource_mut::<crate::ecs::events::ActionQueue>() {
+                for action in actions {
+                    queue.push(action);
+                }
+            }
+            match result {
+                Ok(()) => info!(%id, "Plugin unloaded"),
+                Err(error) => error!(%id, %error, "Plugin on-unload failed"),
+            }
+        }
+    }
+
     /// Dispatch a single ServerEvent to a plugin's typed export.
     /// Returns `true` if the event was cancelled by the plugin.
     fn dispatch_event(
@@ -947,8 +975,9 @@ mod tests {
         component_with_marker(engine, allow, 0)
     }
 
-    /// Like [`component`], but `on-timer` calls `set-block((0, 0, 0), marker)` so
-    /// tests can see which plugin a timer reached in the `ActionQueue`.
+    /// Like [`component`], but `on-timer` and `on-unload` call
+    /// `set-block((0, 0, 0), marker)` so tests can see which plugin was called
+    /// in the `ActionQueue`.
     fn component_with_marker(engine: &Engine, allow: bool, marker: u32) -> Component {
         let exports = [
             ("on-load", "", "", false),
@@ -1076,7 +1105,7 @@ mod tests {
             };
             let body = if name == "on-load" {
                 "call $tick i64.const 42 i64.ne if unreachable end".to_string()
-            } else if name == "on-timer" {
+            } else if name == "on-timer" || name == "on-unload" {
                 format!("i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block")
             } else if returns_bool {
                 format!("i32.const {}", u8::from(allow))
@@ -1264,6 +1293,30 @@ mod tests {
         manager.tick(&mut world);
         assert_eq!(manager.plugins.len(), 2);
         assert_eq!(queued_markers(&mut world), [1]);
+    }
+
+    #[test]
+    fn unload_all_calls_on_unload_and_drops_every_plugin() {
+        use crate::ecs::events::EventKind;
+        let engine = engine();
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![pending(&engine, manifest("first", &[EventKind::Tick]), 3)],
+            engine,
+        };
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
+        world.insert_resource(crate::ecs::events::ActionQueue::default());
+        world.insert_resource(crate::ecs::events::EventBuffer::default());
+        manager.tick(&mut world);
+        assert_eq!(manager.plugins.len(), 1);
+        assert!(queued_markers(&mut world).is_empty());
+        manager
+            .pending
+            .push(pending(&manager.engine, manifest("never-loaded", &[]), 4));
+        manager.unload_all(&mut world);
+        assert!(manager.plugins.is_empty() && manager.pending.is_empty());
+        assert_eq!(queued_markers(&mut world), [3]);
     }
 
     #[test]
