@@ -243,3 +243,157 @@ pub async fn resolve_spawn_location(
 pub fn spawn_to_dvec3(pos: &Vec3) -> DVec3 {
     DVec3::new(pos.x as f64, pos.y as f64, pos.z as f64)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{PlayerLastPosition, SpawnRule};
+
+    const UUID: &str = "00000000-0000-0000-0000-00000000002a";
+
+    fn at(x: f32) -> SpawnLocation {
+        SpawnLocation {
+            x,
+            y: 70.0,
+            z: 0.5,
+            yaw: 0.0,
+            pitch: 0.0,
+        }
+    }
+
+    fn previous() -> SpawnRule {
+        SpawnRule {
+            name: "previous".into(),
+            previous_position: true,
+            always_at_location: false,
+            location: None,
+        }
+    }
+
+    fn fixed(x: f32) -> SpawnRule {
+        SpawnRule {
+            name: format!("fixed {x}"),
+            previous_position: false,
+            always_at_location: true,
+            location: Some(at(x)),
+        }
+    }
+
+    /// A fallback-only rule: it has a location but never answers on its own.
+    fn fallback(x: f32) -> SpawnRule {
+        SpawnRule {
+            always_at_location: false,
+            ..fixed(x)
+        }
+    }
+
+    fn saved(x: f64, dimension: i32) -> PlayerData {
+        PlayerData {
+            uuid: UUID.into(),
+            position: [x, 70.0, 0.5],
+            dimension,
+            ..PlayerData::default()
+        }
+    }
+
+    struct Store(PlayerDataStore, std::path::PathBuf);
+
+    impl Store {
+        fn new(name: &str) -> Self {
+            let root = std::env::temp_dir()
+                .join(format!("unastar-spawn-rules-{name}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&root);
+            Self(PlayerDataStore::new(root.clone()), root)
+        }
+    }
+
+    impl Drop for Store {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.1);
+        }
+    }
+
+    async fn resolve(
+        rules: Vec<SpawnRule>,
+        store: &PlayerDataStore,
+        saved_data: Option<&PlayerData>,
+    ) -> f32 {
+        let config = UnastarConfig {
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            spawn_rules: rules,
+            ..UnastarConfig::default()
+        };
+        let template = WorldTemplate::default();
+        resolve_spawn_location(&config, Some(UUID), &template, store, saved_data)
+            .await
+            .x
+    }
+
+    #[tokio::test]
+    async fn spawn_rules_are_evaluated_top_to_bottom() {
+        let store = Store::new("order");
+        let in_world = saved(33.25, 0);
+        let other_dimension = saved(44.0, 1);
+
+        // The saved record answers the previous-position rule...
+        assert_eq!(
+            resolve(vec![previous(), fixed(1.0)], &store.0, Some(&in_world)).await,
+            33.25
+        );
+        // ...but only when listed before a fixed rule.
+        assert_eq!(
+            resolve(vec![fixed(1.0), previous()], &store.0, Some(&in_world)).await,
+            1.0
+        );
+        // A record from another dimension is skipped; the next rule answers.
+        assert_eq!(
+            resolve(
+                vec![previous(), fixed(1.0), fixed(2.0)],
+                &store.0,
+                Some(&other_dimension)
+            )
+            .await,
+            1.0
+        );
+
+        // Without a record the last-position file answers; a record wins over it.
+        store
+            .0
+            .save_last_position(
+                UUID,
+                &PlayerLastPosition {
+                    dimension: 0,
+                    location: at(55.0),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            resolve(vec![previous(), fixed(1.0)], &store.0, None).await,
+            55.0
+        );
+        assert_eq!(
+            resolve(vec![previous(), fixed(1.0)], &store.0, Some(&in_world)).await,
+            33.25
+        );
+    }
+
+    #[tokio::test]
+    async fn without_an_answering_rule_the_first_location_then_the_template_is_used() {
+        let store = Store::new("fallback");
+        assert_eq!(
+            resolve(
+                vec![previous(), fallback(3.0), fallback(4.0)],
+                &store.0,
+                None
+            )
+            .await,
+            3.0
+        );
+        let template = WorldTemplate::default();
+        assert_eq!(
+            resolve(vec![previous()], &store.0, None).await,
+            template.start_game_template.position.x
+        );
+    }
+}

@@ -331,35 +331,20 @@ impl UnastarServer {
                                 // Registered even when the spawn is refused: the
                                 // router drops packets of sessions without a player.
                                 inbound.register(session_id, inbound_rx);
-                                let reject_tx = outbound_tx.clone();
-                                let spawn_data = PlayerSpawnData {
-                                    session_id,
-                                    display_name,
-                                    xuid,
-                                    uuid,
-                                    runtime_id,
-                                    position: initial_position,
-                                    saved_data: saved_data.map(|data| *data),
-                                    outbound_tx,
-                                    chunk_radius,
-                                };
-                                if let Err(error) = self.server.spawn_player(spawn_data) {
-                                    use jolyne::valentine::{
-                                        DisconnectPacket, DisconnectPacketMessages,
-                                        DisconnectPacketMessagesUnion, EnumsConnectionDisconnectFailReason, McpePacket,
-                                    };
-                                    warn!(session_id, %error, "Rejecting player with invalid saved inventory");
-                                    let message = "Unable to restore player inventory.".into();
-                                    let _ = reject_tx.try_send(McpePacket::from(DisconnectPacket {
-                                        reason: EnumsConnectionDisconnectFailReason::Disconnected,
-                                        messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
-                                            DisconnectPacketMessages {
-                                                message,
-                                                filtered_message: "Unable to restore player inventory.".into(),
-                                            }
-                                        ),
-                                    }));
-                                }
+                                spawn_or_reject(
+                                    &mut self.server,
+                                    PlayerSpawnData {
+                                        session_id,
+                                        display_name,
+                                        xuid,
+                                        uuid,
+                                        runtime_id,
+                                        position: initial_position,
+                                        saved_data: saved_data.map(|data| *data),
+                                        outbound_tx,
+                                        chunk_radius,
+                                    },
+                                );
                             }
                             NetworkEvent::Disconnected { session_id } => {
                                 disconnected.push(session_id);
@@ -440,6 +425,35 @@ impl UnastarServer {
         info!("Server shutdown complete");
         Ok(())
     }
+}
+
+/// Message of the `Disconnect` sent to a player whose saved data cannot be restored.
+const UNRESTORABLE_PLAYER_MESSAGE: &str = "Unable to restore player inventory.";
+
+/// Spawn a joined player, or refuse the join with a `Disconnect` when its saved data
+/// cannot be restored (for example an item the registry does not know). A refused
+/// player never enters the world, so its stored record is left untouched.
+fn spawn_or_reject(server: &mut GameServer, data: PlayerSpawnData) -> bool {
+    use jolyne::valentine::{
+        DisconnectPacket, DisconnectPacketMessages, DisconnectPacketMessagesUnion,
+        EnumsConnectionDisconnectFailReason, McpePacket,
+    };
+    let session_id = data.session_id;
+    let reject_tx = data.outbound_tx.clone();
+    let Err(error) = server.spawn_player(data) else {
+        return true;
+    };
+    warn!(session_id, %error, "Rejecting player with invalid saved data");
+    let _ = reject_tx.try_send(McpePacket::from(DisconnectPacket {
+        reason: EnumsConnectionDisconnectFailReason::Disconnected,
+        messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+            DisconnectPacketMessages {
+                message: UNRESTORABLE_PLAYER_MESSAGE.into(),
+                filtered_message: UNRESTORABLE_PLAYER_MESSAGE.into(),
+            },
+        ),
+    }));
+    false
 }
 
 struct AcceptLoopState {
@@ -583,4 +597,85 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::{PlayerData, StoredItemStack};
+    use jolyne::valentine::{DisconnectPacketMessagesUnion, McpePacketData};
+
+    /// A saved item the registry cannot resolve refuses the join with a `Disconnect`
+    /// instead of spawning a player with a silently emptied inventory.
+    #[test]
+    fn join_with_unresolvable_saved_items_is_rejected() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
+                let _guard = runtime.enter();
+                let mut server = GameServer::with_config(crate::ServerConfig {
+                    world: crate::world::WorldConfig::void_spawn_platform(1),
+                    ..Default::default()
+                });
+                let uuid = uuid::Uuid::from_u128(77).to_string();
+                let join = |session_id, item_id: &str| {
+                    let (tx, rx) = mpsc::channel(256);
+                    let mut saved = PlayerData {
+                        uuid: uuid.clone(),
+                        ..PlayerData::default()
+                    };
+                    saved.inventory = vec![StoredItemStack {
+                        item_id: item_id.into(),
+                        count: 1,
+                        ..StoredItemStack::default()
+                    }];
+                    let data = PlayerSpawnData {
+                        session_id,
+                        display_name: "restored".into(),
+                        xuid: None,
+                        uuid: Some(uuid.clone()),
+                        runtime_id: session_id as i64,
+                        position: glam::DVec3::new(0.5, 17.0, 0.5),
+                        saved_data: Some(saved),
+                        outbound_tx: tx,
+                        chunk_radius: 0,
+                    };
+                    (data, rx)
+                };
+
+                let (data, mut rx) = join(1, "minecraft:not_a_real_item");
+                assert!(!spawn_or_reject(&mut server, data));
+                assert!(
+                    server
+                        .ecs
+                        .world()
+                        .resource::<crate::SessionEntityMap>()
+                        .get(1)
+                        .is_none()
+                );
+                let packets: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
+                let [packet] = packets.as_slice() else {
+                    panic!("expected only a Disconnect, got {packets:?}");
+                };
+                let McpePacketData::DisconnectPacket(disconnect) = &packet.data else {
+                    panic!("expected a Disconnect, got {packet:?}");
+                };
+                let DisconnectPacketMessagesUnion::DisconnectPacketMessages(messages) =
+                    &disconnect.messages
+                else {
+                    panic!("Disconnect without a message: {disconnect:?}");
+                };
+                assert_eq!(messages.message, UNRESTORABLE_PLAYER_MESSAGE);
+
+                let (data, _rx) = join(2, "minecraft:stone");
+                assert!(spawn_or_reject(&mut server, data));
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
 }
