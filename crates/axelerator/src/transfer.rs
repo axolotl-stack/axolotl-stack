@@ -283,26 +283,30 @@ async fn run_transfer_server_inner(
                             .await;
                         });
                     }
-                    Err(e) => {
-                        // Log but don't immediately fail - could be transient
-                        error!("Accept error: {:?}", e);
-
-                        // Check if this looks like a fatal error vs transient
-                        let error_str = format!("{:?}", e);
-                        if error_str.contains("closed")
-                            || error_str.contains("shutdown")
-                            || error_str.contains("WebSocket")
-                        {
-                            // Likely a connection issue, return to trigger reconnect
-                            return Ok(ShutdownReason::ListenerClosed);
+                    Err(e) => match accept_error_outcome(&e) {
+                        Some(reason) => {
+                            warn!("Transfer listener stopped accepting: {e}");
+                            return Ok(reason);
                         }
-
-                        // For other errors, log and continue trying
-                        warn!("Transient accept error, continuing...");
-                    }
+                        None => warn!("Transient accept error, continuing: {e}"),
+                    },
                 }
             }
         }
+    }
+}
+
+/// What an `accept()` error means for the transfer listener.
+///
+/// `ConnectionClosed` is how the listener reports that it stopped for good
+/// (for example the franchise WebSocket closed); every later `accept()`
+/// returns it again at once, so it must end this listener and trigger a
+/// reconnect. Only errors jolyne marks recoverable keep the listener.
+fn accept_error_outcome(error: &jolyne::JolyneError) -> Option<ShutdownReason> {
+    if error.is_recoverable() {
+        None
+    } else {
+        Some(ShutdownReason::ListenerClosed)
     }
 }
 
@@ -431,4 +435,24 @@ pub async fn run_transfer_server_legacy(
     )
     .await
     .map(|_| ())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The listener's `ConnectionClosed` used to be classified by matching
+    /// lowercase "closed" in its Debug text ("ConnectionClosed"), so it was
+    /// treated as transient and the accept loop spun forever.
+    #[test]
+    fn closed_listener_ends_the_accept_loop() {
+        assert_eq!(
+            accept_error_outcome(&jolyne::JolyneError::ConnectionClosed),
+            Some(ShutdownReason::ListenerClosed)
+        );
+        assert_eq!(
+            accept_error_outcome(&jolyne::JolyneError::Io(std::io::Error::other("boom"))),
+            Some(ShutdownReason::ListenerClosed)
+        );
+    }
 }
