@@ -4,7 +4,7 @@
 //! redirects them to the actual Minecraft server.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use jolyne::stream::{BedrockStream, Play, Server};
@@ -40,8 +40,6 @@ pub struct TransferStats {
     pub transfers_failed: AtomicU64,
     /// Number of reconnection attempts.
     pub reconnect_attempts: AtomicU64,
-    /// Whether the server is currently connected.
-    pub is_connected: AtomicBool,
 }
 
 impl TransferStats {
@@ -80,7 +78,9 @@ impl TransferStats {
 /// # Returns
 /// * `Ok(ShutdownReason::Requested)` - Graceful shutdown completed
 /// * `Ok(ShutdownReason::AuthenticationError)` - Token needs refresh, caller should get new token
-/// * `Err(_)` - Unrecoverable fatal error
+/// * `Ok(ShutdownReason::ListenerClosed)` - `MAX_RETRY_ATTEMPTS` consecutive binds or
+///   sessions failed; the caller recovers with a fresh token and restarts it
+/// * `Err(_)` - Unrecoverable configuration error (invalid signaling URL)
 pub async fn run_transfer_server(
     signaling_url: &str,
     nethernet_id: u64,
@@ -91,8 +91,7 @@ pub async fn run_transfer_server(
     player_history: Option<PlayerHistory>,
 ) -> anyhow::Result<ShutdownReason> {
     let stats = stats.unwrap_or_else(|| Arc::new(TransferStats::new()));
-    let mut retry_count: u32 = 0;
-    let mut backoff_ms = INITIAL_BACKOFF_MS;
+    let mut retry = RetryState::new();
 
     loop {
         // Check for shutdown before attempting connection
@@ -101,6 +100,7 @@ pub async fn run_transfer_server(
             return Ok(ShutdownReason::Requested);
         }
 
+        let mut bound = false;
         match run_transfer_server_inner(
             signaling_url,
             nethernet_id,
@@ -109,6 +109,7 @@ pub async fn run_transfer_server(
             shutdown.clone(),
             stats.clone(),
             player_history.clone(),
+            &mut bound,
         )
         .await
         {
@@ -125,51 +126,33 @@ pub async fn run_transfer_server(
                 warn!("Transfer server authentication error - token may need refresh");
                 return Ok(ShutdownReason::AuthenticationError);
             }
-            Ok(ShutdownReason::FatalError) => {
-                error!("Transfer server encountered fatal error");
-                return Err(anyhow::anyhow!("Transfer server fatal configuration error"));
-            }
-            Err(e) => {
-                // Classify the error
-                let reason = classify_error(&e);
-                match reason {
-                    ShutdownReason::AuthenticationError => {
-                        warn!("Transfer server authentication error: {}", e);
-                        return Ok(ShutdownReason::AuthenticationError);
-                    }
-                    ShutdownReason::FatalError => {
-                        error!("Transfer server fatal error (not retrying): {}", e);
-                        return Err(e);
-                    }
-                    _ => {
-                        warn!("Transfer server error (will retry): {}", e);
-                    }
+            Err(e) => match classify_error(&e) {
+                ErrorClass::Authentication => {
+                    warn!("Transfer server authentication error: {}", e);
+                    return Ok(ShutdownReason::AuthenticationError);
                 }
-            }
+                ErrorClass::Fatal => {
+                    error!("Transfer server fatal error (not retrying): {}", e);
+                    return Err(e);
+                }
+                ErrorClass::Transient => {
+                    warn!("Transfer server error (will retry): {}", e);
+                }
+            },
         }
 
-        // Update stats
-        stats.is_connected.store(false, Ordering::Relaxed);
         stats.reconnect_attempts.fetch_add(1, Ordering::Relaxed);
 
-        retry_count += 1;
-        if retry_count >= MAX_RETRY_ATTEMPTS {
+        let Some(delay) = retry.next_delay(bound) else {
             error!(
-                "Transfer server exceeded max retry attempts ({}), giving up",
+                "Transfer server failed {} times in a row, handing back for recovery",
                 MAX_RETRY_ATTEMPTS
             );
-            return Err(anyhow::anyhow!(
-                "Transfer server failed after {} attempts",
-                MAX_RETRY_ATTEMPTS
-            ));
-        }
-
-        // Exponential backoff with jitter
-        let jitter = rand::random::<u64>() % (backoff_ms / 4 + 1);
-        let delay = Duration::from_millis(backoff_ms + jitter);
+            return Ok(ShutdownReason::ListenerClosed);
+        };
 
         info!(
-            attempt = retry_count,
+            attempt = retry.attempts(),
             max_attempts = MAX_RETRY_ATTEMPTS,
             delay_secs = delay.as_secs_f32(),
             "Reconnecting transfer server..."
@@ -183,9 +166,46 @@ pub async fn run_transfer_server(
                 return Ok(ShutdownReason::Requested);
             }
         }
+    }
+}
 
-        // Increase backoff for next attempt
-        backoff_ms = (backoff_ms * 2).min(MAX_BACKOFF_MS);
+/// Consecutive-failure budget and backoff for rebinding the listener.
+///
+/// A listener that bound successfully proves the token and signaling URL
+/// work, so the failure that ended it starts a fresh sequence: the budget
+/// limits consecutive failures, not failures over the process lifetime.
+struct RetryState {
+    attempts: u32,
+    backoff_ms: u64,
+}
+
+impl RetryState {
+    fn new() -> Self {
+        Self {
+            attempts: 0,
+            backoff_ms: INITIAL_BACKOFF_MS,
+        }
+    }
+
+    fn attempts(&self) -> u32 {
+        self.attempts
+    }
+
+    /// Records a failure and returns the delay before the next attempt
+    /// (backoff plus up to 25 % jitter), or `None` once
+    /// `MAX_RETRY_ATTEMPTS` consecutive attempts have failed.
+    fn next_delay(&mut self, was_bound: bool) -> Option<Duration> {
+        if was_bound {
+            *self = Self::new();
+        }
+        self.attempts += 1;
+        if self.attempts >= MAX_RETRY_ATTEMPTS {
+            return None;
+        }
+        let backoff_ms = self.backoff_ms;
+        self.backoff_ms = (backoff_ms * 2).min(MAX_BACKOFF_MS);
+        let jitter = rand::random::<u64>() % (backoff_ms / 4 + 1);
+        Some(Duration::from_millis(backoff_ms + jitter))
     }
 }
 
@@ -194,15 +214,14 @@ pub async fn run_transfer_server(
 pub enum ShutdownReason {
     /// Graceful shutdown was requested.
     Requested,
-    /// Listener closed (may be recoverable).
+    /// The listener kept failing; restart it with a fresh token.
     ListenerClosed,
     /// Authentication error - token may need refresh.
     AuthenticationError,
-    /// Fatal unrecoverable error.
-    FatalError,
 }
 
 /// Inner transfer server loop - handles a single connection session.
+#[allow(clippy::too_many_arguments)]
 async fn run_transfer_server_inner(
     signaling_url: &str,
     nethernet_id: u64,
@@ -211,6 +230,7 @@ async fn run_transfer_server_inner(
     shutdown: CancellationToken,
     stats: Arc<TransferStats>,
     player_history: Option<PlayerHistory>,
+    bound: &mut bool,
 ) -> anyhow::Result<ShutdownReason> {
     // Create listener with builder API
     let mut builder = BedrockListener::nethernet().xbox(signaling_url, nethernet_id, mc_token);
@@ -226,9 +246,7 @@ async fn run_transfer_server_inner(
     }
 
     let mut listener = builder.bind().await?;
-
-    // Mark as connected
-    stats.is_connected.store(true, Ordering::Relaxed);
+    *bound = true;
 
     // Setup for handshake
     let template = Arc::new(WorldTemplate::default());
@@ -310,8 +328,20 @@ fn accept_error_outcome(error: &jolyne::JolyneError) -> Option<ShutdownReason> {
     }
 }
 
-/// Classifies an error into a shutdown reason.
-fn classify_error(e: &anyhow::Error) -> ShutdownReason {
+/// How a transfer-server error is handled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ErrorClass {
+    /// The Minecraft token was rejected; the caller refreshes it.
+    Authentication,
+    /// Retrying cannot help.
+    Fatal,
+    /// Retry with backoff.
+    Transient,
+}
+
+/// Classifies an error by its text (the signaling handshake reports HTTP
+/// status only as text).
+fn classify_error(e: &anyhow::Error) -> ErrorClass {
     let error_str = format!("{:?}", e);
 
     // Authentication failures - token may need refresh
@@ -320,16 +350,16 @@ fn classify_error(e: &anyhow::Error) -> ShutdownReason {
         || error_str.contains("Unauthorized")
         || error_str.contains("Forbidden")
     {
-        return ShutdownReason::AuthenticationError;
+        return ErrorClass::Authentication;
     }
 
     // Invalid configuration - truly fatal
     if error_str.contains("Invalid URL") || error_str.contains("missing host") {
-        return ShutdownReason::FatalError;
+        return ErrorClass::Fatal;
     }
 
     // Otherwise, assume it's transient/recoverable
-    ShutdownReason::ListenerClosed
+    ErrorClass::Transient
 }
 
 /// Handles a single connection: performs handshake, resolves DNS, and sends transfer packet.
@@ -408,28 +438,6 @@ async fn send_transfer_packet<T: jolyne::stream::transport::Transport>(
     Ok(())
 }
 
-// Legacy function for backwards compatibility (deprecated)
-#[deprecated(note = "Use run_transfer_server with shutdown notify instead")]
-pub async fn run_transfer_server_legacy(
-    signaling_url: &str,
-    nethernet_id: u64,
-    mc_token: &str,
-    config: &AxeleratorConfig,
-) -> anyhow::Result<()> {
-    let shutdown = CancellationToken::new();
-    run_transfer_server(
-        signaling_url,
-        nethernet_id,
-        mc_token,
-        config,
-        shutdown,
-        None,
-        None,
-    )
-    .await
-    .map(|_| ())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -446,6 +454,56 @@ mod tests {
         assert_eq!(
             accept_error_outcome(&jolyne::JolyneError::Io(std::io::Error::other("boom"))),
             Some(ShutdownReason::ListenerClosed)
+        );
+    }
+
+    /// The retry count used to grow for the whole process lifetime, so ten
+    /// listener drops spread over weeks ended the transfer server.
+    #[test]
+    fn retry_budget_resets_after_a_successful_bind() {
+        let mut retry = RetryState::new();
+        for _ in 1..MAX_RETRY_ATTEMPTS {
+            assert!(retry.next_delay(false).is_some());
+        }
+        // The listener bound, served for a while, then dropped.
+        let delay = retry.next_delay(true).expect("a fresh failure sequence");
+        assert_eq!(retry.attempts(), 1);
+        assert!(delay < Duration::from_millis(INITIAL_BACKOFF_MS * 5 / 4 + 1));
+    }
+
+    #[test]
+    fn consecutive_failures_exhaust_the_budget() {
+        let mut retry = RetryState::new();
+        for _ in 1..MAX_RETRY_ATTEMPTS {
+            assert!(retry.next_delay(false).is_some());
+        }
+        assert!(retry.next_delay(false).is_none());
+    }
+
+    #[test]
+    fn backoff_doubles_up_to_the_cap() {
+        let mut retry = RetryState::new();
+        let first = retry.next_delay(false).unwrap();
+        let second = retry.next_delay(false).unwrap();
+        assert!(first >= Duration::from_millis(INITIAL_BACKOFF_MS));
+        assert!(second >= Duration::from_millis(INITIAL_BACKOFF_MS * 2));
+        retry.backoff_ms = MAX_BACKOFF_MS;
+        assert!(retry.next_delay(false).unwrap() <= Duration::from_millis(MAX_BACKOFF_MS * 5 / 4));
+    }
+
+    #[test]
+    fn handshake_errors_are_classified_by_status() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("HTTP error: 401 Unauthorized")),
+            ErrorClass::Authentication
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("Invalid URL: relative URL without a base")),
+            ErrorClass::Fatal
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("connection reset")),
+            ErrorClass::Transient
         );
     }
 }

@@ -904,7 +904,6 @@ impl Axelerator {
                                 }
                             }
                         }
-                        ShutdownReason::FatalError => break Err(anyhow::anyhow!("Transfer server fatal error")),
                     }
                 }
 
@@ -1920,13 +1919,12 @@ async fn run_friend_expiry_check(
 }
 
 /// The transfer server's exit reason, or the message for an exit the
-/// signaling loop cannot recover from (an error, a panic or a fatal
-/// configuration problem).
+/// signaling loop cannot recover from (a fatal configuration error or a
+/// panic).
 fn transfer_exit(
     res: std::result::Result<TransferResult, tokio::task::JoinError>,
 ) -> std::result::Result<ShutdownReason, String> {
     match res {
-        Ok(Ok(ShutdownReason::FatalError)) => Err("Transfer server fatal error".to_string()),
         Ok(Ok(reason)) => Ok(reason),
         Ok(Err(e)) => Err(format!("Transfer server error: {e:#}")),
         Err(e) => Err(format!("Transfer server task panicked: {e}")),
@@ -1971,7 +1969,6 @@ mod auth_scheduling_tests {
     #[tokio::test]
     async fn unrecoverable_transfer_exits_are_errors() {
         assert!(transfer_exit(Ok(Err(anyhow::anyhow!("boom")))).is_err());
-        assert!(transfer_exit(Ok(Ok(ShutdownReason::FatalError))).is_err());
         let panicked = tokio::spawn(async { panic!("transfer task exploded") })
             .await
             .map(|()| Ok(ShutdownReason::Requested));
