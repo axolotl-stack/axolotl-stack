@@ -24,6 +24,9 @@ pub struct ServerConfig {
     /// Players given operator permission on join: display names
     /// (ASCII case-insensitive) or XUIDs.
     pub operators: Vec<String>,
+    /// Game rules set at startup (name, value), on top of BDS's defaults;
+    /// validated by `UnastarConfig::validate`.
+    pub game_rules: Vec<(String, unastar_data::game_rules::GameRuleValue)>,
     /// Simulation distance in chunks.
     /// Chunks within this range of ANY player get random ticks and entity updates.
     /// Independent of the view distance a client is granted.
@@ -46,6 +49,7 @@ impl Default for ServerConfig {
             difficulty: crate::world::rules::Difficulty::Easy,
             block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
             operators: Vec::new(),
+            game_rules: Vec::new(),
             simulation_distance: crate::world::ecs::systems::DEFAULT_SIMULATION_DISTANCE,
             chunk_unload_ticks: 100, // 5 second grace period
             world: WorldConfig::default(),

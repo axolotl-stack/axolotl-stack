@@ -5,16 +5,17 @@
     python tools/bds-sweep/summarize.py fuel SWEEP_DIR
     python tools/bds-sweep/summarize.py blocks SWEEP_DIR
     python tools/bds-sweep/summarize.py redstone SWEEP_DIR
+    python tools/bds-sweep/summarize.py utility SWEEP_DIR [RERUN_DIR ...]
     python tools/bds-sweep/summarize.py compare-drops SWEEP_DIR_A SWEEP_DIR_B
 
 Writes into `crates/unastar-data/data/measured/` and records every artefact
 (SHA-256, sweep parameters, sample counts, run times) in `manifest.json`
 there. Raw `results.jsonl`/logs stay in the sweep directories (outside the
-repository). See that directory's README for the schemas. `blocks` and
-`redstone` instead write the observed-results fixtures
-`crates/unastar/src/server/game/block_behaviour/testdata/bds_1_26_51_blocks.json`
-and `bds_1_26_51_redstone.json` next to it (from `results.jsonl` and the
-packets the client logged in `client.log`).
+repository). See that directory's README for the schemas. `blocks`,
+`redstone` and `utility` instead write the observed-results fixtures
+`crates/unastar/src/server/game/block_behaviour/testdata/bds_1_26_51_blocks.json`,
+`bds_1_26_51_redstone.json` and `bds_1_26_51_utility.json` next to it (from
+`results.jsonl` and the packets the client logged in `client.log`).
 """
 
 from __future__ import annotations
@@ -422,10 +423,13 @@ def summarize_mining(sweep: Path) -> None:
 BLOCKS_FIXTURE = (REPO / 'crates' / 'unastar' / 'src' / 'server' / 'game' / 'block_behaviour' / 'testdata'
                   / 'bds_1_26_51_blocks.json')
 # Level event ids seen in the blocks job, with their usual protocol names.
-LEVEL_EVENTS = {2001: 'ParticlesDestroyBlock', 3600: 'StartBlockCracking', 3601: 'StopBlockCracking',
+LEVEL_EVENTS = {1002: 'SoundLaunch', 1005: 'SoundFuse', 2000: 'ParticlesShoot', 2001: 'ParticlesDestroyBlock',
+                2005: 'ParticlesCropGrowth', 2025: 'ParticlesExplosion', 2026: 'ParticlesBlockExplosion',
+                3506: 'CauldronFillWater', 3507: 'CauldronTakeWater', 3512: 'CauldronFillLava',
+                3513: 'CauldronTakeLava', 3600: 'StartBlockCracking', 3601: 'StopBlockCracking',
                 3602: 'UpdateBlockCracking', 3603: 'ParticlesCrackBlockDown', 3604: 'ParticlesCrackBlockUp',
                 3605: 'ParticlesCrackBlockNorth', 3606: 'ParticlesCrackBlockSouth',
-                3607: 'ParticlesCrackBlockWest', 3608: 'ParticlesCrackBlockEast'}
+                3607: 'ParticlesCrackBlockWest', 3608: 'ParticlesCrackBlockEast', 9801: 'SleepingPlayers'}
 _VEC = r'Vec3 \{ x: (\S+), y: (\S+), z: (\S+) \}'
 _TRACE = {
     'LevelSoundEventPacket': re.compile(rf'sound_event: "([^"]*)", position: {_VEC}, data: (-?\d+), '
@@ -449,11 +453,13 @@ def block_text(state: dict) -> str:
     return f'{state["name"]}[{states}]' if states else state['name']
 
 
-def trace_packets(client_log: Path, names: dict[int, str]) -> dict[str, dict]:
+def trace_packets(client_log: Path, names: dict[int, str], detail: UtilityTrace | None = None) -> dict[str, dict]:
     """Server packets the client logged after each `SCENARIO/STEP` mark,
     decoded and grouped: identical packets (same kind, position and data)
     become one entry with a `times` count, in first-seen order. Runtime ids
-    that match a block state seen in the job are written as that state."""
+    that match a block state seen in the job are written as that state.
+    `detail` decodes the actor, block actor, text, spawn and attribute
+    packets the utility scenarios trace."""
     steps: dict[str, dict] = {}
     current = None
 
@@ -472,8 +478,11 @@ def trace_packets(client_log: Path, names: dict[int, str]) -> dict[str, dict]:
             continue
         kind, body = trace.groups()
         match = _TRACE[kind].search(body) if kind in _TRACE else None
-        entries = []
-        if kind == 'LevelSoundEventPacket' and match:
+        detailed = detail.entries(kind, body) if detail is not None else None
+        entries = detailed or []
+        if detailed is not None:
+            pass
+        elif kind == 'LevelSoundEventPacket' and match:
             entry = {'sound': match.group(1), 'position': vec(match, 2), 'data': block(int(match.group(5)))}
             if match.group(6):
                 entry['actor'] = match.group(6)
@@ -513,6 +522,222 @@ def trace_packets(client_log: Path, names: dict[int, str]) -> dict[str, dict]:
             else:
                 bucket.append(entry)
     return steps
+
+
+def rust_bytes(text: str) -> bytes:
+    """The bytes of the body of a Rust byte-string literal as `{:?}` prints
+    it (`\\xNN`, `\\n`, `\\t`, `\\r`, `\\0`, `\\\\`, `\\"`, `\\'`)."""
+    raw = text.encode('utf-8')
+    out = bytearray()
+    i = 0
+    while i < len(raw):
+        if raw[i] == 0x5C:
+            escape = raw[i + 1]
+            if escape == ord('x'):
+                out.append(int(raw[i + 2:i + 4], 16))
+                i += 4
+                continue
+            out.append({ord('n'): 10, ord('t'): 9, ord('r'): 13, ord('0'): 0}.get(escape, escape))
+            i += 2
+            continue
+        out.append(raw[i])
+        i += 1
+    return bytes(out)
+
+
+class NetworkNbt:
+    """Network (little-endian, varint) NBT reader."""
+
+    def __init__(self, data: bytes) -> None:
+        self.data = data
+        self.pos = 0
+
+    def byte(self) -> int:
+        self.pos += 1
+        return self.data[self.pos - 1]
+
+    def unsigned(self) -> int:
+        value = shift = 0
+        while True:
+            byte = self.byte()
+            value |= (byte & 0x7F) << shift
+            shift += 7
+            if not byte & 0x80:
+                return value
+
+    def signed(self) -> int:
+        value = self.unsigned()
+        return (value >> 1) ^ -(value & 1)
+
+    def take(self, n: int) -> bytes:
+        self.pos += n
+        return self.data[self.pos - n:self.pos]
+
+    def string(self) -> str:
+        return self.take(self.unsigned()).decode('utf-8', 'replace')
+
+    def payload(self, tag: int):
+        import struct
+        if tag == 1:
+            return struct.unpack('<b', self.take(1))[0]
+        if tag == 2:
+            return struct.unpack('<h', self.take(2))[0]
+        if tag in (3, 4):
+            return self.signed()
+        if tag == 5:
+            return round(struct.unpack('<f', self.take(4))[0], 4)
+        if tag == 6:
+            return round(struct.unpack('<d', self.take(8))[0], 6)
+        if tag == 7:
+            return list(self.take(self.signed()))
+        if tag == 8:
+            return self.string()
+        if tag == 9:
+            inner = self.byte()
+            return [self.payload(inner) for _ in range(self.signed())]
+        if tag == 10:
+            return self.compound()
+        if tag in (11, 12):
+            return [self.signed() for _ in range(self.signed())]
+        raise ValueError(f'NBT tag {tag}')
+
+    def compound(self) -> dict:
+        out = {}
+        while self.pos < len(self.data):
+            tag = self.byte()
+            if tag == 0:
+                break
+            name = self.string()
+            out[name] = self.payload(tag)
+        return out
+
+    def root(self) -> dict:
+        tag = self.byte()
+        self.string()
+        return self.payload(tag)
+
+
+_ACTOR_IDS = r'target_actor_id: ActorUniqueId \{ actor_unique_id: (-?\d+) \}, target_runtime_id: ActorRuntimeId \{ actor_runtime_id: (\d+) \}'
+_DETAIL = {
+    'AddActorPacket': re.compile(rf'{_ACTOR_IDS}, actor_type: "([^"]*)", position: {_VEC}, velocity: {_VEC}'),
+    'AddItemActorPacket': re.compile(rf'{_ACTOR_IDS}, item: CerealizerNetworkItemStackDescriptorSerializedData '
+                                     rf'\{{ id: (-?\d+), stacksize: (\d+), auxvalue: (\d+).*?position: {_VEC}, '
+                                     rf'velocity: {_VEC}'),
+    'RemoveActorPacket': re.compile(r'actor_unique_id: (-?\d+)'),
+    'BlockActorDataPacket': re.compile(r'block_position: BlockPos \{ x: (-?\d+), y: (-?\d+), z: (-?\d+) \}, '
+                                       r'actor_data_tags: Nbt\(b"(.*)"\) \}$'),
+    'LevelEventGenericPacket': re.compile(r'event_id: (-?\d+), __ctd__: NbtCompoundBody\(b"(.*)"\) \}$'),
+    'ActorEventPacket': re.compile(r'actor_runtime_id: (\d+) \}, event_id: (\w+), data: (-?\d+)'),
+    'SetActorDataPacket': re.compile(r'actor_runtime_id: (\d+) \}'),
+    'SetActorMotionPacket': re.compile(rf'actor_runtime_id: (\d+) \}}, motion: {_VEC}'),
+    'TextPacket': re.compile(r'message_type: (\w+), message: "((?:[^"\\]|\\.)*)"(?:, parameter_list: \[(.*?)\])?'),
+    'SetSpawnPositionPacket': re.compile(
+        r'spawn_position_type: (\w+), block_position: BlockPos \{ x: (-?\d+), y: (-?\d+), z: (-?\d+) \}, '
+        r'dimensiontype: DimensionType \{ value: (\d+) \}, spawn_block_pos: BlockPos \{ x: (-?\d+), y: (-?\d+), '
+        r'z: (-?\d+) \}'),
+    'PlaySoundPacket': re.compile(r'name: "([^"]*)", position: BlockPos \{ x: (-?\d+), y: (-?\d+), z: (-?\d+) \}, '
+                                  r'volume: ([^,]*), pitch: ([^,]*)'),
+}
+_DATA_ITEM = re.compile(r'DataItemEntry \{ id: (\d+), payload: \w+\(\w+ \{ type_: \w+, value: ([^{}]*?) \}\) \}')
+_ATTRIBUTE = re.compile(r'AttributeData \{ min_value: [^,]*, max_value: [^,]*, current_value: ([^,]*), [^}]*?'
+                        r'name: "minecraft:player\.(hunger|saturation)"')
+# Actor data ids kept for non-player actors: flags and the TNT fuse.
+ACTOR_DATA_IDS = {'0': 'flags', '55': 'fuse'}
+
+
+def _rust_str(text: str) -> str:
+    return re.sub(r'\\(.)', lambda m: {'n': '\n', 't': '\t'}.get(m.group(1), m.group(1)), text)
+
+
+class UtilityTrace:
+    """Decodes the packets the utility scenarios trace; remembers the
+    actors the log added so actor packets name them and the player's own
+    actor data stays out."""
+
+    def __init__(self, items: dict[int, str]) -> None:
+        self.items = items
+        self.runtime: dict[int, str] = {}
+        self.unique: dict[int, str] = {}
+        self.hunger: dict[str, float] = {}
+
+    def entries(self, kind: str, body: str) -> list | None:
+        pattern = _DETAIL.get(kind)
+        if kind == 'UpdateAttributesPacket':
+            # Only changes: the player's attributes are resent often.
+            values = {name: float(value) for value, name in _ATTRIBUTE.findall(body)
+                      if self.hunger.get(name) != float(value)}
+            self.hunger.update(values)
+            return [('hunger', values)] if values else []
+        if pattern is None:
+            return None
+        match = pattern.search(body)
+        if match is None:
+            return [('other', {'packet': kind, 'debug': body[:300]})]
+        g = match.group
+
+        def vec(start: int) -> list[float]:
+            return [round(float(g(i)), 4) for i in range(start, start + 3)]
+
+        if kind == 'AddActorPacket':
+            self.runtime[int(g(2))] = self.unique[int(g(1))] = g(3)
+            entry = {'actor': g(3), 'runtime_id': int(g(2)), 'position': vec(4), 'velocity': vec(7)}
+            data = {ACTOR_DATA_IDS[i]: v for i, v in _DATA_ITEM.findall(body) if i in ACTOR_DATA_IDS}
+            if data.get('fuse', '-1') != '-1':
+                entry['fuse'] = int(data['fuse'])
+            return [('add_actor', entry)]
+        if kind == 'AddItemActorPacket':
+            item = self.items.get(int(g(3)), int(g(3)))
+            self.runtime[int(g(2))] = self.unique[int(g(1))] = f'minecraft:item ({item})'
+            entry = {'item': item, 'count': int(g(4)), 'runtime_id': int(g(2)), 'position': vec(6),
+                     'velocity': vec(9)}
+            if int(g(5)):
+                entry['aux'] = int(g(5))
+            return [('add_item_actor', entry)]
+        if kind == 'RemoveActorPacket':
+            return [('remove_actor', {'actor': self.unique.get(int(g(1)), int(g(1)))})]
+        if kind == 'BlockActorDataPacket':
+            return [('block_actor_data', {'position': [int(g(i)) for i in (1, 2, 3)],
+                                          'nbt': NetworkNbt(rust_bytes(g(4))).root()})]
+        if kind == 'LevelEventGenericPacket':
+            data = NetworkNbt(rust_bytes(g(2))).compound()
+            positions = {}
+            for key in list(data):
+                if found := re.fullmatch(r'pos(\d+)([xyz])', key):
+                    positions.setdefault(int(found.group(1)), {})[found.group(2)] = data.pop(key)
+            if positions:
+                data['positions'] = [[p['x'], p['y'], p['z']] for _, p in sorted(positions.items())]
+            return [('level_events_generic', {'event': int(g(1)), 'name': LEVEL_EVENTS.get(int(g(1))), **data})]
+        runtime_id = int(g(1)) if kind in ('ActorEventPacket', 'SetActorDataPacket', 'SetActorMotionPacket') else None
+        if runtime_id is not None and runtime_id not in self.runtime:
+            return []
+        if kind == 'ActorEventPacket':
+            return [('actor_events', {'actor': self.runtime[runtime_id], 'runtime_id': runtime_id, 'event': g(2),
+                                      'data': int(g(3))})]
+        if kind == 'SetActorDataPacket':
+            data = {ACTOR_DATA_IDS[i]: int(v) for i, v in _DATA_ITEM.findall(body) if i in ACTOR_DATA_IDS}
+            if data.get('fuse') == -1:
+                del data['fuse']
+            if self.runtime[runtime_id].startswith('minecraft:item'):
+                data.pop('flags', None)
+            return [('actor_data', {'actor': self.runtime[runtime_id], 'runtime_id': runtime_id, **data})]
+        if kind == 'SetActorMotionPacket':
+            return [('actor_motion', {'actor': self.runtime[runtime_id], 'runtime_id': runtime_id,
+                                      'motion': vec(2)})]
+        if kind == 'TextPacket':
+            message = _rust_str(g(2))
+            if 'bds-sweep:' in message or '"translate":"commands.' in message or 'multiplayer.player.joined' in message:
+                return []
+            entry = {'type': g(1), 'message': message.strip()}
+            if g(3):
+                entry['parameters'] = [_rust_str(p) for p in re.findall(r'"((?:[^"\\]|\\.)*)"', g(3))]
+            return [('messages', entry)]
+        if kind == 'SetSpawnPositionPacket':
+            return [('spawn_position', {'type': g(1), 'block_position': [int(g(i)) for i in (2, 3, 4)],
+                                        'dimension': int(g(5)), 'spawn_block_pos': [int(g(i)) for i in (6, 7, 8)]})]
+        if kind == 'PlaySoundPacket':
+            return [('play_sounds', {'name': g(1), 'position': [int(g(i)) / 8 for i in (2, 3, 4)],
+                                     'volume': float(g(5)), 'pitch': float(g(6))})]
+        return None
 
 
 def _drops(items: list[dict]) -> list[dict]:
@@ -770,6 +995,169 @@ def summarize_redstone(sweep: Path) -> None:
     print(f'{REDSTONE_FIXTURE.relative_to(REPO)}: {", ".join(rows)}')
 
 
+UTILITY_FIXTURE = BLOCKS_FIXTURE.with_name('bds_1_26_51_utility.json')
+UTILITY_SCENARIOS = ('observer', 'dispensers', 'tnt', 'note_block_use', 'rails', 'composter', 'cauldron', 'campfire',
+                     'beehive', 'bell', 'jukebox', 'flower_pot', 'cake', 'end_portal', 'nether_portal',
+                     'respawn_anchor', 'bed')
+_REGION_LABEL = re.compile(r'-?\d+,-?\d+,-?\d+')
+
+
+def utility_step(step: dict, packets: dict) -> dict:
+    """One step of a utility scenario: the click or commands, the watched
+    cells before/after (cells of an `x,y,z` region only when they changed),
+    per-tick changes from the order, actors that appeared or went away, the
+    held item after the step and the packets the player received."""
+    out: dict = {'step': step['step'].split('/', 1)[1]}
+    if 'look' in step:
+        out['use'] = {'clicked': step['block'], 'face': step['face'], 'click': step['click'],
+                      'player': {'feet': step['look']['position'], 'yaw': step['look']['server'][0],
+                                 'pitch': step['look']['server'][1]}}
+        out['used'] = bool(step['interactions'])
+    if 'commands' in step:
+        out['commands'] = step['commands']
+        if not all(step['succeeded']):
+            out['failed_commands'] = [c for c, ok in zip(step['commands'], step['succeeded']) if not ok]
+    if step.get('scheduled'):
+        out['scheduled'] = [{'tick': tick, 'command': command, 'succeeded': ok}
+                            for tick, command, ok in step['scheduled']]
+    out['origin_server_tick'] = step['origin_tick']
+    out['watched_ticks'] = step['ticks']
+    changed = {cell for _, cell, _ in step['changes']}
+    shown = [label for label in step['cells'] if not _REGION_LABEL.fullmatch(label) or label in changed]
+    out['positions'] = {label: step['cells'][label] for label in shown if not _REGION_LABEL.fullmatch(label)}
+    out['before'] = {label: block_text(step['before'][label]) for label in shown}
+    changes: list[dict] = []
+    for tick, cell, state in step['changes']:
+        if not changes or changes[-1]['tick'] != tick:
+            changes.append({'tick': tick, 'cells': {}})
+        changes[-1]['cells'][cell] = block_text(state)
+    out['changes'] = changes
+    out['after'] = {label: block_text(step['after'][label]) for label in shown}
+    regions = len(step['cells']) - len(out['positions'])
+    if regions:
+        out['region_cells_watched'] = regions
+    actors = []
+    for entry in step['actors']:
+        actor = {k: v for k, v in entry.items() if k != 'id'}
+        if actor.get('data') == 0:
+            del actor['data']
+        actors.append(actor)
+    if actors:
+        out['actors'] = actors
+    out['held_after'] = step['held_after']
+    for key in ('level_time_before', 'level_time_after'):
+        if key in step:
+            out[key] = step[key]
+    received = packets.get(step['step'], {})
+    for group in ('sounds', 'play_sounds', 'level_events', 'level_events_generic', 'block_events',
+                  'block_actor_data', 'add_actor', 'add_item_actor', 'remove_actor', 'actor_events', 'messages',
+                  'spawn_position', 'hunger'):
+        if received.get(group):
+            out[group] = received[group]
+    if received.get('actor_data'):
+        out['actor_data'] = _actor_series(received['actor_data'], ('fuse', 'flags'))
+    if received.get('actor_motion'):
+        out['actor_motion'] = _actor_series(received['actor_motion'], ('motion',))
+    if received.get('block_updates'):
+        out['block_update_packets'] = sum(e.get('times', 1) for e in received['block_updates'])
+    return out
+
+
+def _actor_series(entries: list[dict], fields: tuple[str, ...]) -> list[dict]:
+    """Per actor: packet count and each field's values in arrival order
+    (repeats of the previous value dropped); a countdown by one is written
+    as `first..last`."""
+    actors: dict[int, dict] = {}
+    for entry in entries:
+        actor = actors.setdefault(entry['runtime_id'], {'actor': entry['actor'], 'runtime_id': entry['runtime_id'],
+                                                         'packets': 0})
+        actor['packets'] += entry.get('times', 1)
+        for field in fields:
+            if field in entry:
+                values = actor.setdefault(field, [])
+                if not values or values[-1] != entry[field]:
+                    values.append(entry[field])
+    for actor in actors.values():
+        fuse = actor.get('fuse')
+        if fuse and len(fuse) > 3 and all(b == a - 1 for a, b in zip(fuse, fuse[1:])):
+            actor['fuse'] = f'{fuse[0]}..{fuse[-1]}'
+        if 'motion' in actor and len(actor['motion']) > 4:
+            motion = actor['motion']
+            actor['motion'] = motion[:3] + [f'… {len(motion) - 4} more …', motion[-1]]
+    return [actor for actor in actors.values() if any(field in actor for field in fields)]
+
+
+def summarize_utility(sweeps: list[Path]) -> None:
+    """The observed-results fixture of the utility scenarios of `blocks`
+    sweeps; a scenario a later sweep finished without an error replaces the
+    earlier one (reruns of single scenarios)."""
+    rows: dict[str, tuple[dict, Path]] = {}
+    for sweep in sweeps:
+        for row in results(sweep):
+            if row['key'] in UTILITY_SCENARIOS and (row['key'] not in rows or not row.get('error')):
+                rows[row['key']] = (row, sweep)
+    import native
+    items = native.item_network_ids()
+    packets: dict[Path, dict] = {}
+    for sweep in dict.fromkeys(sweep for _, sweep in rows.values()):
+        names: dict[int, str] = {}
+        for row, source in rows.values():
+            if source != sweep:
+                continue
+            for runtime_id, state in row.get('palette', {}).items():
+                names[int(runtime_id)] = block_text(state)
+            for step in row['steps']:
+                for key in ('before', 'after'):
+                    for state in (step.get(key) or {}).values():
+                        names[state['runtime_id']] = block_text(state)
+                for _, _, state in step.get('changes', []):
+                    names[state['runtime_id']] = block_text(state)
+        packets[sweep] = trace_packets(sweep / 'client.log', names, UtilityTrace(items))
+    finished = [r for r in runs(sweeps[0]) if r['status'] == 'done'] or runs(sweeps[0])
+    stamp = finished[-1]['started']
+    fixture = {
+        'source': f'measured on BDS 1.26.51 with the bds-sweep blocks job, {stamp[:4]}-{stamp[4:6]}-{stamp[6:8]} UTC',
+        'conventions': {
+            'arena': 'stone floor at y=-61 (x -10..24, z -12..24), survival player standing on it (feet y=-60), '
+                     'noon, clear sky, peaceful (the cake scenario runs on easy), randomtickspeed 0; the player has '
+                     'resistance V so explosions leave it alive; every scenario starts from a fresh arena with '
+                     'no actors',
+            'faces': '0 down, 1 up, 2 north (-z), 3 south (+z), 4 west (-x), 5 east (+x)',
+            'yaw': 'yaw 0 south, 90 west, 180 north, 270 east',
+            'placement': 'steps with "use" are the player\'s right-clicks with the held item (placements, levers, '
+                         'block uses); everything else is /setblock or the listed commands',
+            'ticks': 'the watched cells and the actors are read once per server tick; tick 0 is the server tick '
+                     'in which the plugin sent the use order or ran the commands; a change at tick n was first '
+                     'seen n ticks later; the client sends the click about a tick after the order',
+            'cells': 'before/after/changes give block states in block state notation; cells labelled "x,y,z" '
+                     'belong to a watched region and are listed only when they changed',
+            'actors': 'non-player actors that appeared (first seen position and velocity in blocks per tick, '
+                      'item stack for item actors) or went away (last seen position), by tick',
+            'held_after': 'the selected hotbar stack after the step: [item, count, data], null when empty',
+            'packets': 'packets the player received after the step started (attributed by arrival after the '
+                       'step mark), identical ones merged with a "times" count: sounds (LevelSoundEvent), '
+                       'play_sounds (PlaySound, block position / 8), level_events and level_events_generic (id, '
+                       'usual protocol name, data; posNx/y/z fields listed as positions), block_events, '
+                       'block_actor_data (network NBT decoded), add_actor (identifier, runtime id, position, '
+                       'velocity, fuse when set), add_item_actor (item, count, position, velocity), remove_actor, '
+                       'actor_events, actor_data (non-player actors only: per actor the packet count, the fuse '
+                       'values, a countdown by one written first..last, and the flags of non-item actors), '
+                       'actor_motion (SetActorMotion per actor), messages (TextPacket, harness command feedback '
+                       'left out), spawn_position, hunger (changes of player.hunger/player.saturation); block '
+                       'runtime ids in sound and level event data are written as the block state they denote; '
+                       'block_update_packets counts the block update packets',
+        },
+    }
+    for key in UTILITY_SCENARIOS:
+        if key in rows:
+            row, sweep = rows[key]
+            fixture[key] = ({'failed': row['error']} if row.get('error')
+                            else [utility_step(step, packets[sweep]) for step in row['steps']])
+    UTILITY_FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+    UTILITY_FIXTURE.write_bytes((compact_json(fixture) + '\n').encode('utf-8'))
+    print(f'{UTILITY_FIXTURE.relative_to(REPO)}: {", ".join(rows)}')
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         print(__doc__)
@@ -795,6 +1183,8 @@ def main() -> int:
         summarize_blocks(dirs[0])
     elif kind == 'redstone':
         summarize_redstone(dirs[0])
+    elif kind == 'utility':
+        summarize_utility(dirs)
     else:
         print(__doc__)
         return 2

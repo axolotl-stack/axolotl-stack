@@ -1,0 +1,659 @@
+{
+ "scenario": "note_blocks",
+ "covers": "Note block on dirt / on the stone floor, powered through a stone block east of it by a lever on that stone's east face.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:20:46Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin note_blocks",
+  "end": "bds-sweep:scenario end note_blocks"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin note_blocks"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "note_blocks/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 0 -61 0 dirt",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 0 -60 0 noteblock",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 1 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 14,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 143.13 24.13",
+   "ok": true
+  },
+  {
+   "tick": 14,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 20,
+   "op": "mark",
+   "label": "note_blocks/on_dirt_lever_place"
+  },
+  {
+   "tick": 20,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    1.0,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 143.13,
+    "pitch": 24.13
+   }
+  },
+  {
+   "tick": 20,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 30,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 30,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 30,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 40,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 147.99 25.4",
+   "ok": true
+  },
+  {
+   "tick": 40,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 46,
+   "op": "mark",
+   "label": "note_blocks/on_dirt_lever_on"
+  },
+  {
+   "tick": 46,
+   "op": "use",
+   "pos": [
+    2,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    0.25,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2852908045,
+   "held": null,
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 147.99,
+    "pitch": 25.4
+   }
+  },
+  {
+   "tick": 46,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 66,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 147.99 25.4",
+   "ok": true
+  },
+  {
+   "tick": 66,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 72,
+   "op": "mark",
+   "label": "note_blocks/on_dirt_lever_off"
+  },
+  {
+   "tick": 72,
+   "op": "use",
+   "pos": [
+    2,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    0.25,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 1797601474,
+   "held": null,
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 147.99,
+    "pitch": 25.4
+   }
+  },
+  {
+   "tick": 72,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 92,
+   "op": "mark",
+   "label": "note_blocks/reset"
+  },
+  {
+   "tick": 92,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": true
+  },
+  {
+   "tick": 92,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 92,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 92,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 94,
+   "op": "command",
+   "command": "setblock 0 -61 0 stone",
+   "ok": false
+  },
+  {
+   "tick": 94,
+   "op": "command",
+   "command": "setblock 0 -60 0 noteblock",
+   "ok": true
+  },
+  {
+   "tick": 94,
+   "op": "command",
+   "command": "setblock 1 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 94,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 96,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 96,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 96,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 106,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 143.13 24.13",
+   "ok": true
+  },
+  {
+   "tick": 106,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 112,
+   "op": "mark",
+   "label": "note_blocks/on_stone_lever_place"
+  },
+  {
+   "tick": 112,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    1.0,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 143.13,
+    "pitch": 24.13
+   }
+  },
+  {
+   "tick": 112,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 122,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 122,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 122,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 132,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 147.99 25.4",
+   "ok": true
+  },
+  {
+   "tick": 132,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 138,
+   "op": "mark",
+   "label": "note_blocks/on_stone_lever_on"
+  },
+  {
+   "tick": 138,
+   "op": "use",
+   "pos": [
+    2,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    0.25,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2852908045,
+   "held": null,
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 147.99,
+    "pitch": 25.4
+   }
+  },
+  {
+   "tick": 138,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 158,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 147.99 25.4",
+   "ok": true
+  },
+  {
+   "tick": 158,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 164,
+   "op": "mark",
+   "label": "note_blocks/on_stone_lever_off"
+  },
+  {
+   "tick": 164,
+   "op": "use",
+   "pos": [
+    2,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    0.25,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 1797601474,
+   "held": null,
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 147.99,
+    "pitch": 25.4
+   }
+  },
+  {
+   "tick": 164,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 204,
+   "op": "marker",
+   "text": "bds-sweep:scenario end note_blocks"
+  }
+ ],
+ "duration_ticks": 204,
+ "error": null
+}

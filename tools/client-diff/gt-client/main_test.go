@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
@@ -70,6 +71,12 @@ func TestScenarioValidation(t *testing.T) {
 		{AuthInput: true, Steps: []step{{Kind: "craft", Recipe: "r", Count: 1, Consume: []slotRef{{Container: "offhand", Slot: 1}}}}},
 		{AuthInput: true, Steps: []step{{Kind: "craft", Action: "bogus", Count: 1}}},
 		{AuthInput: true, Steps: []step{{Kind: "move_item", Count: 1, To: 32, ToContainer: "crafting"}}},
+		{AuthInput: true, Steps: []step{{Kind: "move", Ticks: 1, Flags: []string{"flying"}}}},
+		{AuthInput: true, Steps: []step{{Kind: "craft", Action: "loom", Count: 1}}},
+		{AuthInput: true, Steps: []step{{Kind: "wait_event", Event: 13}}},
+		{AuthInput: true, Steps: []step{{Kind: "book", Action: "write"}}},
+		{AuthInput: true, Steps: []step{{Kind: "toggle_crafter", Slot: 9}}},
+		{AuthInput: true, Steps: []step{{Kind: "break", Ticks: -1}}},
 	} {
 		if err := scenario.validate(); err == nil {
 			t.Fatalf("accepted invalid scenario: %+v", scenario)
@@ -87,6 +94,18 @@ func TestScenarioValidation(t *testing.T) {
 	if err := (scenario{AuthInput: true, Steps: []step{{Kind: "move_item", Count: 1, To: 1, ToContainer: "anvil_input"}, {Kind: "craft", Action: "optional", Text: "Renamed", Count: 1, Consume: []slotRef{{Container: "anvil_input", Slot: 1}}}}}).validate(); err != nil {
 		t.Fatal(err)
 	}
+	if err := (scenario{AuthInput: true, Steps: []step{
+		{Kind: "move", Ticks: 3, Flags: []string{"sneaking", "start_gliding"}},
+		{Kind: "craft", Action: "enchant", Option: 2, Count: 1, To: 14, ToContainer: "enchanting_input", Consume: []slotRef{{Container: "enchanting_input", Slot: 14}, {Container: "enchanting_material", Slot: 15, Count: 3}}},
+		{Kind: "craft", Action: "loom", Pattern: "bo", Count: 1, Consume: []slotRef{{Container: "loom_input", Slot: 9}, {Container: "loom_dye", Slot: 10}}},
+		{Kind: "wait_event", Event: 13, TimeoutMS: 1000},
+		{Kind: "book", Action: "sign", Slot: 0, Title: "T", Author: "A"},
+		{Kind: "toggle_crafter", Slot: 4, Disabled: true},
+		{Kind: "break", Ticks: 20},
+		{Kind: "map_info"},
+	}}).validate(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestNBTValueTypesJSON(t *testing.T) {
@@ -97,5 +116,26 @@ func TestNBTValueTypesJSON(t *testing.T) {
 	got := nbtValue(decoded).(map[string]any)
 	if got["Damage"] != int32(9) || got["display"].(map[string]any)["Name"] != "Blade" || got["ench"].([]map[string]any)[0]["lvl"] != int32(3) {
 		t.Fatalf("unexpected conversion %#v", got)
+	}
+}
+
+// TestSharedScenariosValid validates every scenario of the shared file and
+// rejects fields the client does not know (a misspelt field would otherwise
+// be ignored silently).
+func TestSharedScenariosValid(t *testing.T) {
+	data, err := os.ReadFile("../scenarios.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var config scenariosFile
+	if err := decoder.Decode(&config); err != nil {
+		t.Fatal(err)
+	}
+	for name, s := range config.Scenarios {
+		if err := s.validate(); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }

@@ -165,9 +165,10 @@ pub fn structure(entry: &BlockEntry, pos: IVec3, state: u32) -> (Vec<IVec3>, u32
     )
 }
 
-/// Open or close the door with a half at `pos` and play the door sound.
-/// Returns whether the door toggled.
-pub fn toggle(world: &mut World, pos: IVec3, state: u32, _player: Option<Entity>) -> bool {
+/// Open or close the door with a half at `pos` and play the door sound;
+/// the lower half's centre gets the open or close game event caused by
+/// `player`. Returns whether the door toggled.
+pub fn toggle(world: &mut World, pos: IVec3, state: u32, player: Option<Entity>) -> bool {
     let registry = world
         .resource::<crate::server::game::types::BlockRegistryResource>()
         .0
@@ -201,6 +202,17 @@ pub fn toggle(world: &mut World, pos: IVec3, state: u32, _player: Option<Entity>
         if open { SOUND_OPEN } else { SOUND_CLOSE },
         lower_state,
     );
+    super::utility::sculk::game_event(
+        world,
+        super::centre(lower),
+        if open {
+            super::utility::sculk::GameEvent::BlockOpen
+        } else {
+            super::utility::sculk::GameEvent::BlockClose
+        },
+        player,
+        None,
+    );
     true
 }
 
@@ -216,8 +228,9 @@ pub fn set_open(world: &mut World, pos: IVec3, state: u32, open: bool) -> bool {
 
 /// A mob broke the door half at `cell` (see `annotation.break_door`): the
 /// half goes without drops, with quiet destroy particles of the door's
-/// default state; the other half, left alone, breaks a tick later with its
-/// drops and destroy particles. Returns whether a door half was there.
+/// default state (at once; its UpdateBlock comes with the next tick's block
+/// updates); the other half, left alone, breaks a tick later with its drops
+/// and destroy particles. Returns whether a door half was there.
 pub fn break_by_mob(world: &mut World, cell: IVec3) -> bool {
     let Some(state) = world.block_at(cell) else {
         return false;
@@ -367,17 +380,7 @@ mod tests {
             );
             let packets = h.packets();
             assert_eq!(door_sounds(&packets), vec![open == 1], "{click}");
-            let updated: Vec<IVec3> = packets
-                .iter()
-                .filter_map(|p| match p {
-                    McpePacketData::UpdateBlockPacket(u) => Some(IVec3::new(
-                        u.block_position.x,
-                        u.block_position.y,
-                        u.block_position.z,
-                    )),
-                    _ => None,
-                })
-                .collect();
+            let updated = changed_cells(&packets);
             assert!(
                 updated.contains(&LOWER) && updated.contains(&UPPER),
                 "{updated:?}"
@@ -490,5 +493,77 @@ mod tests {
                 .any(|(id, _)| *id == super::super::LEVEL_EVENT_PARTICLES_DESTROY_BLOCK)
         );
         assert!(!break_by_mob(&mut h.world, LOWER), "nothing left to break");
+    }
+
+    /// The cells of the block changes in `packets`, in order (UpdateBlock
+    /// and every entry of UpdateSubChunkBlocks).
+    fn changed_cells(packets: &[McpePacketData]) -> Vec<IVec3> {
+        packets
+            .iter()
+            .flat_map(|packet| match packet {
+                McpePacketData::UpdateBlockPacket(u) => vec![IVec3::new(
+                    u.block_position.x,
+                    u.block_position.y,
+                    u.block_position.z,
+                )],
+                McpePacketData::UpdateSubChunkBlocksPacket(batch) => batch
+                    .blocks_changed
+                    .blocks_changed_standards
+                    .iter()
+                    .map(|entry| IVec3::new(entry.pos.x, entry.pos.y, entry.pos.z))
+                    .collect(),
+                _ => Vec::new(),
+            })
+            .collect()
+    }
+
+    /// As BDS 1.26.51 sends them (a command's, a placement's and a zombie's
+    /// door break all arrive a tick after the change): every block change
+    /// goes out once, at the start of the next server tick, and a
+    /// sub-chunk with several changes gets one UpdateSubChunkBlocks.
+    #[test]
+    fn block_changes_go_out_once_at_the_start_of_the_next_tick() {
+        use super::super::utility::tnt::tests::Server;
+        let mut s = Server::new();
+        s.received();
+        s.set(LOWER, state("minecraft:wooden_door", &[]));
+        s.set(
+            UPPER,
+            state("minecraft:wooden_door", &[(UPPER_BIT, StateValue::Byte(1))]),
+        );
+        assert!(changed_cells(&s.received()).is_empty(), "queued");
+        s.tick(1);
+        let packets = s.received();
+        assert!(
+            matches!(
+                packets.first(),
+                Some(McpePacketData::UpdateSubChunkBlocksPacket(_))
+            ),
+            "the tick starts with the batch of both halves"
+        );
+        assert_eq!(changed_cells(&packets), vec![LOWER, UPPER]);
+        s.tick(2);
+        assert!(changed_cells(&s.received()).is_empty(), "sent once");
+
+        // A player's use.
+        s.flip(LOWER);
+        assert!(changed_cells(&s.received()).is_empty(), "queued");
+        s.tick(1);
+        let toggled = changed_cells(&s.received());
+        assert!(toggled.contains(&LOWER), "{toggled:?}");
+        let mut unique = toggled.clone();
+        unique.dedup();
+        assert_eq!(unique, toggled, "one change per cell");
+        s.tick(2);
+        assert!(changed_cells(&s.received()).is_empty(), "sent once");
+
+        // A mob's break: its half next tick; the other half breaks on its
+        // own block tick and goes out once with a later tick.
+        assert!(break_by_mob(s.world(), LOWER));
+        assert!(changed_cells(&s.received()).is_empty(), "queued");
+        s.tick(1);
+        assert_eq!(changed_cells(&s.received()), vec![LOWER]);
+        s.tick(4);
+        assert_eq!(changed_cells(&s.received()), vec![UPPER]);
     }
 }

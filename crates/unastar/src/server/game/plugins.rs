@@ -1,9 +1,9 @@
 use crate::ecs::events::{ActionQueue, PluginAction};
 use crate::entity::components::{PlayerSession, Position, Rotation, RuntimeEntityId};
+use crate::server::game::blocks::{PendingBlockUpdates, UPDATE_FLAGS};
 use crate::server::game::types::system_text;
 use crate::world::ecs::{
-    BlockBroadcastEvent, ChunkData, ChunkManager, ChunkStateFlags, world_to_chunk_coords,
-    world_to_local_coords,
+    ChunkData, ChunkManager, ChunkStateFlags, world_to_chunk_coords, world_to_local_coords,
 };
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -32,7 +32,7 @@ pub fn process_plugin_actions(
     config: Res<super::types::ServerConfigResource>,
     chunk_manager: Res<ChunkManager>,
     mut chunks: Query<(&mut ChunkData, &mut ChunkStateFlags)>,
-    mut block_events: ResMut<bevy_ecs::message::Messages<BlockBroadcastEvent>>,
+    mut block_updates: ResMut<PendingBlockUpdates>,
     mut players: Query<(
         &mut Position,
         &Rotation,
@@ -199,11 +199,12 @@ pub fn process_plugin_actions(
                         .set_block(local_x, local_y, local_z, block_id);
                     state_flags.mark_dirty();
                     state_flags.mark_needs_rebroadcast();
-                    block_events.write(BlockBroadcastEvent {
+                    block_updates.push(
                         chunk_entity,
-                        block_pos: glam::IVec3::new(x, y, z),
-                        new_block: block_id,
-                    });
+                        glam::IVec3::new(x, y, z),
+                        block_id,
+                        UPDATE_FLAGS,
+                    );
                     info!(pos=?position, block_id, "Plugin set block");
                 }
             }
@@ -232,7 +233,7 @@ mod tests {
         world.insert_resource(BlockRegistryResource(Arc::new(BlockRegistry::new())));
         world.insert_resource(super::super::types::ServerConfigResource(Default::default()));
         world.insert_resource(ChunkManager::new(WorldConfig::void_spawn_platform(1)));
-        world.insert_resource(bevy_ecs::message::Messages::<BlockBroadcastEvent>::default());
+        world.insert_resource(PendingBlockUpdates::default());
 
         let (outbound_tx, mut outbound_rx) = mpsc::channel(8);
         let player = world

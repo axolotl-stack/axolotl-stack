@@ -141,7 +141,7 @@ mod tests {
     use crate::registry::{BlockRegistry, ItemRegistry};
     use crate::server::game::types::ItemRegistryResource;
     use crate::world::chunk::blocks;
-    use crate::world::ecs::{BlockBroadcastEvent, ChunkData, ChunkManager, ChunkPosition};
+    use crate::world::ecs::{ChunkData, ChunkManager, ChunkPosition};
     use std::sync::Arc;
 
     fn world() -> (World, Entity) {
@@ -156,7 +156,6 @@ mod tests {
         items.load_vanilla();
         world.insert_resource(ItemRegistryResource(Arc::new(items)));
         world.insert_resource(TickCounter::default());
-        world.insert_resource(bevy_ecs::message::Messages::<BlockBroadcastEvent>::default());
         let mut chunk = crate::world::chunk::Chunk::new(0, 0);
         for x in 0..16 {
             for z in 0..16 {

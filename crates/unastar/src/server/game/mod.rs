@@ -66,16 +66,15 @@ use crate::entity::systems::{
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
 use crate::server::broadcast::{
-    EntityGrid, broadcast_block_updates, broadcast_despawn_system, broadcast_movement_system,
-    broadcast_spawn_system, cleanup_despawned_entities, sync_actor_viewers, sync_spatial_chunks,
-    tick_block_breaking,
+    EntityGrid, broadcast_despawn_system, broadcast_movement_system, broadcast_spawn_system,
+    cleanup_despawned_entities, sync_actor_viewers, sync_spatial_chunks, tick_block_breaking,
 };
 use crate::storage::PlayerData;
 use crate::world::ChunkManager;
 use crate::world::ecs::{
-    AwaitingSpawnStatus, BlockBroadcastEvent, ChunkLoadConfig, ChunkLoader, ChunkPosition,
-    ChunkTickingState, ColumnLoads, LastPublisherState, PlayerDespawnedEvent, PlayerSpawnedEvent,
-    StreamStats, on_block_changed, register_chunk_systems,
+    AwaitingSpawnStatus, ChunkLoadConfig, ChunkLoader, ChunkPosition, ChunkTickingState,
+    ColumnLoads, LastPublisherState, PlayerDespawnedEvent, PlayerSpawnedEvent, StreamStats,
+    on_block_changed, register_chunk_systems,
 };
 
 // Re-export public types
@@ -300,10 +299,16 @@ impl GameServer {
         world_template.jigsaw_structures = Arc::new(join_data::jigsaw_structures());
         world_template.voxel_shapes = Arc::new(join_data::voxel_shapes());
 
-        // Difficulty from the config, Bedrock's default game rules and a
-        // fresh clock (there is no level-data store to restore them from).
+        // Difficulty and game rules from the config over Bedrock's defaults,
+        // and a fresh clock (there is no level-data store to restore them from).
         let difficulty = config.difficulty;
-        let game_rules = crate::world::rules::GameRules::default();
+        let mut game_rules = crate::world::rules::GameRules::default();
+        for (name, value) in &config.game_rules {
+            assert!(
+                game_rules.set_value(name, *value).is_some(),
+                "configured game rule {name} = {value} is unknown or has the wrong type"
+            );
+        }
         let world_time = crate::world::rules::WorldTime::default();
         let start_game_state = crate::world::rules::StartGameWorldState::default();
         start_game_state.publish(world_time, difficulty, &game_rules);
@@ -358,7 +363,7 @@ impl GameServer {
         ecs.world_mut().init_resource::<StreamStats>();
         ecs.world_mut().init_resource::<ChunkTickingState>();
         ecs.world_mut()
-            .init_resource::<bevy_ecs::message::Messages<BlockBroadcastEvent>>();
+            .init_resource::<blocks::PendingBlockUpdates>();
         ecs.world_mut()
             .init_resource::<bevy_ecs::message::Messages<PlayerSpawnedEvent>>();
         ecs.world_mut()
@@ -413,6 +418,14 @@ impl GameServer {
                 commands::apply_chat_and_commands,
             )
                 .in_set(PacketApplySet),
+        );
+        // The previous tick's block changes and their sounds go out first,
+        // before this tick's input and actors.
+        ecs.schedule_mut().add_systems(
+            blocks::send_block_updates
+                .in_set(PacketApplySet)
+                .before(movement::apply_movement)
+                .before(blocks::apply_block_actions),
         );
         // Exclusive block system runs after movement (which forwards block actions)
         ecs.schedule_mut().add_systems(
@@ -717,10 +730,8 @@ impl GameServer {
                 broadcast_spawn_system,
                 broadcast_movement_system,
                 broadcast_despawn_system,
-                broadcast_block_updates,
                 sync_actor_viewers,
                 crate::entity::mob::net::network::sync_mob_viewers,
-                crate::world::explosion::send_explosion_sounds,
             )
                 .chain()
                 .in_set(NetworkSendSet),

@@ -1,6 +1,6 @@
 //! Container blocks in the world (I8/I9): chests (single and double),
-//! trapped chests, barrels, ender chests, furnaces, blast furnaces, smokers
-//! and hoppers.
+//! trapped chests, barrels, ender chests, furnaces, blast furnaces, smokers,
+//! hoppers, dispensers and droppers.
 //!
 //! The chunk's block actor NBT stays the source of truth for persistence and
 //! chunk sends: every committed change re-encodes the actor
@@ -33,11 +33,17 @@
 //!   whenever a value changed.
 //! - Taking from a furnace's result slot pays `count x XP multiplier` plus the
 //!   stored XP, rounded up with probability equal to the fraction.
+//! - A hopper whose `toggle_bit` is set (it receives redstone power, see
+//!   `block_behaviour::redstone`) moves nothing, neither pushing nor
+//!   pulling; its cooldown keeps counting down meanwhile.
+//! - Every change of a container's contents (a window commit, a hopper
+//!   transfer, a furnace using fuel or finishing an item, a dispenser or
+//!   dropper firing) runs the block change path's neighbour updates for the
+//!   container ([`contents_changed`]), so comparators read it again.
 //!
 //! Not modelled: loot-table unpacking of generated chests (the `LootTable`
 //! keys are preserved), chest obstruction, trapped-chest redstone, copper
-//! chests, hopper redstone power other than an existing `toggle_bit`, and XP
-//! orbs (smelting XP goes straight to the taking player).
+//! chests and XP orbs (smelting XP goes straight to the taking player).
 
 use std::collections::{BTreeSet, HashMap};
 
@@ -270,6 +276,55 @@ fn store_view(world: &mut World, pos: IVec3, slots: &Inventory) {
         }
         save(world, half);
     }
+}
+
+/// The contents of the container at `pos` changed: run the change path's
+/// neighbour updates for it (both halves of a double chest) so comparators
+/// read it again.
+pub(super) fn contents_changed(world: &mut World, pos: IVec3) {
+    let (lead, other) = halves(world, pos).unwrap_or((pos, None));
+    super::block_behaviour::block_changed(world, lead);
+    if let Some(other) = other {
+        super::block_behaviour::block_changed(world, other);
+    }
+}
+
+/// The slots of the container block at `pos` (a double chest's 54, a
+/// generated container's loot rolled first), `None` when it holds none.
+pub(super) fn contents(world: &mut World, pos: IVec3) -> Option<Inventory> {
+    if load(world, pos)? == ContainerKind::EnderChest {
+        return None;
+    }
+    view(world, pos).map(|(_, slots)| slots)
+}
+
+/// Replace the slots of the container block at `pos` (as [`contents`]
+/// returned them), refresh its viewers and run [`contents_changed`].
+pub(super) fn set_contents(world: &mut World, pos: IVec3, slots: &Inventory) {
+    store_view(world, pos, slots);
+    refresh_viewers(world, pos, None);
+    contents_changed(world, pos);
+}
+
+/// Move one item of `stack` into the container block at `pos`, entering
+/// from above (`from_above`) or from a side, as a hopper pushes. `None`
+/// when there is no container there; `Some(false)` when it takes nothing.
+pub(super) fn insert_one_item(
+    world: &mut World,
+    pos: IVec3,
+    stack: &ItemStack,
+    from_above: bool,
+) -> Option<bool> {
+    let mut slots = contents(world, pos)?;
+    let kind = load(world, pos)?;
+    let Some(range) = insert_range(kind, slots.size(), stack, from_above) else {
+        return Some(false);
+    };
+    if !insert_one(&mut slots, range, stack) {
+        return Some(false);
+    }
+    set_contents(world, pos, &slots);
+    Some(true)
 }
 
 /// A generated container's loot table is unpacked the first time it is
@@ -648,6 +703,7 @@ pub(super) fn commit_window(
     }
     store_view(world, screen.at, &after);
     refresh_viewers(world, screen.at, Some(player));
+    contents_changed(world, screen.at);
 }
 
 /// The stack a request removed from a furnace's result slot, if any.
@@ -1245,6 +1301,7 @@ fn tick_furnace(world: &mut World, pos: IVec3, kind: ContainerKind) {
     save(world, pos);
     if slots_changed {
         refresh_viewers(world, pos, None);
+        contents_changed(world, pos);
     }
 }
 
@@ -1369,6 +1426,13 @@ fn tick_hopper(world: &mut World, pos: IVec3) {
         }
         save(world, pos);
         refresh_viewers(world, pos, None);
+        contents_changed(world, pos);
+        if pushed {
+            contents_changed(world, hopper_target(world, pos));
+        }
+        if pulled && kind_at(world, pos + IVec3::Y).is_some() {
+            contents_changed(world, pos + IVec3::Y);
+        }
     }
 }
 

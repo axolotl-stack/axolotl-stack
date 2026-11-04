@@ -1,0 +1,110 @@
+scenario = "blocks-nether-portal"
+steps = 25
+steps_sha256 = "afcae2b549f6c6cf4e99581442a3e45919b709ba1968920f17078ef2ca62e9ce"
+description = "Measured on BDS 1.26.51 with the scripted bot: Obsidian 4x5 frame in the x plane at z=0 (inner x 1..2, three high); flint and steel on the top of the inner bottom obsidian; then the west side's middle obsidian set to air."
+known_failing = []
+accepted = []
+
+[source]
+run = "tools/client-diff/runs/blocks-a/blocks-nether-portal-vanilla-go.jsonl"
+server = "BDS 1.26.51 + Endstone 0.11.12"
+protocol = 2193
+recorded = "2026-10-31"
+player_runtime_id = 1
+player_unique_id = -8589934591
+window_ms = 6100.0
+recording_sha256 = "b843deb37b29e31408061244e66a186f5f407c39cce080a05c2a4892a9d4f234"
+
+[world]
+kind = "superflat"
+game_mode = "creative"
+difficulty = "peaceful"
+setup = "Endstone capture world (tools/client-diff/endstone-capture): default superflat, fixed seed, spawn at feet (0.5, -60, 0.5), time 6000, clear weather; the bot's player is an operator."
+
+[world.game_rules]
+commandBlockOutput = true
+commandBlocksEnabled = true
+doDayLightCycle = false
+doEntityDrops = true
+doFireTick = true
+doImmediateRespawn = false
+doInsomnia = true
+doLimitedCrafting = false
+doMobLoot = true
+doMobSpawning = false
+doTileDrops = true
+doWeatherCycle = false
+drowningDamage = true
+fallDamage = true
+fireDamage = true
+freezeDamage = true
+functionCommandLimit = 10000
+keepInventory = false
+locatorbar = true
+maxCommandChainLength = 65535
+mobGriefing = true
+naturalRegeneration = true
+playerWaypoints = 1
+playersSleepingPercentage = 100
+projectilesCanBreakBlocks = true
+pvp = true
+randomTickSpeed = 0
+recipesUnlock = true
+respawnBlocksExplode = true
+sendCommandFeedback = true
+showBorderEffect = true
+showCoordinates = false
+showDaysPlayed = false
+showDeathMessages = true
+showRecipeMessages = true
+showTags = true
+spawnRadius = 10
+tntExplodes = true
+tntExplosionDropDecay = false
+
+[compare]
+packets = [
+    "ActorEvent",
+    "LevelSoundEvent",
+    "SetActorData",
+    "UpdateAttributes",
+    "UpdateBlock",
+    "UpdateSubChunkBlocks",
+]
+timing_tolerance_ms = 120.0
+float_tolerance = 0.001
+
+[[mask]]
+field = "actor_runtime_id"
+rule = "runtime_id"
+reason = "Runtime IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+field = "actor_unique_id"
+rule = "unique_id"
+reason = "Unique IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+path = "actor_data.data[id=5].payload"
+packets = [
+    "SetActorData",
+    "AddActor",
+    "AddItemActor",
+]
+rule = "unique_id"
+reason = "Metadata key 5 (owner) holds a unique ID."
+
+[[mask]]
+field = "net_id_variant"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "item_stack_net_id"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "inputtick"
+rule = "ignore"
+reason = "Server tick numbers start at different values on each server and session."

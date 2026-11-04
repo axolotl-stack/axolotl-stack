@@ -11,8 +11,10 @@
 //! # One change path
 //!
 //! Every block change goes through [`super::blocks::set_block`]: it writes
-//! the chunk, sends the chunk's viewers UpdateBlock in the session's block
-//! numbering and then calls [`block_changed`], which queues a neighbour
+//! the chunk, queues the change for the chunk's viewers (sent once, in the
+//! session's block numbering, at the start of the next tick by
+//! [`super::blocks::send_block_updates`]) and then calls [`block_changed`],
+//! which queues a neighbour
 //! update for each of the six neighbours (down, up, north, south, west,
 //! east). Updates drain breadth-first from one queue: a change made while
 //! handling an update queues further updates instead of recursing, so a
@@ -38,7 +40,11 @@
 //! `randomTickSpeed` ([`random_tick_speed`]) random positions per game tick, `top` being its
 //! highest sub-chunk with a non-air block; crops, stems, nether wart,
 //! farmland, sugar cane and cacti grow or change there.
+//!
+//! [`tick_blocks`] also carries vibrations to sculk listeners
+//! ([`utility::sculk`]) and counts down sleeping players ([`sleep`]).
 
+pub mod actors;
 pub mod attached;
 pub mod beds;
 pub mod connections;
@@ -49,8 +55,10 @@ pub mod gravity;
 pub mod plants;
 pub mod redstone;
 pub mod signs;
+pub mod sleep;
 mod support;
 pub mod toggles;
+pub mod utility;
 
 #[cfg(test)]
 mod bds_parity;
@@ -161,6 +169,10 @@ pub enum Family {
     /// Concrete powder: falls, and hardens into concrete next to water
     /// ([`gravity`]).
     ConcretePowder,
+    /// Interactive utility blocks ([`utility`]): dispensers, rails, TNT,
+    /// cauldrons, composters, beehives, campfires, lecterns, bells,
+    /// jukeboxes, flower pots, cakes, portals, respawn anchors, sculk.
+    Utility(utility::Utility),
 }
 
 impl Family {
@@ -180,6 +192,9 @@ impl Family {
         }
         if matches!(id, "minecraft:fire" | "minecraft:soul_fire") {
             return Self::Fire;
+        }
+        if let Some(kind) = utility::Utility::of(entry) {
+            return Self::Utility(kind);
         }
         if id.ends_with("_concrete_powder") {
             return Self::ConcretePowder;
@@ -486,6 +501,7 @@ fn neighbour_changed(world: &mut World, pos: IVec3, from: IVec3) {
         Family::Vine => attached::vine_neighbour_changed(world, pos, state),
         Family::Fire => fire::neighbour_changed(world, pos, state),
         Family::ConcretePowder => gravity::harden_concrete_powder(world, pos, state),
+        Family::Utility(kind) => utility::neighbour_changed(world, kind, pos, state, from),
         _ => {}
     }
     // Redstone components and the blocks power acts on (doors, trapdoors,
@@ -502,6 +518,7 @@ fn placed(world: &mut World, pos: IVec3, state: u32, family: Family) {
     match family {
         Family::Fire => fire::placed(world, pos, state),
         Family::ConcretePowder => gravity::harden_concrete_powder(world, pos, state),
+        Family::Utility(kind) => utility::placed(world, kind, pos, state),
         _ => {}
     }
     if family == Family::Redstone || redstone::is_consumer(family) {
@@ -571,6 +588,7 @@ pub fn can_survive(blocks: &impl BlockSource, pos: IVec3, state: u32) -> bool {
         Family::Carpet => plants::carpet_can_survive(blocks, pos),
         Family::Fire => fire::can_survive(blocks, pos, state, entry),
         Family::Redstone => redstone::can_survive(blocks, pos, state, entry),
+        Family::Utility(kind) => utility::can_survive(kind, blocks, pos, state, entry),
         Family::Plain
         | Family::Trapdoor { .. }
         | Family::FenceGate
@@ -612,6 +630,7 @@ pub fn placement_state(
         Family::FenceGate => toggles::fence_gate_placement(&place)?,
         Family::Connected | Family::Stairs => connections::placement(&place)?,
         Family::Redstone => redstone::placement(&place)?,
+        Family::Utility(kind) => utility::placement(kind, &place)?,
         _ => state,
     };
     let mut placed = vec![(position, state)];
@@ -746,11 +765,15 @@ pub fn use_block(world: &mut World, player: Entity, pos: IVec3) -> bool {
     };
     match family(world, state) {
         Family::Door { iron: false } => doors::toggle(world, pos, state, Some(player)),
-        Family::Trapdoor { iron: false } => toggles::toggle_trapdoor(world, pos, state),
+        Family::Trapdoor { iron: false } => {
+            toggles::toggle_trapdoor(world, pos, state, Some(player))
+        }
         Family::FenceGate => toggles::toggle_fence_gate(world, player, pos, state),
-        Family::Button { wooden } => toggles::press_button(world, pos, state, wooden),
-        Family::Lever => toggles::toggle_lever(world, pos, state),
+        Family::Button { wooden } => toggles::press_button(world, pos, state, wooden, Some(player)),
+        Family::Lever => toggles::toggle_lever(world, pos, state, Some(player)),
         Family::Redstone => redstone::use_block(world, player, pos, state),
+        Family::Utility(kind) => utility::use_block(world, kind, player, pos, state),
+        Family::Bed => beds::use_bed(world, player, pos, state),
         _ => false,
     }
 }
@@ -763,11 +786,23 @@ pub fn is_usable(registry: &BlockRegistry, state: u32) -> bool {
         | Family::Trapdoor { iron: false }
         | Family::FenceGate
         | Family::Button { .. }
-        | Family::Lever => true,
+        | Family::Lever
+        | Family::Bed => true,
         Family::Redstone => registry
             .get_by_runtime_id(state)
             .is_some_and(redstone::is_usable),
+        Family::Utility(kind) => registry
+            .get_by_runtime_id(state)
+            .is_some_and(|entry| utility::is_usable(kind, entry, state)),
         _ => false,
+    }
+}
+
+/// A player is breaking the block `state` at `pos` (before anything is
+/// removed): blocks holding items drop them.
+pub fn breaking(world: &mut World, pos: IVec3, state: u32) {
+    if let Family::Utility(kind) = family(world, state) {
+        utility::breaking(world, kind, pos, state);
     }
 }
 
@@ -824,8 +859,9 @@ pub fn destroy_block(world: &mut World, pos: IVec3, drops: bool) {
 }
 
 /// Play the `LevelSoundEvent` `name` at the centre of `pos` for its
-/// viewers, carrying the wire id of `state`.
-pub fn sound(world: &World, pos: IVec3, name: &str, state: u32) {
+/// viewers, carrying the wire id of `state`; it goes out with the next
+/// tick's block updates ([`super::blocks::queue_block_sound`]).
+pub fn sound(world: &mut World, pos: IVec3, name: &str, state: u32) {
     let wire = super::types::block_network_ids(world).to_wire(state);
     let packet = jolyne::valentine::McpePacket::from(jolyne::valentine::LevelSoundEventPacket {
         sound_event: name.into(),
@@ -841,13 +877,29 @@ pub fn sound(world: &World, pos: IVec3, name: &str, state: u32) {
         actor_unique_id: 0,
         fire_at_position: None,
     });
-    crate::entity::mob::net::sound::send_to_viewers(world, centre(pos), &packet);
+    super::blocks::queue_block_sound(world, centre(pos), packet);
 }
 
 /// Send the viewers of `pos` the destroy particles `event` of `state`.
 pub fn particles(world: &World, pos: IVec3, state: u32, event: i32) {
     let wire = super::types::block_network_ids(world).to_wire(state);
     crate::entity::mob::net::sound::level_event(world, centre(pos), event, wire as i32);
+}
+
+/// A `LevelEventGeneric` packet of `event_id` carrying `fields` as its
+/// compound.
+pub fn generic_event(
+    event_id: i32,
+    fields: &std::collections::BTreeMap<String, unastar_packs::nbt::Tag>,
+) -> jolyne::valentine::McpePacket {
+    let mut nbt =
+        unastar_packs::nbt::encode_network_fields(fields).expect("number and string tags encode");
+    // The compound's end tag.
+    nbt.push(0);
+    jolyne::valentine::McpePacket::from(jolyne::valentine::LevelEventGenericPacket {
+        event_id,
+        __ctd__: valentine::bedrock::codec::NbtCompoundBody(nbt.into()),
+    })
 }
 
 /// The centre of the block at `pos`.
@@ -947,8 +999,9 @@ pub fn deferred<T>(world: &mut World, change: impl FnOnce(&mut World) -> T) -> T
     result
 }
 
-/// Exclusive system: run due scheduled ticks, then the redstone changes due
-/// on this circuit tick, then random ticks.
+/// Exclusive system: run due scheduled ticks, vibrations on their way to
+/// sculk listeners, the redstone changes due on this circuit tick, random
+/// ticks, then sleeping players.
 pub fn tick_blocks(world: &mut World) {
     let now = world.get_resource::<TickCounter>().map_or(0, |t| t.current);
     let due: Vec<(IVec3, u32)> = match world.get_resource_mut::<ScheduledTicks>() {
@@ -981,9 +1034,12 @@ pub fn tick_blocks(world: &mut World) {
             scheduled_tick(world, pos, state);
         }
     }
+    // Vibrations travelling to sculk sensors and shriekers.
+    utility::sculk::tick(world);
     // Redstone changes due on this circuit tick.
     redstone::circuit::tick(world);
     random_ticks(world);
+    sleep::tick(world);
 }
 
 /// A due scheduled tick: a block that can no longer stay breaks with its
@@ -1006,6 +1062,7 @@ fn scheduled_tick(world: &mut World, pos: IVec3, state: u32) {
         Family::Connected => connections::neighbour_changed(world, pos, state),
         Family::Fire => fire::scheduled_tick(world, pos, state),
         Family::Redstone | Family::Torch => redstone::scheduled_tick(world, pos, state),
+        Family::Utility(kind) => utility::scheduled_tick(world, kind, pos, state),
         _ => {}
     }
 }
@@ -1111,6 +1168,7 @@ pub fn random_tick(world: &mut World, pos: IVec3, state: u32) {
         Family::SugarCane => plants::sugar_cane_random_tick(world, pos, state),
         Family::Cactus => plants::cactus_random_tick(world, pos, state),
         Family::Liquid if is_lava(world, state) => fire::lava_ignites(world, pos),
+        Family::Utility(kind) => utility::random_tick(world, kind, pos, state),
         Family::Fire => fire::random_tick(world, pos, state),
         _ => {}
     }

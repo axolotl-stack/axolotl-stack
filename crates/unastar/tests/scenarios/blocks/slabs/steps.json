@@ -1,0 +1,533 @@
+{
+ "scenario": "slabs",
+ "covers": "Oak slabs: a bottom slab on the floor top and a second one clicked onto its top (double slab); a top slab on the upper half of a stone block's north face and a second one clicked into it from the floor below (double slab); an oak slab clicked onto a smooth stone slab (no merge, placed above).",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-30T16:50:02Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin slabs",
+  "end": "bds-sweep:scenario end slabs"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin slabs"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "slabs/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 4 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 8 -60 0 smooth_stone_slab",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:oak_slab 64",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 14,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 14,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 20,
+   "op": "mark",
+   "label": "slabs/bottom_on_floor"
+  },
+  {
+   "tick": 20,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:oak_slab",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 20,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 30,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 29.25",
+   "ok": true
+  },
+  {
+   "tick": 30,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 36,
+   "op": "mark",
+   "label": "slabs/merge_onto_bottom"
+  },
+  {
+   "tick": 36,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:oak_slab",
+   "block_runtime_id": 2747170404,
+   "held": [
+    "minecraft:oak_slab",
+    63,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 29.25
+   }
+  },
+  {
+   "tick": 36,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 46,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 46,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:oak_slab 64",
+   "ok": true
+  },
+  {
+   "tick": 46,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 56,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 -2.5 0.0 19.19",
+   "ok": true
+  },
+  {
+   "tick": 56,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 62,
+   "op": "mark",
+   "label": "slabs/top_on_north_face_upper"
+  },
+  {
+   "tick": 62,
+   "op": "use",
+   "pos": [
+    4,
+    -60,
+    0
+   ],
+   "face": "north",
+   "face_id": 2,
+   "click": [
+    0.5,
+    0.75,
+    0.0
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:oak_slab",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     4.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 19.19
+   }
+  },
+  {
+   "tick": 62,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 72,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 -3.5 0.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 72,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 78,
+   "op": "mark",
+   "label": "slabs/merge_into_top_from_below"
+  },
+  {
+   "tick": 78,
+   "op": "use",
+   "pos": [
+    4,
+    -61,
+    -1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:oak_slab",
+    63,
+    0
+   ],
+   "player": {
+    "position": [
+     4.5,
+     -60.0,
+     -3.5
+    ],
+    "yaw": 0.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 78,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 88,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 2.5 180.0 29.25",
+   "ok": true
+  },
+  {
+   "tick": 88,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 94,
+   "op": "mark",
+   "label": "slabs/onto_smooth_stone_slab"
+  },
+  {
+   "tick": 94,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:smooth_stone_slab",
+   "block_runtime_id": 98367658,
+   "held": [
+    "minecraft:oak_slab",
+    62,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 29.25
+   }
+  },
+  {
+   "tick": 94,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 124,
+   "op": "marker",
+   "text": "bds-sweep:scenario end slabs"
+  }
+ ],
+ "duration_ticks": 124,
+ "error": null
+}

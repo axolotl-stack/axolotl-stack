@@ -1,0 +1,2069 @@
+{
+ "scenario": "comparators",
+ "covers": "Comparator at (8, y, 0) clicked into place looking east; rear dust along -x fed by a redstone block (signal at the comparator = 16 - dust count), side dust along +z the same way, two output dust along +x.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:18:38Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin comparators",
+  "end": "bds-sweep:scenario end comparators"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin comparators"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "comparators/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:comparator 64",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 12,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 12,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 18,
+   "op": "mark",
+   "label": "comparators/rear_15_side_0_place"
+  },
+  {
+   "tick": 18,
+   "op": "use",
+   "pos": [
+    8,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:comparator",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 18,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 28,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 28,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 28,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 38,
+   "op": "command",
+   "command": "setblock 7 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 38,
+   "op": "command",
+   "command": "setblock 9 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 38,
+   "op": "command",
+   "command": "setblock 10 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 38,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 42,
+   "op": "mark",
+   "label": "comparators/rear_15_side_0_compare"
+  },
+  {
+   "tick": 42,
+   "op": "command",
+   "command": "setblock 6 -60 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 42,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 72,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 72,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 78,
+   "op": "mark",
+   "label": "comparators/rear_15_side_0_subtract"
+  },
+  {
+   "tick": 78,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:powered_comparator",
+   "block_runtime_id": 3037819499,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 78,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 108,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 108,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 114,
+   "op": "mark",
+   "label": "comparators/rear_15_side_0_compare_again"
+  },
+  {
+   "tick": 114,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:powered_comparator",
+   "block_runtime_id": 1982512928,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 114,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 144,
+   "op": "mark",
+   "label": "comparators/reset"
+  },
+  {
+   "tick": 144,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 144,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 144,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 144,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 146,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 146,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:comparator 64",
+   "ok": true
+  },
+  {
+   "tick": 146,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 156,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 156,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 162,
+   "op": "mark",
+   "label": "comparators/rear_12_side_5_place"
+  },
+  {
+   "tick": 162,
+   "op": "use",
+   "pos": [
+    8,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:comparator",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 162,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 172,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 172,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 172,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 4 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 5 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 6 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 7 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 9 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 10 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 1 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 2 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 3 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 4 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 5 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 6 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 7 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 8 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 9 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 10 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "setblock 8 -60 11 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 186,
+   "op": "mark",
+   "label": "comparators/rear_12_side_5_compare"
+  },
+  {
+   "tick": 186,
+   "op": "command",
+   "command": "setblock 3 -60 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 186,
+   "op": "command",
+   "command": "setblock 8 -60 12 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 186,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 216,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 216,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 222,
+   "op": "mark",
+   "label": "comparators/rear_12_side_5_subtract"
+  },
+  {
+   "tick": 222,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:powered_comparator",
+   "block_runtime_id": 3037819499,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 222,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 252,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 252,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 258,
+   "op": "mark",
+   "label": "comparators/rear_12_side_5_compare_again"
+  },
+  {
+   "tick": 258,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:powered_comparator",
+   "block_runtime_id": 1982512928,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 258,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 288,
+   "op": "mark",
+   "label": "comparators/reset"
+  },
+  {
+   "tick": 288,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 288,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 288,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 288,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 290,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 290,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:comparator 64",
+   "ok": true
+  },
+  {
+   "tick": 290,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 300,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 300,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 306,
+   "op": "mark",
+   "label": "comparators/rear_12_side_12_place"
+  },
+  {
+   "tick": 306,
+   "op": "use",
+   "pos": [
+    8,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:comparator",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 306,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 316,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 316,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 316,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 326,
+   "op": "command",
+   "command": "setblock 4 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 326,
+   "op": "command",
+   "command": "setblock 5 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 326,
+   "op": "command",
+   "command": "setblock 6 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 326,
+   "op": "command",
+   "command": "setblock 7 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 326,
+   "op": "command",
+   "command": "setblock 9 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 326,
+   "op": "command",
+   "command": "setblock 10 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 326,
+   "op": "command",
+   "command": "setblock 8 -60 1 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 326,
+   "op": "command",
+   "command": "setblock 8 -60 2 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 326,
+   "op": "command",
+   "command": "setblock 8 -60 3 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 326,
+   "op": "command",
+   "command": "setblock 8 -60 4 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 326,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 330,
+   "op": "mark",
+   "label": "comparators/rear_12_side_12_compare"
+  },
+  {
+   "tick": 330,
+   "op": "command",
+   "command": "setblock 3 -60 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 330,
+   "op": "command",
+   "command": "setblock 8 -60 5 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 330,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 360,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 360,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 366,
+   "op": "mark",
+   "label": "comparators/rear_12_side_12_subtract"
+  },
+  {
+   "tick": 366,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:powered_comparator",
+   "block_runtime_id": 3037819499,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 366,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 396,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 396,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 402,
+   "op": "mark",
+   "label": "comparators/rear_12_side_12_compare_again"
+  },
+  {
+   "tick": 402,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_comparator",
+   "block_runtime_id": 1645785290,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 402,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 432,
+   "op": "mark",
+   "label": "comparators/reset"
+  },
+  {
+   "tick": 432,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 432,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 432,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 432,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 434,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 434,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:comparator 64",
+   "ok": true
+  },
+  {
+   "tick": 434,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 444,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 444,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 450,
+   "op": "mark",
+   "label": "comparators/rear_12_side_14_place"
+  },
+  {
+   "tick": 450,
+   "op": "use",
+   "pos": [
+    8,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:comparator",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 450,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 460,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 460,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 460,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 470,
+   "op": "command",
+   "command": "setblock 4 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 470,
+   "op": "command",
+   "command": "setblock 5 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 470,
+   "op": "command",
+   "command": "setblock 6 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 470,
+   "op": "command",
+   "command": "setblock 7 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 470,
+   "op": "command",
+   "command": "setblock 9 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 470,
+   "op": "command",
+   "command": "setblock 10 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 470,
+   "op": "command",
+   "command": "setblock 8 -60 1 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 470,
+   "op": "command",
+   "command": "setblock 8 -60 2 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 470,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 474,
+   "op": "mark",
+   "label": "comparators/rear_12_side_14_compare"
+  },
+  {
+   "tick": 474,
+   "op": "command",
+   "command": "setblock 3 -60 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 474,
+   "op": "command",
+   "command": "setblock 8 -60 3 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 474,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 504,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 504,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 510,
+   "op": "mark",
+   "label": "comparators/rear_12_side_14_subtract"
+  },
+  {
+   "tick": 510,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_comparator",
+   "block_runtime_id": 2701091861,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 510,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 540,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 540,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 546,
+   "op": "mark",
+   "label": "comparators/rear_12_side_14_compare_again"
+  },
+  {
+   "tick": 546,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_comparator",
+   "block_runtime_id": 1645785290,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 546,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 576,
+   "op": "mark",
+   "label": "comparators/reset"
+  },
+  {
+   "tick": 576,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 576,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 576,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 576,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 578,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 578,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:comparator 64",
+   "ok": true
+  },
+  {
+   "tick": 578,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 588,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 588,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 594,
+   "op": "mark",
+   "label": "comparators/rear_5_side_10_place"
+  },
+  {
+   "tick": 594,
+   "op": "use",
+   "pos": [
+    8,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:comparator",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 594,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 604,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock -3 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock -2 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock -1 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 0 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 1 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 2 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 3 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 4 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 5 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 6 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 7 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 9 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 10 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 8 -60 1 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 8 -60 2 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 8 -60 3 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 8 -60 4 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 8 -60 5 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "command",
+   "command": "setblock 8 -60 6 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 614,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 618,
+   "op": "mark",
+   "label": "comparators/rear_5_side_10_compare"
+  },
+  {
+   "tick": 618,
+   "op": "command",
+   "command": "setblock -4 -60 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 618,
+   "op": "command",
+   "command": "setblock 8 -60 7 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 618,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 648,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 648,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 654,
+   "op": "mark",
+   "label": "comparators/rear_5_side_10_subtract"
+  },
+  {
+   "tick": 654,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_comparator",
+   "block_runtime_id": 2701091861,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 654,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 684,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 684,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 690,
+   "op": "mark",
+   "label": "comparators/rear_5_side_10_compare_again"
+  },
+  {
+   "tick": 690,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_comparator",
+   "block_runtime_id": 1645785290,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 690,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 720,
+   "op": "mark",
+   "label": "comparators/reset"
+  },
+  {
+   "tick": 720,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 720,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 720,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 720,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 722,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 722,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:comparator 64",
+   "ok": true
+  },
+  {
+   "tick": 722,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 732,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 732,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 738,
+   "op": "mark",
+   "label": "comparators/rear_8_side_7_place"
+  },
+  {
+   "tick": 738,
+   "op": "use",
+   "pos": [
+    8,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:comparator",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 738,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 748,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 748,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 748,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 0 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 1 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 2 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 3 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 4 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 5 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 6 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 7 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 9 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 10 -60 0 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 8 -60 1 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 8 -60 2 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 8 -60 3 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 8 -60 4 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 8 -60 5 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 8 -60 6 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 8 -60 7 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 8 -60 8 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "setblock 8 -60 9 redstone_wire",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 762,
+   "op": "mark",
+   "label": "comparators/rear_8_side_7_compare"
+  },
+  {
+   "tick": 762,
+   "op": "command",
+   "command": "setblock -1 -60 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 762,
+   "op": "command",
+   "command": "setblock 8 -60 10 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 762,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 792,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 792,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 798,
+   "op": "mark",
+   "label": "comparators/rear_8_side_7_subtract"
+  },
+  {
+   "tick": 798,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:powered_comparator",
+   "block_runtime_id": 3037819499,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 798,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 828,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 828,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 834,
+   "op": "mark",
+   "label": "comparators/rear_8_side_7_compare_again"
+  },
+  {
+   "tick": 834,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:powered_comparator",
+   "block_runtime_id": 1982512928,
+   "held": null,
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 834,
+   "op": "wait",
+   "ticks": 50
+  },
+  {
+   "tick": 884,
+   "op": "marker",
+   "text": "bds-sweep:scenario end comparators"
+  }
+ ],
+ "duration_ticks": 884,
+ "error": null
+}

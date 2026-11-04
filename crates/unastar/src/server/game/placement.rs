@@ -334,9 +334,7 @@ fn placed_state(block: &BlockEntry, input: &PlacementInput) -> u32 {
         );
     }
     match block.string_id.as_str() {
-        "minecraft:dispenser"
-        | "minecraft:dropper"
-        | "minecraft:barrel" => {
+        "minecraft:dispenser" | "minecraft:dropper" | "minecraft:barrel" => {
             let facing = opposite_facing(look_facing(input.yaw, input.pitch));
             state = set(block, state, "facing_direction", StateValue::Int(facing));
         }

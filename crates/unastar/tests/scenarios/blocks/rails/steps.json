@@ -1,0 +1,766 @@
+{
+ "scenario": "rails",
+ "covers": "Rails clicked onto the floor: corner (0,0), then east (1,0), then south (0,1); a minecart placed on the south rail. Ten golden rails along +x at z=6 (/setblock, east-west) next to a stone block with a lever.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:33:14Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin rails",
+  "end": "bds-sweep:scenario end rails"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin rails"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "rails/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "effect \"BDSSweep\" resistance 99999 4 true",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:rail 64",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 14,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 3.5 135.0 20.9",
+   "ok": true
+  },
+  {
+   "tick": 14,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 20,
+   "op": "mark",
+   "label": "rails/rail_corner"
+  },
+  {
+   "tick": 20,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:rail",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 135.0,
+    "pitch": 20.9
+   }
+  },
+  {
+   "tick": 20,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 30,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 30,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:rail 64",
+   "ok": true
+  },
+  {
+   "tick": 30,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 40,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 3.5 146.31 24.19",
+   "ok": true
+  },
+  {
+   "tick": 40,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 46,
+   "op": "mark",
+   "label": "rails/rail_east"
+  },
+  {
+   "tick": 46,
+   "op": "use",
+   "pos": [
+    1,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:rail",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 146.31,
+    "pitch": 24.19
+   }
+  },
+  {
+   "tick": 46,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 56,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 56,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:rail 64",
+   "ok": true
+  },
+  {
+   "tick": 56,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 66,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 3.5 123.69 24.19",
+   "ok": true
+  },
+  {
+   "tick": 66,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 72,
+   "op": "mark",
+   "label": "rails/rail_south"
+  },
+  {
+   "tick": 72,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:rail",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 123.69,
+    "pitch": 24.19
+   }
+  },
+  {
+   "tick": 72,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 82,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 82,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:minecart 1",
+   "ok": true
+  },
+  {
+   "tick": 82,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 92,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 3.5 123.69 9.76",
+   "ok": true
+  },
+  {
+   "tick": 92,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 98,
+   "op": "mark",
+   "label": "rails/minecart"
+  },
+  {
+   "tick": 98,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:rail",
+   "block_runtime_id": 2560510590,
+   "held": [
+    "minecraft:minecart",
+    1,
+    0
+   ],
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 123.69,
+    "pitch": 9.76
+   }
+  },
+  {
+   "tick": 98,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 0 -60 6 stone",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 1 -60 6 golden_rail [\"rail_direction\"=1]",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 2 -60 6 golden_rail [\"rail_direction\"=1]",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 3 -60 6 golden_rail [\"rail_direction\"=1]",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 4 -60 6 golden_rail [\"rail_direction\"=1]",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 5 -60 6 golden_rail [\"rail_direction\"=1]",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 6 -60 6 golden_rail [\"rail_direction\"=1]",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 7 -60 6 golden_rail [\"rail_direction\"=1]",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 8 -60 6 golden_rail [\"rail_direction\"=1]",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 9 -60 6 golden_rail [\"rail_direction\"=1]",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "setblock 10 -60 6 golden_rail [\"rail_direction\"=1]",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 122,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 122,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 122,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 132,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 9.5 180.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 132,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 138,
+   "op": "mark",
+   "label": "rails/golden_lever_place"
+  },
+  {
+   "tick": 138,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    6
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     9.5
+    ],
+    "yaw": 180.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 138,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 148,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 148,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 148,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 158,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 9.5 180.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 158,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 164,
+   "op": "mark",
+   "label": "rails/golden_lever_on"
+  },
+  {
+   "tick": 164,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    6
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     9.5
+    ],
+    "yaw": 180.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 164,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 184,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 9.5 180.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 184,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 190,
+   "op": "mark",
+   "label": "rails/golden_lever_off"
+  },
+  {
+   "tick": 190,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    6
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2423914170,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     9.5
+    ],
+    "yaw": 180.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 190,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 230,
+   "op": "marker",
+   "text": "bds-sweep:scenario end rails"
+  }
+ ],
+ "duration_ticks": 230,
+ "error": null
+}

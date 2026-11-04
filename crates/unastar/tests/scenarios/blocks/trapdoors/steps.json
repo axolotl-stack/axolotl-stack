@@ -1,0 +1,1381 @@
+{
+ "scenario": "trapdoors",
+ "covers": "Oak trapdoors clicked onto the north face of a stone block (lower and upper click half), its south, west and east faces, the floor top and the underside of an overhanging stone; one toggled open and closed three times with an empty hand; an iron trapdoor clicked with an empty hand (no-op), then opened and closed by a lever on top of its support.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-30T16:48:19Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin trapdoors",
+  "end": "bds-sweep:scenario end trapdoors"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin trapdoors"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "trapdoors/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 0 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 4 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 8 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 14 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 18 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 4 -58 6 stone",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:trapdoor 64",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 14,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 28.72",
+   "ok": true
+  },
+  {
+   "tick": 14,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 20,
+   "op": "mark",
+   "label": "trapdoors/place_north_face_lower"
+  },
+  {
+   "tick": 20,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "north",
+   "face_id": 2,
+   "click": [
+    0.5,
+    0.25,
+    0.0
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:trapdoor",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 28.72
+   }
+  },
+  {
+   "tick": 20,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 30,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 30,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:trapdoor 64",
+   "ok": true
+  },
+  {
+   "tick": 30,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 40,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 -2.5 0.0 19.19",
+   "ok": true
+  },
+  {
+   "tick": 40,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 46,
+   "op": "mark",
+   "label": "trapdoors/place_north_face_upper"
+  },
+  {
+   "tick": 46,
+   "op": "use",
+   "pos": [
+    4,
+    -60,
+    0
+   ],
+   "face": "north",
+   "face_id": 2,
+   "click": [
+    0.5,
+    0.75,
+    0.0
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:trapdoor",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     4.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 19.19
+   }
+  },
+  {
+   "tick": 46,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 56,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 56,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:trapdoor 64",
+   "ok": true
+  },
+  {
+   "tick": 56,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 66,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 3.5 180.0 28.72",
+   "ok": true
+  },
+  {
+   "tick": 66,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 72,
+   "op": "mark",
+   "label": "trapdoors/place_south_face_lower"
+  },
+  {
+   "tick": 72,
+   "op": "use",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.25,
+    1.0
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:trapdoor",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 180.0,
+    "pitch": 28.72
+   }
+  },
+  {
+   "tick": 72,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 82,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 82,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:trapdoor 64",
+   "ok": true
+  },
+  {
+   "tick": 82,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 92,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 11.5 -60 0.5 270.0 28.72",
+   "ok": true
+  },
+  {
+   "tick": 92,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 98,
+   "op": "mark",
+   "label": "trapdoors/place_west_face_lower"
+  },
+  {
+   "tick": 98,
+   "op": "use",
+   "pos": [
+    14,
+    -60,
+    0
+   ],
+   "face": "west",
+   "face_id": 4,
+   "click": [
+    0.0,
+    0.25,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:trapdoor",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     11.5,
+     -60.0,
+     0.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.72
+   }
+  },
+  {
+   "tick": 98,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 108,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 108,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:trapdoor 64",
+   "ok": true
+  },
+  {
+   "tick": 108,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 118,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 21.5 -60 0.5 90.0 28.72",
+   "ok": true
+  },
+  {
+   "tick": 118,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 124,
+   "op": "mark",
+   "label": "trapdoors/place_east_face_lower"
+  },
+  {
+   "tick": 124,
+   "op": "use",
+   "pos": [
+    18,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    1.0,
+    0.25,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:trapdoor",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     21.5,
+     -60.0,
+     0.5
+    ],
+    "yaw": 90.0,
+    "pitch": 28.72
+   }
+  },
+  {
+   "tick": 124,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 134,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 134,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:trapdoor 64",
+   "ok": true
+  },
+  {
+   "tick": 134,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 144,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 8.5 180.0 39.01",
+   "ok": true
+  },
+  {
+   "tick": 144,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 150,
+   "op": "mark",
+   "label": "trapdoors/place_floor_top"
+  },
+  {
+   "tick": 150,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    6
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:trapdoor",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     8.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 150,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 160,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 160,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:trapdoor 64",
+   "ok": true
+  },
+  {
+   "tick": 160,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 170,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 8.5 180.0 -10.76",
+   "ok": true
+  },
+  {
+   "tick": 170,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 176,
+   "op": "mark",
+   "label": "trapdoors/place_overhang_bottom"
+  },
+  {
+   "tick": 176,
+   "op": "use",
+   "pos": [
+    4,
+    -58,
+    6
+   ],
+   "face": "down",
+   "face_id": 0,
+   "click": [
+    0.5,
+    0.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:trapdoor",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     4.5,
+     -60.0,
+     8.5
+    ],
+    "yaw": 180.0,
+    "pitch": -10.76
+   }
+  },
+  {
+   "tick": 176,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 186,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 186,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 186,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 196,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -3.5 0.0 25.52",
+   "ok": true
+  },
+  {
+   "tick": 196,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 202,
+   "op": "mark",
+   "label": "trapdoors/toggle_open_1"
+  },
+  {
+   "tick": 202,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    -1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.1875,
+    0.5
+   ],
+   "block": "minecraft:trapdoor",
+   "block_runtime_id": 1240282488,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -3.5
+    ],
+    "yaw": 0.0,
+    "pitch": 25.52
+   }
+  },
+  {
+   "tick": 202,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 212,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -3.5 0.0 25.52",
+   "ok": true
+  },
+  {
+   "tick": 212,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 218,
+   "op": "mark",
+   "label": "trapdoors/toggle_close_1"
+  },
+  {
+   "tick": 218,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    -1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.1875,
+    0.5
+   ],
+   "block": "minecraft:trapdoor",
+   "block_runtime_id": 4034191369,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -3.5
+    ],
+    "yaw": 0.0,
+    "pitch": 25.52
+   }
+  },
+  {
+   "tick": 218,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 228,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -3.5 0.0 25.52",
+   "ok": true
+  },
+  {
+   "tick": 228,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 234,
+   "op": "mark",
+   "label": "trapdoors/toggle_open_2"
+  },
+  {
+   "tick": 234,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    -1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.1875,
+    0.5
+   ],
+   "block": "minecraft:trapdoor",
+   "block_runtime_id": 1240282488,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -3.5
+    ],
+    "yaw": 0.0,
+    "pitch": 25.52
+   }
+  },
+  {
+   "tick": 234,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 244,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -3.5 0.0 25.52",
+   "ok": true
+  },
+  {
+   "tick": 244,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 250,
+   "op": "mark",
+   "label": "trapdoors/toggle_close_2"
+  },
+  {
+   "tick": 250,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    -1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.1875,
+    0.5
+   ],
+   "block": "minecraft:trapdoor",
+   "block_runtime_id": 4034191369,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -3.5
+    ],
+    "yaw": 0.0,
+    "pitch": 25.52
+   }
+  },
+  {
+   "tick": 250,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 260,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -3.5 0.0 25.52",
+   "ok": true
+  },
+  {
+   "tick": 260,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 266,
+   "op": "mark",
+   "label": "trapdoors/toggle_open_3"
+  },
+  {
+   "tick": 266,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    -1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.1875,
+    0.5
+   ],
+   "block": "minecraft:trapdoor",
+   "block_runtime_id": 1240282488,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -3.5
+    ],
+    "yaw": 0.0,
+    "pitch": 25.52
+   }
+  },
+  {
+   "tick": 266,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 276,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -3.5 0.0 25.52",
+   "ok": true
+  },
+  {
+   "tick": 276,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 282,
+   "op": "mark",
+   "label": "trapdoors/toggle_close_3"
+  },
+  {
+   "tick": 282,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    -1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.1875,
+    0.5
+   ],
+   "block": "minecraft:trapdoor",
+   "block_runtime_id": 4034191369,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -3.5
+    ],
+    "yaw": 0.0,
+    "pitch": 25.52
+   }
+  },
+  {
+   "tick": 282,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 292,
+   "op": "command",
+   "command": "setblock 10 -60 6 stone",
+   "ok": true
+  },
+  {
+   "tick": 292,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 294,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 294,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:iron_trapdoor 64",
+   "ok": true
+  },
+  {
+   "tick": 294,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 304,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 10.5 -60 3.5 0.0 28.72",
+   "ok": true
+  },
+  {
+   "tick": 304,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 310,
+   "op": "mark",
+   "label": "trapdoors/iron_place"
+  },
+  {
+   "tick": 310,
+   "op": "use",
+   "pos": [
+    10,
+    -60,
+    6
+   ],
+   "face": "north",
+   "face_id": 2,
+   "click": [
+    0.5,
+    0.25,
+    0.0
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:iron_trapdoor",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     10.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 0.0,
+    "pitch": 28.72
+   }
+  },
+  {
+   "tick": 310,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 320,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 320,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 320,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 330,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 10.5 -60 3.5 0.0 35.61",
+   "ok": true
+  },
+  {
+   "tick": 330,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 336,
+   "op": "mark",
+   "label": "trapdoors/iron_click_empty_hand"
+  },
+  {
+   "tick": 336,
+   "op": "use",
+   "pos": [
+    10,
+    -60,
+    5
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.1875,
+    0.5
+   ],
+   "block": "minecraft:iron_trapdoor",
+   "block_runtime_id": 361879682,
+   "held": null,
+   "player": {
+    "position": [
+     10.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 0.0,
+    "pitch": 35.61
+   }
+  },
+  {
+   "tick": 336,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 346,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 346,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 346,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 356,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 10.5 -60 3.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 356,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 362,
+   "op": "mark",
+   "label": "trapdoors/iron_lever_place"
+  },
+  {
+   "tick": 362,
+   "op": "use",
+   "pos": [
+    10,
+    -60,
+    6
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     10.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 362,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 372,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 372,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 372,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 382,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 10.5 -60 3.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 382,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 388,
+   "op": "mark",
+   "label": "trapdoors/iron_lever_on"
+  },
+  {
+   "tick": 388,
+   "op": "use",
+   "pos": [
+    10,
+    -59,
+    6
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     10.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 388,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 408,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 10.5 -60 3.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 408,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 414,
+   "op": "mark",
+   "label": "trapdoors/iron_lever_off"
+  },
+  {
+   "tick": 414,
+   "op": "use",
+   "pos": [
+    10,
+    -59,
+    6
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2423914170,
+   "held": null,
+   "player": {
+    "position": [
+     10.5,
+     -60.0,
+     3.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 414,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 454,
+   "op": "marker",
+   "text": "bds-sweep:scenario end trapdoors"
+  }
+ ],
+ "duration_ticks": 454,
+ "error": null
+}

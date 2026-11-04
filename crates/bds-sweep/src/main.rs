@@ -29,6 +29,10 @@
 //!   position, with the selected hotbar slot and its item as last sent by the
 //!   server); BLOCK_RUNTIME_ID is the clicked block's network id, 0 if
 //!   omitted. BDS runs its real use/placement logic.
+//! * `bds-sweep:fall DISTANCE`: fall DISTANCE blocks straight down from the
+//!   current position under vanilla gravity (0.08 per tick, drag 0.98),
+//!   reporting each tick's movement in `PlayerAuthInput`, then land
+//!   (vertical collision) and stand still again.
 //!
 //! Drop orders require server-synchronized nonempty slots with stack net IDs.
 //! Inventory drops leave the screen open; hotbar drops close it first.
@@ -137,6 +141,21 @@ enum Order {
     Drop(DropOrder),
     CloseInventory,
     Use(Click),
+    /// Fall this many blocks straight down.
+    Fall(f32),
+}
+
+/// Vanilla player gravity and vertical drag per tick.
+const GRAVITY: f32 = 0.08;
+const VERTICAL_DRAG: f32 = 0.98;
+
+/// A fall in progress (`bds-sweep:fall`).
+#[derive(Debug, Clone, PartialEq)]
+struct Fall {
+    /// Blocks still to fall before landing.
+    remaining: f32,
+    /// Vertical velocity, negative downwards.
+    velocity: f32,
 }
 
 /// Trims the closing quote (and anything after) of the Debug form of the
@@ -205,6 +224,11 @@ fn parse_order(text: &str) -> Option<Order> {
             }))
         }
         "close-inventory" | "close-inventory\"" => Some(Order::CloseInventory),
+        "fall" => number_word(words.next()?)
+            .parse::<f32>()
+            .ok()
+            .filter(|distance| distance.is_finite() && *distance > 0.0)
+            .map(Order::Fall),
         _ => None,
     }
 }
@@ -217,6 +241,7 @@ struct Player {
     rotation: Vec2,
     tick: u64,
     mining: Option<Mining>,
+    fall: Option<Fall>,
     /// A block action to send with the next input (abort).
     pending: Option<PlayerBlockActionData>,
     /// Authoritative native main inventory, including hotbar indices 0..8.
@@ -283,6 +308,12 @@ impl Player {
                 return Ok(self.close_inventory().into_iter().collect());
             }
             Order::Use(click) => return Ok(vec![self.use_block(&click)]),
+            Order::Fall(distance) => {
+                self.fall = Some(Fall {
+                    remaining: distance,
+                    velocity: 0.0,
+                })
+            }
         }
         Ok(Vec::new())
     }
@@ -489,11 +520,24 @@ impl Player {
             input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Performblockactions);
             Some(actions)
         };
+        let mut pos_delta = Vec3::default();
+        if let Some(fall) = &mut self.fall {
+            fall.velocity = (fall.velocity - GRAVITY) * VERTICAL_DRAG;
+            let step = (-fall.velocity).min(fall.remaining);
+            fall.remaining -= step;
+            self.position.y -= step;
+            pos_delta.y = -step;
+            if fall.remaining <= 0.0 {
+                input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision);
+                self.fall = None;
+            }
+        }
         McpePacket::from(PlayerAuthInputPacket {
             player_rotation: self.rotation.clone(),
             player_head_rotation: self.rotation.y,
             interact_rotation: self.rotation.clone(),
             position: self.position.clone(),
+            pos_delta,
             input_data,
             input_mode: EnumsInputMode::Mouse,
             play_mode: EnumsClientPlayMode::Normal,
@@ -699,6 +743,7 @@ async fn run_session<T: Transport>(
         rotation: game.start_game.rotation.clone(),
         tick: 0,
         mining: None,
+        fall: None,
         pending: None,
         inventory: std::array::from_fn(|_| None),
         selected_slot: 0,
@@ -767,6 +812,7 @@ mod tests {
             rotation: Vec2::default(),
             tick: 0,
             mining: None,
+            fall: None,
             pending: None,
             inventory: std::array::from_fn(|_| None),
             selected_slot: 0,
@@ -1185,6 +1231,36 @@ mod tests {
                 vec![],
             ]
         );
+    }
+
+    #[test]
+    fn fall_descends_under_gravity_then_lands_once() {
+        let mut player = player();
+        player.position.y = -56.38;
+        assert_eq!(parse_order("bds-sweep:fall 0"), None);
+        player
+            .order(parse_order(r#"{ message: "bds-sweep:fall 2" }"#).unwrap())
+            .unwrap();
+        let mut steps = Vec::new();
+        for _ in 0..30 {
+            let packet = player.auth_input();
+            let mut wire = Vec::new();
+            packet.data.encode_inner(&mut wire, 0, 0).unwrap();
+            let mut input = wire.as_slice();
+            let (_, data) = McpePacketData::decode_inner(&mut input, McpePacketArgs).unwrap();
+            let McpePacketData::PlayerAuthInputPacket(input) = data else {
+                panic!("expected PlayerAuthInput");
+            };
+            let landed = input
+                .input_data
+                .contains(&EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision);
+            steps.push((input.pos_delta.y, input.position.y, landed));
+        }
+        assert!((steps[0].0 + 0.0784).abs() < 1e-6);
+        let landed: Vec<_> = steps.iter().filter(|step| step.2).collect();
+        assert_eq!(landed.len(), 1);
+        assert!((landed[0].1 + 58.38).abs() < 1e-4);
+        assert!(steps.last().is_some_and(|step| step.0 == 0.0));
     }
 
     #[test]

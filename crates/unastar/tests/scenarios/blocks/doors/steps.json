@@ -1,0 +1,2492 @@
+{
+ "scenario": "doors",
+ "covers": "Oak doors placed looking north/east/south/west, with the hinge decided by the click half and by stone stacked on either side; a door pair (second door east of the first) toggled; one door toggled lower, upper, lower, upper with dirt in hand; an iron door clicked with an empty hand and with dirt (no-op); the upper and the lower half broken by hand; the floor under a door removed.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-30T16:47:55Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin doors",
+  "end": "bds-sweep:scenario end doors"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin doors"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 12,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 12,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 18,
+   "op": "mark",
+   "label": "doors/place_looking_north"
+  },
+  {
+   "tick": 18,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 18,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 28,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 28,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 28,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 28,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 28,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 30,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 30,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 30,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 40,
+   "op": "command",
+   "command": "tp \"BDSSweep\" -1.5 -60 0.5 270 39.01",
+   "ok": true
+  },
+  {
+   "tick": 40,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 46,
+   "op": "mark",
+   "label": "doors/place_looking_east"
+  },
+  {
+   "tick": 46,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     -1.5,
+     -60.0,
+     0.5
+    ],
+    "yaw": 270.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 46,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 56,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 56,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 56,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 56,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 56,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 58,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 58,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 58,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 68,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -1.5 0 39.01",
+   "ok": true
+  },
+  {
+   "tick": 68,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 74,
+   "op": "mark",
+   "label": "doors/place_looking_south"
+  },
+  {
+   "tick": 74,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -1.5
+    ],
+    "yaw": 0.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 74,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 84,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 84,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 84,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 84,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 84,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 86,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 86,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 86,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 96,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 2.5 -60 0.5 90 39.01",
+   "ok": true
+  },
+  {
+   "tick": 96,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 102,
+   "op": "mark",
+   "label": "doors/place_looking_west"
+  },
+  {
+   "tick": 102,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     2.5,
+     -60.0,
+     0.5
+    ],
+    "yaw": 90.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 102,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 112,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 112,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 112,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 112,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 112,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 114,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 114,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 114,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 124,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 38.7",
+   "ok": true
+  },
+  {
+   "tick": 124,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 130,
+   "op": "mark",
+   "label": "doors/place_looking_north_click_west_half"
+  },
+  {
+   "tick": 130,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.2,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 38.7
+   }
+  },
+  {
+   "tick": 130,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 140,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 140,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 140,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 140,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 140,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 142,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 142,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 142,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 152,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 38.7",
+   "ok": true
+  },
+  {
+   "tick": 152,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 158,
+   "op": "mark",
+   "label": "doors/place_looking_north_click_east_half"
+  },
+  {
+   "tick": 158,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.8,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 38.7
+   }
+  },
+  {
+   "tick": 158,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 168,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 170,
+   "op": "command",
+   "command": "setblock -1 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 170,
+   "op": "command",
+   "command": "setblock -1 -59 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 170,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 170,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 170,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 180,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 180,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 186,
+   "op": "mark",
+   "label": "doors/place_stone_stacked_west"
+  },
+  {
+   "tick": 186,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 186,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 196,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 196,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 196,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 196,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 196,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 198,
+   "op": "command",
+   "command": "setblock 1 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 198,
+   "op": "command",
+   "command": "setblock 1 -59 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 198,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 198,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 198,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 208,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 208,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 214,
+   "op": "mark",
+   "label": "doors/place_stone_stacked_east"
+  },
+  {
+   "tick": 214,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 214,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 224,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 224,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 224,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 224,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 224,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 226,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 226,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 226,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 242,
+   "op": "mark",
+   "label": "doors/pair_first"
+  },
+  {
+   "tick": 242,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 242,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 252,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 252,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 252,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 262,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 262,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 268,
+   "op": "mark",
+   "label": "doors/pair_second_east"
+  },
+  {
+   "tick": 268,
+   "op": "use",
+   "pos": [
+    1,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 268,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 278,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 278,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 278,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 288,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 288,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 294,
+   "op": "mark",
+   "label": "doors/pair_first_open"
+  },
+  {
+   "tick": 294,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:wooden_door",
+   "block_runtime_id": 2818213227,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 294,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 304,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 304,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 310,
+   "op": "mark",
+   "label": "doors/pair_first_close"
+  },
+  {
+   "tick": 310,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:wooden_door",
+   "block_runtime_id": 2640321750,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 310,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 320,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 213.69 31.85",
+   "ok": true
+  },
+  {
+   "tick": 320,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 326,
+   "op": "mark",
+   "label": "doors/pair_second_open"
+  },
+  {
+   "tick": 326,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:wooden_door",
+   "block_runtime_id": 2818213227,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 213.69,
+    "pitch": 31.85
+   }
+  },
+  {
+   "tick": 326,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 336,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 213.69 31.85",
+   "ok": true
+  },
+  {
+   "tick": 336,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 342,
+   "op": "mark",
+   "label": "doors/pair_second_close"
+  },
+  {
+   "tick": 342,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:wooden_door",
+   "block_runtime_id": 2640321750,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 213.69,
+    "pitch": 31.85
+   }
+  },
+  {
+   "tick": 342,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 352,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 352,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 352,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 352,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 352,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 354,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 354,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 354,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 364,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 364,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 370,
+   "op": "mark",
+   "label": "doors/toggle_place"
+  },
+  {
+   "tick": 370,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 370,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 380,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 380,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:dirt 64",
+   "ok": true
+  },
+  {
+   "tick": 380,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 390,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 390,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 396,
+   "op": "mark",
+   "label": "doors/toggle_lower_1"
+  },
+  {
+   "tick": 396,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:wooden_door",
+   "block_runtime_id": 2818213227,
+   "held": [
+    "minecraft:dirt",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 396,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 406,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 406,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 412,
+   "op": "mark",
+   "label": "doors/toggle_lower_2"
+  },
+  {
+   "tick": 412,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:wooden_door",
+   "block_runtime_id": 2640321750,
+   "held": [
+    "minecraft:dirt",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 412,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 422,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 422,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 428,
+   "op": "mark",
+   "label": "doors/toggle_lower_3"
+  },
+  {
+   "tick": 428,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:wooden_door",
+   "block_runtime_id": 2818213227,
+   "held": [
+    "minecraft:dirt",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 428,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 438,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 4.57",
+   "ok": true
+  },
+  {
+   "tick": 438,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 444,
+   "op": "mark",
+   "label": "doors/toggle_upper_1"
+  },
+  {
+   "tick": 444,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:wooden_door",
+   "block_runtime_id": 1762906656,
+   "held": [
+    "minecraft:dirt",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 4.57
+   }
+  },
+  {
+   "tick": 444,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 454,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 454,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 460,
+   "op": "mark",
+   "label": "doors/toggle_lower_4"
+  },
+  {
+   "tick": 460,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:wooden_door",
+   "block_runtime_id": 2818213227,
+   "held": [
+    "minecraft:dirt",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 460,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 470,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 4.57",
+   "ok": true
+  },
+  {
+   "tick": 470,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 476,
+   "op": "mark",
+   "label": "doors/toggle_upper_2"
+  },
+  {
+   "tick": 476,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:wooden_door",
+   "block_runtime_id": 1762906656,
+   "held": [
+    "minecraft:dirt",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 4.57
+   }
+  },
+  {
+   "tick": 476,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 486,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 486,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 486,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 486,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 486,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 488,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 488,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:iron_door 64",
+   "ok": true
+  },
+  {
+   "tick": 488,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 498,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 498,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 504,
+   "op": "mark",
+   "label": "doors/iron_place"
+  },
+  {
+   "tick": 504,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:iron_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 504,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 514,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 514,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 514,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 524,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 524,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 530,
+   "op": "mark",
+   "label": "doors/iron_click_empty_hand"
+  },
+  {
+   "tick": 530,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:iron_door",
+   "block_runtime_id": 1935061329,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 530,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 540,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 540,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:dirt 64",
+   "ok": true
+  },
+  {
+   "tick": 540,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 550,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 550,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 556,
+   "op": "mark",
+   "label": "doors/iron_click_dirt"
+  },
+  {
+   "tick": 556,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:iron_door",
+   "block_runtime_id": 1935061329,
+   "held": [
+    "minecraft:dirt",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 556,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 566,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 566,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 566,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 566,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 566,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 568,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 568,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 568,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 578,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 578,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 584,
+   "op": "mark",
+   "label": "doors/break_upper_place"
+  },
+  {
+   "tick": 584,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 584,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 594,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 594,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 594,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 4.57",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 610,
+   "op": "mark",
+   "label": "doors/break_upper_by_hand"
+  },
+  {
+   "tick": 610,
+   "op": "mine_start",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "held": null
+  },
+  {
+   "tick": 610,
+   "op": "wait",
+   "ticks": 90
+  },
+  {
+   "tick": 700,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 700,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 720,
+   "op": "remove_item_actors",
+   "items": [
+    [
+     "minecraft:wooden_door",
+     0,
+     1
+    ]
+   ]
+  },
+  {
+   "tick": 720,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 720,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 720,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 720,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 720,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 722,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 722,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 722,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 732,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 732,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 738,
+   "op": "mark",
+   "label": "doors/break_lower_place"
+  },
+  {
+   "tick": 738,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 738,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 748,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 748,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 748,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 758,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 758,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 764,
+   "op": "mark",
+   "label": "doors/break_lower_by_hand"
+  },
+  {
+   "tick": 764,
+   "op": "mine_start",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "held": null
+  },
+  {
+   "tick": 764,
+   "op": "wait",
+   "ticks": 91
+  },
+  {
+   "tick": 855,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 855,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 875,
+   "op": "remove_item_actors",
+   "items": [
+    [
+     "minecraft:wooden_door",
+     0,
+     1
+    ]
+   ]
+  },
+  {
+   "tick": 875,
+   "op": "mark",
+   "label": "doors/reset"
+  },
+  {
+   "tick": 875,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 875,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 875,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 875,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 877,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 877,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:wooden_door 64",
+   "ok": true
+  },
+  {
+   "tick": 877,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 887,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 887,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 893,
+   "op": "mark",
+   "label": "doors/floor_removed_place"
+  },
+  {
+   "tick": 893,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:wooden_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 893,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 903,
+   "op": "mark",
+   "label": "doors/floor_removed"
+  },
+  {
+   "tick": 903,
+   "op": "command",
+   "command": "setblock 0 -61 0 air",
+   "ok": true
+  },
+  {
+   "tick": 903,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 933,
+   "op": "remove_item_actors",
+   "items": [
+    [
+     "minecraft:wooden_door",
+     0,
+     1
+    ]
+   ]
+  },
+  {
+   "tick": 933,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 953,
+   "op": "marker",
+   "text": "bds-sweep:scenario end doors"
+  }
+ ],
+ "duration_ticks": 953,
+ "error": null
+}

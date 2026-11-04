@@ -1,8 +1,11 @@
-mod client;
-
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
-use client_diff::{Masks, compare, conformance, load, report};
+use client_diff::{
+    Masks, compare, conformance, driver, load,
+    parity::{self, Retain},
+    report,
+    scenario::ScenariosFile,
+};
 use std::{
     fs,
     net::SocketAddr,
@@ -17,6 +20,7 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Run a scenario with the Rust driver (Jolyne) and record it.
     Jolyne {
         #[arg(long, default_value = "127.0.0.1:19132")]
         address: SocketAddr,
@@ -26,6 +30,42 @@ enum Command {
         scenarios: PathBuf,
         #[arg(long)]
         output: PathBuf,
+    },
+    /// Retain a BDS capture of a scenario prefix as a parity scenario under
+    /// crates/client-diff/scenarios/<name> (see crates/client-diff/README.md).
+    Retain {
+        /// The bot capture (runs/<run>/<dir>/<scenario>-vanilla-go.jsonl).
+        #[arg(long)]
+        run: PathBuf,
+        #[arg(long)]
+        scenario: String,
+        /// Number of scenario steps the parity scenario runs.
+        #[arg(long)]
+        steps: usize,
+        /// Directory name under crates/client-diff/scenarios.
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        description: String,
+        #[arg(
+            long,
+            default_value = "Endstone capture world (tools/client-diff/endstone-capture): default superflat, fixed seed, spawn at feet (0.5, -60, 0.5), time 6000, clear weather; the bot's player is an operator."
+        )]
+        setup: String,
+        #[arg(long, default_value = "BDS 1.26.51 + Endstone 0.11.12")]
+        server: String,
+        /// Capture date (YYYY-MM-DD).
+        #[arg(long)]
+        recorded: String,
+        #[arg(long, default_value = "tools/client-diff/scenarios.json")]
+        scenarios: PathBuf,
+    },
+    /// Print the decoded packets of a capture.
+    Decode {
+        capture: PathBuf,
+        /// Only these packet types (valentine names without "Packet").
+        #[arg(long, value_delimiter = ',')]
+        names: Vec<String>,
     },
     Diff {
         #[arg(required = true, num_args = 2..)]
@@ -74,7 +114,69 @@ async fn main() -> Result<()> {
             scenario,
             scenarios,
             output,
-        } => client::run(address, &scenario, &scenarios, &output).await,
+        } => {
+            let file = ScenariosFile::load(&scenarios)?;
+            let script = file.scenario(&scenario)?;
+            let capture = fs::File::create(&output)
+                .with_context(|| format!("creating {}", output.display()))?;
+            let outcome = driver::run(
+                address,
+                &file.identity,
+                script,
+                Box::new(std::io::BufWriter::new(capture)),
+            )
+            .await?;
+            for note in outcome.notes {
+                eprintln!("{note}");
+            }
+            Ok(())
+        }
+        Command::Retain {
+            run,
+            scenario,
+            steps,
+            name,
+            description,
+            setup,
+            server,
+            recorded,
+            scenarios,
+        } => {
+            let file = ScenariosFile::load(&scenarios)?;
+            let dir = parity::scenarios_root().join(&name);
+            parity::retain(
+                &file,
+                &Retain {
+                    run: &run,
+                    scenario: &scenario,
+                    steps,
+                    dir: &dir,
+                    description: &description,
+                    setup: &setup,
+                    server: &server,
+                    recorded: &recorded,
+                },
+            )?;
+            eprintln!("retained {}", dir.display());
+            Ok(())
+        }
+        Command::Decode { capture, names } => {
+            let text = fs::read_to_string(&capture)
+                .with_context(|| format!("reading {}", capture.display()))?;
+            for record in client_diff::parse(&text, &capture.display().to_string())? {
+                let (name, tree) = parity::decode_record(&record)?;
+                if names.is_empty() || names.contains(&name) {
+                    println!(
+                        "{} {} {} {name} {}",
+                        record.seq,
+                        record.t_ms,
+                        record.dir,
+                        tree.inline()
+                    );
+                }
+            }
+            Ok(())
+        }
         Command::Diff {
             logs,
             direction,

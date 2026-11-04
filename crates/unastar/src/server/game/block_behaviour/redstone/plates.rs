@@ -157,7 +157,7 @@ fn check_with(world: &mut World, pos: IVec3, pressers: &[(Aabb, Presser)]) {
             } else {
                 "pressure_plate.click_off"
             };
-            crate::entity::mob::net::sound::play_level_sound(
+            crate::server::game::blocks::queue_level_sound(
                 world,
                 None,
                 pos.as_dvec3() + DVec3::new(0.5, 0.1, 0.5),

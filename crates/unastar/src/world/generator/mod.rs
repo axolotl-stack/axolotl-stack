@@ -10,6 +10,7 @@
 //! | `java` | [`JavaGenerator`] | Java Edition 1.21.11 reference worlds |
 //! | `bedrock` | `bedrock::BedrockGenerator` (`bedrock-worldgen` feature) | BDS 1.26.51 reference worlds; parity incomplete |
 //! | `super_flat` | [`FlatGenerator`] | classic superflat layers |
+//! | `vanilla_flat` | [`VanillaFlatGenerator`] | BDS default superflat (bedrock at y=-64) |
 //! | `void_spawn_platform` | [`VoidGenerator`] | stone platform around the origin |
 
 pub mod aquifer;
@@ -32,7 +33,7 @@ pub mod surface;
 mod terrain;
 pub mod xoroshiro;
 
-pub use flat::{FlatGenerator, VoidGenerator};
+pub use flat::{FlatGenerator, VanillaFlatGenerator, VoidGenerator};
 pub use pipeline::{ChunkPipeline, Generator, SpawnPoint};
 pub use proto::{NativeBiome, ProtoChunk, QuartBiomes};
 pub use region::{DecorationRegion, HeightmapKind, WorldGenRegion};

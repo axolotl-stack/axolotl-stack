@@ -46,6 +46,12 @@ require_resource_packs = false
 # loopback (load_bench); raise it to save bandwidth on slow links.
 compression_level = 4
 
+# Game rules that differ from BDS's defaults at startup, named as /gamerule
+# names them (bool, int or float values), e.g.:
+# [server.game_rules]
+# doMobSpawning = false
+# randomTickSpeed = 0
+
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
 dimension = 0
@@ -70,7 +76,7 @@ mode = "infinite"
 # max_z = 64
 
 [world.generator]
-# kinds: "super_flat" | "void_spawn_platform" | "java" | "bedrock" (edition-style kinds require seed)
+# kinds: "super_flat" | "vanilla_flat" | "void_spawn_platform" | "java" | "bedrock" (edition-style kinds require seed)
 # "bedrock" needs --features bedrock-worldgen and UNASTAR_BDS_DIR at build time.
 kind = "java"
 seed = 12345

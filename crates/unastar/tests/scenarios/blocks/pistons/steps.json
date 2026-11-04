@@ -1,0 +1,1063 @@
+{
+ "scenario": "pistons",
+ "covers": "A piston and a sticky piston clicked into place from three blocks east looking west (they face east), powered and unpowered by a redstone block set on top: nothing in front, one stone (pushed; the sticky piston pulls it back), twelve stones (pushed), thirteen (refused), obsidian (refused) and a torch in front (broken, drops).",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:21:22Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin pistons",
+  "end": "bds-sweep:scenario end pistons"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin pistons"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "pistons/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "effect \"BDSSweep\" resistance 99999 4 true",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:piston 64",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 14,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 2.5 90 24.19",
+   "ok": true
+  },
+  {
+   "tick": 14,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 20,
+   "op": "mark",
+   "label": "pistons/piston_place"
+  },
+  {
+   "tick": 20,
+   "op": "use",
+   "pos": [
+    5,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:piston",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 90.0,
+    "pitch": 24.19
+   }
+  },
+  {
+   "tick": 20,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 30,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 30,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 30,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 40,
+   "op": "mark",
+   "label": "pistons/piston_extend_empty"
+  },
+  {
+   "tick": 40,
+   "op": "command",
+   "command": "setblock 5 -59 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 40,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 70,
+   "op": "mark",
+   "label": "pistons/piston_retract_empty"
+  },
+  {
+   "tick": 70,
+   "op": "command",
+   "command": "setblock 5 -59 0 air",
+   "ok": true
+  },
+  {
+   "tick": 70,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 100,
+   "op": "command",
+   "command": "setblock 6 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 100,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 104,
+   "op": "mark",
+   "label": "pistons/piston_push_1_on"
+  },
+  {
+   "tick": 104,
+   "op": "command",
+   "command": "setblock 5 -59 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 104,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 134,
+   "op": "mark",
+   "label": "pistons/piston_push_1_off"
+  },
+  {
+   "tick": 134,
+   "op": "command",
+   "command": "setblock 5 -59 0 air",
+   "ok": true
+  },
+  {
+   "tick": 134,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 164,
+   "op": "command",
+   "command": "fill 6 -60 0 19 -60 0 air",
+   "ok": true
+  },
+  {
+   "tick": 164,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 6 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 7 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 8 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 9 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 10 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 11 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 12 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 13 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 14 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 15 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 16 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "command",
+   "command": "setblock 17 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 168,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 172,
+   "op": "mark",
+   "label": "pistons/piston_push_12_on"
+  },
+  {
+   "tick": 172,
+   "op": "command",
+   "command": "setblock 5 -59 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 172,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 202,
+   "op": "mark",
+   "label": "pistons/piston_push_12_off"
+  },
+  {
+   "tick": 202,
+   "op": "command",
+   "command": "setblock 5 -59 0 air",
+   "ok": true
+  },
+  {
+   "tick": 202,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 232,
+   "op": "command",
+   "command": "fill 6 -60 0 19 -60 0 air",
+   "ok": true
+  },
+  {
+   "tick": 232,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 6 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 7 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 8 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 9 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 10 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 11 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 12 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 13 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 14 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 15 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 16 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 17 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "command",
+   "command": "setblock 18 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 236,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 240,
+   "op": "mark",
+   "label": "pistons/piston_push_13_refused_on"
+  },
+  {
+   "tick": 240,
+   "op": "command",
+   "command": "setblock 5 -59 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 240,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 270,
+   "op": "mark",
+   "label": "pistons/piston_push_13_refused_off"
+  },
+  {
+   "tick": 270,
+   "op": "command",
+   "command": "setblock 5 -59 0 air",
+   "ok": true
+  },
+  {
+   "tick": 270,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 300,
+   "op": "command",
+   "command": "fill 6 -60 0 19 -60 0 air",
+   "ok": true
+  },
+  {
+   "tick": 300,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 304,
+   "op": "command",
+   "command": "setblock 6 -60 0 obsidian",
+   "ok": true
+  },
+  {
+   "tick": 304,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 308,
+   "op": "mark",
+   "label": "pistons/piston_obsidian_refused_on"
+  },
+  {
+   "tick": 308,
+   "op": "command",
+   "command": "setblock 5 -59 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 308,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 338,
+   "op": "mark",
+   "label": "pistons/piston_obsidian_refused_off"
+  },
+  {
+   "tick": 338,
+   "op": "command",
+   "command": "setblock 5 -59 0 air",
+   "ok": true
+  },
+  {
+   "tick": 338,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 368,
+   "op": "command",
+   "command": "fill 6 -60 0 19 -60 0 air",
+   "ok": true
+  },
+  {
+   "tick": 368,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 372,
+   "op": "command",
+   "command": "setblock 6 -60 0 torch [\"torch_facing_direction\"=\"top\"]",
+   "ok": true
+  },
+  {
+   "tick": 372,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 376,
+   "op": "mark",
+   "label": "pistons/piston_torch_broken_on"
+  },
+  {
+   "tick": 376,
+   "op": "command",
+   "command": "setblock 5 -59 0 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 376,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 406,
+   "op": "mark",
+   "label": "pistons/piston_torch_broken_off"
+  },
+  {
+   "tick": 406,
+   "op": "command",
+   "command": "setblock 5 -59 0 air",
+   "ok": true
+  },
+  {
+   "tick": 406,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 436,
+   "op": "command",
+   "command": "fill 6 -60 0 19 -60 0 air",
+   "ok": false
+  },
+  {
+   "tick": 436,
+   "op": "remove_item_actors",
+   "items": [
+    [
+     "minecraft:torch",
+     0,
+     1
+    ]
+   ]
+  },
+  {
+   "tick": 436,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 440,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 440,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:sticky_piston 64",
+   "ok": true
+  },
+  {
+   "tick": 440,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 450,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 10.5 90 24.19",
+   "ok": true
+  },
+  {
+   "tick": 450,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 456,
+   "op": "mark",
+   "label": "pistons/sticky_piston_place"
+  },
+  {
+   "tick": 456,
+   "op": "use",
+   "pos": [
+    5,
+    -61,
+    8
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:sticky_piston",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     8.5,
+     -60.0,
+     10.5
+    ],
+    "yaw": 90.0,
+    "pitch": 24.19
+   }
+  },
+  {
+   "tick": 456,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 466,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 466,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 466,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 476,
+   "op": "mark",
+   "label": "pistons/sticky_piston_extend_empty"
+  },
+  {
+   "tick": 476,
+   "op": "command",
+   "command": "setblock 5 -59 8 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 476,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 506,
+   "op": "mark",
+   "label": "pistons/sticky_piston_retract_empty"
+  },
+  {
+   "tick": 506,
+   "op": "command",
+   "command": "setblock 5 -59 8 air",
+   "ok": true
+  },
+  {
+   "tick": 506,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 536,
+   "op": "command",
+   "command": "setblock 6 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 536,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 540,
+   "op": "mark",
+   "label": "pistons/sticky_piston_pull_1_on"
+  },
+  {
+   "tick": 540,
+   "op": "command",
+   "command": "setblock 5 -59 8 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 540,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 570,
+   "op": "mark",
+   "label": "pistons/sticky_piston_pull_1_off"
+  },
+  {
+   "tick": 570,
+   "op": "command",
+   "command": "setblock 5 -59 8 air",
+   "ok": true
+  },
+  {
+   "tick": 570,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 600,
+   "op": "command",
+   "command": "fill 6 -60 8 19 -60 8 air",
+   "ok": true
+  },
+  {
+   "tick": 600,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 6 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 7 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 8 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 9 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 10 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 11 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 12 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 13 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 14 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 15 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 16 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "command",
+   "command": "setblock 17 -60 8 stone",
+   "ok": true
+  },
+  {
+   "tick": 604,
+   "op": "wait",
+   "ticks": 4
+  },
+  {
+   "tick": 608,
+   "op": "mark",
+   "label": "pistons/sticky_piston_push_12_on"
+  },
+  {
+   "tick": 608,
+   "op": "command",
+   "command": "setblock 5 -59 8 redstone_block",
+   "ok": true
+  },
+  {
+   "tick": 608,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 638,
+   "op": "mark",
+   "label": "pistons/sticky_piston_push_12_off"
+  },
+  {
+   "tick": 638,
+   "op": "command",
+   "command": "setblock 5 -59 8 air",
+   "ok": true
+  },
+  {
+   "tick": 638,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 668,
+   "op": "command",
+   "command": "fill 6 -60 8 19 -60 8 air",
+   "ok": true
+  },
+  {
+   "tick": 668,
+   "op": "wait",
+   "ticks": 24
+  },
+  {
+   "tick": 692,
+   "op": "marker",
+   "text": "bds-sweep:scenario end pistons"
+  }
+ ],
+ "duration_ticks": 692,
+ "error": null
+}

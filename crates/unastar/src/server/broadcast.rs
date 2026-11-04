@@ -456,8 +456,6 @@ use jolyne::valentine::{LevelEventPacket, LevelSoundEventPacket};
 // field as the canonical i32 rather than carrying the legacy enum wrapper.
 const LEVEL_EVENT_BLOCK_BREAK_SPEED: i32 = 3602;
 const LEVEL_EVENT_PARTICLE_PUNCH_BLOCK: i32 = 2014;
-pub(crate) const BLOCK_UPDATE_NEIGHBOURS: u32 = 1;
-pub(crate) const BLOCK_UPDATE_NETWORK: u32 = 1 << 1;
 
 /// System: Tick block breaking state for all players.
 ///
@@ -570,84 +568,6 @@ pub fn tick_block_breaking(
                 "Block cracking tick (with particles/sound)"
             );
         }
-    }
-}
-
-// =============================================================================
-// Batched Block Update Broadcasting
-// =============================================================================
-
-use crate::world::ecs::BlockBroadcastEvent;
-use jolyne::valentine::UpdateBlockPacket;
-
-/// System: Batch block updates and broadcast to chunk viewers.
-///
-/// Reads all `BlockBroadcastEvent` events from the current tick, groups them
-/// by chunk entity, and sends batched `UpdateBlockPacket`s to viewers.
-/// This reduces network overhead when multiple blocks change in the same tick.
-///
-/// Note: This system focuses on `UpdateBlockPacket` only. Particles and sounds
-/// are still sent directly by `break_block`/`place_block` for now.
-pub fn broadcast_block_updates(
-    mut events: MessageReader<BlockBroadcastEvent>,
-    chunks: Query<&ChunkViewers>,
-    sessions: Query<&PlayerSession>,
-    config: Res<crate::server::game::types::ServerConfigResource>,
-) {
-    // Group events by chunk for efficient packet bundling
-    let mut updates_by_chunk: HashMap<Entity, Vec<BlockBroadcastEvent>> = HashMap::new();
-
-    for event in events.read() {
-        updates_by_chunk
-            .entry(event.chunk_entity)
-            .or_default()
-            .push(event.clone());
-    }
-
-    // No events this tick
-    if updates_by_chunk.is_empty() {
-        return;
-    }
-
-    let mut total_packets_sent = 0usize;
-
-    // Send batched updates to viewers
-    for (chunk_entity, updates) in updates_by_chunk {
-        let Ok(viewers) = chunks.get(chunk_entity) else {
-            continue;
-        };
-
-        // Build packets for all updates in this chunk
-        let packets: Vec<UpdateBlockPacket> = updates
-            .iter()
-            .map(|update| UpdateBlockPacket {
-                block_position: jolyne::valentine::types::BlockPos {
-                    x: update.block_pos.x,
-                    y: update.block_pos.y,
-                    z: update.block_pos.z,
-                },
-                block_runtime_id: config.0.block_network_ids.to_wire(update.new_block),
-                flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
-                layer: 0,
-            })
-            .collect();
-
-        // Send all packets to each viewer
-        for viewer in viewers.iter() {
-            if let Ok(session) = sessions.get(viewer) {
-                for packet in &packets {
-                    let _ = session.send(McpePacket::from(packet.clone()));
-                    total_packets_sent += 1;
-                }
-            }
-        }
-    }
-
-    if total_packets_sent > 0 {
-        tracing::trace!(
-            packets = total_packets_sent,
-            "Broadcast block updates (batched)"
-        );
     }
 }
 

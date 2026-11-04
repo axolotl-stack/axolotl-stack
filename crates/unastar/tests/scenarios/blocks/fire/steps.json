@@ -1,0 +1,650 @@
+{
+ "scenario": "fire",
+ "covers": "`/setblock` fires with doFireTick on at randomtickspeed 1: one on netherrack, eight on the bare stone floor and one beside a 4-high oak planks column (every cell around the column watched); the planks column again on normal difficulty; then the player punches (starts breaking, then stops) the block under a fire on netherrack and on stone.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:23:29Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin fire",
+  "end": "bds-sweep:scenario end fire"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin fire"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dofiretick true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 1",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "fire/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock -8 -61 0 netherrack",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 12 -60 0 oak_planks",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 12 -59 0 oak_planks",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 12 -58 0 oak_planks",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 12 -57 0 oak_planks",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 6.5 180.0 15.11",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "mark",
+   "label": "fire/fires_set"
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "setblock 13 -60 0 fire",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "setblock -8 -60 0 fire",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "setblock -8 -60 -6 fire",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "setblock -4 -60 -6 fire",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "setblock 0 -60 -6 fire",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "setblock 4 -60 -6 fire",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "setblock 8 -60 -6 fire",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "setblock 16 -60 -6 fire",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "setblock 20 -60 -6 fire",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "command",
+   "command": "setblock 24 -60 -6 fire",
+   "ok": true
+  },
+  {
+   "tick": 10,
+   "op": "wait",
+   "ticks": 1200
+  },
+  {
+   "tick": 1210,
+   "op": "mark",
+   "label": "fire/reset"
+  },
+  {
+   "tick": 1210,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": true
+  },
+  {
+   "tick": 1210,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 1210,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 1210,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 1212,
+   "op": "command",
+   "command": "setblock 12 -60 0 oak_planks",
+   "ok": true
+  },
+  {
+   "tick": 1212,
+   "op": "command",
+   "command": "setblock 12 -59 0 oak_planks",
+   "ok": true
+  },
+  {
+   "tick": 1212,
+   "op": "command",
+   "command": "setblock 12 -58 0 oak_planks",
+   "ok": true
+  },
+  {
+   "tick": 1212,
+   "op": "command",
+   "command": "setblock 12 -57 0 oak_planks",
+   "ok": true
+  },
+  {
+   "tick": 1212,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 1214,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 6.5 180.0 15.11",
+   "ok": true
+  },
+  {
+   "tick": 1214,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 1220,
+   "op": "command",
+   "command": "difficulty normal",
+   "ok": true
+  },
+  {
+   "tick": 1220,
+   "op": "mark",
+   "label": "fire/planks_fire_normal_difficulty"
+  },
+  {
+   "tick": 1220,
+   "op": "command",
+   "command": "setblock 13 -60 0 fire",
+   "ok": true
+  },
+  {
+   "tick": 1220,
+   "op": "wait",
+   "ticks": 1200
+  },
+  {
+   "tick": 2420,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 2420,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 2420,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 2420,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 2430,
+   "op": "mark",
+   "label": "fire/reset"
+  },
+  {
+   "tick": 2430,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 2430,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 2430,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 2430,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2432,
+   "op": "command",
+   "command": "setblock -8 -61 0 netherrack",
+   "ok": true
+  },
+  {
+   "tick": 2432,
+   "op": "command",
+   "command": "setblock -8 -60 0 fire",
+   "ok": true
+  },
+  {
+   "tick": 2432,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2434,
+   "op": "command",
+   "command": "tp \"BDSSweep\" -7.5 -60 2.5 180.0 39.01",
+   "ok": true
+  },
+  {
+   "tick": 2434,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 2440,
+   "op": "mark",
+   "label": "fire/punch_netherrack"
+  },
+  {
+   "tick": 2440,
+   "op": "mine_start",
+   "pos": [
+    -8,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "held": null
+  },
+  {
+   "tick": 2440,
+   "op": "wait",
+   "ticks": 5
+  },
+  {
+   "tick": 2445,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 2445,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 2465,
+   "op": "mark",
+   "label": "fire/reset"
+  },
+  {
+   "tick": 2465,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": true
+  },
+  {
+   "tick": 2465,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 2465,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 2465,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2467,
+   "op": "command",
+   "command": "setblock 0 -61 6 stone",
+   "ok": false
+  },
+  {
+   "tick": 2467,
+   "op": "command",
+   "command": "setblock 0 -60 6 fire",
+   "ok": true
+  },
+  {
+   "tick": 2467,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2469,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 8.5 180.0 39.01",
+   "ok": true
+  },
+  {
+   "tick": 2469,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 2475,
+   "op": "mark",
+   "label": "fire/punch_stone"
+  },
+  {
+   "tick": 2475,
+   "op": "mine_start",
+   "pos": [
+    0,
+    -61,
+    6
+   ],
+   "face": "up",
+   "face_id": 1,
+   "held": null
+  },
+  {
+   "tick": 2475,
+   "op": "wait",
+   "ticks": 5
+  },
+  {
+   "tick": 2480,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 2480,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 2500,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 2500,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 2520,
+   "op": "marker",
+   "text": "bds-sweep:scenario end fire"
+  }
+ ],
+ "duration_ticks": 2520,
+ "error": null
+}

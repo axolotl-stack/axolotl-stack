@@ -1,0 +1,110 @@
+scenario = "blocks-bell"
+steps = 28
+steps_sha256 = "36d80f71823eb508208e6cd6961ae8df65c0cdaa7743b900544508ef283b3165"
+description = "Measured on BDS 1.26.51 with the scripted bot: A standing bell (direction 0) clicked on each side face, then a lever on a stone block west of it."
+known_failing = []
+accepted = []
+
+[source]
+run = "tools/client-diff/runs/blocks-pilot/blocks-bell-vanilla-go.jsonl"
+server = "BDS 1.26.51 + Endstone 0.11.12"
+protocol = 2193
+recorded = "2026-10-31"
+player_runtime_id = 1
+player_unique_id = -8589934591
+window_ms = 12800.0
+recording_sha256 = "17e12865aa89cfe21bc2d3ab54b603a5cdfc06824dcc7d535c95af590e9c3c6b"
+
+[world]
+kind = "superflat"
+game_mode = "creative"
+difficulty = "peaceful"
+setup = "Endstone capture world (tools/client-diff/endstone-capture): default superflat, fixed seed, spawn at feet (0.5, -60, 0.5), time 6000, clear weather; the bot's player is an operator."
+
+[world.game_rules]
+commandBlockOutput = true
+commandBlocksEnabled = true
+doDayLightCycle = false
+doEntityDrops = true
+doFireTick = true
+doImmediateRespawn = false
+doInsomnia = true
+doLimitedCrafting = false
+doMobLoot = true
+doMobSpawning = false
+doTileDrops = true
+doWeatherCycle = false
+drowningDamage = true
+fallDamage = true
+fireDamage = true
+freezeDamage = true
+functionCommandLimit = 10000
+keepInventory = false
+locatorbar = true
+maxCommandChainLength = 65535
+mobGriefing = true
+naturalRegeneration = true
+playerWaypoints = 1
+playersSleepingPercentage = 100
+projectilesCanBreakBlocks = true
+pvp = true
+randomTickSpeed = 0
+recipesUnlock = true
+respawnBlocksExplode = true
+sendCommandFeedback = true
+showBorderEffect = true
+showCoordinates = false
+showDaysPlayed = false
+showDeathMessages = true
+showRecipeMessages = true
+showTags = true
+spawnRadius = 10
+tntExplodes = true
+tntExplosionDropDecay = false
+
+[compare]
+packets = [
+    "BlockActorData",
+    "LevelSoundEvent",
+    "SetActorData",
+    "UpdateAttributes",
+    "UpdateBlock",
+    "UpdateSubChunkBlocks",
+]
+timing_tolerance_ms = 120.0
+float_tolerance = 0.001
+
+[[mask]]
+field = "actor_runtime_id"
+rule = "runtime_id"
+reason = "Runtime IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+field = "actor_unique_id"
+rule = "unique_id"
+reason = "Unique IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+path = "actor_data.data[id=5].payload"
+packets = [
+    "SetActorData",
+    "AddActor",
+    "AddItemActor",
+]
+rule = "unique_id"
+reason = "Metadata key 5 (owner) holds a unique ID."
+
+[[mask]]
+field = "net_id_variant"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "item_stack_net_id"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "inputtick"
+rule = "ignore"
+reason = "Server tick numbers start at different values on each server and session."

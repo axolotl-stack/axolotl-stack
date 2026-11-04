@@ -4,7 +4,6 @@
 
 use std::sync::Arc;
 
-use bevy_ecs::message::Messages;
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
 use jolyne::valentine::{McpePacket, McpePacketData};
@@ -23,9 +22,7 @@ use crate::server::game::types::{
     BlockRegistryResource, ItemRegistryResource, ServerConfigResource,
 };
 use crate::world::chunk::Chunk;
-use crate::world::ecs::{
-    BlockBroadcastEvent, ChunkData, ChunkManager, ChunkPosition, ChunkStateFlags,
-};
+use crate::world::ecs::{ChunkData, ChunkManager, ChunkPosition, ChunkStateFlags};
 
 /// The floor height: blocks at y = [`FLOOR`] are stone, everything above is
 /// air.
@@ -68,7 +65,6 @@ impl Harness {
         let mut items = ItemRegistry::new();
         items.load_vanilla();
         world.insert_resource(ItemRegistryResource(Arc::new(items)));
-        world.insert_resource(Messages::<BlockBroadcastEvent>::default());
         world.insert_resource(TickCounter::default());
         world.insert_resource(EntityRandom::seeded(7));
         world.insert_resource(BlockRandom::seeded(7));
@@ -156,9 +152,12 @@ impl Harness {
             .state_value(state, property)
     }
 
-    /// Advance `ticks` game ticks of block ticks (scheduled and random).
+    /// Advance `ticks` game ticks of block ticks (scheduled and random);
+    /// each starts by sending the previous tick's block updates, as the
+    /// server tick does.
     pub fn tick(&mut self, ticks: u64) {
         for _ in 0..ticks {
+            crate::server::game::blocks::send_block_updates(&mut self.world);
             self.world.resource_mut::<TickCounter>().current += 1;
             tick_blocks(&mut self.world);
         }
@@ -281,8 +280,10 @@ impl Harness {
         drops
     }
 
-    /// Every packet sent to the player since the last call.
+    /// Every packet sent to the player since the last call, including the
+    /// block updates and block sounds still queued for the next tick.
     pub fn packets(&mut self) -> Vec<McpePacketData> {
+        crate::server::game::blocks::send_block_updates(&mut self.world);
         let mut out = Vec::new();
         while let Ok(packet) = self.rx.try_recv() {
             out.push(packet.data);
@@ -290,23 +291,34 @@ impl Harness {
         out
     }
 
-    /// The block positions and wire states of every UpdateBlock sent to the
-    /// player since the last call (in order), decoded back to runtime ids.
+    /// The block positions and wire states of every block change sent to
+    /// the player since the last call (UpdateBlock and the entries of
+    /// UpdateSubChunkBlocks, in order), decoded back to runtime ids.
     pub fn updates(&mut self) -> Vec<(IVec3, u32)> {
         let ids = crate::server::game::types::block_network_ids(&self.world);
+        let decode = |x: i32, y: i32, z: i32, wire: u32| {
+            (
+                IVec3::new(x, y, z),
+                ids.from_wire(wire)
+                    .expect("block updates carry known wire ids"),
+            )
+        };
         self.packets()
             .into_iter()
-            .filter_map(|packet| match packet {
-                McpePacketData::UpdateBlockPacket(update) => Some((
-                    IVec3::new(
-                        update.block_position.x,
-                        update.block_position.y,
-                        update.block_position.z,
-                    ),
-                    ids.from_wire(update.block_runtime_id)
-                        .expect("UpdateBlock carries a known wire id"),
-                )),
-                _ => None,
+            .flat_map(|packet| match packet {
+                McpePacketData::UpdateBlockPacket(update) => vec![decode(
+                    update.block_position.x,
+                    update.block_position.y,
+                    update.block_position.z,
+                    update.block_runtime_id,
+                )],
+                McpePacketData::UpdateSubChunkBlocksPacket(batch) => batch
+                    .blocks_changed
+                    .blocks_changed_standards
+                    .iter()
+                    .map(|entry| decode(entry.pos.x, entry.pos.y, entry.pos.z, entry.runtime_id))
+                    .collect(),
+                _ => Vec::new(),
             })
             .collect()
     }

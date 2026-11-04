@@ -1,0 +1,671 @@
+{
+ "scenario": "fence_gates",
+ "covers": "An oak fence gate placed looking north, opened and closed with an empty hand from the south and then from the north (it opens away from the player); a gate placed between two cobblestone walls; a cobblestone wall set beside a placed gate.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-30T16:48:29Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin fence_gates",
+  "end": "bds-sweep:scenario end fence_gates"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin fence_gates"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "fence_gates/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:fence_gate 64",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 12,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 12,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 18,
+   "op": "mark",
+   "label": "fence_gates/place_looking_north"
+  },
+  {
+   "tick": 18,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:fence_gate",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 18,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 28,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 28,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 28,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 38,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 38,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 44,
+   "op": "mark",
+   "label": "fence_gates/open_from_south"
+  },
+  {
+   "tick": 44,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:fence_gate",
+   "block_runtime_id": 2421924416,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 44,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 54,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 54,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 60,
+   "op": "mark",
+   "label": "fence_gates/close_from_south"
+  },
+  {
+   "tick": 60,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "south",
+   "face_id": 3,
+   "click": [
+    0.5,
+    0.5,
+    1.0
+   ],
+   "block": "minecraft:fence_gate",
+   "block_runtime_id": 4222878781,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 60,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 70,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -1.5 0.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 70,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 76,
+   "op": "mark",
+   "label": "fence_gates/open_from_north"
+  },
+  {
+   "tick": 76,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "north",
+   "face_id": 2,
+   "click": [
+    0.5,
+    0.5,
+    0.0
+   ],
+   "block": "minecraft:fence_gate",
+   "block_runtime_id": 3167572210,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -1.5
+    ],
+    "yaw": 0.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 76,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 86,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -1.5 0.0 36.75",
+   "ok": true
+  },
+  {
+   "tick": 86,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 92,
+   "op": "mark",
+   "label": "fence_gates/close_from_north"
+  },
+  {
+   "tick": 92,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "north",
+   "face_id": 2,
+   "click": [
+    0.5,
+    0.5,
+    0.0
+   ],
+   "block": "minecraft:fence_gate",
+   "block_runtime_id": 3477230987,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -1.5
+    ],
+    "yaw": 0.0,
+    "pitch": 36.75
+   }
+  },
+  {
+   "tick": 92,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 102,
+   "op": "command",
+   "command": "setblock 5 -60 0 cobblestone_wall",
+   "ok": true
+  },
+  {
+   "tick": 102,
+   "op": "command",
+   "command": "setblock 7 -60 0 cobblestone_wall",
+   "ok": true
+  },
+  {
+   "tick": 102,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 104,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 104,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:fence_gate 64",
+   "ok": true
+  },
+  {
+   "tick": 104,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 114,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 6.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 114,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 120,
+   "op": "mark",
+   "label": "fence_gates/place_between_walls"
+  },
+  {
+   "tick": 120,
+   "op": "use",
+   "pos": [
+    6,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:fence_gate",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     6.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 120,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 130,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 130,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:fence_gate 64",
+   "ok": true
+  },
+  {
+   "tick": 130,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 140,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 12.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 140,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 146,
+   "op": "mark",
+   "label": "fence_gates/place_before_wall"
+  },
+  {
+   "tick": 146,
+   "op": "use",
+   "pos": [
+    12,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:fence_gate",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     12.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 146,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 156,
+   "op": "mark",
+   "label": "fence_gates/wall_set_beside"
+  },
+  {
+   "tick": 156,
+   "op": "command",
+   "command": "setblock 13 -60 0 cobblestone_wall",
+   "ok": true
+  },
+  {
+   "tick": 156,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 186,
+   "op": "marker",
+   "text": "bds-sweep:scenario end fence_gates"
+  }
+ ],
+ "duration_ticks": 186,
+ "error": null
+}

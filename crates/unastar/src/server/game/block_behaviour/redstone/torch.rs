@@ -116,7 +116,7 @@ pub fn evaluate(world: &mut World, pos: IVec3, state: u32, lit: bool) {
         return;
     };
     if burns_out {
-        crate::entity::mob::net::sound::play_level_sound(
+        crate::server::game::blocks::queue_level_sound(
             world,
             None,
             super::super::centre(pos),

@@ -1,0 +1,163 @@
+scenario = "blocks-tnt"
+steps = 38
+steps_sha256 = "3946982b1b258be25a21c8082699e9307b3abc5325a890f1af6fe571bedf9714"
+description = "Measured on BDS 1.26.51 with the scripted bot: TNT on the floor at the origin: lit with flint and steel; lit by a lever on a stone block next to it; primed by the explosion of a summoned primed TNT two blocks away. The player walks off after the click; the 7x3x7 cells around the TNT are watched (floor-1 .. floor+1)."
+known_failing = []
+accepted = []
+
+[source]
+run = "tools/client-diff/runs/blocks-a/blocks-tnt-vanilla-go.jsonl"
+server = "BDS 1.26.51 + Endstone 0.11.12"
+protocol = 2193
+recorded = "2026-10-31"
+player_runtime_id = 1
+player_unique_id = -8589934591
+window_ms = 21049.0
+recording_sha256 = "b9a67be2400e087e63db4e3ed0f5c7dbdc4e85bb69fc0c08c2ce208f69b9e290"
+
+[world]
+kind = "superflat"
+game_mode = "creative"
+difficulty = "peaceful"
+setup = "Endstone capture world (tools/client-diff/endstone-capture): default superflat, fixed seed, spawn at feet (0.5, -60, 0.5), time 6000, clear weather; the bot's player is an operator."
+
+[world.game_rules]
+commandBlockOutput = true
+commandBlocksEnabled = true
+doDayLightCycle = false
+doEntityDrops = true
+doFireTick = true
+doImmediateRespawn = false
+doInsomnia = true
+doLimitedCrafting = false
+doMobLoot = true
+doMobSpawning = false
+doTileDrops = true
+doWeatherCycle = false
+drowningDamage = true
+fallDamage = true
+fireDamage = true
+freezeDamage = true
+functionCommandLimit = 10000
+keepInventory = false
+locatorbar = true
+maxCommandChainLength = 65535
+mobGriefing = true
+naturalRegeneration = true
+playerWaypoints = 1
+playersSleepingPercentage = 100
+projectilesCanBreakBlocks = true
+pvp = true
+randomTickSpeed = 0
+recipesUnlock = true
+respawnBlocksExplode = true
+sendCommandFeedback = true
+showBorderEffect = true
+showCoordinates = false
+showDaysPlayed = false
+showDeathMessages = true
+showRecipeMessages = true
+showTags = true
+spawnRadius = 10
+tntExplodes = true
+tntExplosionDropDecay = false
+
+[compare]
+packets = [
+    "AddActor",
+    "AddItemActor",
+    "LevelEvent",
+    "LevelEventGeneric",
+    "LevelSoundEvent",
+    "MoveActorDelta",
+    "RemoveActor",
+    "SetActorData",
+    "UpdateAttributes",
+    "UpdateBlock",
+    "UpdateSubChunkBlocks",
+]
+timing_tolerance_ms = 120.0
+float_tolerance = 0.001
+
+[[mask]]
+field = "actor_runtime_id"
+rule = "runtime_id"
+reason = "Runtime IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+field = "actor_unique_id"
+rule = "unique_id"
+reason = "Unique IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+path = "actor_data.data[id=5].payload"
+packets = [
+    "SetActorData",
+    "AddActor",
+    "AddItemActor",
+]
+rule = "unique_id"
+reason = "Metadata key 5 (owner) holds a unique ID."
+
+[[mask]]
+field = "net_id_variant"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "item_stack_net_id"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "inputtick"
+rule = "ignore"
+reason = "Server tick numbers start at different values on each server and session."
+
+[[mask]]
+field = "position"
+packets = ["AddItemActor"]
+rule = "ignore"
+reason = "Block and item drops spawn at a random offset inside the block."
+
+[[mask]]
+field = "velocity"
+packets = ["AddItemActor"]
+rule = "ignore"
+reason = "Block and item drops get a random initial velocity."
+
+[[mask]]
+field = "velocity"
+packets = ["AddActor"]
+rule = "ignore"
+reason = "Primed TNT gets a random initial horizontal velocity."
+
+[[mask]]
+field = "new_position_x"
+packets = ["MoveActorDelta"]
+rule = "ignore"
+reason = "The only moving actors are drops (and primed TNT) that start with a random offset and velocity, so every position they report is random."
+
+[[mask]]
+field = "new_position_y"
+packets = ["MoveActorDelta"]
+rule = "ignore"
+reason = "The only moving actors are drops (and primed TNT) that start with a random offset and velocity, so every position they report is random."
+
+[[mask]]
+field = "new_position_z"
+packets = ["MoveActorDelta"]
+rule = "ignore"
+reason = "The only moving actors are drops (and primed TNT) that start with a random offset and velocity, so every position they report is random."
+
+[[mask]]
+field = "position"
+packets = ["LevelEvent"]
+rule = "ignore"
+reason = "The explosion events sit at the primed TNT, which drifted from its random initial velocity."
+
+[[mask]]
+field = "__ctd__"
+packets = ["LevelEventGeneric"]
+rule = "ignore"
+reason = "The explosion payload carries the origin of the drifted primed TNT."

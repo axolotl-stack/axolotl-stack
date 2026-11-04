@@ -10,6 +10,7 @@
 //!   (Short), `StoredXPInt` (Int, XP x 100) and `Items` (slots 0 input,
 //!   1 fuel, 2 output);
 //! - hopper: `Items` (5) and `TransferCooldown` Int;
+//! - dispenser, dropper: `Items` (9);
 //! - ender chest: the header only (contents belong to the player).
 //!
 //! Item NBT is `Name`, `Count` Byte, `Damage` Short, `WasPickedUp` Byte and
@@ -43,6 +44,8 @@ pub enum ContainerKind {
     BlastFurnace,
     Smoker,
     Hopper,
+    Dispenser,
+    Dropper,
 }
 
 /// Furnace-family constants (cook interval per block type, recipe tag).
@@ -68,6 +71,8 @@ impl ContainerKind {
             "minecraft:blast_furnace" | "minecraft:lit_blast_furnace" => Self::BlastFurnace,
             "minecraft:smoker" | "minecraft:lit_smoker" => Self::Smoker,
             "minecraft:hopper" => Self::Hopper,
+            "minecraft:dispenser" => Self::Dispenser,
+            "minecraft:dropper" => Self::Dropper,
             _ => return None,
         })
     }
@@ -82,6 +87,8 @@ impl ContainerKind {
             Self::BlastFurnace => "BlastFurnace",
             Self::Smoker => "Smoker",
             Self::Hopper => "Hopper",
+            Self::Dispenser => "Dispenser",
+            Self::Dropper => "Dropper",
         }
     }
 
@@ -92,6 +99,7 @@ impl ContainerKind {
             Self::EnderChest => 0,
             Self::Furnace | Self::BlastFurnace | Self::Smoker => 3,
             Self::Hopper => 5,
+            Self::Dispenser | Self::Dropper => 9,
         }
     }
 
@@ -100,6 +108,8 @@ impl ContainerKind {
         match self {
             Self::Chest | Self::TrappedChest | Self::EnderChest | Self::Barrel => 0,
             Self::Furnace => 2,
+            Self::Dispenser => 6,
+            Self::Dropper => 7,
             Self::Hopper => 8,
             Self::BlastFurnace => 27,
             Self::Smoker => 28,
@@ -349,6 +359,9 @@ impl BlockContainer {
                 );
                 out.insert("Items".into(), items_list(&self.items));
             }
+            ContainerKind::Dispenser | ContainerKind::Dropper => {
+                out.insert("Items".into(), items_list(&self.items));
+            }
             ContainerKind::Hopper => {
                 out.insert("Items".into(), items_list(&self.items));
                 out.insert(
@@ -581,11 +594,14 @@ mod tests {
                 ContainerKind::Furnace,
                 ContainerKind::Hopper,
                 ContainerKind::BlastFurnace,
-                ContainerKind::Smoker
+                ContainerKind::Smoker,
+                ContainerKind::Dispenser,
+                ContainerKind::Dropper
             ]
             .map(ContainerKind::wire_type),
-            [0, 2, 8, 27, 28]
+            [0, 2, 8, 27, 28, 6, 7]
         );
+        assert_eq!(ContainerKind::Dropper.size(), 9);
         assert!(!ContainerKind::EnderChest.pairs() && !ContainerKind::Barrel.pairs());
         assert_eq!(ContainerKind::Smoker.smelter().unwrap().cook_ticks, 100);
     }

@@ -1,5 +1,8 @@
 pub mod conformance;
+pub mod driver;
+pub mod parity;
 pub mod recording;
+pub mod scenario;
 
 use anyhow::{Context, Result, ensure};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -79,13 +82,20 @@ pub fn load(path: &Path, direction: &str) -> Result<Vec<Record>> {
         "direction must be c2s or s2c"
     );
     let text = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+    let mut records = parse(&text, &path.display().to_string())?;
+    records.retain(|record| record.dir == direction);
+    Ok(records)
+}
+
+/// Parses capture JSONL (both directions); `origin` names it in errors.
+pub fn parse(text: &str, origin: &str) -> Result<Vec<Record>> {
     let mut result = Vec::new();
     for (line, text) in text.lines().enumerate() {
         if text.trim().is_empty() {
             continue;
         }
-        let record: Record = serde_json::from_str(text)
-            .with_context(|| format!("{}:{}", path.display(), line + 1))?;
+        let record: Record =
+            serde_json::from_str(text).with_context(|| format!("{origin}:{}", line + 1))?;
         ensure!(
             matches!(record.dir.as_str(), "c2s" | "s2c"),
             "invalid capture direction at line {}",
@@ -98,9 +108,7 @@ pub fn load(path: &Path, direction: &str) -> Result<Vec<Record>> {
             "packet ID/header mismatch at line {}",
             line + 1
         );
-        if record.dir == direction {
-            result.push(record);
-        }
+        result.push(record);
     }
     Ok(result)
 }
@@ -125,7 +133,7 @@ fn write_varint(mut value: u32, output: &mut Vec<u8>) {
     }
     output.push(value as u8);
 }
-fn decode(
+pub(crate) fn decode(
     data: &[u8],
 ) -> Option<(
     valentine::bedrock::version::v1_26_51::GameHeader,
@@ -318,7 +326,27 @@ pub fn compare(a: &[Record], b: &[Record], masks: &Masks) -> Result<Vec<Row>> {
         masks.float_tolerance.is_finite() && masks.float_tolerance >= 0.,
         "float tolerance must be finite and nonnegative"
     );
-    // LCS aligns packet IDs; ties preserve earliest matching packets in the left log.
+    let ids = |records: &[Record]| records.iter().map(|r| r.id).collect::<Vec<_>>();
+    align(&ids(a), &ids(b))?
+        .into_iter()
+        .map(|(left, right)| {
+            let status = match (left, right) {
+                (Some(i), Some(j)) => status(&a[i], &b[j], masks)?,
+                _ => Status::Missing,
+            };
+            Ok(Row {
+                left,
+                right,
+                status,
+            })
+        })
+        .collect()
+}
+
+/// Aligns two sequences by their longest common subsequence of equal keys;
+/// ties preserve the earliest matching entries of the left sequence. Each
+/// row pairs an index of each side or leaves one side unmatched.
+pub fn align<K: PartialEq>(a: &[K], b: &[K]) -> Result<Vec<(Option<usize>, Option<usize>)>> {
     let cols = b.len() + 1;
     let cells = (a.len() + 1)
         .checked_mul(cols)
@@ -330,7 +358,7 @@ pub fn compare(a: &[Record], b: &[Record], masks: &Masks) -> Result<Vec<Row>> {
     let mut lcs = vec![0u32; cells];
     for i in (0..a.len()).rev() {
         for j in (0..b.len()).rev() {
-            lcs[i * cols + j] = if a[i].id == b[j].id {
+            lcs[i * cols + j] = if a[i] == b[j] {
                 1 + lcs[(i + 1) * cols + j + 1]
             } else {
                 lcs[(i + 1) * cols + j].max(lcs[i * cols + j + 1])
@@ -340,28 +368,16 @@ pub fn compare(a: &[Record], b: &[Record], masks: &Masks) -> Result<Vec<Row>> {
     let (mut i, mut j) = (0, 0);
     let mut rows = Vec::new();
     while i < a.len() || j < b.len() {
-        if i < a.len() && j < b.len() && a[i].id == b[j].id {
-            rows.push(Row {
-                left: Some(i),
-                right: Some(j),
-                status: status(&a[i], &b[j], masks)?,
-            });
+        if i < a.len() && j < b.len() && a[i] == b[j] {
+            rows.push((Some(i), Some(j)));
             i += 1;
             j += 1;
         } else if j < b.len() && (i == a.len() || lcs[i * cols + j + 1] >= lcs[(i + 1) * cols + j])
         {
-            rows.push(Row {
-                left: None,
-                right: Some(j),
-                status: Status::Missing,
-            });
+            rows.push((None, Some(j)));
             j += 1;
         } else {
-            rows.push(Row {
-                left: Some(i),
-                right: None,
-                status: Status::Missing,
-            });
+            rows.push((Some(i), None));
             i += 1;
         }
     }

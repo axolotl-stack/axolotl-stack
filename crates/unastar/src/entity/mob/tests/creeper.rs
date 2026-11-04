@@ -195,7 +195,8 @@ impl Harness {
     }
 
     /// Light `creeper`'s forced fuse and tick until it explodes; the
-    /// packets of the explosion tick.
+    /// packets of the explosion tick, with the block updates and sound the
+    /// next tick starts with.
     fn explode_forced(&mut self, creeper: Entity) -> Vec<McpePacketData> {
         self.fire(creeper, "minecraft:start_exploding_forced");
         self.ticks(30);
@@ -203,6 +204,7 @@ impl Harness {
         self.packets();
         self.server.tick();
         assert!(!self.exists(creeper), "the creeper exploded");
+        crate::server::game::blocks::send_block_updates(self.world());
         self.packets()
     }
 

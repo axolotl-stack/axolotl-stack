@@ -1,0 +1,673 @@
+{
+ "scenario": "crop_care",
+ "covers": "Wheat (growth 0) on farmland given bone meal three times; ripe wheat (growth 7) and growth 3 wheat broken by hand (drops); the player falling 2 blocks onto farmland (trampled to dirt); bare dry farmland (moisture 7, no water) and farmland under wheat at randomtickspeed `dry_speed` until the bare one turns to dirt.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-30T16:52:40Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin crop_care",
+  "end": "bds-sweep:scenario end crop_care"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin crop_care"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "crop_care/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 0 -61 0 farmland",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 4 -61 0 farmland",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 8 -61 0 farmland",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 12 -61 0 farmland",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 0 -60 0 wheat",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 4 -60 0 wheat",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 8 -60 0 wheat",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 4 -60 0 wheat [\"growth\"=7]",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 8 -60 0 wheat [\"growth\"=3]",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:bone_meal 64",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 14,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 34.41",
+   "ok": true
+  },
+  {
+   "tick": 14,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 20,
+   "op": "mark",
+   "label": "crop_care/bone_meal_1"
+  },
+  {
+   "tick": 20,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.25,
+    0.5
+   ],
+   "block": "minecraft:wheat",
+   "block_runtime_id": 1485804093,
+   "held": [
+    "minecraft:bone_meal",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 34.41
+   }
+  },
+  {
+   "tick": 20,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 30,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 34.41",
+   "ok": true
+  },
+  {
+   "tick": 30,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 36,
+   "op": "mark",
+   "label": "crop_care/bone_meal_2"
+  },
+  {
+   "tick": 36,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.25,
+    0.5
+   ],
+   "block": "minecraft:wheat",
+   "block_runtime_id": 1362854447,
+   "held": [
+    "minecraft:bone_meal",
+    63,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 34.41
+   }
+  },
+  {
+   "tick": 36,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 46,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180.0 34.41",
+   "ok": true
+  },
+  {
+   "tick": 46,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 52,
+   "op": "mark",
+   "label": "crop_care/bone_meal_3"
+  },
+  {
+   "tick": 52,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    0.25,
+    0.5
+   ],
+   "block": "minecraft:wheat",
+   "block_runtime_id": 1608753739,
+   "held": [
+    "minecraft:bone_meal",
+    62,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 34.41
+   }
+  },
+  {
+   "tick": 52,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 62,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 62,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 62,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 72,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 4.5 -60 2.5 180.0 17.22",
+   "ok": true
+  },
+  {
+   "tick": 72,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 78,
+   "op": "mark",
+   "label": "crop_care/break_growth_7"
+  },
+  {
+   "tick": 78,
+   "op": "mine_start",
+   "pos": [
+    4,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "held": null
+  },
+  {
+   "tick": 78,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 80,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 80,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 100,
+   "op": "remove_item_actors",
+   "items": [
+    [
+     "minecraft:wheat",
+     0,
+     1
+    ],
+    [
+     "minecraft:wheat_seeds",
+     0,
+     1
+    ]
+   ]
+  },
+  {
+   "tick": 100,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 8.5 -60 2.5 180.0 17.22",
+   "ok": true
+  },
+  {
+   "tick": 100,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 106,
+   "op": "mark",
+   "label": "crop_care/break_growth_3"
+  },
+  {
+   "tick": 106,
+   "op": "mine_start",
+   "pos": [
+    8,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "held": null
+  },
+  {
+   "tick": 106,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 108,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 108,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 128,
+   "op": "remove_item_actors",
+   "items": [
+    [
+     "minecraft:wheat_seeds",
+     0,
+     1
+    ]
+   ]
+  },
+  {
+   "tick": 128,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 12.5 -60 3.5 180.0 28.37",
+   "ok": true
+  },
+  {
+   "tick": 128,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 134,
+   "op": "mark",
+   "label": "crop_care/trample_fall_2"
+  },
+  {
+   "tick": 134,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 12.5 -58 0.5 0 30",
+   "ok": true
+  },
+  {
+   "tick": 134,
+   "op": "fall",
+   "distance": 2
+  },
+  {
+   "tick": 134,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 174,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 4.5 180.0 22.05",
+   "ok": true
+  },
+  {
+   "tick": 174,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 180,
+   "op": "command",
+   "command": "setblock 16 -61 0 farmland [\"moisturized_amount\"=7]",
+   "ok": true
+  },
+  {
+   "tick": 180,
+   "op": "command",
+   "command": "setblock 20 -61 0 farmland [\"moisturized_amount\"=7]",
+   "ok": true
+  },
+  {
+   "tick": 180,
+   "op": "command",
+   "command": "setblock 20 -60 0 wheat",
+   "ok": true
+  },
+  {
+   "tick": 180,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 182,
+   "op": "mark",
+   "label": "crop_care/drying_randomtickspeed_300"
+  },
+  {
+   "tick": 182,
+   "op": "command",
+   "command": "gamerule randomtickspeed 300",
+   "ok": true
+  },
+  {
+   "tick": 182,
+   "op": "wait",
+   "ticks": 53
+  },
+  {
+   "tick": 235,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 235,
+   "op": "wait",
+   "ticks": 20
+  },
+  {
+   "tick": 255,
+   "op": "marker",
+   "text": "bds-sweep:scenario end crop_care"
+  }
+ ],
+ "duration_ticks": 255,
+ "error": null
+}

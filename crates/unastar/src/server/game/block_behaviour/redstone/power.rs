@@ -60,6 +60,19 @@ pub fn level(entry: &BlockEntry, state: u32) -> u8 {
     int(entry, state, super::SIGNAL).map_or(0, |v| v.clamp(0, 15) as u8)
 }
 
+/// Power a utility block sends into its neighbour at `pos + dir`: a
+/// lectern during its page-turn pulse, a jukebox while its disc plays, an
+/// active sculk sensor.
+fn utility_power(world: &World, pos: IVec3, dir: IVec3, entry: &BlockEntry, state: u32) -> u8 {
+    use super::super::utility::{Utility, jukebox, lectern, sculk};
+    match Utility::of(entry) {
+        Some(Utility::Lectern) => lectern::power(entry, state),
+        Some(Utility::Jukebox) => jukebox::power(world, pos),
+        Some(Utility::Sculk) => sculk::power(world, pos, dir, entry, state),
+        _ => 0,
+    }
+}
+
 /// Power the block at `src` sends into its neighbour at `src + dir`:
 /// strong power only with `strong`; dust counts only with `dust`.
 pub fn emitted(world: &World, src: IVec3, dir: IVec3, strong: bool, dust: bool) -> u8 {
@@ -67,7 +80,13 @@ pub fn emitted(world: &World, src: IVec3, dir: IVec3, strong: bool, dust: bool) 
         return 0;
     };
     let Some(kind) = kind(entry) else {
-        return 0;
+        // Lecterns pulse on a page turn, jukebox discs play and sculk
+        // sensors activate: weak power into their neighbours.
+        return if strong {
+            0
+        } else {
+            utility_power(world, src, dir, entry, state)
+        };
     };
     let on = |power: u8, strong_dir: IVec3| {
         if !strong || dir == strong_dir {

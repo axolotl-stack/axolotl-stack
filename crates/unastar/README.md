@@ -79,7 +79,8 @@ terrain is generated in parallel (one lock per chunk; see
 | `kind` | Terrain | Spawn without a configured location |
 |---|---|---|
 | `java` (default, `seed = 12345`) | Java Edition 1.21.11-style: noise router, aquifers, ore veins, 3D biomes, surface rules, cave and canyon carvers | Java's world-spawn search (climate target, 11x11 chunk spiral, first standable column), computed once per server process |
-| `super_flat` | bedrock, two dirt, grass | template spawn |
+| `super_flat` | bedrock, two dirt, grass at y=0..3 | template spawn |
+| `vanilla_flat` | BDS's default superflat: bedrock at y=-64, two dirt, grass at y=-61 (the world of the BDS parity scenarios, `crates/client-diff/README.md`) | (0, -60, 0) |
 | `void_spawn_platform` | stone platform of `platform_radius_chunks` | template spawn |
 
 The default spawn rule keeps returning players at their saved position and otherwise
@@ -713,8 +714,11 @@ live in `server/game/block_behaviour/`, one module per behaviour family
 (doors, beds, torches/ladders/buttons/levers/vines, signs, trapdoors/fence
 gates, fences/walls/panes/stairs corners, crops/stems/nether wart/farmland,
 plants/sugar cane/cacti). Every block change goes through
-`blocks::set_block`, which sends UpdateBlock in the session's block numbering
-and queues neighbour updates; a block that can no longer stay (lost support,
+`blocks::set_block`, which queues the change and queues neighbour updates;
+the tick's changes go out once at the start of the next tick, as BDS sends
+them (one UpdateBlock per sub-chunk with a single change, one
+UpdateSubChunkBlocks for several, then the changes' sounds); a block that
+can no longer stay (lost support,
 wrong soil, missing door half) breaks with its drops one tick later, as on
 BDS. Random ticks follow BDS's per-chunk budget (`(int)((top sub-chunk + 1) ×
 2.5) × randomtickspeed` positions in each chunk of a player's ticking diamond);
@@ -758,6 +762,31 @@ capture in `fire.rs`. Not captured: observers and pistons (their rules are
 marked provisional). Comparators re-read a container only when a neighbour
 changes (container contents do not notify blocks yet); note block pitches
 cannot be tuned (no storage); entities are not pushed by pistons.
+
+Utility blocks (`block_behaviour/utility/`, one module per group, block
+actors through `block_behaviour/actors.rs`): dispensers and droppers (9-slot
+containers, rising-edge trigger, per-item behaviours, droppers feeding the
+container in front), hopper locking by power, note block tuning (a `Music`
+actor), rails (shapes, powered/activator rails carrying power 8 along,
+detector rails), TNT (flint and steel, fire charges, power, fire and
+explosions prime the data-driven `minecraft:tnt` actor), cauldrons
+(water/lava/powder snow, bottles, dyes, potions), composters, beehives and bee
+nests (honey harvesting), campfires (cooking in 600 ticks, lighting and
+putting out), lecterns (books, page turns from `LecternUpdate`, page-turn
+pulse), bells, jukeboxes (discs, playback, power), flower pots, cakes and
+candle cakes, end portal frames (eyes, the portal), nether portals (frame
+detection, lighting, breaking), respawn anchors (charging, spawn in the nether,
+exploding elsewhere) and beds setting the spawn point. Comparators read
+cauldrons, composters, beehives, cakes, lecterns and jukeboxes. Replayed
+against the BDS 1.26.51 capture `testdata/bds_1_26_51_utility.json`
+(`utility/cauldron.rs`, `utility/dispenser.rs`, `utility/portals.rs` replay
+tests). Not done: minecarts (the entity runtime cannot spawn them yet), portal
+travel, sleeping, sculk vibrations, taking a book back from a lectern.
+
+None of the block rows is marked done: nothing counts as finished until a
+scenario recorded on BDS and replayed on unastar matches packet for packet
+(the shared client-diff scenario harness); the captures above compare world
+states, sounds and timing in process, not whole packet streams.
 
 Liquids (flow, sources, waterlogging, mixing, sponges) belong to an outside
 contributor and are not part of this module.

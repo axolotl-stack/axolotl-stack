@@ -1,0 +1,580 @@
+{
+ "scenario": "iron_door_lever",
+ "covers": "Iron door (placed looking north) with a stone block east of its lower half and a lever on that stone's east face.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:20:35Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin iron_door_lever",
+  "end": "bds-sweep:scenario end iron_door_lever"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin iron_door_lever"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "iron_door_lever/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:iron_door 64",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 12,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 2.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 12,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 18,
+   "op": "mark",
+   "label": "iron_door_lever/door_place"
+  },
+  {
+   "tick": 18,
+   "op": "use",
+   "pos": [
+    0,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:iron_door",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 18,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 28,
+   "op": "command",
+   "command": "setblock 1 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 28,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 30,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 30,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 30,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 40,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 143.13 24.13",
+   "ok": true
+  },
+  {
+   "tick": 40,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 46,
+   "op": "mark",
+   "label": "iron_door_lever/lever_place"
+  },
+  {
+   "tick": 46,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    1.0,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 143.13,
+    "pitch": 24.13
+   }
+  },
+  {
+   "tick": 46,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 56,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 56,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 56,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 66,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 147.99 25.4",
+   "ok": true
+  },
+  {
+   "tick": 66,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 72,
+   "op": "mark",
+   "label": "iron_door_lever/lever_on_1"
+  },
+  {
+   "tick": 72,
+   "op": "use",
+   "pos": [
+    2,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    0.25,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2852908045,
+   "held": null,
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 147.99,
+    "pitch": 25.4
+   }
+  },
+  {
+   "tick": 72,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 102,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 147.99 25.4",
+   "ok": true
+  },
+  {
+   "tick": 102,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 108,
+   "op": "mark",
+   "label": "iron_door_lever/lever_off_1"
+  },
+  {
+   "tick": 108,
+   "op": "use",
+   "pos": [
+    2,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    0.25,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 1797601474,
+   "held": null,
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 147.99,
+    "pitch": 25.4
+   }
+  },
+  {
+   "tick": 108,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 138,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 147.99 25.4",
+   "ok": true
+  },
+  {
+   "tick": 138,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 144,
+   "op": "mark",
+   "label": "iron_door_lever/lever_on_2"
+  },
+  {
+   "tick": 144,
+   "op": "use",
+   "pos": [
+    2,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    0.25,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2852908045,
+   "held": null,
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 147.99,
+    "pitch": 25.4
+   }
+  },
+  {
+   "tick": 144,
+   "op": "wait",
+   "ticks": 30
+  },
+  {
+   "tick": 174,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 2.5 147.99 25.4",
+   "ok": true
+  },
+  {
+   "tick": 174,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 180,
+   "op": "mark",
+   "label": "iron_door_lever/lever_off_2"
+  },
+  {
+   "tick": 180,
+   "op": "use",
+   "pos": [
+    2,
+    -60,
+    0
+   ],
+   "face": "east",
+   "face_id": 5,
+   "click": [
+    0.25,
+    0.5,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 1797601474,
+   "held": null,
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     2.5
+    ],
+    "yaw": 147.99,
+    "pitch": 25.4
+   }
+  },
+  {
+   "tick": 180,
+   "op": "wait",
+   "ticks": 50
+  },
+  {
+   "tick": 230,
+   "op": "marker",
+   "text": "bds-sweep:scenario end iron_door_lever"
+  }
+ ],
+ "duration_ticks": 230,
+ "error": null
+}

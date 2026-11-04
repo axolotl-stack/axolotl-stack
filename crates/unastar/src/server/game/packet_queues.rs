@@ -38,6 +38,10 @@ pub enum BlockAction {
     AuthInputActions(Vec<jolyne::valentine::PlayerBlockActionData>),
     /// Block placement from InventoryTransaction ItemUse::ClickBlock.
     BlockClick(jolyne::valentine::types::ItemUseInventoryTransaction),
+    /// A reader turned the page of the book on a lectern.
+    LecternPage(jolyne::valentine::LecternUpdatePacket),
+    /// The player left its bed (`PlayerAction` StopSleeping).
+    StopSleeping,
 }
 
 // ── Inventory ───────────────────────────────────────────────────────────────

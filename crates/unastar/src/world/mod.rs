@@ -76,6 +76,11 @@ pub enum WorldGenerator {
     /// Superflat world: classic Minecraft superflat (1 bedrock, 2 dirt, 1 grass at Y=0-3).
     #[serde(deserialize_with = "crate::config::deserialize_empty_variant")]
     SuperFlat,
+    /// The default Bedrock superflat preset BDS creates: bedrock at y=-64, dirt at
+    /// y=-63..-62, grass at y=-61, spawn standing at y=-60. BDS parity scenarios
+    /// (`crates/client-diff/scenarios`) are recorded in this world.
+    #[serde(deserialize_with = "crate::config::deserialize_empty_variant")]
+    VanillaFlat,
     /// A 3x3 (or larger) stone platform in an otherwise-void world.
     VoidSpawnPlatform { platform_radius_chunks: u32 },
     /// Java-style terrain (Java Edition 1.21.11 parity target).
@@ -89,6 +94,7 @@ impl WorldGenerator {
     pub fn build(&self) -> std::sync::Arc<dyn generator::Generator> {
         match *self {
             Self::SuperFlat => std::sync::Arc::new(generator::FlatGenerator),
+            Self::VanillaFlat => std::sync::Arc::new(generator::VanillaFlatGenerator),
             Self::VoidSpawnPlatform {
                 platform_radius_chunks,
             } => std::sync::Arc::new(generator::VoidGenerator {
@@ -113,7 +119,7 @@ impl WorldGenerator {
     /// inline on the ECS thread.
     pub fn uses_generation_pool(&self) -> bool {
         match self {
-            Self::SuperFlat | Self::VoidSpawnPlatform { .. } => false,
+            Self::SuperFlat | Self::VanillaFlat | Self::VoidSpawnPlatform { .. } => false,
             Self::Java { .. } | Self::Bedrock { .. } => true,
         }
     }

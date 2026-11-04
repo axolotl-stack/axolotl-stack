@@ -452,3 +452,225 @@ fn a_lever_beside_an_iron_door_opens_and_closes_it() {
         },
     );
 }
+
+#[test]
+fn flint_and_steel_primes_tnt_that_explodes_after_its_fuse() {
+    run(
+        "Demolisher",
+        &[("minecraft:tnt", 1), ("minecraft:flint_and_steel", 1)],
+        |session| async move {
+            let Session {
+                mut client,
+                mut view,
+                runtime_id,
+            } = session;
+            let tnt = view.hotbar[0].clone();
+            send(&mut client, click(FLOOR, 1, tnt, 0)).await;
+            until(&mut client, &mut view, "the TNT block", |view, _| {
+                view.name(LOWER) == Some("minecraft:tnt")
+            })
+            .await;
+            send(
+                &mut client,
+                MobEquipmentPacket {
+                    target_runtime_id: ActorRuntimeId {
+                        actor_runtime_id: runtime_id,
+                    },
+                    slot: 1,
+                    selected_slot: 1,
+                    container_id: 0,
+                    ..Default::default()
+                },
+            )
+            .await;
+            let flint = view.hotbar[1].clone();
+            let target = BlockPos {
+                x: LOWER.0,
+                y: LOWER.1,
+                z: LOWER.2,
+            };
+            send(&mut client, click(target, 2, flint, 1)).await;
+            until(
+                &mut client,
+                &mut view,
+                "the primed TNT actor",
+                |_, packet| {
+                    matches!(packet, McpePacketData::AddActorPacket(actor)
+                    if &*actor.actor_type == "minecraft:tnt")
+                },
+            )
+            .await;
+            assert_eq!(
+                view.name(LOWER),
+                Some("minecraft:air"),
+                "the block was primed"
+            );
+            // The fuse runs about four seconds; the explosion breaks the floor.
+            until(&mut client, &mut view, "the explosion", |view, _| {
+                view.name((FLOOR.x, FLOOR.y, FLOOR.z)) == Some("minecraft:air")
+            })
+            .await;
+        },
+    );
+}
+
+#[test]
+fn a_lever_makes_a_dispenser_shoot_an_arrow() {
+    run(
+        "Archer",
+        &[
+            ("minecraft:dispenser", 1),
+            ("minecraft:lever", 1),
+            ("minecraft:arrow", 4),
+        ],
+        |session| async move {
+            let Session {
+                mut client,
+                mut view,
+                runtime_id,
+            } = session;
+            let select = |slot: u8| MobEquipmentPacket {
+                target_runtime_id: ActorRuntimeId {
+                    actor_runtime_id: runtime_id,
+                },
+                slot,
+                selected_slot: slot,
+                container_id: 0,
+                ..Default::default()
+            };
+            let dispenser = view.hotbar[0].clone();
+            send(&mut client, click(FLOOR, 1, dispenser, 0)).await;
+            until(&mut client, &mut view, "the dispenser", |view, _| {
+                view.name(LOWER) == Some("minecraft:dispenser")
+            })
+            .await;
+            // Open it holding the arrows and move them into its first slot.
+            send(&mut client, select(2)).await;
+            let arrows = view.hotbar[2].clone();
+            let arrows_net = arrows.net_id_variant.expect("arrows carry a stack id");
+            let target = BlockPos {
+                x: LOWER.0,
+                y: LOWER.1,
+                z: LOWER.2,
+            };
+            send(&mut client, click(target.clone(), 2, arrows, 2)).await;
+            let open = recv_until_open(&mut client, &mut view).await;
+            send(
+                &mut client,
+                ItemStackRequestPacket {
+                    requests: vec![ItemStackRequestPacketDataRequestData {
+                        client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 {
+                            id: -3,
+                        },
+                        actions: vec![
+                            ItemStackRequestPacketDataRequestDataActionsItem::TakeActionData(
+                                ItemStackRequestCerealTakeActionData {
+                                    amount: 4,
+                                    source: stack_slot(
+                                        EnumsContainerEnumName::Hotbarcontainer,
+                                        2,
+                                        arrows_net,
+                                    ),
+                                    destination: stack_slot(
+                                        EnumsContainerEnumName::Levelentitycontainer,
+                                        0,
+                                        0,
+                                    ),
+                                    ..Default::default()
+                                },
+                            ),
+                        ],
+                        ..Default::default()
+                    }],
+                },
+            )
+            .await;
+            until(
+                &mut client,
+                &mut view,
+                "the move is accepted",
+                |_, packet| {
+                    matches!(packet, McpePacketData::ItemStackResponsePacket(response)
+                    if response.responses[0].result == EnumsItemStackNetResult::Success)
+                },
+            )
+            .await;
+            send(
+                &mut client,
+                ContainerClosePacket {
+                    container_id: open,
+                    container_type: 0,
+                    server_initiated_close: false,
+                },
+            )
+            .await;
+            // A lever on the floor beside it, flipped on.
+            send(&mut client, select(1)).await;
+            let lever_floor = BlockPos {
+                x: FLOOR.x + 1,
+                y: FLOOR.y,
+                z: FLOOR.z,
+            };
+            let lever = (LOWER.0 + 1, LOWER.1, LOWER.2);
+            let held = view.hotbar[1].clone();
+            send(&mut client, click(lever_floor, 1, held, 1)).await;
+            until(&mut client, &mut view, "the lever", |view, _| {
+                view.name(lever) == Some("minecraft:lever")
+            })
+            .await;
+            let lever_pos = BlockPos {
+                x: lever.0,
+                y: lever.1,
+                z: lever.2,
+            };
+            send(
+                &mut client,
+                click(
+                    lever_pos,
+                    1,
+                    CerealizerNetworkItemStackDescriptorSerializedData::default(),
+                    1,
+                ),
+            )
+            .await;
+            until(&mut client, &mut view, "an arrow flies", |_, packet| {
+                matches!(packet, McpePacketData::AddActorPacket(actor)
+                    if &*actor.actor_type == "minecraft:arrow")
+            })
+            .await;
+            assert_eq!(
+                view.value(LOWER, "triggered_bit"),
+                Some(StateValue::Byte(1)),
+                "the dispenser stays triggered while powered"
+            );
+        },
+    );
+}
+
+fn stack_slot(
+    name: EnumsContainerEnumName,
+    slot: u8,
+    net: i32,
+) -> ItemStackRequestCerealSlotInfoData {
+    ItemStackRequestCerealSlotInfoData {
+        fullcontainername: FullContainerName {
+            container_name: name,
+            dynamic_id: None,
+        },
+        slot,
+        net_id_variant: net,
+    }
+}
+
+/// Wait for the dispenser's window and return its id.
+async fn recv_until_open(client: &mut ClientPlay, view: &mut ClientView) -> u8 {
+    let mut id = None;
+    until(client, view, "the dispenser window", |_, packet| {
+        if let McpePacketData::ContainerOpenPacket(open) = packet {
+            id = Some(open.container_id);
+        }
+        id.is_some()
+    })
+    .await;
+    id.unwrap()
+}

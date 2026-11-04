@@ -1,0 +1,2389 @@
+{
+ "scenario": "repeaters",
+ "covers": "Repeaters set to delays 1-4 (clicked) between a lever and a lamp, the lever switched on and off; a repeater locked from the side by a second powered repeater, toggled locked and unlocked.",
+ "minecraft_version": "26.51",
+ "protocol_version": 2193,
+ "recorded_utc": "2026-10-31T00:17:16Z",
+ "world": {
+  "level": "superflat (default layers: bedrock y=-64, dirt y=-63..-62, grass y=-61), peaceful, operators by default, view distance 6, tick distance 4",
+  "arena": {
+   "x": [
+    -10,
+    24
+   ],
+   "z": [
+    -12,
+    24
+   ],
+   "floor_y": -61,
+   "floor": "stone",
+   "cleared_above": 8
+  },
+  "player": "BDSSweep",
+  "player_mode": "survival; the plugin cancels every item pickup by the player",
+  "job_setup": [
+   "tp \"BDSSweep\" 0.5 -60 0.5",
+   "gamerule domobspawning false",
+   "gamerule dodaylightcycle false",
+   "gamerule doweathercycle false",
+   "gamerule randomtickspeed 0",
+   "gamerule sendcommandfeedback false",
+   "gamerule commandblockoutput false",
+   "gamerule domobloot true",
+   "gamerule dotiledrops true",
+   "time set 6000",
+   "weather clear",
+   "gamemode creative \"BDSSweep\"",
+   "gamemode survival \"BDSSweep\""
+  ]
+ },
+ "prelude": [
+  {
+   "tick": 0,
+   "op": "mine_stop"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "kill @e[type=!player]",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "effect \"BDSSweep\" clear",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobspawning false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dodaylightcycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule doweathercycle false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule randomtickspeed 0",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule sendcommandfeedback false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule commandblockoutput false",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule domobloot true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamerule dotiledrops true",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "time set 6000",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "weather clear",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "gamemode survival \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "difficulty peaceful",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -63 -12 24 -62 24 dirt",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 0.5 0 0",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 20
+  }
+ ],
+ "markers": {
+  "begin": "bds-sweep:scenario begin repeaters",
+  "end": "bds-sweep:scenario end repeaters"
+ },
+ "tick_origin": "server tick of the begin marker; `tick` = server ticks after it",
+ "settle_ticks": 20,
+ "parameters": {},
+ "steps": [
+  {
+   "tick": 0,
+   "op": "marker",
+   "text": "bds-sweep:scenario begin repeaters"
+  },
+  {
+   "tick": 0,
+   "op": "mark",
+   "label": "repeaters/reset"
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 0,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 2,
+   "op": "command",
+   "command": "setblock 0 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 2,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 4,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 4,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 4,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 14,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 14,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 20,
+   "op": "mark",
+   "label": "repeaters/delay_1_lever_place"
+  },
+  {
+   "tick": 20,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 20,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 30,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 30,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:repeater 64",
+   "ok": true
+  },
+  {
+   "tick": 30,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 40,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 40,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 46,
+   "op": "mark",
+   "label": "repeaters/delay_1_repeater_place"
+  },
+  {
+   "tick": 46,
+   "op": "use",
+   "pos": [
+    1,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:repeater",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 46,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 56,
+   "op": "command",
+   "command": "setblock 2 -60 0 redstone_lamp",
+   "ok": true
+  },
+  {
+   "tick": 56,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 58,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 58,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 58,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 68,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 68,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 74,
+   "op": "mark",
+   "label": "repeaters/delay_1_lever_on"
+  },
+  {
+   "tick": 74,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 74,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 114,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 114,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 120,
+   "op": "mark",
+   "label": "repeaters/delay_1_lever_off"
+  },
+  {
+   "tick": 120,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2423914170,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 120,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 160,
+   "op": "mark",
+   "label": "repeaters/reset"
+  },
+  {
+   "tick": 160,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 160,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 160,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 160,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 162,
+   "op": "command",
+   "command": "setblock 0 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 162,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 164,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 164,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 164,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 174,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 174,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 180,
+   "op": "mark",
+   "label": "repeaters/delay_2_lever_place"
+  },
+  {
+   "tick": 180,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 180,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 190,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 190,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:repeater 64",
+   "ok": true
+  },
+  {
+   "tick": 190,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 200,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 200,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 206,
+   "op": "mark",
+   "label": "repeaters/delay_2_repeater_place"
+  },
+  {
+   "tick": 206,
+   "op": "use",
+   "pos": [
+    1,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:repeater",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 206,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 216,
+   "op": "command",
+   "command": "setblock 2 -60 0 redstone_lamp",
+   "ok": true
+  },
+  {
+   "tick": 216,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 218,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 218,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 218,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 228,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 228,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 234,
+   "op": "mark",
+   "label": "repeaters/delay_2_click_1"
+  },
+  {
+   "tick": 234,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_repeater",
+   "block_runtime_id": 4067202120,
+   "held": null,
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 234,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 244,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 244,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 250,
+   "op": "mark",
+   "label": "repeaters/delay_2_lever_on"
+  },
+  {
+   "tick": 250,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 250,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 290,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 290,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 296,
+   "op": "mark",
+   "label": "repeaters/delay_2_lever_off"
+  },
+  {
+   "tick": 296,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2423914170,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 296,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 336,
+   "op": "mark",
+   "label": "repeaters/reset"
+  },
+  {
+   "tick": 336,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 336,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 336,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 336,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 338,
+   "op": "command",
+   "command": "setblock 0 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 338,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 340,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 340,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 340,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 350,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 350,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 356,
+   "op": "mark",
+   "label": "repeaters/delay_3_lever_place"
+  },
+  {
+   "tick": 356,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 356,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 366,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 366,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:repeater 64",
+   "ok": true
+  },
+  {
+   "tick": 366,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 376,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 376,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 382,
+   "op": "mark",
+   "label": "repeaters/delay_3_repeater_place"
+  },
+  {
+   "tick": 382,
+   "op": "use",
+   "pos": [
+    1,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:repeater",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 382,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 392,
+   "op": "command",
+   "command": "setblock 2 -60 0 redstone_lamp",
+   "ok": true
+  },
+  {
+   "tick": 392,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 394,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 394,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 394,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 404,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 404,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 410,
+   "op": "mark",
+   "label": "repeaters/delay_3_click_1"
+  },
+  {
+   "tick": 410,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_repeater",
+   "block_runtime_id": 4067202120,
+   "held": null,
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 410,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 420,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 420,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 426,
+   "op": "mark",
+   "label": "repeaters/delay_3_click_2"
+  },
+  {
+   "tick": 426,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_repeater",
+   "block_runtime_id": 4005727297,
+   "held": null,
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 426,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 436,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 436,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 442,
+   "op": "mark",
+   "label": "repeaters/delay_3_lever_on"
+  },
+  {
+   "tick": 442,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 442,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 482,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 482,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 488,
+   "op": "mark",
+   "label": "repeaters/delay_3_lever_off"
+  },
+  {
+   "tick": 488,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2423914170,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 488,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 528,
+   "op": "mark",
+   "label": "repeaters/reset"
+  },
+  {
+   "tick": 528,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 528,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 528,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 528,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 530,
+   "op": "command",
+   "command": "setblock 0 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 530,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 532,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 532,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 532,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 542,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 542,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 548,
+   "op": "mark",
+   "label": "repeaters/delay_4_lever_place"
+  },
+  {
+   "tick": 548,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 548,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 558,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 558,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:repeater 64",
+   "ok": true
+  },
+  {
+   "tick": 558,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 568,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 568,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 574,
+   "op": "mark",
+   "label": "repeaters/delay_4_repeater_place"
+  },
+  {
+   "tick": 574,
+   "op": "use",
+   "pos": [
+    1,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:repeater",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 574,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 584,
+   "op": "command",
+   "command": "setblock 2 -60 0 redstone_lamp",
+   "ok": true
+  },
+  {
+   "tick": 584,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 586,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 586,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 586,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 596,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 596,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 602,
+   "op": "mark",
+   "label": "repeaters/delay_4_click_1"
+  },
+  {
+   "tick": 602,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_repeater",
+   "block_runtime_id": 4067202120,
+   "held": null,
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 602,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 612,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 612,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 618,
+   "op": "mark",
+   "label": "repeaters/delay_4_click_2"
+  },
+  {
+   "tick": 618,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_repeater",
+   "block_runtime_id": 4005727297,
+   "held": null,
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 618,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 628,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 628,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 634,
+   "op": "mark",
+   "label": "repeaters/delay_4_click_3"
+  },
+  {
+   "tick": 634,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:unpowered_repeater",
+   "block_runtime_id": 3944252474,
+   "held": null,
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 634,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 644,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 644,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 650,
+   "op": "mark",
+   "label": "repeaters/delay_4_lever_on"
+  },
+  {
+   "tick": 650,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 650,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 690,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 690,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 696,
+   "op": "mark",
+   "label": "repeaters/delay_4_lever_off"
+  },
+  {
+   "tick": 696,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2423914170,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 696,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 736,
+   "op": "mark",
+   "label": "repeaters/reset"
+  },
+  {
+   "tick": 736,
+   "op": "command",
+   "command": "fill -10 -61 -12 24 -61 24 stone",
+   "ok": false
+  },
+  {
+   "tick": 736,
+   "op": "command",
+   "command": "fill -10 -60 -12 24 -53 24 air",
+   "ok": true
+  },
+  {
+   "tick": 736,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": false
+  },
+  {
+   "tick": 736,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 738,
+   "op": "command",
+   "command": "setblock 0 -60 0 stone",
+   "ok": true
+  },
+  {
+   "tick": 738,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 740,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 740,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 740,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 750,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 11.68",
+   "ok": true
+  },
+  {
+   "tick": 750,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 756,
+   "op": "mark",
+   "label": "repeaters/lock_lever_place"
+  },
+  {
+   "tick": 756,
+   "op": "use",
+   "pos": [
+    0,
+    -60,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": 11.68
+   }
+  },
+  {
+   "tick": 756,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 766,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 766,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:repeater 64",
+   "ok": true
+  },
+  {
+   "tick": 766,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 776,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 -2.5 270 28.37",
+   "ok": true
+  },
+  {
+   "tick": 776,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 782,
+   "op": "mark",
+   "label": "repeaters/lock_repeater_place"
+  },
+  {
+   "tick": 782,
+   "op": "use",
+   "pos": [
+    1,
+    -61,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:repeater",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 270.0,
+    "pitch": 28.37
+   }
+  },
+  {
+   "tick": 782,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 792,
+   "op": "command",
+   "command": "setblock 2 -60 0 redstone_lamp",
+   "ok": true
+  },
+  {
+   "tick": 792,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 794,
+   "op": "command",
+   "command": "setblock 1 -60 2 stone",
+   "ok": true
+  },
+  {
+   "tick": 794,
+   "op": "wait",
+   "ticks": 2
+  },
+  {
+   "tick": 796,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 796,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:repeater 64",
+   "ok": true
+  },
+  {
+   "tick": 796,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 806,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 3.5 -60 1.5 180 39.01",
+   "ok": true
+  },
+  {
+   "tick": 806,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 812,
+   "op": "mark",
+   "label": "repeaters/lock_side_repeater_place"
+  },
+  {
+   "tick": 812,
+   "op": "use",
+   "pos": [
+    1,
+    -61,
+    1
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:repeater",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     3.5,
+     -60.0,
+     1.5
+    ],
+    "yaw": 180.0,
+    "pitch": 39.01
+   }
+  },
+  {
+   "tick": 812,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 822,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 822,
+   "op": "command",
+   "command": "replaceitem entity \"BDSSweep\" slot.hotbar 0 minecraft:lever 64",
+   "ok": true
+  },
+  {
+   "tick": 822,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 832,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 4.5 180.0 17.22",
+   "ok": true
+  },
+  {
+   "tick": 832,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 838,
+   "op": "mark",
+   "label": "repeaters/lock_side_lever_place"
+  },
+  {
+   "tick": 838,
+   "op": "use",
+   "pos": [
+    1,
+    -60,
+    2
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:stone",
+   "block_runtime_id": 2150698529,
+   "held": [
+    "minecraft:lever",
+    64,
+    0
+   ],
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     4.5
+    ],
+    "yaw": 180.0,
+    "pitch": 17.22
+   }
+  },
+  {
+   "tick": 838,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 848,
+   "op": "select_slot",
+   "slot": 0
+  },
+  {
+   "tick": 848,
+   "op": "command",
+   "command": "clear \"BDSSweep\"",
+   "ok": true
+  },
+  {
+   "tick": 848,
+   "op": "wait",
+   "ticks": 10
+  },
+  {
+   "tick": 858,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 858,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 864,
+   "op": "mark",
+   "label": "repeaters/lock_main_on"
+  },
+  {
+   "tick": 864,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 864,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 904,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 4.5 180.0 -10.76",
+   "ok": true
+  },
+  {
+   "tick": 904,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 910,
+   "op": "mark",
+   "label": "repeaters/lock_side_on_lock"
+  },
+  {
+   "tick": 910,
+   "op": "use",
+   "pos": [
+    1,
+    -59,
+    2
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     4.5
+    ],
+    "yaw": 180.0,
+    "pitch": -10.76
+   }
+  },
+  {
+   "tick": 910,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 950,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 950,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 956,
+   "op": "mark",
+   "label": "repeaters/lock_main_off_while_locked"
+  },
+  {
+   "tick": 956,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2423914170,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 956,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 996,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 4.5 180.0 -10.76",
+   "ok": true
+  },
+  {
+   "tick": 996,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 1002,
+   "op": "mark",
+   "label": "repeaters/lock_side_off_unlock"
+  },
+  {
+   "tick": 1002,
+   "op": "use",
+   "pos": [
+    1,
+    -59,
+    2
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2423914170,
+   "held": null,
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     4.5
+    ],
+    "yaw": 180.0,
+    "pitch": -10.76
+   }
+  },
+  {
+   "tick": 1002,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 1042,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 4.5 180.0 -10.76",
+   "ok": true
+  },
+  {
+   "tick": 1042,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 1048,
+   "op": "mark",
+   "label": "repeaters/lock_side_on_lock_unpowered"
+  },
+  {
+   "tick": 1048,
+   "op": "use",
+   "pos": [
+    1,
+    -59,
+    2
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     4.5
+    ],
+    "yaw": 180.0,
+    "pitch": -10.76
+   }
+  },
+  {
+   "tick": 1048,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 1088,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 0.5 -60 -2.5 0.0 -7.22",
+   "ok": true
+  },
+  {
+   "tick": 1088,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 1094,
+   "op": "mark",
+   "label": "repeaters/lock_main_on_while_locked"
+  },
+  {
+   "tick": 1094,
+   "op": "use",
+   "pos": [
+    0,
+    -59,
+    0
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 3479220741,
+   "held": null,
+   "player": {
+    "position": [
+     0.5,
+     -60.0,
+     -2.5
+    ],
+    "yaw": 0.0,
+    "pitch": -7.22
+   }
+  },
+  {
+   "tick": 1094,
+   "op": "wait",
+   "ticks": 40
+  },
+  {
+   "tick": 1134,
+   "op": "command",
+   "command": "tp \"BDSSweep\" 1.5 -60 4.5 180.0 -10.76",
+   "ok": true
+  },
+  {
+   "tick": 1134,
+   "op": "wait",
+   "ticks": 6
+  },
+  {
+   "tick": 1140,
+   "op": "mark",
+   "label": "repeaters/lock_side_off_unlock_2"
+  },
+  {
+   "tick": 1140,
+   "op": "use",
+   "pos": [
+    1,
+    -59,
+    2
+   ],
+   "face": "up",
+   "face_id": 1,
+   "click": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "block": "minecraft:lever",
+   "block_runtime_id": 2423914170,
+   "held": null,
+   "player": {
+    "position": [
+     1.5,
+     -60.0,
+     4.5
+    ],
+    "yaw": 180.0,
+    "pitch": -10.76
+   }
+  },
+  {
+   "tick": 1140,
+   "op": "wait",
+   "ticks": 60
+  },
+  {
+   "tick": 1200,
+   "op": "marker",
+   "text": "bds-sweep:scenario end repeaters"
+  }
+ ],
+ "duration_ticks": 1200,
+ "error": null
+}

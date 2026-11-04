@@ -29,34 +29,39 @@
 //! 4. **Breaking.** Each remembered block position is sampled for the
 //!    block-explosion particles with chance 1/8; every non-air one drops
 //!    its items (whole-stack or per-item decay `1 / power`, see
-//!    `server::game::explosion_drops`) and becomes air. The drops, merged by
-//!    item, appear after the loop at the first block that produced them.
+//!    `server::game::explosion_drops`) and becomes air. TNT drops nothing:
+//!    it becomes air and a primed TNT actor with the short chain-reaction
+//!    fuse takes its place (`block_behaviour::utility::tnt`). The drops,
+//!    merged by item, appear after the loop at the first block that
+//!    produced them.
 //! 5. **Viewers** get `LevelEventGeneric` ParticlesBlockExplosion with the
 //!    sampled positions.
 //! 6. **Fire.** With `causes_fire`, every remembered position that is air
 //!    now catches fire with chance 1/3.
-//! 7. **Viewers** get one `UpdateBlock` per changed block, then (once the
-//!    caller removed the exploding actor and the network sync spawned the
-//!    drops) the explosion sound ([`send_explosion_sounds`]), the wire order
-//!    of the BDS 1.26.51 capture.
+//! 7. **Viewers** get the changed blocks and then the explosion sound with
+//!    the next tick's block updates (`blocks::send_block_updates`: one
+//!    `UpdateSubChunkBlocks` per sub-chunk with several changes), as in the
+//!    BDS 1.26.51 capture, where they follow the particles by a tick.
+//! 8. **Neighbour updates.** Every changed block then runs the block change
+//!    path's updates (`block_behaviour::block_changed`), held back until
+//!    all of them are queued: attached blocks that lost their support
+//!    break, redstone re-reads its power, fire starts ticking.
 //!
-//! Not modelled: TNT blocks are destroyed like any other block instead of
-//! being primed (there is no primed TNT actor yet), shields do not halve
-//! the impact, knockback resistance is 0 for every actor, item,
-//! experience-orb and projectile actors are not affected, a hurt player is
-//! not sent `SetLastHurtBy` (no actor-type id with its class flags is
-//! known), and several changes in one sub-chunk go out as several
-//! `UpdateBlock` rather than one `UpdateSubChunkBlocks`.
+//! Not modelled: shields do not halve the impact, knockback resistance is 0
+//! for every actor, item, experience-orb and projectile actors are not
+//! affected, a hurt player is not sent `SetLastHurtBy` (no actor-type id
+//! with its class flags is known), and the exploding actor's removal goes
+//! out in the explosion's tick (BDS sends it with the block updates).
 
 use std::collections::HashSet;
 
 use bevy_ecs::prelude::*;
 use bytes::BufMut;
 use glam::{DVec3, IVec3, Vec3 as FVec3};
-use jolyne::valentine::types::{ActorRuntimeId, BlockPos, PlayerInputTick, Vec3};
+use jolyne::valentine::types::{ActorRuntimeId, PlayerInputTick, Vec3};
 use jolyne::valentine::{
     LevelEventGenericPacket, LevelEventPacket, LevelSoundEventPacket, McpePacket,
-    SetActorMotionPacket, UpdateBlockPacket,
+    SetActorMotionPacket,
 };
 use rand::Rng;
 use unastar_data::actor_components::body::ActorDamageCause;
@@ -85,10 +90,9 @@ use crate::entity::systems::BlockSource;
 use crate::item::ItemStack;
 use crate::registry::block::LiquidKind;
 use crate::registry::collision::Aabb;
-use crate::server::broadcast::{BLOCK_UPDATE_NEIGHBOURS, BLOCK_UPDATE_NETWORK};
-use crate::server::game::types::ServerConfigResource;
+use crate::server::game::block_behaviour::utility::tnt;
 use crate::world::ecs::{
-    BlockChanged, ChunkData, ChunkManager, ChunkStateFlags, ChunkViewers, world_to_chunk_coords,
+    BlockChanged, ChunkData, ChunkManager, ChunkStateFlags, world_to_chunk_coords,
     world_to_local_coords,
 };
 
@@ -126,12 +130,6 @@ pub struct ExplosionOutcome {
     pub hits: Vec<(Entity, f32, DVec3)>,
 }
 
-/// Explosion sounds waiting for the network sync: BDS sends a level sound
-/// after the block updates, the removal of the exploding actor and its
-/// drops, so [`send_explosion_sounds`] sends them once those went out.
-#[derive(Resource, Debug, Default)]
-pub struct PendingExplosionSounds(Vec<(DVec3, McpePacket)>);
-
 /// Run `explosion` in `world`.
 pub fn explode(world: &mut World, explosion: &Explosion) -> ExplosionOutcome {
     let mut outcome = ExplosionOutcome::default();
@@ -146,10 +144,11 @@ pub fn explode(world: &mut World, explosion: &Explosion) -> ExplosionOutcome {
         Vec::new()
     };
     hurt_actors(world, explosion, in_water, &mut outcome);
-    world
-        .get_resource_or_init::<PendingExplosionSounds>()
-        .0
-        .push((explosion.centre, sound_packet(explosion)));
+    crate::server::game::blocks::queue_block_sound(
+        world,
+        explosion.centre,
+        sound_packet(explosion),
+    );
     send_to_viewers(
         world,
         explosion.centre,
@@ -177,24 +176,13 @@ pub fn explode(world: &mut World, explosion: &Explosion) -> ExplosionOutcome {
         ignite(world, &positions, &mut outcome, &mut changes);
     }
     send_block_updates(world, &changes);
+    crate::server::game::block_behaviour::deferred(world, |world| {
+        for &(pos, _) in &changes {
+            crate::server::game::block_behaviour::block_changed(world, pos);
+        }
+    });
     outcome
 }
-
-/// System (`NetworkSendSet`, after the actor sync): send the sounds of this
-/// tick's explosions.
-pub fn send_explosion_sounds(world: &mut World) {
-    let Some(mut pending) = world.get_resource_mut::<PendingExplosionSounds>() else {
-        return;
-    };
-    if pending.0.is_empty() {
-        return;
-    }
-    let sounds = std::mem::take(&mut pending.0);
-    for (position, packet) in &sounds {
-        send_to_viewers(world, *position, packet);
-    }
-}
-
 /// Whether the explosion starts in water: the source stands in water, or
 /// without a source the centre's block is water.
 fn in_water(world: &World, explosion: &Explosion) -> bool {
@@ -521,6 +509,7 @@ fn break_blocks(
         .expect("air is a vanilla block");
     let mut sampled = Vec::new();
     let mut drops: Vec<(IVec3, ItemStack)> = Vec::new();
+    let mut primed = Vec::new();
     for &pos in positions {
         let chosen = world
             .resource_mut::<EntityRandom>()
@@ -533,11 +522,22 @@ fn break_blocks(
         let Some(state) = world.block_at(pos).filter(|&state| state != air) else {
             continue;
         };
-        for stack in crate::server::game::explosion_drops(world, state, explosion.power) {
-            merge_drop(&mut drops, pos, stack);
+        let is_tnt = world
+            .registry()
+            .get_by_runtime_id(state)
+            .is_some_and(tnt::is_tnt);
+        if is_tnt {
+            primed.push(pos);
+        } else {
+            for stack in crate::server::game::explosion_drops(world, state, explosion.power) {
+                merge_drop(&mut drops, pos, stack);
+            }
         }
         set_block(world, pos, air, changes);
         outcome.destroyed.push(pos);
+    }
+    for pos in primed {
+        tnt::prime_from_explosion(world, pos);
     }
     for (pos, stack) in drops {
         crate::server::game::pop_resource(world, pos, stack);
@@ -617,35 +617,21 @@ fn set_block(world: &mut World, pos: IVec3, state: u32, changes: &mut Vec<(IVec3
     }
 }
 
-/// Send each changed block's final state to the viewers of its chunk.
-fn send_block_updates(world: &World, changes: &[(IVec3, u32)]) {
-    let ids = world
-        .get_resource::<ServerConfigResource>()
-        .map_or_else(Default::default, |config| config.0.block_network_ids);
-    let chunks = world.resource::<ChunkManager>();
+/// Queue each changed block's final state for the viewers of its chunk
+/// (`blocks::send_block_updates`).
+fn send_block_updates(world: &mut World, changes: &[(IVec3, u32)]) {
     for &(pos, state) in changes {
         let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
-        let Some(viewers) = chunks
-            .get_by_coords(cx, cz)
-            .and_then(|chunk| world.get::<ChunkViewers>(chunk))
-        else {
+        let Some(chunk) = world.resource::<ChunkManager>().get_by_coords(cx, cz) else {
             continue;
         };
-        let packet = McpePacket::from(UpdateBlockPacket {
-            block_position: BlockPos {
-                x: pos.x,
-                y: pos.y,
-                z: pos.z,
-            },
-            block_runtime_id: ids.to_wire(state),
-            flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
-            layer: 0,
-        });
-        for viewer in viewers.iter() {
-            if let Some(session) = world.get::<PlayerSession>(viewer) {
-                let _ = session.send(packet.clone());
-            }
-        }
+        crate::server::game::blocks::queue_block_update(
+            world,
+            chunk,
+            pos,
+            state,
+            crate::server::game::blocks::UPDATE_FLAGS,
+        );
     }
 }
 
