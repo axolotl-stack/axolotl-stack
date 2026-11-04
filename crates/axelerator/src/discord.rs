@@ -391,4 +391,99 @@ mod tests {
         assert!(notifier.in_flight.lock().unwrap().is_empty());
         notifier.flush(Duration::from_millis(10)).await;
     }
+
+    /// A loopback stand-in for a Discord webhook: counts requests and
+    /// answers each with `status`.
+    async fn webhook_stub(status: &'static str) -> (String, Arc<std::sync::atomic::AtomicUsize>) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!(
+            "http://{}/api/webhooks/1/test",
+            listener.local_addr().unwrap()
+        );
+        let requests = Arc::new(AtomicUsize::new(0));
+        let counter = requests.clone();
+        tokio::spawn(async move {
+            loop {
+                let Ok((mut socket, _)) = listener.accept().await else {
+                    return;
+                };
+                let counter = counter.clone();
+                tokio::spawn(async move {
+                    let mut request = Vec::new();
+                    let mut buf = [0u8; 4096];
+                    // Headers, then the body by Content-Length.
+                    let body_start = loop {
+                        let Ok(n) = socket.read(&mut buf).await else {
+                            return;
+                        };
+                        if n == 0 {
+                            return;
+                        }
+                        request.extend_from_slice(&buf[..n]);
+                        if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+                            break end + 4;
+                        }
+                    };
+                    let headers = String::from_utf8_lossy(&request[..body_start]).to_lowercase();
+                    let length: usize = headers
+                        .lines()
+                        .find_map(|line| line.strip_prefix("content-length:"))
+                        .and_then(|value| value.trim().parse().ok())
+                        .unwrap_or(0);
+                    while request.len() < body_start + length {
+                        let Ok(n) = socket.read(&mut buf).await else {
+                            return;
+                        };
+                        if n == 0 {
+                            return;
+                        }
+                        request.extend_from_slice(&buf[..n]);
+                    }
+                    counter.fetch_add(1, Ordering::SeqCst);
+                    let response = format!(
+                        "HTTP/1.1 {status}\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+                    );
+                    let _ = socket.write_all(response.as_bytes()).await;
+                });
+            }
+        });
+        (url, requests)
+    }
+
+    fn enabled(url: String) -> DiscordWebhookConfig {
+        DiscordWebhookConfig {
+            enabled: true,
+            webhook_url: Some(url),
+            rate_limit_secs: 60,
+            ..Default::default()
+        }
+    }
+
+    /// A startup notice used to suppress a crash report raised within
+    /// `rate_limit_secs`: both kinds shared one timestamp.
+    #[tokio::test]
+    async fn crash_after_startup_is_posted() {
+        let (url, requests) = webhook_stub("204 No Content").await;
+        let notifier = DiscordNotifier::new(enabled(url));
+        notifier.notify_startup("127.0.0.1", 19132);
+        notifier.flush(Duration::from_secs(5)).await;
+        notifier.notify_crash("boom");
+        notifier.flush(Duration::from_secs(5)).await;
+        assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
+    /// The timestamp used to be set only after a successful post, so a
+    /// failing webhook was hit by every repeat of the same notification.
+    #[tokio::test]
+    async fn failing_webhook_is_still_rate_limited() {
+        let (url, requests) = webhook_stub("500 Internal Server Error").await;
+        let notifier = DiscordNotifier::new(enabled(url));
+        for _ in 0..3 {
+            notifier.notify_crash("boom");
+            notifier.flush(Duration::from_secs(5)).await;
+        }
+        assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
 }
