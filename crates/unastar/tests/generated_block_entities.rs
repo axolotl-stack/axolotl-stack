@@ -147,7 +147,7 @@ impl Provider {
         if blaze {
             Self::BlazeDB(BlazeDBProvider::open(path, None).unwrap())
         } else {
-            Self::LevelDB(LevelDBWorldProvider::open(path, 0).unwrap())
+            Self::LevelDB(LevelDBWorldProvider::open(path).unwrap())
         }
     }
 

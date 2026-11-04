@@ -48,7 +48,7 @@ fn stored_server(dir: &Path) -> GameServer {
     });
     let world = server.ecs.world_mut();
     world.insert_resource(EntityRandom::seeded(7));
-    let provider = LevelDBWorldProvider::open(dir, 0).expect("open leveldb");
+    let provider = LevelDBWorldProvider::open(dir).expect("open leveldb");
     world
         .resource_mut::<ChunkManager>()
         .set_provider(Arc::new(provider));

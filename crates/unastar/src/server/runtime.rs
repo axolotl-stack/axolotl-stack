@@ -78,12 +78,11 @@ impl UnastarServer {
         let world_db_path = std::path::PathBuf::from("worlds")
             .join("default")
             .join("db");
-        let dimension = config.server_config().world.dimension;
         let storage_provider = config.server_config().world.storage_provider;
 
         let provider: Option<Arc<dyn crate::storage::WorldProvider>> = match storage_provider {
             crate::world::StorageProvider::LevelDb => {
-                match crate::storage::LevelDBWorldProvider::open(&world_db_path, dimension) {
+                match crate::storage::LevelDBWorldProvider::open(&world_db_path) {
                     Ok(provider) => {
                         info!(path = %world_db_path.display(), "Opened world LevelDB");
                         Some(Arc::new(provider))

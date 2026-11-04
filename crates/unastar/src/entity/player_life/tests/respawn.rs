@@ -173,11 +173,6 @@ impl PlayerProvider for MemoryPlayers {
         Ok(())
     }
 
-    async fn delete(&self, uuid: uuid::Uuid) -> StorageResult<()> {
-        self.0.lock().remove(&uuid);
-        Ok(())
-    }
-
     async fn close(&self) -> StorageResult<()> {
         Ok(())
     }

@@ -18,7 +18,7 @@ async fn async_stored_chunks_survive_save_cycle_for_both_providers() {
         let provider: Arc<dyn WorldProvider> = if blaze {
             BlazeDBProvider::open(&directory, None).unwrap()
         } else {
-            Arc::new(LevelDBWorldProvider::open(&directory, 0).unwrap())
+            Arc::new(LevelDBWorldProvider::open(&directory).unwrap())
         };
         let mut chunk = Chunk::new(2, -3);
         chunk.set_block(4, 75, 6, *unastar::world::chunk::blocks::DIAMOND_ORE);
@@ -164,11 +164,11 @@ async fn chunk_biomes_survive_save_and_reopen_for_both_providers() {
             shut_down_blaze(provider).await;
             loaded
         } else {
-            let provider = LevelDBWorldProvider::open(&directory, 0).unwrap();
+            let provider = LevelDBWorldProvider::open(&directory).unwrap();
             provider.save_column(pos, 0, &column).await.unwrap();
             provider.close().await.unwrap();
             drop(provider);
-            let provider = LevelDBWorldProvider::open(&directory, 0).unwrap();
+            let provider = LevelDBWorldProvider::open(&directory).unwrap();
             provider.load_column(pos, 0).await.unwrap()
         };
         assert_mixed_biomes(&loaded.expect("saved column exists").chunk);
@@ -405,7 +405,7 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
 async fn synchronous_world_extension_does_not_replace_stored_column() {
     use unastar::world::ecs::ChunkManagerWorldExt;
     let directory = std::env::temp_dir().join(format!("unastar-sync-{}", uuid::Uuid::new_v4()));
-    let provider = Arc::new(LevelDBWorldProvider::open(&directory, 0).unwrap());
+    let provider = Arc::new(LevelDBWorldProvider::open(&directory).unwrap());
     let mut chunk = Chunk::new(0, 0);
     chunk.set_block(1, 75, 1, *unastar::world::chunk::blocks::DIAMOND_ORE);
     provider

@@ -19,12 +19,11 @@ use crate::world::{Chunk, ChunkPos};
 
 /// LevelDB-based world provider.
 ///
-/// Each world should have its own instance pointing to `<world>/db`.
+/// Each world should have its own instance pointing to `<world>/db`. Every
+/// dimension shares the database; keys carry the dimension passed to each call.
 pub struct LevelDBWorldProvider {
     /// Thread-safe database handle.
     db: Arc<DB>,
-    /// Dimension ID for key encoding.
-    dimension: i32,
 }
 
 impl LevelDBWorldProvider {
@@ -32,8 +31,7 @@ impl LevelDBWorldProvider {
     ///
     /// # Arguments
     /// * `path` - Path to the `db` directory (e.g., `worlds/main/db`)
-    /// * `dimension` - Dimension ID (0=overworld, 1=nether, 2=end)
-    pub fn open<P: AsRef<Path>>(path: P, dimension: i32) -> StorageResult<Self> {
+    pub fn open<P: AsRef<Path>>(path: P) -> StorageResult<Self> {
         // Ensure parent directories exist
         std::fs::create_dir_all(path.as_ref())
             .map_err(|e| StorageError::Database(format!("Failed to create directory: {e}")))?;
@@ -46,15 +44,7 @@ impl LevelDBWorldProvider {
         let db =
             DB::open(path.as_ref(), &options).map_err(|e| StorageError::Database(e.to_string()))?;
 
-        Ok(Self {
-            db: Arc::new(db),
-            dimension,
-        })
-    }
-
-    /// Get the dimension ID.
-    pub fn dimension(&self) -> i32 {
-        self.dimension
+        Ok(Self { db: Arc::new(db) })
     }
 }
 
@@ -307,7 +297,7 @@ mod tests {
     /// Save an empty column, replace its Data3D value with `data3d` and load it back.
     async fn load_with_data3d(data3d: &[u8]) -> StorageResult<Option<ChunkColumn>> {
         let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
-        let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
         let pos = ChunkPos::new(1, 2);
         provider
             .save_column(pos, 0, &ChunkColumn::new(Chunk::new(pos.x, pos.z)))
@@ -361,7 +351,7 @@ mod tests {
     #[tokio::test]
     async fn actors_are_stored_under_a_chunk_digest_and_removed_records_are_deleted() {
         let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
-        let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
         let pos = ChunkPos::new(-3, 4);
         let actor = |unique_id: i64| StoredActor {
             unique_id,
@@ -414,7 +404,7 @@ mod tests {
     #[tokio::test]
     async fn undecodable_subchunk_fails_the_column_load() {
         let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
-        let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
         let pos = ChunkPos::new(5, -6);
         let mut chunk = Chunk::new(pos.x, pos.z);
         chunk.fill_subchunk_solid(4, *crate::world::chunk::blocks::STONE);
