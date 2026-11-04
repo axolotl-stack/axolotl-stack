@@ -8,6 +8,8 @@ truth: BDS 1.26.51 (protocol 2193) install on disk + BDS packet captures (`tools
 
 # Data-driven world: how BDS builds and ticks the overworld, and how unastar should
 
+> **Status (2026-11-04):** §2.2–§2.4 measurements and §6 procedures are current (§2.4 is cited by code). Live worldgen numbers are in `crates/unastar_bedrock_codegen/README.md` and `docs/parity/worldgen.toml`. §1, §3 and §5 are historical; §7 decisions are records [0017–0019 and 0026–0031](../decisions/README.md).
+
 ## 0. Summary
 
 - **Terrain is not data in BDS, and that is fine.** No density-function or noise-router JSON ships anywhere in the BDS 1.26.51 install (`definitions/`, every `vanilla*/` pack). Yet the BDS reference world matches Java's noise router once unastar seeds it the Java way (below), so BDS terrain behaves as a port of Java's router. unastar's Java `worldgen_data` + build-time AOT codegen (`crates/unastar_noise`) is therefore the right data source for terrain. It is only seeded wrong.
@@ -60,7 +62,7 @@ Evidence comes from two scout passes (2026-10-24) plus my own reads. Paths are r
 | Generation | One OS thread **per chunk** with a 16 MiB stack (`world/ecs/generation_worker.rs:92-109`). Measured in a **debug** build, single-threaded, turbo off: 68 chunks in 7.13–7.28 s, **about 105 ms/chunk**. The "300 ms" figure in comments is stale |
 
 ### 1.3 What the repo's own plans already decided
-These come from `thoughts/shared/plans/*`, and the details are in the scout digest:
+These come from the former plans folder (removed 2026-11-04; see git history), and the details are in the scout digest:
 - Worldgen is compiled in, with no runtime datapacks (`2025-12-29-vanilla-worldgen-complete-java-parity.md:11-21,83`).
 - The target is Java byte parity (`:63-75`).
 - Features are placed = configured + modifiers, with simple features compiled and complex ones interpreted (`2025-01-02-feature-placement-system.md:29-33,96-119`).
@@ -271,7 +273,7 @@ Growing the WIT plugin API (e.g. "register feature") is out of scope until the c
   - the crop chance at known neighbours;
   - leaf decay at distance 4 and 5;
   - the spawn finder giving (103, −28) for seed 12345.
-- **Quirks.** Every odd BDS behaviour copied on purpose is logged in `thoughts/shared/research/bds-quirks.md` (owner D3).
+- **Quirks.** Every odd BDS behaviour copied on purpose is logged in `docs/quirks/bds.md` (owner D3).
 
 ## 5. Implementation plan (ordered slices)
 
@@ -294,7 +296,7 @@ Growing the WIT plugin API (e.g. "register feature") is out of scope until the c
 
 W1→W2→W3 is the critical path for "a fresh world looks like BDS". W10–W12 are independent and can run in parallel with worldgen.
 
-**Owners after D6-D8.** The worldgen wave covers W1-W9 and W14 plus Java-style decoration and structures, which D7 adds: WG-CORE owns W1, W2, W3, W5, Java surface rules and Java carvers, the generator trait/pipeline and the benchmark; WG-JAVA-DECOR owns Java placed/configured features and Java structures (AOT); WG-BEDROCK owns W4, W6-W9 for the Bedrock-style generator, Bedrock structures, the spawn-rule IR and, later, W14. W10 (clock), W11 (random ticks), W12 (autosave) and the W13 spawner stay with the world-ticking lane. The cross-area roadmap is in `thoughts/shared/plans/2026-10-24-data-driven-architecture.md`.
+**Owners after D6-D8.** The worldgen wave covers W1-W9 and W14 plus Java-style decoration and structures, which D7 adds: WG-CORE owns W1, W2, W3, W5, Java surface rules and Java carvers, the generator trait/pipeline and the benchmark; WG-JAVA-DECOR owns Java placed/configured features and Java structures (AOT); WG-BEDROCK owns W4, W6-W9 for the Bedrock-style generator, Bedrock structures, the spawn-rule IR and, later, W14. W10 (clock), W11 (random ticks), W12 (autosave) and the W13 spawner stay with the world-ticking lane. The cross-area roadmap is in `docs/research/2026-10-24-data-driven-architecture.md`.
 
 ## 6. Notes for whoever implements
 
@@ -310,7 +312,7 @@ W1→W2→W3 is the critical path for "a fresh world looks like BDS". W10–W12 
 
 ## 7. World decisions (resolved)
 
-The world-specific decisions (WD1–WD5) are resolved by taking each recommendation. All of them follow the owner's cross-area decisions D1–D5 in `thoughts/shared/plans/2026-10-24-data-driven-decisions.md`: pack pin 1.26.50+ (D1), schema codegen with embedded data decoded at startup (D2), copy BDS exactly and log quirks in `bds-quirks.md` (D3), measure built-in facts from BDS (D4), vanilla only with registries open for addon packs and WASM later (D5). The later worldgen decisions D6-D8 replace WD3 (worldgen is AOT compiled) and add the Java-style generator with its own Java Edition fixtures.
+The world-specific decisions (WD1–WD5) are resolved by taking each recommendation. All of them follow the owner's cross-area decisions D1–D5 in `docs/decisions/README.md`: pack pin 1.26.50+ (D1), schema codegen with embedded data decoded at startup (D2), copy BDS exactly and log quirks in `docs/quirks/bds.md` (D3), measure built-in facts from BDS (D4), vanilla only with registries open for addon packs and WASM later (D5). The later worldgen decisions D6-D8 replace WD3 (worldgen is AOT compiled) and add the Java-style generator with its own Java Edition fixtures.
 
 | # | Decision | Resolution | Follows |
 |---|---|---|---|

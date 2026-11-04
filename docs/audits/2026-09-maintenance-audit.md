@@ -37,7 +37,7 @@ All high-priority findings are remediated on `main` (see below). Online mode ver
 | `CONFIG-01` | Fixed | Single embedded config source, `deny_unknown_fields` including nested world bounds/generator (`c66ce25`). |
 | `NETHERNET-02` | Fixed | Callbacks, configured timeouts/ICE servers honoured, fragment bounds validated; go-nethernet HTTP `endpoint` signaling and identity assertions added (`2e6a4ac`, `7154670`). Franchise WebSocket friend-join signaling is retained (no current upstream implements it). |
 | `DATA-02` | Fixed | XBL HTTP status checked, PlayFab uses the configured game version (`4e05b3d`); RakNet MTU panic fixed (`dd5074d`). |
-| `API-01` | Fixed | Plugin macros target the WIT `Guest` API; `PLUGIN_ARCHITECTURE.md` rewritten (`c66ce25`). |
+| `API-01` | Fixed | Plugin macros target the WIT `Guest` API; plugin guide (now `docs/guides/plugins.md`) rewritten (`c66ce25`). |
 | `LICENSE-01` | Open | Legal review item. |
 | `DOCS-01` | Fixed | README links/prerequisites, workflow references, CI clippy enforced, CI nightly aligned to `rust-toolchain.toml` (`966d817`). |
 

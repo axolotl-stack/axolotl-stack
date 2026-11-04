@@ -1,7 +1,9 @@
 # Unastar Plugin Architecture
 
+> The plugin host **contract** (what the host guarantees) is [openspec/specs/plugin-host/spec.md](../../openspec/specs/plugin-host/spec.md). This guide is the how-to: building, installing and verifying a plugin.
+
 Unastar loads WebAssembly components with Wasmtime. Plugins implement the
-[`unastar:plugin@0.2.0` WIT world](crates/unastar-api/wit/world.wit); Rust compiler
+[`unastar:plugin@0.2.0` WIT world](../../crates/unastar-api/wit/world.wit); Rust compiler
 layout and native dynamic-library ABIs do not cross the host boundary.
 
 ## API and Registration
@@ -32,7 +34,7 @@ impl Plugin for MyPlugin {
 The obsolete native-plugin and event-handler attribute macros have been removed.
 Event methods are ordinary typed `Plugin` methods; no serialized event dispatcher
 or `GameContext` adapter is involved. The
-[example plugin](crates/example-plugin) is the buildable consumer reference.
+[example plugin](../../crates/example-plugin) is the buildable consumer reference.
 
 ## Build and Installation
 

@@ -430,7 +430,7 @@ fn coord(origin: &str, v: &Value) -> Result<Coord> {
 
 /// Scatter parameters shared by feature rules and `minecraft:scatter_feature`.
 ///
-/// Semantics (see `bds-quirks.md`): `scatter_chance` is rolled once for the
+/// Semantics (see `docs/quirks/bds.md`): `scatter_chance` is rolled once for the
 /// whole scatter; each iteration evaluates the coordinates in
 /// `coordinate_eval_order`, `variable.worldx/y/z` holding the coordinates
 /// computed so far.
@@ -900,7 +900,7 @@ impl Biome {
             .transpose()?;
         // Components that do not affect block generation in the overworld pipeline
         // (climate → biome placement is the Java parameter table, see
-        // thoughts/shared/research/2026-10-24-data-driven-world.md §2.4), plus
+        // docs/research/2026-10-24-data-driven-world.md §2.4), plus
         // client tints and spawning knobs consumed by other systems.
         c.ignore(&[
             "minecraft:overworld_height",

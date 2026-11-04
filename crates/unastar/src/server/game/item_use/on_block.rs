@@ -8,7 +8,7 @@
 //! `exposed_`/`weathered_`/`oxidized_`/`waxed_` names) so no conversion
 //! table is retyped. Which blocks a hoe tills and a shovel flattens, the
 //! bone meal growth amounts and the sound names follow public references
-//! and are recorded in `bds-quirks.md` until a BDS capture of block clicks
+//! and are recorded in `docs/quirks/bds.md` until a BDS capture of block clicks
 //! confirms them.
 
 use bevy_ecs::prelude::*;

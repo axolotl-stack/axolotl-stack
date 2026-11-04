@@ -1,7 +1,7 @@
 //! Unrolled scatter loops for feature rules and `minecraft:scatter_feature`.
 //!
 //! Coordinate semantics (BDS marker controls, logged in
-//! `thoughts/shared/research/bds-quirks.md`):
+//! `docs/quirks/bds.md`):
 //! - numeric constants, Molang strings, and distribution objects are offsets
 //!   from the input position (rules use the chunk origin at y = 0);
 //! - `project_input_to_floor` moves the base of the y offset to the heightmap

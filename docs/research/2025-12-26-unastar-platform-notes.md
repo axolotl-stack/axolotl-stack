@@ -1,5 +1,7 @@
 # Unastar platform notes (living stakeholder + use-case document)
 
+> **Historical (2025-12-26).** Moved from `crates/unastar/STAKEHOLDERS.md`. Still useful for who the server is for and for the event-priority and plugin-to-plugin API ideas, which are not built yet. Decisions taken since are in [docs/decisions](../decisions/README.md).
+
 This is a **living document**. It is explicitly allowed to change as we learn more.
 
 Purpose:
@@ -8,7 +10,7 @@ Purpose:
 - Provide a reference when making trade-offs (performance vs correctness vs ecosystem UX).
 
 Relationship to other docs:
-- `crates/unastar/LONGTERM.md` is the **overview/decision**.
+- `docs/research/2025-12-26-unastar-long-term-direction.md` is the **overview/decision**.
 - `crates/unastar/REVIEW.md` is the **code review + near-term fixes**.
 
 ---

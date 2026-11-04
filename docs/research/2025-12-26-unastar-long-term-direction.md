@@ -2,7 +2,7 @@
 
 This document is the **decision + plan** for where Unastar is going long-term.
 
-For stakeholder needs, use-cases, and evolving design notes (event ordering, shared APIs like economy/permissions, manifest/capability UX), see `crates/unastar/STAKEHOLDERS.md`.
+For stakeholder needs, use-cases, and evolving design notes (event ordering, shared APIs like economy/permissions, manifest/capability UX), see `docs/research/2025-12-26-unastar-platform-notes.md`.
 
 ---
 
@@ -134,7 +134,7 @@ This is not the full code review (see `crates/unastar/REVIEW.md`), but the key l
 ## Implementation plan (long-term)
 
 ### Phase 0: commit to the product direction
-1. Treat `LONGTERM.md` as the contract: WASM-first plugins, finished product.
+1. Treat `docs/research/2025-12-26-unastar-long-term-direction.md` as the contract: WASM-first plugins, finished product.
 2. Draft the plugin manifest spec (fields + semantics) and an API versioning policy.
 
 ### Phase 1: refactor toward clean tick phases and single world state

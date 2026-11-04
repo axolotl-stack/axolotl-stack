@@ -2,11 +2,13 @@
 date: 2026-10-24
 author: VANILLA-ITEMS worker
 target: BDS 1.26.51 (protocol 2193)
-status: research (no implementation); the decisions asked for in §6 were made by the owner as D1-D5 (`thoughts/shared/plans/2026-10-24-data-driven-decisions.md`); cross-area contracts in `thoughts/shared/plans/2026-10-24-data-driven-architecture.md`
+status: research (no implementation); the decisions asked for in §6 were made by the owner as D1-D5 (`docs/decisions/README.md`); cross-area contracts in `docs/research/2026-10-24-data-driven-architecture.md`
 scope: item components, interactable blocks and block entities, recipes, loot tables, ItemStackRequest validation
 ---
 
 # Data-driven items, containers, recipes and loot: how BDS does it and how unastar should
+
+> **Status (2026-11-04):** reference. §2 (BDS behaviour of items, recipes, loot, containers and the item-stack request engine) is current and cited by code. §1, §3.2 and §3.4 are historical; §5 slices live on as the OpenSpec change `data-driven-gameplay`; §6 decisions are records [0011–0015](../decisions/README.md).
 
 ## How to read this
 
@@ -761,13 +763,13 @@ Critical path: **1 → 2 → 4 → (6 → 7) ∥ (8 → 9 → 10)**. Loot (slice
 
 ## 6. Decisions (resolved by the owner)
 
-The owner answered these as D1-D5 in `thoughts/shared/plans/2026-10-24-data-driven-decisions.md`.
+The owner answered these as D1-D5 in `docs/decisions/README.md`.
 
 | # | Decision | Options | Resolution |
 |---|---|---|---|
 | D1 | **Vanilla pack pin** (shared by entities, biomes, items, recipes, loot) | (a) bump bedrock-samples to the 1.26.50/51 tag; (b) keep 1.21.130 and patch the gaps with overrides; (c) read BDS `.brarchive` at datagen time from a local install (not redistributable, so CI needs BDS) | (a), done on main (1.26.50.4), plus the dev-only brarchive diff check |
 | D2 | **Build-time codegen vs startup loading** for large instance sets | (a) keep P1/P2: everything as generated Rust statics; (b) KDL → embedded binary artifact decoded at startup, with codegen only for schemas; (c) as (b), plus addon packs loaded at runtime through a shared normalizer library | (b) now; (c) is the D5 extension path |
-| D3 | **Exactness policy** where BDS is permissive (Place into the furnace result, merges skip slot rules) or quirky (no response to bad request ids) | (a) copy BDS exactly; (b) be stricter where that is safe | (a), each case logged in `bds-quirks.md` |
+| D3 | **Exactness policy** where BDS is permissive (Place into the furnace result, merges skip slot rules) or quirky (no response to bad request ids) | (a) copy BDS exactly; (b) be stricter where that is safe | (a), each case logged in `docs/quirks/bds.md` |
 | D4 | **Source for facts BDS builds in** (armour, tiers, block fuels, block drops) | (a) authored KDL from wiki/dragonfly values; (b) measured BDS sweeps (`/loot mine`, slot accept/reject, furnace timing) committed as fixtures | (b) |
 | D5 | **Custom content scope** | (a) vanilla only; (b) addon packs (custom items/blocks/recipes/loot) through the shared normalizer; (c) also plugin registration APIs in WIT | (a) now, with registries keyed by identifier and open until freeze so (b) and (c) bolt on later; WIT growth still needs approval |
 

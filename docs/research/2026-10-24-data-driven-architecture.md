@@ -1,21 +1,23 @@
 # Data-driven gameplay architecture (2026-10-24)
 
-Status: plan. Combines the four area research documents into one architecture under the
-owner's decisions D1-D8 (`thoughts/shared/plans/2026-10-24-data-driven-decisions.md`,
+> **Status (2026-11-04):** implemented in shape (§1–§7). The owner decisions it combines are records [0011–0031](../decisions/README.md); the remaining roadmap slices are the OpenSpec change [`data-driven-gameplay`](../../openspec/changes/data-driven-gameplay/proposal.md). Kept as the architecture reference; §8–§10 are historical.
+
+Originally a plan. Combines the four area research documents into one architecture under the
+owner's decisions D1-D8 (`docs/decisions/README.md`,
 binding) and the entity model the owner confirmed on 2026-10-24. Inputs:
 
 | Area | Research | Slice ids |
 |---|---|---|
-| World (worldgen, ticking, spawning) | `thoughts/shared/research/2026-10-24-data-driven-world.md` | W1-W14 |
-| Entities (definitions, rules engines, physics, AI) | `thoughts/shared/research/2026-10-24-data-driven-entities.md` | E0-E12 |
-| Items (items, containers, recipes, loot, inventory) | `thoughts/shared/research/2026-10-24-data-driven-items.md` | I1-I16 (doc §5 numbers 1-16) |
-| Survival (health, hunger, damage, death, commands, rules) | `thoughts/shared/research/2026-10-24-data-driven-survival.md` | S1-S6 (defined in §8 from doc §1, §3, §5) |
-| Copied oddities | `thoughts/shared/research/bds-quirks.md` | — |
+| World (worldgen, ticking, spawning) | `docs/research/2026-10-24-data-driven-world.md` | W1-W14 |
+| Entities (definitions, rules engines, physics, AI) | `docs/research/2026-10-24-data-driven-entities.md` | E0-E12 |
+| Items (items, containers, recipes, loot, inventory) | `docs/research/2026-10-24-data-driven-items.md` | I1-I16 (doc §5 numbers 1-16) |
+| Survival (health, hunger, damage, death, commands, rules) | `docs/research/2026-10-24-data-driven-survival.md` | S1-S6 (defined in §8 from doc §1, §3, §5) |
+| Copied oddities | `docs/quirks/bds.md` | — |
 
 ## 1. Goals and principles
 
 1. **BDS 1.26.51 is the truth (D3).** unastar copies BDS behaviour exactly, including
-   permissive and odd behaviour; every copied oddity is a row in `bds-quirks.md`.
+   permissive and odd behaviour; every copied oddity is a row in `docs/quirks/bds.md`.
 2. **Data drives parameters, Rust drives behaviour.** This is how BDS itself is built and
    is the owner's entity model: hand-written Rust ECS systems that behave exactly like
    BDS and run on the same pack data. There is one Rust implementation per component
@@ -239,7 +241,7 @@ flowchart TD
 | Sweeps (D4) | Built-in facts | drops and break times (E9/I12), armour/attack (F3), fuels, falls/drowning/void (F5), random ticks (W11) |
 | Fixtures + ratchets (D8) | Generator parity and speed | BDS seed-12345 and Java 1.21.11 seed-12345 fixtures; terrain/surface/biome/histogram floors; ms/chunk and allocations |
 | Coverage ratchets | Long-tail progress | entities fully implemented, filter tests and queries implemented, item components implemented |
-| Quirks log | Every copied oddity is reviewable | `bds-quirks.md` |
+| Quirks log | Every copied oddity is reviewable | `docs/quirks/bds.md` |
 
 Exactness is stated per test: byte-exact (registries, packets), structural (inventory
 responses ignoring absolute net ids), statistical (unseeded loot, drops, decoration

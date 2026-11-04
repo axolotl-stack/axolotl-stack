@@ -5,7 +5,7 @@ purpose because it looks odd, and the places where unastar knowingly
 approximates Java. Sources: the public 1.21.11 worldgen data
 (`crates/unastar_noise/worldgen_data`), behaviour observed in Java reference
 worlds, and open-source projects (cubiomes, MIT). Bedrock quirks live in
-`bds-quirks.md`.
+`docs/quirks/bds.md`.
 
 ## Copied quirks
 

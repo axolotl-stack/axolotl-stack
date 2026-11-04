@@ -8,6 +8,8 @@ scope: player health and attributes, hunger and food, damage, death and respawn,
 
 # Data-driven survival: how BDS does it and how unastar should
 
+> **Status (2026-11-04):** reference for §2 (BDS hunger, damage, death, commands, time). Since written: armour, melee and fuel are measured (`crates/unastar-data/data/measured`), so the §2.4 armour formula is superseded by `crates/unastar-data/src/armour.rs`; the §2.9 `SetTime` question is answered by [record 0030](../decisions/0030-use-26x-world-clocks.md). §1 and the appendix describe the parked branch, since merged.
+
 ## How to read this
 
 **Sources.** Statements cite the public or measured source they rest on:
@@ -304,7 +306,7 @@ Parameters: `minecraft:exhaustion_values` (a). Rules:
    new formats the way BDS parses them; `ItemRegistryPacket` sends protocolgen's
    `items.nbt` component data verbatim; a test checks both agree for every vanilla food.
 
-## 4. Quirks we copy (logged in `thoughts/shared/research/bds-quirks.md`)
+## 4. Quirks we copy (logged in `docs/quirks/bds.md`)
 
 - Exhaustion converts at most one 4-point step per tick.
 - Peaceful drains saturation but never food, and refills food every 10 ticks.
@@ -348,4 +350,4 @@ All use the shared BDS runtime through `tools/client-diff` (one worker at a time
 | `bd95e0e` | Command framework, 13 vanilla commands, world clock, spawn points, effect packets |
 | `a2cea17` | Comments describe behaviour without non-public sources; WIP `death.rs` (not declared) |
 | `5c154f2` | `main` 9dbfbb6 merged |
-| this doc | Research doc and the survival rows of `bds-quirks.md` |
+| this doc | Research doc and the survival rows of `docs/quirks/bds.md` |

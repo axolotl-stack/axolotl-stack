@@ -8,6 +8,8 @@ truth: BDS 1.26.51 (protocol 2193) install on disk (`behavior_packs/vanilla*`), 
 
 # Data-driven entities: how BDS builds actors from pack data, and how unastar should
 
+> **Status (2026-11-04):** reference. §2 (BDS pipeline and evidence), §4.4 (Molang subset), §4.7 (parser fidelity) and §6 are current and cited by code. §1, §3 and §5 describe the state and plan on 2026-10-24 and are historical; §7 decisions are records [0020–0025](../decisions/README.md). Deviations X3–X8 are resolved; X1/X2 remain (record 0023).
+
 ## 0. Summary
 
 - **BDS is data-driven in parameters, not in behaviour.** Every vanilla entity is an entity JSON file in the behaviour-pack stack (`behavior_packs/vanilla` plus versioned `vanilla_<ver>` layers), loaded once when the world loads, with whole-file replacement per identifier. But the behaviour behind each component is built into the server: one implementation per component name (about 370 component names in 1.26.51, 170 of them `minecraft:behavior.*` goals), one per filter `test` (82 used by vanilla), one per event action, plus dedicated code for most entity kinds (items, falling blocks, TNT, XP orbs, minecarts, boats, projectiles, the player) and per-mob quirks. "Data-driven" for unastar therefore means: **generic component, event, filter and Molang engines driven by the shipped JSON**, with each component's behaviour written once in Rust and keyed by its identifier. A mob is "free" once all of its components exist.
@@ -32,7 +34,7 @@ Paths are relative to the repo root. Line references are to `main` at `19c1629` 
 | Codegen | `codegen/src/entities.rs`, `component_schemas.rs` → `src/entities/{components,definitions}` (≈250 component files, one definition file per entity, ≈2.7 MB) | typed component structs from the Blockception schema; per entity a marker, a bundle with base components, a `spawn_*` function with the data as Rust literals, group/event name enums, enum properties | group contents, event bodies, every `behavior.*` `priority` (106 component types generate an empty struct), array fields such as `projectile.offset` and `impact_damage.damage`; int/float/bool properties |
 | Runtime | `crates/unastar/src/registry/entity.rs:51-121` | `ALL_ENTITIES` (identifier, spawnable, summonable, category, height, width) → `AvailableActorIdentifiers` with only `id` per entry | Every generated component, bundle, spawn function and enum is unused; `EntityRegistry` is not kept as a resource |
 
-Conflicts with the 2026-10-24 decisions: the generator emits per-entity Rust code (D2), invents defaults (D3/D4) and has no runtime registry that packs could extend (D5). D1 is done on main (pack 1.26.50.4). The older plan `thoughts/shared/plans/2026-01-05-unastar-entities-gen.md` made "no runtime pack loading", "events are enums, not an event loop" and "BP files are patches on C++ defaults" explicit goals; this research replaces those premises.
+Conflicts with the 2026-10-24 decisions: the generator emits per-entity Rust code (D2), invents defaults (D3/D4) and has no runtime registry that packs could extend (D5). D1 is done on main (pack 1.26.50.4). The older plan from 2026-01-05 (unastar-entities-gen, removed 2026-11-04; see git history) made "no runtime pack loading", "events are enums, not an event loop" and "BP files are patches on C++ defaults" explicit goals; this research replaces those premises.
 
 ### 1.2 Entity runtime (main)
 
@@ -89,7 +91,7 @@ Branch `Jviguy/stab-vanilla-entities` (original gameplay commits `b39b33e`..`30b
 | X3 | The loot family is generated per entry (`unastar-data/src/loot.rs` statics) | D2 | Slice E0: embedded JSON decoded at startup into typed loot structs |
 | X4 | Item ground friction when the block below is air used 0.98 instead of `0.6 × 0.98` | D3 | Resolved in E2: default-friction regression plus native floating-bottom-slab trajectories |
 | X5 | Item physics omitted liquid buoyancy and currents | D3 | Resolved in E2: native all-depth, stacked/current and wet-ground fixtures; per-step position/velocity tolerances and force/cadence ordering are documented in `crates/unastar/README.md` |
-| X6 | Item pickup reach (player box grown by 1, 0.5, 1) and merge radius (item box grown by 0.5 horizontally) were vanilla assumptions | D3 | Confirmed in E2: horizontal pickup 1.424/1.426, vertical pickup +2.299/+2.301 and -0.749/-0.751, merge 0.749/0.751 boundary captures; quirks recorded in `bds-quirks.md` |
+| X6 | Item pickup reach (player box grown by 1, 0.5, 1) and merge radius (item box grown by 0.5 horizontally) were vanilla assumptions | D3 | Confirmed in E2: horizontal pickup 1.424/1.426, vertical pickup +2.299/+2.301 and -0.749/-0.751, merge 0.749/0.751 boundary captures; quirks recorded in `docs/quirks/bds.md` |
 | X7 | Snow-layer collision (none below 3 layers, half a block from 3 to 6, full at 7) and fence/wall posts without connections | D3 | E1 per-state shapes; fences/walls need neighbour connection logic either way |
 | X8 | Player throws inherited a 0.3 eye offset, an upward/vertical-jitter impulse, standard trigonometry and one 40-tick pickup delay from the reference implementation, without thrower metadata | D3 | E2 captures cover hotbar Q, inventory Q and whole-stack ctrl-drop: offset 0.5, level `vy=0`, f32 inverse-scale direction samples, ordinary delay 10 plus an independent global 40-update gate, and int64 owner key 5. Failing-before regressions and actual constructor/viewer/timer ECS smokes cover the cutover; stationary-source and RNG limits are explicit in the crate README |
 
@@ -158,9 +160,9 @@ flowchart TD
 | G1 | Pack currency: main now reads bedrock-samples 1.26.50.4 (D1). BDS 1.26.51 runs a layered stack (`vanilla` + `vanilla_<ver>`) with one extra entity (`agent`) and could drift from bedrock-samples in later releases | Silent drift | E3 diffs the bedrock-samples entities against the BDS install's layered packs (brarchive reader) on every pack bump |
 | G2 | Two spellings of filters (readable and compact) and many legacy `format_version` shapes | Parse failures | One normaliser in datagen: compact → readable, legacy → current (e.g. `pushable` → `pushable_by_entity` + `pushable_by_block`); golden tests per upgrade |
 | G3 | Lossy pipeline (event bodies, group contents, priorities, arrays, invented defaults) | Cannot build events/AI from today's artifacts | Replace `entities.kdl` with a lossless normalised artifact (§4.1); delete `_defaults.kdl` defaults (D3/D4) |
-| G4 | 170 goals, 91 single-use; full mob parity is large | Scope | Order slices by entity coverage (§5); data-driven goals only where the goal's parameters fully describe it; per-mob quirks recorded in `bds-quirks.md` |
+| G4 | 170 goals, 91 single-use; full mob parity is large | Scope | Order slices by entity coverage (§5); data-driven goals only where the goal's parameters fully describe it; per-mob quirks recorded in `docs/quirks/bds.md` |
 | G5 | Built-in physics and per-kind code (items, falling blocks, TNT, XP orbs, minecarts, boats, projectiles) | Not data | Keep per-kind Rust systems keyed by identifier (the parked branch already has items/falling blocks); constants confirmed by motion captures |
-| G6 | Group removal semantics (removal deletes shadowed base components; state loss) are surprising | Wrong behaviour if "fixed" | Copy them exactly (D3) and record in `bds-quirks.md`; tests that remove a shadowing group |
+| G6 | Group removal semantics (removal deletes shadowed base components; state loss) are surprising | Wrong behaviour if "fixed" | Copy them exactly (D3) and record in `docs/quirks/bds.md`; tests that remove a shadowing group |
 | G7 | bevy archetype churn: every group change inserts/removes components; ~25 base + groups per mob | Frame cost with many mobs | Batch per tick (as BDS does), one `Commands` flush; sparse-set storage for frequently toggled components (flags, goals); measure with 500 mobs before optimising |
 | G8 | Molang evaluator scope creep (220+ queries in the engine) | Time | Implement the vanilla subset (§4.4) with a registry so items/blocks/world add queries without touching the evaluator. The loader treats an unknown query exactly as BDS does (§4.7); separately, a coverage test fails when any query used by vanilla data has no implementation |
 | G9 | Filters and Molang need entity context (other/target/damager/player/block) | Coupling | Event context struct passed by the caller (§4.3) |
@@ -225,11 +227,11 @@ Numbers and strings; unary `!` `-`; `+ - * /`; `< <= > >= == !=`; `&& ||`; terna
 - **Event/group scripts:** crafted test packs (loopback BDS) that trigger events and observe flags/attributes in `SetActorData`/`UpdateAttributes`; the same pack runs in unastar ECS tests.
 - **Motion captures:** `SetActorMotion`/`MoveActorAbsolute` sequences of a dropped item, a falling block, a falling mob, a thrown snowball on BDS, compared tick by tick (with a tolerance recorded in the test) against `tick_physics`.
 - **Sweeps (D4):** drops (block × tool × enchantment, many seeds) and mining times (block × tool × efficiency × haste/fatigue × airborne/underwater), recorded as data artifacts that replace the authored tables and constants.
-- Every copied oddity goes to `thoughts/shared/research/bds-quirks.md` (D3).
+- Every copied oddity goes to `docs/quirks/bds.md` (D3).
 
 ### 4.7 Parser fidelity: accept, normalise and reject what BDS does
 
-Owner requirement (2026-10-24). The pack loader (datagen today, the startup loader for addon packs later; one implementation) accepts, normalises and rejects exactly what BDS does, quirks included. Each rule is written down next to the loader (module docs plus the table below as rules are confirmed), proved by a crafted-pack test run against BDS on loopback and by a golden test in unastar, and every oddity goes to `thoughts/shared/research/bds-quirks.md` (D3).
+Owner requirement (2026-10-24). The pack loader (datagen today, the startup loader for addon packs later; one implementation) accepts, normalises and rejects exactly what BDS does, quirks included. Each rule is written down next to the loader (module docs plus the table below as rules are confirmed), proved by a crafted-pack test run against BDS on loopback and by a golden test in unastar, and every oddity goes to `docs/quirks/bds.md` (D3).
 
 | Concern | Rule to copy (each confirmed by a crafted pack before it is relied on) |
 |---|---|
