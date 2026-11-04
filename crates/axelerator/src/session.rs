@@ -18,7 +18,8 @@ use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
 /// Presence refresh backoff configuration.
@@ -28,6 +29,8 @@ const PRESENCE_MAX_FAILURES: u32 = 5;
 const FRIEND_SYNC_MIN_INTERVAL_SECS: u64 = 20;
 const FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS: u64 = 60;
 const PROCESSED_XUIDS_MAX_ENTRIES: usize = 50_000;
+/// Longest wait for Discord notifications at the end of `run`.
+const DISCORD_FLUSH_TIMEOUT: Duration = Duration::from_secs(5);
 /// Delay before retrying a failed token refresh for the transfer server.
 const TOKEN_REFRESH_RETRY_DELAY: Duration = Duration::from_secs(5);
 
@@ -123,8 +126,9 @@ impl ProcessedXuids {
 pub struct Axelerator {
     config: AxeleratorConfig,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
-    shutdown_notify: Arc<Notify>,
-    transfer_shutdown: Arc<Notify>,
+    /// Cancelled once on shutdown; durable, so a request made while no task
+    /// is waiting (during startup or a loop iteration) is never lost.
+    shutdown: CancellationToken,
     discord: DiscordNotifier,
 }
 
@@ -135,8 +139,7 @@ impl Axelerator {
         Self {
             config,
             session_info: Arc::new(RwLock::new(None)),
-            shutdown_notify: Arc::new(Notify::new()),
-            transfer_shutdown: Arc::new(Notify::new()),
+            shutdown: CancellationToken::new(),
             discord,
         }
     }
@@ -151,10 +154,16 @@ impl Axelerator {
 
         // Step 1: Authenticate with Xbox Live using TokenCache
         let token_cache = Arc::new(TokenCache::new(&self.config.token_cache_path));
-        let xbl_token = token_cache
-            .get_or_authenticate()
-            .await
-            .context("Failed to authenticate with Xbox Live")?;
+        // The device-code login can wait indefinitely for the operator.
+        let xbl_token = tokio::select! {
+            token = token_cache.get_or_authenticate() => {
+                token.context("Failed to authenticate with Xbox Live")?
+            }
+            _ = self.shutdown.cancelled() => {
+                info!("Shutdown requested during authentication");
+                return Ok(());
+            }
+        };
 
         info!(
             gamertag = %xbl_token.gamertag(),
@@ -257,7 +266,7 @@ impl Axelerator {
         // For long-running services, we retry indefinitely with capped backoff
         // Pass token_cache to allow token refresh on reconnection
         let rta_run = rta_client.clone();
-        let rta_shutdown = self.shutdown_notify.clone();
+        let rta_shutdown = self.shutdown.clone();
         let rta_token_cache = token_cache.clone();
         let rta_handle = tokio::spawn(async move {
             let mut retry_count = 0u32;
@@ -266,7 +275,7 @@ impl Axelerator {
 
             loop {
                 tokio::select! {
-                    _ = rta_shutdown.notified() => {
+                    _ = rta_shutdown.cancelled() => {
                         info!("RTA client shutdown requested");
                         break;
                     }
@@ -328,10 +337,17 @@ impl Axelerator {
 
         // Wait for RTA to connect and get ID
         info!("Waiting for RTA connection...");
-        let connection_id = rta_client
-            .wait_for_connection_id()
-            .await
-            .context("Failed to establish an authenticated RTA connection")?;
+        let connection_id = tokio::select! {
+            id = rta_client.wait_for_connection_id() => {
+                id.context("Failed to establish an authenticated RTA connection")?
+            }
+            _ = self.shutdown.cancelled() => {
+                info!("Shutdown requested while waiting for RTA");
+                rta_client.shutdown().await;
+                rta_handle.abort();
+                return Ok(());
+            }
+        };
 
         // Step 2: Set presence to active
         let presence = PresenceClient::new();
@@ -386,7 +402,7 @@ impl Axelerator {
             let sessions = session_client.clone();
             let token_cache_for_sync = token_cache.clone();
             let session_info_for_sync = self.session_info.clone();
-            let shutdown = self.shutdown_notify.clone();
+            let shutdown = self.shutdown.clone();
 
             Some(tokio::spawn(async move {
                 run_rta_connection_sync(
@@ -438,7 +454,7 @@ impl Axelerator {
             let sessions = session_client.clone();
             let token_cache_for_sync = token_cache.clone();
             let session_info_for_sync = self.session_info.clone();
-            let shutdown = self.shutdown_notify.clone();
+            let shutdown = self.shutdown.clone();
             let processed_for_sync = processed_xuids.clone();
             let auto_unfollow = self.config.auto_unfollow;
 
@@ -488,7 +504,7 @@ impl Axelerator {
             let expiry_config = self.config.friend_expiry.clone();
             let expiry_friends = friends_client.clone();
             let expiry_token_cache = token_cache.clone();
-            let expiry_shutdown = self.shutdown_notify.clone();
+            let expiry_shutdown = self.shutdown.clone();
             let expiry_history = history;
 
             info!(
@@ -559,6 +575,10 @@ impl Axelerator {
                 .discord
                 .notify_shutdown(&format!("Exited with error: {e:#}")),
         }
+
+        // Let the shutdown (and any crash) notification reach Discord
+        // before the process exits.
+        self.discord.flush(DISCORD_FLUSH_TIMEOUT).await;
 
         info!("Cleanup complete");
         result
@@ -659,7 +679,7 @@ impl Axelerator {
              nethernet_id: u64,
              mc_token: String,
              config: AxeleratorConfig,
-             shutdown: Arc<Notify>,
+             shutdown: CancellationToken,
              stats: Arc<TransferStats>,
              history: Option<PlayerHistory>| {
                 TransferTask::spawn(async move {
@@ -681,7 +701,7 @@ impl Axelerator {
             nethernet_id,
             mc_token.clone(),
             self.config.clone(),
-            self.transfer_shutdown.clone(),
+            self.shutdown.clone(),
             transfer_stats.clone(),
             player_history.clone(),
         );
@@ -751,9 +771,8 @@ impl Axelerator {
                 biased;
 
                 // Prioritize shutdown signal
-                _ = self.shutdown_notify.notified() => {
+                _ = self.shutdown.cancelled() => {
                     info!("Shutdown signal received");
-                    self.transfer_shutdown.notify_waiters();
                     // Give transfer server time to shutdown gracefully
                     tokio::time::sleep(Duration::from_millis(500)).await;
                     break Ok(());
@@ -819,7 +838,7 @@ impl Axelerator {
                                         nethernet_id,
                                         mc_token.clone(),
                                         self.config.clone(),
-                                        self.transfer_shutdown.clone(),
+                                        self.shutdown.clone(),
                                         transfer_stats.clone(),
                                         player_history.clone(),
                                     );
@@ -867,7 +886,7 @@ impl Axelerator {
                                         nethernet_id,
                                         mc_token.clone(),
                                         self.config.clone(),
-                                        self.transfer_shutdown.clone(),
+                                        self.shutdown.clone(),
                                         transfer_stats.clone(),
                                         player_history.clone(),
                                     );
@@ -1209,11 +1228,12 @@ impl Axelerator {
         outcome
     }
 
-    /// Request shutdown.
+    /// Request shutdown. `run` then stops advertising, sets presence
+    /// inactive, stops RTA, notifies Discord and returns `Ok(())`; a request
+    /// made during startup ends `run` at its next authentication wait.
     pub async fn shutdown(&self) {
         info!("Initiating graceful shutdown...");
-        self.transfer_shutdown.notify_waiters();
-        self.shutdown_notify.notify_waiters();
+        self.shutdown.cancel();
     }
 
     /// Get current session info (if available).
@@ -1378,7 +1398,7 @@ async fn run_periodic_friend_sync(
     session_client: Arc<SessionClient>,
     token_cache: Arc<TokenCache>,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
-    shutdown: Arc<Notify>,
+    shutdown: CancellationToken,
     processed_xuids: SharedProcessedXuids,
     auto_unfollow: bool,
 ) {
@@ -1393,7 +1413,7 @@ async fn run_periodic_friend_sync(
         tokio::select! {
             biased;
 
-            _ = shutdown.notified() => {
+            _ = shutdown.cancelled() => {
                 debug!("Friend sync shutting down");
                 break;
             }
@@ -1443,7 +1463,7 @@ async fn run_rta_connection_sync(
     session_client: Arc<SessionClient>,
     token_cache: Arc<TokenCache>,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
-    shutdown: Arc<Notify>,
+    shutdown: CancellationToken,
 ) {
     let mut ticker = tokio::time::interval(Duration::from_secs(5));
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -1455,7 +1475,7 @@ async fn run_rta_connection_sync(
         tokio::select! {
             biased;
 
-            _ = shutdown.notified() => {
+            _ = shutdown.cancelled() => {
                 debug!("RTA connection sync shutting down");
                 break;
             }
@@ -1836,7 +1856,7 @@ async fn run_friend_expiry_check(
     friends_client: Arc<FriendsClient>,
     token_cache: Arc<TokenCache>,
     history: PlayerHistory,
-    shutdown: Arc<Notify>,
+    shutdown: CancellationToken,
 ) {
     let interval = Duration::from_secs(config.check_interval.max(60));
     let mut ticker = tokio::time::interval(interval);
@@ -1849,7 +1869,7 @@ async fn run_friend_expiry_check(
         tokio::select! {
             biased;
 
-            _ = shutdown.notified() => {
+            _ = shutdown.cancelled() => {
                 debug!("Friend expiry check shutting down");
                 // Final save
                 history.save_if_dirty().await;
@@ -1929,6 +1949,18 @@ fn is_guest_account(xuid: &str) -> bool {
 #[cfg(test)]
 mod auth_scheduling_tests {
     use super::*;
+
+    /// `Notify::notify_waiters` only wakes tasks already waiting, so a
+    /// shutdown requested during startup or between loop iterations was lost.
+    #[tokio::test]
+    async fn shutdown_request_is_never_lost() {
+        let axelerator = Axelerator::new(AxeleratorConfig::default());
+        axelerator.shutdown().await;
+        // A waiter that starts after the request still sees it.
+        tokio::time::timeout(Duration::from_secs(1), axelerator.shutdown.cancelled())
+            .await
+            .expect("shutdown request was lost");
+    }
 
     /// Fatal exits used to `break` the loop and return `Ok(())`, so the
     /// process exited 0 and systemd (`Restart=on-failure`) never restarted it.

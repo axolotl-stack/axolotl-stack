@@ -21,6 +21,7 @@ p384.workspace = true
 
 # Async runtime
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time", "signal", "fs"] }
+tokio-util.workspace = true
 futures.workspace = true
 
 # Serialization

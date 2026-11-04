@@ -12,7 +12,7 @@ use jolyne::valentine::{McpePacket, TransferPacket};
 use jolyne::{BedrockListener, WorldTemplate};
 use p384::SecretKey;
 use rand::thread_rng;
-use tokio::sync::Notify;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
 use crate::AxeleratorConfig;
@@ -86,7 +86,7 @@ pub async fn run_transfer_server(
     nethernet_id: u64,
     mc_token: &str,
     config: &AxeleratorConfig,
-    shutdown: Arc<Notify>,
+    shutdown: CancellationToken,
     stats: Option<Arc<TransferStats>>,
     player_history: Option<PlayerHistory>,
 ) -> anyhow::Result<ShutdownReason> {
@@ -96,7 +96,7 @@ pub async fn run_transfer_server(
 
     loop {
         // Check for shutdown before attempting connection
-        if is_shutdown_requested(&shutdown) {
+        if shutdown.is_cancelled() {
             info!("Transfer server shutdown requested before connect");
             return Ok(ShutdownReason::Requested);
         }
@@ -178,7 +178,7 @@ pub async fn run_transfer_server(
         // Wait with shutdown check
         tokio::select! {
             _ = tokio::time::sleep(delay) => {}
-            _ = shutdown.notified() => {
+            _ = shutdown.cancelled() => {
                 info!("Shutdown requested during reconnect backoff");
                 return Ok(ShutdownReason::Requested);
             }
@@ -208,7 +208,7 @@ async fn run_transfer_server_inner(
     nethernet_id: u64,
     mc_token: &str,
     config: &AxeleratorConfig,
-    shutdown: Arc<Notify>,
+    shutdown: CancellationToken,
     stats: Arc<TransferStats>,
     player_history: Option<PlayerHistory>,
 ) -> anyhow::Result<ShutdownReason> {
@@ -248,7 +248,7 @@ async fn run_transfer_server_inner(
             biased;
 
             // Prioritize shutdown signal
-            _ = shutdown.notified() => {
+            _ = shutdown.cancelled() => {
                 info!("Transfer server received shutdown signal");
                 return Ok(ShutdownReason::Requested);
             }
@@ -308,13 +308,6 @@ fn accept_error_outcome(error: &jolyne::JolyneError) -> Option<ShutdownReason> {
     } else {
         Some(ShutdownReason::ListenerClosed)
     }
-}
-
-/// Check if shutdown has been requested (non-blocking).
-fn is_shutdown_requested(_shutdown: &Notify) -> bool {
-    // Notify doesn't support non-blocking check, we rely on select
-    // This function exists for potential future use with other sync primitives
-    false
 }
 
 /// Classifies an error into a shutdown reason.
@@ -423,7 +416,7 @@ pub async fn run_transfer_server_legacy(
     mc_token: &str,
     config: &AxeleratorConfig,
 ) -> anyhow::Result<()> {
-    let shutdown = Arc::new(Notify::new());
+    let shutdown = CancellationToken::new();
     run_transfer_server(
         signaling_url,
         nethernet_id,
