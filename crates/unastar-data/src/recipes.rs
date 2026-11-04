@@ -1107,7 +1107,10 @@ mod tests {
             None
         );
         assert!(registry.is_brewing_reagent("minecraft:blaze_powder"));
-        assert!(registry.is_brewing_reagent("minecraft:stone"), "infestation");
+        assert!(
+            registry.is_brewing_reagent("minecraft:stone"),
+            "infestation"
+        );
         assert!(!registry.is_brewing_reagent("minecraft:dirt"));
     }
 }

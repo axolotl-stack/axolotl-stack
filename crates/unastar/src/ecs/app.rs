@@ -100,9 +100,7 @@ impl UnastarEcs {
     /// Build the tick schedule's system graph without running a tick: an
     /// ordering cycle or other build error is returned instead of panicking
     /// in the first [`tick`](Self::tick).
-    pub fn initialize_schedule(
-        &mut self,
-    ) -> Result<(), bevy_ecs::schedule::ScheduleBuildError> {
+    pub fn initialize_schedule(&mut self) -> Result<(), bevy_ecs::schedule::ScheduleBuildError> {
         self.tick_schedule.initialize(&mut self.world)
     }
 }

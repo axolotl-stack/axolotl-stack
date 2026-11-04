@@ -433,7 +433,10 @@ impl Case {
         }
         for entry in &manifest.known_failing {
             ensure!(
-                entry.owner.as_deref().is_some_and(|owner| !owner.is_empty()),
+                entry
+                    .owner
+                    .as_deref()
+                    .is_some_and(|owner| !owner.is_empty()),
                 "{name}: known_failing entry {:?} names no owner",
                 entry.reason
             );
