@@ -23,8 +23,14 @@ order cannot change the output.
 ### Consequences
 
 - Good, because generation scales with cores.
-- Bad, because any generator state that is not a pure function of (seed, chunk) becomes a bug;
-  `worldgen_output_hash` fixtures catch it.
+- Bad, because any generator state that is not a pure function of (seed, chunk) becomes a bug.
+- As built, this holds for the Bedrock-style, flat and void generators (tested by
+  `bedrock_decoration_is_independent_of_chunk_request_order`). The Java-style generator decorates
+  in request order through one shared native session, so its output can depend on request order
+  and worker assignment; `worldgen_output_hash` generates single-threaded in fixture order and
+  cannot catch that. Open finding in
+  [docs/audits/2026-11-04-knowledge-migration-findings.md](../audits/2026-11-04-knowledge-migration-findings.md);
+  contract in [openspec/specs/worldgen-pipeline](../../openspec/specs/worldgen-pipeline/spec.md).
 
 ## More Information
 
