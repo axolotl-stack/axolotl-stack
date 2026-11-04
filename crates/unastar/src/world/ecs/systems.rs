@@ -725,7 +725,9 @@ pub fn cancel_chunk_unloads(
 /// System: Process pending chunk unloads.
 /// Ticks down grace periods. An expired chunk is saved together with the mobs
 /// standing in it (when anything changed), then the mobs and the chunk are
-/// removed from the world.
+/// removed from the world. If that save fails the chunk and its mobs stay
+/// loaded, with their edits, and the unload is retried after another grace
+/// period.
 pub fn process_chunk_unloads(world: &mut World) {
     let mut pending = world.query::<(Entity, &mut ChunkPendingUnload)>();
     let expired: Vec<Entity> = pending
@@ -739,16 +741,30 @@ pub fn process_chunk_unloads(world: &mut World) {
         let chunk_manager = world.resource::<ChunkManager>();
         (chunk_manager.provider(), chunk_manager.dimension())
     };
+    let retry_ticks = world.resource::<ChunkLoadConfig>().unload_grace_ticks;
     for snapshot in snapshot_chunks(world, &expired, true) {
         let pos = snapshot.pos;
         if let (Some(column), Some(provider)) = (snapshot.column, provider.clone()) {
-            match block_on_storage(async move { provider.save_column(pos, dim, &column).await }) {
+            let (result, column) = block_on_storage(async move {
+                let result = provider.save_column(pos, dim, &column).await;
+                (result, column)
+            });
+            match result {
                 Ok(()) => debug!(chunk = ?(pos.x, pos.z), "Saved chunk before unload"),
-                Err(e) => warn!(
-                    chunk = ?(pos.x, pos.z),
-                    error = %e,
-                    "Failed to save chunk before unload"
-                ),
+                Err(e) => {
+                    warn!(
+                        chunk = ?(pos.x, pos.z),
+                        error = %e,
+                        "Failed to save chunk before unload; keeping it loaded"
+                    );
+                    // The snapshot moved the terrain out; put it back and try
+                    // again later instead of dropping the unsaved edits.
+                    world.entity_mut(snapshot.chunk).insert((
+                        ChunkData::new(column.chunk),
+                        ChunkPendingUnload::new(retry_ticks),
+                    ));
+                    continue;
+                }
             }
         }
         for mob in snapshot.mobs {

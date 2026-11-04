@@ -252,6 +252,99 @@ fn unloading_saves_and_removes_the_cow_and_reloading_restores_it() {
     );
 }
 
+/// Storage that reads as empty and refuses every write.
+struct UnwritableWorld;
+
+#[async_trait::async_trait]
+impl crate::storage::WorldProvider for UnwritableWorld {
+    async fn load_column(
+        &self,
+        _: crate::world::ChunkPos,
+        _: i32,
+    ) -> crate::storage::StorageResult<Option<crate::storage::ChunkColumn>> {
+        Ok(None)
+    }
+    async fn save_column(
+        &self,
+        _: crate::world::ChunkPos,
+        _: i32,
+        _: &crate::storage::ChunkColumn,
+    ) -> crate::storage::StorageResult<()> {
+        Err(crate::storage::StorageError::Database("disk full".into()))
+    }
+    async fn flush(&self) -> crate::storage::StorageResult<()> {
+        Ok(())
+    }
+    async fn close(&self) -> crate::storage::StorageResult<()> {
+        Ok(())
+    }
+}
+
+/// A chunk whose save before unload fails stays loaded with its edits and its
+/// mobs, and unloads (saved) once storage accepts the write.
+#[test]
+fn a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits() {
+    let dir = TempDir::new();
+    let mut server = stored_server(&dir.0);
+    let world = server.ecs.world_mut();
+    world.resource_mut::<ChunkLoadConfig>().unload_grace_ticks = 1;
+    let working = world.resource::<ChunkManager>().provider().unwrap();
+    world
+        .resource_mut::<ChunkManager>()
+        .set_provider(Arc::new(UnwritableWorld));
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
+    let diamond = *crate::world::chunk::blocks::DIAMOND_ORE;
+    world
+        .get_mut::<crate::world::ecs::ChunkData>(chunk)
+        .unwrap()
+        .inner
+        .set_block(3, 40, 3, diamond);
+    world
+        .get_mut::<crate::world::ecs::ChunkStateFlags>(chunk)
+        .unwrap()
+        .mark_dirty();
+    let cow = spawn_cow(world, false);
+
+    for _ in 0..5 {
+        server.tick();
+    }
+    let world = server.ecs.world_mut();
+    assert_eq!(
+        world.resource::<ChunkManager>().get_by_coords(0, 0),
+        Some(chunk),
+        "a chunk that could not be saved is not unloaded"
+    );
+    let data = world
+        .get::<crate::world::ecs::ChunkData>(chunk)
+        .expect("terrain put back after the failed save");
+    assert_eq!(data.inner.get_block(3, 40, 3), diamond);
+    assert!(
+        world
+            .get::<crate::world::ecs::ChunkStateFlags>(chunk)
+            .unwrap()
+            .is_dirty()
+    );
+    assert!(world.get_entity(cow).is_ok(), "its mobs stay too");
+
+    // Once storage works again the retried unload saves and removes it.
+    world.resource_mut::<ChunkManager>().set_provider(working);
+    for _ in 0..5 {
+        server.tick();
+    }
+    let world = server.ecs.world_mut();
+    assert!(!world.resource::<ChunkManager>().contains_coords(0, 0));
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
+    assert_eq!(
+        world
+            .get::<crate::world::ecs::ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .get_block(3, 40, 3),
+        diamond
+    );
+    assert_eq!(cows(world).len(), 1);
+}
+
 #[test]
 fn a_dead_cow_is_deleted_from_storage_on_the_next_save() {
     let dir = TempDir::new();
