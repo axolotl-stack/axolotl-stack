@@ -42,6 +42,8 @@ players, spawn-rule, and spawn-location tables are rejected rather than silently
 ignored. Enumerated values parse strictly: `server.default_gamemode` must be one of
 `survival`, `creative`, `adventure` or `spectator` (lower case), like `difficulty`
 and `block_network_ids`, so a typo is a load error instead of silent survival.
+After parsing, a `rect` world bound with `min_x > max_x` or `min_z > max_z` is
+refused, since it would leave every chunk outside the world.
 
 `world.bounds` (`infinite`, `radius` or `rect`, inclusive chunk coordinates) limits
 terrain generation on every path, the inline generators and the generation pool

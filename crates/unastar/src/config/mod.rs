@@ -117,6 +117,18 @@ impl UnastarConfig {
         if self.server.max_chunk_radius < 1 {
             return Err("`server.max_chunk_radius` must be >= 1".into());
         }
+        if let crate::world::WorldBounds::Rect {
+            min_x,
+            max_x,
+            min_z,
+            max_z,
+        } = self.world.bounds
+            && (min_x > max_x || min_z > max_z)
+        {
+            return Err(format!(
+                "`world.bounds` rect is empty: needs `min_x <= max_x` and `min_z <= max_z`                  (got x {min_x}..={max_x}, z {min_z}..={max_z})"
+            ));
+        }
         if self.server.default_chunk_radius > self.server.max_chunk_radius {
             return Err(
                 "`server.default_chunk_radius` cannot exceed `server.max_chunk_radius`".into(),

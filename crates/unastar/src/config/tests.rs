@@ -257,6 +257,31 @@ fn default_gamemode_parses_strictly_and_reaches_runtime_configuration() {
 }
 
 #[test]
+fn empty_rect_world_bounds_are_refused() {
+    let file = ConfigFile::new();
+    for (bounds, valid) in [
+        ("min_x = 0\nmax_x = 0\nmin_z = 0\nmax_z = 0", true),
+        ("min_x = -4\nmax_x = 4\nmin_z = 2\nmax_z = 3", true),
+        ("min_x = 5\nmax_x = -5\nmin_z = 0\nmax_z = 1", false),
+        ("min_x = 0\nmax_x = 1\nmin_z = 1\nmax_z = 0", false),
+    ] {
+        std::fs::write(
+            &file.0,
+            format!("{VOID_WORLD}[world.bounds]\nmode = 'rect'\n{bounds}"),
+        )
+        .unwrap();
+        match UnastarConfig::load_or_create(&file.0) {
+            Ok(_) => assert!(valid, "accepted empty bounds: {bounds}"),
+            Err(ConfigError::Validation(message)) => {
+                assert!(!valid, "refused valid bounds {bounds}: {message}");
+                assert!(message.contains("world.bounds"), "{message}");
+            }
+            Err(other) => panic!("unexpected error for {bounds}: {other}"),
+        }
+    }
+}
+
+#[test]
 fn world_bounds_contain_their_inclusive_chunk_ranges() {
     use crate::world::{ChunkPos, WorldBounds};
     let inside = |bounds: WorldBounds, x, z| bounds.contains(ChunkPos::new(x, z));
