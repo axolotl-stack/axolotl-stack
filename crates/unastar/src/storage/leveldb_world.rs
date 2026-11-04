@@ -63,12 +63,13 @@ impl WorldProvider for LevelDBWorldProvider {
                     // Chunk exists - load subchunk data
                     let mut chunk = Chunk::new(pos.x, pos.z);
 
-                    // Load subchunks for standard overworld range (-4 to 19, corresponding to Y -64 to 319)
-                    // A missing subchunk is air. One that can't be read or
+                    // A fresh chunk spans all physical storage, so this reads
+                    // every section any dimension can have stored. A missing
+                    // subchunk is air. One that can't be read or
                     // decoded fails the whole load (as BlazeDB does): loading
                     // it as air would let the next save of the column write
                     // air over the stored blocks.
-                    for y_index in -4i8..20i8 {
+                    for y_index in chunk.section_y_indices() {
                         let subchunk_key = keys::subchunk_key(pos, dim, y_index);
                         if let Some(data) = db
                             .get(&subchunk_key, &read_opts)
@@ -216,8 +217,7 @@ impl WorldProvider for LevelDBWorldProvider {
 
         // Collect subchunk data
         let mut subchunk_entries: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
-        for y_index in -4..20i8 {
-            // Standard overworld range
+        for y_index in col.chunk.section_y_indices() {
             if let Some(data) = col.chunk.encode_subchunk_disk(y_index as i32) {
                 let key = keys::subchunk_key(pos, dim, y_index);
                 subchunk_entries.push((key, data));

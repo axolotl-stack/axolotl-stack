@@ -555,7 +555,7 @@ impl BlazeDBProvider {
 
         // Collect subchunks
         let mut subchunks = Vec::new();
-        for y_index in -4..20i8 {
+        for y_index in col.chunk.section_y_indices() {
             if let Some(data) = col.chunk.encode_subchunk_disk(y_index as i32) {
                 subchunks.push((y_index, data));
             }
