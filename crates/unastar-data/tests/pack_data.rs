@@ -1,34 +1,32 @@
 //! Reviewable hash/count ratchet for EULA-derived build outputs (D13).
 
 use sha2::{Digest, Sha256};
-use unastar_data::{actor_definitions, biomes, loot};
+use unastar_data::actor_definitions;
+use unastar_data::pack_manifest::families;
+
+const REFRESH: &str =
+    "refresh with `cargo run -p unastar-data-gen -- --manifest-only` after reviewing the pack bump";
 
 #[test]
 fn build_generated_pack_data_matches_committed_manifest() {
     let manifest: serde_json::Value =
         serde_json::from_str(include_str!("../output/pack-manifest.json")).unwrap();
-    for (name, bytes, count) in [
-        (
-            "actor_component_registry",
-            actor_definitions::COMPONENT_SCHEMA_JSON,
-            actor_definitions::parser().component_count(),
-        ),
-        (
-            "actor_definitions",
-            actor_definitions::VANILLA_JSON,
-            actor_definitions::vanilla().len(),
-        ),
-        ("biomes", biomes::VANILLA_JSON, biomes::vanilla().len()),
-        ("loot_tables", loot::VANILLA_JSON, loot::vanilla().len()),
-    ] {
-        assert_eq!(
-            manifest[name]["count"], count,
-            "{name}: refresh --manifest-only after reviewing the pack bump"
-        );
+    let families = families();
+    let recorded: Vec<&str> = manifest
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    let built: Vec<&str> = families.iter().map(|family| family.name).collect();
+    assert_eq!(recorded, built, "manifest families: {REFRESH}");
+    for family in &families {
+        let name = family.name;
+        assert_eq!(manifest[name]["count"], family.count, "{name}: {REFRESH}");
         assert_eq!(
             manifest[name]["sha256"],
-            format!("{:x}", Sha256::digest(bytes)),
-            "{name}: refresh --manifest-only after reviewing the pack bump"
+            format!("{:x}", Sha256::digest(&family.bytes)),
+            "{name}: {REFRESH}"
         );
     }
 }
