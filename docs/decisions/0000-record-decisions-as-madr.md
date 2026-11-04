@@ -8,7 +8,7 @@ decision-makers: [project owner]
 
 ## Context and Problem Statement
 
-Decisions were scattered across `thoughts/shared/` plans and research documents (D1–D13,
+Decisions were scattered across the `thoughts/shared/` plans and research documents (removed) (D1–D13,
 WD1–WD5, "§7 Q1–Q5 resolved"), crate READMEs and a long-term direction doc. Agents and
 contributors could not tell which were current, superseded or never made.
 

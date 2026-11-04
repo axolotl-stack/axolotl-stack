@@ -102,8 +102,10 @@ jobs:
         run: bun tools/agents/check-links.ts
 
       - name: No references to the removed thoughts/ folder
+        # Historical mentions are fine when the same line says the file was removed
+        # (e.g. `origin: thoughts/... (removed; see git history)`).
         run: |
-          if git grep -n -I 'thoughts/shared' -- ':!*.lock'; then
+          if git grep -n -I 'thoughts/' -- ':!*.lock' ':!.github' | grep -v -i 'removed'; then
             echo "thoughts/ was replaced by docs/ and openspec/ (see docs/README.md)" >&2
             exit 1
           fi

@@ -1,6 +1,6 @@
 # Findings from the knowledge-system migration (2026-11-04)
 
-While `thoughts/` was triaged and the first OpenSpec specs were written from the code, reviewers
+While the old notes folder (removed) was triaged and the first OpenSpec specs were written from the code, reviewers
 read the code against the docs and found the problems below. None were fixed in that migration,
 which only changed documentation. Each item is open for anyone to pick up: fix it, then delete its
 row here (or point it at the OpenSpec change that fixes it).
