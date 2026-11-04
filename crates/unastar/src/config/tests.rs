@@ -315,3 +315,12 @@ fn world_bounds_contain_their_inclusive_chunk_ranges() {
         assert!(!inside(rect, x, z), "({x}, {z})");
     }
 }
+
+/// The workspace-root sample is a copy of the embedded template, comments included.
+#[test]
+fn root_sample_is_a_copy_of_the_embedded_template() {
+    assert_eq!(
+        include_str!("../../../../unastar.toml"),
+        DEFAULT_CONFIG_TOML
+    );
+}

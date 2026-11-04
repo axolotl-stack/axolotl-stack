@@ -15,13 +15,15 @@
 # firewall prompt). Use "0.0.0.0:19132" to accept players from other machines.
 bind_address = "127.0.0.1:19132"
 
-# Shown in server list (if/when advertisement is implemented).
+# Shown in the server list (RakNet pong and LAN discovery).
 motd = "Unastar Server"
 
-# Soft maximum: connection acceptance still depends on upstream layers.
+# Players connected at once (including ones still joining); further connections
+# are refused. Also advertised in the server list.
 max_players = 20
 
-# Default gamemode for new players.
+# Game mode for new players: "survival", "creative", "adventure" or "spectator".
+# Any other value is a configuration error.
 default_gamemode = "survival"
 
 # World difficulty at startup: "peaceful", "easy", "normal" or "hard".
@@ -42,6 +44,16 @@ allow_legacy_auth = true
 encryption_enabled = true
 # Require clients to accept advertised resource packs.
 require_resource_packs = false
+# Block state numbering on the wire: "hashed" (each state's FNV-1a NBT hash,
+# what BDS advertises) or "sequential" (canonical palette ordinal).
+block_network_ids = "hashed"
+
+# Players granted operator permission (needed for /tp and /summon) when they join.
+# Each entry is a display name (matched case-insensitively) or an XUID. With
+# `online_mode = false` names and XUIDs are self-reported, so anyone can claim them.
+# Empty by default: nobody is an operator.
+# operators = ["Steve", "2535400000000000"]
+operators = []
 
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
@@ -58,7 +70,8 @@ generation_threads = 0
 # Bounds are applied to *terrain generation* (non-air). Chunks outside bounds
 # still exist as all-air so the Bedrock client can mesh borders correctly.
 #
-# modes: "infinite" | "radius" | "rect"
+# modes: "infinite" | "radius" | "rect" (chunk coordinates, inclusive; a rect needs
+# min_x <= max_x and min_z <= max_z)
 mode = "infinite"
 # radius_chunks = 256
 # min_x = -64

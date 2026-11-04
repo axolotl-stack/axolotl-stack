@@ -31,9 +31,10 @@ Unastar aims to be more than just "another server software." It is designed to b
 
 The server loads `unastar.toml` from its working directory and creates it when
 missing. [`unastar.toml`](unastar.toml) in this crate is the canonical commented
-template embedded in the binary; the workspace-root sample mirrors it. Regression
-tests load both samples and a newly generated file and compare their effective
-settings with the Rust defaults.
+template embedded in the binary; the workspace-root sample is an exact copy of it
+(a test compares the two byte for byte). Regression tests also load both samples
+and a newly generated file and compare their effective settings with the Rust
+defaults.
 
 All defaults, including both samples, enable Xbox Live authentication with
 `server.online_mode = true`. Offline mode requires an explicit `false`.
