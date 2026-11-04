@@ -6,13 +6,15 @@
 //! | Concern | Accepted | Canonical |
 //! |---|---|---|
 //! | Group | `all_of` / `all` / `AND`, `any_of` / `any` / `OR`, `none_of` / `NOT`; a bare array is `all_of`; a group value may be one filter instead of an array; `{}` is an empty `all_of` | `{"all_of": [...]}`, `{"any_of": [...]}`, `{"none_of": [...]}` |
-//! | Subject | `self`, `other`, `parent`, `player`, `target`, `block`, `damager`, `baby`, `holder`, `item`; compact integers `0` (self) and `1` (other); omitted = `self` | the name |
+//! | Subject | `self`, `other`, `parent`, `player`, `target`, `block`, `damager`, `baby`, `holder`, `item`; compact integers `0`–`9` in the pinned `FilterSubject` schema order (`0` self, `1` other, `2` player, `3` target, `4` parent, `5` baby, `6` block, `7` damager, `8` holder, `9` item); omitted = `self` | the name |
 //! | Operator | `==` / `equals` / `=`, `!=` / `not` / `<>`, `<`, `<=`, `>`, `>=`; compact integers `0` (equals) and `1` (not equals); omitted = equals | `==`, `!=`, `<`, `<=`, `>`, `>=` |
 //! | Value | per test kind ([`ValueKind`]); omitted = `true` for boolean tests, the documented default for slot tests; compact integer difficulties `0..=3` | typed JSON value |
 //!
 //! The integer subjects and operators are the compact form found in 27 vanilla
-//! entity files (bedrock-samples 1.26.50.4 and the BDS 1.26.51 packs); only the
-//! integers vanilla uses are accepted. An unknown test name is kept and logged
+//! entity files (bedrock-samples 1.26.50.4 and the BDS 1.26.51 packs). Vanilla
+//! uses only subjects `0` and `1`; every id of the schema enum is accepted, as
+//! BDS 1.26.51 accepts `2`–`9` (fidelity probes `subject_numeric_*`). Only the
+//! operator integers vanilla uses (`0`, `1`) are accepted. An unknown test name is kept and logged
 //! as a [`Diagnostic`](crate::Diagnostic) and evaluates to `false`.
 //!
 //! # Evaluation
