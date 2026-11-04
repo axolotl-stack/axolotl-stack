@@ -5,11 +5,11 @@
 use bevy_ecs::prelude::World;
 use unastar_data::actor_identifiers::ActorType;
 use unastar_rules::enchanting::ItemEnchanting;
-use unastar_rules::loot::{Difficulty as LootDifficulty, LootError, LootStateValue};
+use unastar_rules::loot::{Difficulty as LootDifficulty, LootDrop, LootError, LootStateValue};
 
 use crate::entity::mob::constants::{LEGACY_ITEM_NAMES, LEGACY_WOOL, WOOL_ITEMS};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level};
+use crate::item::enchant::{Enchantment, enchantment_level, with_durability_damage};
 use crate::registry::ItemRegistry;
 use crate::registry::block::{BlockEntry, StateValue};
 use crate::world::regional_difficulty::clamped_regional_difficulty;
@@ -28,6 +28,8 @@ pub struct LootContext<'a> {
     pub recipes: Option<&'a unastar_data::recipes::RecipeRegistry>,
     /// Palette colour of the THIS actor, when it has one.
     pub color_index: Option<u8>,
+    /// Luck of the roll: the rod's Luck of the Sea level when fishing.
+    pub luck: f32,
     /// The THIS actor is a baby (`is_baby`).
     pub is_baby: bool,
     /// The actor the THIS actor rides (`passenger_of_entity`).
@@ -41,8 +43,8 @@ pub struct LootContext<'a> {
     /// Level facts for difficulty conditions and gear enchanting; tables
     /// that need them fail to evaluate without.
     pub level: Option<LootLevel>,
-    /// Item definitions for item facts (random enchanting); tables that
-    /// need them fail to evaluate without.
+    /// Item definitions for item facts (random enchanting, `set_damage`);
+    /// tables that need them fail to evaluate without.
     pub items: Option<&'a ItemRegistry>,
 }
 
@@ -152,6 +154,30 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
     fn furnace(&self) -> Option<&dyn unastar_rules::loot::FurnaceSmelt> {
         self.recipes
             .map(|recipes| recipes as &dyn unastar_rules::loot::FurnaceSmelt)
+    }
+
+    fn luck(&self) -> f32 {
+        self.luck
+    }
+
+    /// Damage `floor((1 - fraction) × max durability)` (public reference);
+    /// items without durability are unchanged.
+    fn set_damage(&self, drop: &mut LootDrop, fraction: f32) -> Result<(), LootError> {
+        let items = self.items.ok_or(LootError::MissingContext("set_damage"))?;
+        let Some(mut stack) = items.stack(&drop.item_id, 1) else {
+            return Ok(());
+        };
+        let max = stack
+            .item()
+            .map_or(0, crate::server::game::durability::max_durability);
+        if max > 0 {
+            stack.nbt = drop.nbt.take().map(bytes::Bytes::from);
+            let damage = ((1.0 - fraction.clamp(0.0, 1.0)) * max as f32).floor() as i32;
+            drop.nbt = with_durability_damage(&stack, damage.min(max - 1))
+                .nbt
+                .map(|nbt| nbt.to_vec());
+        }
+        Ok(())
     }
 
     fn this_color_index(&self) -> Option<u8> {

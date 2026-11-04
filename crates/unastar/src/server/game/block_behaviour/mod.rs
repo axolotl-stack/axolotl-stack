@@ -854,7 +854,7 @@ pub fn destroy_block(world: &mut World, pos: IVec3, drops: bool) {
     particles(world, pos, state, LEVEL_EVENT_PARTICLES_DESTROY_BLOCK);
     super::blocks::set_block(world, pos, air, false);
     if drops {
-        super::block_drops::drop_block_items(world, pos, state, None);
+        super::block_drops::drop_block_items(world, pos, state, None, None);
     }
 }
 

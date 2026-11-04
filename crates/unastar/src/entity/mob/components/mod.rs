@@ -28,6 +28,7 @@ pub mod hurt_on_condition;
 pub mod interact;
 pub mod knockback;
 pub mod leap;
+pub mod leash;
 pub mod loot;
 pub mod movement;
 pub mod sensors;
@@ -94,12 +95,8 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
         "network send-rate tuning only; unastar replicates every significant change",
     ),
     (
-        ActorComponent::Leashable,
-        "leads are not implemented; using a lead on the mob does nothing",
-    ),
-    (
         ActorComponent::LeashableTo,
-        "leads are not implemented; nothing can be leashed to the mob",
+        "mob-to-mob leads are not implemented; only players hold leads",
     ),
     (
         ActorComponent::Balloonable,
@@ -174,6 +171,11 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
         "freezing is not implemented: powder snow never freezes or hurts an \
          actor, so immunity to it changes nothing",
     ),
+    (
+        ActorComponent::Transient,
+        "keeps the actor out of saved chunks; vanilla gives it only to the fishing \
+         hook, a projectile, and projectiles are never saved",
+    ),
 ];
 
 /// Register every mob component kind (besides the core kinds of
@@ -199,7 +201,7 @@ pub fn register_component_kinds(
     auto_step::register_component_kinds(builder)?;
     follow_range::register_component_kinds(builder)?;
     inert::<bodies::ConditionalBandwidthOptimization>(builder)?;
-    inert::<bodies::Leashable>(builder)?;
+    leash::register_component_kinds(builder)?;
     inert::<bodies::LeashableTo>(builder)?;
     inert::<bodies::Balloonable>(builder)?;
     inert::<bodies::Rideable>(builder)?;
@@ -220,6 +222,7 @@ pub fn register_component_kinds(
     avoid_mob_type::register_component_kinds(builder)?;
     angry::register_component_kinds(builder)?;
     leap::register_component_kinds(builder)?;
+    inert::<bodies::Transient>(builder)?;
     hostile::register_component_kinds(builder)?;
     sensors::register_component_kinds(builder)?;
     color::register_component_kinds(builder)?;

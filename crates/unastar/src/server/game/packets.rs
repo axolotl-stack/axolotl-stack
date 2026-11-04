@@ -226,6 +226,12 @@ impl GameServer {
             McpePacketData::AnimatePacket(pk) => {
                 crate::server::broadcast::relay_player_swing(world, entity, &pk);
             }
+            McpePacketData::BookEditPacket(pk) => {
+                world
+                    .get_resource_or_init::<super::item_use::books::BookEditQueue>()
+                    .0
+                    .push((entity, pk));
+            }
             McpePacketData::SetLocalPlayerAsInitializedPacket(_) => {
                 // Ends the streamed spawn; jolyne's receive path checked its runtime ID.
             }

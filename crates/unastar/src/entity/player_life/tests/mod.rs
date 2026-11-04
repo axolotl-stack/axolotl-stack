@@ -82,6 +82,7 @@ fn join(
             position: eyes(feet),
             outbound_tx,
             saved_data,
+            enchantment_seed: None,
             chunk_radius: 2,
         })
         .expect("valid player spawn");

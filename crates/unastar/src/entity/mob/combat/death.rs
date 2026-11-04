@@ -125,6 +125,7 @@ fn drop_loot(world: &mut World, mob: Entity) {
         items: world
             .get_resource::<ItemRegistryResource>()
             .map(|items| &*items.0),
+        ..LootContext::default()
     };
     let drops = match unastar_rules::loot::roll(
         unastar_data::loot::vanilla(),

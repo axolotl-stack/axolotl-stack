@@ -59,10 +59,6 @@ pub fn thrown(item: &str) -> Option<ActorType> {
     crate::entity::projectile::thrown_by(item).map(|(actor, _)| actor)
 }
 
-/// Item cooldowns of a player: category and the server tick it ends.
-#[derive(Component, Debug, Clone, Default, PartialEq, Eq)]
-pub struct ItemCooldowns(pub Vec<(&'static str, u64)>);
-
 /// The cooldown a thrown item starts, measured on BDS 1.26.51: ender pearls
 /// send `PlayerStartItemCooldown("minecraft:ender_pearl", 20)` before the
 /// throw and cannot be thrown again for 20 ticks.
@@ -74,33 +70,10 @@ fn throw_cooldown(item: &str) -> Option<(&'static str, u32)> {
 /// unless its cooldown is running.
 pub fn throw(world: &mut World, player: Entity, item: &str) {
     if let Some((category, ticks)) = throw_cooldown(item) {
-        let now = world
-            .get_resource::<crate::ecs::resources::TickCounter>()
-            .map_or(0, |t| t.current);
-        let cooling = world.get::<ItemCooldowns>(player).is_some_and(|c| {
-            c.0.iter()
-                .any(|(name, until)| *name == category && now < *until)
-        });
-        if cooling {
+        if super::cooldown::cooling(world, player, category) {
             return;
         }
-        let mut entity = world.entity_mut(player);
-        if !entity.contains::<ItemCooldowns>() {
-            entity.insert(ItemCooldowns::default());
-        }
-        let mut cooldowns = entity.get_mut::<ItemCooldowns>().expect("inserted above");
-        cooldowns
-            .0
-            .retain(|(name, until)| *name != category && now < *until);
-        cooldowns.0.push((category, now + u64::from(ticks)));
-        if let Some(session) = world.get::<crate::entity::components::PlayerSession>(player) {
-            let _ = session.send(jolyne::valentine::McpePacket::from(
-                jolyne::valentine::PlayerStartItemCooldownPacket {
-                    item_category: category.into(),
-                    duration_ticks: ticks as i32,
-                },
-            ));
-        }
+        super::cooldown::start_cooldown(world, player, category, ticks);
     }
     world
         .get_resource_or_init::<crate::entity::projectile::ThrowQueue>()

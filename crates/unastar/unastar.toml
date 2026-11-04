@@ -52,6 +52,12 @@ compression_level = 4
 # doMobSpawning = false
 # randomTickSpeed = 0
 
+# Game rules that differ from BDS's defaults at startup, named as /gamerule
+# names them (bool, int or float values), e.g.:
+# [server.game_rules]
+# doMobSpawning = false
+# randomTickSpeed = 0
+
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
 dimension = 0

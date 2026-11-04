@@ -259,11 +259,13 @@ impl Hunger {
     }
 }
 
-/// Player experience.
+/// Player experience, with the enchanting seed that fixes the enchanting
+/// table's offers until the next enchant.
 #[derive(Component, Debug, Default, Clone)]
 pub struct Experience {
     pub level: i32,
     pub progress: f32, // 0.0 to 1.0
+    pub enchantment_seed: u32,
 }
 
 /// Block breaking state for survival mode.

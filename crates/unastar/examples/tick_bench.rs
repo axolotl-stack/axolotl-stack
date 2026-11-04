@@ -130,6 +130,7 @@ fn run() -> Result {
                 saved_data: None,
                 outbound_tx: tx,
                 chunk_radius: 8,
+                enchantment_seed: None,
             })
             .expect("player spawns");
     }

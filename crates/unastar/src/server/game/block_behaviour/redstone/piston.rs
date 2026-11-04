@@ -674,7 +674,7 @@ fn break_block(world: &mut World, pos: IVec3) {
     let drops = break_structure(world, pos, state);
     particles(world, pos, state, LEVEL_EVENT_PARTICLES_DESTROY_BLOCK);
     set_block(world, pos, air, false);
-    crate::server::game::block_drops::drop_block_items(world, pos, drops, None);
+    crate::server::game::block_drops::drop_block_items(world, pos, drops, None, None);
 }
 
 /// A due tick of the piston at `pos`: a move advances (and ends after

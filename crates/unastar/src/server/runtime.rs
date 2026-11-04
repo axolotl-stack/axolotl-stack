@@ -412,6 +412,7 @@ impl UnastarServer {
                                 runtime_id,
                                 initial_position,
                                 saved_data,
+                                enchantment_seed,
                                 chunk_radius,
                                 outbound_tx,
                             } => {
@@ -424,6 +425,7 @@ impl UnastarServer {
                                     runtime_id,
                                     position: initial_position,
                                     saved_data: saved_data.map(|data| *data),
+                                    enchantment_seed: Some(enchantment_seed),
                                     outbound_tx,
                                     chunk_radius,
                                 };
@@ -599,7 +601,13 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                         )
                         .await
                         {
-                            Ok((mut play_stream, identity, initial_position, saved_data)) => {
+                            Ok((
+                                mut play_stream,
+                                identity,
+                                initial_position,
+                                saved_data,
+                                enchantment_seed,
+                            )) => {
                                 let display_name = identity.display_name().to_string();
 
                                 info!(%addr, name = %display_name, "Player joined");
@@ -634,6 +642,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                         runtime_id: session_id as i64,
                                         initial_position: spawn_to_dvec3(&initial_position),
                                         saved_data: saved_data.map(Box::new),
+                                        enchantment_seed,
                                         chunk_radius,
                                         outbound_tx: outbound_tx.clone(),
                                     })

@@ -148,6 +148,18 @@ pub enum LootFunctionKind {
     /// Data value from the THIS actor's palette colour; a legacy name that
     /// picks its item by data value (`minecraft:wool`) becomes that item.
     SetDataFromColorIndex,
+    /// Remaining durability as a fraction of the item's maximum; the
+    /// context's [`LootContext::set_damage`] writes the resulting damage.
+    SetDamage {
+        damage: LootNumber,
+    },
+    /// Randomly enchant the item at enchanting level `levels` (treasure
+    /// enchantments only when `treasure`), classified by the context's
+    /// [`LootContext::item_enchanting`].
+    EnchantWithLevels {
+        levels: LootNumber,
+        treasure: bool,
+    },
     /// With `chance` × clamped regional difficulty, randomly enchant a
     /// single item at level `5 + clamped regional difficulty × nextInt(18)`.
     EnchantRandomGear {

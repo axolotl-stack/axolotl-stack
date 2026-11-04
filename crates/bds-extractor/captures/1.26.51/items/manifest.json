@@ -3,7 +3,7 @@
   "server_version": "1.26.51",
   "protocol_version": 2193,
   "captured_at": "unix:1793287313",
-  "source": "client-diff scenarios item-use-tridents, item-use-throwables and item-use-lingering (run item-use-2-20261029); splash_potion is observed by the operator summon capture instead",
+  "source": "client-diff scenarios item-use-tridents, item-use-throwables and item-use-lingering (run item-use-2-20261029) and fishing (run items3-20261030); splash_potion is observed by the operator summon capture instead",
   "files": [
     {
       "path": "spawns/thrown_trident.bin",
@@ -32,6 +32,13 @@
       "sha256": "3dd2603a5cf4812ab35c4b327018e514a008ead38a2b41c31d3838123088464d",
       "packet": "AddActorPacket",
       "seq": 320
+    },
+    {
+      "path": "spawns/fishing_hook.bin",
+      "bytes": 437,
+      "sha256": "c0e8c1a4a371285db2dee511080853dd5cc3efe8b0ba302ad68a67b0fde2d4c8",
+      "packet": "AddActorPacket",
+      "seq": 359
     }
   ],
   "spawns": [
@@ -58,6 +65,12 @@
       "actor_type": "minecraft:area_effect_cloud",
       "scenario": "item-use-lingering",
       "seq": 320
+    },
+    {
+      "identifier": "minecraft:fishing_hook",
+      "actor_type": "minecraft:fishing_hook",
+      "scenario": "fishing",
+      "seq": 359
     }
   ]
 }

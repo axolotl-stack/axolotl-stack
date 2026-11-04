@@ -21,7 +21,7 @@ use tracing::warn;
 use super::items::world_stack;
 use super::loot::LootContext;
 use super::mining::can_harvest;
-use super::types::BlockRegistryResource;
+use super::types::{BlockRegistryResource, ItemRegistryResource};
 use crate::entity::components::PhysicsBody;
 use crate::entity::{EntityRandom, spawn_item_drop};
 use crate::item::ItemStack;
@@ -94,6 +94,8 @@ pub(crate) fn block_drops(
 }
 
 /// Item stacks for rolled loot, oversized counts split into full stacks.
+/// Enchantments go on as the enchanting table puts them (a book becomes an
+/// enchanted book).
 pub(crate) fn loot_stacks(world: &World, drops: Vec<LootDrop>) -> Vec<ItemStack> {
     let mut stacks = Vec::new();
     for drop in drops {
@@ -106,10 +108,17 @@ pub(crate) fn loot_stacks(world: &World, drops: Vec<LootDrop>) -> Vec<ItemStack>
             template.nbt = drop.nbt.map(bytes::Bytes::from);
         }
         if !drop.enchantments.is_empty() {
-            template = crate::item::enchant::with_enchantment_ids(
-                &template,
-                drop.enchantments.iter().map(|e| (i16::from(e.id), e.level)),
-            );
+            let levels: Vec<(i16, i16)> = drop
+                .enchantments
+                .iter()
+                .map(|e| (i16::from(e.id), i16::from(e.level)))
+                .collect();
+            if let Some(enchanted) = world
+                .get_resource::<ItemRegistryResource>()
+                .and_then(|items| crate::item::enchanting::enchanted(&template, &levels, &items.0))
+            {
+                template = enchanted;
+            }
         }
         let mut left = drop.count;
         while left > 0 {
@@ -123,14 +132,29 @@ pub(crate) fn loot_stacks(world: &World, drops: Vec<LootDrop>) -> Vec<ItemStack>
     stacks
 }
 
-/// Drop what breaking `block_runtime_id` at `pos` with `tool` yields.
+/// Drop what breaking `block_runtime_id` at `pos` with `tool` yields. The
+/// block's own item gets `carried` as its NBT (a shulker box's contents).
 pub(crate) fn drop_block_items(
     world: &mut World,
     pos: IVec3,
     block_runtime_id: u32,
     tool: Option<&ItemStack>,
+    carried: Option<&zuri_nbt::tag::Compound>,
 ) {
+    let own = carried.and_then(|_| {
+        world
+            .get_resource::<BlockRegistryResource>()?
+            .0
+            .get_by_runtime_id(block_runtime_id)
+            .map(|block| block.string_id.clone())
+    });
     for stack in block_drops(world, block_runtime_id, tool) {
+        let stack = match (carried, &own) {
+            (Some(carried), Some(own)) if stack.item_id() == own => {
+                crate::item::enchant::with_item_tag(&stack, carried.clone())
+            }
+            _ => stack,
+        };
         pop_resource(world, pos, stack);
     }
 }

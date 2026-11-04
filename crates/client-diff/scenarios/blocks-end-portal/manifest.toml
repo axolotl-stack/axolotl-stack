@@ -12,6 +12,7 @@ protocol = 2193
 recorded = "2026-10-31"
 player_runtime_id = 1
 player_unique_id = -8589934591
+player_enchantment_seed = 2114989965
 window_ms = 6949.0
 recording_sha256 = "b9450d4fefb351dc2003e67b1fc75768aa239238cec32010c1808fc2d3d2cc04"
 

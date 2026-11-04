@@ -427,6 +427,7 @@ mod tests {
                         runtime_id: 42,
                         position: glam::DVec3::new(1.5, 66.62, 1.5),
                         saved_data: None,
+                        enchantment_seed: None,
                         outbound_tx: tx,
                         chunk_radius: 0,
                     })

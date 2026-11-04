@@ -15,6 +15,7 @@
 //! | `Attributes` | List of Compound | `minecraft:health` with `Base`, `Current`, `Max`, `Min`, `DefaultMax`, `DefaultMin` |
 //! | `properties` | Compound | actor properties by name; enums by value name |
 //! | `Persistent` | Byte | never despawns |
+//! | `CustomName` | String | the name a name tag gave the mob, when named |
 //! | `InLove` | Int | remaining love ticks, when in love |
 //! | `BreedCooldown` | Int | remaining breed-cooldown ticks, when cooling down |
 //! | `Age` | Int | baby age: negative ticks until grown, when growing |

@@ -256,6 +256,16 @@ fn function(v: &Value, path: &str) -> Result<LootFunction> {
         "explosion_decay" => LootFunctionKind::ExplosionDecay,
         "furnace_smelt" => LootFunctionKind::FurnaceSmelt,
         "set_data_from_color_index" => LootFunctionKind::SetDataFromColorIndex,
+        "set_damage" => LootFunctionKind::SetDamage {
+            damage: number(&v["damage"], path)?,
+        },
+        "enchant_with_levels" => LootFunctionKind::EnchantWithLevels {
+            levels: number(&v["levels"], path)?,
+            treasure: v.get("treasure").map_or(Ok(false), |v| {
+                v.as_bool()
+                    .ok_or_else(|| ParseError::new(path, "treasure must be boolean"))
+            })?,
+        },
         "enchant_random_gear" => LootFunctionKind::EnchantRandomGear {
             chance: float_or(v, "chance", 0.0, path)?,
         },

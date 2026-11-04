@@ -55,6 +55,7 @@ fn run(capture: &str) -> Result<()> {
         runtime_id: 1,
         position: glam::DVec3::new(0.5, 17.0, 0.5),
         saved_data: None,
+        enchantment_seed: None,
         outbound_tx: tx,
         chunk_radius: 0,
     })?;

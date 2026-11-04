@@ -176,6 +176,20 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
             }
             _ => None,
         };
+        // An open enchanting table's offers depend on the world
+        // (bookshelves); they are resent when its input slot changes.
+        let enchanting_table = match world.get::<ContainerWindows>(entity).map(|w| w.screen()) {
+            Some(ScreenKind::Station(screen))
+                if screen.kind == crate::entity::components::StationKind::EnchantingTable
+                    && matches!(action, InventoryAction::ItemStackRequest(_)) =>
+            {
+                Some(screen.at)
+            }
+            _ => None,
+        };
+        let enchanting =
+            enchanting_table.and_then(|at| stations::enchanting_context(world, entity, at));
+        let enchant_input = enchanting_table.map(|_| stations::enchanting_input(world, entity));
         let closing = matches!(action, InventoryAction::ContainerClose(_));
         let mut drops = Vec::new();
         let mut fatal = false;
@@ -196,6 +210,7 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                             &mut player,
                             can_drop,
                             block_window.as_mut().map(|(_, _, slots)| slots),
+                            enchanting,
                         );
                         drops = result.drops;
                         fatal = result.fatal;
@@ -240,6 +255,9 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
             super::containers::commit_window(world, entity, screen, &before, after);
         }
         if let Some((responses, uses)) = handled {
+            if let (Some(at), Some(before)) = (enchanting_table, &enchant_input) {
+                stations::offer_on_change(world, entity, at, before);
+            }
             send_responses(world, entity, responses, uses, fatal);
         }
         if closing && let Some(screen) = block_screen {
@@ -288,6 +306,7 @@ fn handle_item_stack_request(
     player: &mut PlayerInventoryItem<'_, '_>,
     can_drop: bool,
     mut block: Option<&mut Inventory>,
+    mut enchanting: Option<engine::EnchantingContext>,
 ) -> HandledRequests {
     let creative_item = |net_id: u32| creative_stack(items, world_template, net_id, block_ids);
     let creative = *player.mode == GameMode::Creative;
@@ -308,6 +327,7 @@ fn handle_item_stack_request(
             crafting,
             items,
             levels,
+            enchanting,
         };
         let mut stores = engine::Stores {
             main: &mut player.main.0,
@@ -329,10 +349,17 @@ fn handle_item_stack_request(
             block_ids,
         );
         if let Some(used) = outcome.station {
-            if let engine::StationUse::Anvil { cost } = used
-                && !creative
-            {
-                levels -= cost;
+            match used {
+                engine::StationUse::Anvil { cost: levels_used }
+                | engine::StationUse::Enchant {
+                    levels: levels_used,
+                } if !creative => levels -= levels_used,
+                _ => {}
+            }
+            // An enchant replaces the seed: later requests of this packet
+            // cannot name the offers it made.
+            if let engine::StationUse::Enchant { .. } = used {
+                enchanting = None;
             }
             handled.stations.push(used);
         }
@@ -416,6 +443,29 @@ pub(crate) fn send_armour_slot(world: &World, player: Entity, slot: usize) {
         &changes,
         armour,
         &ItemStack::empty(),
+        session,
+        super::types::block_network_ids(world),
+    );
+}
+
+/// Send the offhand slot of `player` to its client (the offhand window's
+/// `InventoryContent`, as after an equipment change).
+pub(crate) fn send_offhand(world: &World, player: Entity) {
+    let (Some(armour), Some(offhand), Some(session)) = (
+        world.get::<ArmourInventory>(player),
+        world.get::<crate::entity::components::OffhandSlot>(player),
+        world.get::<PlayerSession>(player),
+    ) else {
+        return;
+    };
+    let changes = engine::EquipmentChanges {
+        armor: Vec::new(),
+        offhand: true,
+    };
+    send_equipment_updates(
+        &changes,
+        armour,
+        &offhand.0,
         session,
         super::types::block_network_ids(world),
     );
@@ -1768,6 +1818,7 @@ mod real_player_drop_test {
                         runtime_id: 41,
                         position: glam::DVec3::new(0.5, 17.0, 0.5),
                         saved_data: None,
+                        enchantment_seed: None,
                         outbound_tx: tx,
                         chunk_radius: 0,
                     })

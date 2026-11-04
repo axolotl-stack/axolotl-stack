@@ -490,6 +490,7 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             entity,
             position,
             block_id,
+            face,
             ..
         } => {
             let parts = if can_interact(world, *entity, *position) {
@@ -508,7 +509,13 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                     set_block(world, part, part_state, false);
                 }
             });
-            super::containers::placed(world, IVec3::new(position.0, position.1, position.2));
+            let placed_from = held_block(world, *entity).map(|(_, stack, _)| stack.clone());
+            super::containers::placed(
+                world,
+                IVec3::new(position.0, position.1, position.2),
+                placed_from.as_ref(),
+                *face,
+            );
             let placed_at = IVec3::new(position.0, position.1, position.2);
             super::block_behaviour::utility::sculk::game_event(
                 world,
@@ -657,9 +664,25 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
     // the tool.
     if original_block_id != *blocks::AIR && !instant_break {
         let tool = held_item(world, breaking_player);
-        super::block_drops::drop_block_items(world, pos, drop_state, tool.as_ref());
+        super::block_drops::drop_block_items(
+            world,
+            pos,
+            drop_state,
+            tool.as_ref(),
+            broken.as_ref().and_then(|broken| broken.carried.as_ref()),
+        );
         wear_held_tool(world, breaking_player, original_block_id);
         super::hunger::exhaust_player(world, breaking_player, |values| values.mine);
+    } else if let Some(carried) = broken.as_ref().and_then(|broken| broken.carried.as_ref()) {
+        // A creative break drops nothing, except a shulker box that carries
+        // contents: it drops with them (client-diff `shulker`).
+        super::block_drops::drop_block_items(
+            world,
+            IVec3::new(x, y, z),
+            original_block_id,
+            None,
+            Some(carried),
+        );
     }
 
     broadcast_block_break(
@@ -1011,6 +1034,7 @@ pub(super) fn handle_block_click(
             player_id,
             position: target,
             block_id: placement.state,
+            face: data.face,
         });
     }
 }
@@ -1354,7 +1378,13 @@ pub(crate) fn destroy_block(world: &mut World, pos: IVec3) {
     }
     let broken = super::containers::breaking(world, pos);
     set_block(world, pos, *blocks::AIR, false);
-    super::block_drops::drop_block_items(world, pos, original, None);
+    super::block_drops::drop_block_items(
+        world,
+        pos,
+        original,
+        None,
+        broken.as_ref().and_then(|broken| broken.carried.as_ref()),
+    );
     if let Some(broken) = broken {
         super::containers::drop_contents(world, pos, broken);
     }

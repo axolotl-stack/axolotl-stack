@@ -503,6 +503,32 @@ pub struct RecipeRegistry {
     by_identifier: HashMap<String, usize>,
     /// Input lookup per smelting station, indexed by [`SmeltingStation`].
     smelting: [HashMap<String, FurnaceInputs>; 3],
+    /// Brewing stand recipes per reagent.
+    brewing: HashMap<String, BrewingReagent>,
+}
+
+/// The potion items a `minecraft:recipe_brewing_mix` row applies to (the
+/// same three the CraftingData potion mixes advertise per row).
+pub const POTION_CONTAINERS: [&str; 3] = [
+    "minecraft:potion",
+    "minecraft:splash_potion",
+    "minecraft:lingering_potion",
+];
+
+/// What one reagent does to a bottle in a brewing stand.
+#[derive(Debug, Default)]
+struct BrewingReagent {
+    /// Potion type aux to potion type aux, within the same potion item.
+    mixes: HashMap<i16, i16>,
+    /// Potion item to potion item, keeping the potion type.
+    containers: HashMap<String, String>,
+}
+
+/// A brewed bottle: its item and potion type aux.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BrewedPotion<'a> {
+    pub item: &'a str,
+    pub aux: i16,
 }
 
 /// A block that smelts `minecraft:recipe_furnace` rows carrying its tag.
@@ -660,8 +686,8 @@ impl RecipeRegistry {
         let mut order: Vec<_> = (0..recipes.len()).collect();
         order.sort_by_key(|&index| (recipes[index].priority, index));
         for (index, station) in order
-            .into_iter()
-            .flat_map(|index| SmeltingStation::ALL.map(|station| (index, station)))
+            .iter()
+            .flat_map(|&index| SmeltingStation::ALL.map(|station| (index, station)))
         {
             let recipe = &recipes[index];
             if !recipe.tags.iter().any(|tag| tag == station.tag()) {
@@ -699,15 +725,37 @@ impl RecipeRegistry {
                 }
             }
         }
+        let brewing = brewing_index(&recipes, &order)?;
         Ok(Self {
             recipes,
             by_identifier,
             smelting,
+            brewing,
         })
     }
 
     pub fn recipes(&self) -> &[PackRecipe] {
         &self.recipes
+    }
+
+    /// What brewing `reagent` into the bottle `item` with potion type `aux`
+    /// gives, `None` when no recipe applies. Container changes (potion to
+    /// splash to lingering) are checked before potion type mixes.
+    pub fn brewing_result(&self, reagent: &str, item: &str, aux: i16) -> Option<BrewedPotion<'_>> {
+        let reagent = self.brewing.get(reagent)?;
+        if let Some(output) = reagent.containers.get(item) {
+            return Some(BrewedPotion { item: output, aux });
+        }
+        let item = POTION_CONTAINERS.into_iter().find(|name| *name == item)?;
+        reagent
+            .mixes
+            .get(&aux)
+            .map(|&aux| BrewedPotion { item, aux })
+    }
+
+    /// Whether `item` is the reagent of any brewing recipe.
+    pub fn is_brewing_reagent(&self, item: &str) -> bool {
+        self.brewing.contains_key(item)
     }
 
     pub fn get(&self, identifier: &str) -> Option<&PackRecipe> {
@@ -750,6 +798,59 @@ impl RecipeRegistry {
             _ => unreachable!("furnace index only contains furnace recipes"),
         }
     }
+}
+
+/// Index the `brewing_stand` rows by reagent; with duplicates the first row
+/// in priority order wins. Potion types resolve through the measured potion
+/// type table, and a row naming an unmeasured type is rejected.
+fn brewing_index(
+    recipes: &[PackRecipe],
+    order: &[usize],
+) -> Result<HashMap<String, BrewingReagent>, RecipeError> {
+    let mut index: HashMap<String, BrewingReagent> = HashMap::new();
+    for recipe in order.iter().map(|&index| &recipes[index]) {
+        if !recipe.tags.iter().any(|tag| tag == "brewing_stand") {
+            continue;
+        }
+        match &recipe.kind {
+            RecipeKind::BrewingMix {
+                input,
+                reagent,
+                output,
+            } => {
+                let aux = |name: &str| {
+                    native::potions()
+                        .types
+                        .get(&name.to_ascii_lowercase())
+                        .copied()
+                        .ok_or_else(|| {
+                            error(&recipe.origin, format!("unmeasured potion type {name}"))
+                        })
+                };
+                let (input, output) = (aux(input)?, aux(output)?);
+                index
+                    .entry(reagent.clone())
+                    .or_default()
+                    .mixes
+                    .entry(input)
+                    .or_insert(output);
+            }
+            RecipeKind::BrewingContainer {
+                input,
+                reagent,
+                output,
+            } => {
+                index
+                    .entry(reagent.clone())
+                    .or_default()
+                    .containers
+                    .entry(input.clone())
+                    .or_insert_with(|| output.clone());
+            }
+            _ => {}
+        }
+    }
+    Ok(index)
 }
 
 impl unastar_rules::loot::FurnaceSmelt for RecipeRegistry {
@@ -962,5 +1063,51 @@ mod tests {
         );
         assert_eq!(registry.furnace_result("minecraft:cod", 0), None);
         assert_eq!(registry.furnace_result("minecraft:cod", 3), None);
+    }
+
+    #[test]
+    fn brewing_index_mixes_potion_types_and_changes_containers() {
+        let registry = RecipeRegistry::vanilla().unwrap();
+        let brewed = |reagent, item, aux| {
+            registry
+                .brewing_result(reagent, item, aux)
+                .map(|potion| (potion.item, potion.aux))
+        };
+        // Water (0) + nether wart = awkward (4) in every potion item.
+        for item in POTION_CONTAINERS {
+            assert_eq!(brewed("minecraft:nether_wart", item, 0), Some((item, 4)));
+        }
+        // Awkward + glistering melon = healing (21); glowstone strengthens it.
+        assert_eq!(
+            brewed("minecraft:glistering_melon_slice", "minecraft:potion", 4),
+            Some(("minecraft:potion", 21))
+        );
+        assert_eq!(
+            brewed("minecraft:glowstone_dust", "minecraft:potion", 21),
+            Some(("minecraft:potion", 22))
+        );
+        // Gunpowder makes a splash potion of the same type, dragon's breath
+        // a lingering one from a splash potion only.
+        assert_eq!(
+            brewed("minecraft:gunpowder", "minecraft:potion", 21),
+            Some(("minecraft:splash_potion", 21))
+        );
+        assert_eq!(
+            brewed("minecraft:dragon_breath", "minecraft:splash_potion", 4),
+            Some(("minecraft:lingering_potion", 4))
+        );
+        assert_eq!(
+            brewed("minecraft:dragon_breath", "minecraft:potion", 4),
+            None
+        );
+        // No recipe: wart into awkward, or a non-potion bottle.
+        assert_eq!(brewed("minecraft:nether_wart", "minecraft:potion", 4), None);
+        assert_eq!(
+            brewed("minecraft:nether_wart", "minecraft:glass_bottle", 0),
+            None
+        );
+        assert!(registry.is_brewing_reagent("minecraft:blaze_powder"));
+        assert!(registry.is_brewing_reagent("minecraft:stone"), "infestation");
+        assert!(!registry.is_brewing_reagent("minecraft:dirt"));
     }
 }

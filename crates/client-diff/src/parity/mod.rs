@@ -111,13 +111,22 @@ pub struct Manifest {
     /// SHA-256 of those steps as JSON: the retained recording belongs to them.
     pub steps_sha256: String,
     pub description: String,
+    /// The first `setup_steps` steps only prepare the behaviour under test
+    /// (give items, place blocks, clear effects): their server packets are
+    /// not compared (unsupported commands still fail). `setup_reason` says
+    /// why and is printed in every report.
+    #[serde(default)]
+    pub setup_steps: usize,
+    #[serde(default)]
+    pub setup_reason: String,
     pub source: Source,
     pub world: World,
     pub compare: Compare,
     #[serde(default, rename = "mask")]
     pub masks: Vec<Mask>,
     /// Differences unastar still has (not parity): listed so the test fails
-    /// on anything else, and fails when one of them disappears.
+    /// on anything else, and fails when one of them disappears. Each names
+    /// the lane that owns the fix.
     #[serde(default)]
     pub known_failing: Vec<Expectation>,
     /// Differences the integrator accepted as not player-visible.
@@ -136,6 +145,9 @@ pub struct Source {
     /// The player's IDs in the recording (from its StartGame).
     pub player_runtime_id: u64,
     pub player_unique_id: i64,
+    /// The player's enchanting seed (StartGame): the server under test gives
+    /// the player the same seed so enchanting offers can be compared.
+    pub player_enchantment_seed: i32,
     /// Scenario window: milliseconds from the first step packet to the end
     /// of the retained recording.
     pub window_ms: f64,
@@ -303,6 +315,9 @@ pub struct Expectation {
     pub packet: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
+    /// The lane that owns the fix (required for `known_failing`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
     pub reason: String,
 }
 
@@ -414,6 +429,13 @@ impl Case {
             ensure!(
                 mask.field.is_some() != mask.path.is_some(),
                 "{name}: a mask names exactly one of field or path"
+            );
+        }
+        for entry in &manifest.known_failing {
+            ensure!(
+                entry.owner.as_deref().is_some_and(|owner| !owner.is_empty()),
+                "{name}: known_failing entry {:?} names no owner",
+                entry.reason
             );
         }
         let recording = crate::parse(
@@ -822,6 +844,7 @@ fn prepare(
     manifest: &Manifest,
     masks: &[CompiledMask],
     window_ms: f64,
+    setup_markers: usize,
 ) -> Result<Prepared> {
     let packets = side
         .records
@@ -854,7 +877,7 @@ fn prepare(
         if matches!(packet.name.as_str(), "Text" | "CommandOutput") {
             prepared.feedback[step].push(packet.tree.inline());
         }
-        if !manifest.compare.packets.contains(&packet.name) {
+        if step < setup_markers || !manifest.compare.packets.contains(&packet.name) {
             continue;
         }
         normalize(&mut packet, masks, &mut canon);
@@ -913,6 +936,17 @@ pub fn compare(
         })
         .collect::<Result<Vec<_>>>()?;
     let window = manifest.source.window_ms;
+    ensure!(
+        manifest.setup_steps <= manifest.steps
+            && (manifest.setup_steps == 0) == manifest.setup_reason.is_empty(),
+        "{}: setup_steps must be within the steps and come with a setup_reason",
+        case.name
+    );
+    // Server packets after the step packets of setup steps are not compared.
+    let setup_markers = script.steps[..manifest.setup_steps]
+        .iter()
+        .filter(|step| step.kind.marker().is_some())
+        .count();
     let bds = prepare(
         &Side {
             records: &case.recording,
@@ -922,8 +956,9 @@ pub fn compare(
         manifest,
         &masks,
         window,
+        setup_markers,
     )?;
-    let other = prepare(run, manifest, &masks, window)?;
+    let other = prepare(run, manifest, &masks, window, setup_markers)?;
     let mut differences = Vec::new();
 
     // Step packets: both drivers send one per step, so their sequences
@@ -1196,6 +1231,13 @@ fn report(
         comparison.accepted.len(),
         comparison.stale.len()
     )?;
+    if manifest.setup_steps > 0 {
+        writeln!(
+            out,
+            "Setup: steps 0..{} are setup, their server packets are not compared: {}\n",
+            manifest.setup_steps, manifest.setup_reason
+        )?;
+    }
     if !notes.is_empty() {
         out.push_str("## Driver notes\n\n");
         for note in notes {
@@ -1305,10 +1347,15 @@ fn report(
                 .count();
             writeln!(
                 out,
-                "- {:?} {} {} ×{count}: {}",
+                "- {:?} {} {} ×{count}{}: {}",
                 entry.kind,
                 entry.packet.as_deref().unwrap_or("*"),
                 entry.path.as_deref().unwrap_or(""),
+                entry
+                    .owner
+                    .as_deref()
+                    .map(|owner| format!(" (owner: {owner})"))
+                    .unwrap_or_default(),
                 entry.reason
             )?;
         }
@@ -1342,6 +1389,9 @@ pub struct Retain<'a> {
     /// Output directory (`crates/client-diff/scenarios/<name>`).
     pub dir: &'a Path,
     pub description: &'a str,
+    /// Leading steps that only set the scenario up (see [`Manifest::setup_steps`]).
+    pub setup_steps: usize,
+    pub setup_reason: &'a str,
     pub setup: &'a str,
     pub server: &'a str,
     pub recorded: &'a str,
@@ -1363,6 +1413,13 @@ pub fn retain(file: &ScenariosFile, options: &Retain<'_>) -> Result<()> {
     let records = crate::parse(&text, &options.run.display().to_string())?;
     let packets = records.iter().map(decode).collect::<Result<Vec<_>>>()?;
     let (game_mode, difficulty, game_rules) = joined_world(&packets)?;
+    let enchantment_seed = packets
+        .iter()
+        .find(|p| p.name == "StartGame")
+        .and_then(|p| p.tree.field("enchantment_seed"))
+        .map(Node::inline)
+        .context("StartGame has no enchantment_seed")?
+        .parse::<i32>()?;
     let (runtime_id, unique_id) = packets
         .iter()
         .find_map(|p| {
@@ -1435,6 +1492,8 @@ pub fn retain(file: &ScenariosFile, options: &Retain<'_>) -> Result<()> {
         steps: options.steps,
         steps_sha256: steps_sha256(&script.steps)?,
         description: options.description.into(),
+        setup_steps: options.setup_steps,
+        setup_reason: options.setup_reason.into(),
         source: Source {
             run: options.run.display().to_string().replace('\\', "/"),
             server: options.server.into(),
@@ -1442,6 +1501,7 @@ pub fn retain(file: &ScenariosFile, options: &Retain<'_>) -> Result<()> {
             recorded: options.recorded.into(),
             player_runtime_id: runtime_id,
             player_unique_id: unique_id,
+            player_enchantment_seed: enchantment_seed,
             window_ms,
             recording_sha256: sha256_hex(kept.as_bytes()),
         },
@@ -1539,6 +1599,7 @@ mod tests {
             kind: DiffKind::Field,
             packet: Some("SetActorData".into()),
             path: Some("actor_data.data[id=0]".into()),
+            owner: None,
             reason: String::new(),
         };
         let difference = |path: &str| Difference {

@@ -1,5 +1,7 @@
 //! Using the held item in the air: eating, drinking, throwing, bows,
-//! crossbows and tridents.
+//! crossbows, tridents, the spyglass, goat horns and firework rockets;
+//! with the items used from elsewhere: shields and the totem of undying
+//! (hurt hooks), elytra (gliding) and books (`BookEdit`).
 //!
 //! The client starts using an item with an `ItemUse` transaction of action
 //! `Use` (click air). Like BDS 1.26.51 (capture `item-use-20261029`), the
@@ -10,9 +12,17 @@
 //! has in the selected hotbar slot; the client's item description is not
 //! trusted.
 
+pub mod books;
+pub mod cooldown;
+pub mod elytra;
+pub mod fireworks;
+pub mod fishing;
 pub mod food;
+pub mod instruments;
 pub mod on_block;
 pub mod ranged;
+pub mod shield;
+pub mod totem;
 
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{
@@ -63,6 +73,10 @@ pub struct ItemUsing {
 pub enum UseKind {
     Consume(food::Consumable),
     Draw(ranged::Drawn),
+    Instrument(instruments::Instrument),
+    Firework,
+    /// A fishing rod: cast or reel in.
+    Fish,
     Throw,
 }
 
@@ -74,6 +88,15 @@ pub fn use_kind(stack: &ItemStack) -> Option<UseKind> {
     }
     if let Some(drawn) = ranged::drawn(entry.identifier()) {
         return Some(UseKind::Draw(drawn));
+    }
+    if let Some(instrument) = instruments::instrument(entry.identifier()) {
+        return Some(UseKind::Instrument(instrument));
+    }
+    if entry.identifier() == fireworks::FIREWORK {
+        return Some(UseKind::Firework);
+    }
+    if entry.identifier() == fishing::FISHING_ROD {
+        return Some(UseKind::Fish);
     }
     ranged::thrown(entry.identifier()).map(|_| UseKind::Throw)
 }
@@ -173,7 +196,7 @@ fn can_use(world: &World, player: Entity) -> bool {
 /// The flag word BDS sends for a player using an item: CANCLIMB,
 /// BREATHING, HAS_COLLISION and HAS_GRAVITY plus the movement state and
 /// USINGITEM (capture `item-use-20261029`).
-fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
+fn player_flags(world: &World, player: Entity) -> i64 {
     let mut flags = (1u64 << actor_flags::CANCLIMB)
         | (1u64 << actor_flags::BREATHING)
         | (1u64 << actor_flags::HAS_COLLISION)
@@ -190,31 +213,84 @@ fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
             }
         }
     }
-    if using {
+    if world.get::<ItemUsing>(player).is_some() {
         flags |= 1u64 << actor_flags::USINGITEM;
     }
     flags as i64
 }
 
-/// Tell the player and the players near it that it started or stopped
-/// using an item (BDS sends the flag word to the user too).
-fn broadcast_using(world: &World, player: Entity, using: bool) {
+/// The second flag word (flags 64 and up, actor data `RESERVED_092`): a
+/// raised shield sets BLOCKING (not measured yet).
+fn player_flags_high(world: &World, player: Entity) -> i64 {
+    let mut flags = 0u64;
+    if world.get::<shield::ShieldRaised>(player).is_some() {
+        flags |= 1u64 << (actor_flags::BLOCKING - 64);
+    }
+    flags as i64
+}
+
+fn flag_entry(id: u32, value: i64) -> DataItemEntry {
+    DataItemEntry {
+        id,
+        payload: DataItemEntryPayload::DataItemInt64Payload(DataItemInt64Payload {
+            type_: EnumsDataItemType::Int64,
+            value,
+        }),
+    }
+}
+
+/// Tell the player and the players near it its first flag word, after it
+/// started or stopped using an item (BDS sends the flag word to the user
+/// too).
+pub fn broadcast_flags(world: &World, player: Entity) {
+    send_flags(world, player, Vec::new());
+}
+
+/// [`broadcast_flags`] with the second flag word too, after a shield was
+/// raised or lowered.
+pub fn broadcast_all_flags(world: &World, player: Entity) {
+    let high = flag_entry(
+        actor_data_i_ds::RESERVED_092,
+        player_flags_high(world, player),
+    );
+    send_flags(world, player, vec![high]);
+}
+
+/// [`broadcast_flags`] with the box height, after gliding started or
+/// stopped: 0.6 gliding, 1.49 sneaking, else 1.8 (measured on BDS 1.26.51,
+/// client-diff `itemuses-elytra-2` and `itemuses-shield`).
+pub fn broadcast_glide_flags(world: &World, player: Entity) {
+    let height = match world.get::<PlayerState>(player) {
+        Some(state) if state.gliding => 0.6,
+        Some(state) if state.sneaking => 1.49,
+        _ => 1.8,
+    };
+    let entry = DataItemEntry {
+        id: actor_data_i_ds::RESERVED_054,
+        payload: DataItemEntryPayload::DataItemFloatPayload(
+            jolyne::valentine::types::DataItemFloatPayload {
+                type_: EnumsDataItemType::Float,
+                value: height,
+            },
+        ),
+    };
+    send_flags(world, player, vec![entry]);
+}
+
+fn send_flags(world: &World, player: Entity, extra: Vec<DataItemEntry>) {
     let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
         return;
     };
+    let mut data = vec![flag_entry(
+        actor_data_i_ds::RESERVED_0,
+        player_flags(world, player),
+    )];
+    data.extend(extra);
     let packet = McpePacket::from(SetActorDataPacket {
         target_runtime_id: ActorRuntimeId {
             actor_runtime_id: runtime_id as u64,
         },
-        actor_data: SynchedActorDataCopyableDataList {
-            data: vec![DataItemEntry {
-                id: actor_data_i_ds::RESERVED_0,
-                payload: DataItemEntryPayload::DataItemInt64Payload(DataItemInt64Payload {
-                    type_: EnumsDataItemType::Int64,
-                    value: player_flags(world, player, using),
-                }),
-            }],
-        },
+        actor_data: SynchedActorDataCopyableDataList { data },
         synched_properties: PropertySyncData::default(),
         tick: crate::entity::components::input_tick_of(world, player),
     });
@@ -227,13 +303,13 @@ pub fn start_using(world: &mut World, player: Entity, slot: u8, item: u32) {
     world
         .entity_mut(player)
         .insert(ItemUsing { slot, item, since });
-    broadcast_using(world, player, true);
+    broadcast_flags(world, player);
 }
 
 /// Stop using whatever the player uses.
 pub fn stop_using(world: &mut World, player: Entity) {
     if world.entity_mut(player).take::<ItemUsing>().is_some() {
-        broadcast_using(world, player, false);
+        broadcast_flags(world, player);
     }
 }
 
@@ -318,6 +394,13 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
         (Some(UseKind::Throw), UseRequest::UseAir, _) => {
             ranged::throw(world, player, stack.item_id())
         }
+        (Some(UseKind::Instrument(instrument)), UseRequest::UseAir, using) => {
+            instruments::use_instrument(world, player, slot, &stack, instrument, using)
+        }
+        (Some(UseKind::Firework), UseRequest::UseAir, _) => {
+            fireworks::use_in_air(world, player, slot, &stack)
+        }
+        (Some(UseKind::Fish), UseRequest::UseAir, _) => fishing::use_rod(world, player, &stack),
         (_, UseRequest::Release | UseRequest::Consume, _) => stop_using(world, player),
         (None, UseRequest::UseAir, _) => {}
     }
@@ -435,6 +518,10 @@ pub fn tick_using(
                 ranged::tick_drawn(world, player, drawn, &using);
                 continue;
             }
+            Some(UseKind::Instrument(_)) => {
+                instruments::tick_instrument(world, player, &stack, &using);
+                continue;
+            }
             _ => continue,
         };
         if used_ticks(world, &using) >= u64::from(consumable.duration_ticks) {
@@ -467,5 +554,7 @@ fn feed(world: &World, player: Entity, stack: &ItemStack) {
     send_to(world, &viewers, &packet);
 }
 
+#[cfg(test)]
+mod gear_tests;
 #[cfg(test)]
 mod tests;

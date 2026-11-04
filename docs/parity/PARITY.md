@@ -20,7 +20,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 136 | 21 | 47 | 12 | 15 | 27.3% |
 | [World generation](#world-generation) | 1275 | 87 | 430 | 642 | 9 | 107 | 55.7% |
-| [Gameplay systems](#gameplay-systems) | 72 | 27 | 38 | 4 | 3 | 0 | 9.7% |
+| [Gameplay systems](#gameplay-systems) | 72 | 26 | 38 | 4 | 4 | 0 | 11.1% |
 
 ## Where to help
 
@@ -94,7 +94,7 @@ Nothing in this domain is claimed.
 | Bedrock world generation | lane BED | 2026-10-29 | 491 |
 | Java world generation | lane JAVA | 2026-10-29 | 26 |
 
-**Gameplay systems**: 53 open rows free, 12 claimed.
+**Gameplay systems**: 53 open rows free, 11 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
@@ -109,7 +109,7 @@ Nothing in this domain is claimed.
 |---|---|---|---:|
 | Gravity, fire and redstone | lane BLOCKS | 2026-10-29 | 4 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 1 |
-| Workstations: crafting, smelting, anvil, grindstone, smithing, brewing, enchanting | lane ITEMS | 2026-10-29 | 5 |
+| Workstations: crafting, smelting, anvil, grindstone, smithing, brewing, enchanting | lane ITEMS | 2026-10-29 | 4 |
 | Generation speed | lane PERF | 2026-10-29 | 1 |
 | Chunk streaming | lane LOAD | 2026-10-29 | 1 |
 
@@ -789,7 +789,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| crafting | 12 | 5 | 4 | 0 | 3 | 0 | 25.0% |
+| crafting | 12 | 4 | 4 | 0 | 4 | 0 | 33.3% |
 | interface | 6 | 4 | 2 | 0 | 0 | 0 | 0.0% |
 | mobs | 10 | 8 | 2 | 0 | 0 | 0 | 0.0% |
 | performance | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
@@ -805,7 +805,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 - `crafting.enchantments`: efficiency, aqua affinity, silk touch, fortune, looting, unbreaking, infinity, loyalty, impaling and riptide (in water only, without the spin state) act, and anvils merge enchantments; damage (sharpness, smite, bane of arthropods), protection, knockback, fire aspect, mending, power, punch, flame, channeling, multishot, piercing, quick charge and the other armour enchantments have no effect
 - `crafting.loot_tables`: block, mob and generated-chest tables roll, including killed_by_entity, set_potion and explosion_decay; missing functions enchant_randomly, enchant_with_levels, enchant_book_for_trading, exploration_map, random_aux_value, set_armor_trim, set_banner_details, set_damage, set_ominous_bottle_amplifier, set_stew_effect, specific_enchants and conditions biome_has_tag, bool_property, damaged_by_entity, entity_killed, entity_properties (other than on_fire), has_mark_variant, has_variant fail the roll; no fishing loot
 - `crafting.smelting`: furnace, blast furnace and smoker smelt with fuel, XP and hoppers; campfire and soul campfire cooking missing
-- missing: `crafting.brewing`, `crafting.enchanting`, `crafting.recipe_book`, `crafting.stonecutter_loom_cartography`, `crafting.trading`
+- missing: `crafting.brewing`, `crafting.recipe_book`, `crafting.stonecutter_loom_cartography`, `crafting.trading`
 
 **interface**
 

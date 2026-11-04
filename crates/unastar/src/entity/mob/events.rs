@@ -11,6 +11,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use thiserror::Error;
 use unastar_data::actor_components::ActorComponent;
+use unastar_data::game_rules::GameRuleValue;
 use unastar_rules::filter::{BuiltinTest, Fact, FilterContext, FilterTest, Subject};
 use unastar_rules::molang::QueryId;
 use unastar_rules::molang::eval::{MolangContext, Value as MolangValue};
@@ -28,6 +29,7 @@ use crate::entity::definition::properties::{ActorProperties, PropertyError, Prop
 use crate::entity::definition::{DefinitionState, GroupChange, queue_group_change};
 use crate::entity::systems::BlockSource;
 use crate::world::ecs::{ChunkData, ChunkManager, world_to_chunk_coords, world_to_local_coords};
+use crate::world::rules::GameRules;
 
 /// Bound on nested `trigger` dispatch. Vanilla chains are at most three deep;
 /// a cycle in addon data stops here instead of hanging the tick.
@@ -243,14 +245,15 @@ impl MobFacts<'_> {
     }
 }
 
-/// A boolean game rule's current value, if the rule exists and is boolean.
+/// A boolean game rule's current value (the vanilla default before the
+/// world's [`GameRules`] exist); `None` for unknown or non-boolean rules.
 pub(crate) fn game_rule_bool(world: &World, rule: &str) -> Option<bool> {
-    match world
-        .get_resource::<crate::world::rules::GameRules>()?
-        .value(rule)?
-        .1
-    {
-        unastar_data::game_rules::GameRuleValue::Bool(value) => Some(value),
+    let value = match world.get_resource::<GameRules>() {
+        Some(rules) => rules.value(rule)?.1,
+        None => GameRules::default().value(rule)?.1,
+    };
+    match value {
+        GameRuleValue::Bool(value) => Some(value),
         _ => None,
     }
 }
@@ -259,7 +262,9 @@ impl FilterContext for MobFacts<'_> {
     fn fact(&self, subject: Subject, test: &FilterTest) -> Option<Fact> {
         let entity = self.subject(subject)?;
         Some(match test.builtin()? {
-            BuiltinTest::HasBiomeTag => {
+            // `is_biome` names a biome type ("jungle"); the biome's tags
+            // carry its type names (public reference, unmeasured).
+            BuiltinTest::HasBiomeTag | BuiltinTest::IsBiome => {
                 let want = test.value.as_str()?;
                 Fact::Matches(self.biome_tags(entity)?.iter().any(|tag| tag == want))
             }

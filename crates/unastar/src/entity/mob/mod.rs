@@ -248,6 +248,8 @@ fn spawn_unattached(
             .update(actor_flags::INVISIBLE, true)
             .expect("catalogue flag index");
         EntityMetadata::actor_base()
+    } else if archetype.item_flown {
+        EntityMetadata::actor_base()
     } else {
         let mut metadata = EntityMetadata::living_base();
         metadata.set_float(
@@ -296,8 +298,9 @@ fn spawn_unattached(
         ),
         (metadata, flags, properties, attributes),
     ));
-    if archetype.projectile {
-        // Projectiles fly by their own rules (`entity::projectile`), not the living
+    if archetype.projectile || archetype.item_flown {
+        // Projectiles fly by their own rules (`entity::projectile`), item-flown
+        // actors by item rules (`server::game::item_use`), not the living
         // physics step, and have no brain.
         entity.insert((
             crate::entity::components::Projectile,

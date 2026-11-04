@@ -192,7 +192,7 @@ mod tests {
     use super::*;
     use crate::entity::mob::components::ItemMatcher;
     use crate::entity::mob::components::equipment::ShareableEntry;
-    use crate::item::enchant::{with_durability_damage, with_enchantment_ids};
+    use crate::item::enchant::{with_durability_damage, with_enchantment_list};
     use crate::item::test_support::stack;
 
     fn entry(item: &str, priority: i32) -> ShareableEntry {
@@ -287,7 +287,7 @@ mod tests {
             &mut world,
             mob,
             GearSlot::Head,
-            with_enchantment_ids(&gold, [(BINDING_CURSE_ID, 1)]),
+            with_enchantment_list(&gold, &[(BINDING_CURSE_ID, 1)]),
         );
         assert!(!will_pickup(&world, mob, &iron, false), "binding curse");
     }

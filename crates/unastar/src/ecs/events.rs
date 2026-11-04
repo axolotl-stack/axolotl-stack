@@ -77,6 +77,8 @@ pub enum ServerEvent {
         player_id: String,
         position: (i32, i32, i32),
         block_id: u32,
+        /// Face of the clicked block the new block was placed against.
+        face: u8,
     },
     Timer {
         id: u64,

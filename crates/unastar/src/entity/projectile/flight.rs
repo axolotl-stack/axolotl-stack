@@ -29,8 +29,9 @@ use crate::registry::collision::Aabb;
 use crate::server::game::player_box;
 
 /// Where a projectile's flight segment meets `aabb`: the fraction of the
-/// segment, 0 when it starts inside.
-fn segment_entry(aabb: &Aabb, from: DVec3, delta: DVec3) -> Option<f64> {
+/// segment, 0 when it starts inside. Also used by fishing hooks to find the
+/// actor they hook.
+pub(crate) fn segment_entry(aabb: &Aabb, from: DVec3, delta: DVec3) -> Option<f64> {
     let (mut enter, mut exit) = (0.0f64, 1.0f64);
     for axis in 0..3 {
         let (start, step, min, max) = (from[axis], delta[axis], aabb.min[axis], aabb.max[axis]);

@@ -13,7 +13,7 @@ use unastar_rules::enchanting::{EnchantmentInstance, add_enchantment, max_level}
 
 use crate::command::prelude::*;
 use crate::entity::components::{HeldSlot, MainInventory};
-use crate::item::enchant::{enchantment_ids, with_enchantment_ids};
+use crate::item::enchant::{enchantments, with_enchantment_list};
 use crate::item::enchanting::item_enchanting;
 
 arg_enum! {
@@ -206,20 +206,23 @@ fn enchant_held(
         .item()
         .and_then(item_enchanting)
         .map_or(0, |facts| facts.slots);
-    let mut existing: Vec<EnchantmentInstance> = enchantment_ids(&stack)
+    let mut existing: Vec<EnchantmentInstance> = enchantments(&stack)
         .into_iter()
         .filter_map(|(id, level)| {
             Some(EnchantmentInstance {
                 id: u8::try_from(id).ok()?,
-                level,
+                level: u8::try_from(level).ok()?,
             })
         })
         .collect();
     if !add_enchantment(&mut existing, slots, enchantment) {
         return Err("commands.enchant.cantEnchant");
     }
-    let enchanted =
-        with_enchantment_ids(&stack, existing.iter().map(|e| (i16::from(e.id), e.level)));
+    let list: Vec<(i16, i16)> = existing
+        .iter()
+        .map(|e| (i16::from(e.id), i16::from(e.level)))
+        .collect();
+    let enchanted = with_enchantment_list(&stack, &list);
     let mut main = world
         .get_mut::<MainInventory>(player)
         .expect("the held item came from the main inventory");
@@ -232,7 +235,7 @@ mod tests {
     use super::*;
     use crate::command::args::assert_covers;
     use crate::command::exec::test_support::Harness;
-    use crate::item::enchant::enchantment_ids;
+    use crate::item::enchant::enchantments;
     use jolyne::valentine::McpePacketData;
 
     fn held(h: &mut Harness, player: Entity) -> crate::item::ItemStack {
@@ -266,7 +269,7 @@ mod tests {
             h.run(op, "/enchant @s sharpness 2"),
             CommandOutput::success("commands.enchant.success", vec!["BDSExtractor".into()])
         );
-        assert_eq!(enchantment_ids(&held(&mut h, op)), [(9, 2)]);
+        assert_eq!(enchantments(&held(&mut h, op)), [(9, 2)]);
         assert!(
             h.sent(op)
                 .iter()
@@ -293,7 +296,7 @@ mod tests {
         );
         // By id: 17 is unbreaking.
         assert!(h.run(op, "/enchant @s 17 3").is_success());
-        assert_eq!(enchantment_ids(&held(&mut h, op)), [(9, 2), (17, 3)]);
+        assert_eq!(enchantments(&held(&mut h, op)), [(9, 2), (17, 3)]);
         assert_eq!(
             h.run(op, "/enchant @s 42"),
             CommandOutput::failure("commands.enchant.notFound", vec!["42".into()])

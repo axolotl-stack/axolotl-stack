@@ -1,0 +1,145 @@
+scenario = "item-use-lingering"
+steps = 6
+steps_sha256 = "a0f2cceb39c641d426112943753a5fad9cc513b3608c5c5f2f5c6832de71cbf8"
+description = "Throw a lingering potion down: area effect cloud, periodic effect applications."
+setup_steps = 4
+setup_reason = "steps 0..4 are the setup commands (game mode, difficulty, clearing, giving items, placing blocks); their feedback is compared in setup-commands"
+known_failing = []
+accepted = []
+
+[source]
+run = "tools/client-diff/runs/item-use-2-20261029/item-use-lingering/item-use-lingering-vanilla-go.jsonl"
+server = "BDS 1.26.51 + Endstone 0.11.12"
+protocol = 2193
+recorded = "2026-10-29"
+player_runtime_id = 1
+player_unique_id = -8589934591
+player_enchantment_seed = 1982336511
+window_ms = 41700.0
+recording_sha256 = "0c8674a1558d54a00baba6b0eb43fb6f883099a71a1632cda12ae8c5c74e59df"
+
+[world]
+kind = "superflat"
+game_mode = "creative"
+difficulty = "peaceful"
+setup = "Endstone capture world (tools/client-diff/endstone-capture): default superflat, fixed seed, spawn at feet (0.5, -60, 0.5), time 6000, clear weather; the bot's player is an operator."
+
+[world.game_rules]
+commandBlockOutput = true
+commandBlocksEnabled = true
+doDayLightCycle = false
+doEntityDrops = true
+doFireTick = true
+doImmediateRespawn = false
+doInsomnia = true
+doLimitedCrafting = false
+doMobLoot = true
+doMobSpawning = false
+doTileDrops = true
+doWeatherCycle = false
+drowningDamage = true
+fallDamage = true
+fireDamage = true
+freezeDamage = true
+functionCommandLimit = 10000
+keepInventory = false
+locatorbar = true
+maxCommandChainLength = 65535
+mobGriefing = true
+naturalRegeneration = true
+playerWaypoints = 1
+playersSleepingPercentage = 100
+projectilesCanBreakBlocks = true
+pvp = true
+randomTickSpeed = 0
+recipesUnlock = true
+respawnBlocksExplode = true
+sendCommandFeedback = true
+showBorderEffect = true
+showCoordinates = false
+showDaysPlayed = false
+showDeathMessages = true
+showRecipeMessages = true
+showTags = true
+spawnRadius = 10
+tntExplodes = true
+tntExplosionDropDecay = false
+
+[compare]
+packets = [
+    "ActorEvent",
+    "AddActor",
+    "AddItemActor",
+    "Animate",
+    "AnimateEntity",
+    "BlockActorData",
+    "BlockEvent",
+    "ClientboundMapItemData",
+    "CompletedUsingItem",
+    "ContainerClose",
+    "ContainerOpen",
+    "ContainerSetData",
+    "CorrectPlayerMovePrediction",
+    "InventoryContent",
+    "InventorySlot",
+    "InventoryTransaction",
+    "ItemStackResponse",
+    "LevelEvent",
+    "LevelEventGeneric",
+    "LevelSoundEvent",
+    "MobEffect",
+    "MobEquipment",
+    "MoveActorAbsolute",
+    "MoveActorDelta",
+    "MovePlayer",
+    "PlaySound",
+    "PlayerEnchantOptions",
+    "PlayerHotbar",
+    "PlayerStartItemCooldown",
+    "RemoveActor",
+    "SetActorData",
+    "SetActorLink",
+    "SetActorMotion",
+    "SetHealth",
+    "TakeItemActor",
+    "Text",
+    "UpdateAttributes",
+    "UpdateBlock",
+]
+timing_tolerance_ms = 120.0
+float_tolerance = 0.001
+
+[[mask]]
+field = "actor_runtime_id"
+rule = "runtime_id"
+reason = "Runtime IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+field = "actor_unique_id"
+rule = "unique_id"
+reason = "Unique IDs are allocated per server; entities are compared by order of first appearance."
+
+[[mask]]
+path = "actor_data.data[id=5].payload"
+packets = [
+    "SetActorData",
+    "AddActor",
+    "AddItemActor",
+]
+rule = "unique_id"
+reason = "Metadata key 5 (owner) holds a unique ID."
+
+[[mask]]
+field = "net_id_variant"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "item_stack_net_id"
+rule = "stack_id"
+reason = "Stack network IDs come from a per-server counter; stacks are compared by order of first appearance."
+
+[[mask]]
+field = "inputtick"
+rule = "ignore"
+reason = "Server tick numbers start at different values on each server and session."

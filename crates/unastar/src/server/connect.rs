@@ -47,6 +47,7 @@ pub async fn accept_join_sequence(
         ValidatedIdentity,
         Vec3,
         Option<PlayerData>,
+        u32,
     ),
     JolyneError,
 > {
@@ -122,13 +123,25 @@ pub async fn accept_join_sequence(
         x: spawn.pitch,
         y: spawn.yaw,
     };
+    // The player's enchanting seed, as BDS sends it in StartGame.
+    let enchantment_seed = saved_data
+        .as_ref()
+        .and_then(|saved| saved.enchantment_seed)
+        .unwrap_or_else(|| crate::item::enchanting::new_seed(&mut rand::thread_rng()));
+    join_params.start_game.enchantment_seed = enchantment_seed as i32;
 
     // 7. Join. The streamed spawn returns at the client's radius request, before
     // it initializes: the chunk systems send the view, the chunks they have and
     // `PlayStatus(PlayerSpawn)`, and keep streaming while the client loads (BDS
     // order). The play receive path enforces `SetLocalPlayerAsInitialized`.
     let play = reasoned(start_game_state.start_game_streamed(join_params)).await?;
-    Ok((play, identity, initial_position, saved_data))
+    Ok((
+        play,
+        identity,
+        initial_position,
+        saved_data,
+        enchantment_seed,
+    ))
 }
 
 /// Load validated player state once, before StartGame and ECS spawning.

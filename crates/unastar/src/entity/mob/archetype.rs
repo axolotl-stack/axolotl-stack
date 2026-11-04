@@ -107,6 +107,7 @@ pub fn component_kinds(
 fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
     match test {
         BuiltinTest::HasBiomeTag
+        | BuiltinTest::IsBiome
         | BuiltinTest::HasComponent
         | BuiltinTest::InLava
         | BuiltinTest::IsBaby
@@ -223,7 +224,18 @@ pub struct MobArchetype {
     /// The definition's base components include `minecraft:projectile`: the
     /// actor flies as a projectile instead of living physics and AI.
     pub projectile: bool,
+    /// An actor without a living body that item use launches and
+    /// `server::game::item_use` moves ([`ITEM_FLOWN_ACTORS`]): spawned like a
+    /// projectile (non-mob actor data, no physics step, no brain) but
+    /// visible at once.
+    pub item_flown: bool,
 }
+
+/// Actors whose definition has neither health nor `minecraft:projectile`
+/// but which BDS 1.26.51 summons with the non-mob actor data (retained
+/// capture `operator/summons/fireworks_rocket.bin`): firework rockets,
+/// moved by `server::game::item_use::fireworks`.
+pub const ITEM_FLOWN_ACTORS: &[&str] = &["minecraft:fireworks_rocket"];
 
 impl MobArchetype {
     fn compile(
@@ -283,6 +295,7 @@ impl MobArchetype {
             filters: bindings.filters.into_boxed_slice(),
             legacy_friction: format_before(&source.format_version, [1, 26, 20]),
             projectile,
+            item_flown: ITEM_FLOWN_ACTORS.contains(&identifier),
         })
     }
 }

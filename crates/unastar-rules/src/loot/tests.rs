@@ -263,6 +263,132 @@ fn additional_entity_predicates_are_not_silently_discarded() {
     );
 }
 
+/// A lucky context whose `set_damage` records the fraction as the data value.
+struct Lucky {
+    luck: f32,
+}
+
+impl LootContext for Lucky {
+    fn tool_item(&self) -> Option<&str> {
+        None
+    }
+    fn enchantment_level(&self, _: i16) -> u8 {
+        0
+    }
+    fn block_state_matches(&self, _: &str, _: &LootStateValue) -> bool {
+        false
+    }
+    fn killed_by_player(&self) -> bool {
+        false
+    }
+    fn looting(&self) -> u8 {
+        0
+    }
+    fn luck(&self) -> f32 {
+        self.luck
+    }
+    fn set_damage(&self, drop: &mut LootDrop, fraction: f32) -> Result<(), LootError> {
+        drop.data = (fraction * 100.0) as i16;
+        Ok(())
+    }
+}
+
+#[test]
+fn luck_moves_weight_by_quality() {
+    // Weights 10 (quality -2) and 5 (quality 2) total 15 for luck 0, 3 and
+    // 5 alike: 10/5, 4/11 and 0/15. Pick 9 of 0..15 is junk without luck and
+    // treasure with luck 3.
+    let table = decode_table(
+        "lucky",
+        "authored lucky",
+        &json!({"pools": [{"rolls": 1, "entries": [
+            {"type": "item", "name": "addon:junk", "weight": 10, "quality": -2},
+            {"type": "item", "name": "addon:treasure", "weight": 5, "quality": 2}
+        ]}]}),
+    )
+    .unwrap();
+    let pick = |luck: f32, draw: u64| {
+        // gen_range(0..15) takes the high word of the u32 draw times 15.
+        let value = (draw << 32) / 15 + 1;
+        roll(
+            &LootTables::default(),
+            &table,
+            &Lucky { luck },
+            &mut StepRng::new(value, 0),
+        )
+        .unwrap()[0]
+            .item_id
+            .clone()
+    };
+    assert_eq!(pick(0.0, 9), "addon:junk");
+    assert_eq!(pick(3.0, 9), "addon:treasure");
+    // Luck 5 drives the junk weight to 0: only treasure remains.
+    assert_eq!(pick(5.0, 0), "addon:treasure");
+}
+
+#[test]
+fn set_damage_gets_the_sampled_fraction() {
+    let table = table(json!([
+        {"function": "set_damage", "damage": {"min": 0.5, "max": 0.5}}
+    ]));
+    let drops = roll(
+        &LootTables::default(),
+        &table,
+        &Lucky { luck: 0.0 },
+        &mut StepRng::new(0, 0),
+    )
+    .unwrap();
+    assert_eq!(drops[0].data, 50);
+    assert_eq!(
+        evaluate(&table, &Context::default()),
+        Err(LootError::MissingContext("set_damage"))
+    );
+}
+
+#[test]
+fn enchant_with_levels_allows_treasure_only_when_asked() {
+    use crate::enchanting::{ItemEnchanting, slot};
+    // Frost walker, mending, binding and vanishing.
+    const TREASURE: [u8; 4] = [25, 26, 27, 28];
+    let enchant = |treasure: bool| {
+        pool_table(json!({"rolls": 1, "entries": [{
+            "type": "item", "name": "addon:book",
+            "functions": [{"function": "enchant_with_levels", "levels": 30, "treasure": treasure}]
+        }]}))
+    };
+    let book = Mob {
+        enchanting: Some(ItemEnchanting {
+            slots: slot::ALL,
+            value: 1,
+        }),
+        ..Mob::default()
+    };
+    for drops in rolls(&enchant(false), book, 300) {
+        assert!(!drops[0].enchantments.is_empty());
+        assert!(
+            drops[0]
+                .enchantments
+                .iter()
+                .all(|e| !TREASURE.contains(&e.id))
+        );
+    }
+    assert!(rolls(&enchant(true), book, 300).iter().any(|drops| {
+        drops[0]
+            .enchantments
+            .iter()
+            .any(|e| TREASURE.contains(&e.id))
+    }));
+    assert_eq!(
+        roll(
+            &LootTables::default(),
+            &enchant(false),
+            &Mob::default(),
+            &mut StdRng::seed_from_u64(0)
+        ),
+        Err(LootError::MissingContext("item enchanting"))
+    );
+}
+
 /// A THIS actor and level with the facts the mob loot conditions read.
 #[derive(Clone, Copy)]
 struct Mob {

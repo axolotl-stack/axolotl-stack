@@ -1,6 +1,7 @@
 //! Container blocks in the world (I8/I9): chests (single and double),
 //! trapped chests, barrels, ender chests, furnaces, blast furnaces, smokers,
-//! hoppers, dispensers and droppers.
+//! hoppers, dispensers, droppers, brewing stands (rules in [`brewing`]) and
+//! shulker boxes.
 //!
 //! The chunk's block actor NBT stays the source of truth for persistence and
 //! chunk sends: every committed change re-encodes the actor
@@ -24,7 +25,11 @@
 //!   existing chest becomes the lead. Breaking either half unpairs both and
 //!   closes their viewers with a server-initiated close.
 //! - Breaking drops chest, barrel and hopper contents in random 10..30 item
-//!   chunks; a furnace drops whole stacks.
+//!   chunks; a furnace drops whole stacks, and so does a brewing stand
+//!   (assumed like the furnace). A shulker box keeps its contents: its item
+//!   carries them as `Items` in its NBT (with a custom name as
+//!   `display.Name`) and placing it restores them and the `facing` it was
+//!   placed against.
 //! - Furnaces tick once per game tick: refuel when burn time
 //!   runs out and the input can smelt, cook interval 200 (furnace) or 100
 //!   (blast furnace, smoker), progress decays by 2 while not burning, the
@@ -51,8 +56,8 @@ use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
 use jolyne::valentine::{
     ActorUniqueId, BlockActorDataPacket, BlockEventPacket, BlockPos, ContainerClosePacket,
-    ContainerOpenPacket, ContainerSetDataPacket, InventoryContentPacket, LevelSoundEventPacket,
-    McpePacket, Vec3,
+    ContainerOpenPacket, ContainerSetDataPacket, InventoryContentPacket, InventorySlotPacket,
+    LevelSoundEventPacket, McpePacket, Vec3,
 };
 use rand::Rng;
 use tracing::warn;
@@ -79,6 +84,9 @@ const HOPPER_COOLDOWN: i32 = 8;
 const LID_KEEPALIVE_TICKS: u64 = 80;
 /// `BlockEvent` type that sets a chest's lid state.
 const CHEST_LID_EVENT: i32 = 1;
+/// A shulker box's close sound follows its lid event this many ticks later
+/// (measured ~0.5 s, client-diff `shulker`).
+const SHULKER_CLOSE_SOUND_DELAY: u64 = 10;
 
 /// Decoded container actors of loaded chunks and their viewers.
 #[derive(Resource, Default)]
@@ -86,16 +94,26 @@ pub struct BlockContainers {
     live: HashMap<IVec3, BlockContainer>,
     /// Viewers per lid position (a double chest's lead).
     viewers: HashMap<IVec3, Vec<Viewer>>,
-    /// Furnaces and hoppers to tick, in a stable order.
+    /// Furnaces, hoppers and brewing stands to tick, in a stable order.
     ticking: BTreeSet<[i32; 3]>,
     tick: u64,
+    /// Sounds to play once [`Self::tick`] reaches their tick.
+    sounds: Vec<PendingSound>,
+}
+
+#[derive(Debug, Clone)]
+struct PendingSound {
+    due: u64,
+    at: DVec3,
+    name: &'static str,
+    data: i32,
 }
 
 #[derive(Debug, Clone, Copy)]
 struct Viewer {
     player: Entity,
     window: u8,
-    /// Furnace values last sent (`ContainerSetData` ids 0..3).
+    /// Window data last sent (`ContainerSetData` ids 0..3, see [`window_data`]).
     sent: [i32; 4],
 }
 
@@ -160,7 +178,7 @@ pub(super) fn load(world: &mut World, pos: IVec3) -> Option<ContainerKind> {
         }
     };
     let mut containers = world.resource_mut::<BlockContainers>();
-    if kind.smelter().is_some() || kind == ContainerKind::Hopper {
+    if kind.ticks() {
         containers.ticking.insert(pos.to_array());
     }
     containers.live.insert(pos, container);
@@ -275,6 +293,9 @@ fn store_view(world: &mut World, pos: IVec3, slots: &Inventory) {
             }
         }
         save(world, half);
+        if container(world, half).is_some_and(|c| c.kind == ContainerKind::BrewingStand) {
+            brewing::sync_bottle_bits(world, half);
+        }
     }
 }
 
@@ -317,7 +338,7 @@ pub(super) fn insert_one_item(
 ) -> Option<bool> {
     let mut slots = contents(world, pos)?;
     let kind = load(world, pos)?;
-    let Some(range) = insert_range(kind, slots.size(), stack, from_above) else {
+    let Some(range) = insert_range(world, kind, &slots, stack, from_above) else {
         return Some(false);
     };
     if !insert_one(&mut slots, range, stack) {
@@ -466,10 +487,9 @@ fn send_client_state(world: &World, pos: IVec3) {
     );
 }
 
-/// Play `name` at `at` with the container block's wire id as its data (BDS
-/// 1.26.51 sends `chest.open`/`chest.closed` with the chest's hash).
-fn play_sound(world: &World, at: DVec3, name: &str, block: u32) {
-    let block = super::types::block_network_ids(world).to_wire(block);
+/// Play `name` at `at` with `data` (container sounds carry the block's wire
+/// id: BDS 1.26.51 sends `chest.open`/`chest.closed` with the chest's hash).
+fn play_sound(world: &World, at: DVec3, name: &str, data: i32) {
     let pos = at.floor().as_ivec3();
     broadcast(
         world,
@@ -481,7 +501,7 @@ fn play_sound(world: &World, at: DVec3, name: &str, block: u32) {
                 y: at.y as f32,
                 z: at.z as f32,
             },
-            data: block as i32,
+            data,
             actor_identifier: "".into(),
             is_baby: false,
             is_global: false,
@@ -489,6 +509,69 @@ fn play_sound(world: &World, at: DVec3, name: &str, block: u32) {
             fire_at_position: None,
         }),
     );
+}
+
+/// Play `name` at `at` after `delay` ticks.
+fn queue_sound(world: &mut World, delay: u64, at: DVec3, name: &'static str, data: i32) {
+    let mut containers = world.resource_mut::<BlockContainers>();
+    let due = containers.tick + delay;
+    containers.sounds.push(PendingSound {
+        due,
+        at,
+        name,
+        data,
+    });
+}
+
+/// Play the queued sounds that are due.
+fn play_due_sounds(world: &mut World) {
+    let mut containers = world.resource_mut::<BlockContainers>();
+    if containers.sounds.is_empty() {
+        return;
+    }
+    let now = containers.tick;
+    let (due, later) = std::mem::take(&mut containers.sounds)
+        .into_iter()
+        .partition::<Vec<_>, _>(|sound| sound.due <= now);
+    containers.sounds = later;
+    for sound in due {
+        play_sound(world, sound.at, sound.name, sound.data);
+    }
+}
+
+/// Send each viewer of the container at `pos` an `InventorySlot` per slot
+/// in `slots` (in that order), as BDS does for slots a brewing stand
+/// changes by itself.
+fn send_window_slots(world: &World, pos: IVec3, slots: &[usize]) {
+    let Some(viewers) = world.resource::<BlockContainers>().viewers.get(&pos) else {
+        return;
+    };
+    let Some(container) = container(world, pos) else {
+        return;
+    };
+    let ids = super::types::block_network_ids(world);
+    for &slot in slots {
+        let Some(item) = container
+            .items
+            .item(slot)
+            .and_then(|stack| super::inventory::wire_item(stack, ids))
+        else {
+            continue;
+        };
+        for viewer in viewers {
+            send(
+                world,
+                viewer.player,
+                InventorySlotPacket {
+                    container_id: viewer.window,
+                    slot: slot as u32,
+                    full_container_name: None,
+                    storage_item: None,
+                    item: item.clone(),
+                },
+            );
+        }
+    }
 }
 
 /// Lid open/close for the first/last viewer.
@@ -526,12 +609,19 @@ fn set_lid(world: &mut World, kind: ContainerKind, lid: IVec3, open: bool) {
     if let Some(other) = container(world, lid).and_then(pair_pos) {
         centre = (lid.as_dvec3() + other.as_dvec3()) * 0.5 + DVec3::splat(0.5);
     }
-    play_sound(
-        world,
-        centre,
-        if open { open_sound } else { close_sound },
-        runtime_id,
-    );
+    // The sound data is the block's network runtime id (measured on the
+    // shulker box sounds).
+    let data = super::types::block_network_ids(world).to_wire(runtime_id) as i32;
+    if !open && kind == ContainerKind::ShulkerBox {
+        queue_sound(world, SHULKER_CLOSE_SOUND_DELAY, centre, close_sound, data);
+    } else {
+        play_sound(
+            world,
+            centre,
+            if open { open_sound } else { close_sound },
+            data,
+        );
+    }
 }
 
 // ── Windows ─────────────────────────────────────────────────────────────────
@@ -571,6 +661,18 @@ pub(super) fn open(world: &mut World, player: Entity, clicked: IVec3) -> bool {
         .get_mut::<ContainerWindows>(player)
         .expect("checked above")
         .open(ScreenKind::Block(screen));
+    let data = container(world, clicked).and_then(window_data);
+    // BDS sends a brewing stand's three values, zeros included, before the
+    // window opens; furnace values follow the content, non-zero only.
+    let (before_open, after_open) = match data {
+        Some(values) if kind == ContainerKind::BrewingStand => (Some(values), None),
+        other => (None, other),
+    };
+    if let Some(values) = before_open {
+        for (id, value) in values.into_iter().enumerate().take(brewing::DATA_IDS) {
+            send(world, player, set_data(window, id, value));
+        }
+    }
     send(
         world,
         player,
@@ -589,21 +691,17 @@ pub(super) fn open(world: &mut World, player: Entity, clicked: IVec3) -> bool {
     let Some(lid) = lid(world, clicked) else {
         return true;
     };
-    let mut viewer = Viewer {
+    let viewer = Viewer {
         player,
         window,
-        sent: [0; 4],
+        sent: data.unwrap_or_default(),
     };
-    if kind.smelter().is_some()
-        && let Some(container) = container(world, clicked)
-    {
-        let values = furnace_values(container);
+    if let Some(values) = after_open {
         for (id, value) in values.into_iter().enumerate() {
             if value != 0 {
                 send(world, player, set_data(window, id, value));
             }
         }
-        viewer.sent = values;
     }
     let first = {
         let mut containers = world.resource_mut::<BlockContainers>();
@@ -700,6 +798,9 @@ pub(super) fn commit_window(
         if let Some(taken) = taken {
             pay_smelting_xp(world, player, screen.at, &taken);
         }
+    }
+    if screen.kind == ContainerKind::BrewingStand {
+        brewing::committed(world, screen.at, before, &after);
     }
     store_view(world, screen.at, &after);
     refresh_viewers(world, screen.at, Some(player));
@@ -911,8 +1012,10 @@ fn pair_candidates(pos: IVec3, direction: &str) -> [IVec3; 2] {
     }
 }
 
-/// A block was placed at `pos`: create its container actor and pair chests.
-pub(super) fn placed(world: &mut World, pos: IVec3) {
+/// A block was placed at `pos` from `item` against block face `face`:
+/// create its container actor, pair chests, and restore what a shulker box
+/// item carries.
+pub(super) fn placed(world: &mut World, pos: IVec3, item: Option<&ItemStack>, face: u8) {
     let Some((kind, _)) = kind_at(world, pos) else {
         return;
     };
@@ -926,9 +1029,25 @@ pub(super) fn placed(world: &mut World, pos: IVec3) {
     if load(world, pos).is_none() {
         return;
     }
+    if kind == ContainerKind::ShulkerBox {
+        let carried = item.and_then(crate::item::enchant::item_tag);
+        let registries = (
+            world.resource::<ItemRegistryResource>().0.clone(),
+            world.resource::<BlockRegistryResource>().0.clone(),
+        );
+        if let Some(mut shulker) = container_mut(world, pos) {
+            shulker.facing = face;
+            if let Some(carried) = carried {
+                shulker.restore_carried(&carried, &registries.0, &registries.1);
+            }
+        }
+    }
     // BDS announces a new container actor with its client-side state
-    // (`{BlockEntityVersion, id, x, y, z}` after `/setblock chest`).
-    send_client_state(world, pos);
+    // (`{BlockEntityVersion, id, x, y, z}` after `/setblock chest`); a
+    // brewing stand gets none (client-diff `brewing`).
+    if kind != ContainerKind::BrewingStand {
+        send_client_state(world, pos);
+    }
     if kind.pairs() {
         try_pair(world, pos, kind);
     }
@@ -978,6 +1097,8 @@ pub(super) struct BrokenContainer {
     /// Stacks to scatter, and whether they split into random 10..30 chunks.
     pub drops: Vec<ItemStack>,
     pub randomize: bool,
+    /// The item tag a shulker box's own dropped item carries.
+    pub carried: Option<zuri_nbt::tag::Compound>,
 }
 
 /// Before the block at `pos` is removed: close its windows, unpair a double
@@ -997,6 +1118,13 @@ pub(super) fn breaking(world: &mut World, pos: IVec3) -> Option<BrokenContainer>
     let mut containers = world.resource_mut::<BlockContainers>();
     containers.ticking.remove(&pos.to_array());
     let container = containers.live.remove(&pos)?;
+    if kind == ContainerKind::ShulkerBox {
+        return Some(BrokenContainer {
+            drops: Vec::new(),
+            randomize: false,
+            carried: Some(container.carried_tag()).filter(|tag| !tag.0.is_empty()),
+        });
+    }
     Some(BrokenContainer {
         drops: container
             .items
@@ -1005,7 +1133,8 @@ pub(super) fn breaking(world: &mut World, pos: IVec3) -> Option<BrokenContainer>
             .filter(|stack| !stack.is_empty())
             .cloned()
             .collect(),
-        randomize: kind.smelter().is_none(),
+        randomize: kind.smelter().is_none() && kind != ContainerKind::BrewingStand,
+        carried: None,
     })
 }
 
@@ -1032,9 +1161,20 @@ pub(super) fn drop_contents(world: &mut World, pos: IVec3, broken: BrokenContain
 
 // ── Ticking ─────────────────────────────────────────────────────────────────
 
-fn furnace_values(container: &BlockContainer) -> [i32; 4] {
-    let f = container.furnace;
-    [f.cook_time, f.lit_time, f.lit_duration, f.stored_xp]
+/// `ContainerSetData` values a window on `container` tracks, by id: furnace
+/// 0 cook, 1 burn time, 2 burn duration, 3 stored XP; brewing stand 0 brew
+/// time, 1 fuel amount, 2 fuel total. Ids a kind does not use stay 0 and
+/// are never sent.
+fn window_data(container: &BlockContainer) -> Option<[i32; 4]> {
+    if container.kind.smelter().is_some() {
+        let f = container.furnace;
+        Some([f.cook_time, f.lit_time, f.lit_duration, f.stored_xp])
+    } else if container.kind == ContainerKind::BrewingStand {
+        let b = container.brewing;
+        Some([b.brew_time, b.fuel_amount, b.fuel_total, 0])
+    } else {
+        None
+    }
 }
 
 fn set_data(window: u8, id: usize, value: i32) -> ContainerSetDataPacket {
@@ -1045,7 +1185,7 @@ fn set_data(window: u8, id: usize, value: i32) -> ContainerSetDataPacket {
     }
 }
 
-/// Register furnaces and hoppers of a chunk that just loaded.
+/// Register the ticking containers of a chunk that just loaded.
 pub fn register_chunk_tickers(
     add: On<Add, ChunkData>,
     chunks: Query<&ChunkData>,
@@ -1065,19 +1205,20 @@ pub fn register_chunk_tickers(
             .0
             .get_by_runtime_id(runtime_id)
             .and_then(|entry| ContainerKind::from_block(&entry.string_id));
-        if kind.is_some_and(|kind| kind.smelter().is_some() || kind == ContainerKind::Hopper) {
+        if kind.is_some_and(ContainerKind::ticks) {
             containers.ticking.insert([x, y, z]);
         }
     }
 }
 
-/// Exclusive per-tick system: furnaces, hoppers, viewer upkeep.
+/// Exclusive per-tick system: furnaces, hoppers, brewing stands, viewer upkeep.
 pub fn tick_block_containers(world: &mut World) {
     let tick = {
         let mut containers = world.resource_mut::<BlockContainers>();
         containers.tick += 1;
         containers.tick
     };
+    play_due_sounds(world);
     let ticking: Vec<IVec3> = world
         .resource::<BlockContainers>()
         .ticking
@@ -1088,6 +1229,7 @@ pub fn tick_block_containers(world: &mut World) {
         match load(world, pos) {
             Some(kind) if kind.smelter().is_some() => tick_furnace(world, pos, kind),
             Some(ContainerKind::Hopper) => tick_hopper(world, pos),
+            Some(ContainerKind::BrewingStand) => brewing::tick(world, pos),
             _ => {
                 let mut containers = world.resource_mut::<BlockContainers>();
                 containers.ticking.remove(&pos.to_array());
@@ -1124,8 +1266,7 @@ fn upkeep_viewers(world: &mut World, tick: u64) {
             if !open {
                 continue;
             }
-            if let Some(container) = container(world, lid).filter(|c| c.kind.smelter().is_some()) {
-                let values = furnace_values(container);
+            if let Some(values) = container(world, lid).and_then(window_data) {
                 for (id, (now, sent)) in values.iter().zip(viewer.sent).enumerate() {
                     if *now != sent {
                         send(world, viewer.player, set_data(viewer.window, id, *now));
@@ -1357,10 +1498,13 @@ fn insert_one(slots: &mut Inventory, range: std::ops::Range<usize>, stack: &Item
 }
 
 /// Slots of a container a hopper may insert `stack` into, entering from
-/// above (`from_above`) or a side.
+/// above (`from_above`) or a side. Brewing stands (public reference) take
+/// reagents from above, and blaze powder into the fuel slot or a bottle into
+/// an empty bottle slot from a side; shulker boxes refuse shulker boxes.
 fn insert_range(
+    world: &World,
     kind: ContainerKind,
-    size: usize,
+    slots: &Inventory,
     stack: &ItemStack,
     from_above: bool,
 ) -> Option<std::ops::Range<usize>> {
@@ -1373,7 +1517,20 @@ fn insert_range(
                 (burn_ticks(stack, 200) > 0).then_some(1..2)
             }
         }
-        _ => Some(0..size),
+        ContainerKind::BrewingStand if from_above => world
+            .get_resource::<RecipeRegistryResource>()
+            .is_some_and(|recipes| recipes.0.is_brewing_reagent(stack.item_id()))
+            .then_some(brewing::INGREDIENT..brewing::INGREDIENT + 1),
+        ContainerKind::BrewingStand if brewing::is_fuel(stack) => {
+            Some(brewing::FUEL..brewing::FUEL + 1)
+        }
+        ContainerKind::BrewingStand if brewing::is_bottle(stack) => brewing::BOTTLES
+            .into_iter()
+            .find(|&slot| slots.item(slot).is_some_and(ItemStack::is_empty))
+            .map(|slot| slot..slot + 1),
+        ContainerKind::BrewingStand => None,
+        ContainerKind::ShulkerBox if crate::block_entity::is_shulker_box(stack.item_id()) => None,
+        _ => Some(0..slots.size()),
     }
 }
 
@@ -1391,6 +1548,7 @@ fn extract_slots(kind: ContainerKind, slots: &Inventory) -> Vec<usize> {
             }
             out
         }
+        ContainerKind::BrewingStand => brewing::BOTTLES.to_vec(),
         _ => (0..slots.size()).collect(),
     }
 }
@@ -1452,7 +1610,8 @@ fn hopper_push(world: &mut World, pos: IVec3) -> bool {
         if stack.is_empty() {
             continue;
         }
-        let Some(range) = insert_range(target_kind, target_slots.size(), &stack, from_above) else {
+        let Some(range) = insert_range(world, target_kind, &target_slots, &stack, from_above)
+        else {
             continue;
         };
         if insert_one(&mut target_slots, range, &stack) {
@@ -1553,6 +1712,10 @@ pub fn forget_replaced(
         containers.ticking.remove(&event.block_pos.to_array());
     }
 }
+
+mod brewing;
+
+pub(super) use brewing::{is_bottle as is_brewing_bottle, is_fuel as is_brewing_fuel};
 
 #[cfg(test)]
 mod tests;

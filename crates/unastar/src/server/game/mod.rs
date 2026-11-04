@@ -143,6 +143,7 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
             exhaustion: hunger.exhaustion,
             experience: experience.level,
             experience_progress: experience.progress,
+            enchantment_seed: Some(experience.enchantment_seed),
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -454,6 +455,26 @@ impl GameServer {
                 .after(inventory::apply_inventory)
                 .after(blocks::apply_block_actions),
         );
+        // Book and quill edits (`BookEdit`), after the inventory so the book
+        // slot reflects this tick's changes.
+        ecs.schedule_mut().add_systems(
+            item_use::books::apply_book_edits
+                .in_set(PacketApplySet)
+                .after(inventory::apply_inventory),
+        );
+        // Gliding (elytra wear), firework rockets (flight, boosts, explosions)
+        // and raised shields, after the item uses of this tick.
+        ecs.schedule_mut().add_systems(
+            (
+                item_use::elytra::tick_gliding,
+                item_use::fireworks::tick_rockets,
+                item_use::shield::tick_shields,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(item_use::tick_using)
+                .before(tick_block_breaking),
+        );
         // Commands run with the whole world, after this tick's movement,
         // inventory and block/mob actions were applied.
         ecs.schedule_mut().add_systems(
@@ -502,6 +523,12 @@ impl GameServer {
                 .in_set(PhysicsSet)
                 .after(tick_physics),
         );
+        // Fishing hooks land, bob and hook actors after the projectiles flew.
+        ecs.schedule_mut().add_systems(
+            item_use::fishing::tick_fishing_hooks
+                .in_set(PhysicsSet)
+                .after(crate::entity::projectile::tick_projectiles),
+        );
         // Each tick runs as BDS does: where every mob and player stands is
         // recorded, the physics step moves every body by the velocity its
         // mob AI chose on the tick before, then the mob AI looks at the moved
@@ -524,6 +551,13 @@ impl GameServer {
                 .in_set(PhysicsSet)
                 .after(tick_physics)
                 .before(crate::entity::projectile::tick_projectiles),
+        );
+        // Leads pull leashed mobs (after the AI chose its motion) and break.
+        ecs.schedule_mut().add_systems(
+            crate::entity::mob::interaction::leash::tick_leashes
+                .in_set(PhysicsSet)
+                .after(crate::entity::mob::ai::push_mobs)
+                .before(tick_physics),
         );
 
         ecs.schedule_mut().add_systems(
@@ -912,7 +946,10 @@ impl GameServer {
         let mut held_slot = HeldSlot::default();
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
-        let mut experience = crate::entity::components::Experience::default();
+        let mut experience = crate::entity::components::Experience {
+            enchantment_seed: crate::item::enchanting::new_seed(&mut rand::thread_rng()),
+            ..Default::default()
+        };
         if let Some(saved) = saved_data {
             rotation = Rotation::new(saved.rotation[0], saved.rotation[1]);
             game_mode = match saved.game_mode {
@@ -930,6 +967,12 @@ impl GameServer {
             hunger.exhaustion = saved.exhaustion;
             experience.level = saved.experience;
             experience.progress = saved.experience_progress;
+            if let Some(seed) = saved.enchantment_seed {
+                experience.enchantment_seed = seed;
+            }
+        }
+        if let Some(seed) = data.enchantment_seed {
+            experience.enchantment_seed = seed;
         }
 
         let entity = self
@@ -1159,7 +1202,7 @@ mod tests {
         world.entity_mut(chunk).insert(viewers);
         // Dirt drops itself without a tool (stone would need a pickaxe).
         let dirt = *crate::world::chunk::blocks::DIRT;
-        block_drops::drop_block_items(world, glam::IVec3::new(8, 64, 8), dirt, None);
+        block_drops::drop_block_items(world, glam::IVec3::new(8, 64, 8), dirt, None, None);
 
         let mut packets = Vec::new();
         for _ in 0..30 {
@@ -1318,6 +1361,7 @@ mod tests {
                     position: DVec3::new(0.5, 17.0, 0.5),
                     outbound_tx,
                     saved_data: None,
+                    enchantment_seed: None,
                     chunk_radius: 2,
                 })
                 .expect("fresh player spawns without saved data");
@@ -1352,6 +1396,7 @@ mod tests {
                 position: DVec3::new(0.5, 17.0, 0.5),
                 outbound_tx,
                 saved_data: None,
+                enchantment_seed: None,
                 chunk_radius: 2,
             })
             .expect("valid player spawn");
@@ -1414,6 +1459,7 @@ mod tests {
                 position: DVec3::new(0.5, 17.0, 0.5),
                 outbound_tx,
                 saved_data: None,
+                enchantment_seed: None,
                 chunk_radius: 4,
             })
             .expect("fresh player spawns");
@@ -1489,6 +1535,7 @@ mod tests {
                 outbound_tx,
                 saved_data: None,
                 chunk_radius: radius,
+                enchantment_seed: None,
             })
             .expect("fresh player spawns");
         // Columns that arrived this tick, in order.
@@ -1600,6 +1647,7 @@ mod saved_inventory_validation_tests {
             position: glam::DVec3::new(0.5, 17.0, 0.5),
             outbound_tx,
             saved_data: Some(saved),
+            enchantment_seed: None,
             chunk_radius: 0,
         });
         assert!(matches!(result, Err(StorageError::Deserialization(_))));

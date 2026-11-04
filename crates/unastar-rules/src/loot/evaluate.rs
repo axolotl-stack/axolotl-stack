@@ -50,7 +50,8 @@ pub trait LootContext {
     fn clamped_regional_difficulty(&self) -> Option<f32> {
         None
     }
-    /// Enchantment slots and enchantability of `item` (`enchant_random_gear`).
+    /// Enchantment slots and enchantability of `item` (`enchant_with_levels`,
+    /// `enchant_random_gear`).
     fn item_enchanting(&self, _item: &str) -> Result<ItemEnchanting, LootError> {
         Err(LootError::MissingContext("item enchanting"))
     }
@@ -75,6 +76,16 @@ pub trait LootContext {
     /// (`minecraft:wool` with data 14 is `minecraft:red_wool`).
     fn data_alias(&self, _name: &str, _data: i16) -> Option<&str> {
         None
+    }
+    /// Luck of the roll (fishing: the rod's Luck of the Sea level). Each
+    /// pool entry weighs `max(floor(weight + quality × luck), 0)`.
+    fn luck(&self) -> f32 {
+        0.0
+    }
+    /// Leave the drop with `fraction` of its item's maximum durability
+    /// (`set_damage`); the caller knows durability and writes item data.
+    fn set_damage(&self, _drop: &mut LootDrop, _fraction: f32) -> Result<(), LootError> {
+        Err(LootError::MissingContext("set_damage"))
     }
 }
 
@@ -113,6 +124,15 @@ fn sample_int(number: LootNumber, rng: &mut impl Rng) -> i32 {
             }
         }
         LootNumber::Binomial { n, p } => binomial(n, p, rng) as i32,
+    }
+}
+
+fn sample_float(number: LootNumber, rng: &mut impl Rng) -> f32 {
+    match number {
+        LootNumber::Constant(v) => v,
+        LootNumber::Uniform { min, max } if max > min => rng.gen_range(min..max),
+        LootNumber::Uniform { min, .. } => min,
+        LootNumber::Binomial { n, p } => binomial(n, p, rng) as f32,
     }
 }
 
@@ -191,6 +211,21 @@ fn condition_passes(
 fn clamped_regional_difficulty(ctx: &dyn LootContext) -> Result<f32, LootError> {
     ctx.clamped_regional_difficulty()
         .ok_or(LootError::MissingContext("regional difficulty"))
+}
+
+/// Add random enchantments for enchanting `level` to the drop's item.
+fn enchant_randomly(
+    drop: &mut LootDrop,
+    ctx: &dyn LootContext,
+    level: i32,
+    treasure: bool,
+    rng: &mut impl Rng,
+) -> Result<(), LootError> {
+    let item = ctx.item_enchanting(&drop.item_id)?;
+    for enchantment in enchanting::select_enchantments(item, level, treasure, rng) {
+        enchanting::add_enchantment(&mut drop.enchantments, item.slots, enchantment);
+    }
+    Ok(())
 }
 
 fn all_pass(
@@ -302,19 +337,20 @@ fn apply_functions(
                     }
                 }
             }
+            LootFunctionKind::SetDamage { damage } => {
+                let fraction = sample_float(*damage, rng);
+                ctx.set_damage(drop, fraction)?;
+            }
+            LootFunctionKind::EnchantWithLevels { levels, treasure } => {
+                let levels = sample_int(*levels, rng);
+                enchant_randomly(drop, ctx, levels, *treasure, rng)?;
+            }
             LootFunctionKind::EnchantRandomGear { chance } => {
                 let special = clamped_regional_difficulty(ctx)?;
                 if rng.r#gen::<f32>() < chance * special {
                     let spread = rng.gen_range(0..GEAR_ENCHANT_LEVEL_SPREAD) as f32;
                     let level = (special * spread + GEAR_ENCHANT_BASE_LEVEL) as i32;
-                    let item = ctx.item_enchanting(&drop.item_id)?;
-                    for enchantment in enchanting::select_enchantments(item, level, false, rng) {
-                        enchanting::add_enchantment(
-                            &mut drop.enchantments,
-                            item.slots,
-                            enchantment,
-                        );
-                    }
+                    enchant_randomly(drop, ctx, level, false, rng)?;
                 }
             }
             LootFunctionKind::SetPotion { potion } => {
@@ -416,26 +452,40 @@ impl<R: Rng> Roller<'_, R> {
             }
             return Ok(());
         }
+        let luck = self.ctx.luck();
+        let weight = |entry: &LootEntry| {
+            if luck == 0.0 {
+                entry.weight
+            } else {
+                (entry.weight as f32 + entry.quality as f32 * luck)
+                    .floor()
+                    .max(0.0) as u32
+            }
+        };
         for _ in 0..sample_int(pool.rolls, self.rng).max(0) {
             self.eligible.clear();
             for (i, entry) in pool.entries.iter().enumerate() {
-                if entry.weight > 0 && all_pass(&entry.conditions, self.ctx, self.rng)? {
+                if weight(entry) > 0 && all_pass(&entry.conditions, self.ctx, self.rng)? {
                     self.eligible.push(i);
                 }
             }
-            let total: u32 = self.eligible.iter().map(|i| pool.entries[*i].weight).sum();
+            let total: u32 = self
+                .eligible
+                .iter()
+                .map(|i| weight(&pool.entries[*i]))
+                .sum();
             if total == 0 {
                 continue;
             }
             let mut pick = self.rng.gen_range(0..total);
             let mut selected = None;
             for i in &self.eligible {
-                let entry = &pool.entries[*i];
-                if pick < entry.weight {
+                let entry_weight = weight(&pool.entries[*i]);
+                if pick < entry_weight {
                     selected = Some(*i);
                     break;
                 }
-                pick -= entry.weight;
+                pick -= entry_weight;
             }
             if let Some(i) = selected {
                 self.entry(&pool.entries[i], depth)?;

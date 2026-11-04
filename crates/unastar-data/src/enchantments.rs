@@ -1,15 +1,19 @@
-//! Enchantment table for the anvil and grindstone
+//! Enchantment table for the anvil, grindstone and enchanting table
 //! (`data/measured/enchantments.json`, public reference, see its `source`),
 //! decoded once.
 //!
 //! Each enchantment lists the item categories that take it; a category is an
 //! armour slot, item tags, item identifiers or "any item with durability".
+//! The enchanting table adds the option list each enchantment is sent in.
+//! Random enchanting (weights, levels, enchantability) is
+//! `unastar_rules::enchanting`.
 
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-/// Which items a category covers. Any matching field is enough.
+/// Which items a category covers. Any matching field is enough, unless the
+/// item is excluded.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Category {
@@ -25,6 +29,30 @@ pub struct Category {
     /// Every item with durability.
     #[serde(default)]
     pub durable: bool,
+    /// Item identifiers the category never covers, whatever else matches.
+    #[serde(default)]
+    pub exclude_items: Vec<String>,
+}
+
+/// The `PlayerEnchantOptions` list an enchantment is sent in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Activation {
+    Equipped,
+    Held,
+    #[serde(rename = "self")]
+    SelfActivated,
+}
+
+impl Activation {
+    /// Index of the list in an option's three enchantment lists.
+    pub fn index(self) -> usize {
+        match self {
+            Self::Equipped => 0,
+            Self::Held => 1,
+            Self::SelfActivated => 2,
+        }
+    }
 }
 
 /// One enchantment.
@@ -47,6 +75,8 @@ pub struct Enchantment {
     pub curse: bool,
     /// Category names (keys of [`categories`]) of the items that take it.
     pub targets: Vec<String>,
+    /// The enchanting-table option list that carries it.
+    pub activation: Activation,
 }
 
 impl Enchantment {
@@ -135,5 +165,12 @@ mod tests {
         assert!(!incompatible(9, 9));
         // Sharpness III: minimum level 23 (the grindstone's 12 to 23 XP).
         assert_eq!(get(9).unwrap().min_cost(3), 23);
+    }
+
+    #[test]
+    fn activation_lists() {
+        assert_eq!(get(39).unwrap().activation, Activation::Held);
+        assert_eq!(get(0).unwrap().activation.index(), 0);
+        assert_eq!(get(12).unwrap().activation.index(), 2);
     }
 }

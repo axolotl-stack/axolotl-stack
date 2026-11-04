@@ -55,6 +55,7 @@ fn with_world(mode: GameMode, test: impl FnOnce(&mut Harness) + Send + 'static) 
                     runtime_id: 77,
                     position: glam::DVec3::new(0.5, 66.62, 0.5),
                     saved_data: None,
+                    enchantment_seed: None,
                     outbound_tx: tx,
                     chunk_radius: 0,
                 })
@@ -108,7 +109,7 @@ impl Harness {
         let state = self.state(name, props);
         let world = self.world();
         super::super::blocks::set_block(world, pos, state, false);
-        placed(world, pos);
+        placed(world, pos, None, 1);
     }
 
     fn packets(&mut self) -> Vec<McpePacketData> {
@@ -125,6 +126,13 @@ impl Harness {
         main.0
             .set_item(slot, stack(name, count).into_slot())
             .unwrap();
+        main.0.item(slot).unwrap().net_id
+    }
+
+    fn give_stack(&mut self, slot: usize, item: ItemStack) -> i32 {
+        let player = self.player;
+        let mut main = self.world().get_mut::<MainInventory>(player).unwrap();
+        main.0.set_item(slot, item.into_slot()).unwrap();
         main.0.item(slot).unwrap().net_id
     }
 
@@ -942,6 +950,472 @@ fn placing_a_container_announces_the_same_client_state_as_bds() {
             bds.block_position.z,
         );
         h.place(pos, "minecraft:chest", &[]);
+        let ours = h
+            .packets()
+            .into_iter()
+            .find_map(|packet| match packet {
+                McpePacketData::BlockActorDataPacket(data) => Some(data),
+                _ => None,
+            })
+            .expect("BlockActorData");
+        assert_eq!(ours.block_position, bds.block_position);
+        assert_eq!(
+            compound(ours.actor_data_tags),
+            compound(bds.actor_data_tags)
+        );
+    });
+}
+
+fn water_bottle() -> ItemStack {
+    stack("minecraft:potion", 1).with_damage(0)
+}
+
+fn bit(h: &mut Harness, pos: IVec3, name: &str) -> Option<StateValue> {
+    state_value(h.world(), pos, name)
+}
+
+#[test]
+fn brewing_stand_brews_awkward_potions_from_water_and_nether_wart() {
+    with_world(GameMode::Survival, |h| {
+        let stand = IVec3::new(4, 64, 4);
+        h.place(stand, "minecraft:brewing_stand", &[]);
+        assert_eq!(h.saved(stand).items.size(), 5);
+        let powder = h.give(0, "minecraft:blaze_powder", 2);
+        let wart = h.give(1, "minecraft:nether_wart", 3);
+        let bottles: Vec<i32> = (2..5)
+            .map(|slot| h.give_stack(slot, water_bottle()))
+            .collect();
+        let glass = h.give(6, "minecraft:glass_bottle", 1);
+        let window = h.open(stand);
+        // BDS: ContainerSetData 0, 1, 2 (zeros) come before ContainerOpen
+        // type 4, then the five-slot content (client-diff `brewing`).
+        let opened: Vec<String> = h
+            .packets()
+            .into_iter()
+            .filter_map(|packet| match packet {
+                McpePacketData::ContainerSetDataPacket(data) => {
+                    Some(format!("data {}={}", data.id, data.value))
+                }
+                McpePacketData::ContainerOpenPacket(open) => {
+                    Some(format!("open {}", open.container_type))
+                }
+                McpePacketData::InventoryContentPacket(content)
+                    if content.container_id == u32::from(window) =>
+                {
+                    Some(format!("content {}", content.slots.len()))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            opened,
+            ["data 0=0", "data 1=0", "data 2=0", "open 4", "content 5"]
+        );
+
+        assert_eq!(
+            h.take(
+                1,
+                (Name::Hotbarcontainer, 0, powder),
+                (Name::Brewingstandresultcontainer, 1, 0)
+            ),
+            Status::Cannotplaceitem,
+            "blaze powder is not a bottle"
+        );
+        assert_eq!(
+            h.take(
+                1,
+                (Name::Hotbarcontainer, 6, glass),
+                (Name::Brewingstandresultcontainer, 1, 0)
+            ),
+            Status::Cannotplaceitem,
+            "BDS refuses a glass bottle (status 55)"
+        );
+        assert_eq!(
+            h.take(
+                1,
+                (Name::Hotbarcontainer, 1, wart),
+                (Name::Brewingstandfuelcontainer, 4, 0)
+            ),
+            Status::Cannotplaceitem,
+            "only blaze powder fuels"
+        );
+        assert_eq!(
+            h.take(
+                2,
+                (Name::Hotbarcontainer, 0, powder),
+                (Name::Brewingstandfuelcontainer, 4, 0)
+            ),
+            Status::Success
+        );
+        for (index, net) in bottles.into_iter().enumerate() {
+            assert_eq!(
+                h.take(
+                    1,
+                    (Name::Hotbarcontainer, 2 + index as u8, net),
+                    (Name::Brewingstandresultcontainer, 1 + index as u8, 0)
+                ),
+                Status::Success
+            );
+        }
+        assert_eq!(
+            bit(h, stand, "brewing_stand_slot_c_bit"),
+            Some(StateValue::Byte(1)),
+            "each filled bottle slot shows on the block"
+        );
+        assert_eq!(
+            h.take(
+                1,
+                (Name::Hotbarcontainer, 1, wart),
+                (Name::Brewingstandinputcontainer, 0, 0)
+            ),
+            Status::Success
+        );
+        h.packets();
+
+        // The tick after: one powder is used up for 20 brews and the brew
+        // starts; fuel drops only when it completes.
+        h.tick(1);
+        let saved = h.saved(stand);
+        assert_eq!(
+            (
+                saved.brewing.brew_time,
+                saved.brewing.fuel_amount,
+                saved.brewing.fuel_total
+            ),
+            (400, 20, 20)
+        );
+        assert_eq!(saved.items.item(4).unwrap().count, 1, "one powder used");
+        let started: Vec<String> = h
+            .packets()
+            .into_iter()
+            .filter_map(|packet| match packet {
+                McpePacketData::ContainerSetDataPacket(data) if data.container_id == window => {
+                    Some(format!("data {}={}", data.id, data.value))
+                }
+                McpePacketData::InventorySlotPacket(slot) if slot.container_id == window => {
+                    Some(format!("slot {}x{}", slot.slot, slot.item.stacksize))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            started,
+            ["slot 4x1", "data 0=400", "data 1=20", "data 2=20"]
+        );
+
+        h.tick(399);
+        let saved = h.saved(stand);
+        assert_eq!(saved.brewing.brew_time, 1);
+        assert_eq!(saved.items.item(1).unwrap().damage, 0, "still water");
+        h.packets();
+        h.tick(1);
+        let saved = h.saved(stand);
+        for slot in 1..4 {
+            let potion = saved.items.item(slot).unwrap();
+            assert_eq!((potion.item_id(), potion.damage), ("minecraft:potion", 4));
+            assert_eq!(
+                crate::item::enchant::item_tag(potion)
+                    .and_then(|tag| tag.0.get("wasJustBrewed").cloned()),
+                Some(zuri_nbt::NBTTag::Byte(zuri_nbt::tag::Byte(1)))
+            );
+        }
+        assert!(
+            saved.items.item(0).unwrap().is_empty(),
+            "the one wart was used"
+        );
+        let completed: Vec<String> = h
+            .packets()
+            .into_iter()
+            .filter_map(|packet| match packet {
+                McpePacketData::ContainerSetDataPacket(data) if data.container_id == window => {
+                    Some(format!("data {}={}", data.id, data.value))
+                }
+                McpePacketData::InventorySlotPacket(slot) if slot.container_id == window => {
+                    Some(format!("slot {}", slot.slot))
+                }
+                McpePacketData::LevelSoundEventPacket(sound) => Some(sound.sound_event.to_string()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            completed,
+            [
+                "slot 1",
+                "slot 2",
+                "slot 3",
+                "slot 0",
+                "data 0=0",
+                "data 1=19"
+            ]
+        );
+        h.tick(1);
+        let sound = h.packets().into_iter().find_map(|packet| match packet {
+            McpePacketData::LevelSoundEventPacket(sound) => Some(sound),
+            _ => None,
+        });
+        let sound = sound.expect("potion.brewed the next tick");
+        assert_eq!(
+            (
+                &*sound.sound_event,
+                sound.position.x,
+                sound.position.y,
+                sound.data
+            ),
+            ("potion.brewed", 4.5, 64.5, -1)
+        );
+        // Nothing is left to brew: no new brew starts and fuel stays at 19.
+        h.tick(5);
+        assert_eq!(
+            h.saved(stand).brewing,
+            crate::block_entity::BrewingState {
+                brew_time: 0,
+                fuel_amount: 19,
+                fuel_total: 20,
+            }
+        );
+    });
+}
+
+#[test]
+fn brewing_waits_for_fuel_and_cancels_when_the_ingredient_goes() {
+    with_world(GameMode::Survival, |h| {
+        let stand = IVec3::new(4, 64, 4);
+        h.place(stand, "minecraft:brewing_stand", &[]);
+        let world = h.world();
+        {
+            let mut live = container_mut(world, stand).unwrap();
+            live.items
+                .set_item(0, stack("minecraft:nether_wart", 1).into_slot())
+                .unwrap();
+            live.items.set_item(2, water_bottle().into_slot()).unwrap();
+        }
+        h.tick(10);
+        assert_eq!(h.saved(stand).brewing.brew_time, 0, "no fuel, no brew");
+
+        let world = h.world();
+        container_mut(world, stand)
+            .unwrap()
+            .items
+            .set_item(4, stack("minecraft:blaze_powder", 1).into_slot())
+            .unwrap();
+        h.tick(10);
+        assert_eq!(h.saved(stand).brewing.brew_time, 391);
+
+        // Taking the wart out cancels the brew; the spent fuel stays spent.
+        let net = container(h.world(), stand)
+            .unwrap()
+            .items
+            .item(0)
+            .unwrap()
+            .net_id;
+        h.open(stand);
+        assert_eq!(
+            h.take(
+                1,
+                (Name::Brewingstandinputcontainer, 0, net),
+                (Name::Hotbarcontainer, 0, 0)
+            ),
+            Status::Success
+        );
+        h.tick(1);
+        let saved = h.saved(stand);
+        assert_eq!(
+            (saved.brewing.brew_time, saved.brewing.fuel_amount),
+            (0, 20),
+            "a cancelled brew spends no fuel"
+        );
+        assert_eq!(saved.items.item(2).unwrap().damage, 0);
+    });
+}
+
+#[test]
+fn hoppers_feed_brewing_stands_by_face_and_take_the_bottles() {
+    with_world(GameMode::Survival, |h| {
+        let above = IVec3::new(5, 66, 5);
+        let side = IVec3::new(4, 65, 5);
+        let stand = IVec3::new(5, 65, 5);
+        let below = IVec3::new(5, 64, 5);
+        h.place(
+            above,
+            "minecraft:hopper",
+            &[("facing_direction", StateValue::Int(0))],
+        );
+        h.place(
+            side,
+            "minecraft:hopper",
+            &[("facing_direction", StateValue::Int(5))],
+        );
+        h.place(stand, "minecraft:brewing_stand", &[]);
+        h.place(
+            below,
+            "minecraft:hopper",
+            &[("facing_direction", StateValue::Int(2))],
+        );
+        let world = h.world();
+        {
+            let mut live = container_mut(world, above).unwrap();
+            live.items
+                .set_item(0, stack("minecraft:dirt", 1).into_slot())
+                .unwrap();
+            live.items
+                .set_item(1, stack("minecraft:nether_wart", 1).into_slot())
+                .unwrap();
+        }
+        {
+            let mut live = container_mut(world, side).unwrap();
+            live.items
+                .set_item(0, stack("minecraft:blaze_powder", 1).into_slot())
+                .unwrap();
+            live.items.set_item(1, water_bottle().into_slot()).unwrap();
+        }
+        h.tick(1);
+        let saved = h.saved(stand);
+        assert_eq!(
+            saved.items.item(0).unwrap().item_id(),
+            "minecraft:nether_wart"
+        );
+        // Nothing can brew yet, so the powder waits in the fuel slot.
+        assert_eq!(
+            saved.items.item(4).unwrap().item_id(),
+            "minecraft:blaze_powder"
+        );
+        assert_eq!(
+            h.saved(above).items.item(0).unwrap().item_id(),
+            "minecraft:dirt",
+            "dirt is no reagent"
+        );
+        // The side hopper's bottle follows after its cooldown, and the hopper
+        // below takes bottles only.
+        h.tick(8);
+        assert!(h.saved(stand).items.item(1).unwrap().is_empty());
+        let pulled = h.saved(below).items.item(0).unwrap().clone();
+        assert_eq!(pulled.item_id(), "minecraft:potion");
+        let saved = h.saved(stand);
+        assert_eq!(
+            saved.items.item(0).unwrap().item_id(),
+            "minecraft:nether_wart"
+        );
+    });
+}
+
+#[test]
+fn breaking_a_brewing_stand_drops_whole_stacks() {
+    with_world(GameMode::Survival, |h| {
+        let stand = IVec3::new(6, 64, 6);
+        h.place(stand, "minecraft:brewing_stand", &[]);
+        let world = h.world();
+        container_mut(world, stand)
+            .unwrap()
+            .items
+            .set_item(0, stack("minecraft:nether_wart", 40).into_slot())
+            .unwrap();
+        let broken = breaking(world, stand).unwrap();
+        assert!(!broken.randomize && broken.carried.is_none());
+        assert_eq!(broken.drops.len(), 1);
+    });
+}
+
+#[test]
+fn shulker_box_keeps_its_contents_through_break_and_place() {
+    with_world(GameMode::Survival, |h| {
+        let shulker = IVec3::new(3, 64, 3);
+        h.place(shulker, "minecraft:red_shulker_box", &[]);
+        let nested = h.give(0, "minecraft:undyed_shulker_box", 1);
+        let window = h.open(shulker);
+        let open = h.packets().into_iter().find_map(|packet| match packet {
+            McpePacketData::ContainerOpenPacket(open) => Some(open),
+            _ => None,
+        });
+        assert_eq!(open.unwrap().container_id, window);
+        assert_eq!(
+            h.take(
+                1,
+                (Name::Hotbarcontainer, 0, nested),
+                (Name::Shulkerboxcontainer, 0, 0)
+            ),
+            Status::Cannotplaceitem,
+            "no shulker box inside a shulker box"
+        );
+        let gold = h.give(1, "minecraft:gold_ingot", 9);
+        assert_eq!(
+            h.take(
+                9,
+                (Name::Hotbarcontainer, 1, gold),
+                (Name::Shulkerboxcontainer, 13, 0)
+            ),
+            Status::Success
+        );
+        h.close();
+
+        let world = h.world();
+        let runtime_id = super::super::blocks::block_at(world, (3, 64, 3)).unwrap();
+        let broken = breaking(world, shulker).unwrap();
+        assert!(broken.drops.is_empty(), "the contents stay in the box");
+        super::super::blocks::set_block(world, shulker, *crate::world::chunk::blocks::AIR, false);
+        super::super::block_drops::drop_block_items(
+            world,
+            shulker,
+            runtime_id,
+            None,
+            broken.carried.as_ref(),
+        );
+        let dropped: Vec<ItemStack> = world
+            .query::<&ItemEntityStack>()
+            .iter(world)
+            .map(|stack| stack.0.clone())
+            .collect();
+        let [item] = dropped.as_slice() else {
+            panic!("one dropped box, got {dropped:?}");
+        };
+        assert_eq!(item.item_id(), "minecraft:red_shulker_box");
+        let tag = crate::item::enchant::item_tag(item).expect("contents in the item NBT");
+        let Some(zuri_nbt::NBTTag::List(items)) = tag.0.get("Items") else {
+            panic!("Items list");
+        };
+        assert_eq!(items.0.len(), 1);
+
+        // Placing the item against a north face restores contents and facing.
+        let again = IVec3::new(7, 64, 7);
+        let state = h.state("minecraft:red_shulker_box", &[]);
+        let world = h.world();
+        super::super::blocks::set_block(world, again, state, false);
+        placed(world, again, Some(item), 2);
+        let saved = h.saved(again);
+        assert_eq!(saved.facing, 2);
+        let gold = saved.items.item(13).unwrap();
+        assert_eq!((gold.item_id(), gold.count), ("minecraft:gold_ingot", 9));
+        assert_eq!(
+            saved.client_state().0.get("facing"),
+            Some(&zuri_nbt::NBTTag::Byte(zuri_nbt::tag::Byte(2)))
+        );
+    });
+}
+
+/// BDS 1.26.51 announces `/setblock undyed_shulker_box` with its whole actor
+/// (client-diff `shulker`, seq 371).
+#[test]
+fn placing_a_shulker_box_announces_the_same_client_state_as_bds() {
+    const BDS: &str = include_str!("testdata/bds-setblock-shulker-actor.jsonl");
+    let row: serde_json::Value = serde_json::from_str(BDS.trim()).unwrap();
+    let McpePacketData::BlockActorDataPacket(bds) =
+        super::super::inventory::capture::decode(row["hex"].as_str().unwrap())
+    else {
+        panic!("BlockActorData fixture");
+    };
+    let compound = |nbt| {
+        BlockEntity::from_network_nbt(nbt)
+            .unwrap()
+            .bedrock_compound()
+            .unwrap()
+            .unwrap()
+    };
+    with_world(GameMode::Survival, move |h| {
+        let pos = IVec3::new(
+            bds.block_position.x,
+            bds.block_position.y,
+            bds.block_position.z,
+        );
+        h.place(pos, "minecraft:undyed_shulker_box", &[]);
         let ours = h
             .packets()
             .into_iter()

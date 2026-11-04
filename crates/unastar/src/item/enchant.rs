@@ -25,6 +25,8 @@ pub enum Enchantment {
     Unbreaking = 17,
     Fortune = 18,
     Infinity = 22,
+    LuckOfTheSea = 23,
+    Lure = 24,
     Impaling = 29,
     Riptide = 30,
     Loyalty = 31,
@@ -42,6 +44,8 @@ impl Enchantment {
             "unbreaking" => Self::Unbreaking,
             "fortune" => Self::Fortune,
             "infinity" => Self::Infinity,
+            "luck_of_the_sea" => Self::LuckOfTheSea,
+            "lure" => Self::Lure,
             "impaling" => Self::Impaling,
             "riptide" => Self::Riptide,
             "loyalty" => Self::Loyalty,
@@ -199,31 +203,6 @@ pub fn enchantment_level(stack: &ItemStack, enchantment: Enchantment) -> u8 {
         .find(|entry| entry.0.get("id").and_then(as_i32) == Some(i32::from(enchantment as i16)))
         .and_then(|entry| entry.0.get("lvl").and_then(as_i32))
         .map_or(0, |level| level.clamp(0, i32::from(u8::MAX)) as u8)
-}
-
-/// Every enchantment on `stack` as `(Bedrock enchantment id, level)`, in
-/// stored order.
-pub fn enchantment_ids(stack: &ItemStack) -> Vec<(i16, u8)> {
-    let Some(compound) = item_tag(stack) else {
-        return Vec::new();
-    };
-    let Some(NBTTag::List(list)) = compound.0.get("ench") else {
-        return Vec::new();
-    };
-    list.0
-        .iter()
-        .filter_map(|entry| match entry {
-            NBTTag::Compound(entry) => Some((
-                i16::try_from(entry.0.get("id").and_then(as_i32)?).ok()?,
-                entry
-                    .0
-                    .get("lvl")
-                    .and_then(as_i32)?
-                    .clamp(0, i32::from(u8::MAX)) as u8,
-            )),
-            _ => None,
-        })
-        .collect()
 }
 
 /// Tool wear (`Damage`) of `stack`.

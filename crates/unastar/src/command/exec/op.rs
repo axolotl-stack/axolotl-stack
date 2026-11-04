@@ -223,6 +223,7 @@ mod tests {
                     position: DVec3::new(0.5, 17.0, 0.5),
                     outbound_tx,
                     saved_data: None,
+                    enchantment_seed: None,
                     chunk_radius: 2,
                 })
                 .expect("a fresh player spawns");

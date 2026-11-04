@@ -11,6 +11,7 @@ pub mod actor_identifiers;
 pub mod actor_wire;
 pub mod armor_trims;
 pub mod armour;
+pub mod banner_patterns;
 pub mod bds_packets;
 pub mod biomes;
 pub mod blocks;
