@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc;
 use tokio::time::{Duration, timeout};
 use tracing::{debug, trace, warn};
@@ -24,7 +25,9 @@ pub struct NetherNetListenerConfig {
     pub transport: TransportConfig,
     /// Maximum SDP size in bytes (prevents OOM from large SDPs).
     pub max_sdp_size: usize,
-    /// Maximum tracked negotiations/connections (local resource hardening).
+    /// Maximum concurrent negotiations: offers admitted but not yet handed to
+    /// `accept()`. Accepted connections do not count, so this never caps the
+    /// number of connected peers (local resource hardening).
     pub max_pending_connections: usize,
     /// Local server SDP identity; absent values use the upstream-generated self identity.
     pub identity: Option<Arc<crate::identity::Identity>>,
@@ -96,6 +99,8 @@ struct ConnectionHandle {
     connection: Arc<Connection>,
     candidate_budget: crate::dialer::CandidateBudget,
     cancelled: tokio_util::sync::CancellationToken,
+    /// Set once the stream was handed to `accept()`.
+    accepted: Arc<AtomicBool>,
 }
 
 impl NetherNetListener {
@@ -327,6 +332,16 @@ impl ListenerActor {
         Ok(local)
     }
 
+    /// Negotiations that have not yet been handed to `accept()`. Accepted
+    /// connections stay in `connections` (their tuple keeps routing
+    /// `CONNECTERROR`/candidates) but do not use up the negotiation budget.
+    fn negotiating(&self) -> usize {
+        self.connections
+            .values()
+            .filter(|handle| !handle.accepted.load(Ordering::Acquire))
+            .count()
+    }
+
     /// Sends a terminal `CONNECTERROR` without blocking the actor.
     fn reject(&self, conn_id: u64, network_id: String, code: SignalErrorCode) {
         tokio::spawn(send_terminal_error(
@@ -349,14 +364,14 @@ impl ListenerActor {
         let network_id = signal.network_id.clone();
         self.config.stream_config.validate()?;
 
-        // Security: Check connection limit
-        let negotiating = self.connections.len();
+        // Security: Check negotiation limit
+        let negotiating = self.negotiating();
         if negotiating >= self.config.max_pending_connections {
             warn!(
                 conn_id,
                 current = negotiating,
                 max = self.config.max_pending_connections,
-                "Connection limit reached, rejecting new connection"
+                "Negotiation limit reached, rejecting new connection"
             );
             self.reject(
                 conn_id,
@@ -418,6 +433,7 @@ impl ListenerActor {
 
         // A tuple remains owned until its worker/reply has finished or been cancelled.
         let cancelled = tokio_util::sync::CancellationToken::new();
+        let accepted = Arc::new(AtomicBool::new(false));
         let connection = pending.connection().clone();
         let key = (network_id.clone(), conn_id);
         self.connections.insert(
@@ -426,6 +442,7 @@ impl ListenerActor {
                 connection: connection.clone(),
                 candidate_budget,
                 cancelled: cancelled.clone(),
+                accepted: accepted.clone(),
             }),
         );
 
@@ -442,6 +459,7 @@ impl ListenerActor {
             signal_monitor: self.config.signal_monitor.clone(),
             accept_tx: self.accept_tx.clone(),
             connection_timeout: self.config.connection_timeout,
+            accepted,
         };
         let cleanup_tx = self.cleanup_tx.clone();
         tokio::spawn(async move {
@@ -505,6 +523,7 @@ struct Offer {
     signal_monitor: Option<Arc<crate::signal_monitor::SignalMonitor>>,
     accept_tx: mpsc::Sender<NetherNetStream>,
     connection_timeout: Duration,
+    accepted: Arc<AtomicBool>,
 }
 
 impl Offer {
@@ -558,6 +577,8 @@ impl Offer {
                 if let Ok(Ok(())) =
                     timeout(self.connection_timeout, self.accept_tx.send(stream)).await
                 {
+                    // Accepted connections no longer count as negotiations.
+                    self.accepted.store(true, Ordering::Release);
                     // listener.go:listenerNegotiator.finish retains accepted signal ownership.
                     while weak.upgrade().is_some_and(|c| !c.is_finished()) {
                         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -640,7 +661,6 @@ impl Offer {
 mod tests {
     use super::*;
     use crate::test_support::{idle_connection, offer_sdp};
-    use std::sync::atomic::{AtomicBool, Ordering};
 
     struct LocalSignaling;
     #[async_trait::async_trait]
@@ -682,6 +702,7 @@ mod tests {
                 connection: replacement.clone(),
                 candidate_budget: crate::dialer::CandidateBudget::default(),
                 cancelled: tokio_util::sync::CancellationToken::new(),
+                accepted: Arc::default(),
             }),
         );
         actor.cleanup_connection(&key, &old);
@@ -963,11 +984,12 @@ mod tests {
         assert!(actor.connections.is_empty());
     }
 
-    fn tracked() -> Arc<ConnectionHandle> {
+    fn tracked(accepted: bool) -> Arc<ConnectionHandle> {
         Arc::new(ConnectionHandle {
             connection: idle_connection(),
             candidate_budget: crate::dialer::CandidateBudget::default(),
             cancelled: tokio_util::sync::CancellationToken::new(),
+            accepted: Arc::new(AtomicBool::new(accepted)),
         })
     }
 
@@ -981,7 +1003,9 @@ mod tests {
                 ..loopback_config()
             },
         );
-        actor.connections.insert(("other".into(), 1), tracked());
+        actor
+            .connections
+            .insert(("other".into(), 1), tracked(false));
         actor.handle_signal(offer(2)).await.unwrap();
         let reply = next_reply(&mut replies).await;
         assert_eq!(reply.typ, SignalType::Error);
@@ -991,6 +1015,26 @@ mod tests {
             (SignalErrorCode::IncomingConnectionIgnored as i32).to_string()
         );
         assert_eq!(actor.connections.len(), 1);
+    }
+
+    /// Accepted connections keep their tuple but are not negotiations, so
+    /// the limit never caps connected peers.
+    #[tokio::test]
+    async fn accepted_connections_do_not_count_against_negotiation_limit() {
+        let (outbound, mut replies) = mpsc::channel(4);
+        let mut actor = actor(
+            Arc::new(RecordingSignaling(outbound)),
+            NetherNetListenerConfig {
+                max_pending_connections: 1,
+                ..loopback_config()
+            },
+        );
+        actor.connections.insert(("other".into(), 1), tracked(true));
+        actor.handle_signal(offer(2)).await.unwrap();
+        let reply = next_reply(&mut replies).await;
+        assert_eq!(reply.typ, SignalType::Answer);
+        assert_eq!(reply.connection_id, 2);
+        assert_eq!(actor.connections.len(), 2);
     }
 
     #[tokio::test]
