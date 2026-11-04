@@ -552,12 +552,13 @@ impl GameServer {
                 .after(tick_physics)
                 .before(crate::entity::projectile::tick_projectiles),
         );
-        // Leads pull leashed mobs after the AI chose its motion (the physics
-        // step of the next tick integrates the pull) and break.
+        // Leads pull leashed mobs on top of the motion the mob AI chose on
+        // the tick before, so the physics step integrates the pull, and break.
         ecs.schedule_mut().add_systems(
             crate::entity::mob::interaction::leash::tick_leashes
                 .in_set(PhysicsSet)
-                .after(crate::entity::mob::ai::push_mobs),
+                .after(crate::entity::mob::derive_mob_state)
+                .before(tick_physics),
         );
         // Stage markers inside the physics set (see `TickStages`), in the
         // tick order above: bodies move first, then mob AI, then projectiles.

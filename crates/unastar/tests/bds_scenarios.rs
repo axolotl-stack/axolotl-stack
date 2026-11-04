@@ -9,6 +9,11 @@
 //!
 //! Exclusive loopback socket runs: take the native lock first
 //! (`native-lock.sh acquire <lane> ...`).
+//!
+//! The scenario comparisons measure parity rather than guard regressions:
+//! they are ignored in the default `cargo test` and run with
+//! `cargo test -p unastar --all-features --test bds_scenarios -- --ignored`.
+//! `every_retained_scenario_runs` stays in the default run.
 
 use std::io::Write;
 use std::net::{SocketAddr, UdpSocket};
@@ -194,6 +199,7 @@ macro_rules! scenarios {
     ($($test:ident => $dir:literal),* $(,)?) => {
         $(
             #[test]
+            #[ignore = "BDS parity measurement; run with: cargo test -p unastar --all-features --test bds_scenarios -- --ignored (see tools/client-diff/README.md)"]
             fn $test() {
                 run_case($dir);
             }

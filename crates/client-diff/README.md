@@ -68,7 +68,8 @@ feedback.
 6. Add `<test_name> => "<dir-name>"` to the `scenarios!` list in
    `crates/unastar/tests/bds_scenarios.rs`.
 7. Run it (loopback run: native lock):
-   `cargo test -p unastar --test bds_scenarios <test_name>`.
+   `cargo test -p unastar --all-features --test bds_scenarios <test_name> -- --ignored`
+   (the comparisons are ignored in the default `cargo test`).
 8. Fix unastar until it passes, or list each remaining difference under
    `known_failing` with the owning lane and the reason; `accepted` needs the
    integrator.

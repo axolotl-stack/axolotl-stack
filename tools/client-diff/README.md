@@ -206,6 +206,8 @@ Edit `scenarios.json`, shared by both clients (step types and validation: `gt-cl
 
 To make a recorded scenario a permanent BDS parity test against unastar, follow the recipe in [crates/client-diff/README.md](../../crates/client-diff/README.md#recipe-add-a-scenario).
 
+The retained scenario comparisons (`crates/unastar/tests/bds_scenarios.rs`) are a parity measurement, not a regression suite: they are ignored in the default `cargo test` and run with `cargo test -p unastar --all-features --test bds_scenarios -- --ignored`. They are expected to fail until each owning lane closes its differences; a scenario passing is what moves its parity row to `verified`.
+
 ## Later: real Minecraft
 
 `real-client/launch.ps1` is a manual launcher only. It opens a `minecraft://connect/` URI, waits, and terminates the game process. Review its parameters/help and explicitly run it only when a user is present, BDS/Endstone is ready, and the player can complete any interactive client setup. Capture through Endstone and compare that capture using `diff`; no game invocation belongs in automated verification.
