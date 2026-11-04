@@ -13,9 +13,19 @@ exclude_globs = [
 
     # Generated code (no point mutating generated code)
     "**/generated/**",
-    "crates/valentine_bedrock_1_21_130/**",  # Generated protocol code
-    "crates/unastar-data/**",                 # Generated game data
+    "crates/valentine/bedrock_versions/**",   # Generated protocol code (valentine_gen)
+    "crates/valentine/src/bedrock/**",        # Generated version re-exports (valentine_gen)
     "crates/valentine_gen/**",                # Code generator (not runtime)
+
+    # unastar-data: only the modules unastar-data-codegen writes. The rest of
+    # the crate (loaders, decoders, recipe/loot/actor typing) is hand-written
+    # and worth mutating; pack-derived data lives in OUT_DIR, not in src.
+    "crates/unastar-data/src/blocks.rs",
+    "crates/unastar-data/src/creative.rs",
+    "crates/unastar-data/src/items.rs",
+    "crates/unastar-data/src/bds_packets.rs",
+    "crates/unastar-data/codegen/**",         # Generators (not runtime)
+    "crates/unastar-data/datagen/**",
 
     # External tools
     "crates/bds-extractor/**",
