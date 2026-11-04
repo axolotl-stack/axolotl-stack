@@ -86,8 +86,11 @@ terrain is generated in parallel (one lock per chunk; see
 The default spawn rule keeps returning players at their saved position and otherwise
 uses the generator's spawn; set `location` (with `always_at_location = true`) to pin it.
 Java-style chunks are generated on a bounded pool of `world.generation_threads`
-workers (0 = half the cores, 1..=16), off the ECS tick thread. Chunk biomes are 3D
-(4x4x4 quarts) on the wire and in storage (`Data3D`).
+workers (0 = half the cores, 1..=16), off the ECS tick thread. Workers serve the
+queue in order but skip ahead (at most 4 requests per worker) past requests within
+4 chunks of one already in flight: a finished chunk uses the source chunks of the
+5x5 around it, so neighbouring requests would mostly wait for each other. Chunk
+biomes are 3D (4x4x4 quarts) on the wire and in storage (`Data3D`).
 
 Generation runs through `world::generator::ChunkPipeline`: per-chunk terrain stages
 write a flat block buffer that is packed into paletted sub-chunks once; a 3x3
@@ -95,8 +98,11 @@ decoration stage (features and structures) runs only for generators that decorat
 Decoration overlays over shared (cached) protos clone only modified sub-chunks,
 not whole neighbouring chunks or biome storage. Sparse block actors have an
 independent lazy overlay; ordered block/actor journals preserve the same
-invalidation and replay semantics. Native in-order sessions mutate their chunks
-directly.
+invalidation and replay semantics. Native sessions lock each source chunk on its
+own: a finished chunk decorates its 3x3 of origins, taking an origin's nine chunks
+in position order, and a worker that finds part of an origin's area held elsewhere
+builds the terrain it can and moves on to its next origin, waiting only when all
+are busy. A single caller never meets contention and keeps its exact order.
 Legacy projection gates run through `cargo test -p unastar --test worldgen_parity`.
 They cover terrain/surface metrics, projected proto voxels, biomes and spawn, not
 literal canonical Java-state equality. `worldgen_parity_report` prints those
@@ -167,8 +173,12 @@ The cave-boundary regression fails before the fix and passes after it.
 Native biome ties are history-dependent, including across chunk calls on a worker.
 Request-order and parallel checks must match the reference's worker/query context
 or report that dependency; resetting tie history to force seed-only determinism
-would change native behavior. Bedrock keeps its current independent-nearest policy
-until a BDS reference establishes a different rule.
+would change native behavior. A fill whose every search found a unique nearest
+leaf is the same from any history, so `JavaGenerator` computes it once per chunk
+and replays it for the other eight surfaces that read it (sharing its biomes and
+restoring the history its last search leaves); fills that met a tie run every time.
+Bedrock keeps its current independent-nearest policy until a BDS reference
+establishes a different rule.
 
 `JavaGenerationOptions::dimension` selects the native preset. Java states, native
 biome identities and actor recipes remain intact through

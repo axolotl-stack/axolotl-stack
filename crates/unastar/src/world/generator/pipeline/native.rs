@@ -95,16 +95,25 @@ impl NativeSession {
             .cloned()
     }
 
-    /// The chunk's cell with its terrain built. Holds no other chunk lock.
-    fn created(&self, generator: &dyn Generator, pos: ChunkPos) -> Cell {
+    /// The chunk's cell with its terrain built, or `None` when another worker
+    /// holds it and `wait` is false. Holds no other chunk lock.
+    fn created(&self, generator: &dyn Generator, pos: ChunkPos, wait: bool) -> Option<Cell> {
         let cell = self.cell(pos);
         {
-            let mut chunk = lock(&cell);
+            let mut chunk = if wait {
+                lock(&cell)
+            } else {
+                match cell.try_lock() {
+                    Ok(guard) => guard,
+                    Err(std::sync::TryLockError::WouldBlock) => return None,
+                    Err(std::sync::TryLockError::Poisoned(_)) => panic!("native chunk poisoned"),
+                }
+            };
             if chunk.is_none() {
                 *chunk = Some(NativeChunk::new(generator, pos));
             }
         }
-        cell
+        Some(cell)
     }
 
     fn is_complete(&self, origin: ChunkPos) -> bool {
@@ -115,14 +124,58 @@ impl NativeSession {
         })
     }
 
+    /// Completes FEATURES at `origin`, waiting for chunks other workers hold.
     pub(super) fn decorate(&self, generator: &dyn Generator, origin: ChunkPos) {
-        if self.is_complete(origin) {
-            return;
+        let done = self.decorate_with(generator, origin, true);
+        debug_assert!(done, "a waiting decoration always completes");
+    }
+
+    /// Completes FEATURES at every origin, in order whenever nothing is
+    /// contended. When another worker holds part of an origin's area, later
+    /// origins whose areas are free go first and the busy one is retried;
+    /// only when every remaining origin is busy does this wait. A single
+    /// caller therefore keeps exactly its request order.
+    pub(super) fn decorate_all<const N: usize>(
+        &self,
+        generator: &dyn Generator,
+        origins: [ChunkPos; N],
+    ) {
+        let mut done = [false; N];
+        while let Some(first) = done.iter().position(|&done| !done) {
+            let mut progressed = false;
+            for (origin, done) in origins.iter().zip(&mut done) {
+                if !*done && self.decorate_with(generator, *origin, false) {
+                    *done = true;
+                    progressed = true;
+                }
+            }
+            if !progressed {
+                self.decorate(generator, origins[first]);
+                done[first] = true;
+            }
         }
-        let cells = SLOT_OFFSETS
-            .map(|(dx, dz)| self.created(generator, ChunkPos::new(origin.x + dx, origin.z + dz)));
+    }
+
+    /// `true` once FEATURES at `origin` is complete. Without `wait`, gives up
+    /// (returning `false`) as soon as a chunk of the area is held elsewhere,
+    /// after building the terrain it could.
+    fn decorate_with(&self, generator: &dyn Generator, origin: ChunkPos, wait: bool) -> bool {
+        if self.is_complete(origin) {
+            return true;
+        }
+        // Terrain one chunk at a time, in slot order; without `wait`, chunks
+        // another worker is building or decorating are skipped.
+        let mut cells: [Option<Cell>; 9] = Default::default();
+        for (slot, (dx, dz)) in SLOT_OFFSETS.into_iter().enumerate() {
+            cells[slot] =
+                self.created(generator, ChunkPos::new(origin.x + dx, origin.z + dz), wait);
+        }
+        if cells.iter().any(Option::is_none) {
+            return false;
+        }
+        let cells = cells.map(|cell| cell.expect("every slot created"));
         // One global lock order (by position) makes overlapping origins wait
-        // for each other without deadlock.
+        // for each other without deadlock; trying never waits at all.
         let mut order: [usize; 9] = std::array::from_fn(|slot| slot);
         order.sort_by_key(|&slot| {
             let (dx, dz) = SLOT_OFFSETS[slot];
@@ -130,7 +183,16 @@ impl NativeSession {
         });
         let mut guards: [Option<MutexGuard<'_, Option<NativeChunk>>>; 9] = Default::default();
         for slot in order {
-            guards[slot] = Some(lock(&cells[slot]));
+            guards[slot] = Some(if wait {
+                lock(&cells[slot])
+            } else {
+                match cells[slot].try_lock() {
+                    Ok(guard) => guard,
+                    // Dropping the guards taken so far releases them.
+                    Err(std::sync::TryLockError::WouldBlock) => return false,
+                    Err(std::sync::TryLockError::Poisoned(_)) => panic!("native chunk poisoned"),
+                }
+            });
         }
         let mut chunks = guards.map(|guard| guard.expect("every slot locked"));
         let center = SLOT_OFFSETS
@@ -142,7 +204,7 @@ impl NativeSession {
             .is_some_and(|chunk| chunk.features_complete)
         {
             // Another worker completed it while this one built terrain.
-            return;
+            return true;
         }
         {
             let protos = chunks.each_mut().map(|guard| {
@@ -166,6 +228,7 @@ impl NativeSession {
             .as_mut()
             .expect("terrain created before locking")
             .features_complete = true;
+        true
     }
 
     pub(super) fn snapshot(&self, generator: &dyn Generator, pos: ChunkPos) -> Option<Chunk> {

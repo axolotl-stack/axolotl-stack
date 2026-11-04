@@ -14,7 +14,10 @@
 mod end;
 mod native;
 pub use end::sample_end_biome;
-pub use native::{fill_end_native, fill_nether_native, fill_overworld_native, sample_biome_native};
+pub use native::{
+    NativeFill, Replay, fill_end_native, fill_nether_native, fill_overworld_native,
+    sample_biome_native,
+};
 #[cfg(feature = "bedrock-worldgen")]
 pub(crate) use native::{fill_overworld_native_with, overworld_target_native};
 

@@ -1405,6 +1405,107 @@ passes; `cargo test` for those crates with all features passes except the
 Bedrock-owned known failure `bedrock_style_vs_bds_reference_ratchets` (D8),
 skipped explicitly. Release `worldgen_output_hash` and both ratchets pass.
 
+## 2026-10-29: native generation scaling and replayed biome fills
+
+Branch `Jviguy/stab-perf-2`. All rows use the same pool (`worldgen_bench --mode
+area`, Steel seed `8500081009970950196`, Java native full-stage path, no
+lighting or saving), i9-14900HX on AC with the processor maximum at 99%, on a
+shared machine. Process CPU is user + kernel from `tools/perf/cpu_run.py`
+(includes setup); "busy" is CPU time over wall time. Raw samples:
+[`../perf/results/2026-10-29-generation-speed.json`](../perf/results/2026-10-29-generation-speed.json).
+Today's native full-stage path costs about twice the CPU per chunk of the
+"User-authorized dense-area comparison" rows above (13.98 CPU-ms at 1 worker),
+so those are not the baseline here.
+
+### Changes
+
+- `86e5dc91`: a finished chunk's 3x3 decorations skip origins whose area another
+  worker holds (building the free terrain first) and wait only when all are
+  busy. One caller keeps its order exactly.
+- `3d89b456`: pool workers take the first request at Chebyshev distance 5 or more
+  from every in-flight one, looking at most 4 per worker past the front; an idle
+  pool keeps queue order.
+- `51b0a3df`: generated R-tree lookups report whether the nearest leaf was unique.
+  Biome fills whose searches were all unique are cached per position and
+  replayed, sharing the biomes and restoring the thread's search history.
+- `b389291b`: no heap allocation while tracking contended origins.
+
+### Before (`6e538c8b`) and after (`17c51572`)
+
+Same session and round, 33x33 area (1,089 chunks). The 1-worker row uses a
+21x21 area pinned to one P-core (`0x4`).
+
+| Workers | chunks/s before | chunks/s after | CPU-ms/chunk before | CPU-ms/chunk after | busy before | busy after |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 25.4 | 35.5 | 33.7 | 25.6 | 0.8 | 0.9 |
+| 4 | 35.6 | 134.0 | 33.8 | 29.0 | 1.2 | 3.8 |
+| 8 | 95.5 | 192.1 | 35.3 | 34.2 | 3.3 | 6.4 |
+| 16 | 194.3 | 266.2 | 38.2 | 37.7 | 7.3 | 9.8 |
+
+Three-round medians from the separate A/B runs agree in direction: contention
+skipping at 16 workers went from 136 to 203 chunks/s (busy 7.3 to 9.9), spreading
+at 8 workers from 133 to 184, and replayed fills cut CPU per chunk by 11% at 1
+worker (31.5 to 27.9 ms) and 12% on 8 P-cores (33.8 to 29.9 ms).
+
+101x101 Steel area (10,201 chunks), two rounds each:
+
+| Build | Workers | chunks/s | CPU-ms/chunk | busy |
+|---|---:|---:|---:|---:|
+| before | 16 | 137.7, 164.0 | 52.5, 46.7 | 7.2, 7.6 |
+| spreading (`3d89b456`) | 16 | 262.1, 272.5 | 53.9, 53.5 | 14.0, 14.5 |
+| spreading | 32 | 372.4, 368.7 | 55.1, 55.6 | 20.2, 20.3 |
+
+Replayed fills were not measured on the 101x101 area: the machine went to
+battery before that round.
+
+### Where the remaining scaling loss is
+
+With 8 workers pinned to one thread per P-core (`0x5555`) CPU per chunk is 29.6
+to 31.0 ms, the same as one worker (27.2 to 30.8 ms), so the software now
+scales on physical cores. Both SMT threads of the P-cores (`0xffff`, 16 workers)
+cost 43.5 ms per chunk for +5% throughput, and E-cores (`0x00ff0000` /
+`0xffff0000`) cost 47 to 59 ms per chunk. The rise in CPU per chunk at 16 and 32
+workers is hardware, not lock waits.
+
+### Rejected
+
+- mimalloc as global allocator: no consistent gain across 3-round A/Bs
+  (16 workers, 237 vs 203 chunks/s in one set, 215 vs 239 in the next).
+  Not kept.
+- Caching only the overworld climate inputs of neighbour fills: no measurable
+  change. The cost is the R-tree searches, which is what replay removes.
+- A lookahead of 16 per worker: 182 and 315 chunks/s against 262 and 273 for
+  4 per worker, too noisy to justify more reordering.
+
+### Allocation ceilings
+
+At `8fb72a7f`, before this lane, this machine already measured the Java fixture
+at 78,776 allocations (ceiling 76,669) and Bedrock `bedrock_first` at 22
+(ceiling 12). Re-baselined after this lane: Java 77,650 allocations / 118.1 MB
+(from 78,776 / 124.2 MB). Surface went from 2,163 to 773 allocations, and the
+pipeline gained 264 (one shared cell per native chunk, `80f8b638`). Bedrock is
+unchanged from `8fb72a7f`.
+
+### Verification
+
+The release `worldgen_output_hash` Java and Bedrock fixtures are unchanged. Java
+native comparator smokes (overworld and nether, seed 0 grid) show 0 differing
+states, quart biomes, heightmap columns or block entities. The generated
+`traced_uniqueness_matches_brute_force` tests (overworld and nether) pass, as do
+`concurrent_native_origins_are_exclusive_and_complete_once` and the pool's
+`pick` precedence test.
+
+### Not reached
+
+Steel's published 2,581.8 chunks/s used 30.2 logical CPUs on a Ryzen 9950X at
+11.7 CPU-ms per chunk, including lighting and saving. Our best is 372 chunks/s
+at about 55 CPU-ms per chunk (32 workers), and 25.6 to 27.9 CPU-ms per chunk on
+one P-core. The 1,000 chunks/s and under-7 CPU-ms targets need per-core work in
+noise (about 6.5 ms per proto), aquifer/veins (3.4 ms per proto), vegetal
+features and surface rules (0.9 ms per proto, mostly rule evaluation for every
+stone block). Raising `MAX_AUTO_THREADS` to use E-cores and SMT gives +29%
+(16 to 32 workers) but needs tick-latency evidence from the load lane first.
+
 ## 2026-10-30: round-3 mainline integration
 
 Branch `Jviguy/mainline-3`: main `2cdb3b18` plus the entities, blocks, items,

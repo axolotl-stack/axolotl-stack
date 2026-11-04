@@ -23,7 +23,7 @@ use super::biome_source;
 use super::density::{ColumnContextGrid, FlatCacheGrid, JavaNoiseSource};
 use super::density::{NativeNoiseRegistry, NoiseRegistry};
 use super::pipeline::{Generator, SpawnPoint};
-use super::proto::{NativeBiome, ProtoChunk};
+use super::proto::{NativeBiome, ProtoChunk, QuartBiomes};
 use super::region::DecorationRegion;
 use super::surface::SurfaceSystem;
 use super::xoroshiro::PositionalRandomFactory;
@@ -115,6 +115,10 @@ pub struct JavaGenerator {
     /// Native source chunks cache their first carver-biome lookup. AOT verifies
     /// equal carver lists across each preset, so only cache presence is needed.
     carver_biomes: Mutex<HashSet<ChunkPos>>,
+    /// History-independent native biome fills (see `native_biomes`). A chunk's
+    /// own terrain and the surfaces of its eight neighbours each fill its
+    /// biomes.
+    biome_fills: super::pipeline::ChunkCache<Option<(QuartBiomes, biome_source::Replay)>>,
 }
 
 impl JavaGenerator {
@@ -192,6 +196,7 @@ impl JavaGenerator {
             options,
             backend,
             carver_biomes: Mutex::new(HashSet::new()),
+            biome_fills: super::pipeline::ChunkCache::new(super::pipeline::DEFAULT_PROTO_CACHE),
         }
     }
 
@@ -270,11 +275,11 @@ impl JavaGenerator {
                     BlockStateSpace::Java,
                     self.options.dimension.block_bounds(),
                 ),
-                biomes: biome_source::fill_overworld_native(&source, pos, &flat, &columns),
+                biomes: biome_source::fill_overworld_native(&source, pos, &flat, &columns).biomes,
             };
         }
         let (dense, biomes) = self.generate_noise_with(pos, |source, pos, flat, columns| {
-            biome_source::fill_overworld_native(source, pos, flat, columns)
+            biome_source::fill_overworld_native(source, pos, flat, columns).biomes
         });
         ProtoChunk {
             pos,
