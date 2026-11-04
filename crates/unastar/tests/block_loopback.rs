@@ -81,6 +81,18 @@ impl ClientView {
                     .unwrap_or_else(|| panic!("unknown wire id {}", update.block_runtime_id));
                 self.blocks.insert(pos, state);
             }
+            // Several changes in one sub-chunk arrive as one batch, as on
+            // BDS; the standard entries are layer 0.
+            McpePacketData::UpdateSubChunkBlocksPacket(batch) => {
+                for entry in &batch.blocks_changed.blocks_changed_standards {
+                    let state = *self
+                        .by_hash
+                        .get(&entry.runtime_id)
+                        .unwrap_or_else(|| panic!("unknown wire id {}", entry.runtime_id));
+                    self.blocks
+                        .insert((entry.pos.x, entry.pos.y, entry.pos.z), state);
+                }
+            }
             McpePacketData::InventoryContentPacket(content) if content.container_id == 0 => {
                 self.hotbar = content.slots.iter().take(9).cloned().collect();
             }
@@ -500,11 +512,15 @@ fn flint_and_steel_primes_tnt_that_explodes_after_its_fuse() {
                 },
             )
             .await;
-            assert_eq!(
-                view.name(LOWER),
-                Some("minecraft:air"),
-                "the block was primed"
-            );
+            // As on BDS, the block change (TNT -> air) goes out at the start
+            // of the next tick, after the primed actor's AddActor.
+            until(
+                &mut client,
+                &mut view,
+                "the primed block's removal",
+                |view, _| view.name(LOWER) == Some("minecraft:air"),
+            )
+            .await;
             // The fuse runs about four seconds; the explosion breaks the floor.
             until(&mut client, &mut view, "the explosion", |view, _| {
                 view.name((FLOOR.x, FLOOR.y, FLOOR.z)) == Some("minecraft:air")
