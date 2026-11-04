@@ -14,6 +14,8 @@
 #   families  row families of that domain (as in PARITY.md's family tables)
 #   ids       row ids; each also covers the row's sub-rows
 #   prefixes  plain prefixes of row ids
+#   change    optional: the active OpenSpec change doing the work
+#             (openspec/changes/<change>/); remove the claim when it is archived
 #
 # `parity check` rejects unknown domains, families, ids and prefixes, and any
 # row covered by two claims. One claim covers one domain; an area spanning
