@@ -107,7 +107,11 @@ impl std::fmt::Debug for ConnectionOptions {
 pub struct CompressionConfig {
     /// `Deflate` (vanilla default), `Snappy`, or `None`.
     pub algorithm: BatchCompression,
-    /// Deflate level 1..=9 (clamped); ignored for Snappy/None.
+    /// Deflate level: 1..=9, larger values clamp to 9. `0` keeps the
+    /// negotiated algorithm (`NetworkSettings` still advertises it) but sends
+    /// every batch with the uncompressed `0xFF` marker, which a client accepts
+    /// whatever was negotiated, as it does for batches under `threshold`.
+    /// Ignored for Snappy/None, except that `0` also turns Snappy off.
     pub level: u32,
     /// Batches shorter than this are sent uncompressed. Default: 1 (BDS
     /// `server.properties` `compression-threshold=1`, confirmed by BDS
