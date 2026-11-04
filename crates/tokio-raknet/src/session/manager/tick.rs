@@ -22,7 +22,10 @@ impl ManagedSession {
     /// dead-connection timeout hits.
     pub fn close(&mut self, reason: DisconnectReason, now: Instant) -> Result<(), SessionError> {
         if !self.inner.transmission_policy().is_vanilla() {
-            return self.send_disconnect(reason);
+            self.send_disconnect(reason)?;
+            // The drain is measured on the caller's clock, like every tick.
+            self.closing_since = Some(now);
+            return Ok(());
         }
         match self.state {
             ConnectionState::Closed => Err(SessionError::Closed),
@@ -876,9 +879,8 @@ mod tests {
             RakPriority::Normal,
         )
         .unwrap();
-        // The close reads the clock itself; measure the drain from after it.
         ms.close(DisconnectReason::Disconnected, start).unwrap();
-        let closed_at = Instant::now();
+        let closed_at = start;
         assert_eq!(ms.state(), ConnectionState::Closing);
         let frames = tick_frames(&mut ms, closed_at + EPSILON);
         let notification: Vec<&EncapsulatedPacket> = frames
@@ -912,7 +914,7 @@ mod tests {
         let mut ms = connected_client(TransmissionPolicy::Optimized, start);
         ack_all(&mut ms, start);
         ms.close(DisconnectReason::Disconnected, start).unwrap();
-        let closed_at = Instant::now();
+        let closed_at = start;
         tick_frames(&mut ms, closed_at + EPSILON);
         ack_all(&mut ms, closed_at + EPSILON);
         let now = closed_at + Duration::from_millis(900);
@@ -920,6 +922,35 @@ mod tests {
         tick_frames(&mut ms, now);
         assert_eq!(ms.state(), ConnectionState::Closing);
         let now = closed_at + Duration::from_millis(1_000);
+        ms.record_activity(now);
+        tick_frames(&mut ms, now);
+        assert_eq!(ms.state(), ConnectionState::Closed);
+    }
+
+    /// The Optimized drain runs on the `now` given to `close`, not the wall
+    /// clock: a caller driving the session with its own instants (here one
+    /// minute ahead) still gets the full drain instead of an instant close.
+    #[test]
+    fn optimized_close_measures_the_drain_from_the_callers_now() {
+        let start = Instant::now() + Duration::from_secs(60);
+        let mut ms = connected_client(TransmissionPolicy::Optimized, start);
+        ack_all(&mut ms, start);
+        ms.queue_app_packet(
+            RaknetPacket::UserData {
+                id: 0x80,
+                payload: Bytes::from_static(b"must arrive"),
+            },
+            Reliability::ReliableOrdered,
+            0,
+            RakPriority::Normal,
+        )
+        .unwrap();
+        ms.close(DisconnectReason::Disconnected, start).unwrap();
+        let now = start + Duration::from_millis(1_500);
+        ms.record_activity(now);
+        tick_frames(&mut ms, now);
+        assert_eq!(ms.state(), ConnectionState::Closing, "still draining");
+        let now = start + Duration::from_secs(5);
         ms.record_activity(now);
         tick_frames(&mut ms, now);
         assert_eq!(ms.state(), ConnectionState::Closed);
