@@ -1057,4 +1057,37 @@ mod tests {
         );
         assert!(actor.connections.is_empty());
     }
+
+    /// End to end: with a negotiation limit of one, a connected peer must
+    /// not stop a second peer from connecting. Before the fix the accepted
+    /// connection kept counting and the second dial got `CONNECTERROR` 16.
+    #[tokio::test]
+    async fn connected_peer_does_not_use_up_the_negotiation_limit() {
+        let (server, client) = crate::test_support::signaling_pair(false);
+        let mut listener = NetherNetListener::bind_with_signaling(
+            server,
+            NetherNetListenerConfig {
+                max_pending_connections: 1,
+                ..loopback_config()
+            },
+        );
+        let dialer = crate::NetherNetDialer::connect_with_signaling(
+            client,
+            crate::NetherNetDialerConfig {
+                transport: TransportConfig::loopback_v4(),
+                allow_identityless_server: true,
+                ..Default::default()
+            },
+        );
+        let mut held = Vec::new();
+        for attempt in 1..=2 {
+            let (dialed, accepted) = timeout(Duration::from_secs(14), async {
+                tokio::join!(dialer.dial("1".into()), listener.accept())
+            })
+            .await
+            .unwrap_or_else(|_| panic!("dial {attempt} timed out"));
+            let dialed = dialed.unwrap_or_else(|error| panic!("dial {attempt} failed: {error}"));
+            held.push((dialed, accepted.unwrap()));
+        }
+    }
 }
