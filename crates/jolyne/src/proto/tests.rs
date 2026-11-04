@@ -812,6 +812,49 @@ async fn runtime_id_mismatch_is_rejected() {
     ));
 }
 
+/// A `SetLocalPlayerAsInitialized` before any `RequestChunkRadius` must not
+/// complete the spawn: the server holds it, still answers the radius with
+/// `ChunkRadiusUpdated` and `PlayStatus(PlayerSpawn)`, and only then hands
+/// over a session that knows its radius.
+#[tokio::test]
+async fn early_initialize_still_gets_the_spawn_answer() {
+    use crate::valentine::McpePacketData;
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (mut spawn, mut client) = harness.through_packs(params(3)).await;
+    pump(&mut spawn, &mut client); // StartGame .. CreativeContent
+    while client.connection().next_packet().unwrap().is_some() {}
+    client
+        .connection()
+        .queue_packet(&initialized(3), Instant::now())
+        .unwrap();
+    pump(&mut client, &mut spawn);
+    let mut spawn = wait(spawn);
+    assert_eq!(
+        pump(&mut spawn, &mut client),
+        0,
+        "nothing before the radius"
+    );
+    request_radius(&mut client, 6);
+    pump(&mut client, &mut spawn);
+    let mut server = next(spawn);
+    assert_eq!(server.session.chunk_radius(), Some(6));
+    pump(&mut server, &mut client);
+    let mut answer = Vec::new();
+    while let Some(packet) = client.connection().next_packet().unwrap() {
+        answer.push(packet.decode().unwrap().data);
+    }
+    assert!(matches!(
+        answer.as_slice(),
+        [
+            McpePacketData::ChunkRadiusUpdatedPacket(updated),
+            McpePacketData::PlayStatusPacket(status),
+        ] if updated.chunk_radius == 6 && status.status == PlayStatusPacketStatus::Playerspawn
+    ));
+}
+
 #[tokio::test]
 async fn chunk_radius_requires_one_and_honours_the_server_override() {
     let harness = Harness::new(BedrockListenerConfig {
