@@ -53,7 +53,12 @@ tick requests it in priority order; every loaded column is encoded for the
 network once on a background thread and the encoding is shared by every
 player and every sub-chunk answer (an edited chunk is re-encoded in the
 background when next needed, and answered once that finished); unloaded
-chunks are written in the background. The tick never reads,
+chunks are written in the background, and unloading pauses while 64 writes
+are pending so writes never take the blocking pool storage reads need. A
+moving player's columns are loaded before they enter the view: what the
+views leave of the read and generation budgets goes to the view around the
+point the player reaches in two seconds at its current velocity (loaded,
+not sent, until they are in the view). The tick never reads,
 generates or encodes: it hands work to the workers and spends at most 4 ms
 each spawning finished columns, restoring their actors and unloading.
 Sending is not capped per tick; two bounds apply per player. Columns: a send
@@ -73,6 +78,40 @@ for good.
 ## Results
 
 Result files are in `results/` (one JSON array of runs per file).
+
+### 2026-11-01: elytra flight (prefetch ahead of the view)
+
+The raw result file of this run was never committed; only this table
+survives. Fresh Java world, seed 12345, radius 12,
+loopback, release builds, native lock held. `base` is the respawn/teleport
+fix (68a9a009), `m3` adds loading two seconds ahead of each moving player and
+the bound on writes in flight. The players join at the spawn, then fly in a
+straight line (eight players: the eight compass directions) 40 blocks above
+the terrain. A hole is a column of the render disk (`dx² + dz² <= r²`) still
+missing 250 ms after it entered the disk; latency is from entering the disk
+to complete on the client (0 when it was there first).
+
+| players | speed | flight | build | holes/s | missing mean / worst | latency p99 / max |
+|---|---|---|---|---|---|---|
+| 1 | 30 b/s | 20 s | base | 0.0 | 0.0% / 0.0% | 0 / 0 ms |
+| 1 | 30 b/s | 20 s | m3 | 0.0 | 0.0% / 0.0% | 0 / 0 ms |
+| 1 | 60 b/s | 20 s | base | 0.0 | 0.2% / 2.5% | 54 / 88 ms |
+| 1 | 60 b/s | 20 s | m3 | 0.0 | 0.0% / 0.0% | 0 / 0 ms |
+| 8 | 30 b/s | 20 s | base | 5.8 | 0.2% / 2.0% | 558 / 700 ms |
+| 8 | 30 b/s | 20 s | m3 | 0.1 | 0.1% / 0.9% | 165 / 252 ms |
+| 8 | 30 b/s | 60 s | base | 27.0 | 0.9% / 21.1% | 4052 / 6756 ms |
+| 8 | 30 b/s | 60 s | m3 | 1.2 | 0.1% / 4.8% | 250 / 899 ms |
+| 8 | 30 b/s | 60 s | m3, 24 generation threads | 0.0 | 0.1% / 0.9% | 155 / 239 ms |
+
+One player never sees a missing chunk, even at 60 blocks/s: every column
+is in memory before it enters the view and arrives with it. Eight players
+flying apart at 30 blocks/s need about 400 new columns a second (27 per chunk
+of travel each, 1.9 chunks a second); the default 16 generation workers make
+340-380 a second on this machine with the pool always full, so over a
+minute the deficit still leaves about one hole a second at the far rim (the
+leading edge's sides, 10-12 chunks from the player). With
+`generation_threads = 24` in the server config the pool makes up to 500 a
+second in bursts and the same flight has none. No tick went over 50 ms.
 
 ### 2026-10-31: respawn and teleport into a stored view (QueueTooLong fix)
 
