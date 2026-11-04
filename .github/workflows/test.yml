@@ -71,6 +71,43 @@ jobs:
           cargo check -p unastar --all-targets
           cargo test -p unastar --lib --tests
 
+  knowledge:
+    # The project knowledge system (AGENTS.md, openspec/, docs/, agent skills); see docs/README.md.
+    runs-on: ubuntu-latest
+    env:
+      OPENSPEC_TELEMETRY: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: OpenSpec project config parses
+        # openspec only warns on a broken config and then ignores the project rules.
+        run: |
+          bun -e 'const c = Bun.YAML.parse(await Bun.file("openspec/config.yaml").text());
+          for (const k of ["context", "rules", "operations"]) if (!c[k]) throw new Error("openspec/config.yaml: missing " + k);'
+
+      - name: OpenSpec specs and changes
+        run: bunx @fission-ai/openspec@1.16.0 validate --all --strict --no-interactive
+
+      - name: Agent skills mirrored to .claude/skills
+        run: bash tools/agents/sync-skills.sh --check
+
+      - name: Relative Markdown links resolve
+        run: bun tools/agents/check-links.ts
+
+      - name: No references to the removed thoughts/ folder
+        run: |
+          if git grep -n -I 'thoughts/shared' -- ':!*.lock'; then
+            echo "thoughts/ was replaced by docs/ and openspec/ (see docs/README.md)" >&2
+            exit 1
+          fi
+
   test-windows:
     runs-on: windows-latest
 
