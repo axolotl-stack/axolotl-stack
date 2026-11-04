@@ -66,6 +66,10 @@ reference. Host queries read current ECS state. Player mutation requests become
 `PluginAction` entries in the ECS action queue, processed by the server's plugin
 action system rather than exposing mutable ECS references to guests.
 
+`get-tps` reports ticks per second measured over the last 100 server ticks,
+capped at the nominal 20; before two ticks have run it reports 20. `get-game-mode`
+reads the player's current game mode.
+
 Player handles and their host entity mappings are scoped to a host invocation;
 plugins should obtain and use handles during the current callback, not retain
 them for subsequent callbacks. A handle the current invocation did not create

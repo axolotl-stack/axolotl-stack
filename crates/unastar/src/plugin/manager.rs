@@ -44,6 +44,8 @@ pub struct HostContext {
     entity_map: HashMap<u32, Entity>,
     next_rep: u32,
     limits: wasmtime::StoreLimits,
+    /// Measured server ticks per second, refreshed by `PluginManager::tick`.
+    tps: f32,
 }
 
 // Safety: We only access world_ptr from the thread that owns the World (during system execution).
@@ -72,6 +74,7 @@ impl HostContext {
             pending_actions: Vec::new(),
             entity_map: HashMap::new(),
             next_rep: 1,
+            tps: TARGET_TPS,
             limits: wasmtime::StoreLimitsBuilder::new()
                 .memory_size(limits.max_memory)
                 .trap_on_grow_failure(true)
@@ -269,7 +272,7 @@ impl wit_bindings::unastar::plugin::host::Host for HostContext {
     }
 
     fn get_tps(&mut self) -> wasmtime::Result<f32> {
-        Ok(20.0) // TODO: real TPS tracking
+        Ok(self.tps)
     }
 
     fn get_player_count(&mut self) -> wasmtime::Result<u32> {
@@ -354,6 +357,43 @@ pub struct PluginManager {
     engine: Engine,
     plugins: HashMap<PluginId, LoadedPlugin>,
     pending: Vec<PendingPlugin>,
+    tps: TpsMeter,
+}
+
+/// The server's nominal tick rate.
+const TARGET_TPS: f32 = 20.0;
+
+/// Rolling ticks-per-second measured from the wall-clock times of the last
+/// [`TpsMeter::WINDOW`] plugin ticks (one per server tick).
+#[derive(Default)]
+struct TpsMeter {
+    ticks: std::collections::VecDeque<std::time::Instant>,
+}
+
+impl TpsMeter {
+    /// Five seconds at the nominal rate.
+    const WINDOW: usize = 100;
+
+    fn record(&mut self, now: std::time::Instant) {
+        if self.ticks.len() == Self::WINDOW + 1 {
+            self.ticks.pop_front();
+        }
+        self.ticks.push_back(now);
+    }
+
+    /// Ticks per second over the window, capped at [`TARGET_TPS`] so scheduler
+    /// jitter does not report a server running faster than it can. Before two
+    /// ticks have been seen there is no interval yet, so this is the target.
+    fn tps(&self) -> f32 {
+        let (Some(first), Some(last)) = (self.ticks.front(), self.ticks.back()) else {
+            return TARGET_TPS;
+        };
+        let elapsed = last.duration_since(*first).as_secs_f32();
+        if self.ticks.len() < 2 || elapsed <= 0.0 {
+            return TARGET_TPS;
+        }
+        ((self.ticks.len() - 1) as f32 / elapsed).min(TARGET_TPS)
+    }
 }
 
 struct LoadedPlugin {
@@ -486,6 +526,7 @@ impl PluginManager {
             engine,
             plugins: HashMap::new(),
             pending: Vec::new(),
+            tps: TpsMeter::default(),
         })
     }
 
@@ -615,6 +656,16 @@ impl PluginManager {
 
     /// Run the tick loop for all plugins.
     pub fn tick(&mut self, ecs_world: &mut bevy_ecs::world::World) {
+        self.tps.record(std::time::Instant::now());
+        let tps = self.tps.tps();
+        for store in self
+            .pending
+            .iter_mut()
+            .map(|plugin| &mut plugin.store)
+            .chain(self.plugins.values_mut().map(|plugin| &mut plugin.store))
+        {
+            store.data_mut().tps = tps;
+        }
         self.initialize_pending(ecs_world);
         // Drain events from ECS
         let all_events = {
@@ -1206,6 +1257,7 @@ mod tests {
                 engine,
                 plugins: HashMap::new(),
                 pending: vec![pending],
+                tps: TpsMeter::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1321,6 +1373,7 @@ mod tests {
                 pending(&engine, manifest("other", &[EventKind::Timer]), 2),
             ],
             engine,
+            tps: TpsMeter::default(),
         };
         let mut world = bevy_ecs::world::World::new();
         world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1344,6 +1397,7 @@ mod tests {
             plugins: HashMap::new(),
             pending: vec![pending(&engine, manifest("first", &[EventKind::Tick]), 3)],
             engine,
+            tps: TpsMeter::default(),
         };
         let mut world = bevy_ecs::world::World::new();
         world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1392,6 +1446,7 @@ mod tests {
                 engine,
                 plugins: HashMap::new(),
                 pending: vec![pending],
+                tps: TpsMeter::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1465,6 +1520,7 @@ mod tests {
             engine: engine(),
             plugins: HashMap::new(),
             pending: Vec::new(),
+            tps: TpsMeter::default(),
         };
         let mut world = bevy_ecs::world::World::new();
         world.insert_resource(crate::ecs::resources::TickCounter::default());
@@ -1574,6 +1630,33 @@ mod tests {
                 assert_eq!(ctx.get_game_mode(handle).unwrap(), expected);
             }
         });
+    }
+
+    #[test]
+    fn tps_meter_reports_the_measured_rate_capped_at_target() {
+        let start = std::time::Instant::now();
+        let mut meter = TpsMeter::default();
+        assert_eq!(meter.tps(), TARGET_TPS);
+        meter.record(start);
+        assert_eq!(meter.tps(), TARGET_TPS);
+        for tick in 1..=10 {
+            meter.record(start + std::time::Duration::from_millis(100 * tick));
+        }
+        assert!((meter.tps() - 10.0).abs() < 1e-3, "{}", meter.tps());
+        // Older ticks fall out of the window: 200 fast ticks read as the cap.
+        for tick in 1..=200 {
+            meter.record(start + std::time::Duration::from_millis(1000 + 10 * tick));
+        }
+        assert_eq!(meter.ticks.len(), TpsMeter::WINDOW + 1);
+        assert_eq!(meter.tps(), TARGET_TPS);
+    }
+
+    #[test]
+    fn get_tps_returns_the_measured_rate() {
+        let engine = engine();
+        let mut store = store(&engine, &PluginLimits::default());
+        store.data_mut().tps = 12.5;
+        assert_eq!(store.data_mut().get_tps().unwrap(), 12.5);
     }
 
     #[test]
