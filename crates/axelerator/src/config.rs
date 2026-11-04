@@ -475,12 +475,68 @@ mod tests {
         }
     }
 
-    #[test]
-    fn generated_example_loads() {
+    /// Loads `contents` through the same path the binary uses.
+    fn load_str(contents: &str) -> Result<AxeleratorConfig, ConfigError> {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.toml");
-        std::fs::write(&path, AxeleratorConfig::example_toml()).unwrap();
-        AxeleratorConfig::load(&path).unwrap();
+        std::fs::write(&path, contents).unwrap();
+        AxeleratorConfig::load(&path)
+    }
+
+    /// `axelerator init` writes this file; it must load under strict parsing.
+    #[test]
+    fn generated_example_loads() {
+        load_str(&AxeleratorConfig::example_toml()).unwrap();
+    }
+
+    /// The `toml` code blocks in `DEPLOYMENT.md`: the full sample operators
+    /// copy, plus the snippets they paste into it.
+    fn documented_configs() -> Vec<String> {
+        const DEPLOYMENT: &str = include_str!("../deploy/DEPLOYMENT.md");
+        let mut blocks = Vec::new();
+        let mut current: Option<String> = None;
+        for line in DEPLOYMENT.lines() {
+            match (&mut current, line.trim_end()) {
+                (None, "```toml") => current = Some(String::new()),
+                (Some(_), "```") => blocks.extend(current.take()),
+                (Some(block), line) => {
+                    block.push_str(line);
+                    block.push('\n');
+                }
+                (None, _) => {}
+            }
+        }
+        assert!(
+            current.is_none(),
+            "unterminated toml block in DEPLOYMENT.md"
+        );
+        blocks
+    }
+
+    /// Strict parsing (unknown keys are errors and stop startup) must accept
+    /// every config the deployment guide documents, alone and combined.
+    #[test]
+    fn documented_configs_load() {
+        let blocks = documented_configs();
+        // The full sample, the module-level logging snippet and the
+        // attack-detection snippet.
+        assert!(blocks.len() >= 3, "found {} toml blocks", blocks.len());
+        for block in &blocks {
+            if let Err(error) = load_str(block) {
+                panic!("DEPLOYMENT.md config does not load ({error}):\n{block}");
+            }
+        }
+    }
+
+    /// The sample documents the fields operators are told about; it must
+    /// mean what it says, not fall back to defaults.
+    #[test]
+    fn documented_sample_values_are_applied() {
+        let config = load_str(&documented_configs()[0]).unwrap();
+        assert_eq!(config.server_ip, "play.example.com");
+        assert_eq!(config.max_players, 20);
+        assert!(config.monitor_tampering);
+        assert!(!config.logging.json_format);
     }
 
     /// The default was `false` while every request was accepted anyway;
