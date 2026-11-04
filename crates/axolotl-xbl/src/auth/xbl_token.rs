@@ -1,6 +1,7 @@
 //! Xbox authentication, ported from df-mc/go-xsapi xal/sisu/session.go.
 //! SISU yields title/user/default-XSTS tokens; other relying parties use XSTS.
 
+use super::http::LazyClient;
 use super::{
     device_code::OAuthToken,
     nsal::NsalClient,
@@ -162,22 +163,27 @@ const AUTH_ENDPOINTS: AuthEndpoints = AuthEndpoints {
 /// Concurrent callers serialize acquisition, sharing device, title, user and RP tokens.
 /// See go-xsapi/xal/sisu/session.go:Session, authorize, requestXSTS.
 pub struct XblTokenClient {
-    client: reqwest::Client,
+    client: LazyClient,
     signing_key: Arc<SigningKeyPair>,
-    nsal: Arc<NsalClient>,
+    /// `None` uses the process-wide NSAL client ([`shared_nsal`]).
+    nsal: Option<Arc<NsalClient>>,
     endpoints: AuthEndpoints,
     state: Mutex<SessionState>,
 }
 
 impl XblTokenClient {
+    /// The NSAL client this token client resolves relying parties with.
+    fn nsal(&self) -> XblResult<Arc<NsalClient>> {
+        match &self.nsal {
+            Some(nsal) => Ok(Arc::clone(nsal)),
+            None => shared_nsal(),
+        }
+    }
+
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
-            .expect("valid HTTP client configuration");
         Self {
-            nsal: shared_nsal(),
-            client,
+            nsal: None,
+            client: LazyClient::new(std::time::Duration::from_secs(30)),
             signing_key: shared_signing_key(),
             state: Mutex::new(SessionState::default()),
             endpoints: AUTH_ENDPOINTS,
@@ -195,7 +201,7 @@ impl XblTokenClient {
         let xbox = self
             .get_xbl_token(oauth, Some(relying_party::XBOX_LIVE))
             .await?;
-        let resolved = self.nsal.resolve(&url, &xbox, &self.signing_key).await?;
+        let resolved = self.nsal()?.resolve(&url, &xbox, &self.signing_key).await?;
         self.get_xbl_token(oauth, Some(&resolved.relying_party))
             .await
     }
@@ -299,7 +305,7 @@ impl XblTokenClient {
         });
         let url = url::Url::parse(&self.endpoints.sisu)
             .map_err(|_| XblError::Auth("Invalid SISU URL".into()))?;
-        let policy = self.nsal.resolve_default(&url).await?.policy;
+        let policy = self.nsal()?.resolve_default(&url).await?.policy;
         let response: AuthorizationResponse = self
             .post(
                 &self.endpoints.sisu,
@@ -341,8 +347,8 @@ impl XblTokenClient {
         // Go json.Encoder includes a trailing newline, and signs those exact bytes.
         let mut bytes = serde_json::to_vec(&body)?;
         bytes.push(b'\n');
-        let mut request = self
-            .client
+        let client = self.client.get()?;
+        let mut request = client
             .post(url)
             .header("Content-Type", "application/json")
             .header("User-Agent", super::XAL_USER_AGENT)
@@ -354,7 +360,7 @@ impl XblTokenClient {
             &self.signing_key,
             policy.unwrap_or(&super::nsal::AUTH_POLICY),
         )?;
-        let response = self.client.execute(request).await?;
+        let response = client.execute(request).await?;
         if response.status() != reqwest::StatusCode::OK {
             return Err(XblError::HttpStatus {
                 status: response.status(),
@@ -485,8 +491,8 @@ mod tests {
             .build()
             .unwrap();
         XblTokenClient {
-            nsal: Arc::new(NsalClient::for_test(client.clone(), base.into())),
-            client,
+            nsal: Some(Arc::new(NsalClient::for_test(client.clone(), base.into()))),
+            client: LazyClient::ready(client),
             signing_key: Arc::new(SigningKeyPair::generate()),
             state: Mutex::new(SessionState::default()),
             endpoints: AuthEndpoints {
@@ -593,6 +599,8 @@ mod tests {
         let client = test_client(&base);
         let mut request = client
             .client
+            .get()
+            .unwrap()
             .post(format!("{base}/service"))
             .header("Content-Type", "application/json")
             .header("User-Agent", "service-agent")
@@ -612,7 +620,7 @@ mod tests {
         };
         super::super::signing::sign_http_request(&mut request, &client.signing_key, &policy)
             .unwrap();
-        client.client.execute(request).await.unwrap();
+        client.client.get().unwrap().execute(request).await.unwrap();
         let requests = captured.await.unwrap();
         verify_signature(&requests[0], &client.signing_key.proof_key(), 2, 3);
     }

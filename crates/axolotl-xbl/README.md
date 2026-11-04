@@ -30,6 +30,10 @@ choosing a relying party. Service requests sign the actual outgoing headers and
 body limit selected by NSAL. Rejected credentials can be invalidated without
 discarding the device/proof-key context.
 
+`DeviceCodeAuth::new` and `XblTokenClient::new` do no I/O and cannot fail or
+panic: their HTTP clients (and the shared NSAL client) are built on first
+request, and a build failure is returned as `XblError::Http` from that call.
+
 Wire references: go-xsapi `90ce120e31cdf8de6c7225ca1378117c23081ddd`,
 `xal/sisu/{oauth2.go,session.go}`, `xal/xasd/authenticate.go`,
 `xal/xsts/authorize.go`, and `xal/nsal/{title.go,resolver.go,transport.go}`.

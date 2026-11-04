@@ -53,6 +53,7 @@
 //! ```
 
 mod device_code;
+mod http;
 pub(crate) mod nsal;
 mod signing;
 mod xbl_token;
