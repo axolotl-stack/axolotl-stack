@@ -785,6 +785,7 @@ impl GameServer {
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(uuid::Uuid::new_v4);
         let player_name = data.display_name.clone();
+        let join_name = data.display_name.clone();
         let position = Position(data.position);
         let runtime_id = data.runtime_id;
         let chunk_x = (position.0.x / 16.0).floor() as i32;
@@ -915,6 +916,18 @@ impl GameServer {
 
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
             session_map.insert(data.session_id, entity);
+        }
+        // Plugins see the join on the next plugin tick (`on-player-join`).
+        if let Some(mut events) = self
+            .ecs
+            .world_mut()
+            .get_resource_mut::<crate::ecs::events::EventBuffer>()
+        {
+            events.push(crate::ecs::events::ServerEvent::PlayerJoin {
+                entity,
+                player_id: player_uuid.to_string(),
+                username: join_name,
+            });
         }
 
         self.ecs.world_mut().write_message(PlayerSpawnedEvent {
@@ -1248,6 +1261,37 @@ mod tests {
         assert!(join(2, "Someone", Some("2535400000000042")));
         assert!(!join(3, "Someone", Some("2535400000000043")));
         assert!(!join(4, "MobBot2", None));
+    }
+
+    #[test]
+    fn player_spawn_queues_one_plugin_join_event() {
+        let mut server = void_server();
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+        let entity = server
+            .spawn_player(PlayerSpawnData {
+                session_id: 5,
+                display_name: "Joiner".to_string(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000005".to_string()),
+                runtime_id: 5,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .expect("fresh player spawns without saved data");
+        let events = server
+            .ecs
+            .world_mut()
+            .resource_mut::<crate::ecs::events::EventBuffer>()
+            .drain();
+        assert!(matches!(
+            events.as_slice(),
+            [crate::ecs::events::ServerEvent::PlayerJoin { entity: joined, player_id, username }]
+                if *joined == entity
+                    && player_id == "00000000-0000-0000-0000-000000000005"
+                    && username == "Joiner"
+        ));
     }
 
     #[test]
