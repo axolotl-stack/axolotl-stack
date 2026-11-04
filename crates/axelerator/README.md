@@ -17,6 +17,15 @@ stops RTA, saves friend history and sends the Discord shutdown notice before
 exiting; this has 20 s, inside the unit's `TimeoutStopSec=30`. A signal during
 the device-code login or the RTA wait ends startup at once.
 
+## Friend expiry history
+
+With `friend_expiry.enabled`, last-join times live in `player_history.json`
+beside the token cache. One copy is loaded per run and shared by the transfer
+server (which records joins) and the expiry task (which removes expired
+friends). Saves write a temporary file, sync it and rename it over the old one.
+A malformed or unreadable history file stops startup with an error and is left
+as it is; fix or remove it. A missing file starts empty.
+
 ## Token cache security
 
 OAuth credentials are saved to a uniquely named temporary file in the cache

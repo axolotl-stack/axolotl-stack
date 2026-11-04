@@ -152,6 +152,17 @@ impl Axelerator {
             "Starting Axelerator (WebRTC transfer mode)"
         );
 
+        // One shared friend-expiry history for the whole run; a corrupt file
+        // stops startup before anything is advertised.
+        let player_history = if self.config.friend_expiry.enabled {
+            let history_path = PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
+            let history = PlayerHistory::load(&history_path)?;
+            info!("Player history loaded from {}", history_path.display());
+            Some(history)
+        } else {
+            None
+        };
+
         // Step 1: Authenticate with Xbox Live using TokenCache
         let token_cache = Arc::new(TokenCache::new(&self.config.token_cache_path));
         // The device-code login can wait indefinitely for the operator.
@@ -476,10 +487,7 @@ impl Axelerator {
         };
 
         // Initialize friend expiry: seed existing friends on first run
-        let friend_expiry_handle = if self.config.friend_expiry.enabled {
-            let history_path = PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
-            let history = PlayerHistory::load(&history_path);
-
+        let friend_expiry_handle = if let Some(history) = player_history.clone() {
             // Seed existing friends with current timestamp so they aren't immediately expired
             let init_token = match token_cache.get_or_authenticate().await {
                 Ok(t) => t,
@@ -536,6 +544,7 @@ impl Axelerator {
                 &handle_id,
                 heartbeat,
                 &session_client,
+                player_history.clone(),
             )
             .await;
 
@@ -551,9 +560,13 @@ impl Axelerator {
             handle.abort();
         }
 
-        // Stop friend expiry
+        // Stop friend expiry, then persist the shared history it and the
+        // transfer server were updating.
         if let Some(handle) = friend_expiry_handle {
             handle.abort();
+        }
+        if let Some(history) = &player_history {
+            history.save_if_dirty().await;
         }
 
         // Stop RTA connection sync
@@ -615,6 +628,7 @@ impl Axelerator {
         handle_id: &str,
         initial_heartbeat_secs: u64,
         session_client: &SessionClient,
+        player_history: Option<PlayerHistory>,
     ) -> Result<()> {
         // Discover signaling endpoint for regional routing (this doesn't change)
         let discovery = DiscoveryClient::new();
@@ -662,16 +676,6 @@ impl Axelerator {
         // Track token refresh attempts to avoid infinite loops
         let mut token_refresh_attempts = 0u32;
         const MAX_TOKEN_REFRESH_ATTEMPTS: u32 = 5;
-
-        // Load player history for friend expiry tracking
-        let player_history = if self.config.friend_expiry.enabled {
-            let history_path = PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
-            let history = PlayerHistory::load(&history_path);
-            info!("Player history loaded from {}", history_path.display());
-            Some(history)
-        } else {
-            None
-        };
 
         // Spawn the transfer server with proper shutdown handling
         let spawn_transfer_server =

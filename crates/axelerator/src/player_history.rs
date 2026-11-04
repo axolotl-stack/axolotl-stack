@@ -2,12 +2,17 @@
 //!
 //! Tracks the last time each friend (by XUID) successfully transferred through
 //! the server. This is used by the friend expiry system to remove inactive friends.
+//!
+//! One `PlayerHistory` is loaded per run and shared (it is a cheap handle):
+//! the transfer server records joins and the expiry task reads and removes
+//! entries through the same map, and only that map is ever written back.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use anyhow::Context;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
@@ -24,28 +29,35 @@ struct PlayerHistoryInner {
 }
 
 impl PlayerHistory {
-    /// Load or create a player history file.
+    /// Load a player history file, or start empty when it does not exist.
     ///
-    /// The file is stored as JSON next to the token cache file.
-    /// If the file doesn't exist or is invalid, starts with an empty map.
-    pub fn load(path: &Path) -> Self {
+    /// The file is stored as JSON next to the token cache file. An unreadable
+    /// or malformed file is an error and is left untouched: starting empty
+    /// would overwrite it on the next save and lose every last-seen time.
+    pub fn load(path: &Path) -> anyhow::Result<Self> {
         let data = match std::fs::read_to_string(path) {
-            Ok(contents) => serde_json::from_str(&contents).unwrap_or_else(|e| {
-                warn!("Failed to parse player history, starting fresh: {}", e);
-                HashMap::new()
-            }),
-            Err(_) => HashMap::new(),
+            Ok(contents) => serde_json::from_str(&contents).with_context(|| {
+                format!(
+                    "player history {} is not valid JSON; fix or remove it",
+                    path.display()
+                )
+            })?,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => HashMap::new(),
+            Err(e) => {
+                return Err(e)
+                    .with_context(|| format!("failed to read player history {}", path.display()));
+            }
         };
 
         debug!(entries = data.len(), "Loaded player history");
 
-        Self {
+        Ok(Self {
             inner: Arc::new(RwLock::new(PlayerHistoryInner {
                 data,
                 path: path.to_owned(),
                 dirty: false,
             })),
-        }
+        })
     }
 
     /// Derive the player history path from the token cache path.
@@ -130,22 +142,118 @@ impl PlayerHistory {
             return false;
         }
 
-        match serde_json::to_string_pretty(&inner.data) {
-            Ok(json) => match std::fs::write(&inner.path, json) {
-                Ok(_) => {
-                    inner.dirty = false;
-                    debug!(entries = inner.data.len(), "Saved player history");
-                    true
-                }
-                Err(e) => {
-                    warn!("Failed to save player history: {}", e);
-                    false
-                }
-            },
+        match write_atomically(&inner.path, &inner.data) {
+            Ok(()) => {
+                inner.dirty = false;
+                debug!(entries = inner.data.len(), "Saved player history");
+                true
+            }
             Err(e) => {
-                warn!("Failed to serialize player history: {}", e);
+                warn!("Failed to save player history: {:#}", e);
                 false
             }
         }
+    }
+}
+
+/// Writes `data` to a new file beside `path`, syncs it and renames it over
+/// `path`, so a crash mid-save leaves the complete old or new JSON, never a
+/// truncated file. The temporary file is removed when anything fails.
+fn write_atomically(path: &Path, data: &HashMap<String, u64>) -> anyhow::Result<()> {
+    use std::io::Write;
+
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let temporary = parent.join(format!(".player_history-{}.tmp", uuid::Uuid::new_v4()));
+    struct RemoveTemporary(PathBuf);
+    impl Drop for RemoveTemporary {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)
+        .context("create temporary player history")?;
+    let _cleanup = RemoveTemporary(temporary.clone());
+    serde_json::to_writer_pretty(&mut file, data).context("serialize player history")?;
+    file.flush().context("flush player history")?;
+    file.sync_all().context("sync player history")?;
+    drop(file);
+    std::fs::rename(&temporary, path).context("replace player history")?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A malformed file used to be replaced by an empty map, which the next
+    /// save wrote over the old data.
+    #[test]
+    fn corrupt_history_is_an_error_and_left_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("player_history.json");
+        std::fs::write(&path, b"{\"123\": 1").unwrap();
+        assert!(PlayerHistory::load(&path).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"{\"123\": 1");
+    }
+
+    #[test]
+    fn missing_history_starts_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let history = PlayerHistory::load(&dir.path().join("absent.json")).unwrap();
+        assert!(history.inner.try_read().unwrap().data.is_empty());
+    }
+
+    #[tokio::test]
+    async fn save_replaces_the_file_atomically() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("player_history.json");
+        std::fs::write(&path, b"{\"1\": 5}").unwrap();
+        let history = PlayerHistory::load(&path).unwrap();
+        history.update_last_seen("2").await;
+        assert!(history.save_if_dirty().await);
+        let saved: HashMap<String, u64> =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved["1"], 5);
+        assert!(saved.contains_key("2"));
+        // Only the history file remains: no temporary is left behind.
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[tokio::test]
+    async fn failed_save_keeps_the_destination_and_cleans_up() {
+        let dir = tempfile::tempdir().unwrap();
+        // A directory cannot be replaced by a file rename.
+        let path = dir.path().join("player_history.json");
+        std::fs::create_dir(&path).unwrap();
+        std::fs::write(path.join("marker"), b"unchanged").unwrap();
+        let history = PlayerHistory {
+            inner: Arc::new(RwLock::new(PlayerHistoryInner {
+                data: HashMap::from([("1".to_string(), 1)]),
+                path: path.clone(),
+                dirty: true,
+            })),
+        };
+        assert!(!history.save_if_dirty().await);
+        assert_eq!(std::fs::read(path.join("marker")).unwrap(), b"unchanged");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    /// The expiry task and the transfer server used to load separate
+    /// copies, so removals and new joins never met. Clones share one map.
+    #[tokio::test]
+    async fn clones_share_one_history() {
+        let dir = tempfile::tempdir().unwrap();
+        let history = PlayerHistory::load(&dir.path().join("h.json")).unwrap();
+        let transfer_side = history.clone();
+        transfer_side.update_last_seen("42").await;
+        assert!(history.get_expired(0).await.is_empty());
+        history.remove("42").await;
+        assert!(transfer_side.inner.read().await.data.is_empty());
     }
 }
