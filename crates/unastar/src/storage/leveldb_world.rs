@@ -74,20 +74,23 @@ impl WorldProvider for LevelDBWorldProvider {
                     let mut chunk = Chunk::new(pos.x, pos.z);
 
                     // Load subchunks for standard overworld range (-4 to 19, corresponding to Y -64 to 319)
+                    // A missing subchunk is air. One that can't be read or
+                    // decoded fails the whole load (as BlazeDB does): loading
+                    // it as air would let the next save of the column write
+                    // air over the stored blocks.
                     for y_index in -4i8..20i8 {
                         let subchunk_key = keys::subchunk_key(pos, dim, y_index);
-                        if let Ok(Some(data)) = db.get(&subchunk_key, &read_opts) {
-                            // Decode subchunk data into the chunk
-                            if let Err(e) = chunk.decode_subchunk(y_index as i32, &data) {
-                                tracing::warn!(
-                                    chunk = ?(pos.x, pos.z),
-                                    y = y_index,
-                                    error = %e,
-                                    "Failed to decode subchunk, using empty"
-                                );
-                            }
+                        if let Some(data) = db
+                            .get(&subchunk_key, &read_opts)
+                            .map_err(StorageError::Database)?
+                        {
+                            chunk.decode_subchunk(y_index as i32, &data).map_err(|e| {
+                                StorageError::Deserialization(format!(
+                                    "chunk ({}, {}) subchunk y={y_index}: {e}",
+                                    pos.x, pos.z
+                                ))
+                            })?;
                         }
-                        // Missing subchunks are fine - they're just empty (air)
                     }
 
                     // Missing Data3D keeps the default biomes; an unreadable or
@@ -401,6 +404,46 @@ mod tests {
                 .get(&keys::entity_ids_key(pos, 0), &ReadOptions::new())
                 .unwrap()
                 .is_none()
+        );
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A stored subchunk the loader can't decode fails the column load, so the
+    /// chunk is never created with that section as air (and then saved over it).
+    #[tokio::test]
+    async fn undecodable_subchunk_fails_the_column_load() {
+        let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
+        let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
+        let pos = ChunkPos::new(5, -6);
+        let mut chunk = Chunk::new(pos.x, pos.z);
+        chunk.fill_subchunk_solid(4, *crate::world::chunk::blocks::STONE);
+        provider
+            .save_column(pos, 0, &ChunkColumn::new(chunk))
+            .await
+            .expect("save column");
+        // Subchunk version 1 is not a layout the loader accepts.
+        let original = provider
+            .db
+            .get(&keys::subchunk_key(pos, 0, 0), &ReadOptions::new())
+            .unwrap()
+            .expect("stone subchunk stored");
+        let mut unsupported = original.clone();
+        unsupported[0] = 1;
+        provider
+            .db
+            .put(
+                &keys::subchunk_key(pos, 0, 0),
+                &unsupported,
+                &WriteOptions::new(),
+            )
+            .expect("overwrite subchunk");
+
+        let loaded = provider.load_column(pos, 0).await;
+        assert!(
+            matches!(loaded, Err(StorageError::Deserialization(_))),
+            "undecodable subchunk must fail the load, got {:?}",
+            loaded.map(|column| column.is_some())
         );
         drop(provider);
         let _ = std::fs::remove_dir_all(&dir);

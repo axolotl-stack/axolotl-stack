@@ -752,7 +752,9 @@ Trapping plugin callbacks are logged, and cancellable callbacks fail closed.
 Both LevelDB (the default) and BlazeDB use load-before-generate chunk requests.
 For Java-style terrain, storage reads and generation run off the ECS tick thread;
 only a confirmed storage miss generates terrain. Storage read errors are logged
-and never become generated replacement columns. Loaded columns start clean,
+and never become generated replacement columns. A stored subchunk, biome or
+block-entity record that doesn't decode fails the load of its column the same
+way, in both providers, rather than loading as air. Loaded columns start clean,
 while generated or edited columns are saved on unload/shutdown.
 
 Player state is loaded through the configured player provider before StartGame
