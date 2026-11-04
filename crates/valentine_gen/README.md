@@ -162,7 +162,10 @@ today's dump.
 
 Generated Rust is parsed and formatted before its destination is touched, then
 staged in a sibling temporary file and atomically renamed into place. A failed
-format or write preserves the previous generated module.
+format or write preserves the previous generated module. The same staged write
+(`generator::emitter::write_file_atomic`) produces every other output: the
+`bedrock` surface modules, each version crate's `Cargo.toml` and the updated
+`valentine` manifest.
 
 Prismarine data-only generation merges existing live version declarations into
 its manifest and surface updates. A version absent from minecraft-data is kept
