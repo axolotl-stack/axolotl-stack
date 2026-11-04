@@ -144,6 +144,7 @@ impl SimPlayer {
                 saved_data: None,
                 outbound_tx: tx,
                 chunk_radius: radius,
+                enchantment_seed: None,
             })
             .expect("player spawns");
         let link = SimLink::new(drain_per_tick);
