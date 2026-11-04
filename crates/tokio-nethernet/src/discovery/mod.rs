@@ -48,6 +48,39 @@ const MAX_UDP_PACKET_SIZE: usize = 65_535;
 /// Local resource policy, not a wire constant. Responses share the admitted address set.
 const MAX_DISCOVERY_PEERS: usize = 1024;
 
+/// First delay after a non-benign receive error; doubles per consecutive error.
+const RECV_ERROR_INITIAL_BACKOFF: Duration = Duration::from_millis(10);
+/// Longest delay between receive attempts while the socket keeps failing.
+const RECV_ERROR_MAX_BACKOFF: Duration = Duration::from_secs(1);
+
+/// What the receive loop does after `recv_from` fails. It never stops: the
+/// socket stays bound for the listener's lifetime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecvErrorAction {
+    /// Expected noise for broadcast UDP; receive again at once.
+    Ignore,
+    /// Log, wait, and receive again.
+    Backoff,
+}
+
+fn recv_error_action(error: &std::io::Error) -> RecvErrorAction {
+    use std::io::ErrorKind;
+    match error.kind() {
+        // ICMP port unreachable for an earlier send (WSAECONNRESET on
+        // Windows, ECONNREFUSED elsewhere) and interrupted calls.
+        ErrorKind::ConnectionReset | ErrorKind::ConnectionRefused | ErrorKind::Interrupted => {
+            return RecvErrorAction::Ignore;
+        }
+        _ => {}
+    }
+    // WSAEMSGSIZE: Windows reports a truncated datagram as an error.
+    #[cfg(windows)]
+    if error.raw_os_error() == Some(10040) {
+        return RecvErrorAction::Ignore;
+    }
+    RecvErrorAction::Backoff
+}
+
 /// Configuration for discovery listener.
 #[derive(Clone)]
 pub struct DiscoveryListenerConfig {
@@ -259,10 +292,12 @@ impl DiscoveryListener {
     async fn listen_loop(&self) {
         // Full UDP-sized storage prevents OS-level truncation of ordinary datagrams.
         let mut buf = vec![0u8; MAX_UDP_PACKET_SIZE];
+        let mut backoff = RECV_ERROR_INITIAL_BACKOFF;
         debug!("Discovery listener started, waiting for packets...");
         loop {
             match self.socket.recv_from(&mut buf).await {
                 Ok((len, addr)) => {
+                    backoff = RECV_ERROR_INITIAL_BACKOFF;
                     // A capacity-sized read may be truncated (e.g. a jumbogram).
                     if len == buf.len() {
                         continue;
@@ -277,24 +312,25 @@ impl DiscoveryListener {
                         debug!(error = %e, from = %addr, "Error handling discovery packet");
                     }
                 }
-                Err(e) => {
-                    // On Windows, error 10054 (WSAECONNRESET) happens when we
-                    // send to a port with no listener. This is normal for UDP
-                    // broadcast/discovery - just ignore and continue.
-                    #[cfg(windows)]
-                    if e.raw_os_error() == Some(10054) {
-                        trace!(error = %e, "Ignoring WSAECONNRESET (no listener on broadcast target)");
-                        continue;
+                Err(e) => match recv_error_action(&e) {
+                    RecvErrorAction::Ignore => {
+                        trace!(error = %e, "Ignoring discovery receive error");
                     }
-                    #[cfg(windows)]
-                    if e.raw_os_error() == Some(10040) {
-                        // WSAEMSGSIZE: discard a truncated datagram, keep receiving.
-                        continue;
+                    RecvErrorAction::Backoff => {
+                        // A receive error is a property of one datagram or a
+                        // momentary socket condition (ICMP unreachable, no
+                        // buffers, an interface going down), never a reason
+                        // to stop serving LAN discovery. Back off so a
+                        // persistent error cannot spin the task.
+                        warn!(
+                            error = %e,
+                            retry_ms = backoff.as_millis() as u64,
+                            "Discovery socket receive error"
+                        );
+                        tokio::time::sleep(backoff).await;
+                        backoff = (backoff * 2).min(RECV_ERROR_MAX_BACKOFF);
                     }
-
-                    warn!(error = %e, "Discovery socket error");
-                    break;
-                }
+                },
             }
         }
     }
@@ -706,5 +742,34 @@ mod tests {
             request_destinations([net("192.168.1.20", "255.255.255.0")], 7551, true),
             [addr("[::ffff:192.168.1.255]:7551"), addr("[ff02::1]:7551")]
         );
+    }
+
+    /// Receive errors used to end the listen loop on every platform but
+    /// Windows, silently stopping LAN discovery for the listener's lifetime.
+    #[test]
+    fn receive_errors_never_stop_listening() {
+        use std::io::{Error, ErrorKind};
+        for kind in [
+            ErrorKind::ConnectionRefused,
+            ErrorKind::ConnectionReset,
+            ErrorKind::Interrupted,
+        ] {
+            assert_eq!(
+                recv_error_action(&Error::from(kind)),
+                RecvErrorAction::Ignore
+            );
+        }
+        for kind in [
+            ErrorKind::Other,
+            ErrorKind::OutOfMemory,
+            ErrorKind::NetworkDown,
+            ErrorKind::AddrNotAvailable,
+            ErrorKind::PermissionDenied,
+        ] {
+            assert_eq!(
+                recv_error_action(&Error::from(kind)),
+                RecvErrorAction::Backoff
+            );
+        }
     }
 }
