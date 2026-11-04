@@ -377,6 +377,18 @@ fn create_store(
     Ok(store)
 }
 
+/// Whether `event` goes to the plugin with `manifest`: it must subscribe to the
+/// event's kind, and a fired timer goes only to the plugin that set it.
+fn is_delivered_to(event: &ServerEvent, manifest: &PluginManifest) -> bool {
+    if !manifest.subscriptions.contains(&event.kind()) {
+        return false;
+    }
+    match event {
+        ServerEvent::Timer { plugin_id, .. } => *plugin_id == manifest.id,
+        _ => true,
+    }
+}
+
 /// BlockClick emits interaction and placement consecutively. Cancelling the
 /// clicked-face interaction must also cancel its dependent placement intent.
 fn placement_depends_on_interaction(previous: &ServerEvent, event: &ServerEvent) -> bool {
@@ -599,7 +611,7 @@ impl PluginManager {
                     cancelled_indices.insert(index);
                     continue;
                 }
-                if !plugin.manifest.subscriptions.contains(&event.kind()) {
+                if !is_delivered_to(event, &plugin.manifest) {
                     continue;
                 }
                 if cancelled_indices.contains(&index) {
@@ -823,7 +835,7 @@ impl PluginManager {
                         .call_on_player_swing(&mut plugin.store, handle)
                         .map(|_| false)
                 }
-                ServerEvent::Timer { id } => plugin
+                ServerEvent::Timer { id, .. } => plugin
                     .bindings
                     .call_on_timer(&mut plugin.store, *id)
                     .map(|_| false),
@@ -932,6 +944,12 @@ mod tests {
     /// Real component exports, with canonical ABI lifting and host imports.
     /// Keeping the fixture as WAT avoids needing a wasm32 target in host tests.
     fn component(engine: &Engine, allow: bool) -> Component {
+        component_with_marker(engine, allow, 0)
+    }
+
+    /// Like [`component`], but `on-timer` calls `set-block((0, 0, 0), marker)` so
+    /// tests can see which plugin a timer reached in the `ActionQueue`.
+    fn component_with_marker(engine: &Engine, allow: bool, marker: u32) -> Component {
         let exports = [
             ("on-load", "", "", false),
             ("on-unload", "", "", false),
@@ -1023,7 +1041,7 @@ mod tests {
             ("on-timer", "(param \"timer-id\" u64)", "i64", false),
         ];
         let mut wat = String::from(
-            r#"(component
+            r#"(component $root
             (import "unastar:plugin/types@0.2.0" (instance $types
                 (export "player" (type (sub resource)))
                 (type $pos (record (field "x" s32) (field "y" s32) (field "z" s32)))
@@ -1035,11 +1053,16 @@ mod tests {
             (alias export $types "vec3" (type $vec))
             (core func $player-drop (canon resource.drop $player))
             (import "unastar:plugin/host@0.2.0" (instance $host
-                (export "get-tick-id" (func (result u64)))))
+                (alias outer $root $pos (type $host-pos))
+                (export "get-tick-id" (func (result u64)))
+                (export "set-block" (func (param "pos" $host-pos) (param "block-id" u32)))))
             (alias export $host "get-tick-id" (func $tick))
+            (alias export $host "set-block" (func $set-block))
             (core func $tick-lowered (canon lower (func $tick)))
+            (core func $set-block-lowered (canon lower (func $set-block)))
             (core module $module
                 (import "host" "tick" (func $tick (result i64)))
+                (import "host" "set-block" (func $set-block (param i32 i32 i32 i32)))
                 (import "host" "drop-player" (func $drop-player (param i32)))
                 (memory (export "memory") 1)
                 (func (export "realloc") (param i32 i32 i32 i32) (result i32) i32.const 0)
@@ -1053,6 +1076,8 @@ mod tests {
             };
             let body = if name == "on-load" {
                 "call $tick i64.const 42 i64.ne if unreachable end".to_string()
+            } else if name == "on-timer" {
+                format!("i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block")
             } else if returns_bool {
                 format!("i32.const {}", u8::from(allow))
             } else {
@@ -1072,6 +1097,7 @@ mod tests {
             r#")
             (core instance $host-core
                 (export "tick" (func $tick-lowered))
+                (export "set-block" (func $set-block-lowered))
                 (export "drop-player" (func $player-drop)))
             (core instance $instance (instantiate $module (with "host" (instance $host-core))))
         "#,
@@ -1179,6 +1205,65 @@ mod tests {
                 assert!(plugin.store.data().world_ptr.is_null());
             }
         }
+    }
+
+    fn manifest(id: &str, subscriptions: &[crate::ecs::events::EventKind]) -> PluginManifest {
+        PluginManifest {
+            id: PluginId(id.into()),
+            name: id.into(),
+            version: "1".into(),
+            api_version: "0.2.0".into(),
+            capabilities: Default::default(),
+            subscriptions: subscriptions.iter().copied().collect(),
+            limits: PluginLimits::default(),
+        }
+    }
+
+    fn pending(engine: &Engine, manifest: PluginManifest, marker: u32) -> PendingPlugin {
+        PendingPlugin {
+            component: component_with_marker(engine, true, marker),
+            store: store(engine, &manifest.limits),
+            manifest,
+        }
+    }
+
+    /// Drain the `SetBlock` markers plugins queued, in queue order.
+    fn queued_markers(world: &mut bevy_ecs::world::World) -> Vec<u32> {
+        world
+            .resource_mut::<crate::ecs::events::ActionQueue>()
+            .drain()
+            .into_iter()
+            .filter_map(|action| match action {
+                PluginAction::SetBlock { block_id, .. } => Some(block_id),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn fired_timer_reaches_only_the_plugin_that_set_it() {
+        use crate::ecs::events::EventKind;
+        let engine = engine();
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![
+                pending(&engine, manifest("owner", &[EventKind::Timer]), 1),
+                pending(&engine, manifest("other", &[EventKind::Timer]), 2),
+            ],
+            engine,
+        };
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
+        world.insert_resource(crate::ecs::events::ActionQueue::default());
+        let mut events = crate::ecs::events::EventBuffer::default();
+        events.push(ServerEvent::Timer {
+            id: 9,
+            plugin_id: PluginId("owner".into()),
+        });
+        world.insert_resource(events);
+        manager.tick(&mut world);
+        assert_eq!(manager.plugins.len(), 2);
+        assert_eq!(queued_markers(&mut world), [1]);
     }
 
     #[test]
