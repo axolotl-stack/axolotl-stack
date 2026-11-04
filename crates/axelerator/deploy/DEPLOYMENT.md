@@ -215,7 +215,11 @@ sudo journalctl -u axelerator --since today > axelerator.log
 
 ### Re-Authentication (Token Refresh)
 
-OAuth tokens last ~90 days. If you see authentication errors:
+Axelerator assumes no fixed OAuth token lifetime: it refreshes the cached token
+whenever it has a refresh token, and the Microsoft authentication server decides
+whether that refresh is still valid (see the crate README). When the server
+rejects it (for example after a password change or revoked consent), startup and
+token refreshes fail with authentication errors. Then re-authenticate:
 
 ```bash
 # Stop the service
