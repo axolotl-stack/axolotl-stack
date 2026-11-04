@@ -435,12 +435,18 @@ impl UnastarServer {
         }
     }
 
-    /// Saves players and chunks before the process exits.
+    /// Saves players and chunks, then flushes and closes storage, before the
+    /// process exits.
     async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let players_saved = self.server.save_all_players().await;
-        info!(players = players_saved, "Player data saved");
-        let chunks_saved = self.server.save_all_chunks().await;
-        info!(chunks = chunks_saved, "Chunk data saved");
+        let result = self.server.save_and_close_storage().await;
+        info!(
+            players = result.players_saved,
+            chunks = result.chunks_saved,
+            "Player and chunk data saved"
+        );
+        if !result.closed {
+            return Err("storage did not close cleanly; recent saves may be lost".into());
+        }
         info!("Server shutdown complete");
         Ok(())
     }

@@ -43,7 +43,7 @@ use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};
 pub(crate) use loot::{LootContext, LootLevel};
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::ecs::{
     CleanupSet, EntityLogicSet, NetworkSendSet, PacketApplySet, PhysicsSet, UnastarEcs,
@@ -88,6 +88,15 @@ pub use types::{
 /// All game state lives inside the World as Resources.
 pub struct GameServer {
     pub ecs: UnastarEcs,
+}
+
+/// What [`GameServer::save_and_close_storage`] did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StorageShutdown {
+    pub players_saved: usize,
+    pub chunks_saved: usize,
+    /// Every attached provider closed (and so flushed) without error.
+    pub closed: bool,
 }
 
 fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
@@ -727,6 +736,43 @@ impl GameServer {
         saved
     }
 
+    /// Shutdown persistence, in this order: every player, every loaded chunk
+    /// with something to write, then the world provider and the player
+    /// provider are closed so queued writes (BlazeDB's background writer) reach
+    /// disk before the process exits. A failed close is logged and reported.
+    pub async fn save_and_close_storage(&mut self) -> StorageShutdown {
+        let players_saved = self.save_all_players().await;
+        let chunks_saved = self.save_all_chunks().await;
+        let mut closed = true;
+        let world_provider = self
+            .ecs
+            .world()
+            .get_resource::<ChunkManager>()
+            .and_then(ChunkManager::provider);
+        if let Some(provider) = world_provider
+            && let Err(error) = provider.close().await
+        {
+            error!(%error, "Failed to close world storage; recent chunk saves may be lost");
+            closed = false;
+        }
+        let player_provider = self
+            .ecs
+            .world()
+            .get_resource::<types::PlayerProviderResource>()
+            .map(|r| r.0.clone());
+        if let Some(provider) = player_provider
+            && let Err(error) = provider.close().await
+        {
+            error!(%error, "Failed to close player storage");
+            closed = false;
+        }
+        StorageShutdown {
+            players_saved,
+            chunks_saved,
+            closed,
+        }
+    }
+
     pub async fn save_player(&mut self, session_id: SessionId) -> bool {
         let record = {
             let world = self.ecs.world();
@@ -1118,6 +1164,102 @@ mod tests {
     }
 
     /// A server over a void world: no generation pool, so no tokio runtime needed.
+    /// Storage calls in the order they happened.
+    type CallLog = Arc<std::sync::Mutex<Vec<&'static str>>>;
+
+    struct RecordingWorld(CallLog);
+
+    #[async_trait::async_trait]
+    impl crate::storage::WorldProvider for RecordingWorld {
+        async fn load_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+        ) -> crate::storage::StorageResult<Option<crate::storage::ChunkColumn>> {
+            Ok(None)
+        }
+        async fn save_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+            _: &crate::storage::ChunkColumn,
+        ) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("save chunk");
+            Ok(())
+        }
+        async fn flush(&self) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("flush world");
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("close world");
+            Ok(())
+        }
+    }
+
+    struct RecordingPlayers(CallLog);
+
+    #[async_trait::async_trait]
+    impl crate::storage::PlayerProvider for RecordingPlayers {
+        async fn load(&self, _: uuid::Uuid) -> crate::storage::StorageResult<Option<PlayerData>> {
+            Ok(None)
+        }
+        async fn save(&self, _: uuid::Uuid, _: &PlayerData) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("save player");
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("close players");
+            Ok(())
+        }
+    }
+
+    /// Shutdown saves players, then chunks, then closes the world store (so a
+    /// queued BlazeDB write reaches disk) and the player store.
+    #[tokio::test]
+    async fn shutdown_saves_players_then_chunks_then_closes_storage() {
+        use crate::world::ecs::ChunkManagerWorldExt;
+        let log = CallLog::default();
+        let mut server = void_server();
+        let world = server.ecs.world_mut();
+        world
+            .resource_mut::<ChunkManager>()
+            .set_provider(Arc::new(RecordingWorld(log.clone())));
+        world.insert_resource(types::PlayerProviderResource(Arc::new(RecordingPlayers(
+            log.clone(),
+        ))));
+        // A generated chunk is dirty, so it has something to save.
+        world.get_or_create_chunk(0, 0).unwrap();
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+        server
+            .spawn_player(PlayerSpawnData {
+                session_id: 1,
+                display_name: "Steve".into(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000001".into()),
+                runtime_id: 1,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .unwrap();
+
+        let result = server.save_and_close_storage().await;
+        assert_eq!(
+            result,
+            StorageShutdown {
+                players_saved: 1,
+                chunks_saved: 1,
+                closed: true,
+            }
+        );
+        assert_eq!(
+            *log.lock().unwrap(),
+            ["save player", "save chunk", "close world", "close players"]
+        );
+    }
+
     fn void_server() -> GameServer {
         GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
