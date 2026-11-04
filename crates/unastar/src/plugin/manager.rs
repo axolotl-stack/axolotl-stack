@@ -187,9 +187,17 @@ impl wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
         &mut self,
         self_: Resource<wit_types::Player>,
     ) -> wasmtime::Result<wit_types::GameMode> {
-        self.player_entity(&self_)?;
-        // TODO: read actual GameMode component
-        Ok(wit_types::GameMode::Survival)
+        use crate::entity::components::GameMode;
+        let entity = self.player_entity(&self_)?;
+        let world = unsafe { self.world() };
+        Ok(
+            match world.get::<GameMode>(entity).copied().unwrap_or_default() {
+                GameMode::Survival => wit_types::GameMode::Survival,
+                GameMode::Creative => wit_types::GameMode::Creative,
+                GameMode::Adventure => wit_types::GameMode::Adventure,
+                GameMode::Spectator => wit_types::GameMode::Spectator,
+            },
+        )
     }
 
     fn send_message(
@@ -1539,6 +1547,32 @@ mod tests {
             let stale = Resource::<wit_types::Player>::new_own(999);
             assert!(ctx.send_message(stale, "hi".into()).is_err());
             assert!(ctx.pending_actions.is_empty());
+        });
+    }
+
+    #[test]
+    fn get_game_mode_reads_the_player_game_mode() {
+        use crate::entity::components::GameMode;
+        use wit_bindings::unastar::plugin::types::HostPlayer;
+        let engine = engine();
+        let mut store = store(&engine, &PluginLimits::default());
+        let mut world = bevy_ecs::world::World::new();
+        let modes = [
+            (GameMode::Survival, wit_types::GameMode::Survival),
+            (GameMode::Creative, wit_types::GameMode::Creative),
+            (GameMode::Adventure, wit_types::GameMode::Adventure),
+            (GameMode::Spectator, wit_types::GameMode::Spectator),
+        ];
+        let entities: Vec<_> = modes
+            .iter()
+            .map(|(mode, _)| world.spawn(*mode).id())
+            .collect();
+        with_world(&mut store, &mut world, |store| {
+            let ctx = store.data_mut();
+            for (entity, (_, expected)) in entities.into_iter().zip(modes) {
+                let handle = ctx.new_player_resource(entity);
+                assert_eq!(ctx.get_game_mode(handle).unwrap(), expected);
+            }
         });
     }
 
