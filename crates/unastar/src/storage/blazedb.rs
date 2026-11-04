@@ -62,7 +62,8 @@ struct IndexEntry {
 /// Configuration for BlazeDB.
 #[derive(Debug, Clone)]
 pub struct BlazeConfig {
-    /// Maximum cache entries (default: 4096 chunks ~= 512MB at 128KB/chunk)
+    /// Maximum cached chunk columns (default: 512). The server passes
+    /// `world.blazedb_cache_chunks` instead, which defaults to 4096.
     pub cache_capacity: usize,
     /// Compression type (default: LZ4)
     pub compression: Compression,
