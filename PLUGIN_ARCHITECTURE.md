@@ -68,7 +68,9 @@ action system rather than exposing mutable ECS references to guests.
 
 Player handles and their host entity mappings are scoped to a host invocation;
 plugins should obtain and use handles during the current callback, not retain
-them for subsequent callbacks.
+them for subsequent callbacks. A handle the current invocation did not create
+makes the host call return an error, which traps that callback (cancellable
+callbacks then fail closed) instead of stopping the server.
 
 ## Resource Limits
 

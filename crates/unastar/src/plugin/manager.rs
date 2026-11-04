@@ -15,9 +15,12 @@ use crate::plugin::manifest::{PluginId, PluginLimits, PluginManifest};
 // ============================================================================
 
 mod wit_bindings {
+    // Imports are trappable so a host call can fail the guest invocation (for
+    // example an unknown player handle) instead of panicking the server.
     wasmtime::component::bindgen!({
         path: "../unastar-api/wit",
         world: "unastar-plugin",
+        imports: { default: trappable },
     });
 }
 
@@ -98,9 +101,13 @@ impl HostContext {
         Resource::new_own(rep)
     }
 
-    /// Look up a player entity from a Resource handle.
-    fn player_entity(&self, player: &Resource<wit_types::Player>) -> Entity {
-        self.entity_map[&player.rep()]
+    /// Look up a player entity from a Resource handle. A handle this invocation
+    /// did not create is an error, which traps the guest call.
+    fn player_entity(&self, player: &Resource<wit_types::Player>) -> wasmtime::Result<Entity> {
+        self.entity_map
+            .get(&player.rep())
+            .copied()
+            .ok_or_else(|| anyhow::anyhow!("unknown player handle {}", player.rep()))
     }
 
     /// Look up a player's UUID string from the ECS.
@@ -118,93 +125,117 @@ impl HostContext {
 // ============================================================================
 
 impl wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
-    fn get_name(&mut self, self_: Resource<wit_types::Player>) -> String {
-        let entity = self.player_entity(&self_);
+    fn get_name(&mut self, self_: Resource<wit_types::Player>) -> wasmtime::Result<String> {
+        let entity = self.player_entity(&self_)?;
         let world = unsafe { self.world() };
-        world
+        Ok(world
             .get::<crate::entity::components::PlayerName>(entity)
             .map(|n| n.0.clone())
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
 
-    fn get_uuid(&mut self, self_: Resource<wit_types::Player>) -> String {
-        let entity = self.player_entity(&self_);
-        self.player_uuid(entity)
+    fn get_uuid(&mut self, self_: Resource<wit_types::Player>) -> wasmtime::Result<String> {
+        let entity = self.player_entity(&self_)?;
+        Ok(self.player_uuid(entity))
     }
 
-    fn get_position(&mut self, self_: Resource<wit_types::Player>) -> wit_types::Vec3 {
-        let entity = self.player_entity(&self_);
+    fn get_position(
+        &mut self,
+        self_: Resource<wit_types::Player>,
+    ) -> wasmtime::Result<wit_types::Vec3> {
+        let entity = self.player_entity(&self_)?;
         let world = unsafe { self.world() };
         let pos = world
             .get::<crate::entity::components::transform::Position>(entity)
             .map(|p| p.0)
             .unwrap_or(glam::DVec3::ZERO);
-        wit_types::Vec3 {
+        Ok(wit_types::Vec3 {
             x: pos.x,
             y: pos.y,
             z: pos.z,
-        }
+        })
     }
 
-    fn get_rotation(&mut self, self_: Resource<wit_types::Player>) -> (f32, f32) {
-        let entity = self.player_entity(&self_);
+    fn get_rotation(&mut self, self_: Resource<wit_types::Player>) -> wasmtime::Result<(f32, f32)> {
+        let entity = self.player_entity(&self_)?;
         let world = unsafe { self.world() };
-        world
+        Ok(world
             .get::<crate::entity::components::transform::Rotation>(entity)
             .map(|r| (r.yaw, r.pitch))
-            .unwrap_or((0.0, 0.0))
+            .unwrap_or((0.0, 0.0)))
     }
 
-    fn get_health(&mut self, self_: Resource<wit_types::Player>) -> f32 {
-        let entity = self.player_entity(&self_);
+    fn get_health(&mut self, self_: Resource<wit_types::Player>) -> wasmtime::Result<f32> {
+        let entity = self.player_entity(&self_)?;
         let world = unsafe { self.world() };
-        world
+        Ok(world
             .get::<crate::entity::components::living::Health>(entity)
             .map(|h| h.current)
-            .unwrap_or(20.0)
+            .unwrap_or(20.0))
     }
 
-    fn get_max_health(&mut self, self_: Resource<wit_types::Player>) -> f32 {
-        let entity = self.player_entity(&self_);
+    fn get_max_health(&mut self, self_: Resource<wit_types::Player>) -> wasmtime::Result<f32> {
+        let entity = self.player_entity(&self_)?;
         let world = unsafe { self.world() };
-        world
+        Ok(world
             .get::<crate::entity::components::living::Health>(entity)
             .map(|h| h.max)
-            .unwrap_or(20.0)
+            .unwrap_or(20.0))
     }
 
-    fn get_game_mode(&mut self, _self_: Resource<wit_types::Player>) -> wit_types::GameMode {
+    fn get_game_mode(
+        &mut self,
+        self_: Resource<wit_types::Player>,
+    ) -> wasmtime::Result<wit_types::GameMode> {
+        self.player_entity(&self_)?;
         // TODO: read actual GameMode component
-        wit_types::GameMode::Survival
+        Ok(wit_types::GameMode::Survival)
     }
 
-    fn send_message(&mut self, self_: Resource<wit_types::Player>, message: String) {
-        let entity = self.player_entity(&self_);
+    fn send_message(
+        &mut self,
+        self_: Resource<wit_types::Player>,
+        message: String,
+    ) -> wasmtime::Result<()> {
+        let entity = self.player_entity(&self_)?;
         self.pending_actions
             .push(PluginAction::SendMessage { entity, message });
+        Ok(())
     }
 
-    fn teleport(&mut self, self_: Resource<wit_types::Player>, position: wit_types::Vec3) {
-        let entity = self.player_entity(&self_);
+    fn teleport(
+        &mut self,
+        self_: Resource<wit_types::Player>,
+        position: wit_types::Vec3,
+    ) -> wasmtime::Result<()> {
+        let entity = self.player_entity(&self_)?;
         self.pending_actions.push(PluginAction::Teleport {
             entity,
             position: (position.x, position.y, position.z),
         });
+        Ok(())
     }
 
-    fn give_item(&mut self, self_: Resource<wit_types::Player>, item_id: String, count: u8) {
-        let entity = self.player_entity(&self_);
+    fn give_item(
+        &mut self,
+        self_: Resource<wit_types::Player>,
+        item_id: String,
+        count: u8,
+    ) -> wasmtime::Result<()> {
+        let entity = self.player_entity(&self_)?;
         self.pending_actions.push(PluginAction::GiveItem {
             entity,
             item_id,
             count,
         });
+        Ok(())
     }
 
-    fn kick(&mut self, self_: Resource<wit_types::Player>, reason: String) {
-        let entity = self.player_entity(&self_);
+    fn kick(&mut self, self_: Resource<wit_types::Player>, reason: String) -> wasmtime::Result<()> {
+        let entity = self.player_entity(&self_)?;
         self.pending_actions
             .push(PluginAction::Kick { entity, reason });
+        Ok(())
     }
 
     fn drop(&mut self, rep: Resource<wit_types::Player>) -> wasmtime::Result<()> {
@@ -221,47 +252,47 @@ impl wit_bindings::unastar::plugin::types::Host for HostContext {}
 // ============================================================================
 
 impl wit_bindings::unastar::plugin::host::Host for HostContext {
-    fn get_tick_id(&mut self) -> u64 {
+    fn get_tick_id(&mut self) -> wasmtime::Result<u64> {
         let world = unsafe { self.world() };
-        world
+        Ok(world
             .get_resource::<crate::ecs::resources::TickCounter>()
             .map(|t| t.current)
-            .unwrap_or(0)
+            .unwrap_or(0))
     }
 
-    fn get_tps(&mut self) -> f32 {
-        20.0 // TODO: real TPS tracking
+    fn get_tps(&mut self) -> wasmtime::Result<f32> {
+        Ok(20.0) // TODO: real TPS tracking
     }
 
-    fn get_player_count(&mut self) -> u32 {
+    fn get_player_count(&mut self) -> wasmtime::Result<u32> {
         let world = self.world_mut();
-        world
+        Ok(world
             .query_filtered::<(), bevy_ecs::prelude::With<crate::entity::components::Player>>()
             .iter(world)
-            .count() as u32
+            .count() as u32)
     }
 
-    fn get_spawn(&mut self) -> wit_types::Vec3 {
+    fn get_spawn(&mut self) -> wasmtime::Result<wit_types::Vec3> {
         let world = unsafe { self.world() };
         if let Some(wrapper) =
             world.get_resource::<crate::server::game::types::ServerWorldTemplate>()
         {
             let coords = &wrapper.0.start_game_template.position;
-            wit_types::Vec3 {
+            Ok(wit_types::Vec3 {
                 x: coords.x as f64,
                 y: coords.y as f64,
                 z: coords.z as f64,
-            }
+            })
         } else {
-            wit_types::Vec3 {
+            Ok(wit_types::Vec3 {
                 x: 0.0,
                 y: 100.0,
                 z: 0.0,
-            }
+            })
         }
     }
 
-    fn get_block(&mut self, pos: wit_types::BlockPos) -> u32 {
+    fn get_block(&mut self, pos: wit_types::BlockPos) -> wasmtime::Result<u32> {
         let world = unsafe { self.world() };
         if let Some(chunk_manager) = world.get_resource::<crate::world::ecs::ChunkManager>() {
             use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
@@ -270,29 +301,31 @@ impl wit_bindings::unastar::plugin::host::Host for HostContext {
             if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz)
                 && let Some(chunk_data) = world.get::<crate::world::ecs::ChunkData>(chunk_entity)
             {
-                return chunk_data.inner.get_block(lx, ly, lz);
+                return Ok(chunk_data.inner.get_block(lx, ly, lz));
             }
         }
-        0
+        Ok(0)
     }
 
-    fn set_block(&mut self, pos: wit_types::BlockPos, block_id: u32) {
+    fn set_block(&mut self, pos: wit_types::BlockPos, block_id: u32) -> wasmtime::Result<()> {
         self.pending_actions.push(PluginAction::SetBlock {
             position: (pos.x, pos.y, pos.z),
             block_id,
         });
+        Ok(())
     }
 
-    fn log(&mut self, level: wit_types::LogLevel, message: String) {
+    fn log(&mut self, level: wit_types::LogLevel, message: String) -> wasmtime::Result<()> {
         let id = &self.plugin_id;
         match level {
             wit_types::LogLevel::Info => info!(plugin = %id, "{}", message),
             wit_types::LogLevel::Warn => warn!(plugin = %id, "{}", message),
             wit_types::LogLevel::Error => error!(plugin = %id, "{}", message),
         }
+        Ok(())
     }
 
-    fn list_players(&mut self) -> Vec<String> {
+    fn list_players(&mut self) -> wasmtime::Result<Vec<String>> {
         let world = self.world_mut();
         let mut names = Vec::new();
         for name in world
@@ -301,7 +334,7 @@ impl wit_bindings::unastar::plugin::host::Host for HostContext {
         {
             names.push(name.0.clone());
         }
-        names
+        Ok(names)
     }
 }
 
@@ -1466,7 +1499,7 @@ mod tests {
                 "host",
                 "tick",
                 |mut caller: wasmtime::Caller<'_, HostContext>| {
-                    caller.data_mut().get_tick_id() as i64
+                    caller.data_mut().get_tick_id().unwrap() as i64
                 },
             )
             .unwrap();
@@ -1488,6 +1521,25 @@ mod tests {
             linker.instantiate(store, &module).unwrap();
         });
         assert!(store.data().world_ptr.is_null());
+    }
+
+    #[test]
+    fn unknown_player_handle_is_an_error_not_a_panic() {
+        use wit_bindings::unastar::plugin::types::HostPlayer;
+        let engine = engine();
+        let mut store = store(&engine, &PluginLimits::default());
+        let mut world = bevy_ecs::world::World::new();
+        let known = world.spawn_empty().id();
+        with_world(&mut store, &mut world, |store| {
+            let ctx = store.data_mut();
+            let handle = ctx.new_player_resource(known);
+            assert!(ctx.get_health(handle).is_ok());
+            let stale = Resource::<wit_types::Player>::new_own(999);
+            assert!(ctx.get_name(stale).is_err());
+            let stale = Resource::<wit_types::Player>::new_own(999);
+            assert!(ctx.send_message(stale, "hi".into()).is_err());
+            assert!(ctx.pending_actions.is_empty());
+        });
     }
 
     #[test]
