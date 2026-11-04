@@ -228,11 +228,16 @@ impl Axelerator {
         let session_client_clone = session_client.clone();
         let session_info_clone = self.session_info.clone();
         let processed_xuids_clone = processed_xuids.clone();
+        let auto_accept = self.config.auto_accept_friends;
+        if !auto_accept {
+            info!("auto_accept_friends is off; pending friend requests are left alone");
+        }
 
         // Handle RTA events
         rta_client
             .on_event(move |data| {
-                if let Some(msg_type) = data.get("NotificationType").and_then(|v| v.as_str())
+                if auto_accept
+                    && let Some(msg_type) = data.get("NotificationType").and_then(|v| v.as_str())
                     && msg_type == "IncomingFriendRequestCountChanged"
                 {
                     info!("Received friend request notification");
@@ -262,6 +267,9 @@ impl Axelerator {
         let resync_processed = processed_xuids.clone();
         rta_client
             .on_resync(move || {
+                if !auto_accept {
+                    return;
+                }
                 let friends = resync_friends.clone();
                 let sessions = resync_sessions.clone();
                 let tokens = resync_tokens.clone();
@@ -428,14 +436,16 @@ impl Axelerator {
         };
 
         // Initial friend sync - now that session is created, accept pending requests and send invites
-        accept_friends_and_invite(
-            &friends_client,
-            &session_client,
-            &token_cache,
-            self.session_info.clone(),
-            &processed_xuids,
-        )
-        .await;
+        if auto_accept {
+            accept_friends_and_invite(
+                &friends_client,
+                &session_client,
+                &token_cache,
+                self.session_info.clone(),
+                &processed_xuids,
+            )
+            .await;
+        }
 
         // Also sync followers on startup (catches people who followed us while we were offline)
         let _ = sync_followers(
@@ -714,7 +724,8 @@ impl Axelerator {
         let friends_client = FriendsClient::new();
 
         // Presence refresh with exponential backoff
-        let mut heartbeat_secs = presence_interval(initial_heartbeat_secs);
+        let mut heartbeat_secs =
+            presence_interval(initial_heartbeat_secs, self.config.presence_heartbeat);
         let mut presence_failures = 0u32;
         let mut presence_backoff_secs = PRESENCE_INITIAL_BACKOFF_SECS;
         let mut last_presence_refresh = Instant::now();
@@ -932,7 +943,7 @@ impl Axelerator {
 
                         match presence.set_active(&presence_token).await {
                             Ok(new_heartbeat) => {
-                                heartbeat_secs = presence_interval(new_heartbeat);
+                                heartbeat_secs = presence_interval(new_heartbeat, self.config.presence_heartbeat);
                                 presence_failures = 0;
                                 presence_backoff_secs = PRESENCE_INITIAL_BACKOFF_SECS;
                                 last_presence_refresh = now;
@@ -1936,10 +1947,16 @@ fn is_rate_limited_error(error: &axolotl_xbl::XblError) -> bool {
         || matches!(error, axolotl_xbl::XblError::RateLimited)
 }
 
-fn presence_interval(heartbeat: u64) -> u64 {
+/// Seconds until the next presence refresh: the service's heartbeat, or
+/// the configured `presence_heartbeat` (at least 1 s) when it returns none.
+fn presence_interval(heartbeat: u64, fallback: u64) -> u64 {
     // Upstream returns zero for absent/invalid heartbeat metadata, not a polling
-    // instruction. Keep the caller's conservative five-minute retry interval.
-    if heartbeat == 0 { 300 } else { heartbeat }
+    // instruction, so it must not become a busy refresh loop.
+    if heartbeat == 0 {
+        fallback.max(1)
+    } else {
+        heartbeat
+    }
 }
 
 /// Check if an XUID is a guest/split-screen account.
@@ -2012,9 +2029,17 @@ mod auth_scheduling_tests {
 
     #[test]
     fn omitted_heartbeat_does_not_create_a_busy_refresh_loop() {
-        assert_eq!(presence_interval(0), 300);
-        assert_eq!(presence_interval(1), 1);
-        assert_eq!(presence_interval(120), 120);
+        assert_eq!(presence_interval(0, 300), 300);
+        assert_eq!(presence_interval(0, 0), 1);
+        assert_eq!(presence_interval(1, 300), 1);
+        assert_eq!(presence_interval(120, 300), 120);
+    }
+
+    /// `presence_heartbeat` used to be ignored; it is the fallback interval.
+    #[test]
+    fn configured_presence_heartbeat_is_the_fallback() {
+        assert_eq!(presence_interval(0, 120), 120);
+        assert_eq!(presence_interval(60, 120), 60);
     }
 
     #[test]

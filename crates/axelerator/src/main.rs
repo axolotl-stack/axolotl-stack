@@ -94,10 +94,11 @@ fn init_logging(config: &AxeleratorConfig, log_level_override: Option<&str>) {
         .with_env_filter(filter)
         .with_target(config.logging.show_target);
 
-    if config.logging.show_timestamp {
-        subscriber.init();
-    } else {
-        subscriber.without_time().init();
+    match (config.logging.json_format, config.logging.show_timestamp) {
+        (true, true) => subscriber.json().init(),
+        (true, false) => subscriber.json().without_time().init(),
+        (false, true) => subscriber.init(),
+        (false, false) => subscriber.without_time().init(),
     }
 }
 
@@ -133,8 +134,9 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Load config from file
-    let mut config = AxeleratorConfig::load_or_default(&args.config);
+    // Load config from file. A missing file means defaults; a malformed one
+    // (bad TOML, wrong types, unknown keys) stops startup.
+    let mut config = AxeleratorConfig::load(&args.config)?;
 
     // Apply CLI overrides
     if let Some(ip) = &args.server_ip {

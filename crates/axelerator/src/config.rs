@@ -1,14 +1,16 @@
 //! Configuration for Axelerator.
 //!
 //! Configuration can be loaded from a TOML file or constructed programmatically.
-//! CLI arguments override config file values.
+//! CLI arguments override config file values. A file that is not valid TOML
+//! for this schema, including one with unknown keys, is an error: running on
+//! silently ignored settings would be worse than not starting.
 
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Configuration for the Axelerator broadcast server.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct AxeleratorConfig {
     /// Name shown in friends list.
     pub host_name: String,
@@ -37,7 +39,10 @@ pub struct AxeleratorConfig {
     /// Path to cached OAuth token.
     pub token_cache_path: String,
 
-    /// Auto-accept pending friend requests.
+    /// Accept pending friend requests (and invite the new friends) on
+    /// startup, on RTA friend-request notifications and on RTA resyncs.
+    /// Following back followers is separate (`friend_sync_interval`).
+    /// Default: true.
     pub auto_accept_friends: bool,
 
     /// Automatically unfollow people who have unfollowed us.
@@ -59,7 +64,9 @@ pub struct AxeleratorConfig {
     /// Default: 30 seconds.
     pub session_refresh_interval: u64,
 
-    /// Heartbeat interval for presence (seconds).
+    /// Presence refresh interval (seconds) used when Xbox Live returns no
+    /// heartbeat interval of its own; a returned interval always wins.
+    /// Default: 300.
     pub presence_heartbeat: u64,
 
     /// Enable session tampering detection and auto-repair.
@@ -95,7 +102,7 @@ pub struct AxeleratorConfig {
 /// number of days are automatically unfollowed. This prevents the friend list
 /// from filling up with inactive players.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct FriendExpiryConfig {
     /// Enable friend expiry. Default: false (opt-in).
     pub enabled: bool,
@@ -121,7 +128,7 @@ impl Default for FriendExpiryConfig {
 
 /// Logging configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct LoggingConfig {
     /// Log level: "error", "warn", "info", "debug", "trace".
     /// Can also use module-specific levels like "info,axelerator=debug".
@@ -133,7 +140,7 @@ pub struct LoggingConfig {
     /// Include timestamps in log output (useful for file logging, not needed for journald).
     pub show_timestamp: bool,
 
-    /// Use JSON format for structured logging.
+    /// Write one JSON object per log event instead of text lines.
     pub json_format: bool,
 }
 
@@ -158,7 +165,7 @@ impl Default for LoggingConfig {
 /// - Format: JPEG (.jpg)
 /// - Quality: 90
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ScreenshotConfig {
     /// Enable screenshot uploading feature.
     pub enabled: bool,
@@ -205,7 +212,7 @@ impl Default for ScreenshotConfig {
 /// When enabled, critical errors (auth failures after refresh, crashes, etc.)
 /// will be sent to the configured Discord webhook in addition to terminal logging.
 #[derive(Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct DiscordWebhookConfig {
     /// Enable Discord webhook notifications.
     pub enabled: bool,
@@ -280,7 +287,7 @@ impl Default for AxeleratorConfig {
             max_players: 10,
             display_players: 1,
             token_cache_path: "token.json".into(),
-            auto_accept_friends: false,
+            auto_accept_friends: true,
             auto_unfollow: true,
             friend_sync_interval: 60,
             session_refresh_interval: 30,
@@ -317,19 +324,6 @@ impl AxeleratorConfig {
             path: path.display().to_string(),
             span: e.span(),
         })
-    }
-
-    /// Load from file, falling back to default on any error.
-    ///
-    /// Logs warnings if the file exists but can't be parsed.
-    pub fn load_or_default<P: AsRef<Path>>(path: P) -> Self {
-        match Self::load(&path) {
-            Ok(config) => config,
-            Err(e) => {
-                eprintln!("Warning: Failed to load config: {}", e);
-                Self::default()
-            }
-        }
     }
 
     /// Save configuration to a TOML file.
@@ -456,6 +450,46 @@ mod tests {
             assert!(!debug.contains("secret-sentinel"));
             assert!(!debug.contains("/api/webhooks/"));
         }
+    }
+
+    /// Unknown keys (typos, removed options) used to be ignored silently.
+    #[test]
+    fn unknown_keys_are_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        for contents in [
+            "sever_ip = \"10.0.0.1\"",
+            "[logging]\nlevel = \"info\"\njson = true",
+            "[friend_expiry]\nenable = true",
+            "[discord]\nwebhook = \"x\"",
+            "[screenshots]\ndir = \"x\"",
+        ] {
+            std::fs::write(&path, contents).unwrap();
+            assert!(
+                matches!(
+                    AxeleratorConfig::load(&path),
+                    Err(ConfigError::Parse { .. })
+                ),
+                "{contents}"
+            );
+        }
+    }
+
+    #[test]
+    fn generated_example_loads() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(&path, AxeleratorConfig::example_toml()).unwrap();
+        AxeleratorConfig::load(&path).unwrap();
+    }
+
+    /// The default was `false` while every request was accepted anyway;
+    /// the flag is now honoured, so the default keeps that behaviour.
+    #[test]
+    fn friend_requests_are_accepted_by_default() {
+        assert!(AxeleratorConfig::default().auto_accept_friends);
+        let config: AxeleratorConfig = toml::from_str("auto_accept_friends = false").unwrap();
+        assert!(!config.auto_accept_friends);
     }
 
     #[test]
