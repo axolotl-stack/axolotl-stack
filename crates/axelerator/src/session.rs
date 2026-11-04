@@ -8,7 +8,7 @@ use crate::discord::DiscordNotifier;
 use crate::player_history::PlayerHistory;
 use crate::screenshots::ScreenshotManager;
 use crate::token_cache::TokenCache;
-use crate::transfer::TransferStats;
+use crate::transfer::{ShutdownReason, TransferStats};
 use anyhow::{Context, Result};
 use axolotl_xbl::{
     ExpandedSessionInfo, FriendsClient, PlayFabClient, PresenceClient, SessionClient, SessionInfo,
@@ -28,6 +28,43 @@ const PRESENCE_MAX_FAILURES: u32 = 5;
 const FRIEND_SYNC_MIN_INTERVAL_SECS: u64 = 20;
 const FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS: u64 = 60;
 const PROCESSED_XUIDS_MAX_ENTRIES: usize = 50_000;
+/// Delay before retrying a failed token refresh for the transfer server.
+const TOKEN_REFRESH_RETRY_DELAY: Duration = Duration::from_secs(5);
+
+type TransferResult = Result<ShutdownReason>;
+
+/// The transfer server task the signaling loop waits on, or a scheduled
+/// retry standing in for it.
+///
+/// A `JoinHandle` must not be polled after it completed. The loop waits on
+/// this in a `select!` every iteration, so a finished task is taken out and
+/// later waits stay pending until the loop installs a new task.
+struct TransferTask(Option<tokio::task::JoinHandle<TransferResult>>);
+
+impl TransferTask {
+    fn spawn(future: impl std::future::Future<Output = TransferResult> + Send + 'static) -> Self {
+        Self(Some(tokio::spawn(future)))
+    }
+
+    /// Completes with `reason` after `delay`, so a failed restart is retried
+    /// by the same branch without blocking the loop.
+    fn retry_after(delay: Duration, reason: ShutdownReason) -> Self {
+        Self::spawn(async move {
+            tokio::time::sleep(delay).await;
+            Ok(reason)
+        })
+    }
+
+    /// Waits for the task. Cancel-safe; pending forever once it was reported.
+    async fn join(&mut self) -> std::result::Result<TransferResult, tokio::task::JoinError> {
+        let Some(handle) = self.0.as_mut() else {
+            return std::future::pending().await;
+        };
+        let result = handle.await;
+        self.0 = None;
+        result
+    }
+}
 
 type SharedProcessedXuids = Arc<RwLock<ProcessedXuids>>;
 
@@ -620,7 +657,7 @@ impl Axelerator {
              shutdown: Arc<Notify>,
              stats: Arc<TransferStats>,
              history: Option<PlayerHistory>| {
-                tokio::spawn(async move {
+                TransferTask::spawn(async move {
                     crate::transfer::run_transfer_server(
                         &signaling_url,
                         nethernet_id,
@@ -634,7 +671,7 @@ impl Axelerator {
                 })
             };
 
-        let mut transfer_handle = spawn_transfer_server(
+        let mut transfer_task = spawn_transfer_server(
             signaling_url.clone(),
             nethernet_id,
             mc_token.clone(),
@@ -716,10 +753,9 @@ impl Axelerator {
                 }
 
                 // Transfer server completion
-                res = &mut transfer_handle => {
+                res = transfer_task.join() => {
                     match res {
                         Ok(Ok(reason)) => {
-                            use crate::transfer::ShutdownReason;
                             match reason {
                                 ShutdownReason::Requested => {
                                     info!("Transfer server shutdown completed");
@@ -747,8 +783,11 @@ impl Axelerator {
                                     playfab.invalidate_service_token(&mc_token).await;
                                     if let Err(e) = token_cache.force_refresh_xbl().await {
                                         error!("Failed to refresh XBL token: {}", e);
-                                        // Wait before retrying
-                                        tokio::time::sleep(Duration::from_secs(5)).await;
+                                        // Re-enter this branch after a delay, counting the attempt.
+                                        transfer_task = TransferTask::retry_after(
+                                            TOKEN_REFRESH_RETRY_DELAY,
+                                            ShutdownReason::AuthenticationError,
+                                        );
                                         continue;
                                     }
 
@@ -762,7 +801,7 @@ impl Axelerator {
                                             token_refresh_attempts = 0;
 
                                             // Restart transfer server with new token
-                                            transfer_handle = spawn_transfer_server(
+                                            transfer_task = spawn_transfer_server(
                                                 signaling_url.clone(),
                                                 nethernet_id,
                                                 mc_token.clone(),
@@ -774,8 +813,11 @@ impl Axelerator {
                                         }
                                         Err(e) => {
                                             error!("Failed to get new mc_token: {}", e);
-                                            // Wait before retrying
-                                            tokio::time::sleep(Duration::from_secs(5)).await;
+                                            // Re-enter this branch after a delay, counting the attempt.
+                                            transfer_task = TransferTask::retry_after(
+                                                TOKEN_REFRESH_RETRY_DELAY,
+                                                ShutdownReason::AuthenticationError,
+                                            );
                                         }
                                     }
                                     continue;
@@ -807,7 +849,7 @@ impl Axelerator {
                                                 // Continue anyway - transfer server restart is more important
                                             }
 
-                                            transfer_handle = spawn_transfer_server(
+                                            transfer_task = spawn_transfer_server(
                                                 signaling_url.clone(),
                                                 nethernet_id,
                                                 mc_token.clone(),
@@ -1879,6 +1921,37 @@ fn is_guest_account(xuid: &str) -> bool {
 #[cfg(test)]
 mod auth_scheduling_tests {
     use super::*;
+
+    /// After a failed token refresh the loop used to `continue` and poll
+    /// the already-finished transfer `JoinHandle` again, which panics.
+    #[tokio::test]
+    async fn finished_transfer_task_is_not_polled_again() {
+        let mut task = TransferTask::spawn(async { Ok(ShutdownReason::AuthenticationError) });
+        assert_eq!(
+            task.join().await.unwrap().unwrap(),
+            ShutdownReason::AuthenticationError
+        );
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), task.join())
+                .await
+                .is_err(),
+            "a reported task must stay pending"
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn failed_refresh_is_retried_through_the_same_branch() {
+        let mut task = TransferTask::retry_after(
+            TOKEN_REFRESH_RETRY_DELAY,
+            ShutdownReason::AuthenticationError,
+        );
+        let started = tokio::time::Instant::now();
+        assert_eq!(
+            task.join().await.unwrap().unwrap(),
+            ShutdownReason::AuthenticationError
+        );
+        assert!(started.elapsed() >= TOKEN_REFRESH_RETRY_DELAY);
+    }
 
     #[test]
     fn omitted_heartbeat_does_not_create_a_busy_refresh_loop() {
