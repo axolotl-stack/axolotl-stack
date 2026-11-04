@@ -1,7 +1,8 @@
 //! Actor definition loader (`entities/*.json`, `minecraft:entity`).
 //!
-//! One loader for build time (vanilla, embedded per D2/D13) and for addon
-//! packs at startup (D5). It accepts, normalises and rejects pack documents
+//! One loader for build time (vanilla, embedded per D2/D13); addon packs at
+//! startup (D5) are meant to use it too, but no runtime loader calls it yet.
+//! It accepts, normalises and rejects pack documents
 //! according to the measured rules below (entities research §4.7). Supported
 //! vanilla input normalises to a fixed point. Retained legacy unknown data may
 //! still produce diagnostics when loaded again.
