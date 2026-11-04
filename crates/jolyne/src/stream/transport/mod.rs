@@ -60,6 +60,13 @@ pub trait Transport: Unpin + Send {
         None
     }
 
+    /// A handle reporting the bytes this transport has queued towards the
+    /// peer, when it tracks them (RakNet: reliable data its session counts
+    /// against the queue limit that disconnects the peer).
+    fn send_queue_probe(&self) -> Option<SendQueueProbe> {
+        None
+    }
+
     /// The P-384 key the peer proved it holds at the transport layer, if any
     /// (NetherNet: the SDP identity assertion bound to DTLS). With Bedrock
     /// encryption off, an online login is authenticated only when its
@@ -75,5 +82,31 @@ pub trait Transport: Unpin + Send {
     /// [`JolyneError::ConnectionClosed`](crate::JolyneError::ConnectionClosed).
     fn is_peer_close(_error: &Self::Error) -> bool {
         false
+    }
+}
+
+/// Reads how many bytes a connection has queued towards its peer, without
+/// access to the stream. Senders use it to stay under the transport's queue
+/// limit.
+#[derive(Clone)]
+pub struct SendQueueProbe(std::sync::Arc<dyn Fn() -> usize + Send + Sync>);
+
+impl SendQueueProbe {
+    /// A probe reporting `queued_bytes()`.
+    pub fn new(queued_bytes: impl Fn() -> usize + Send + Sync + 'static) -> Self {
+        Self(std::sync::Arc::new(queued_bytes))
+    }
+
+    /// Bytes queued towards the peer now.
+    pub fn queued_bytes(&self) -> usize {
+        (self.0)()
+    }
+}
+
+impl std::fmt::Debug for SendQueueProbe {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SendQueueProbe")
+            .field(&self.queued_bytes())
+            .finish()
     }
 }

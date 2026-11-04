@@ -35,6 +35,9 @@ pub struct PlayerSession {
     /// Count of dropped packets due to channel being full.
     /// Uses atomic for interior mutability, allowing `send()` to take `&self`.
     packets_dropped: AtomicU32,
+    /// Bytes the transport has queued towards the player (none in headless
+    /// sessions).
+    send_queue: Option<jolyne::stream::transport::SendQueueProbe>,
 }
 
 impl std::fmt::Debug for PlayerSession {
@@ -68,7 +71,21 @@ impl PlayerSession {
             uuid,
             outbound_tx,
             packets_dropped: AtomicU32::new(0),
+            send_queue: None,
         }
+    }
+
+    /// Attaches the transport's send queue so senders can read it.
+    pub fn set_send_queue(&mut self, probe: jolyne::stream::transport::SendQueueProbe) {
+        self.send_queue = Some(probe);
+    }
+
+    /// Bytes the transport has queued towards this player but not yet put on
+    /// the network (0 when the transport does not report them).
+    pub fn transport_queued_bytes(&self) -> usize {
+        self.send_queue
+            .as_ref()
+            .map_or(0, jolyne::stream::transport::SendQueueProbe::queued_bytes)
     }
 
     /// Send a packet to this player.

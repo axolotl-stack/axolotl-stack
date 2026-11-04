@@ -100,8 +100,18 @@ pub struct ChunkManager {
     pub pending_viewers: HashMap<(i32, i32), Vec<Entity>>,
     /// Generation pool (only for generators that are too expensive to run inline).
     generation_worker: Option<ChunkGenerationWorker>,
-    /// Runtime that runs storage reads (none outside a runtime: tools and tests).
+    /// Runtime that runs background loads (none outside a multi-thread
+    /// runtime: tools and tests use a private one).
     runtime: Option<tokio::runtime::Handle>,
+}
+
+/// The current runtime, if background loads can run on it while the tick
+/// blocks its thread: a current-thread runtime (`#[tokio::test]`) runs
+/// nothing until the caller yields, which a ticking test never does.
+fn background_runtime() -> Option<tokio::runtime::Handle> {
+    tokio::runtime::Handle::try_current()
+        .ok()
+        .filter(|handle| handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread)
 }
 
 impl ChunkManager {
@@ -124,7 +134,7 @@ impl ChunkManager {
             pipeline,
             pending_viewers: HashMap::new(),
             generation_worker,
-            runtime: tokio::runtime::Handle::try_current().ok(),
+            runtime: background_runtime(),
         }
     }
 
@@ -134,11 +144,11 @@ impl ChunkManager {
     }
 
     /// Set the world provider for chunk loading. Storage reads run on the
-    /// current tokio runtime when there is one.
+    /// current tokio runtime when it is multi-threaded.
     pub fn set_provider(&mut self, provider: Arc<dyn WorldProvider>) {
         self.provider = Some(provider);
         if self.runtime.is_none() {
-            self.runtime = tokio::runtime::Handle::try_current().ok();
+            self.runtime = background_runtime();
         }
     }
 

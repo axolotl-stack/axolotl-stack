@@ -415,6 +415,7 @@ impl UnastarServer {
                                 enchantment_seed,
                                 chunk_radius,
                                 outbound_tx,
+                                send_queue,
                             } => {
                                 let reject_tx = outbound_tx.clone();
                                 let spawn_data = PlayerSpawnData {
@@ -429,7 +430,11 @@ impl UnastarServer {
                                     outbound_tx,
                                     chunk_radius,
                                 };
-                                if let Err(error) = self.server.spawn_player(spawn_data) {
+                                let spawned = self.server.spawn_player(spawn_data);
+                                if let (Ok(player), Some(probe)) = (&spawned, send_queue) {
+                                    self.server.attach_send_queue(*player, probe);
+                                }
+                                if let Err(error) = spawned {
                                     use jolyne::valentine::{
                                         DisconnectPacket, DisconnectPacketMessages,
                                         DisconnectPacketMessagesUnion, EnumsConnectionDisconnectFailReason, McpePacket,
@@ -476,17 +481,18 @@ impl UnastarServer {
                     // Run game tick (this queues packets to broadcast systems)
                     let tick_logic_start = std::time::Instant::now();
                     self.server.tick();
+                    let ecs_end = std::time::Instant::now();
 
                     // Run plugin tick
                     self.plugin_manager.tick(self.server.ecs.world_mut());
                     let tick_logic_elapsed = tick_logic_start.elapsed();
+                    let plugins_elapsed = ecs_end.elapsed();
 
                     // Signal all network tasks to flush their buffers
                     let _ = tick_tx.send(());
 
                     let total_elapsed = tick_start.elapsed();
 
-                    // Log slow ticks (> 20ms = taking more than half our budget)
                     if total_elapsed.as_millis() > 20 || tick_count.is_multiple_of(200) {
                         trace!(
                             tick = tick_count,
@@ -497,10 +503,20 @@ impl UnastarServer {
                             "Tick timing"
                         );
                     }
-                    if total_elapsed.as_millis() > 40 {
+                    // Over the 50 ms tick budget: name the slow stages.
+                    if total_elapsed > TICK_DURATION {
+                        let stages = self
+                            .server
+                            .ecs
+                            .world()
+                            .resource::<crate::ecs::TickStages>()
+                            .slowest(ecs_end, 4);
                         warn!(
                             tick = tick_count,
                             total_ms = total_elapsed.as_millis(),
+                            network_events_ms = events_elapsed.as_millis(),
+                            plugins_ms = plugins_elapsed.as_millis(),
+                            slowest_stages_ms = %stages,
                             "SLOW TICK detected"
                         );
                     }
@@ -645,6 +661,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                         enchantment_seed,
                                         chunk_radius,
                                         outbound_tx: outbound_tx.clone(),
+                                        send_queue: play_stream.send_queue_probe(),
                                     })
                                     .await
                                     .is_err()

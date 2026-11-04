@@ -25,6 +25,9 @@ use crate::world::ecs::{ChunkManager, ChunkViewers};
 
 /// How far ahead (in ticks of the current velocity) the load order looks.
 const LOOKAHEAD_TICKS: f32 = 40.0;
+/// How far ahead (in ticks of the current velocity) columns are loaded before
+/// they enter the view.
+const PREFETCH_TICKS: f32 = 40.0;
 /// Weight of the newest movement sample in the velocity estimate.
 const VELOCITY_SMOOTHING: f32 = 0.25;
 /// A move longer than this in one tick is a teleport, not motion.
@@ -195,6 +198,42 @@ impl ChunkLoader {
         let here = dx * dx + dz * dz;
         let ahead = (dx - lookahead.0).powi(2) + (dz - lookahead.1).powi(2);
         (here.min(ahead), ahead)
+    }
+
+    /// Columns to load before they enter the view: the view around the point
+    /// the player reaches in [`PREFETCH_TICKS`] at its current velocity,
+    /// minus the current view, nearest to the player first (roughly the order
+    /// they enter the view in). Empty while standing still. These are only
+    /// loaded, never sent, until they are in the view.
+    pub fn prefetch(&self) -> Vec<(i32, i32)> {
+        let ahead = (
+            self.velocity.0 * PREFETCH_TICKS / 16.0,
+            self.velocity.1 * PREFETCH_TICKS / 16.0,
+        );
+        if ahead.0.hypot(ahead.1) < 0.5 {
+            return Vec::new();
+        }
+        let (cx, cz) = self.position;
+        let reach = self.radius + 1;
+        let future = (cx as f32 + ahead.0, cz as f32 + ahead.1);
+        let mut columns = Vec::new();
+        for x in (future.0 - reach as f32).floor() as i32..=(future.0 + reach as f32).ceil() as i32
+        {
+            for z in
+                (future.1 - reach as f32).floor() as i32..=(future.1 + reach as f32).ceil() as i32
+            {
+                let (dx, dz) = (x - cx, z - cz);
+                if Self::is_in_view_range(dx, dz, self.radius) {
+                    continue;
+                }
+                let (fx, fz) = (x as f32 - future.0, z as f32 - future.1);
+                if fx * fx + fz * fz <= (reach * reach) as f32 {
+                    columns.push((dx * dx + dz * dz, (x, z)));
+                }
+            }
+        }
+        columns.sort_unstable();
+        columns.into_iter().map(|(_, column)| column).collect()
     }
 
     /// Update position, evicting out-of-range chunks and repopulating queue.
@@ -392,6 +431,32 @@ mod tests {
         }
         let (x, z) = loader.lookahead();
         assert!((x - 2.0).abs() < 1e-3 && z.abs() < 1e-3, "{x} {z}");
+    }
+
+    #[test]
+    fn flying_prefetches_the_columns_about_to_enter_the_view() {
+        let mut loader = ChunkLoader::new_at(12, (0, 0));
+        assert!(loader.prefetch().is_empty(), "standing still");
+        // 1.5 blocks per tick east: 40 ticks reach 3.75 chunks ahead.
+        for tick in 0..40 {
+            loader.observe_position(f64::from(tick) * 1.5, 0.0);
+        }
+        let prefetch = loader.prefetch();
+        let view = |(x, z): (i32, i32)| x * x + z * z <= 13 * 13;
+        assert!(
+            prefetch.iter().all(|&c| !view(c)),
+            "only columns outside the view"
+        );
+        assert!(prefetch.iter().all(|&(x, _)| x > 0), "only columns ahead");
+        // The next columns straight ahead, up to the prefetch distance.
+        for x in 14..=16 {
+            assert!(prefetch.contains(&(x, 0)), "{x} chunks ahead");
+        }
+        assert!(!prefetch.contains(&(18, 0)));
+        // Nearest first: the columns just outside the view's edge lead.
+        let d = |(x, z): (i32, i32)| x * x + z * z;
+        assert!(prefetch.windows(2).all(|w| d(w[0]) <= d(w[1])));
+        assert_eq!(d(prefetch[0]), 13 * 13 + 1);
     }
 
     #[test]

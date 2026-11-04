@@ -23,7 +23,7 @@
 
 #![allow(clippy::too_many_arguments)]
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Write as _;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -53,6 +53,10 @@ const MAX_SUBCHUNK_OFFSETS: usize = 1024;
 const SQUARE_GRACE: Duration = Duration::from_secs(3);
 /// Bound for joining and loading one view.
 const VIEW_TIMEOUT: Duration = Duration::from_secs(60);
+/// A column of the render disk still missing this long after it entered the
+/// disk counts as a hole: about two client ticks plus one server tick, the
+/// round trip a column needs once it is requested.
+const HOLE_GRACE: Duration = Duration::from_millis(250);
 
 #[derive(Debug, Clone)]
 struct Args {
@@ -69,6 +73,10 @@ struct Args {
     /// Server deflate level; `None` leaves the server's default (and keeps
     /// the config readable by builds without the setting).
     compression_level: Option<u32>,
+    /// After the view loaded: `tp` (a `/tp` command) or `respawn` (set a
+    /// spawn point, `/kill`, respawn) `jump_distance` blocks away.
+    jump: Option<String>,
+    jump_distance: f32,
     label: String,
     json: Option<PathBuf>,
 }
@@ -86,6 +94,8 @@ fn parse_args() -> Args {
         fly_speed: DEFAULT_FLY_SPEED,
         generation_threads: 0,
         compression_level: None,
+        jump: None,
+        jump_distance: 3000.0,
         label: String::new(),
         json: None,
     };
@@ -107,6 +117,10 @@ fn parse_args() -> Args {
             }
             "--compression-level" => {
                 args.compression_level = Some(value().parse().expect("--compression-level integer"))
+            }
+            "--jump" => args.jump = Some(value()),
+            "--jump-distance" => {
+                args.jump_distance = value().parse().expect("--jump-distance number")
             }
             "--label" => args.label = value(),
             "--json" => args.json = Some(value().into()),
@@ -158,6 +172,28 @@ struct PlayerResult {
     /// the square view completed.
     terrain_bytes: usize,
     flight: Option<FlightResult>,
+    jump: Option<JumpResult>,
+}
+
+/// Loading the view after the player's view moved at once (`/tp` or a
+/// respawn): time from the command, and how the terrain arrived.
+#[derive(Debug, Default, Serialize)]
+struct JumpResult {
+    kind: String,
+    distance: f32,
+    /// The server moved the player (`MovePlayer`).
+    moved_ms: Option<f64>,
+    first_chunk_ms: Option<f64>,
+    disk_view_ms: Option<f64>,
+    /// `LevelChunk`s of the new view received per 50 ms after the command.
+    headers_per_tick: Vec<usize>,
+    /// Columns completed (sub-chunks answered) per 50 ms after the command.
+    completed_per_tick: Vec<usize>,
+    /// Distance in chunks from the new center of the first 64 `LevelChunk`s,
+    /// in arrival order.
+    header_distances: Vec<f32>,
+    /// Render-disk columns still missing when the bound expired.
+    disk_missing_at_timeout: Option<usize>,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -173,6 +209,17 @@ struct FlightResult {
     missing_disk_max: f64,
     /// Nearest missing chunk (in chunks from the player) at the worst sample.
     nearest_missing_at_worst: Option<f64>,
+    /// Columns that entered the render disk while flying.
+    columns_entered: usize,
+    /// Columns of the render disk missing for more than [`HOLE_GRACE`]
+    /// after they entered it, per second of flight.
+    holes_per_second: f64,
+    /// Time from a column entering the render disk until it is complete on
+    /// the client (0 when it arrived before): p50, p99 and max. Columns that
+    /// left the disk before arriving count with the time they spent in it.
+    view_latency_p50_ms: f64,
+    view_latency_p99_ms: f64,
+    view_latency_max_ms: f64,
     /// After stopping: time until the render disk is complete again.
     catch_up_ms: Option<f64>,
 }
@@ -293,6 +340,8 @@ fn write_config(dir: &Path, args: &Args, addr: SocketAddr) {
     config.server.max_players = args.players as u32 + 1;
     config.server.max_chunk_radius = args.radius;
     config.server.default_gamemode = "creative".into();
+    // `--jump` uses operator commands.
+    config.server.operators = (0..args.players).map(|i| format!("LoadBot{i}")).collect();
     config.players.data_dir = dir.join("playerdata");
     config.world.generation_threads = args.generation_threads;
     config.world.generator = match args.generator.as_str() {
@@ -695,6 +744,21 @@ async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerRe
             .await,
         );
     }
+    if let Some(kind) = &args.jump {
+        let runtime_id = game_data.start_game.runtime_id.clone();
+        result.jump = Some(
+            jump(
+                &mut play,
+                &mut terrain,
+                &mut position,
+                &mut tick,
+                kind,
+                args.jump_distance,
+                runtime_id,
+            )
+            .await,
+        );
+    }
     let _ = tokio::time::timeout(
         Duration::from_secs(2),
         play.disconnect(
@@ -731,6 +795,12 @@ async fn fly(
     let mut stopped_at: Option<Instant> = None;
     let mut catch_up_ms = None;
     let deadline = flying_until + VIEW_TIMEOUT;
+    // Columns of the render disk at the last sample; columns that entered it
+    // missing (when, and whether they already counted as a hole).
+    let mut in_disk: HashSet<(i32, i32)> = terrain.disk(center(position)).collect();
+    let mut waiting: HashMap<(i32, i32), (Instant, bool)> = HashMap::new();
+    let (mut entered, mut holes) = (0usize, 0usize);
+    let mut latencies: Vec<f64> = Vec::new();
     loop {
         tokio::select! {
             raw = play.recv_packet_raw() => {
@@ -739,6 +809,9 @@ async fn fly(
                     for column in columns {
                         if terrain.received.insert(column) && stopped_at.is_none() {
                             new_chunks += 1;
+                        }
+                        if let Some((at, _)) = waiting.remove(&column) {
+                            latencies.push(ms(at.elapsed()));
                         }
                     }
                 }
@@ -750,6 +823,28 @@ async fn fly(
                 send_input(play, position, velocity, *tick).await;
                 flush_requests(play, &mut requests, center(position)).await;
                 let (missing, total, nearest) = terrain.missing_disk(center(position));
+                let now = Instant::now();
+                let disk: HashSet<(i32, i32)> = terrain.disk(center(position)).collect();
+                for &column in disk.difference(&in_disk) {
+                    entered += 1;
+                    if terrain.received.contains(&column) {
+                        latencies.push(0.0);
+                    } else {
+                        waiting.insert(column, (now, false));
+                    }
+                }
+                waiting.retain(|column, (at, counted)| {
+                    if !disk.contains(column) {
+                        latencies.push(ms(now - *at));
+                        return false;
+                    }
+                    if !*counted && now - *at > HOLE_GRACE {
+                        *counted = true;
+                        holes += 1;
+                    }
+                    true
+                });
+                in_disk = disk;
                 if flying {
                     let share = missing as f64 / total as f64;
                     samples += 1;
@@ -771,6 +866,15 @@ async fn fly(
         }
     }
     let flown = ((position.x - start.x).powi(2) + (position.z - start.z).powi(2)).sqrt();
+    let now = Instant::now();
+    latencies.extend(waiting.values().map(|(at, _)| ms(now - *at)));
+    latencies.sort_by(f64::total_cmp);
+    let percentile = |p: f64| {
+        latencies
+            .get(((latencies.len() as f64 - 1.0) * p).round() as usize)
+            .copied()
+            .unwrap_or(0.0)
+    };
     FlightResult {
         seconds: args.fly_seconds,
         speed: args.fly_speed,
@@ -783,8 +887,176 @@ async fn fly(
         },
         missing_disk_max: worst.0,
         nearest_missing_at_worst: worst.1,
+        columns_entered: entered,
+        holes_per_second: holes as f64 / f64::from(args.fly_seconds),
+        view_latency_p50_ms: percentile(0.5),
+        view_latency_p99_ms: percentile(0.99),
+        view_latency_max_ms: latencies.last().copied().unwrap_or(0.0),
         catch_up_ms,
     }
+}
+
+/// Sends an operator command.
+async fn command(play: &mut BedrockStream<Play, Client, RakNetTransport>, line: &str) {
+    use jolyne::valentine::CommandRequestPacket;
+    use jolyne::valentine::types::CommandOriginDatajson;
+    let _ = play
+        .send_packet(McpePacket::from(CommandRequestPacket {
+            command: line.into(),
+            origin: CommandOriginDatajson {
+                type_: "player".into(),
+                request_id: "load_bench".into(),
+                ..Default::default()
+            },
+            is_internal: false,
+            version: "latest".into(),
+        }))
+        .await;
+}
+
+/// Moves the player's whole view at once and records how the new view
+/// arrives: `tp` sends `/tp`, `respawn` sets a spawn point `distance` blocks
+/// away, sends `/kill` and respawns like a client (`Respawn` client-ready and
+/// `PlayerAction` respawn once the server is ready).
+async fn jump(
+    play: &mut BedrockStream<Play, Client, RakNetTransport>,
+    terrain: &mut Terrain,
+    position: &mut Vec3,
+    tick: &mut u64,
+    kind: &str,
+    distance: f32,
+    runtime_id: jolyne::valentine::types::ActorRuntimeId,
+) -> JumpResult {
+    use jolyne::valentine::types::{BlockPos, EnumsPlayerActionType, EnumsPlayerRespawnState};
+    use jolyne::valentine::{PlayerActionPacket, RespawnPacket};
+    let target = (position.x + distance, position.y, position.z);
+    let line = format!("{} {} {}", target.0, target.1, target.2);
+    match kind {
+        "tp" => command(play, &format!("tp @s {line}")).await,
+        "respawn" => {
+            // Creative players survive `/kill`.
+            command(play, "gamemode survival @s").await;
+            command(play, &format!("spawnpoint @s {line}")).await;
+            command(play, "kill @s").await;
+        }
+        other => panic!("unknown --jump {other} (tp or respawn)"),
+    }
+    let started = Instant::now();
+    let center = |p: &Vec3| ((p.x.floor() as i32) >> 4, (p.z.floor() as i32) >> 4);
+    let new_center = center(&Vec3 {
+        x: target.0,
+        y: target.1,
+        z: target.2,
+    });
+    let mut result = JumpResult {
+        kind: kind.into(),
+        distance,
+        ..JumpResult::default()
+    };
+    terrain.received.clear();
+    let bin = |result: &mut Vec<usize>| {
+        let index = (started.elapsed().as_millis() / 50) as usize;
+        if result.len() <= index {
+            result.resize(index + 1, 0);
+        }
+        result[index] += 1;
+    };
+    let mut requests = Vec::new();
+    let mut input = tokio::time::interval(INPUT_INTERVAL);
+    let deadline = started + VIEW_TIMEOUT;
+    let (mut pressed_respawn, mut ready) = (false, false);
+    while result.disk_view_ms.is_none() {
+        tokio::select! {
+            raw = play.recv_packet_raw() => {
+                let raw = raw.expect("connection stays open after the jump");
+                match raw.name() {
+                    Some(McpePacketName::MovePlayerPacket) => {
+                        if let Ok(McpePacketData::MovePlayerPacket(moved)) = raw.decode().map(|p| p.data)
+                            && moved.player_runtime_id == runtime_id
+                        {
+                            *position = moved.position.clone();
+                            result.moved_ms.get_or_insert(ms(started.elapsed()));
+                        }
+                        continue;
+                    }
+                    Some(McpePacketName::CommandOutputPacket) => {
+                        if let Ok(McpePacketData::CommandOutputPacket(out)) = raw.decode().map(|p| p.data) {
+                            eprintln!("jump: command output {:?}", out.output);
+                        }
+                        continue;
+                    }
+                    // The respawn screen: once it opens, press respawn like
+                    // the client (`Respawn` client-ready-to-spawn); once the
+                    // server is ready, respawn (`PlayerAction` respawn) where
+                    // it says.
+                    Some(McpePacketName::RespawnPacket) => {
+                        let Ok(McpePacketData::RespawnPacket(respawn)) = raw.decode().map(|p| p.data) else {
+                            continue;
+                        };
+                        if !pressed_respawn {
+                            pressed_respawn = true;
+                            let _ = play.send_packet(McpePacket::from(RespawnPacket {
+                                position: respawn.position.clone(),
+                                state: EnumsPlayerRespawnState::Clientreadytospawn,
+                                player_runtime_id: runtime_id.clone(),
+                            })).await;
+                        }
+                        if respawn.state == EnumsPlayerRespawnState::Readytospawn && !ready {
+                            ready = true;
+                            *position = respawn.position.clone();
+                            let _ = play.send_packet(McpePacket::from(PlayerActionPacket {
+                                player_runtime_id: runtime_id.clone(),
+                                action: EnumsPlayerActionType::Respawn,
+                                block_position: BlockPos::default(),
+                                result_pos: BlockPos::default(),
+                                face: -1,
+                            })).await;
+                        }
+                        continue;
+                    }
+                    _ => {}
+                }
+                let Some(event) = terrain_packet(&mut requests, raw).await else { continue };
+                let now = ms(started.elapsed());
+                match event {
+                    TerrainEvent::Header => {
+                        result.first_chunk_ms.get_or_insert(now);
+                        bin(&mut result.headers_per_tick);
+                        if let Some(&(column, _)) = requests.last()
+                            && result.header_distances.len() < 64
+                        {
+                            let (dx, dz) = (column.0 - new_center.0, column.1 - new_center.1);
+                            result.header_distances.push(((dx * dx + dz * dz) as f32).sqrt());
+                        }
+                    }
+                    TerrainEvent::Complete(columns) => {
+                        for _ in &columns {
+                            bin(&mut result.completed_per_tick);
+                        }
+                        terrain.received.extend(columns);
+                        if terrain.disk(new_center).all(|c| terrain.received.contains(&c)) {
+                            result.disk_view_ms = Some(now);
+                        }
+                    }
+                }
+            }
+            _ = input.tick() => {
+                *tick += 1;
+                send_input(play, position, (0.0, 0.0), *tick).await;
+                flush_requests(play, &mut requests, center(position)).await;
+            }
+        }
+        if Instant::now() >= deadline {
+            let (missing, _, _) = terrain.missing_disk(new_center);
+            eprintln!(
+                "jump: render disk incomplete after {VIEW_TIMEOUT:?}: {missing} columns missing \
+                 (respawn screen seen: {pressed_respawn}, ready to spawn: {ready}, at {position:?})"
+            );
+            result.disk_missing_at_timeout = Some(missing);
+            break;
+        }
+    }
+    result
 }
 
 async fn send_input(

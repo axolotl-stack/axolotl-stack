@@ -263,7 +263,7 @@ impl RaknetListener {
             accepted.peer,
             accepted.incoming,
             self.outbound_tx.clone(),
-            accepted.rtt,
+            accepted.link,
         )
     }
 
@@ -391,7 +391,7 @@ async fn flush_scheduled_acks(
             .is_some_and(|deadline| deadline <= now)
         {
             super::mux::flush_managed(&mut state.managed, socket, peer, now, false, send_buf).await;
-            state.publish_rtt();
+            state.publish_link();
         }
     }
 }
@@ -528,7 +528,7 @@ mod tests {
             pending_rx: None,
             announced: true,
             handshake_confirmed: true,
-            rtt: crate::transport::RttCell::new(),
+            link: crate::transport::LinkCell::new(),
             client_guid: 0,
             created_at: Instant::now(),
         }

@@ -4,7 +4,7 @@ use std::time::Instant;
 use tokio::sync::mpsc;
 
 use crate::session::manager::ManagedSession;
-use crate::transport::RttCell;
+use crate::transport::LinkCell;
 
 /// Application-side receiver of a connection's messages.
 pub(crate) type AppReceiver =
@@ -14,7 +14,7 @@ pub(crate) type AppReceiver =
 pub(crate) struct Accepted {
     pub peer: SocketAddr,
     pub incoming: AppReceiver,
-    pub rtt: RttCell,
+    pub link: LinkCell,
 }
 
 /// Sender side of the accept queue.
@@ -27,8 +27,8 @@ pub struct SessionState {
     pub pending_rx: Option<AppReceiver>,
     pub announced: bool,
     pub handshake_confirmed: bool,
-    /// RTT estimate published to the accepted `RaknetStream`.
-    pub(crate) rtt: RttCell,
+    /// Link state published to the accepted `RaknetStream`.
+    pub(crate) link: LinkCell,
     /// Client GUID from the peer's `OpenConnectionRequest2`. A Vanilla listener
     /// refuses a second connection carrying it (capture `probe`, PARITY
     /// LS-5).
@@ -39,8 +39,8 @@ pub struct SessionState {
 }
 
 impl SessionState {
-    /// Publish the session's RTT estimate after it may have changed.
-    pub(crate) fn publish_rtt(&self) {
-        self.rtt.store(self.managed.rtt_micros());
+    /// Publish the session's RTT and queue after they may have changed.
+    pub(crate) fn publish_link(&self) {
+        self.link.store(&self.managed);
     }
 }

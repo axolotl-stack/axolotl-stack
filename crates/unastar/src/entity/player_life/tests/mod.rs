@@ -117,14 +117,17 @@ impl Harness {
         self.server.ecs.world_mut()
     }
 
-    /// Tick until the platform under [`HOME`] is loaded.
+    /// Tick until the platform under [`HOME`] is loaded (columns load on
+    /// background workers, so this waits for them, not for a tick count).
     fn load_platform(&mut self) {
         let under = HOME.floor().as_ivec3() - IVec3::Y;
-        for _ in 0..20 {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while std::time::Instant::now() < deadline {
             if self.world().block_at(under) == Some(*blocks::STONE) {
                 return;
             }
             self.server.tick();
+            std::thread::sleep(std::time::Duration::from_millis(1));
         }
         panic!("the platform under the player never loaded");
     }
