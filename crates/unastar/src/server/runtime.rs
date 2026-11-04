@@ -74,53 +74,24 @@ impl UnastarServer {
             }
         }
 
-        // Initialize world provider based on config
+        // Without its world database the server can't load or save terrain,
+        // so a database that won't open (e.g. locked by another instance)
+        // stops startup instead of running with persistence off.
         let world_db_path = std::path::PathBuf::from("worlds")
             .join("default")
             .join("db");
-        let storage_provider = config.server_config().world.storage_provider;
-
-        let provider: Option<Arc<dyn crate::storage::WorldProvider>> = match storage_provider {
-            crate::world::StorageProvider::LevelDb => {
-                match crate::storage::LevelDBWorldProvider::open(&world_db_path) {
-                    Ok(provider) => {
-                        info!(path = %world_db_path.display(), "Opened world LevelDB");
-                        Some(Arc::new(provider))
-                    }
-                    Err(e) => {
-                        warn!(error = %e, "Failed to open world LevelDB, chunk persistence disabled");
-                        None
-                    }
-                }
-            }
-            crate::world::StorageProvider::BlazeDb => {
-                let cache_capacity = config.server_config().world.blazedb_cache_chunks;
-                let blaze_config = crate::storage::blazedb::BlazeConfig {
-                    cache_capacity,
-                    ..Default::default()
-                };
-                match crate::storage::BlazeDBProvider::open(&world_db_path, Some(blaze_config)) {
-                    Ok(provider) => {
-                        info!(path = %world_db_path.display(), cache_capacity, "Opened world BlazeDB");
-                        Some(provider as Arc<dyn crate::storage::WorldProvider>)
-                    }
-                    Err(e) => {
-                        warn!(error = %e, "Failed to open world BlazeDB, chunk persistence disabled");
-                        None
-                    }
-                }
-            }
-        };
-
-        if let Some(provider) = provider {
-            // Set provider on ChunkManager resource for load-before-generate
-            let world = server.ecs.world_mut();
-            if let Some(mut chunk_manager) =
-                world.get_resource_mut::<crate::world::ecs::ChunkManager>()
-            {
-                chunk_manager.set_provider(provider);
-            }
-        }
+        let provider =
+            open_world_provider(&world_db_path, &config.server_config().world).map_err(|e| {
+                format!(
+                    "Failed to open world storage at {}: {e}",
+                    world_db_path.display()
+                )
+            })?;
+        server
+            .ecs
+            .world_mut()
+            .resource_mut::<crate::world::ecs::ChunkManager>()
+            .set_provider(provider);
 
         // Server key for encryption
         let server_key = SecretKey::random(&mut thread_rng());
@@ -452,6 +423,30 @@ impl UnastarServer {
     }
 }
 
+/// Open the world provider `world.storage_provider` selects at `path`.
+fn open_world_provider(
+    path: &std::path::Path,
+    world: &crate::world::WorldConfig,
+) -> crate::storage::StorageResult<Arc<dyn crate::storage::WorldProvider>> {
+    match world.storage_provider {
+        crate::world::StorageProvider::LevelDb => {
+            let provider = crate::storage::LevelDBWorldProvider::open(path)?;
+            info!(path = %path.display(), "Opened world LevelDB");
+            Ok(Arc::new(provider))
+        }
+        crate::world::StorageProvider::BlazeDb => {
+            let cache_capacity = world.blazedb_cache_chunks;
+            let blaze_config = crate::storage::blazedb::BlazeConfig {
+                cache_capacity,
+                ..Default::default()
+            };
+            let provider = crate::storage::BlazeDBProvider::open(path, Some(blaze_config))?;
+            info!(path = %path.display(), cache_capacity, "Opened world BlazeDB");
+            Ok(provider)
+        }
+    }
+}
+
 struct AcceptLoopState {
     template: Arc<jolyne::WorldTemplate>,
     world_state: crate::world::rules::StartGameWorldState,
@@ -590,4 +585,39 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::world::{StorageProvider, WorldConfig};
+
+    fn temp_path(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("unastar-{name}-{}", uuid::Uuid::new_v4()))
+    }
+
+    /// A world database another instance holds is an error, not a server
+    /// running with persistence off.
+    #[test]
+    fn a_locked_world_leveldb_fails_to_open() {
+        let path = temp_path("locked-world");
+        let world = WorldConfig::default();
+        let first = open_world_provider(&path, &world).expect("first open");
+        assert!(open_world_provider(&path, &world).is_err());
+        drop(first);
+        let _ = std::fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn an_unopenable_world_blazedb_fails_to_open() {
+        // A regular file where the database directory should be.
+        let path = temp_path("file-not-dir");
+        std::fs::write(&path, b"not a database").unwrap();
+        let world = WorldConfig {
+            storage_provider: StorageProvider::BlazeDb,
+            ..WorldConfig::default()
+        };
+        assert!(open_world_provider(&path, &world).is_err());
+        let _ = std::fs::remove_file(&path);
+    }
 }
