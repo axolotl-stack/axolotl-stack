@@ -10,6 +10,8 @@ Cargo.lock text eol=lf
 *.json text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+*.sh text eol=lf
+*.ts text eol=lf
 
 # Keep generated or binary assets from accidental text normalization.
 *.png binary
