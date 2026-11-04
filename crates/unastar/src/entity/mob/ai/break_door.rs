@@ -15,24 +15,28 @@
 //!    must stay on the same waypoint for a tick before anything happens.
 //! 5. Not breaking yet: a remembered door restarts with probability 1 in
 //!    [`BREAK_DOOR_RESTART_ROLL`] per tick; otherwise the waypoint's block
-//!    must be a door that blocks the path (its panel lies on the side the
-//!    path enters the cell from, or on the far side while the mob is not yet
-//!    in the cell), or the door is the path's last waypoint and the mob is
-//!    not in its cell. Starting sends viewers `LevelEvent` StartBlockCracking
-//!    (data `65535 / break ticks`) at the door cell's centre and sets the
-//!    `BREAKING_OBSTRUCTION` actor flag.
-//! 6. Breaking: off the ground the crack stops (`LevelEvent`
-//!    StopBlockCracking, flag cleared, progress lost). Otherwise each tick
+//!    must be a door that blocks the path (the side it blocks is the one
+//!    opposite its panel: it blocks when that is the side the path enters
+//!    the cell from, or the far side while the mob is not yet in the cell),
+//!    or the door is the path's last waypoint and the mob is not in its
+//!    cell. With the panel on the far side the mob walks into the cell up
+//!    to the panel and keeps cracking from there (BDS 1.26.51 capture
+//!    `zombie-door-break-inside`). Starting sends viewers `LevelEvent`
+//!    StartBlockCracking (data `65535 / break ticks`) at the door cell's
+//!    centre and sets the `BREAKING_OBSTRUCTION` actor flag.
+//! 6. Breaking: after a move that collided with nothing on any axis
+//!    ([`Climbing::touched`] clear) the crack stops (`LevelEvent`
+//!    StopBlockCracking, flag cleared, progress lost); a jump against the
+//!    door keeps it. Otherwise each tick
 //!    plays the door bash (`LevelEvent` SoundZombieWoodenDoor) with
 //!    probability 1 in [`BREAK_DOOR_BASH_ROLL`]; `break ticks + 1` ticks
 //!    after the start the door half is removed without drops,
 //!    `LevelEvent` SoundZombieDoorCrash and ParticlesDestroyBlockNoSound
 //!    (the door's default state) play, the path counts the door waypoint as
 //!    reached and the flag clears. The other door half, no longer supported,
-//!    is destroyed with its block drops and destroy particles (the lower
-//!    half drops the door item, the upper one nothing). BDS destroys it one
-//!    tick later from its block tick queue; unastar has no block tick queue
-//!    and destroys it in the same tick.
+//!    is destroyed one tick later from the block tick queue with its block
+//!    drops and destroy particles (the lower half drops the door item, the
+//!    upper one nothing), as on BDS.
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
@@ -41,7 +45,7 @@ use rand::Rng;
 
 use super::{MobBrain, PathBlockTable, set_flag};
 use crate::entity::EntityRandom;
-use crate::entity::components::{OnGround, PhysicsBody, Position};
+use crate::entity::components::{Climbing, PhysicsBody, Position};
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::mob::components::doors::{BreakDoorConfig, DoorBreakState};
 use crate::entity::mob::constants::{
@@ -53,7 +57,7 @@ use crate::entity::mob::net::sound::level_event;
 use crate::entity::mob::state::AttackTarget;
 use crate::entity::navigation::WalkWaypoint;
 use crate::entity::systems::BlockSource;
-use crate::registry::collision::{Aabb, block_collision_boxes};
+use crate::registry::collision::{Aabb, block_collision_boxes, connected_state};
 use crate::world::rules::{Difficulty, GameRules};
 
 /// Sides of a block cell, as door panels and path entries name them.
@@ -167,6 +171,12 @@ fn cell_box(cell: IVec3) -> Aabb {
     Aabb::new(cell.as_dvec3(), cell.as_dvec3() + DVec3::ONE)
 }
 
+/// The door half `state` at `cell` as the whole door collides: its open bit
+/// from the lower half and its hinge from the upper half.
+fn whole_door(world: &World, cell: IVec3, state: u32) -> u32 {
+    connected_state(world.registry(), cell, state, |p| world.block_at(p))
+}
+
 /// The side of its cell a door state's panel lies on, from its collision
 /// shape.
 fn panel_side(state: u32, boxes: &mut Vec<Aabb>) -> Option<Side> {
@@ -192,8 +202,9 @@ fn panel_side(state: u32, boxes: &mut Vec<Aabb>) -> Option<Side> {
 }
 
 /// Whether the door `state` at `cell` (the waypoint at `index`) stands across
-/// the path: its panel is on the side the path to the next waypoint enters
-/// from, or on the far side while the mob is not yet in the cell.
+/// the path. The side a door blocks is the one opposite its panel: it blocks
+/// when that is the side the path to the next waypoint enters from, or the
+/// far side while the mob is not yet in the cell.
 fn door_blocks_path(
     state: u32,
     cell: IVec3,
@@ -220,7 +231,8 @@ fn door_blocks_path(
     let Some(panel) = panel_side(state, boxes) else {
         return false;
     };
-    panel == entry || (panel == entry.opposite() && !mob.intersects(&cell_box(cell)))
+    let blocked = panel.opposite();
+    blocked == entry || (blocked == entry.opposite() && !mob.intersects(&cell_box(cell)))
 }
 
 /// Whether a closed door `mob` may break stands across `path` at the
@@ -241,6 +253,7 @@ pub(super) fn held_by_breakable_door(
     let Some(door) = world
         .block_at(cell)
         .filter(|&block| table.is_door(block) && !table.is_iron_door(block))
+        .map(|block| whole_door(world, cell, block))
     else {
         return false;
     };
@@ -270,7 +283,9 @@ fn check(
     let block = world.block_at(cell);
     let table = world.resource::<PathBlockTable>();
     let iron = block.is_some_and(|block| table.is_iron_door(block));
-    let door = block.filter(|&block| table.is_door(block));
+    let door = block
+        .filter(|&block| table.is_door(block))
+        .map(|block| whole_door(world, cell, block));
     if *world.resource::<Difficulty>() < config.min_difficulty
         || !world.resource::<GameRules>().mob_griefing
         || iron
@@ -345,7 +360,10 @@ fn check(
     }
 
     let door_cell = state.door.expect("breaking remembers its door");
-    if !world.get::<OnGround>(mob).is_some_and(|ground| ground.0) {
+    if !world
+        .get::<Climbing>(mob)
+        .is_some_and(|climbing| climbing.touched)
+    {
         stop_crack(&mut world.entity_mut(mob), door_cell);
         state.breaks_at = None;
         return;
@@ -456,31 +474,37 @@ mod tests {
         );
     }
 
+    /// The path runs west to east. A mob in the cell is still blocked by a
+    /// panel on the far (east) side, where it stands pressed against it,
+    /// but not by one on the near side it has already passed.
     #[test]
-    fn far_panel_does_not_block_a_mob_already_in_the_cell() {
+    fn far_panel_blocks_a_mob_already_in_the_cell_near_panel_does_not() {
         let mut boxes = Vec::new();
         let inside = Aabb::from_feet(DVec3::new(0.4, 64.0, 0.5), 0.6, 1.95);
+        let mut seen = Vec::new();
         for direction in ["north", "south", "east", "west"] {
             let state = door(direction, false);
-            if panel_side(state, &mut boxes) == Some(Side::East) {
-                assert!(!door_blocks_path(
+            let side = panel_side(state, &mut boxes);
+            let far = match side {
+                Some(Side::East) => true,
+                Some(Side::West) => false,
+                _ => continue,
+            };
+            seen.push(far);
+            let blocks = |mob| {
+                door_blocks_path(
                     state,
                     IVec3::new(0, 64, 0),
                     &path(),
                     1,
-                    inside,
-                    &mut boxes
-                ));
-                assert!(door_blocks_path(
-                    state,
-                    IVec3::new(0, 64, 0),
-                    &path(),
-                    1,
-                    outside(),
-                    &mut boxes
-                ));
-            }
+                    mob,
+                    &mut Vec::new(),
+                )
+            };
+            assert_eq!(blocks(inside), far, "{direction}");
+            assert!(blocks(outside()), "{direction}");
         }
+        assert!(seen.contains(&true) && seen.contains(&false), "{seen:?}");
     }
 
     #[test]

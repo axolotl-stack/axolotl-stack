@@ -1,18 +1,20 @@
 //! Mob AI: authored goals, navigation and the native move/look/jump
 //! controls.
 //!
-//! [`tick_mob_ai`] runs every server tick in the physics set, after the
-//! definition barrier and [`super::derive_mob_state`] and before
-//! `tick_physics`. For every living mob it (re)builds the goal composition
-//! when the definition changed, ticks the goal selector, follows the current
-//! path, runs the move and look controls, and turns the result into body
-//! yaw, head yaw and velocity (acceleration and jumps) that the physics step
-//! then integrates. [`push_mobs`] then pushes nearby pushable mobs apart.
+//! [`tick_mob_ai`] runs every server tick in the physics set, after
+//! `tick_physics` moved every body (as BDS ticks: the move first, then the
+//! AI sees the moved world). For every living mob it (re)builds the goal
+//! composition when the definition changed, ticks the goal selector, follows
+//! the current path, runs the move and look controls, and turns the result
+//! into body yaw, head yaw and velocity (acceleration and jumps) that the
+//! next tick's physics step integrates. [`push_mobs`] then pushes nearby
+//! pushable mobs apart.
 
 mod break_door;
 mod control;
 mod eat_block;
 mod goals;
+mod kinetic;
 mod melee;
 mod nearby;
 mod path;
@@ -52,6 +54,7 @@ use self::goals::{Effects, GoalContext, GoalStates, goal_specs};
 use self::nearby::{ItemView, MobView, Nearby, PlayerView};
 use self::path::WalkPolicy;
 use super::MobKind;
+use super::combat::kinetic::DealKineticDamage;
 use super::components::follow_range::FollowRange;
 use super::components::hostile::OnTargetEscape;
 use super::components::{
@@ -73,6 +76,7 @@ use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::goal_selector::{GoalSelector, GoalSpec};
 use crate::entity::item_drop::PLAYER_EYE_HEIGHT;
+use crate::entity::navigation::WalkWaypoint;
 use crate::entity::systems::physics::{living_block_friction, living_liquid};
 use crate::registry::collision::Aabb;
 
@@ -278,6 +282,7 @@ pub fn tick_mob_ai(
                         world,
                         entity,
                         output,
+                        tick,
                         &mut scratch.eaten,
                         &mut scratch.attacks,
                         &mut scratch.gear,
@@ -387,6 +392,7 @@ fn think(
     if turn == Turn::Think(true) {
         // A rebuilt composition rebuilds the native goals.
         states.melee.reset();
+        states.kinetic.reset();
         states.targets.reset();
         states.ranged.reset();
     }
@@ -445,16 +451,10 @@ fn think(
             hop.tick(config, &body, &mut yaw, movement, &mut rng.0),
         )
     } else {
-        let door_hold = nav.current().is_some_and(|(index, path)| {
-            break_door::held_by_breakable_door(
-                world,
-                entity,
-                table,
-                path,
-                index,
-                Aabb::from_feet(feet, physics.width, physics.height),
-            )
-        });
+        let mob_box = Aabb::from_feet(feet, physics.width, physics.height);
+        let door_hold = |path: &[WalkWaypoint], index: usize| {
+            break_door::held_by_breakable_door(world, entity, table, path, index, mob_box)
+        };
         let wall_climbing = if policy.climbs_walls {
             let collided = mob.get::<Climbing>().is_some_and(|c| c.collided);
             climb::navigate(world, table, &body, collided, nav, movement, door_hold)
@@ -493,6 +493,7 @@ fn apply(
     world: &mut World,
     entity: Entity,
     output: Output,
+    tick: u64,
     eaten: &mut Vec<Entity>,
     attacks: &mut Vec<(Entity, Entity)>,
     gear: &mut Vec<(Entity, pickup::GearWork)>,
@@ -546,6 +547,17 @@ fn apply(
     }
     if let Some(facing) = effects.facing_target {
         set_flag(&mut mob, actor_flags::FACING_TARGET_TO_RANGE_ATTACK, facing);
+    }
+    match effects.kinetic {
+        Some(kinetic::KineticRequest::Raise(settings)) => {
+            mob.insert(DealKineticDamage::new(settings, tick));
+            set_flag(&mut mob, actor_flags::USINGITEM, true);
+        }
+        Some(kinetic::KineticRequest::Lower) => {
+            mob.remove::<DealKineticDamage>();
+            set_flag(&mut mob, actor_flags::USINGITEM, false);
+        }
+        None => {}
     }
     if let Some(avoiding) = effects.avoiding {
         set_flag(&mut mob, actor_flags::IS_AVOIDING_MOBS, avoiding);

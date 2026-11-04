@@ -186,6 +186,19 @@ fn after_hurt(
 /// The native mob attack damage: the `attack` draw plus the held weapon,
 /// then the attacker's Strength and Weakness levels.
 fn attack_damage(world: &mut World, attacker: Entity, attack: &AttackConfig) -> f32 {
+    let weapon = weapon_damage(world, attacker);
+    attack_damage_with(world, attacker, attack, weapon)
+}
+
+/// The native mob attack damage with `bonus` in place of the held weapon's
+/// damage: the `attack` draw plus `bonus`, then the attacker's Strength and
+/// Weakness levels.
+pub(super) fn attack_damage_with(
+    world: &mut World,
+    attacker: Entity,
+    attack: &AttackConfig,
+    bonus: f32,
+) -> f32 {
     let base = if attack.damage_max > attack.damage_min {
         world
             .resource_mut::<EntityRandom>()
@@ -194,7 +207,7 @@ fn attack_damage(world: &mut World, attacker: Entity, attack: &AttackConfig) -> 
     } else {
         attack.damage_min
     };
-    let mut damage = base + weapon_damage(world, attacker);
+    let mut damage = base + bonus;
     if let Some(effects) = world.get::<Effects>(attacker) {
         if let Some(strength) = effects.get(EffectType::STRENGTH) {
             for _ in 0..=strength.level {

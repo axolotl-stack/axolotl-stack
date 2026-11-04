@@ -25,6 +25,7 @@ use crate::entity::mob::constants::{
     THROW_SOUND_EYE_DROP, THROWN_EGG_ITEMS,
 };
 use crate::entity::mob::events::held_item;
+use crate::entity::mob::net::network::actor_unique_id;
 use crate::entity::mob::net::sound::play_level_sound;
 use crate::entity::mob::{MobSpawnError, SpawnCause, spawn_mob, spawn_mob_by};
 use crate::entity::systems::physics::move_aabb;
@@ -434,7 +435,9 @@ fn spread(world: &mut World, direction: DVec3, spread: f64, speed: f64) -> DVec3
     direction * speed
 }
 
-/// Send `projectile` off from `feet` at `velocity`, owned by `thrower`.
+/// Send `projectile` off from `feet` at `velocity`, owned by `thrower`: its
+/// `OWNER` actor data names the thrower's unique id (matches BDS 1.26.51,
+/// for mob and player shots alike).
 fn release(
     world: &mut World,
     projectile: Entity,
@@ -444,6 +447,7 @@ fn release(
     critical: bool,
 ) {
     let (yaw, pitch) = heading(velocity);
+    let owner = actor_unique_id(world, thrower);
     let mut entity = world.entity_mut(projectile);
     entity.insert((
         Position(feet),
@@ -453,6 +457,9 @@ fn release(
     if let Some(mut flight) = entity.get_mut::<ProjectileFlight>() {
         flight.owner = Some(thrower);
         flight.critical = critical;
+    }
+    if let Some(mut metadata) = entity.get_mut::<EntityMetadata>() {
+        metadata.set_long(ids::OWNER, owner);
     }
     if critical && let Some(mut flags) = entity.get_mut::<ActorFlags>() {
         flags

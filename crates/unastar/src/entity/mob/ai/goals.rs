@@ -22,7 +22,7 @@ use crate::entity::mob::components::leap::LeapAtTargetGoal;
 use crate::entity::mob::components::{
     BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FloatGoal, FollowParentGoal,
     HurtByTargetGoal, LookAtPlayerGoal, NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal,
-    RandomLookAroundGoal, RandomStrollGoal, TemptGoal, WalkNavigationConfig,
+    RandomLookAroundGoal, RandomStrollGoal, TemptGoal, UseKineticWeaponGoal, WalkNavigationConfig,
 };
 // Creeper lane.
 use crate::entity::mob::components::SelfEvent;
@@ -84,10 +84,11 @@ pub enum Goal {
     HopKeepJumping,
     HopRandomDirection,
     HopAttack,
+    UseKineticWeapon,
 }
 
 impl Goal {
-    const ALL: [Goal; 25] = [
+    const ALL: [Goal; 26] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -113,6 +114,7 @@ impl Goal {
         Goal::HopKeepJumping,
         Goal::HopRandomDirection,
         Goal::HopAttack,
+        Goal::UseKineticWeapon,
     ];
 
     pub fn id(self) -> GoalId {
@@ -135,7 +137,9 @@ impl Goal {
             Goal::LookAtPlayer => GoalControls::LOOK,
             Goal::EatBlock => crate::entity::mob::constants::EAT_BLOCK_DEFAULT_CONTROLS,
             Goal::HurtByTarget | Goal::NearestAttackableTarget => GoalControls::TARGET,
-            Goal::MeleeBoxAttack | Goal::PickupItems => GoalControls::MOVE | GoalControls::LOOK,
+            Goal::MeleeBoxAttack | Goal::PickupItems | Goal::UseKineticWeapon => {
+                GoalControls::MOVE | GoalControls::LOOK
+            }
             Goal::EquipItem => GoalControls::NONE,
             Goal::TakeBlock | Goal::PlaceBlock => GoalControls::NONE,
             Goal::Leap => GoalControls::MOVE | GoalControls::JUMP,
@@ -224,6 +228,14 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             kind: GoalKind::Normal,
             priority: goal.priority,
             controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<UseKineticWeaponGoal>() {
+        out.push(GoalSpec {
+            id: Goal::UseKineticWeapon.id(),
+            kind: GoalKind::Normal,
+            priority: goal.melee.priority,
+            controls: goal.melee.controls,
         });
     }
     if let Some(goal) = entity.get::<PickupItemsGoal>() {
@@ -354,6 +366,8 @@ pub struct Effects {
     pub target: Option<Option<Entity>>,
     /// The melee goal hits this actor now.
     pub attack: Option<Entity>,
+    /// The kinetic weapon goal raises or lowers its weapon (`super::kinetic`).
+    pub kinetic: Option<super::kinetic::KineticRequest>,
     /// The pickup and equip goals' item work (`super::pickup`).
     pub gear: super::pickup::GearWork,
     /// The block goals' block move (`super::block_carry`).
@@ -413,6 +427,7 @@ pub struct GoalStates {
     boxes: Vec<Aabb>,
     pub(super) targets: super::targeting::TargetStates,
     pub(super) melee: super::melee::MeleeState,
+    pub(super) kinetic: super::kinetic::KineticState,
     pub(super) pickup: super::pickup::PickupState,
     pub(super) avoid: super::avoid_mob_type::AvoidState,
     pub(super) ranged: super::ranged_attack::RangedState,
@@ -812,6 +827,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::HurtByTarget => self.hurt_by_can_start(),
             Goal::NearestAttackableTarget => self.nearest_target_can_start(),
             Goal::MeleeBoxAttack => self.melee_can_start(),
+            Goal::UseKineticWeapon => self.kinetic_can_start(),
             Goal::PickupItems => self.pickup_can_start(),
             Goal::EquipItem => self.equip_can_start(),
             Goal::TakeBlock => self.take_block_can_start(),
@@ -880,6 +896,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::HurtByTarget => self.hurt_by_can_continue(),
             Goal::NearestAttackableTarget => self.nearest_target_can_continue(),
             Goal::MeleeBoxAttack => self.melee_can_continue(),
+            Goal::UseKineticWeapon => self.kinetic_can_continue(),
             Goal::PickupItems => self.pickup_can_continue(),
             Goal::EquipItem => self.equip_can_start(),
             // The block goals act once, when they start.
@@ -965,6 +982,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::HurtByTarget => self.hurt_by_start(),
             Goal::NearestAttackableTarget => self.nearest_target_start(),
             Goal::MeleeBoxAttack => self.melee_start(),
+            Goal::UseKineticWeapon => self.kinetic_start(),
             Goal::PickupItems => self.pickup_start(),
             Goal::EquipItem => {}
             Goal::TakeBlock => self.take_block_start(),
@@ -1007,6 +1025,7 @@ impl GoalCallbacks for GoalContext<'_> {
                 self.target_stop(super::targeting::TargetSource::Nearest)
             }
             Goal::MeleeBoxAttack => self.melee_stop(),
+            Goal::UseKineticWeapon => self.kinetic_stop(),
             Goal::PickupItems => self.pickup_stop(),
             Goal::EquipItem => {}
             Goal::TakeBlock | Goal::PlaceBlock => {}
@@ -1050,6 +1069,7 @@ impl GoalCallbacks for GoalContext<'_> {
             }
             Goal::HurtByTarget | Goal::NearestAttackableTarget => self.target_tick(),
             Goal::MeleeBoxAttack => self.melee_tick(),
+            Goal::UseKineticWeapon => self.kinetic_tick(),
             Goal::PickupItems => self.pickup_tick(),
             Goal::EquipItem => self.equip_tick(),
             Goal::TakeBlock | Goal::PlaceBlock => {}

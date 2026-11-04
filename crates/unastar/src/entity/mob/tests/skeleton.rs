@@ -13,8 +13,11 @@ use tokio::sync::mpsc;
 use unastar_data::actor_components::body::ActorDamageCause;
 use unastar_data::actor_identifiers::ActorType;
 use valentine::bedrock::codec::BedrockCodec;
-use valentine::bedrock::version::v1_26_51::types::DataItemEntryPayload;
+use valentine::bedrock::version::v1_26_51::types::{
+    DataItemEntry, DataItemEntryPayload, EnumsActorEvent,
+};
 
+use super::recording;
 use crate::entity::EntityRandom;
 use crate::entity::components::{
     DroppedItem, EffectType, Effects, Experience, GameMode, Health, HeldSlot, ItemEntityStack,
@@ -749,4 +752,494 @@ fn a_player_kill_gives_five_experience_plus_one_to_three_per_held_item() {
         );
     }
     assert!(with_bow > 0, "most player kills leave the bow held");
+}
+
+// --- The bow draw against the BDS recordings ----------------------------------
+
+const BOW_FIELD: &str =
+    include_str!("../../../../../client-diff/tests/fixtures/bds-skeleton/skeleton-bow-field.jsonl");
+const STRAY_BOW_FIELD: &str =
+    include_str!("../../../../../client-diff/tests/fixtures/bds-skeleton/stray-bow-field.jsonl");
+const BOW_FIELD_HARD: &str = include_str!(
+    "../../../../../client-diff/tests/fixtures/bds-skeleton/skeleton-bow-field-hard.jsonl"
+);
+
+/// The packets the bow replays read from a recording.
+const BOW_READ: [&str; 10] = [
+    "ActorEvent",
+    "AddActor",
+    "Animate",
+    "AnimateEntity",
+    "LevelSoundEvent",
+    "MobEffect",
+    "MobEquipment",
+    "MoveActorDelta",
+    "PlayerAuthInput",
+    "SetActorData",
+];
+/// The wire id of `instant_health`: the recordings heal the player with it
+/// between the phases of a fight.
+const INSTANT_HEALTH: i32 = 6;
+
+/// Where the recorded world's x and z map into the harness (whose chunks
+/// span -16..32): the recorded player stood at (0.5, 0.5), ours at
+/// (-7.5, 0.5).
+const BOW_X_OFFSET: f64 = -8.0;
+/// Ticks our skeleton stands where it was summoned before it is put in
+/// range (the recorded ones stood there for seconds).
+const BOW_SUMMON_TICKS: i64 = 20;
+
+/// What a skeleton's fight shows on the wire.
+#[derive(Debug, Clone, PartialEq)]
+enum Bow {
+    /// Its target (`TARGET` actor data) was set (`true`) or cleared.
+    Target(bool),
+    /// Its `FACING_TARGET_TO_RANGE_ATTACK` flag turned on or off.
+    Facing(bool),
+    /// A level sound it made, or one played on a tick it shot.
+    Sound(String),
+    /// It shot an arrow: the arrow's `CUSTOM_DISPLAY` (its tipped potion).
+    Arrow(i64),
+    /// Its held or worn items were sent.
+    Equipment,
+    /// An actor event on it.
+    Event(EnumsActorEvent),
+    /// An animation on it.
+    Animation,
+}
+
+/// A fight's packets on ticks counted from the skeleton taking its first
+/// target.
+#[derive(Debug, Default)]
+struct BowFight {
+    seen: Vec<(u64, Bow)>,
+}
+
+/// The first `SetActorData` entry `id` carries, as an integer.
+fn data_int(data: &[DataItemEntry], id: u32) -> Option<i64> {
+    data.iter()
+        .find(|entry| entry.id == id)
+        .and_then(|entry| match &entry.payload {
+            DataItemEntryPayload::DataItemBytePayload(v) => Some(i64::from(v.value)),
+            DataItemEntryPayload::DataItemShortPayload(v) => Some(i64::from(v.value)),
+            DataItemEntryPayload::DataItemIntPayload(v) => Some(i64::from(v.value)),
+            DataItemEntryPayload::DataItemInt64Payload(v) => Some(v.value),
+            _ => None,
+        })
+}
+
+/// Reads one skeleton's fight out of a packet stream, tick by tick.
+struct BowReader {
+    skeleton: u64,
+    unique_id: i64,
+    facing: Option<bool>,
+    /// The tick the skeleton first took a target.
+    took_target: Option<i64>,
+    fight: BowFight,
+}
+
+impl BowReader {
+    fn new(skeleton: u64, unique_id: i64) -> Self {
+        Self {
+            skeleton,
+            unique_id,
+            facing: None,
+            took_target: None,
+            fight: BowFight::default(),
+        }
+    }
+
+    /// The packets of `tick`, in order. The sounds of the arrows it shot
+    /// (`disappeared`, which every new projectile makes) are left out.
+    fn tick<'p>(&mut self, tick: i64, packets: impl IntoIterator<Item = &'p McpePacketData>) {
+        let packets: Vec<&McpePacketData> = packets.into_iter().collect();
+        let arrows: Vec<i64> = packets
+            .iter()
+            .filter_map(|packet| match packet {
+                McpePacketData::AddActorPacket(add) if self.is_shot(packet) => {
+                    Some(add.target_actor_id.actor_unique_id)
+                }
+                _ => None,
+            })
+            .collect();
+        let shot = !arrows.is_empty();
+        let mut seen = Vec::new();
+        for packet in packets {
+            match packet {
+                McpePacketData::SetActorDataPacket(data)
+                    if data.target_runtime_id.actor_runtime_id == self.skeleton =>
+                {
+                    let data = &data.actor_data.data;
+                    if let Some(target) = data_int(data, ids::TARGET) {
+                        if target != 0 && self.took_target.is_none() {
+                            self.took_target = Some(tick);
+                        }
+                        seen.push(Bow::Target(target != 0));
+                    }
+                    if let Some(word) = data_int(data, ids::RESERVED_092) {
+                        let on = word >> (actor_flags::FACING_TARGET_TO_RANGE_ATTACK - 64) & 1 == 1;
+                        if self.facing.is_some_and(|old| old != on) || (self.facing.is_none() && on)
+                        {
+                            seen.push(Bow::Facing(on));
+                        }
+                        self.facing = Some(on);
+                    }
+                }
+                McpePacketData::LevelSoundEventPacket(sound)
+                    if (sound.actor_unique_id == self.unique_id || shot)
+                        && !arrows.contains(&sound.actor_unique_id) =>
+                {
+                    seen.push(Bow::Sound(sound.sound_event.to_string()));
+                }
+                McpePacketData::AddActorPacket(add) if self.is_shot(packet) => {
+                    let display = data_int(&add.actor_data.data, ids::CUSTOM_DISPLAY).unwrap_or(0);
+                    seen.push(Bow::Arrow(display));
+                }
+                McpePacketData::MobEquipmentPacket(equipment)
+                    if equipment.target_runtime_id.actor_runtime_id == self.skeleton =>
+                {
+                    seen.push(Bow::Equipment);
+                }
+                McpePacketData::MobArmorEquipmentPacket(armor)
+                    if armor.target_runtime_id.actor_runtime_id == self.skeleton =>
+                {
+                    seen.push(Bow::Equipment);
+                }
+                McpePacketData::ActorEventPacket(event)
+                    if event.target_runtime_id.actor_runtime_id == self.skeleton =>
+                {
+                    seen.push(Bow::Event(event.event_id));
+                }
+                McpePacketData::AnimatePacket(animate)
+                    if animate.target_actor_runtime_id.actor_runtime_id == self.skeleton =>
+                {
+                    seen.push(Bow::Animation);
+                }
+                McpePacketData::AnimateEntityPacket(animate)
+                    if animate
+                        .m_runtime_ids
+                        .iter()
+                        .any(|id| id.actor_runtime_id == self.skeleton) =>
+                {
+                    seen.push(Bow::Animation);
+                }
+                _ => {}
+            }
+        }
+        if let Some(from) = self.took_target {
+            self.fight
+                .seen
+                .extend(seen.into_iter().map(|bow| ((tick - from) as u64, bow)));
+        }
+    }
+
+    /// `packet` adds an arrow the skeleton shot.
+    fn is_shot(&self, packet: &McpePacketData) -> bool {
+        matches!(packet, McpePacketData::AddActorPacket(add)
+            if &*add.actor_type == "minecraft:arrow"
+                && data_int(&add.actor_data.data, ids::OWNER) == Some(self.unique_id))
+    }
+}
+
+/// A recorded skeleton fight, read from the skeleton's first target on.
+struct RecordedBow {
+    fight: BowFight,
+    /// The recorded time of the first target.
+    took_target_ms: f64,
+    /// Where the skeleton was summoned, in our coordinates.
+    summoned: DVec3,
+    /// Where the skeleton was put before it first took its target, in our
+    /// coordinates, and when.
+    start: (f64, DVec3),
+    /// Every later teleport: `(t_ms, feet)` in our coordinates.
+    teleports: Vec<(f64, DVec3)>,
+    /// The recorded player's eye: `(t_ms, eye)` in our coordinates.
+    eyes: Vec<(f64, DVec3)>,
+    /// When the recorded player was healed (`instant_health`).
+    heals: Vec<f64>,
+}
+
+fn ours(recorded: DVec3) -> DVec3 {
+    recorded + DVec3::new(BOW_X_OFFSET, recording::RECORDED_Y_OFFSET, 0.0)
+}
+
+fn recorded_bow(text: &str, identifier: &str) -> RecordedBow {
+    let records = recording::recording(text, &BOW_READ);
+    let (skeleton, unique_id, summoned) = records
+        .iter()
+        .find_map(|r| match &r.packet {
+            McpePacketData::AddActorPacket(add) if &*add.actor_type == identifier => Some((
+                add.target_runtime_id.actor_runtime_id,
+                add.target_actor_id.actor_unique_id,
+                DVec3::new(
+                    f64::from(add.position.x),
+                    f64::from(add.position.y),
+                    f64::from(add.position.z),
+                ),
+            )),
+            _ => None,
+        })
+        .expect("the recording summons the skeleton");
+    // The server's packets tick by tick: a tick's packets arrive within a
+    // few milliseconds. The player's eye from its own inputs.
+    let mut batches: Vec<(f64, Vec<&McpePacketData>)> = Vec::new();
+    let mut eyes = Vec::new();
+    let mut heals = Vec::new();
+    for record in &records {
+        if !record.s2c {
+            if let McpePacketData::PlayerAuthInputPacket(input) = &record.packet {
+                let p = &input.position;
+                let eye = ours(DVec3::new(f64::from(p.x), f64::from(p.y), f64::from(p.z)));
+                if eyes.last().is_none_or(|(_, last)| *last != eye) {
+                    eyes.push((record.t_ms, eye));
+                }
+            }
+            continue;
+        }
+        if let McpePacketData::MobEffectPacket(effect) = &record.packet
+            && effect.target_runtime_id.actor_runtime_id == recording::PLAYER_RUNTIME_ID
+            && effect.effect_id == INSTANT_HEALTH
+        {
+            heals.push(record.t_ms);
+        }
+        match batches.last_mut() {
+            Some((t_ms, batch)) if record.t_ms - *t_ms <= 10.0 => batch.push(&record.packet),
+            _ => batches.push((record.t_ms, vec![&record.packet])),
+        }
+    }
+    let took = batches
+        .iter()
+        .position(|(_, batch)| {
+            batch.iter().any(|packet| {
+                matches!(packet, McpePacketData::SetActorDataPacket(data)
+                    if data.target_runtime_id.actor_runtime_id == skeleton
+                        && data_int(&data.actor_data.data, ids::TARGET).is_some_and(|t| t != 0))
+            })
+        })
+        .expect("the recorded skeleton takes a target");
+    let took_target_ms = batches[took].0;
+    let mut feet = summoned;
+    let mut reader = BowReader::new(skeleton, unique_id);
+    let mut start = None;
+    let mut teleports = Vec::new();
+    for (index, (t_ms, batch)) in batches.iter().enumerate() {
+        for packet in batch {
+            if let McpePacketData::MoveActorDeltaPacket(delta) = packet
+                && delta.move_data.actor_runtime_id.actor_runtime_id == skeleton
+            {
+                let data = &delta.move_data;
+                let next = DVec3::new(
+                    data.new_position_x.map_or(feet.x, f64::from),
+                    data.new_position_y.map_or(feet.y, f64::from),
+                    data.new_position_z.map_or(feet.z, f64::from),
+                );
+                if next.distance(feet) > 2.0 {
+                    if index <= took {
+                        start = Some((*t_ms, ours(next)));
+                    } else {
+                        teleports.push((*t_ms, ours(next)));
+                    }
+                }
+                feet = next;
+            }
+        }
+        // Ticks counted from the first target's time: rounding each time on
+        // its own would add the target's rounding error to every tick.
+        let tick = ((t_ms - took_target_ms) / recording::TICK_MS).round() as i64;
+        reader.tick(tick, batch.iter().copied());
+        if std::env::var("BOWDBG").is_ok() && tick >= 0 {
+            let s = ours(feet);
+            let p = eye_at(&eyes, *t_ms).unwrap_or_default();
+            eprintln!(
+                "DBG rec {} s=({:.2},{:.2},{:.2}) p=({:.2},{:.2},{:.2}) d={:.2}",
+                tick,
+                s.x,
+                s.y,
+                s.z,
+                p.x,
+                p.y,
+                p.z,
+                s.distance(p)
+            );
+        }
+    }
+    assert_eq!(reader.took_target, Some(0));
+    RecordedBow {
+        fight: reader.fight,
+        took_target_ms,
+        summoned: ours(summoned),
+        start: start.expect("the recording moves the skeleton into range"),
+        teleports,
+        eyes,
+        heals,
+    }
+}
+
+/// The recorded player's eye at `t_ms`.
+fn eye_at(eyes: &[(f64, DVec3)], t_ms: f64) -> Option<DVec3> {
+    eyes.iter()
+        .take_while(|(t, _)| *t <= t_ms)
+        .last()
+        .map(|(_, eye)| *eye)
+}
+
+/// Replay `recorded` with a fresh `identifier` put where the recorded one
+/// was put before it took its target; once ours takes its target, the
+/// player and the skeleton move (and the player is healed) as they were on
+/// the recording the same time after the recorded skeleton took its
+/// target.
+fn our_bow(
+    identifier: &str,
+    difficulty: Difficulty,
+    recorded: &RecordedBow,
+    ticks: i64,
+) -> BowFight {
+    // The recorded arrows knock the player back past x -16, so the ground
+    // reaches three chunks out (an unloaded chunk would block sight).
+    let mut h = super::doors::built_with_radius(41, difficulty, 3, |_| None);
+    let player = h.player;
+    let start_eye = eye_at(&recorded.eyes, recorded.start.0).expect("the player reported itself");
+    h.world().get_mut::<Position>(player).unwrap().0 = start_eye;
+    let world = h.world();
+    let skeleton = spawn_mob(
+        world,
+        identifier,
+        recorded.summoned,
+        0.0,
+        SpawnCause::Spawned,
+    )
+    .unwrap();
+    apply_pending_definitions(world);
+    let runtime_id = world.get::<RuntimeId>(skeleton).unwrap().0;
+    let mut reader = BowReader::new(runtime_id as u64, runtime_id);
+    // Summoned out of its follow range, then put where the recorded one was
+    // when it took its target.
+    for tick in 0..BOW_SUMMON_TICKS {
+        h.server.tick();
+        let packets: Vec<McpePacketData> =
+            std::iter::from_fn(|| h.rx.try_recv().ok().map(|p| p.data)).collect();
+        reader.tick(tick, &packets);
+    }
+    assert_eq!(reader.took_target, None, "a target out of the follow range");
+    h.world().get_mut::<Position>(skeleton).unwrap().0 = recorded.start.1;
+    let mut took_target = None;
+    for tick in BOW_SUMMON_TICKS..ticks {
+        if let Some(from) = took_target {
+            let now = recorded.took_target_ms + (tick - from) as f64 * recording::TICK_MS;
+            let previous = now - recording::TICK_MS;
+            if let Some(eye) = eye_at(&recorded.eyes, now) {
+                h.world().get_mut::<Position>(player).unwrap().0 = eye;
+            }
+            for &(t, feet) in &recorded.teleports {
+                if t > previous && t <= now {
+                    h.world().get_mut::<Position>(skeleton).unwrap().0 = feet;
+                }
+            }
+            if recorded.heals.iter().any(|&t| t > previous && t <= now) {
+                let mut health = h.world().get_mut::<Health>(player).unwrap();
+                health.current = health.max;
+            }
+        }
+        h.server.tick();
+        if std::env::var("BOWDBG").is_ok()
+            && let Some(from) = took_target
+        {
+            let w = h.world();
+            let s = w.get::<Position>(skeleton).unwrap().0;
+            let p = w.get::<Position>(player).unwrap().0;
+            let hp = w.get::<Health>(player).map(|h| h.current);
+            eprintln!(
+                "DBG ours {} s=({:.2},{:.2},{:.2}) p=({:.2},{:.2},{:.2}) d={:.2} hp={:?}",
+                tick - from,
+                s.x,
+                s.y,
+                s.z,
+                p.x,
+                p.y,
+                p.z,
+                s.distance(p),
+                hp
+            );
+        }
+        let packets: Vec<McpePacketData> =
+            std::iter::from_fn(|| h.rx.try_recv().ok().map(|p| p.data)).collect();
+        reader.tick(tick, &packets);
+        if took_target.is_none() {
+            took_target = reader.took_target;
+            assert!(
+                tick < BOW_SUMMON_TICKS + 200 || took_target.is_some(),
+                "our skeleton never took the player as its target"
+            );
+        }
+    }
+    reader.fight
+}
+
+/// Replay `text` and compare the events `keep` picks with the recording's.
+fn assert_bow_matches(
+    text: &str,
+    identifier: &str,
+    difficulty: Difficulty,
+    keep: impl Fn(&Bow) -> bool,
+) {
+    let recorded = recorded_bow(text, identifier);
+    let span = recorded.fight.seen.last().map_or(0, |(tick, _)| *tick);
+    let ours = our_bow(identifier, difficulty, &recorded, span as i64 + 260);
+    let ours: Vec<_> = ours
+        .seen
+        .into_iter()
+        .filter(|(tick, bow)| *tick <= span && keep(bow))
+        .collect();
+    let recorded: Vec<_> = recorded
+        .fight
+        .seen
+        .into_iter()
+        .filter(|(_, bow)| keep(bow))
+        .collect();
+    assert_eq!(
+        ours, recorded,
+        "\nours:     {ours:?}\nrecorded: {recorded:?}"
+    );
+}
+
+/// Every event of a fight.
+fn all_events(_: &Bow) -> bool {
+    true
+}
+
+/// `skeleton-bow-field` (Normal): a skeleton summoned 24 blocks from the
+/// player is put 6 blocks away. It takes the player as its target and
+/// raises its bow in one `SetActorData` (`TARGET` and
+/// `FACING_TARGET_TO_RANGE_ATTACK`), says `mob.warning` the next tick,
+/// shoots 62 ticks after the target and every 61 ticks after that (from 6
+/// blocks, then from 9.4): the arrow names it as `OWNER`, then `undefined`
+/// and `bow` play. It drops target and bow together when it is put out of
+/// its 16-block follow range.
+#[test]
+fn skeleton_bow_fight_matches_the_recording() {
+    assert_bow_matches(BOW_FIELD, SKELETON, Difficulty::Normal, all_events);
+}
+
+/// `stray-bow-field` (Normal): the stray's fight is the skeleton's, its
+/// arrows carry the slowness potion (`CUSTOM_DISPLAY` 19).
+#[test]
+fn stray_bow_fight_matches_the_recording() {
+    assert_bow_matches(STRAY_BOW_FIELD, STRAY, Difficulty::Normal, all_events);
+}
+
+/// `skeleton-bow-field-hard` (Hard): the same layout; the skeleton takes
+/// the player 15.9 blocks away, walks into its 15-block range, shoots 42
+/// ticks after the target and every 41 ticks after that.
+///
+/// Compared: the shots and their sounds. Not compared yet: when the target
+/// is lost and taken again. Each arrow knocks the recorded player back past
+/// the 16-block follow range; the recorded skeleton keeps its target after
+/// the first shot and loses it 13 ticks after the later ones, while ours
+/// loses it 17-23 ticks after every shot, because ours starts closing in on
+/// a target beyond its attack range later than the recorded one.
+#[test]
+fn hard_skeleton_bow_fight_matches_the_recording() {
+    assert_bow_matches(BOW_FIELD_HARD, SKELETON, Difficulty::Hard, |event| {
+        matches!(event, Bow::Arrow(_) | Bow::Sound(_)) && *event != Bow::Sound("mob.warning".into())
+    });
 }

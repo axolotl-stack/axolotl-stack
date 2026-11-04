@@ -309,14 +309,16 @@ fn world_generation_places_herds_in_fresh_animal_chunks() {
     };
     let (mut server, mut rx) = build_server(&terrain, 3);
     // Chunks start ticking at the end of the first tick; the second tick is
-    // their first ticking tick. Tick range 6 from chunk (0, 0) ticks
-    // `|cx| + |cz| <= 7`, so only the corners of the radius-4 square stay
-    // unpopulated.
+    // their first ticking tick. The default tick range `n` from chunk (0, 0)
+    // ticks `|cx|, |cz| <= n` with `|cx| + |cz| <= n + 1`; the rest of the
+    // radius-4 square stays unpopulated.
     tick(&mut server, &mut rx, 2);
+    let range = crate::world::ecs::systems::DEFAULT_SIMULATION_DISTANCE;
     let world = server.ecs.world_mut();
     let mut flags = world.query::<(&ChunkPosition, &ChunkStateFlags)>();
     for (pos, flags) in flags.iter(world) {
-        let ticked = pos.x.abs() + pos.z.abs() <= 7;
+        let (dx, dz) = (pos.x.abs(), pos.z.abs());
+        let ticked = dx <= range && dz <= range && dx + dz <= range + 1;
         assert_eq!(
             flags.needs_population(),
             !ticked,
@@ -1249,4 +1251,76 @@ fn conditions_without_a_weight_weigh_100() {
         }
     }
     assert!(checked > 0, "a compiled condition has no weight");
+}
+
+/// Whether `identifier` spawns as a monster (its spawn rules' category).
+fn is_monster(server: &GameServer, identifier: &str) -> bool {
+    unastar_data::actor_identifiers::ActorType::from_name(identifier).is_some_and(|actor| {
+        server
+            .ecs
+            .world()
+            .resource::<NaturalSpawnRules>()
+            .category(actor)
+            == Some(crate::entity::spawning::Category::Monster)
+    })
+}
+
+/// The BDS 1.26.51 recording `spawn-night-flat` (client-diff, fixture
+/// `bds-spawning/spawn-night-flat.jsonl`): one player on flat ground at
+/// night on Normal with the default tick distance. Over about five minutes
+/// BDS spawned 52 monsters, every one 20.7 to 43.9 blocks from the player,
+/// and the monsters alive settled at 8 to 11. With the default tick
+/// distance ours stays inside the 44-block spawn limit and settles in the
+/// same band (it settled at about twice that, spawned farther out, when the
+/// default tick distance was 6).
+#[test]
+fn a_night_on_flat_ground_settles_at_the_recorded_monster_count() {
+    let (mut server, mut rx) = monster_server(&Terrain::plains(9), MIDNIGHT, Difficulty::Normal);
+    let world = server.ecs.world_mut();
+    assert_eq!(
+        world
+            .resource::<crate::world::ecs::ChunkLoadConfig>()
+            .simulation_distance,
+        crate::world::ecs::systems::DEFAULT_SIMULATION_DISTANCE
+    );
+    let player = world
+        .query_filtered::<Entity, With<Player>>()
+        .single(world)
+        .unwrap();
+    // As in the recording: the clock stays at midnight.
+    world
+        .resource_mut::<crate::world::rules::GameRules>()
+        .do_daylight_cycle = false;
+    // A creative player is not attacked, so the census is not disturbed.
+    *world.get_mut::<GameMode>(player).unwrap() = GameMode::Creative;
+    let eye = world.get::<Position>(player).unwrap().0;
+    let mut seen = std::collections::HashSet::new();
+    let mut settled = Vec::new();
+    for t in 0..6000u32 {
+        tick(&mut server, &mut rx, 1);
+        let now = mobs(&mut server);
+        for (entity, id, pos, _) in &now {
+            let monster = is_monster(&server, id);
+            if monster && seen.insert(*entity) {
+                let distance = pos.distance(eye);
+                assert!(
+                    distance < 44.0,
+                    "{id} spawned {distance:.1} blocks from the player at tick {t}"
+                );
+            }
+        }
+        if t >= 2400 && t % 600 == 599 {
+            settled.push(now.iter().filter(|m| is_monster(&server, &m.1)).count());
+        }
+    }
+    assert!(
+        seen.len() > 20,
+        "monsters spawn through the night: {}",
+        seen.len()
+    );
+    // BDS settled at 8 to 11; allow the random draw a little either side.
+    assert!(
+        settled.iter().all(|alive| (6..=14).contains(alive)),
+        "monsters alive after two minutes, each minute: {settled:?}"
+    );
 }

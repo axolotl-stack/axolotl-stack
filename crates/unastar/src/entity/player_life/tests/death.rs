@@ -53,10 +53,9 @@ fn a_player_killed_by_a_mob_dies_drops_everything_and_sees_the_respawn_screen() 
     assert_eq!(h.health(), 0.0);
 
     let packets = h.drain();
-    assert_eq!(
-        actor_events(&packets, SESSION),
-        [EnumsActorEvent::Hurt, EnumsActorEvent::Death]
-    );
+    // The killing hit sends no hurt event (matches BDS 1.26.51,
+    // client-diff `zombie-spear-field`).
+    assert_eq!(actor_events(&packets, SESSION), [EnumsActorEvent::Death]);
     let message = (
         "death.attack.mob".to_owned(),
         vec!["Steve".to_owned(), "%entity.cow.name".to_owned()],
@@ -72,10 +71,7 @@ fn a_player_killed_by_a_mob_dies_drops_everything_and_sees_the_respawn_screen() 
         ]
     );
     let seen = drain(&mut viewer);
-    assert_eq!(
-        actor_events(&seen, SESSION),
-        [EnumsActorEvent::Hurt, EnumsActorEvent::Death]
-    );
+    assert_eq!(actor_events(&seen, SESSION), [EnumsActorEvent::Death]);
     assert_eq!(translations(&seen), [message], "everyone reads the death");
     assert!(
         death_infos(&seen).is_empty(),

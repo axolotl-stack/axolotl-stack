@@ -1,13 +1,14 @@
-//! Hostile-mob components: `minecraft:attack`, the melee and targeting
-//! goals and `minecraft:burns_in_daylight` (run by `mob::ai::{melee,
-//! targeting}` and `mob::combat::{melee, fire}`).
+//! Hostile-mob components: `minecraft:attack`, the melee, kinetic weapon
+//! and targeting goals and `minecraft:burns_in_daylight` (run by
+//! `mob::ai::{melee, kinetic, targeting}` and `mob::combat::{melee,
+//! kinetic, fire}`).
 
 use std::sync::Arc;
 
 use bevy_ecs::prelude::*;
 use thiserror::Error;
 use unastar_data::actor_components::body::{
-    self, AttackDamage, EntityTypes, EquipmentSlot, EventTrigger, MobDescriptor,
+    self, AttackDamage, EntityTypes, EquipmentSlot, EventTrigger, FloatRange, MobDescriptor,
 };
 use unastar_rules::filter::Filter;
 
@@ -76,6 +77,10 @@ pub enum MeleeReach {
     /// width` squared blocks of the mob's feet (in 3D, or horizontally with
     /// the boxes overlapping vertically).
     Multiplier { reach_multiplier: f64 },
+    /// `behavior.use_kinetic_weapon`: the held weapon's
+    /// `minecraft:kinetic_weapon` reach decides what is hit
+    /// (`mob::combat::kinetic`); the goal never swings.
+    Weapon,
 }
 
 /// A melee goal, its seconds converted to ticks and its boundaries squared
@@ -120,6 +125,36 @@ pub fn melee_goal(entity: EntityRef<'_>) -> Option<&MeleeBoxAttackGoal> {
     entity
         .get::<MeleeBoxAttackGoal>()
         .or_else(|| entity.get::<MeleeAttackGoal>().map(|goal| &goal.0))
+}
+
+/// `minecraft:behavior.use_kinetic_weapon`: the melee goal of a mob holding
+/// an item with `minecraft:kinetic_weapon` (a spear), run by
+/// `mob::ai::kinetic`. It approaches like the melee goal; within
+/// `approach_distance` it raises the weapon and charges, its kinetic damage
+/// dealt by `mob::combat::kinetic`. A target closer than the middle of the
+/// weapon's reach sends it back `reposition_distance` to charge again; once
+/// the weapon's kinetic effects ran out it backs off `cooldown_distance` and
+/// waits `melee.cooldown_ticks`.
+///
+/// `hijack_mount_navigation` is read and does nothing: it only acts while
+/// the mob rides, and riding is not implemented.
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct UseKineticWeaponGoal {
+    /// The fields the body shares with the melee goals; `reach` is
+    /// [`MeleeReach::Weapon`] and `cooldown_ticks` the wait after the
+    /// kinetic effects ran out.
+    pub melee: MeleeBoxAttackGoal,
+    pub approach_distance: f64,
+    /// Distance past the weapon's mid reach a reposition backs off to.
+    pub reposition_distance: FloatRange,
+    pub reposition_speed_multiplier: f32,
+    /// Distance past the weapon's mid reach a cooldown backs off to.
+    pub cooldown_distance: FloatRange,
+    pub cooldown_speed_multiplier: f32,
+    /// Scales the weapon's `reach`.
+    pub weapon_reach_multiplier: f32,
+    /// Scales every `min_speed` and `min_relative_speed` of the weapon.
+    pub weapon_min_speed_multiplier: f32,
 }
 
 /// `minecraft:on_target_escape`: fired on the mob when its target is
@@ -190,6 +225,7 @@ pub fn register_component_kinds(
 ) -> Result<(), DefinitionError> {
     insert(builder, compile_attack)?;
     insert(builder, compile_melee_box_attack)?;
+    insert(builder, compile_use_kinetic_weapon)?;
     insert(builder, compile_nearest_attackable_target)?;
     insert(builder, |b: body::BehaviorHurtByTarget| {
         Ok::<_, HostileError>(HurtByTargetGoal {
@@ -361,6 +397,29 @@ fn compile_melee_box_attack(
 fn melee_attack_goal(b: body::BehaviorMeleeAttack) -> Result<MeleeBoxAttackGoal, HostileError> {
     let reach_multiplier = f64::from(b.reach_multiplier);
     melee_goal!(b, MeleeReach::Multiplier { reach_multiplier })
+}
+
+fn compile_use_kinetic_weapon(
+    b: body::BehaviorUseKineticWeapon,
+) -> Result<UseKineticWeaponGoal, HostileError> {
+    let approach_distance = f64::from(b.approach_distance);
+    let (reposition_distance, reposition_speed_multiplier) =
+        (b.reposition_distance, b.reposition_speed_multiplier);
+    let (cooldown_distance, cooldown_speed_multiplier) =
+        (b.cooldown_distance, b.cooldown_speed_multiplier);
+    let (weapon_reach_multiplier, weapon_min_speed_multiplier) =
+        (b.weapon_reach_multiplier, b.weapon_min_speed_multiplier);
+    let melee: Result<MeleeBoxAttackGoal, HostileError> = melee_goal!(b, MeleeReach::Weapon);
+    Ok(UseKineticWeaponGoal {
+        melee: melee?,
+        approach_distance,
+        reposition_distance,
+        reposition_speed_multiplier,
+        cooldown_distance,
+        cooldown_speed_multiplier,
+        weapon_reach_multiplier,
+        weapon_min_speed_multiplier,
+    })
 }
 
 fn entries(types: &EntityTypes) -> Result<Arc<[TargetEntry]>, HostileError> {

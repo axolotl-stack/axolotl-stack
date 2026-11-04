@@ -9,8 +9,10 @@ mod doors;
 mod interaction;
 mod passive;
 mod pathing;
+mod recording;
 mod sensors;
 mod spawn;
+mod spear;
 mod zombie;
 // Enderman lane.
 mod enderman;

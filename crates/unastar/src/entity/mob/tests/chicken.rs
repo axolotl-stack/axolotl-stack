@@ -216,12 +216,13 @@ fn chicken_glides_down_slower_than_a_cow_and_takes_no_fall_damage() {
 fn chicken_terminal_glide_matches_the_native_drag() {
     let mut h = harness(5);
     let world = h.server.ecs.world_mut();
-    // High enough to keep gliding for 60 ticks, near enough to the player
-    // not to despawn.
+    // High enough to keep gliding for 60 ticks (it falls under 7 blocks),
+    // near enough to the player not to despawn (within the 44-block
+    // instant-despawn distance of the default tick range).
     let chicken = spawn(
         world,
         "minecraft:chicken",
-        DVec3::new(8.5, f64::from(FLOOR + 90), 8.5),
+        DVec3::new(8.5, f64::from(FLOOR + 30), 8.5),
         false,
     );
     for _ in 0..60 {

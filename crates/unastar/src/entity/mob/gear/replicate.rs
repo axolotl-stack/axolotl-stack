@@ -8,6 +8,10 @@
 //! equip goal sends it: a hand as `MobEquipment` (its slot, selected 0,
 //! container 0), an armour slot as `MobEquipment` with slot `2..=5` and the
 //! armour container.
+//!
+//! A stack that wears (has a durability) and carries no item NBT is sent
+//! with the NBT `{Damage: 0}`, as BDS 1.26.51 sends a mob's iron spear
+//! (client-diff `zombie-spear-field`).
 
 use jolyne::valentine::types::{
     ActorRuntimeId, CerealizerNetworkItemStackDescriptorSerializedData as WireItem,
@@ -18,11 +22,20 @@ use tracing::warn;
 use super::{GearSlot, MobEquipment};
 use crate::entity::mob::constants::{GEAR_ARMOUR_CONTAINER, GEAR_OFFHAND_CONTAINER};
 use crate::item::ItemStack;
+use crate::item::enchant::with_durability_damage;
 use crate::registry::ItemRegistry;
 use crate::registry::block::BlockNetworkIds;
+use crate::server::game::durability::max_durability;
 use crate::server::game::item_descriptor;
 
 fn wire(stack: &ItemStack, items: &ItemRegistry, block_ids: BlockNetworkIds) -> WireItem {
+    let worn;
+    let stack = if !stack.has_nbt() && stack.item().is_some_and(|item| max_durability(item) > 0) {
+        worn = with_durability_damage(stack, 0);
+        &worn
+    } else {
+        stack
+    };
     item_descriptor(stack, items, block_ids).unwrap_or_else(|| {
         warn!(item = %stack.item_id(), "Mob equipment item has no network form");
         WireItem::default()

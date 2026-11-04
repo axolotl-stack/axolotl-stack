@@ -101,6 +101,11 @@ pub const WATER_MOVE_SPEED: f32 = 0.02;
 /// Acceleration factor of a mob travelling through air: the forward input
 /// times this, whatever its movement speed (confirmed: matches BDS 1.26.51).
 pub const MOB_AIR_SPEED: f64 = 0.02;
+/// A mob's forward input (its move control speed) is scaled by this before
+/// it accelerates the mob (confirmed: a BDS 1.26.51 zombie, movement 0.23,
+/// walks 0.114189 blocks per tick on grass in `zombie-spear-field`,
+/// 0.23² × 0.98 / (1 − 0.546)).
+pub const MOB_INPUT_SCALE: f64 = 0.98;
 /// Native chicken wing-flap drag: travelling through air with a negative
 /// vertical velocity after gravity and drag, that velocity is multiplied by
 /// `1 - WING_FLAP_VERTICAL_DRAG` each tick.
@@ -818,10 +823,37 @@ pub const MOB_EYES_ATTACH_RATIO: f64 = 0.9;
 /// feet: where the fuse hiss plays (confirmed: the BDS 1.26.51 creeper
 /// capture plays it 1.53 above a 1.8-block creeper's feet).
 pub const MOB_HEAD_ATTACH_RATIO: f64 = 0.85;
+/// The level sound a mob plays at its head the tick after it takes a
+/// target it did not have (matches the BDS 1.26.51 recordings
+/// `skeleton-bow-field`, `stray-bow-field` and `zombie-spear-field`).
+pub const TARGET_WARNING_SOUND: &str = "mob.warning";
 /// The swing source of the arm swing a `minecraft:interact` row with
 /// `swing` sends (confirmed against BDS: the interact source; the wire
 /// casing is provisional, matching unastar's lowercase `attack`).
 pub const SWING_SOURCE_INTERACT: &str = "interact";
+
+// --- Kinetic weapons (`mob::ai::kinetic`, `mob::combat::kinetic`) ----------------
+
+/// A raised kinetic weapon hits the same actor again only once more than
+/// this many ticks passed since its last hit on it (confirmed against BDS).
+pub const KINETIC_REHIT_TICKS: u64 = 10;
+/// A kinetic weapon's `hitbox_margin` scaled by this grows each target's
+/// box on every side (confirmed against BDS; the BDS 1.26.51
+/// `zombie-spear-field` hits fit a 0.125 margin for the 0.25 of a spear).
+pub const KINETIC_HITBOX_MARGIN_SCALE: f64 = 0.5;
+/// A kinetic condition's `min_speed` or `min_relative_speed` (blocks per
+/// second) is only checked when its size is above this (confirmed against
+/// BDS: the single-precision epsilon).
+pub const KINETIC_MIN_SPEED_EPSILON: f32 = f32::EPSILON;
+/// `behavior.use_kinetic_weapon`: while backing off along a path, the path
+/// to the retreat position is searched again with this chance per tick once
+/// the path timer ran out (confirmed against BDS).
+pub const KINETIC_RETREAT_REPATH_CHANCE: f32 = 0.05;
+/// `behavior.use_kinetic_weapon`: the direction away from the target a
+/// retreat backs off along is turned by up to this share of `melee_fov`
+/// either way (provisional: the recordings back off straight, so the spread
+/// is not measured).
+pub const KINETIC_RETREAT_SPREAD_SCALE: f32 = 0.5;
 
 // --- Explosions (`world::explosion`) ----------------------------------------------
 
@@ -991,6 +1023,13 @@ pub const MOB_SHOT_MIN_HORIZONTAL: f64 = 1.0e-7;
 /// A mob shot the ballistic solve cannot reach flies at this pitch, upward
 /// (confirmed against BDS).
 pub const MOB_SHOT_OUT_OF_REACH_PITCH: f32 = -45.0;
+/// The level sound a mob's shot plays, with no source actor, at the centre
+/// of the shooter's box right before the shooter's own `minecraft:shooter`
+/// sound. BDS 1.26.51 sends it for every skeleton and stray arrow in the
+/// recordings `skeleton-bow-field`, `skeleton-bow-field-hard` and
+/// `stray-bow-field`; the arrow's `minecraft:projectile` sets no
+/// `shoot_sound`, and a projectile that sets one is not accepted yet.
+pub const MOB_SHOT_SOUND: &str = "undefined";
 /// `difficulty_randomization` speed damage: per difficulty level (0–3) and
 /// per standard gaussian, added to `power_multiplier` (`multiplicative`,
 /// times the speed) or to the speed damage (`additive`) (confirmed against

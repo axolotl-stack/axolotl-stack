@@ -489,17 +489,28 @@ impl GameServer {
                 .in_set(PhysicsSet)
                 .after(tick_physics),
         );
-        // Mob AI turns goals into rotation and velocity before the physics
-        // step integrates them; pushing separates overlapping mobs.
+        // Each tick runs as BDS does: where every mob and player stands is
+        // recorded, the physics step moves every body by the velocity its
+        // mob AI chose on the tick before, then the mob AI looks at the moved
+        // world and chooses the next velocity, raised kinetic weapons hit
+        // (measured from where the actors stood before the move), and
+        // pushing separates overlapping mobs.
+        ecs.schedule_mut().add_systems(
+            crate::entity::mob::combat::kinetic::record_tick_start
+                .in_set(PhysicsSet)
+                .after(crate::entity::mob::derive_mob_state)
+                .before(tick_physics),
+        );
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::ai::tick_mob_ai,
+                crate::entity::mob::combat::kinetic::deal_kinetic_damage,
                 crate::entity::mob::ai::push_mobs,
             )
                 .chain()
                 .in_set(PhysicsSet)
-                .after(crate::entity::mob::derive_mob_state)
-                .before(tick_physics),
+                .after(tick_physics)
+                .before(crate::entity::projectile::tick_projectiles),
         );
 
         ecs.schedule_mut().add_systems(
@@ -638,11 +649,13 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // `minecraft:spawn_entity` (egg laying) and ambient sound names.
+        // `minecraft:spawn_entity` (egg laying), ambient sound names and the
+        // warnings of mobs that took a target last tick.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::life::spawn_entity::tick_spawn_entity,
                 crate::entity::mob::net::ambient::update_ambient_sound_names,
+                crate::entity::mob::net::target::play_target_warnings,
             )
                 .chain()
                 .in_set(EntityLogicSet)

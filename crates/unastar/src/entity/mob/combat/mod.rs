@@ -1,7 +1,8 @@
 //! Mob combat: hits and the hurt rule ([`hit`]), damage sensors
 //! ([`damage_sensor`]), fall damage ([`fall`]), fire ([`fire`]), mob melee
-//! hits ([`melee`]), contact damage ([`area_attack`]), ranged shots
-//! ([`shoot`]), death ([`death`]) and fuses ([`explode`]).
+//! hits ([`melee`]), kinetic weapon hits ([`kinetic`]), contact damage
+//! ([`area_attack`]), ranged shots ([`shoot`]), death ([`death`]) and fuses
+//! ([`explode`]).
 //!
 //! Every damage source goes through [`hurt_mob`]; the component
 //! configuration these systems read lives in `mob::components`.
@@ -13,6 +14,7 @@ pub mod explode;
 pub mod fall;
 pub mod fire;
 pub mod hit;
+pub mod kinetic;
 pub mod melee;
 pub mod shoot;
 

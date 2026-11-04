@@ -9,10 +9,11 @@
 //! targets, `path_fail_time_increase` more when no path is found (a wall
 //! climber instead heads straight for the target, `super::climb`).
 //! Without `track_target` it only re-paths while it sees the target. A hit needs
-//! the target in reach, the cooldown run out and the target inside the
-//! `melee_fov` cone; the hit itself is dealt after the mob's tick
-//! (`mob::combat::melee`). The cooldown starts full when the goal is
-//! built, as the native goal is constructed with it.
+//! the target in reach, the cooldown run out, a clear line of sight (no block
+//! collision box between the eyes) and the target inside the `melee_fov` cone;
+//! the hit itself is dealt after the mob's tick (`mob::combat::melee`). The
+//! cooldown starts full when the goal is built, as the native goal is
+//! constructed with it.
 
 use glam::DVec3;
 use rand::Rng;
@@ -31,7 +32,7 @@ pub struct MeleeState {
     /// Ticks until the next hit may land; `None` until the goal is built.
     attack_ticks: Option<i32>,
     /// Ticks until the path to the target is recalculated.
-    path_timer: i32,
+    pub(super) path_timer: i32,
 }
 
 impl MeleeState {
@@ -39,6 +40,15 @@ impl MeleeState {
     pub fn reset(&mut self) {
         *self = Self::default();
     }
+}
+
+/// Which goal runs the shared melee approach: its state is kept per goal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum MeleeKind {
+    /// `behavior.melee_box_attack` / `behavior.melee_attack`.
+    Melee,
+    /// `behavior.use_kinetic_weapon` (`super::kinetic`).
+    Kinetic,
 }
 
 impl<'a> GoalContext<'a> {
@@ -70,8 +80,13 @@ impl<'a> GoalContext<'a> {
     }
 
     pub(super) fn melee_can_start(&mut self) -> bool {
-        if self.melee_config().is_none()
-            || self.config::<AttackConfig>().is_none()
+        self.melee_config().is_some() && self.melee_base_can_start()
+    }
+
+    /// The melee goals' shared start condition: an `attack` component, no
+    /// spent `attack_once`, and a path to a target.
+    pub(super) fn melee_base_can_start(&mut self) -> bool {
+        if self.config::<AttackConfig>().is_none()
             || self.world.get::<MeleeAttackedOnce>(self.entity).is_some()
         {
             return false;
@@ -83,24 +98,35 @@ impl<'a> GoalContext<'a> {
     }
 
     pub(super) fn melee_start(&mut self) {
-        let Some(goal) = self.melee_config() else {
-            return;
-        };
-        let (speed, cooldown, fail) = (
-            goal.speed_multiplier,
-            goal.cooldown_ticks,
-            goal.path_fail_ticks,
-        );
-        self.follow_staged(speed);
-        let melee = &mut self.states.melee;
-        melee.attack_ticks.get_or_insert(cooldown);
-        melee.path_timer = fail;
+        if let Some(goal) = self.melee_config() {
+            self.melee_base_start(goal, MeleeKind::Melee);
+        }
+    }
+
+    /// Follow the path `can_start` found; the attack cooldown starts full.
+    pub(super) fn melee_base_start(&mut self, goal: &MeleeBoxAttackGoal, kind: MeleeKind) {
+        self.follow_staged(goal.speed_multiplier);
+        let melee = self.melee_state(kind);
+        melee.attack_ticks.get_or_insert(goal.cooldown_ticks);
+        melee.path_timer = goal.path_fail_ticks;
+    }
+
+    pub(super) fn melee_state(&mut self, kind: MeleeKind) -> &mut MeleeState {
+        match kind {
+            MeleeKind::Melee => &mut self.states.melee,
+            MeleeKind::Kinetic => &mut self.states.kinetic.melee,
+        }
     }
 
     pub(super) fn melee_can_continue(&mut self) -> bool {
-        let Some(goal) = self.melee_config() else {
-            return false;
-        };
+        self.melee_config()
+            .is_some_and(|goal| self.melee_base_can_continue(goal))
+    }
+
+    /// The melee goals' shared continue condition: still allowed to
+    /// attack, not randomly stopped, a living target (never a player in
+    /// peaceful), and a path left unless `track_target`.
+    pub(super) fn melee_base_can_continue(&mut self, goal: &MeleeBoxAttackGoal) -> bool {
         if self.config::<AttackConfig>().is_none()
             || self.world.get::<MeleeAttackedOnce>(self.entity).is_some()
         {
@@ -160,33 +186,38 @@ impl<'a> GoalContext<'a> {
                 delta.length_squared() <= reach_sq
                     || (overlap_y && delta.x * delta.x + delta.z * delta.z <= reach_sq)
             }
+            MeleeReach::Weapon => false,
         };
         let in_reach = previous < 2 && touches;
         let dx = target.pos.x - self.body.feet.x;
         let dz = target.pos.z - self.body.feet.z;
-        self.move_toward_target(goal, &target, in_reach, dx * dx + dz * dz);
+        self.move_toward_target(goal, MeleeKind::Melee, &target, in_reach, dx * dx + dz * dz);
         let centre = (target.aabb.min + target.aabb.max) / 2.0;
-        if in_reach && self.within_fov(centre, goal.melee_fov) {
+        // A hit needs the line from the mob's eye to the target's clear of
+        // block collision boxes (matches BDS 1.26.51): no hit through a
+        // closed door or a wall, however close the boxes are.
+        if in_reach && self.sees(&target) && self.within_fov(centre, goal.melee_fov) {
             self.states.melee.attack_ticks = Some(goal.cooldown_ticks);
             self.effects.attack = Some(target.entity);
         }
     }
 
     /// Look at the target and, when the path timer ran out, re-path toward it.
-    fn move_toward_target(
+    pub(super) fn move_toward_target(
         &mut self,
         goal: &MeleeBoxAttackGoal,
+        kind: MeleeKind,
         target: &Candidate,
         in_reach: bool,
         distance_sq: f64,
     ) {
         self.look.look_at(target.eye, goal.y_max_head_rotation);
-        self.states.melee.path_timer -= 1;
+        self.melee_state(kind).path_timer -= 1;
         if !goal.track_target && !self.sees(target) {
             return;
         }
         let wanted = DVec3::new(target.pos.x, target.aabb.min.y, target.pos.z);
-        if !self.should_repath(in_reach, wanted) {
+        if !self.should_repath(kind, in_reach, wanted) {
             return;
         }
         let spread = goal.max_path_ticks - goal.min_path_ticks;
@@ -208,7 +239,7 @@ impl<'a> GoalContext<'a> {
         } else {
             timer += goal.path_fail_ticks;
         }
-        self.states.melee.path_timer = timer;
+        self.melee_state(kind).path_timer = timer;
     }
 
     /// When the timer ran out, re-path
@@ -217,8 +248,8 @@ impl<'a> GoalContext<'a> {
     /// or with a small chance anyway. The target position is taken before
     /// the check (matches BDS 1.26.51), so a goal that just started keeps
     /// the path it started with.
-    fn should_repath(&mut self, in_reach: bool, wanted: DVec3) -> bool {
-        if self.states.melee.path_timer > 0 {
+    fn should_repath(&mut self, kind: MeleeKind, in_reach: bool, wanted: DVec3) -> bool {
+        if self.melee_state(kind).path_timer > 0 {
             return false;
         }
         if wanted == DVec3::ZERO {

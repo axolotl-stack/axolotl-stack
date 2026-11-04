@@ -58,9 +58,14 @@ pub struct BreedCooldown {
 /// The actor a hostile mob is after. Written by the target goals
 /// (`behavior.hurt_by_target`, `behavior.nearest_attackable_target`) through
 /// the AI apply step; read by the melee goal, `has_target` filters and door
-/// breaking. Present only while the mob has a target.
+/// breaking. Present only while the mob has a target; its hooks keep the
+/// `TARGET` actor data on it (`mob::net::target`).
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-#[component(storage = "SparseSet")]
+#[component(
+    storage = "SparseSet",
+    on_insert = super::net::target::target_inserted,
+    on_remove = super::net::target::target_removed
+)]
 pub struct AttackTarget(pub Entity);
 
 /// The mob has landed its one melee hit (`behavior.melee_box_attack`

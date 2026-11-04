@@ -38,6 +38,14 @@ use jolyne::valentine::{
     McpePacket, NetworkChunkPublisherUpdatePacket, PlayStatusPacket, PlayStatusPacketStatus,
 };
 
+/// Default simulation (tick) distance in chunks: BDS 1.26.51's default
+/// `tick-distance`. It sets which chunks tick and, through natural
+/// spawning, how many monsters a player meets: at 4 the 44-block spawn and
+/// instant-despawn limit applies, and a night on flat ground settles at the
+/// monster count of the BDS recording `spawn-night-flat` (at 6 it was about
+/// twice that, all spawned farther out).
+pub const DEFAULT_SIMULATION_DISTANCE: i32 = 4;
+
 /// Configuration for chunk loading behavior.
 #[derive(Resource, Debug, Clone)]
 pub struct ChunkLoadConfig {
@@ -55,7 +63,7 @@ impl Default for ChunkLoadConfig {
     fn default() -> Self {
         Self {
             dimension: 0,
-            simulation_distance: 6,
+            simulation_distance: DEFAULT_SIMULATION_DISTANCE,
             unload_grace_ticks: 100,
             block_network_ids: BlockNetworkIds::Hashed,
         }
