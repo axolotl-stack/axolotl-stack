@@ -22,10 +22,7 @@ impl ManagedSession {
     /// dead-connection timeout hits.
     pub fn close(&mut self, reason: DisconnectReason, now: Instant) -> Result<(), SessionError> {
         if !self.inner.transmission_policy().is_vanilla() {
-            self.send_disconnect(reason)?;
-            // The drain is measured on the caller's clock, like every tick.
-            self.closing_since = Some(now);
-            return Ok(());
+            return self.send_disconnect(reason, now);
         }
         match self.state {
             ConnectionState::Closed => Err(SessionError::Closed),
@@ -43,8 +40,9 @@ impl ManagedSession {
 
     /// Notify the peer and stop: the transport is ending because of a local
     /// failure. Vanilla queues Mojang's bare notification with `IMMEDIATE`
-    /// priority for the caller's final flush.
-    pub fn disconnect_now(&mut self, reason: DisconnectReason) {
+    /// priority for the caller's final flush. Optimized sends the
+    /// notification and drains from `now`.
+    pub fn disconnect_now(&mut self, reason: DisconnectReason, now: Instant) {
         if self.inner.transmission_policy().is_vanilla() {
             if self.state == ConnectionState::Closed {
                 return;
@@ -53,7 +51,7 @@ impl ManagedSession {
             let _ = self.queue_vanilla_disconnect(RakPriority::Immediate);
             self.state = ConnectionState::Closed;
         } else {
-            let _ = self.send_disconnect(reason);
+            let _ = self.send_disconnect(reason, now);
         }
     }
 
@@ -149,7 +147,7 @@ impl ManagedSession {
             }
             _ => {}
         }
-        self.enforce_queue_limit();
+        self.enforce_queue_limit(now);
         out
     }
 
@@ -179,8 +177,7 @@ impl ManagedSession {
                 .session_timeout
                 .saturating_add(self.inner.sliding.measured_rtt().saturating_mul(2));
             if idle >= timeout {
-                let _ = self.send_disconnect(DisconnectReason::TimedOut);
-                self.closing_since = Some(now);
+                let _ = self.send_disconnect(DisconnectReason::TimedOut, now);
                 self.last_disconnect_reason = Some(DisconnectReason::TimedOut);
             } else if idle >= self.config.session_stale {
                 self.state = ConnectionState::Stale;
@@ -212,7 +209,7 @@ impl ManagedSession {
             self.send_connected_ping(now);
         }
 
-        self.enforce_queue_limit();
+        self.enforce_queue_limit(now);
 
         self.inner.on_tick(now)
     }
@@ -243,11 +240,11 @@ impl ManagedSession {
         }
     }
 
-    pub(crate) fn enforce_queue_limit(&mut self) {
+    pub(crate) fn enforce_queue_limit(&mut self, now: Instant) {
         if let Some(limit) = self.config.max_queued_reliable_bytes
             && self.queued_reliable_bytes > limit
         {
-            let _ = self.send_disconnect(DisconnectReason::QueueTooLong);
+            let _ = self.send_disconnect(DisconnectReason::QueueTooLong, now);
 
             self.state = ConnectionState::Closed;
             self.last_disconnect_reason = Some(DisconnectReason::QueueTooLong);
@@ -946,6 +943,36 @@ mod tests {
         )
         .unwrap();
         ms.close(DisconnectReason::Disconnected, start).unwrap();
+        let now = start + Duration::from_millis(1_500);
+        ms.record_activity(now);
+        tick_frames(&mut ms, now);
+        assert_eq!(ms.state(), ConnectionState::Closing, "still draining");
+        let now = start + Duration::from_secs(5);
+        ms.record_activity(now);
+        tick_frames(&mut ms, now);
+        assert_eq!(ms.state(), ConnectionState::Closed);
+    }
+
+    /// `disconnect_now` (Optimized) also measures its drain on the caller's
+    /// clock: one minute ahead of the wall clock, the session still drains
+    /// unacknowledged sends instead of closing on the first tick.
+    #[test]
+    fn optimized_disconnect_now_measures_the_drain_from_the_callers_now() {
+        let start = Instant::now() + Duration::from_secs(60);
+        let mut ms = connected_client(TransmissionPolicy::Optimized, start);
+        ack_all(&mut ms, start);
+        ms.queue_app_packet(
+            RaknetPacket::UserData {
+                id: 0x80,
+                payload: Bytes::from_static(b"must arrive"),
+            },
+            Reliability::ReliableOrdered,
+            0,
+            RakPriority::Normal,
+        )
+        .unwrap();
+        ms.disconnect_now(DisconnectReason::Disconnected, start);
+        assert_eq!(ms.state(), ConnectionState::Closing);
         let now = start + Duration::from_millis(1_500);
         ms.record_activity(now);
         tick_frames(&mut ms, now);
