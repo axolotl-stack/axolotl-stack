@@ -714,7 +714,10 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
     // application queue, or an Optimized stream drop): notify the peer.
     if managed.state() != ConnectionState::Closed && (vanilla || managed.is_connected()) {
         tracing::debug!("sending disconnect notification");
-        managed.disconnect_now(crate::protocol::state::DisconnectReason::Disconnected);
+        managed.disconnect_now(
+            crate::protocol::state::DisconnectReason::Disconnected,
+            Instant::now(),
+        );
         flush_built_datagrams(
             &mut managed,
             &socket,

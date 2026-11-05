@@ -163,7 +163,8 @@ impl Harness {
     ) -> Result<crate::auth::AuthenticatedLogin, JolyneError> {
         match &self.provider {
             None => {
-                crate::stream::server::verify_login(request.connection_request(), false, true).await
+                crate::stream::server::verify_login(request.connection_request(), &offline_config())
+                    .await
             }
             Some(provider) => {
                 use crate::auth::security_tests::{claims, client_data, sign, verifier_for};
@@ -266,6 +267,15 @@ fn finish_spawn(
     let mut joined = next(client); // sends SetLocalPlayerAsInitialized
     pump(&mut joined.session, &mut spawn);
     (next(spawn), joined)
+}
+
+/// The settings the harness verifies offline logins with.
+fn offline_config() -> BedrockListenerConfig {
+    BedrockListenerConfig {
+        online_mode: false,
+        allow_legacy_auth: true,
+        ..Default::default()
+    }
 }
 
 fn params(runtime_id: i64) -> WorldJoinParams {
@@ -812,6 +822,49 @@ async fn runtime_id_mismatch_is_rejected() {
     ));
 }
 
+/// A `SetLocalPlayerAsInitialized` before any `RequestChunkRadius` must not
+/// complete the spawn: the server holds it, still answers the radius with
+/// `ChunkRadiusUpdated` and `PlayStatus(PlayerSpawn)`, and only then hands
+/// over a session that knows its radius.
+#[tokio::test]
+async fn early_initialize_still_gets_the_spawn_answer() {
+    use crate::valentine::McpePacketData;
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (mut spawn, mut client) = harness.through_packs(params(3)).await;
+    pump(&mut spawn, &mut client); // StartGame .. CreativeContent
+    while client.connection().next_packet().unwrap().is_some() {}
+    client
+        .connection()
+        .queue_packet(&initialized(3), Instant::now())
+        .unwrap();
+    pump(&mut client, &mut spawn);
+    let mut spawn = wait(spawn);
+    assert_eq!(
+        pump(&mut spawn, &mut client),
+        0,
+        "nothing before the radius"
+    );
+    request_radius(&mut client, 6);
+    pump(&mut client, &mut spawn);
+    let mut server = next(spawn);
+    assert_eq!(server.session.chunk_radius(), Some(6));
+    pump(&mut server, &mut client);
+    let mut answer = Vec::new();
+    while let Some(packet) = client.connection().next_packet().unwrap() {
+        answer.push(packet.decode().unwrap().data);
+    }
+    assert!(matches!(
+        answer.as_slice(),
+        [
+            McpePacketData::ChunkRadiusUpdatedPacket(updated),
+            McpePacketData::PlayStatusPacket(status),
+        ] if updated.chunk_radius == 6 && status.status == PlayStatusPacketStatus::Playerspawn
+    ));
+}
+
 #[tokio::test]
 async fn chunk_radius_requires_one_and_honours_the_server_override() {
     let harness = Harness::new(BedrockListenerConfig {
@@ -1083,9 +1136,10 @@ async fn server_full_and_admission_refusals_reach_the_client_typed() {
         .unwrap();
     pump(&mut client, &mut server);
     let request = next(server);
-    let identity = crate::stream::server::verify_login(request.connection_request(), false, true)
-        .await
-        .unwrap();
+    let identity =
+        crate::stream::server::verify_login(request.connection_request(), &offline_config())
+            .await
+            .unwrap();
     let failure = match request.authenticated(identity, PEER, Instant::now()) {
         Err(failure) => failure,
         Ok(_) => panic!("admission hook ignored"),
@@ -1387,4 +1441,202 @@ async fn client_can_require_encryption() {
             Ok(Step::Wait(_)) => panic!("LoginSuccess was not handled"),
         }
     }
+}
+
+/// The packet `owner` queues, sent to `to` on its own.
+fn send(owner: &mut impl Owner, to: &mut impl Owner, packet: McpePacket) {
+    owner
+        .connection()
+        .queue_packet(&packet, Instant::now())
+        .unwrap();
+    pump(owner, to);
+}
+
+fn unexpected_in(error: JolyneError) -> (HandshakePhase, String) {
+    match error {
+        JolyneError::Protocol(ProtocolError::UnexpectedPacket { phase, got }) => (phase, got),
+        other => panic!("expected UnexpectedPacket, got {other:?}"),
+    }
+}
+
+/// A server waiting for `RequestNetworkSettings` fails on any other packet,
+/// and one waiting for `Login` fails on anything but `Login`.
+#[tokio::test]
+async fn out_of_order_packets_fail_network_settings_and_login() {
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (mut server, mut client) = harness.start();
+    // Drop the client's RequestNetworkSettings; send a radius request first.
+    assert!(client.poll_transmit().is_some());
+    send(
+        &mut client,
+        &mut server,
+        McpePacket::from(RequestChunkRadiusPacket::default()),
+    );
+    let (phase, got) = unexpected_in(error_of(server, Instant::now()));
+    assert_eq!(phase, HandshakePhase::NetworkSettings);
+    assert!(got.contains("RequestChunkRadius"), "{got}");
+
+    let (mut server, mut client) = harness.start();
+    pump(&mut client, &mut server);
+    let mut server = next(server);
+    pump(&mut server, &mut client);
+    let mut client: ClientLogin = next(client);
+    send(
+        &mut client,
+        &mut server,
+        McpePacket::from(RequestChunkRadiusPacket::default()),
+    );
+    let (phase, got) = unexpected_in(error_of(server, Instant::now()));
+    assert_eq!(phase, HandshakePhase::Login);
+    assert!(got.contains("RequestChunkRadius"), "{got}");
+}
+
+/// The client fails, typed, when `NetworkSettings` names a compression
+/// algorithm it does not know.
+#[tokio::test]
+async fn client_rejects_an_unknown_network_compression() {
+    use crate::valentine::{NetworkSettingsPacket, NetworkSettingsPacketCompressionAlgorithm};
+    let harness = Harness::new(BedrockListenerConfig::default());
+    let (mut server, mut client) = harness.start();
+    send(
+        &mut server,
+        &mut client,
+        McpePacket::from(NetworkSettingsPacket {
+            compression_threshold: 1,
+            compression_algorithm: NetworkSettingsPacketCompressionAlgorithm::Unknown(7),
+            client_throttle_enabled: false,
+            client_throttle_threshold: 0,
+            client_throttle_scalar: 0.0,
+        }),
+    );
+    assert!(matches!(
+        error_of(client, Instant::now()),
+        JolyneError::Protocol(ProtocolError::UnsupportedNetworkCompression(7))
+    ));
+}
+
+/// A second `ServerToClientHandshake` after encryption started fails the
+/// client with `InvalidHandshake`.
+#[tokio::test]
+async fn client_rejects_a_duplicate_server_handshake() {
+    use crate::valentine::ServerToClientHandshakePacket;
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (authenticated, mut client) = harness.through_authentication().await.unwrap();
+    let mut encryption =
+        match authenticated.start_encryption(&harness.server_key, None, Instant::now()) {
+            Ok(Step::Wait(encryption)) => encryption,
+            _ => panic!("encryption is enabled"),
+        };
+    pump(&mut encryption, &mut client);
+    let mut client = wait(client);
+    assert!(client.connection().is_encrypted());
+    send(
+        &mut encryption,
+        &mut client,
+        McpePacket::from(ServerToClientHandshakePacket {
+            handshake_web_token: "again".into(),
+        }),
+    );
+    assert!(matches!(
+        error_of(client, Instant::now()),
+        JolyneError::Protocol(ProtocolError::InvalidHandshake(_))
+    ));
+}
+
+/// A second `StartGame` with a different runtime ID fails the client spawn.
+#[tokio::test]
+async fn client_rejects_a_conflicting_start_game() {
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (mut spawn, mut client) = harness.through_packs(params(4)).await;
+    pump(&mut spawn, &mut client);
+    let mut client = wait(client);
+    spawn
+        .connection()
+        .queue_body(
+            McpePacketName::StartGamePacket,
+            &params(5).start_game,
+            Instant::now(),
+        )
+        .unwrap();
+    spawn.connection().flush().unwrap();
+    pump(&mut spawn, &mut client);
+    assert!(matches!(
+        error_of(client, Instant::now()),
+        JolyneError::Protocol(ProtocolError::ConflictingStartGame {
+            first: 4,
+            second: 5
+        })
+    ));
+}
+
+/// The client fails on a `ChunkRadiusUpdated` below 1.
+#[tokio::test]
+async fn client_rejects_a_chunk_radius_below_one() {
+    use crate::valentine::ChunkRadiusUpdatedPacket;
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (mut spawn, mut client) = harness.through_packs(params(4)).await;
+    pump(&mut spawn, &mut client);
+    let mut client = wait(client);
+    send(
+        &mut spawn,
+        &mut client,
+        McpePacket::from(ChunkRadiusUpdatedPacket { chunk_radius: 0 }),
+    );
+    assert!(matches!(
+        error_of(client, Instant::now()),
+        JolyneError::Protocol(ProtocolError::InvalidChunkRadius(0))
+    ));
+}
+
+/// A streamed spawn whose `SetLocalPlayerAsInitialized` arrives before
+/// `RequestChunkRadius` still answers the radius with `ChunkRadiusUpdated`
+/// alone, then hands over a session that is already initialized (the held
+/// initialize was checked) and knows its radius.
+#[tokio::test]
+async fn streamed_early_initialize_hands_over_an_initialized_session() {
+    use crate::valentine::McpePacketData;
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (world, mut client) = harness.through_world().await;
+    let mut spawn = world
+        .start_game_streamed(params(3), Instant::now())
+        .map_err(|f| f.error)
+        .unwrap();
+    pump(&mut spawn, &mut client); // StartGame .. CreativeContent
+    while client.connection().next_packet().unwrap().is_some() {}
+    send(&mut client, &mut spawn, initialized(3));
+    let mut spawn = wait(spawn);
+    assert_eq!(
+        pump(&mut spawn, &mut client),
+        0,
+        "nothing before the radius"
+    );
+    request_radius(&mut client, 6);
+    pump(&mut client, &mut spawn);
+    let mut server = next(spawn);
+    assert!(server.session.is_initialized());
+    assert_eq!(server.session.chunk_radius(), Some(6));
+    pump(&mut server, &mut client);
+    let mut answer = Vec::new();
+    while let Some(packet) = client.connection().next_packet().unwrap() {
+        answer.push(packet.decode().unwrap().data);
+    }
+    assert!(matches!(
+        answer.as_slice(),
+        [McpePacketData::ChunkRadiusUpdatedPacket(updated)] if updated.chunk_radius == 6
+    ));
 }

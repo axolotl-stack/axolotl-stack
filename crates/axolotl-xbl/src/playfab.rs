@@ -5,6 +5,7 @@
 
 use crate::constants::endpoints;
 use crate::error::{XblError, XblResult, check_status, response_json};
+use crate::http::LazyClient;
 use base64::Engine;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -165,7 +166,7 @@ redacted_debug!(
 
 /// PlayFab/Minecraft auth client.
 pub struct PlayFabClient {
-    client: reqwest::Client,
+    client: LazyClient,
     login_url: String,
     session_url: String,
     renew_url: String,
@@ -192,7 +193,7 @@ impl PlayFabClient {
     /// Create a new PlayFab client.
     pub fn new() -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: LazyClient::without_timeout(),
             login_url: endpoints::PLAYFAB_LOGIN.into(),
             session_url: endpoints::MC_SESSION_START.into(),
             renew_url: "https://authorization.franchise.minecraft-services.net/api/v1.0/session/renew".into(),
@@ -286,6 +287,7 @@ impl PlayFabClient {
 
         let response = self
             .client
+            .load()?
             .post(endpoint)
             .header("Content-Type", "application/json")
             .json(&body)
@@ -392,6 +394,7 @@ impl PlayFabClient {
     ) -> XblResult<String> {
         let response = self
             .client
+            .load()?
             .post(&self.multiplayer_url)
             .header("Accept", "application/json")
             .header("Authorization", &service_token.authorization_header)
@@ -440,6 +443,7 @@ impl PlayFabClient {
     async fn renew(&self, token: &SessionResult, ticket: &str) -> XblResult<SessionResult> {
         let response = self
             .client
+            .load()?
             .post(&self.renew_url)
             .header("Accept", "application/json")
             .header("Authorization", &token.authorization_header)
@@ -500,6 +504,7 @@ impl PlayFabClient {
 
         let response = self
             .client
+            .load()?
             .post(endpoint)
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")

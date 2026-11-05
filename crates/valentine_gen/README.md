@@ -107,6 +107,14 @@ upstream-ready reports with evidence are in
 [`PROTOCOLGEN_ISSUES.md`](PROTOCOLGEN_ISSUES.md); the captures come from
 `tools/client-diff -Mode conformance`.
 
+A protocolgen `type_id` names one wire layout. When the manifest reuses an id
+with a different shape, lowering fails, unless the id is listed in
+`ALLOWED_ENUM_NARROWINGS` (`src/parser/protocolgen.rs`) and both shapes are
+enums over the same primitive. Those are uses that admit only part of one wire
+enum (for example each `TextPacket` payload arm). The first shape is registered
+under the id; the narrower use is inlined. 1.26.51 has five such ids, each
+listed with the reason it is safe.
+
 ## Mojang corrections and conformance
 
 `overrides/bpd-fixer.json` and `overrides/enum-ordinals.json` are applied in
@@ -167,7 +175,10 @@ today's dump.
 
 Generated Rust is parsed and formatted before its destination is touched, then
 staged in a sibling temporary file and atomically renamed into place. A failed
-format or write preserves the previous generated module.
+format or write preserves the previous generated module. The same staged write
+(`generator::emitter::write_file_atomic`) produces every other output: the
+`bedrock` surface modules, each version crate's `Cargo.toml` and the updated
+`valentine` manifest.
 
 Prismarine data-only generation merges existing live version declarations into
 its manifest and surface updates. A version absent from minecraft-data is kept

@@ -347,7 +347,6 @@ dependencies = [
  "chrono",
  "futures-util",
  "hex",
- "jsonwebtoken",
  "p256",
  "rand 0.8.5",
  "reqwest",

@@ -55,7 +55,13 @@ impl ManagedSession {
     }
 
     /// Send a graceful `DisconnectionNotification` and transition to closing.
-    pub fn send_disconnect(&mut self, reason: DisconnectReason) -> Result<(), SessionError> {
+    /// The closing drain is measured from `now`, the caller's clock, like
+    /// every tick.
+    pub fn send_disconnect(
+        &mut self,
+        reason: DisconnectReason,
+        now: Instant,
+    ) -> Result<(), SessionError> {
         if matches!(self.state, ConnectionState::Closed) {
             return Err(SessionError::Closed);
         }
@@ -64,7 +70,7 @@ impl ManagedSession {
 
         self.queue_control_packet(pkt, Reliability::Reliable, 0, RakPriority::Immediate)?;
         self.state = ConnectionState::Closing;
-        self.closing_since = Some(Instant::now());
+        self.closing_since = Some(now);
         self.last_disconnect_reason = Some(reason);
 
         Ok(())

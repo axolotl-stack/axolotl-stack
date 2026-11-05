@@ -3,6 +3,7 @@ use bytes::{Buf, BytesMut};
 
 use valentine::bedrock::borrowed::RawMcpeFrame;
 use valentine::bedrock::codec::BedrockCodec;
+use valentine::bedrock::error::DecodeError;
 use valentine::bedrock::version::v1_26_51::*;
 
 fn sample_login_packet() -> LoginPacket {
@@ -196,4 +197,65 @@ fn shared_frame_errors_preserve_the_next_entry() {
         assert_eq!(packet.into_owned(McpePacketArgs).unwrap(), valid);
         assert!(cursor.is_empty());
     }
+}
+
+/// A packet that leaves bytes of its own declared entry unread is rejected
+/// with `TrailingPacketBytes` by owned decoding and by every borrowed entry
+/// point, so `into_owned` of a borrowed packet always matches owned
+/// decoding. The `*_with_remaining` and reader variants stay the diagnostic
+/// API and report the count instead. The next entry stays decodable.
+#[test]
+fn borrowed_decoding_rejects_trailing_packet_bytes_like_owned() {
+    let packet = McpePacketData::from(SetTimePacket { time: 7 });
+    let mut valid = BytesMut::new();
+    packet.encode_inner_bytes_mut(&mut valid, 0, 0).unwrap();
+    // Re-frame the same header and body with one extra byte inside the entry.
+    let mut inner = valid.clone().freeze();
+    let declared = valentine::protocol::wire::read_var_u32(&mut inner).unwrap() as usize;
+    assert_eq!(declared, inner.len());
+    let mut padded = BytesMut::new();
+    valentine::protocol::wire::write_var_u32(&mut padded, declared as u32 + 1);
+    padded.extend_from_slice(&inner);
+    padded.extend_from_slice(&[0xAA]);
+    let padded = padded.freeze();
+    let trailing = |result: Result<_, DecodeError>| {
+        matches!(
+            result,
+            Err(DecodeError::TrailingPacketBytes { remaining: 1 })
+        )
+    };
+
+    assert!(trailing(
+        McpePacketData::decode_inner(&mut padded.clone(), McpePacketArgs).map(|_| ())
+    ));
+    assert!(trailing(
+        BorrowedMcpePacket::decode_inner(&mut padded.clone()).map(|_| ())
+    ));
+    let mut game_frame = BytesMut::from(&[0xfe][..]);
+    game_frame.extend_from_slice(&padded);
+    assert!(trailing(
+        BorrowedMcpePacket::decode_game_frame(&mut game_frame.clone().freeze()).map(|_| ())
+    ));
+    let raw = valentine::bedrock::borrowed::RawMcpeFrame::decode(&mut game_frame.freeze()).unwrap();
+    assert!(trailing(
+        BorrowedMcpePacket::from_raw_frame(raw.clone()).map(|_| ())
+    ));
+
+    // Diagnostic API: decodes and reports the leftover count.
+    let (_, remaining) =
+        BorrowedMcpePacket::decode_inner_with_remaining(&mut padded.clone()).unwrap();
+    assert_eq!(remaining, 1);
+    let (_, remaining) = BorrowedMcpePacket::from_raw_frame_with_remaining(raw).unwrap();
+    assert_eq!(remaining, 1);
+
+    // The rejected entry is consumed whole; the next one still decodes.
+    let mut two = BytesMut::from(&padded[..]);
+    two.extend_from_slice(&valid);
+    let mut two = two.freeze();
+    assert!(trailing(
+        BorrowedMcpePacket::decode_inner(&mut two).map(|_| ())
+    ));
+    let next = BorrowedMcpePacket::decode_inner(&mut two).unwrap();
+    assert_eq!(next.into_owned(McpePacketArgs).unwrap().data, packet);
+    assert!(two.is_empty());
 }
