@@ -20,12 +20,19 @@ use tracing::{debug, warn};
 #[derive(Clone)]
 pub struct PlayerHistory {
     inner: Arc<RwLock<PlayerHistoryInner>>,
+    /// Held for a whole save, so two saves never race their renames and an
+    /// older snapshot can never replace a newer file.
+    saving: Arc<tokio::sync::Mutex<()>>,
 }
 
 struct PlayerHistoryInner {
     data: HashMap<String, u64>,
     path: PathBuf,
-    dirty: bool,
+    /// Incremented by every change.
+    changes: u64,
+    /// `changes` as of the snapshot the last successful save wrote; the
+    /// history is dirty while they differ.
+    saved: u64,
 }
 
 impl PlayerHistory {
@@ -55,8 +62,10 @@ impl PlayerHistory {
             inner: Arc::new(RwLock::new(PlayerHistoryInner {
                 data,
                 path: path.to_owned(),
-                dirty: false,
+                changes: 0,
+                saved: 0,
             })),
+            saving: Arc::default(),
         })
     }
 
@@ -80,7 +89,7 @@ impl PlayerHistory {
 
         let mut inner = self.inner.write().await;
         inner.data.insert(xuid.to_string(), now);
-        inner.dirty = true;
+        inner.changes += 1;
     }
 
     /// Initialize all given XUIDs with the current timestamp if they don't already exist.
@@ -101,7 +110,7 @@ impl PlayerHistory {
             }
         }
         if initialized > 0 {
-            inner.dirty = true;
+            inner.changes += 1;
             debug!(
                 initialized,
                 total = inner.data.len(),
@@ -139,7 +148,7 @@ impl PlayerHistory {
     pub(crate) async fn set_last_seen(&self, xuid: &str, at: u64) {
         let mut inner = self.inner.write().await;
         inner.data.insert(xuid.to_string(), at);
-        inner.dirty = true;
+        inner.changes += 1;
     }
 
     /// Removes `xuid` only if its last-seen time is still `seen` (the value
@@ -151,7 +160,7 @@ impl PlayerHistory {
             return false;
         }
         inner.data.remove(xuid);
-        inner.dirty = true;
+        inner.changes += 1;
         true
     }
 
@@ -159,21 +168,32 @@ impl PlayerHistory {
     pub async fn remove(&self, xuid: &str) {
         let mut inner = self.inner.write().await;
         if inner.data.remove(xuid).is_some() {
-            inner.dirty = true;
+            inner.changes += 1;
         }
     }
 
     /// Save to disk if there are pending changes. Returns true if saved.
+    ///
+    /// The map is copied under the lock and written outside it on a blocking
+    /// thread, so joins and expiry are not held up by the file sync. Changes
+    /// made while the write runs stay pending for the next save.
     pub async fn save_if_dirty(&self) -> bool {
-        let mut inner = self.inner.write().await;
-        if !inner.dirty {
-            return false;
-        }
-
-        match write_atomically(&inner.path, &inner.data) {
+        let _saving = self.saving.lock().await;
+        let (path, data, changes) = {
+            let inner = self.inner.read().await;
+            if inner.changes == inner.saved {
+                return false;
+            }
+            (inner.path.clone(), inner.data.clone(), inner.changes)
+        };
+        let entries = data.len();
+        let written = tokio::task::spawn_blocking(move || write_atomically(&path, &data))
+            .await
+            .unwrap_or_else(|e| Err(anyhow::anyhow!("player history writer failed: {e}")));
+        match written {
             Ok(()) => {
-                inner.dirty = false;
-                debug!(entries = inner.data.len(), "Saved player history");
+                self.inner.write().await.saved = changes;
+                debug!(entries, "Saved player history");
                 true
             }
             Err(e) => {
@@ -264,11 +284,60 @@ mod tests {
             inner: Arc::new(RwLock::new(PlayerHistoryInner {
                 data: HashMap::from([("1".to_string(), 1)]),
                 path: path.clone(),
-                dirty: true,
+                changes: 1,
+                saved: 0,
             })),
+            saving: Arc::default(),
         };
         assert!(!history.save_if_dirty().await);
         assert_eq!(std::fs::read(path.join("marker")).unwrap(), b"unchanged");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    /// A change recorded after a save took its snapshot is not marked saved
+    /// by that save, so the next save writes it.
+    #[tokio::test]
+    async fn change_during_a_save_stays_pending() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("player_history.json");
+        let history = PlayerHistory::load(&path).unwrap();
+        history.update_last_seen("1").await;
+        // A save snapshots now; "2" joins before that save records success.
+        let snapshot = history.inner.read().await.changes;
+        history.update_last_seen("2").await;
+        history.inner.write().await.saved = snapshot;
+        assert!(
+            history.save_if_dirty().await,
+            "the later join was treated as saved"
+        );
+        let saved: HashMap<String, u64> =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert!(saved.contains_key("2"));
+        assert!(!history.save_if_dirty().await);
+    }
+
+    /// Concurrent joins and saves: whatever the interleaving, a final save
+    /// writes every join and no temporary file is left behind.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn concurrent_saves_keep_every_join() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("player_history.json");
+        let history = PlayerHistory::load(&path).unwrap();
+        let mut tasks = Vec::new();
+        for i in 0..32 {
+            let history = history.clone();
+            tasks.push(tokio::spawn(async move {
+                history.update_last_seen(&i.to_string()).await;
+                history.save_if_dirty().await;
+            }));
+        }
+        for task in tasks {
+            task.await.unwrap();
+        }
+        history.save_if_dirty().await;
+        let saved: HashMap<String, u64> =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved.len(), 32);
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 
