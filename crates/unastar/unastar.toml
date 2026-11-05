@@ -69,6 +69,7 @@ generation_threads = 0
 [world.bounds]
 # Bounds are applied to *terrain generation* (non-air). Chunks outside bounds
 # still exist as all-air so the Bedrock client can mesh borders correctly.
+# Chunks already in storage outside the bounds load as stored.
 #
 # modes: "infinite" | "radius" | "rect" (chunk coordinates, inclusive; a rect needs
 # min_x <= max_x and min_z <= max_z)
