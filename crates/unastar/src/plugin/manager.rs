@@ -444,6 +444,19 @@ fn begin_fuel_budget(store: &mut Store<HostContext>, limits: &PluginLimits) -> a
     store.set_fuel(limits.fuel_per_tick)
 }
 
+/// How often the engine epoch advances. Epoch deadlines count these ticks.
+const EPOCH_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
+
+/// Wall-clock budget for one `on-unload` call at shutdown. Much longer than an
+/// event callback's (two epochs, 5-10 ms) so a plugin can flush its state, for
+/// example write a file through WASI, without being trapped mid-write.
+pub const PLUGIN_UNLOAD_DEADLINE: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// Number of epoch ticks in `deadline`, rounded up.
+fn deadline_epochs(deadline: std::time::Duration) -> u64 {
+    deadline.as_nanos().div_ceil(EPOCH_INTERVAL.as_nanos()) as u64
+}
+
 /// Wall-clock interruption is independent of the shared per-tick fuel budget.
 fn prepare_invocation(store: &mut Store<HostContext>) {
     store.set_epoch_deadline(2);
@@ -519,7 +532,7 @@ impl PluginManager {
         // Uses the tokio runtime already running for network I/O.
         let epoch_engine = engine.clone();
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_millis(5));
+            let mut interval = tokio::time::interval(EPOCH_INTERVAL);
             loop {
                 interval.tick().await;
                 epoch_engine.increment_epoch();
@@ -754,7 +767,7 @@ impl PluginManager {
     /// Call `on-unload` on every loaded plugin and drop them all.
     ///
     /// The World is attached for the call like any other invocation, with a fresh
-    /// fuel budget. Actions a plugin requests in `on-unload` are queued in the
+    /// fuel budget and [`PLUGIN_UNLOAD_DEADLINE`] of wall-clock time. Actions a plugin requests in `on-unload` are queued in the
     /// `ActionQueue`; at server shutdown no further tick runs, so they are not
     /// applied. A trap is logged and does not stop the other plugins unloading.
     /// Pending plugins never ran `on-load`, and a plugin disabled by a trap
@@ -768,7 +781,7 @@ impl PluginManager {
             }
             let result = with_world(&mut plugin.store, world, |store| -> anyhow::Result<()> {
                 begin_fuel_budget(store, &plugin.manifest.limits)?;
-                prepare_invocation(store);
+                store.set_epoch_deadline(deadline_epochs(PLUGIN_UNLOAD_DEADLINE));
                 plugin.bindings.call_on_unload(&mut *store)
             });
             let actions = std::mem::take(&mut plugin.store.data_mut().pending_actions);
@@ -1100,16 +1113,28 @@ mod tests {
     /// `set-block((0, 0, 0), marker)` so tests can see which plugin was called
     /// in the `ActionQueue`.
     fn component_with_marker(engine: &Engine, allow: bool, marker: u32) -> Component {
-        build_component(engine, allow, marker, false)
+        build_component(engine, allow, marker, false, false)
+    }
+
+    /// Like [`component_with_marker`], but `on-unload` first spins through a
+    /// long countdown loop, so it outlives an event callback's epoch deadline.
+    fn slow_unload_component(engine: &Engine, marker: u32) -> Component {
+        build_component(engine, true, marker, false, true)
     }
 
     /// Like [`component_with_marker`], but every cancellable export calls
     /// `set-block((0, 0, 0), marker)` and then traps.
     fn trapping_component(engine: &Engine, marker: u32) -> Component {
-        build_component(engine, true, marker, true)
+        build_component(engine, true, marker, true, false)
     }
 
-    fn build_component(engine: &Engine, allow: bool, marker: u32, trap: bool) -> Component {
+    fn build_component(
+        engine: &Engine,
+        allow: bool,
+        marker: u32,
+        trap: bool,
+        slow_unload: bool,
+    ) -> Component {
         let exports = [
             ("on-load", "", "", false),
             ("on-unload", "", "", false),
@@ -1236,6 +1261,15 @@ mod tests {
             };
             let body = if name == "on-load" {
                 "call $tick i64.const 42 i64.ne if unreachable end".to_string()
+            } else if name == "on-unload" && slow_unload {
+                format!(
+                    "(local $i i32) i32.const 50000000 local.set $i
+                    (block $done (loop $spin
+                        local.get $i i32.eqz br_if $done
+                        local.get $i i32.const 1 i32.sub local.set $i
+                        br $spin))
+                    i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block"
+                )
             } else if name == "on-timer" || name == "on-unload" {
                 format!("i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block")
             } else if returns_bool && trap {
@@ -1525,6 +1559,45 @@ mod tests {
             queued_markers(&mut world).is_empty(),
             "set-block requested before the trap must not apply"
         );
+    }
+
+    #[test]
+    fn on_unload_runs_under_its_own_longer_deadline() {
+        assert_eq!(deadline_epochs(PLUGIN_UNLOAD_DEADLINE), 200);
+        let engine = engine();
+        let mut slow = manifest("slow", &[]);
+        slow.limits.fuel_per_tick = u64::MAX / 4;
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![PendingPlugin {
+                component: slow_unload_component(&engine, 8),
+                store: store(&engine, &slow.limits),
+                manifest: slow,
+            }],
+            engine,
+            tps: TpsMeter::default(),
+        };
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
+        world.insert_resource(crate::ecs::events::ActionQueue::default());
+        world.insert_resource(crate::ecs::events::EventBuffer::default());
+        manager.tick(&mut world);
+        assert_eq!(manager.plugins.len(), 1);
+        // Advance the epoch 50 times while on-unload spins: past an event
+        // callback's two-epoch deadline, well inside the unload deadline.
+        let epochs = manager.engine.clone();
+        let ticker = std::thread::spawn(move || {
+            for _ in 0..50 {
+                let step = std::time::Instant::now();
+                while step.elapsed() < std::time::Duration::from_micros(500) {
+                    std::hint::spin_loop();
+                }
+                epochs.increment_epoch();
+            }
+        });
+        manager.unload_all(&mut world);
+        ticker.join().unwrap();
+        assert_eq!(queued_markers(&mut world), [8], "on-unload completed");
     }
 
     #[test]

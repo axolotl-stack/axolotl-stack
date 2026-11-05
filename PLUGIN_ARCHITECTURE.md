@@ -62,8 +62,11 @@ A failed instantiation or `on-load` rejects that plugin.
 
 At shutdown, before players and chunks are saved, the server calls `on-unload`
 on every loaded plugin with the World attached and a fresh fuel budget, then
-drops it. Actions requested in `on-unload` are queued but not applied, because
-no further tick runs; use it to flush plugin-owned state.
+drops it. `on-unload` gets its own wall-clock deadline, `PLUGIN_UNLOAD_DEADLINE`
+(1 s), instead of an event callback's few milliseconds, so a plugin can flush
+its own state there (for example write a file through WASI). The server does
+not change the world at shutdown: world edits and player actions requested in
+`on-unload` are never applied, because no tick runs after it.
 
 `HostContext` scopes its raw World attachment to the synchronous Wasmtime call.
 The attachment is cleared on return and unwind; callbacks cannot retain a World
