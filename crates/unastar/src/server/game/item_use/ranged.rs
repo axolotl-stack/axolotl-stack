@@ -8,7 +8,7 @@
 //! `CompletedUsingItem` -1, the arrow stored as `chargedItem`) and fires
 //! the next use at about 3.15 blocks per tick with `crossbow.shoot`. The
 //! draw-to-power curve `(f² + 2f) / 3` (f = seconds drawn, at least 0.1, at
-//! most 1) is a public reference recorded in `bds-quirks.md`.
+//! most 1) is a public reference recorded in `docs/quirks/bds.md`.
 //!
 //! Tridents are not thrown yet: the server only spawns actors whose
 //! `AddActor` shape was measured from BDS, and `minecraft:thrown_trident`
