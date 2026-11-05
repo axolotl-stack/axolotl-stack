@@ -6,6 +6,7 @@
 use anyhow::Result;
 use axelerator::{Axelerator, AxeleratorConfig};
 use clap::{Parser, Subcommand};
+use std::time::Duration;
 use tracing_subscriber::{EnvFilter, fmt};
 
 #[derive(Parser, Debug)]
@@ -93,10 +94,11 @@ fn init_logging(config: &AxeleratorConfig, log_level_override: Option<&str>) {
         .with_env_filter(filter)
         .with_target(config.logging.show_target);
 
-    if config.logging.show_timestamp {
-        subscriber.init();
-    } else {
-        subscriber.without_time().init();
+    match (config.logging.json_format, config.logging.show_timestamp) {
+        (true, true) => subscriber.json().init(),
+        (true, false) => subscriber.json().without_time().init(),
+        (false, true) => subscriber.init(),
+        (false, false) => subscriber.without_time().init(),
     }
 }
 
@@ -132,8 +134,9 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Load config from file
-    let mut config = AxeleratorConfig::load_or_default(&args.config);
+    // Load config from file. A missing file means defaults; a malformed one
+    // (bad TOML, wrong types, unknown keys) stops startup.
+    let mut config = AxeleratorConfig::load(&args.config)?;
 
     // Apply CLI overrides
     if let Some(ip) = &args.server_ip {
@@ -210,60 +213,193 @@ async fn main() -> Result<()> {
     // Run server
     let axelerator = Axelerator::new(config);
 
-    // Use select! to race the server against shutdown signals
-    // This ensures we can exit even if stuck in device code auth
-    let result = tokio::select! {
-        biased;
-
-        // Shutdown signals (prioritized)
-        _ = async {
-            let ctrl_c = tokio::signal::ctrl_c();
-
-            #[cfg(unix)]
-            {
-                use tokio::signal::unix::{SignalKind, signal};
-                let mut sigterm = signal(SignalKind::terminate()).ok();
-
-                tokio::select! {
-                    _ = ctrl_c => {
-                        tracing::info!("Received SIGINT (Ctrl+C)");
-                    }
-                    _ = async {
-                        if let Some(ref mut s) = sigterm {
-                            s.recv().await
-                        } else {
-                            std::future::pending().await
-                        }
-                    } => {
-                        tracing::info!("Received SIGTERM");
-                    }
-                }
-            }
-
-            #[cfg(not(unix))]
-            {
-                ctrl_c.await.ok();
-                tracing::info!("Received shutdown signal");
-            }
-        } => {
-            tracing::info!("Initiating graceful shutdown...");
-            axelerator.shutdown().await;
-            // Give a brief moment for graceful shutdown to propagate
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            Ok(())
-        }
-
-        // Main server run
-        result = axelerator.run() => {
-            result
-        }
-    };
+    // On Ctrl+C/SIGTERM, request shutdown and keep driving `run` so its
+    // cleanup (presence inactive, RTA, Discord) completes. A shutdown during
+    // device-code login ends `run` promptly too. A second signal exits at once.
+    let result = run_until_signal(
+        axelerator.run(),
+        shutdown_signal,
+        axelerator.shutdown(),
+        SHUTDOWN_GRACE,
+    )
+    .await;
 
     if let Err(ref e) = result {
-        tracing::error!("Axelerator exited with error: {}", e);
+        tracing::error!("Axelerator exited with error: {:#}", e);
     } else {
         tracing::info!("Axelerator shutdown complete");
     }
 
     result
+}
+
+/// How long cleanup may take after a shutdown signal; below the systemd
+/// unit's `TimeoutStopSec=30`, after which it would be killed.
+const SHUTDOWN_GRACE: Duration = Duration::from_secs(20);
+
+/// Resolves on Ctrl+C, or SIGTERM on Unix.
+async fn shutdown_signal() {
+    let ctrl_c = tokio::signal::ctrl_c();
+
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        let mut sigterm = signal(SignalKind::terminate()).ok();
+
+        tokio::select! {
+            _ = ctrl_c => {
+                tracing::info!("Received SIGINT (Ctrl+C)");
+            }
+            _ = async {
+                if let Some(ref mut s) = sigterm {
+                    s.recv().await
+                } else {
+                    std::future::pending().await
+                }
+            } => {
+                tracing::info!("Received SIGTERM");
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        ctrl_c.await.ok();
+        tracing::info!("Received shutdown signal");
+    }
+}
+
+/// Drives `run` to completion. When `signal()` fires first,
+/// `request_shutdown` runs and `run` gets `grace` to finish its own cleanup;
+/// it is dropped mid-cleanup only when the grace period expires or a second
+/// signal arrives (the operator asking to exit at once).
+async fn run_until_signal<F: Future<Output = ()>>(
+    run: impl Future<Output = Result<()>>,
+    mut signal: impl FnMut() -> F,
+    request_shutdown: impl Future<Output = ()>,
+    grace: Duration,
+) -> Result<()> {
+    tokio::pin!(run);
+    tokio::select! {
+        result = &mut run => result,
+        () = signal() => {
+            tracing::info!("Initiating graceful shutdown (signal again to exit at once)...");
+            request_shutdown.await;
+            tokio::select! {
+                result = tokio::time::timeout(grace, &mut run) => match result {
+                    Ok(result) => result,
+                    Err(_) => Err(anyhow::anyhow!(
+                        "graceful shutdown did not finish within {} s",
+                        grace.as_secs()
+                    )),
+                },
+                () = signal() => {
+                    tracing::warn!(
+                        "Second shutdown signal: exiting now, skipping the remaining cleanup \
+                         (presence inactive, RTA shutdown, history save, Discord notice)"
+                    );
+                    Err(anyhow::anyhow!("shutdown forced by a second signal; cleanup skipped"))
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use tokio_util::sync::CancellationToken;
+
+    /// A stand-in for `Axelerator::run`: waits for shutdown, then cleans up.
+    async fn fake_run(shutdown: CancellationToken, cleaned_up: Arc<AtomicBool>) -> Result<()> {
+        shutdown.cancelled().await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        cleaned_up.store(true, Ordering::SeqCst);
+        Ok(())
+    }
+
+    /// main used to race `run()` against the signal and drop it, skipping
+    /// the presence-inactive, RTA and Discord shutdown steps.
+    #[tokio::test(start_paused = true)]
+    async fn signal_lets_run_finish_its_cleanup() {
+        let shutdown = CancellationToken::new();
+        let cleaned_up = Arc::new(AtomicBool::new(false));
+        let result = run_until_signal(
+            fake_run(shutdown.clone(), cleaned_up.clone()),
+            once(),
+            async { shutdown.cancel() },
+            Duration::from_secs(20),
+        )
+        .await;
+        assert!(result.is_ok());
+        assert!(cleaned_up.load(Ordering::SeqCst), "cleanup was skipped");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn stuck_cleanup_is_an_error_after_the_grace_period() {
+        let result = run_until_signal(
+            std::future::pending::<Result<()>>(),
+            once(),
+            async {},
+            Duration::from_secs(20),
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    /// A signal source that fires `presses` times, `after` apart (the first
+    /// at once), then never again.
+    fn presses(
+        presses: u32,
+        after: Duration,
+    ) -> impl FnMut() -> std::pin::Pin<Box<dyn Future<Output = ()>>> {
+        let mut count = 0;
+        move || {
+            count += 1;
+            let fires = count <= presses;
+            let first = count == 1;
+            Box::pin(async move {
+                if !fires {
+                    std::future::pending::<()>().await;
+                }
+                if !first {
+                    tokio::time::sleep(after).await;
+                }
+            })
+        }
+    }
+
+    fn once() -> impl FnMut() -> std::pin::Pin<Box<dyn Future<Output = ()>>> {
+        presses(1, Duration::ZERO)
+    }
+
+    /// A second Ctrl+C used to do nothing: the grace period always ran out.
+    #[tokio::test(start_paused = true)]
+    async fn second_signal_skips_cleanup() {
+        let started = tokio::time::Instant::now();
+        let result = run_until_signal(
+            std::future::pending::<Result<()>>(),
+            presses(2, Duration::from_secs(1)),
+            async {},
+            Duration::from_secs(20),
+        )
+        .await;
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("cleanup skipped"), "{error}");
+        assert_eq!(started.elapsed(), Duration::from_secs(1));
+    }
+
+    #[tokio::test]
+    async fn run_errors_without_a_signal_are_returned() {
+        let result = run_until_signal(
+            async { Err(anyhow::anyhow!("fatal")) },
+            std::future::pending,
+            async {},
+            Duration::from_secs(20),
+        )
+        .await;
+        assert!(result.is_err());
+    }
 }

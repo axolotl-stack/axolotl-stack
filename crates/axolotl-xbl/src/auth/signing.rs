@@ -7,7 +7,7 @@ use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use p256::ecdsa::{Signature, SigningKey, signature::DigestSigner};
 use p256::elliptic_curve::rand_core::OsRng;
 use sha2::{Digest, Sha256};
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::{Arc, LazyLock, OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
 
@@ -56,7 +56,7 @@ pub(crate) async fn sign_service_request(
         .headers_mut()
         .insert(reqwest::header::AUTHORIZATION, authorization);
     let key = shared_signing_key();
-    let resolved = shared_nsal().resolve(request.url(), token, &key).await?;
+    let resolved = shared_nsal()?.resolve(request.url(), token, &key).await?;
     if resolved.relying_party != super::relying_party::XBOX_LIVE {
         return Err(crate::error::XblError::Auth(
             "Service requires a differently scoped Xbox token".into(),
@@ -113,7 +113,7 @@ pub(crate) async fn sign_websocket_request(
             .map_err(|_| XblError::Auth("Invalid Xbox authorization header".into()))?,
     );
     let key = shared_signing_key();
-    let resolved = shared_nsal().resolve(&url, token, &key).await?;
+    let resolved = shared_nsal()?.resolve(&url, token, &key).await?;
     if resolved.relying_party != super::relying_party::XBOX_LIVE {
         return Err(XblError::Auth(
             "WebSocket requires a differently scoped Xbox token".into(),
@@ -155,15 +155,20 @@ fn policy_signature(
     Ok(policy.sign_request_with_headers(key, method, &path, authorization, body, headers))
 }
 
-pub(crate) fn shared_nsal() -> Arc<super::nsal::NsalClient> {
-    static NSAL: LazyLock<Arc<super::nsal::NsalClient>> = LazyLock::new(|| {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
-            .expect("valid NSAL client configuration");
+/// The process-wide NSAL client. Building its HTTP client can fail; the
+/// error is returned (and retried by the next caller) instead of panicking.
+pub(crate) fn shared_nsal() -> crate::error::XblResult<Arc<super::nsal::NsalClient>> {
+    static NSAL: OnceLock<Arc<super::nsal::NsalClient>> = OnceLock::new();
+    if let Some(nsal) = NSAL.get() {
+        return Ok(Arc::clone(nsal));
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(crate::http::build_error)?;
+    Ok(Arc::clone(NSAL.get_or_init(|| {
         Arc::new(super::nsal::NsalClient::new(client))
-    });
-    Arc::clone(&NSAL)
+    })))
 }
 
 /// ECDSA P-256 key pair for signing Xbox Live requests.

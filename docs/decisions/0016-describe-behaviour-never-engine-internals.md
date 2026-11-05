@@ -24,6 +24,16 @@ Bedrock client: no class, function or symbol names, addresses or memory layouts.
 describes behaviour and cites observed captures, public Mojang documentation, public data sets or
 open-source code.
 
+Clarified 2026-11-05 (review of PR #65):
+
+- **Allowed:** names of files and schemas Mojang publishes as data or documentation, e.g. a
+  bedrock-samples schema file such as `FilterSubject.json`, a vanilla pack path, or a packet or
+  field name from the public protocol docs.
+- **Not allowed:** a scope-qualified engine name (`Outer::Inner`) or an engine-style function name
+  (`doThing`). These are banned even when the name has leaked into a public changelog. Describe the
+  thing instead ("the enchantment id enum in Mojang's public bedrock-protocol-docs").
+- **Examples in tests and docs** use made-up names.
+
 ### Consequences
 
 - Good, because every claim is reproducible from outside.

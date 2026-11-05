@@ -30,6 +30,7 @@
 //! ```
 
 use crate::error::{XblError, check_status, response_json};
+use crate::http::LazyClient;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -76,7 +77,7 @@ pub type DiscoveryResult<T> = Result<T, DiscoveryError>;
 /// Discovery API client.
 #[derive(Debug, Clone)]
 pub struct DiscoveryClient {
-    client: Client,
+    client: LazyClient,
     game_id: String,
 }
 
@@ -90,7 +91,7 @@ impl DiscoveryClient {
     /// Create a new discovery client with default settings.
     pub fn new() -> Self {
         Self {
-            client: Client::new(),
+            client: LazyClient::without_timeout(),
             game_id: GAME_ID.to_string(),
         }
     }
@@ -98,7 +99,7 @@ impl DiscoveryClient {
     /// Create a discovery client with a custom HTTP client.
     pub fn with_client(client: Client) -> Self {
         Self {
-            client,
+            client: LazyClient::ready(client),
             game_id: GAME_ID.to_string(),
         }
     }
@@ -167,6 +168,7 @@ impl DiscoveryClient {
         debug!(target: "discovery", "Fetching service discovery");
         let response = self
             .client
+            .load()?
             .get(url.clone())
             .header("Content-Type", "application/json")
             .header("User-Agent", crate::playfab::SERVICE_USER_AGENT)

@@ -377,4 +377,76 @@ mod tests {
             Err(NetherNetError::ReassemblyTimeout)
         ));
     }
+
+    /// A reliable message of exactly `max_message_size` bytes completes; one
+    /// byte more fails on the segment that crosses the limit.
+    #[test]
+    fn reassembly_limit_is_inclusive() {
+        let mut state = Reassembler::new(4, 8, Duration::from_secs(5));
+        assert!(
+            state
+                .push(Bytes::from_static(&[1, 1, 2, 3, 4]), true)
+                .unwrap()
+                .is_none()
+        );
+        let complete = state
+            .push(Bytes::from_static(&[0, 5, 6, 7, 8]), true)
+            .unwrap()
+            .unwrap();
+        assert_eq!(&complete[..], &[1, 2, 3, 4, 5, 6, 7, 8]);
+
+        assert!(
+            state
+                .push(Bytes::from_static(&[2, 1, 2, 3, 4]), true)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            state
+                .push(Bytes::from_static(&[1, 5, 6, 7, 8]), true)
+                .unwrap()
+                .is_none()
+        );
+        assert!(matches!(
+            state.push(Bytes::from_static(&[0, 9]), true),
+            Err(NetherNetError::MessageTooLarge { size: 9, limit: 8 })
+        ));
+    }
+
+    /// An error discards the partial message, so the next message is read
+    /// from its own first segment rather than appended to stale bytes.
+    #[test]
+    fn reassembly_error_resets_the_partial_message() {
+        let mut state = reassembler(100, Duration::from_secs(5));
+        assert!(
+            state
+                .push(Bytes::from_static(&[2, 1]), true)
+                .unwrap()
+                .is_none()
+        );
+        assert!(matches!(
+            state.push(Bytes::from_static(&[0, 2]), true),
+            Err(NetherNetError::InvalidSegmentCount {
+                expected: 1,
+                actual: 0
+            })
+        ));
+        assert!(state.partial.is_none());
+        let complete = state
+            .push(Bytes::from_static(&[0, 3]), true)
+            .unwrap()
+            .unwrap();
+        assert_eq!(&complete[..], &[3]);
+    }
+
+    /// The first segment's countdown is peer-controlled; the buffer reserved
+    /// for the whole message never exceeds `max_message_size`.
+    #[test]
+    fn reassembly_preallocation_is_capped() {
+        let mut state = Reassembler::new(10, 16, Duration::from_secs(5));
+        let mut first = vec![254u8];
+        first.extend_from_slice(&[7; 10]);
+        assert!(state.push(Bytes::from(first), true).unwrap().is_none());
+        assert!(state.partial.as_ref().unwrap().data.capacity() <= 16);
+    }
 }

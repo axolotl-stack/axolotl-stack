@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc;
 use tokio::time::{Duration, timeout};
 use tracing::{debug, trace, warn};
@@ -24,7 +25,9 @@ pub struct NetherNetListenerConfig {
     pub transport: TransportConfig,
     /// Maximum SDP size in bytes (prevents OOM from large SDPs).
     pub max_sdp_size: usize,
-    /// Maximum tracked negotiations/connections (local resource hardening).
+    /// Maximum concurrent negotiations: offers admitted but not yet handed to
+    /// `accept()`. Accepted connections do not count, so this never caps the
+    /// number of connected peers (local resource hardening).
     pub max_pending_connections: usize,
     /// Local server SDP identity; absent values use the upstream-generated self identity.
     pub identity: Option<Arc<crate::identity::Identity>>,
@@ -90,12 +93,16 @@ struct ListenerActor {
     generated_identity_key: Option<p384::ecdsa::SigningKey>,
     /// DTLS certificate shared by this listener's connections (generated on first offer).
     local: Option<LocalIdentity>,
+    /// Budget for rejection replies still being sent (see `reject`).
+    rejections: Arc<tokio::sync::Semaphore>,
 }
 
 struct ConnectionHandle {
     connection: Arc<Connection>,
     candidate_budget: crate::dialer::CandidateBudget,
     cancelled: tokio_util::sync::CancellationToken,
+    /// Set once the stream was handed to `accept()`.
+    accepted: Arc<AtomicBool>,
 }
 
 impl NetherNetListener {
@@ -140,6 +147,7 @@ impl NetherNetListener {
             cleanup_tx: message_tx,
             generated_identity_key: None,
             local: None,
+            rejections: rejection_budget(),
         };
 
         tokio::spawn(actor.run());
@@ -184,6 +192,7 @@ impl NetherNetListener {
             cleanup_tx: message_tx.clone(),
             generated_identity_key: None,
             local: None,
+            rejections: rejection_budget(),
         };
 
         // Install subscription before processing offers.
@@ -283,28 +292,7 @@ impl ListenerActor {
                     debug!(conn_id, "Ignoring duplicate CONNECTREQUEST");
                     return Ok(());
                 }
-                let duration = self.config.connection_timeout;
-                let network_id = signal.network_id.clone();
-                // The actor serves every session: a panic while negotiating one
-                // offer must fail that offer only (its Pending closes the transport).
-                let negotiation =
-                    catch_dependency_panic("listener offer", self.handle_connect_request(signal));
-                match timeout(duration, negotiation).await? {
-                    Ok(result) => result?,
-                    Err(panic) => {
-                        // Bounded like listener.go:listenerNegotiator.signalError.
-                        let _ = timeout(
-                            Duration::from_secs(2),
-                            self.signaling.signal(Signal::error(
-                                conn_id,
-                                network_id,
-                                SignalErrorCode::GenericFailure,
-                            )),
-                        )
-                        .await;
-                        return Err(panic.into());
-                    }
-                }
+                self.handle_connect_request(signal)?;
             }
             SignalType::Candidate => {
                 if let Some(handle) = self.connections.get(&key) {
@@ -348,26 +336,62 @@ impl ListenerActor {
         Ok(local)
     }
 
-    async fn handle_connect_request(&mut self, signal: Signal) -> anyhow::Result<()> {
+    /// Negotiations that have not yet been handed to `accept()`. Accepted
+    /// connections stay in `connections` (their tuple keeps routing
+    /// `CONNECTERROR`/candidates) but do not use up the negotiation budget.
+    fn negotiating(&self) -> usize {
+        self.connections
+            .values()
+            .filter(|handle| !handle.accepted.load(Ordering::Acquire))
+            .count()
+    }
+
+    /// Sends a terminal `CONNECTERROR` without blocking the actor.
+    ///
+    /// At most [`MAX_PENDING_REJECTIONS`] replies are in flight; beyond that
+    /// (an offer flood against slow signaling) the reply is dropped, which
+    /// leaves that dialer to its own timeout but keeps the task count bounded.
+    fn reject(&self, conn_id: u64, network_id: String, code: SignalErrorCode) {
+        let Ok(permit) = self.rejections.clone().try_acquire_owned() else {
+            debug!(
+                conn_id,
+                "Rejection reply budget exhausted; dropping CONNECTERROR"
+            );
+            return;
+        };
+        let signaling = self.signaling.clone();
+        tokio::spawn(async move {
+            send_terminal_error(signaling, conn_id, network_id, code).await;
+            drop(permit);
+        });
+    }
+
+    /// Admits an offer and starts its negotiation task.
+    ///
+    /// Only cheap, local work runs here (limits, SDP parsing, opening the
+    /// session). Everything that can wait on a peer or an integration hook
+    /// (identity verification, credentials, candidate gathering, sending the
+    /// answer) runs in the offer's own task, so one slow offer never delays
+    /// signals for other peers.
+    fn handle_connect_request(&mut self, signal: Signal) -> anyhow::Result<()> {
         let conn_id = signal.connection_id;
         let network_id = signal.network_id.clone();
         self.config.stream_config.validate()?;
 
-        // Security: Check connection limit
-        if self.connections.len() >= self.config.max_pending_connections {
+        // Security: Check negotiation limit
+        let negotiating = self.negotiating();
+        if negotiating >= self.config.max_pending_connections {
             warn!(
                 conn_id,
-                current = self.connections.len(),
+                current = negotiating,
                 max = self.config.max_pending_connections,
-                "Connection limit reached, rejecting new connection"
+                "Negotiation limit reached, rejecting new connection"
             );
-            self.signaling
-                .signal(Signal::error(
-                    conn_id,
-                    network_id,
-                    SignalErrorCode::IncomingConnectionIgnored,
-                ))
-                .await?;
+            self.reject(
+                conn_id,
+                network_id,
+                SignalErrorCode::IncomingConnectionIgnored,
+            );
             return Ok(());
         }
 
@@ -379,13 +403,11 @@ impl ListenerActor {
                 max = self.config.max_sdp_size,
                 "SDP exceeds maximum size"
             );
-            self.signaling
-                .signal(Signal::error(
-                    conn_id,
-                    network_id,
-                    SignalErrorCode::SignalingParsingFailure,
-                ))
-                .await?;
+            self.reject(
+                conn_id,
+                network_id,
+                SignalErrorCode::SignalingParsingFailure,
+            );
             return Ok(());
         }
         let remote = sdp::parse(&signal.data)?;
@@ -393,32 +415,6 @@ impl ListenerActor {
         candidate_budget.reserve_sdp(&signal.data)?;
         let allow_missing = self.config.allow_identityless_client
             || (!self.signaling.requires_identity() && self.config.verify_client_token.is_none());
-        let verified = crate::identity::verify_sdp_optional(
-            &signal.data,
-            crate::identity::PeerRole::Client,
-            self.config.verify_client_token.as_deref(),
-            allow_missing,
-        )
-        .await;
-        let remote_identity = match verified {
-            Ok(identity) => identity,
-            Err(error) => {
-                // The real client's host and
-                // go-nethernet listener.go reply 37 instead of letting the
-                // dialer run into its 10-15 s answer timeout.
-                warn!(conn_id, %error, "Rejecting offer: client identity not allowed");
-                let _ = timeout(
-                    Duration::from_secs(2),
-                    self.signaling.signal(Signal::error(
-                        conn_id,
-                        network_id,
-                        SignalErrorCode::IdentityNotAllowed,
-                    )),
-                )
-                .await;
-                return Err(error.into());
-            }
-        };
         // listener.go:ListenConfig.Listen defaults to one P-384 key per listener
         // and issues a fresh self-signed server token for each negotiation.
         let server_identity = if let Some(identity) = &self.config.identity {
@@ -435,8 +431,6 @@ impl ListenerActor {
             None
         };
 
-        let servers =
-            crate::dialer::ice_servers(self.signaling.as_ref(), &self.config.ice_servers).await?;
         let local = self.local_identity()?;
         let pending = Pending::open(
             Role::Listener,
@@ -450,103 +444,48 @@ impl ListenerActor {
         pending.connection().with("offer", |session, now| {
             session.start(now, &remote, local_setup)
         })??;
-        let nontrickle = self.signaling.disable_trickle_ice();
-        if nontrickle {
-            pending.connection().add_ice_servers(&servers).await?;
-            pending.gathered().await?;
-        }
-        let mut answer = pending.describe(local_setup, nontrickle)?;
-        if let Some(identity) = &server_identity {
-            answer = identity.sign_sdp(&answer)?;
-        }
-
-        debug!(conn_id, "Sending CONNECTRESPONSE");
-        let answer_signal = Signal {
-            typ: SignalType::Answer,
-            connection_id: conn_id,
-            data: answer,
-            network_id: network_id.clone(),
-        };
-        if let Some(monitor) = &self.config.signal_monitor {
-            monitor.process_outgoing(&answer_signal).await;
-        }
-        self.signaling.signal(answer_signal).await?;
-        if !nontrickle {
-            crate::dialer::trickle_candidates(
-                pending.connection().clone(),
-                self.signaling.clone(),
-                network_id.clone(),
-                conn_id,
-                servers,
-            );
-        }
 
         // A tuple remains owned until its worker/reply has finished or been cancelled.
         let cancelled = tokio_util::sync::CancellationToken::new();
+        let accepted = Arc::new(AtomicBool::new(false));
         let connection = pending.connection().clone();
+        let key = (network_id.clone(), conn_id);
         self.connections.insert(
-            (network_id.clone(), conn_id),
+            key.clone(),
             Arc::new(ConnectionHandle {
                 connection: connection.clone(),
                 candidate_budget,
                 cancelled: cancelled.clone(),
+                accepted: accepted.clone(),
             }),
         );
 
-        let accept_tx = self.accept_tx.clone();
-        let connection_timeout = self.config.connection_timeout;
-        let signaling = self.signaling.clone();
+        let offer = Offer {
+            signaling: self.signaling.clone(),
+            sdp: signal.data,
+            conn_id,
+            network_id,
+            local_setup,
+            allow_missing,
+            verify_client_token: self.config.verify_client_token.clone(),
+            server_identity,
+            ice_servers: self.config.ice_servers.clone(),
+            signal_monitor: self.config.signal_monitor.clone(),
+            accept_tx: self.accept_tx.clone(),
+            connection_timeout: self.config.connection_timeout,
+            accepted,
+        };
         let cleanup_tx = self.cleanup_tx.clone();
-
         tokio::spawn(async move {
-            let negotiation = async {
-                let opened = timeout(connection_timeout, pending.opened()).await;
-                match opened {
-                    Ok(Ok(())) => {
-                        debug!(conn_id, "Data channels ready");
-                        let stream = pending.into_stream(remote_identity);
-                        let weak = Arc::downgrade(stream.connection());
-                        // An unaccepted stream is dropped by the failed send, closing its transport.
-                        if let Ok(Ok(())) =
-                            timeout(connection_timeout, accept_tx.send(stream)).await
-                        {
-                            // listener.go:listenerNegotiator.finish retains accepted signal ownership.
-                            while weak.upgrade().is_some_and(|c| !c.is_finished()) {
-                                tokio::time::sleep(Duration::from_secs(1)).await;
-                            }
-                        }
-                    }
-                    Ok(Err(error)) => {
-                        debug!(conn_id, %error, "Negotiation failed");
-                    }
-                    Err(_) => {
-                        warn!(conn_id, "Connection timed out waiting for data channels");
-                        drop(pending);
-                        // dial.go:SignalErrorTimeout also bounds listener terminal notifications.
-                        let _ = timeout(
-                            Duration::from_secs(2),
-                            signaling.signal(Signal::error(
-                                conn_id,
-                                network_id.clone(),
-                                SignalErrorCode::NegotiationTimeoutWaitingForAccept,
-                            )),
-                        )
-                        .await;
-                    }
-                }
-            };
             tokio::select! {
                 biased;
                 _ = cancelled.cancelled() => {}
-                _ = negotiation => {}
+                _ = offer.negotiate(pending) => {}
             }
 
             // Release connection ownership only after failure or transport closure.
             let _ = cleanup_tx
-                .send(ActorMessage::CleanupConnection(
-                    (network_id, conn_id),
-                    connection,
-                ))
+                .send(ActorMessage::CleanupConnection(key, connection))
                 .await;
         });
 
@@ -554,10 +493,195 @@ impl ListenerActor {
     }
 }
 
+/// Bounded like listener.go:listenerNegotiator.signalError; dial.go:SignalErrorTimeout.
+const TERMINAL_SIGNAL_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Rejection replies (limit and SDP-size) that may be in flight at once.
+/// Local resource policy, not a wire constant.
+const MAX_PENDING_REJECTIONS: usize = 16;
+
+fn rejection_budget() -> Arc<tokio::sync::Semaphore> {
+    Arc::new(tokio::sync::Semaphore::new(MAX_PENDING_REJECTIONS))
+}
+
+async fn send_terminal_error(
+    signaling: Arc<dyn Signaling>,
+    conn_id: u64,
+    network_id: String,
+    code: SignalErrorCode,
+) {
+    let _ = timeout(
+        TERMINAL_SIGNAL_TIMEOUT,
+        signaling.signal(Signal::error(conn_id, network_id, code)),
+    )
+    .await;
+}
+
+/// Why answering an admitted offer failed.
+enum AnswerError {
+    /// The client identity was missing or not allowed.
+    Identity(anyhow::Error),
+    /// Credentials, gathering, signing or sending the answer failed.
+    Other(anyhow::Error),
+}
+
+impl<E: Into<anyhow::Error>> From<E> for AnswerError {
+    fn from(error: E) -> Self {
+        Self::Other(error.into())
+    }
+}
+
+/// One admitted offer's negotiation, run in its own task.
+struct Offer {
+    signaling: Arc<dyn Signaling>,
+    sdp: String,
+    conn_id: u64,
+    network_id: String,
+    local_setup: sdp::Setup,
+    allow_missing: bool,
+    verify_client_token: Option<Arc<dyn crate::identity::TokenVerifier>>,
+    server_identity: Option<Arc<crate::identity::Identity>>,
+    ice_servers: Vec<IceServer>,
+    signal_monitor: Option<Arc<crate::signal_monitor::SignalMonitor>>,
+    accept_tx: mpsc::Sender<NetherNetStream>,
+    connection_timeout: Duration,
+    accepted: Arc<AtomicBool>,
+}
+
+impl Offer {
+    /// Answers the offer, then waits for the data channels and hands the
+    /// stream to `accept()`. Every failure before the stream is handed over
+    /// replies one terminal `CONNECTERROR`; a remote `CONNECTERROR` cancels
+    /// this future (and so any reply) through the handle's token.
+    async fn negotiate(self, pending: Pending) {
+        let conn_id = self.conn_id;
+        // The answer phase shares the listener's negotiation deadline, so a
+        // stalled credential provider or token verifier ends with a reply
+        // instead of leaving the dialer to its own timeout.
+        let answered = catch_dependency_panic(
+            "listener offer",
+            timeout(self.connection_timeout, self.answer(&pending)),
+        )
+        .await;
+        let remote_identity = match answered {
+            Ok(Ok(Ok(identity))) => identity,
+            Ok(Ok(Err(AnswerError::Identity(error)))) => {
+                // The real client's host and go-nethernet listener.go reply 37
+                // instead of letting the dialer run into its 10-15 s answer timeout.
+                warn!(conn_id, %error, "Rejecting offer: client identity not allowed");
+                self.fail(SignalErrorCode::IdentityNotAllowed).await;
+                return;
+            }
+            Ok(Ok(Err(AnswerError::Other(error)))) => {
+                warn!(conn_id, %error, "Failed to answer offer");
+                self.fail(SignalErrorCode::FailedToCreateAnswer).await;
+                return;
+            }
+            Ok(Err(_)) => {
+                warn!(conn_id, "Timed out answering offer");
+                self.fail(SignalErrorCode::NegotiationTimeout).await;
+                return;
+            }
+            Err(panic) => {
+                warn!(conn_id, error = %panic, "Offer negotiation panicked");
+                self.fail(SignalErrorCode::GenericFailure).await;
+                return;
+            }
+        };
+
+        let opened = timeout(self.connection_timeout, pending.opened()).await;
+        match opened {
+            Ok(Ok(())) => {
+                debug!(conn_id, "Data channels ready");
+                let stream = pending.into_stream(remote_identity);
+                let weak = Arc::downgrade(stream.connection());
+                // An unaccepted stream is dropped by the failed send, closing its transport.
+                if let Ok(Ok(())) =
+                    timeout(self.connection_timeout, self.accept_tx.send(stream)).await
+                {
+                    // Accepted connections no longer count as negotiations.
+                    self.accepted.store(true, Ordering::Release);
+                    // listener.go:listenerNegotiator.finish retains accepted signal ownership.
+                    while weak.upgrade().is_some_and(|c| !c.is_finished()) {
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                    }
+                }
+            }
+            Ok(Err(error)) => {
+                debug!(conn_id, %error, "Negotiation failed");
+            }
+            Err(_) => {
+                warn!(conn_id, "Connection timed out waiting for data channels");
+                drop(pending);
+                self.fail(SignalErrorCode::NegotiationTimeoutWaitingForAccept)
+                    .await;
+            }
+        }
+    }
+
+    async fn fail(&self, code: SignalErrorCode) {
+        send_terminal_error(
+            self.signaling.clone(),
+            self.conn_id,
+            self.network_id.clone(),
+            code,
+        )
+        .await;
+    }
+
+    /// Verifies the client identity, gathers and sends the answer.
+    async fn answer(
+        &self,
+        pending: &Pending,
+    ) -> Result<Option<crate::identity::VerifiedIdentity>, AnswerError> {
+        let remote_identity = crate::identity::verify_sdp_optional(
+            &self.sdp,
+            crate::identity::PeerRole::Client,
+            self.verify_client_token.as_deref(),
+            self.allow_missing,
+        )
+        .await
+        .map_err(|error| AnswerError::Identity(error.into()))?;
+
+        let servers =
+            crate::dialer::ice_servers(self.signaling.as_ref(), &self.ice_servers).await?;
+        let nontrickle = self.signaling.disable_trickle_ice();
+        if nontrickle {
+            pending.connection().add_ice_servers(&servers).await?;
+            pending.gathered().await?;
+        }
+        let mut answer = pending.describe(self.local_setup, nontrickle)?;
+        if let Some(identity) = &self.server_identity {
+            answer = identity.sign_sdp(&answer)?;
+        }
+
+        debug!(conn_id = self.conn_id, "Sending CONNECTRESPONSE");
+        let answer_signal = Signal {
+            typ: SignalType::Answer,
+            connection_id: self.conn_id,
+            data: answer,
+            network_id: self.network_id.clone(),
+        };
+        if let Some(monitor) = &self.signal_monitor {
+            monitor.process_outgoing(&answer_signal).await;
+        }
+        self.signaling.signal(answer_signal).await?;
+        if !nontrickle {
+            crate::dialer::trickle_candidates(
+                pending.connection().clone(),
+                self.signaling.clone(),
+                self.network_id.clone(),
+                self.conn_id,
+                servers,
+            );
+        }
+        Ok(remote_identity)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::NetherNetError;
     use crate::test_support::{idle_connection, offer_sdp};
 
     struct LocalSignaling;
@@ -585,6 +709,7 @@ mod tests {
             cleanup_tx,
             generated_identity_key: None,
             local: None,
+            rejections: rejection_budget(),
         }
     }
 
@@ -600,6 +725,7 @@ mod tests {
                 connection: replacement.clone(),
                 candidate_budget: crate::dialer::CandidateBudget::default(),
                 cancelled: tokio_util::sync::CancellationToken::new(),
+                accepted: Arc::default(),
             }),
         );
         actor.cleanup_connection(&key, &old);
@@ -651,7 +777,6 @@ mod tests {
                 network_id: "remote".into(),
                 data: offer_sdp(),
             })
-            .await
             .unwrap();
         assert_eq!(replies.recv().await.unwrap().typ, SignalType::Answer);
         actor
@@ -700,35 +825,49 @@ mod tests {
         }
     }
 
+    /// Receives the worker's cleanup request and applies it.
+    async fn apply_cleanup(actor: &mut ListenerActor) {
+        let cleanup = timeout(Duration::from_secs(5), actor.message_rx.recv())
+            .await
+            .expect("worker cleanup")
+            .unwrap();
+        let ActorMessage::CleanupConnection(key, connection) = cleanup else {
+            panic!("expected worker cleanup")
+        };
+        actor.cleanup_connection(&key, &connection);
+    }
+
+    async fn next_reply(replies: &mut mpsc::Receiver<Signal>) -> Signal {
+        timeout(Duration::from_secs(5), replies.recv())
+            .await
+            .expect("reply")
+            .unwrap()
+    }
+
+    fn offer(connection_id: u64) -> Signal {
+        Signal {
+            typ: SignalType::Offer,
+            connection_id,
+            network_id: "remote".into(),
+            data: offer_sdp(),
+        }
+    }
+
     #[tokio::test]
     async fn negotiation_panic_fails_only_that_offer_with_typed_error() {
         let (outbound, mut replies) = mpsc::channel(4);
         let mut actor = actor(Arc::new(PanickingCredentials(outbound)), loopback_config());
         // The panic used to unwind through the actor task, ending the listener
-        // for every later session; it must become this offer's error instead.
-        let error = actor
-            .handle_signal(Signal {
-                typ: SignalType::Offer,
-                connection_id: 42,
-                network_id: "remote".into(),
-                data: offer_sdp(),
-            })
-            .await
-            .unwrap_err();
-        match error.downcast_ref::<NetherNetError>() {
-            Some(NetherNetError::DependencyPanic { context, message }) => {
-                assert_eq!(*context, "listener offer");
-                assert_eq!(message, "credential provider exploded");
-            }
-            other => panic!("expected DependencyPanic, got {other:?} ({error})"),
-        }
-        let reply = replies.recv().await.unwrap();
+        // for every later session; it must fail this offer only.
+        actor.handle_signal(offer(42)).await.unwrap();
+        let reply = next_reply(&mut replies).await;
         assert_eq!(reply.typ, SignalType::Error);
         assert_eq!(reply.connection_id, 42);
         assert_eq!(
             reply.data,
             (SignalErrorCode::GenericFailure as i32).to_string()
         );
+        apply_cleanup(&mut actor).await;
         assert!(actor.connections.is_empty());
     }
 
@@ -745,21 +884,13 @@ mod tests {
                 ..loopback_config()
             },
         );
-        actor
-            .handle_signal(Signal {
-                typ: SignalType::Offer,
-                connection_id: 42,
-                network_id: "remote".into(),
-                data: offer_sdp(),
-            })
-            .await
-            .unwrap_err();
-        // The reply is sent before the offer's error returns.
-        let reply = replies.try_recv().expect("CONNECTERROR reply");
+        actor.handle_signal(offer(42)).await.unwrap();
+        let reply = next_reply(&mut replies).await;
         assert_eq!(reply.typ, SignalType::Error);
         assert_eq!(reply.connection_id, 42);
         assert_eq!(reply.network_id, "remote");
         assert_eq!(reply.data, "37");
+        apply_cleanup(&mut actor).await;
         assert!(actor.connections.is_empty());
         assert!(replies.try_recv().is_err(), "no answer after rejection");
     }
@@ -794,5 +925,227 @@ mod tests {
         .expect("slow negotiation timed out");
         dialed.unwrap();
         accepted.unwrap();
+    }
+
+    /// Credentials that never arrive for the first negotiation (a stalled
+    /// provider) and are absent for every later one.
+    struct StallingCredentials {
+        replies: mpsc::Sender<Signal>,
+        stalled: AtomicBool,
+    }
+    #[async_trait::async_trait]
+    impl Signaling for StallingCredentials {
+        async fn signal(&self, signal: Signal) -> anyhow::Result<()> {
+            self.replies.send(signal).await?;
+            Ok(())
+        }
+        async fn credentials(&self) -> anyhow::Result<Option<crate::Credentials>> {
+            if !self.stalled.swap(true, Ordering::SeqCst) {
+                std::future::pending::<()>().await;
+            }
+            Ok(None)
+        }
+        fn network_id(&self) -> String {
+            "local".into()
+        }
+        fn disable_trickle_ice(&self) -> bool {
+            true
+        }
+    }
+
+    fn stalling(replies: mpsc::Sender<Signal>) -> Arc<dyn Signaling> {
+        Arc::new(StallingCredentials {
+            replies,
+            stalled: AtomicBool::new(false),
+        })
+    }
+
+    /// One offer waiting on its credentials used to hold the actor for the
+    /// whole negotiation deadline, delaying every other peer's signals.
+    #[tokio::test]
+    async fn slow_offer_does_not_block_other_peers() {
+        let (outbound, mut replies) = mpsc::channel(4);
+        let mut actor = actor(
+            stalling(outbound),
+            NetherNetListenerConfig {
+                connection_timeout: Duration::from_secs(30),
+                ..loopback_config()
+            },
+        );
+        timeout(Duration::from_secs(5), async {
+            actor.handle_signal(offer(1)).await.unwrap();
+            actor.handle_signal(offer(2)).await.unwrap();
+        })
+        .await
+        .expect("a stalled offer blocked the listener actor");
+        let reply = next_reply(&mut replies).await;
+        assert_eq!(reply.typ, SignalType::Answer);
+        assert_eq!(reply.connection_id, 2);
+    }
+
+    /// An offer that cannot be answered within the negotiation deadline
+    /// replies `CONNECTERROR` instead of leaving the dialer to time out.
+    #[tokio::test(start_paused = true)]
+    async fn slow_offer_timeout_replies_connecterror() {
+        let (outbound, mut replies) = mpsc::channel(4);
+        let mut actor = actor(
+            stalling(outbound),
+            NetherNetListenerConfig {
+                connection_timeout: Duration::from_secs(1),
+                ..loopback_config()
+            },
+        );
+        actor.handle_signal(offer(7)).await.unwrap();
+        let reply = next_reply(&mut replies).await;
+        assert_eq!(reply.typ, SignalType::Error);
+        assert_eq!(reply.connection_id, 7);
+        assert_eq!(
+            reply.data,
+            (SignalErrorCode::NegotiationTimeout as i32).to_string()
+        );
+        apply_cleanup(&mut actor).await;
+        assert!(actor.connections.is_empty());
+    }
+
+    fn tracked(accepted: bool) -> Arc<ConnectionHandle> {
+        Arc::new(ConnectionHandle {
+            connection: idle_connection(),
+            candidate_budget: crate::dialer::CandidateBudget::default(),
+            cancelled: tokio_util::sync::CancellationToken::new(),
+            accepted: Arc::new(AtomicBool::new(accepted)),
+        })
+    }
+
+    #[tokio::test]
+    async fn negotiation_limit_rejects_with_incoming_connection_ignored() {
+        let (outbound, mut replies) = mpsc::channel(4);
+        let mut actor = actor(
+            Arc::new(RecordingSignaling(outbound)),
+            NetherNetListenerConfig {
+                max_pending_connections: 1,
+                ..loopback_config()
+            },
+        );
+        actor
+            .connections
+            .insert(("other".into(), 1), tracked(false));
+        actor.handle_signal(offer(2)).await.unwrap();
+        let reply = next_reply(&mut replies).await;
+        assert_eq!(reply.typ, SignalType::Error);
+        assert_eq!(reply.connection_id, 2);
+        assert_eq!(
+            reply.data,
+            (SignalErrorCode::IncomingConnectionIgnored as i32).to_string()
+        );
+        assert_eq!(actor.connections.len(), 1);
+    }
+
+    /// Accepted connections keep their tuple but are not negotiations, so
+    /// the limit never caps connected peers.
+    #[tokio::test]
+    async fn accepted_connections_do_not_count_against_negotiation_limit() {
+        let (outbound, mut replies) = mpsc::channel(4);
+        let mut actor = actor(
+            Arc::new(RecordingSignaling(outbound)),
+            NetherNetListenerConfig {
+                max_pending_connections: 1,
+                ..loopback_config()
+            },
+        );
+        actor.connections.insert(("other".into(), 1), tracked(true));
+        actor.handle_signal(offer(2)).await.unwrap();
+        let reply = next_reply(&mut replies).await;
+        assert_eq!(reply.typ, SignalType::Answer);
+        assert_eq!(reply.connection_id, 2);
+        assert_eq!(actor.connections.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn oversized_sdp_rejects_with_parsing_failure() {
+        let (outbound, mut replies) = mpsc::channel(4);
+        let mut actor = actor(
+            Arc::new(RecordingSignaling(outbound)),
+            NetherNetListenerConfig {
+                max_sdp_size: 64,
+                ..loopback_config()
+            },
+        );
+        actor.handle_signal(offer(3)).await.unwrap();
+        let reply = next_reply(&mut replies).await;
+        assert_eq!(reply.typ, SignalType::Error);
+        assert_eq!(reply.connection_id, 3);
+        assert_eq!(
+            reply.data,
+            (SignalErrorCode::SignalingParsingFailure as i32).to_string()
+        );
+        assert!(actor.connections.is_empty());
+    }
+
+    /// Signaling whose sends never complete, counting those in flight.
+    struct StuckSignaling(Arc<std::sync::atomic::AtomicUsize>);
+    #[async_trait::async_trait]
+    impl Signaling for StuckSignaling {
+        async fn signal(&self, _: Signal) -> anyhow::Result<()> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            std::future::pending().await
+        }
+        fn network_id(&self) -> String {
+            "local".into()
+        }
+    }
+
+    /// Each rejection used to spawn its own reply task, so a flood of
+    /// offers (each task living up to 2 s) created tasks without bound.
+    #[tokio::test]
+    async fn rejection_replies_are_bounded() {
+        let in_flight = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut actor = actor(
+            Arc::new(StuckSignaling(in_flight.clone())),
+            NetherNetListenerConfig {
+                max_sdp_size: 64,
+                ..loopback_config()
+            },
+        );
+        for id in 0..200 {
+            actor.handle_signal(offer(id)).await.unwrap();
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let sending = in_flight.load(Ordering::SeqCst);
+        assert!(sending > 0, "rejections are still replied to");
+        assert!(sending <= 32, "{sending} rejection replies in flight");
+        assert!(actor.connections.is_empty());
+    }
+
+    /// End to end: with a negotiation limit of one, a connected peer must
+    /// not stop a second peer from connecting. Before the fix the accepted
+    /// connection kept counting and the second dial got `CONNECTERROR` 16.
+    #[tokio::test]
+    async fn connected_peer_does_not_use_up_the_negotiation_limit() {
+        let (server, client) = crate::test_support::signaling_pair(false);
+        let mut listener = NetherNetListener::bind_with_signaling(
+            server,
+            NetherNetListenerConfig {
+                max_pending_connections: 1,
+                ..loopback_config()
+            },
+        );
+        let dialer = crate::NetherNetDialer::connect_with_signaling(
+            client,
+            crate::NetherNetDialerConfig {
+                transport: TransportConfig::loopback_v4(),
+                allow_identityless_server: true,
+                ..Default::default()
+            },
+        );
+        let mut held = Vec::new();
+        for attempt in 1..=2 {
+            let (dialed, accepted) = timeout(Duration::from_secs(14), async {
+                tokio::join!(dialer.dial("1".into()), listener.accept())
+            })
+            .await
+            .unwrap_or_else(|_| panic!("dial {attempt} timed out"));
+            let dialed = dialed.unwrap_or_else(|error| panic!("dial {attempt} failed: {error}"));
+            held.push((dialed, accepted.unwrap()));
+        }
     }
 }

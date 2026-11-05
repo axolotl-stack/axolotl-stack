@@ -32,11 +32,11 @@ when you start; the owner approves 0033 in that pull request.
 
 ### New Capabilities
 
-- `world-storage`: what the server guarantees about saved worlds.
+None.
 
 ### Modified Capabilities
 
-None.
+- `world-storage`: subchunk palettes change from runtime ids to name + states; unknown entries become load errors.
 
 ## Impact
 

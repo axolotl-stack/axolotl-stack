@@ -13,7 +13,32 @@ using it are in [AGENTS.md](../AGENTS.md).
 | [`solutions/`](solutions/) | What did we learn the hard way? | after non-trivial work | `capture-solution` skill |
 | [`research/`](research/) | Long-form background (algorithms, data surveys) | rarely; dated files | by hand / `bedrock-research` skill |
 | [`audits/`](audits/) | Point-in-time reviews and their remediation | dated files, historical once superseded | by hand |
-| [`guides/`](guides/) | How to do something (build plugins, run tooling) | when the workflow changes | by hand |
+| [`guides/`](guides/) | How to do something: [plugins](guides/plugins.md), [measurement and verification tools](guides/tools.md) | when the workflow changes | by hand |
+
+## Specs by crate
+
+| Spec | Crates | Contract |
+|---|---|---|
+| [protocol-codec](../openspec/specs/protocol-codec/spec.md) | `valentine`, `bedrock_core` | wire primitives, bounds, frame decoding |
+| [protocol-generator](../openspec/specs/protocol-generator/spec.md) | `valentine_gen` | inputs, phases, fail-fast generation, never hand-edited output |
+| [raknet](../openspec/specs/raknet/spec.md) | `tokio-raknet` | reliability, ordering, windows, MTU, timeouts |
+| [nethernet](../openspec/specs/nethernet/spec.md) | `tokio-nethernet` | WebRTC transport, signaling, discovery, bounds |
+| [session-handshake](../openspec/specs/session-handshake/spec.md) | `jolyne` | join order, compression, encryption, batching, deadlines |
+| [xbl-auth](../openspec/specs/xbl-auth/spec.md) | `axolotl-xbl`, `jolyne` | token flows, key trust, online/offline identity |
+| [friend-gateway](../openspec/specs/friend-gateway/spec.md) | `axelerator` | session advertisement, transfer, upkeep |
+| [server-authority](../openspec/specs/server-authority/spec.md) | `unastar` | what the server re-checks; packet budgets |
+| [server-config](../openspec/specs/server-config/spec.md) | `unastar` | `unastar.toml` loading and validation |
+| [world-storage](../openspec/specs/world-storage/spec.md) | `unastar` | chunk and player persistence |
+| [plugin-host](../openspec/specs/plugin-host/spec.md) | `unastar`, `unastar-api`, `unastar-api-macros` | WIT world, limits, event order |
+| [pack-loader](../openspec/specs/pack-loader/spec.md) | `unastar-packs` | pack reading and BDS-exact normalisation |
+| [rules-engine](../openspec/specs/rules-engine/spec.md) | `unastar-rules` | filters, events, Molang, loot |
+| [game-data](../openspec/specs/game-data/spec.md) | `unastar-data` | data sources, build-time generation, attribution |
+| [worldgen-pipeline](../openspec/specs/worldgen-pipeline/spec.md) | `unastar_noise`, `unastar_bedrock_codegen`, `unastar` | generators, AOT build, determinism, ratchets |
+| [parity-catalog](../openspec/specs/parity-catalog/spec.md) | `parity` | what `parity check` enforces |
+
+Dev tooling (`bds-extractor`, `bds-sweep`, `client-diff`, `bench-compare`, `tools/*`) has no spec;
+[guides/tools.md](guides/tools.md) says what each measures and which specs and parity rows use it.
+Vanilla gameplay is specified by [parity](parity/README.md), not by OpenSpec.
 
 ## The loop
 
