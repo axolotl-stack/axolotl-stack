@@ -92,10 +92,12 @@ fn comments_name_no_engine_internals() {
 
 #[test]
 fn the_scanner_flags_both_shapes_and_spares_links_and_snake_case() {
-    assert!(looks_internal("Enchant::Type"));
-    assert!(looks_internal("selectEnchantments"));
+    // Made-up shapes only: real engine names must not appear here either.
+    assert!(looks_internal("Outer::Inner"));
+    assert!(looks_internal("doThing"));
+    assert!(looks_internal("doThing(50)"));
     assert!(looks_internal("nextInt(50) <= cost"));
-    assert!(!looks_internal("select_enchantments"));
+    assert!(!looks_internal("do_thing"));
     assert!(!looks_internal("minecraft:zombie"));
     assert!(!looks_internal("minecraft:muttonRaw"));
     assert!(!looks_internal("crate::loot"));
