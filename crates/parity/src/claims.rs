@@ -43,7 +43,14 @@ pub struct Claim {
     /// Plain string prefixes of row ids (`bedrock/`, `world.`).
     #[serde(default)]
     pub prefixes: Vec<String>,
+    /// The active OpenSpec change doing the work, `openspec/changes/<change>/`;
+    /// checked by [`validate_changes`]. Claims made without a change may omit it.
+    #[serde(default)]
+    pub change: Option<String>,
 }
+
+/// Where OpenSpec keeps in-flight changes, relative to the repository root.
+pub const CHANGES_DIR: &str = "openspec/changes";
 
 impl Claim {
     /// Whether this claim covers `row` of `domain`.
@@ -142,6 +149,57 @@ pub fn validate(claims: &[Claim], domains: &[&DomainRows]) -> Vec<String> {
         }
     }
     problems.extend(overlaps(claims, domains));
+    problems
+}
+
+/// Problems with the OpenSpec `change` each claim names: the change must be
+/// an active one under [`CHANGES_DIR`] with a `proposal.md`. A change that has
+/// been archived (`archive/<date>-<change>`) means the work is finished and the
+/// claim is stale, so the claim must be removed in the archiving commit.
+pub fn validate_changes(claims: &[Claim], root: &Path) -> Vec<String> {
+    let changes = root.join(CHANGES_DIR);
+    let mut problems = Vec::new();
+    for claim in claims {
+        let Some(change) = &claim.change else {
+            continue;
+        };
+        let mut problem = |text: String| {
+            problems.push(format!("{FILE}: claim `{}`: {text}", claim.area));
+        };
+        let well_formed = !change.is_empty()
+            && change
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+        if !well_formed {
+            problem(format!(
+                "`change` `{change}` is not an OpenSpec change name (kebab-case)"
+            ));
+            continue;
+        }
+        if changes.join(change).join("proposal.md").is_file() {
+            continue;
+        }
+        let archived = std::fs::read_dir(changes.join("archive"))
+            .into_iter()
+            .flatten()
+            .flatten()
+            .any(|entry| {
+                entry
+                    .file_name()
+                    .to_str()
+                    .and_then(|name| name.get(11..))
+                    .is_some_and(|rest| rest == change)
+            });
+        if archived {
+            problem(format!(
+                "change `{change}` is archived; the work is finished, so remove this claim"
+            ));
+        } else {
+            problem(format!(
+                "no active OpenSpec change `{change}` ({CHANGES_DIR}/{change}/proposal.md)"
+            ));
+        }
+    }
     problems
 }
 
@@ -325,6 +383,62 @@ mod tests {
                 .any(|p| p.contains("`since` must be a date"))
         );
         assert!(problems.iter().any(|p| p.contains("selects nothing")));
+    }
+
+    /// A throwaway repository root holding `openspec/changes/` entries.
+    fn changes_root(name: &str, active: &[&str], archived: &[&str]) -> std::path::PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("parity-claims-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for change in active {
+            let dir = root.join(CHANGES_DIR).join(change);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("proposal.md"), "# Proposal\n").unwrap();
+        }
+        for change in archived {
+            let dir = root
+                .join(CHANGES_DIR)
+                .join("archive")
+                .join(format!("2026-11-04-{change}"));
+            std::fs::create_dir_all(&dir).unwrap();
+        }
+        root
+    }
+
+    fn claim_with_change(change: &str) -> Vec<Claim> {
+        claims(&format!(
+            "[[claim]]\narea = 'Liquids'\nowner = '@someone'\nsince = 2026-11-04\n\
+             domain = 'blocks'\nfamilies = ['liquids']\nchange = '{change}'\n"
+        ))
+    }
+
+    #[test]
+    fn a_claim_may_name_its_active_openspec_change() {
+        let root = changes_root("active", &["liquid-flow"], &[]);
+        assert!(validate_changes(&claim_with_change("liquid-flow"), &root).is_empty());
+        assert!(validate_changes(&claims(LIQUIDS), &root).is_empty());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn claims_naming_missing_archived_or_malformed_changes_are_rejected() {
+        let root = changes_root("stale", &[], &["liquid-flow"]);
+        let archived = validate_changes(&claim_with_change("liquid-flow"), &root);
+        assert!(
+            archived.len() == 1 && archived[0].contains("is archived"),
+            "{archived:?}"
+        );
+        let missing = validate_changes(&claim_with_change("liquid-flo"), &root);
+        assert!(
+            missing.len() == 1 && missing[0].contains("no active OpenSpec change"),
+            "{missing:?}"
+        );
+        let malformed = validate_changes(&claim_with_change("Liquid Flow"), &root);
+        assert!(
+            malformed.len() == 1 && malformed[0].contains("kebab-case"),
+            "{malformed:?}"
+        );
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

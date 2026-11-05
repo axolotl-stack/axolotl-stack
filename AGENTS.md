@@ -1,108 +1,107 @@
 # AGENTS.md
 
-## Repo Summary
-- Workspace: `axolotl-stack`
-- Domain: Minecraft Bedrock Edition server, protocol, transport, auth, and tooling
-- Language: Rust
-- Rust edition: `2024` (workspace-level)
-- Async runtime: `tokio`
-- ECS: `bevy_ecs 0.17`
+Instructions for coding agents (Claude Code, Codex) and humans working in `axolotl-stack`:
+a Rust workspace for Minecraft: Bedrock Edition servers, proxies and tooling. The reference
+behaviour is **BDS 1.26.51, protocol 2193**. Product overview: [README.md](README.md).
 
-## Primary Goal
-- Keep the workspace modular: protocol/data generation, transport, auth, and server logic are separate layers and should stay that way.
-- Prefer maintainable Rust over clever generation shortcuts, especially in protocol code.
-- When behavior should survive regeneration, change the generator, not the generated files.
+## Hard rules
 
-## Working Expectations
-- Prefer targeted changes over broad refactors unless the task explicitly asks for restructuring.
-- Keep crate boundaries clear. Shared runtime code belongs in `bedrock_core`; version-specific generated protocol code belongs under `bedrock_versions`; generator logic belongs in `valentine_gen`.
-- Match existing Rust style in each crate.
-- For generator work, prefer `quote`, `syn`, `proc-macro2`, and `prettyplease` over stringly code emission.
-- Treat generated artifacts carefully. Hand-edit generated output only when the task is explicitly about debugging or patching a generated file.
-- Document non-obvious generator phases, naming transforms, and protocol quirks close to the code.
+1. **Parity rule.** A gameplay feature is not finished until its rows in `docs/parity/<domain>.toml`
+   are updated in the same commit, then `cargo run -p parity -- generate` and `-- check` pass.
+   Use the `parity-update` skill. Details: [docs/parity/README.md](docs/parity/README.md).
+2. **Provenance rule.** Never write Bedrock server or client internal class, function or symbol
+   names, addresses or offsets in code, comments, docs, tests, fixtures or commit messages.
+   Black-box provenance ("matches the BDS 1.26.51 capture") is fine.
+3. **Copy BDS exactly**, quirks included, and record every odd behaviour you copy in
+   [docs/quirks/bds.md](docs/quirks/bds.md) (Java worldgen: [docs/quirks/java.md](docs/quirks/java.md)).
+   Built-in facts BDS doesn't ship as data are measured from BDS, not taken from wikis.
+   See [docs/decisions/](docs/decisions/).
+4. **Generated code is not edited by hand.** `crates/valentine/bedrock_versions/v1_26_51` and
+   `crates/valentine/src/bedrock` come from `valentine_gen`; change the generator and regenerate
+   (`regen-protocol` skill). CI regenerates and fails on any diff.
+5. **Fail fast.** Don't hide protocol or data quirks in fallback logic or guessed wire types.
+6. **Keep layers separate.** Transport, protocol, auth and server logic are distinct crates.
+   Shared codec runtime → `bedrock_core`; generated protocol → `bedrock_versions`; generator
+   logic → `valentine_gen`; Bevy-free rules/packs → `unastar-rules` / `unastar-packs`.
 
-## Validation
-- After code changes, run `cargo clippy`.
-- If the change is scoped to one crate, start with `cargo clippy -p <crate>`.
-- If the change affects shared code, generated protocol code, or workspace wiring, follow with broader validation.
-- Run targeted tests when practical, especially `valentine` roundtrip and packet codec tests.
-- If generator output changes, regenerate and verify the generated crate still compiles.
+## Toolchain and validation
 
-## Workspace Map
-- `crates/valentine`: Bedrock protocol surface used by the rest of the workspace.
-- `crates/valentine/bedrock_core`: Shared Bedrock codec/runtime primitives and errors.
-- `crates/valentine/bedrock_versions/v1_26_51`: Checked-in generated protocol crate for the current version.
-- `crates/valentine_gen`: Bedrock protocol/data generator.
-- `crates/jolyne`: Higher-level protocol engine/state handling.
-- `crates/tokio-raknet`: Async RakNet transport.
-- `crates/tokio-nethernet`: Async NetherNet transport.
-- `crates/axolotl-xbl`: Xbox Live and Minecraft auth flows.
-- `crates/axelerator`: Friend-broadcasting gateway/proxy tooling.
-- `crates/unastar`: Main server binary and gameplay/server runtime work.
-- `crates/unastar-api`: Plugin API surface.
-- `crates/unastar-api-macros`: Proc macros for plugin authoring.
-- `crates/example-plugin`: Example plugin implementation.
-- `crates/unastar-data`: Data/codegen support for server-side content.
-- `crates/bds-extractor`: Bedrock data extraction tooling.
-- `crates/parity`: Vanilla-parity catalog tool (`parity generate` / `parity check`) for `docs/parity/`; a feature is not finished until its parity rows are updated in the same commit.
+- Rust `nightly-2026-03-05` (pinned in `rust-toolchain.toml`, uses `portable_simd`), edition 2024,
+  `tokio`, `bevy_ecs 0.17`. Clone with `--recurse-submodules`.
+- Native deps for `bleveldb-sys`: Linux `zlib1g-dev libsnappy-dev`; Windows vcpkg `zlib` + `snappy`
+  (`x64-windows-static-md`) with `VCPKG_ROOT` set.
+- Before you call work done, run what CI runs (`.github/workflows/test.yml`) for what you touched:
 
-## Protocol And Codegen Notes
-- Primary protocol work lives in `crates/valentine` and `crates/valentine_gen`.
-- The default protocol input is the pinned protocolgen canonical manifest under `crates/valentine_gen/protocolgen/generated/1.26.51/manifest.json` (submodule `cinnabar-mc/protocolgen`).
-- Legacy protocol and data inputs live under `crates/valentine_gen/minecraft-data`, `crates/valentine_gen/bedrock-data`, `crates/valentine_gen/bedrock-protocol-docs`, and `crates/valentine_gen/endstone-docs`.
-- The generator should have distinct phases:
-  - parse schema input into IR
-  - analyze containers, discriminators, and arguments
-  - resolve naming and canonical identities
-  - emit Rust modules
-- Packet argument typing should have one source of truth. Signature building, codec args generation, and packet dispatch should reuse the same resolved analysis.
-- Cross-version packet/type dedup is desirable, but only if canonical paths and reuse rules are explicit and easy to inspect.
-- Prefer improving generator modularity in `crates/valentine_gen/src/generator/*` rather than embedding more logic into generated modules.
-- Emitted Rust should be straightforward to inspect: explicit imports, clear module boundaries, and minimal glob ambiguity.
+```sh
+cargo fmt --all -- --check
+cargo clippy -p <crate> --all-targets -- -D warnings     # then --workspace if shared code moved
+cargo test -p <crate>
+cargo run -p parity -- check
+openspec validate --all --strict                          # when openspec/ changed
+```
 
-## Valentine Notes
-- `valentine` re-exports generated version crates behind feature flags.
-- The checked-in workspace currently defaults to `bedrock_1_26_51`.
-- Prefer importing from `valentine::bedrock::version::vX_Y_Z` in application code unless the raw generated crate is specifically needed.
-- Bedrock strings are intentionally decoded lossily for wire compatibility with existing ecosystem behavior such as `gophertunnel`.
+- Generator output changed? `cargo run -p valentine_gen -- --latest`, `cargo fmt --all`, then
+  `cargo test -p valentine`.
+- jolyne feature combinations are linted separately in CI; run them when touching jolyne features.
 
-## Valentine Generator Notes
-- `crates/valentine_gen/src/main.rs` is the generator entrypoint.
-- `src/ir.rs` is the internal representation of parsed schema data.
-- `src/generator/resolver.rs` is the main analysis layer for containers, dependencies, and codec args.
-- `src/generator/definitions.rs` handles type/container definition emission and canonical registration.
-- `src/generator/codec.rs` handles `BedrockCodec` generation.
-- `src/generator/mod.rs` coordinates module generation and version crate output.
-- Prefer helper modules for naming and emission when logic starts mixing traversal, typing, and file writing.
-- If cross-version reuse is changed, also verify the generated version crate `Cargo.toml` dependency wiring.
+## Workspace map
 
-## Practical Conventions
-- Use `rg` / `rg --files` for search.
-- Prefer small helper functions and modules when generator logic starts mixing traversal, naming, and token emission.
-- Add doc comments where they improve maintainability, especially around protocol layout, generator phases, and non-obvious data transformations.
-- Update nearby `README.md` files when behavior, workflow, or architecture changes.
-- Avoid hiding protocol quirks in fallback logic. Failing fast is usually better than silently generating guessed wire types.
+| Path | What |
+|---|---|
+| `crates/valentine` (+ `bedrock_core`, `bedrock_versions/v1_26_51`) | Protocol surface, codec runtime, generated packets. Import via `valentine::bedrock::version::v1_26_51`. |
+| `crates/valentine_gen` | Protocol generator. **Read [its AGENTS.md](crates/valentine_gen/AGENTS.md) before editing.** |
+| `crates/jolyne` | Protocol engine: login, encryption, compression, batching, state machine. |
+| `crates/tokio-raknet`, `crates/tokio-nethernet` | Async RakNet and NetherNet (WebRTC) transports. |
+| `crates/axolotl-xbl` | Xbox Live / Minecraft services auth. |
+| `crates/axelerator` | Friend-broadcast gateway (NetherNet + Xbox sessions, then transfer). |
+| `crates/unastar` | The server. **Read [its AGENTS.md](crates/unastar/AGENTS.md) before editing.** |
+| `crates/unastar-api`, `unastar-api-macros`, `example-plugin` | WASM plugin API (WIT world), macros, reference plugin. |
+| `crates/unastar-data` (+ `datagen`, `codegen`) | Source-attributed game data embedded into the server. |
+| `crates/unastar-rules`, `crates/unastar-packs` | Bevy-free filters/events/Molang/loot; behaviour-pack ingestion. |
+| `crates/unastar_noise`, `crates/unastar_bedrock_codegen` | Build-time AOT toolchains for the Java-style and Bedrock-style world generators. |
+| `crates/bds-extractor`, `crates/bds-sweep`, `crates/client-diff`, `crates/bench-compare` | BDS capture/extraction, scripted sweeps, wire diffing, benchmarks. Harnesses in `tools/`. What each one measures or checks: [docs/guides/tools.md](docs/guides/tools.md). |
+| `crates/parity` | Generates and checks the vanilla-parity catalog in `docs/parity/`. |
 
-## Common Commands
-- Build workspace: `cargo build --workspace`
-- Lint workspace: `cargo clippy --workspace --all-targets`
-- Lint a crate: `cargo clippy -p valentine_gen --all-targets`
-- Run `valentine` tests: `cargo test -p valentine --tests`
-- Generate latest Bedrock protocol from protocolgen: `cargo run -p valentine_gen -- --latest`
-- Generate only protocol code: `cargo run -p valentine_gen -- --latest --proto`
-- Generate specific versions together for dedup consideration: `cargo run -p valentine_gen -- --versions 1.21.120,1.21.124,1.26.0`
-- Refresh / validate the vanilla-parity catalog: `cargo run -p parity -- generate`, `cargo run -p parity -- check` (see `docs/parity/README.md`)
+## Where knowledge lives
 
-## High-Value Paths
-- Root workspace manifest: `Cargo.toml`
-- Root overview: `README.md`
-- Legacy repo notes: `CLAUDE.md`
-- Valentine crate docs: `crates/valentine/README.md`
-- Valentine generator docs: `crates/valentine_gen/README.md`
-- Generator entrypoint: `crates/valentine_gen/src/main.rs`
-- Generator modules: `crates/valentine_gen/src/generator/`
-- Runtime protocol surface: `crates/valentine/src/`
+Read the relevant entries **before** planning; write back **after** finishing. Overview:
+[docs/README.md](docs/README.md).
 
-## Legacy Note
-- `CLAUDE.md` contains older repo guidance.
-- Prefer this `AGENTS.md` as the working context file for future repository tasks.
+| Question | Location | Write it with |
+|---|---|---|
+| What do our systems guarantee? | `openspec/specs/<capability>/spec.md` | OpenSpec change → archive |
+| What are we changing right now, and why? | `openspec/changes/<name>/` | `openspec-propose` skill (`/opsx:propose`) |
+| Why is it built this way? | `docs/decisions/NNNN-*.md` (MADR) | `record-decision` skill |
+| What does vanilla do, and how far are we? | `docs/parity/` | `parity-update` skill |
+| Which odd BDS/Java behaviour do we copy? | `docs/quirks/` | `log-quirk` skill |
+| What did we learn the hard way? | `docs/solutions/<area>/*.md` | `capture-solution` skill |
+| Long-form background research | `docs/research/` | by hand |
+
+Specs describe **our** contracts (codec bounds, transport limits, plugin event order, generator
+invariants). Vanilla behaviour belongs in parity and quirks; specs link to it, never copy it.
+
+### Workflow for non-trivial work
+
+1. **Explore / propose**: `/opsx:propose` (Codex: `$openspec-propose`). Search `docs/solutions/`,
+   `docs/decisions/` and the affected specs first. Small fixes (typo, one-line bug) skip OpenSpec.
+2. **Apply**: `/opsx:apply`. Work task by task; run the validation above.
+3. **Review**: `review-change` skill on the diff before opening a PR.
+4. **Archive and compound**: `/opsx:archive` merges the delta into `openspec/specs/`; then run
+   `capture-solution` for anything surprising, `record-decision` for any choice between
+   alternatives, `log-quirk` for copied BDS oddities. Skipping this step is how docs rot.
+
+Research questions about vanilla behaviour: use the `bedrock-research` skill (source order and
+provenance rules).
+
+## Conventions
+
+- Match the style of the crate you're in. Prefer small helpers over mixed traversal/emission logic.
+- Doc comments where they help: protocol layout, generator phases, non-obvious data transforms.
+- Update the nearby `README.md` when behaviour, workflow or architecture changes.
+- Search with `rg`. Never commit tokens (`token*.json`, `mpsd_token*.json` are gitignored).
+- Tooling setup: `tools/agents/setup.sh` installs the pinned OpenSpec CLI with telemetry off.
+  Use `bun`/`bunx` for JS tooling, never `npm`/`npx`.
+- Agent skills live in `.agents/skills/` (canonical) and are mirrored to `.claude/skills/` by
+  `tools/agents/sync-skills.sh`; CI fails if they differ. `openspec-*` skills are generated by
+  `openspec update` — don't edit them; put project rules in `openspec/config.yaml`.
+- Commits: conventional style (`feat(scope):`, `fix(scope):`, `docs(scope):`).

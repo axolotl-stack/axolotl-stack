@@ -1,7 +1,7 @@
 //! Built-in mob behaviour constants that behaviour-pack data does not carry.
 //!
 //! Every value here describes how the Bedrock Dedicated Server behaves; the
-//! decisions doc's D12 table lists each one with its status ("confirmed
+//! `docs/research/mob-runtime-constants.md` lists each one with its status ("confirmed
 //! against BDS" or "provisional" with a public source). Keep the two in sync.
 
 // --- Move control -----------------------------------------------------------
