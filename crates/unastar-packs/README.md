@@ -1,7 +1,8 @@
 # unastar-packs
 
-Bevy-free behaviour-pack ingestion shared by datagen, build scripts, worldgen
-codegen and startup loaders. The brarchive reader, comment-aware JSON parser
+Bevy-free behaviour-pack ingestion shared by datagen, build scripts and worldgen
+codegen. Nothing loads packs at server runtime yet; a startup loader for addon
+packs (D5) is planned and would reuse these loaders. The brarchive reader, comment-aware JSON parser
 and versioned pack stack were moved from `unastar_bedrock_codegen` when actor
 definitions became a second consumer; consumers must not keep private copies.
 

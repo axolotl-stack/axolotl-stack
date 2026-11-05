@@ -1,7 +1,8 @@
 //! Validation shared by `generate` and `check`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::process::Command;
 
 use crate::catalog::DomainRows;
 use crate::status::{Entry, Status, StatusFile};
@@ -45,7 +46,7 @@ pub fn unknown_ids<'a>(rows: &DomainRows, entries: &'a StatusFile) -> Vec<&'a st
         .collect()
 }
 
-fn validate_entry(root: &Path, entry: &Entry, files: &mut TestFiles) -> Vec<String> {
+pub(crate) fn validate_entry(root: &Path, entry: &Entry, files: &mut TestFiles) -> Vec<String> {
     let mut problems = Vec::new();
     match entry.status {
         Status::Done | Status::Verified => {
@@ -79,6 +80,19 @@ fn validate_entry(root: &Path, entry: &Entry, files: &mut TestFiles) -> Vec<Stri
                 "evidence `{}` is not a path in the repository",
                 entry.evidence
             ));
+        } else {
+            match files.is_tracked(root, &entry.evidence) {
+                Ok(true) => {}
+                Ok(false) => problems.push(format!(
+                    "evidence `{}` is not tracked by git; commit it (an untracked or \
+                     ignored file is not evidence anyone else can check)",
+                    entry.evidence
+                )),
+                // Without git no evidence can be checked: say so once, not
+                // once per verified row.
+                Err(Some(problem)) => problems.push(problem),
+                Err(None) => {}
+            }
         }
     }
     for test in &entry.tests {
@@ -109,16 +123,113 @@ pub(crate) fn forbidden_provenance(text: &str) -> Option<&'static str> {
         .find(|pattern| lower.contains(pattern))
 }
 
-/// Cache of test files read while resolving `tests` references.
+/// Cache of test files read while resolving `tests` references, and of the
+/// paths git tracks (for `verified` evidence).
 #[derive(Default)]
 pub struct TestFiles {
     contents: HashMap<String, Option<String>>,
+    tracked: Option<Result<Tracked, String>>,
+    /// Whether the `git ls-files` failure has been reported already.
+    untracked_reported: bool,
+}
+
+/// Paths in the git index: tracked files, and submodule roots (whose
+/// contents are pinned by the superproject commit).
+#[derive(Default)]
+struct Tracked {
+    files: HashSet<String>,
+    submodules: Vec<String>,
+}
+
+impl Tracked {
+    fn list(root: &Path) -> Result<Self, String> {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(["ls-files", "-z", "--stage"])
+            .output()
+            .map_err(|e| {
+                format!(
+                    "cannot run `git ls-files` to check `verified` evidence ({e});                      run `parity` inside a git checkout"
+                )
+            })?;
+        if !output.status.success() {
+            return Err(format!(
+                "`git ls-files` failed while checking `verified` evidence ({});                  run `parity` inside a git checkout",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        Ok(Self::parse(&String::from_utf8_lossy(&output.stdout)))
+    }
+
+    /// Parses `git ls-files -z --stage` output: `<mode> <hash> <stage>\t<path>\0`.
+    fn parse(stdout: &str) -> Self {
+        let mut tracked = Tracked::default();
+        for record in stdout.split('\0').filter(|r| !r.is_empty()) {
+            let Some((meta, path)) = record.split_once('\t') else {
+                continue;
+            };
+            if meta.starts_with("160000 ") {
+                tracked.submodules.push(path.to_owned());
+            } else {
+                tracked.files.insert(path.to_owned());
+            }
+        }
+        tracked
+    }
+
+    /// Whether `path` is a tracked file, a directory holding one, or lies
+    /// inside a submodule.
+    fn contains(&self, path: &str) -> bool {
+        let Some(path) = normalise(path) else {
+            return false;
+        };
+        let path = path.as_str();
+        let under = |dir: &str, path: &str| {
+            path.strip_prefix(dir)
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+        };
+        self.files.contains(path)
+            || self.files.iter().any(|file| under(path, file))
+            || self.submodules.iter().any(|dir| under(dir, path))
+    }
+}
+
+/// `path` as git lists it: `/` separators, no `.` or empty components and
+/// `..` resolved (`./x` and `a/../x` are `x`). `None` when it climbs above
+/// the repository root.
+fn normalise(path: &str) -> Option<String> {
+    let mut parts: Vec<&str> = Vec::new();
+    for part in path.split(['/', '\\']) {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            part => parts.push(part),
+        }
+    }
+    Some(parts.join("/"))
 }
 
 impl TestFiles {
+    /// Whether git tracks `path` (relative to `root`); `git ls-files` runs once.
+    /// If it cannot run, the first call returns the problem and later calls
+    /// `Err(None)`, so the failure is reported once per run.
+    fn is_tracked(&mut self, root: &Path, path: &str) -> Result<bool, Option<String>> {
+        match self.tracked.get_or_insert_with(|| Tracked::list(root)) {
+            Ok(tracked) => Ok(tracked.contains(path)),
+            Err(problem) if !self.untracked_reported => {
+                self.untracked_reported = true;
+                Err(Some(problem.clone()))
+            }
+            Err(_) => Err(None),
+        }
+    }
+
     /// `path` must be a file in the repository; `path::name` must also define
-    /// `fn name` in it.
-    fn resolve(&mut self, root: &Path, reference: &str) -> Result<(), String> {
+    /// a `#[test]` function `name` in it.
+    pub(crate) fn resolve(&mut self, root: &Path, reference: &str) -> Result<(), String> {
         let (file, function) = match reference.split_once("::") {
             Some((file, rest)) => (file, Some(rest.rsplit("::").next().unwrap_or(rest))),
             None => (reference, None),
@@ -134,19 +245,331 @@ impl TestFiles {
             && !defines_fn(content, function)
         {
             return Err(format!(
-                "test `{reference}`: `fn {function}` not found in `{file}`"
+                "test `{reference}`: no `#[test]` function `{function}` in `{file}`"
             ));
         }
         Ok(())
     }
 }
 
+/// Whether `content` defines `fn name` as a test: the `fn` item starts its
+/// line (after `pub`/`async`/`unsafe`), so text in comments and strings does
+/// not count, and the attributes directly above it include `#[test]` or an
+/// async runtime's test attribute (`#[tokio::test]`, `#[tokio::test(...)]`).
 fn defines_fn(content: &str, name: &str) -> bool {
-    let needle = format!("fn {name}");
-    content.match_indices(&needle).any(|(at, _)| {
-        content[at + needle.len()..]
-            .chars()
-            .next()
-            .is_some_and(|c| c == '(' || c == '<' || c.is_whitespace())
+    let mut offset = 0;
+    content.split_inclusive('\n').any(|line| {
+        let start = offset;
+        offset += line.len();
+        declares_fn(line.trim_start(), name)
+            && attributes_above(&content[..start])
+                .iter()
+                .any(|attribute| is_test_attribute(attribute))
     })
+}
+
+fn declares_fn(line: &str, name: &str) -> bool {
+    let mut rest = line;
+    for qualifier in ["pub(crate) ", "pub(super) ", "pub ", "async ", "unsafe "] {
+        if let Some(stripped) = rest.strip_prefix(qualifier) {
+            rest = stripped.trim_start();
+        }
+    }
+    rest.strip_prefix("fn ")
+        .and_then(|rest| rest.trim_start().strip_prefix(name))
+        .and_then(|rest| rest.chars().next())
+        .is_some_and(|c| c == '(' || c == '<' || c.is_whitespace())
+}
+
+/// The outer attributes directly above an item whose text starts after
+/// `before`, nearest first, skipping line comments and doc comments between
+/// them. Attributes may span lines.
+fn attributes_above(before: &str) -> Vec<&str> {
+    let mut attributes = Vec::new();
+    let mut rest = before.trim_end();
+    loop {
+        let last_line = rest.rsplit('\n').next().unwrap_or(rest);
+        if last_line.trim_start().starts_with("//") {
+            rest = rest[..rest.len() - last_line.len()].trim_end();
+            continue;
+        }
+        if !rest.ends_with(']') {
+            break;
+        }
+        // Find the `#[` that opens the attribute ending here.
+        let mut depth = 0usize;
+        let mut open = None;
+        for (at, c) in rest.char_indices().rev() {
+            match c {
+                ']' => depth += 1,
+                '[' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        open = Some(at);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(at) = open.filter(|&at| rest[..at].ends_with('#')) else {
+            break;
+        };
+        attributes.push(&rest[at - 1..]);
+        rest = rest[..at - 1].trim_end();
+    }
+    attributes
+}
+
+fn is_test_attribute(attribute: &str) -> bool {
+    let inner: String = attribute.chars().filter(|c| !c.is_whitespace()).collect();
+    inner == "#[test]" || inner == "#[tokio::test]" || inner.starts_with("#[tokio::test(")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A throwaway directory, removed by the caller.
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("parity-check-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn write(root: &Path, path: &str, text: &str) {
+        let path = root.join(path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, text).unwrap();
+    }
+
+    fn git(root: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(args)
+            .status()
+            .unwrap();
+        assert!(status.success(), "git {args:?}");
+    }
+
+    fn entry(status: Status) -> Entry {
+        Entry {
+            status,
+            ..Entry::missing()
+        }
+    }
+
+    const TESTS: &str = "\
+        // fn mentioned_in_a_comment() is not a test\n\
+        fn helper() {}\n\
+        \n\
+        #[test]\n\
+        fn plain_test() {}\n\
+        \n\
+        /// Docs and other attributes may sit between.\n\
+        #[tokio::test(flavor = \"multi_thread\")]\n\
+        #[cfg_attr(\n\
+            miri,\n\
+            ignore\n\
+        )]\n\
+        async fn async_test() {}\n\
+        \n\
+        #[test]\n\
+        pub fn generic_test<T>() {}\n";
+
+    #[test]
+    fn test_references_must_name_test_functions() {
+        assert!(defines_fn(TESTS, "plain_test"));
+        assert!(defines_fn(TESTS, "async_test"));
+        assert!(defines_fn(TESTS, "generic_test"));
+        assert!(!defines_fn(TESTS, "helper"), "a non-test fn");
+        assert!(!defines_fn(TESTS, "mentioned_in_a_comment"), "comment text");
+        assert!(!defines_fn(TESTS, "plain"), "a prefix of a test name");
+        assert!(!defines_fn("let s = \"fn quoted() {}\";", "quoted"));
+    }
+
+    #[test]
+    fn resolve_checks_the_file_and_the_function() {
+        let root = scratch("resolve");
+        write(&root, "tests/a.rs", TESTS);
+        let mut files = TestFiles::default();
+        assert_eq!(files.resolve(&root, "tests/a.rs"), Ok(()));
+        assert_eq!(files.resolve(&root, "tests/a.rs::plain_test"), Ok(()));
+        assert_eq!(
+            files.resolve(&root, "tests/a.rs::module::async_test"),
+            Ok(())
+        );
+        let helper = files.resolve(&root, "tests/a.rs::helper").unwrap_err();
+        assert!(
+            helper.contains("no `#[test]` function `helper`"),
+            "{helper}"
+        );
+        let missing = files.resolve(&root, "tests/b.rs::plain_test").unwrap_err();
+        assert!(missing.contains("does not exist"), "{missing}");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn forbidden_provenance_flags_engine_internals_case_insensitively() {
+        assert_eq!(forbidden_provenance("see FUN_1234"), Some("fun_"));
+        assert_eq!(forbidden_provenance("at 0x1400a0"), Some("0x14"));
+        assert_eq!(forbidden_provenance("Decompiled from"), Some("decompil"));
+        assert_eq!(
+            forbidden_provenance("from the disassembly"),
+            Some("disassembl")
+        );
+        assert_eq!(forbidden_provenance("RVA 1234"), Some("rva "));
+        assert_eq!(
+            forbidden_provenance("matches the BDS 1.26.51 capture"),
+            None
+        );
+        assert_eq!(forbidden_provenance(""), None);
+    }
+
+    #[test]
+    fn validate_entry_requires_each_status_fields() {
+        let root = scratch("entry");
+        let mut files = TestFiles::default();
+        let mut problems = |entry: &Entry| validate_entry(&root, entry, &mut files);
+
+        assert!(problems(&entry(Status::Missing)).is_empty());
+        let done = problems(&entry(Status::Done));
+        assert!(
+            done.iter().any(|p| p.contains("needs at least one test")),
+            "{done:?}"
+        );
+        assert!(
+            done.iter().any(|p| p.contains("needs an owner")),
+            "{done:?}"
+        );
+        let partial = problems(&entry(Status::Partial));
+        assert!(partial.iter().any(|p| p.contains("`gaps`")), "{partial:?}");
+        let not_applicable = problems(&entry(Status::NotApplicable));
+        assert!(not_applicable.iter().any(|p| p.contains("`notes`")));
+
+        let verified = Entry {
+            evidence: "none".to_owned(),
+            ..entry(Status::Verified)
+        };
+        assert!(
+            problems(&verified)
+                .iter()
+                .any(|p| p.contains("native `evidence`"))
+        );
+        let absent = Entry {
+            evidence: "captures/absent.bin".to_owned(),
+            ..entry(Status::Verified)
+        };
+        assert!(
+            problems(&absent)
+                .iter()
+                .any(|p| p.contains("is not a path in the repository"))
+        );
+
+        let internals = Entry {
+            gaps: "port FUN_00 next".to_owned(),
+            ..entry(Status::Partial)
+        };
+        let found = problems(&internals);
+        assert!(
+            found.iter().any(|p| p.contains("`gaps` contains `fun_`")),
+            "{found:?}"
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn verified_evidence_must_be_tracked_by_git() {
+        let root = scratch("tracked");
+        git(&root, &["init", "-q"]);
+        write(&root, "tests/a.rs", TESTS);
+        write(&root, "captures/tracked.bin", "x");
+        write(&root, "captures/untracked.bin", "x");
+        write(&root, ".gitignore", "ignored.bin\n");
+        write(&root, "captures/ignored.bin", "x");
+        git(
+            &root,
+            &["add", "tests/a.rs", "captures/tracked.bin", ".gitignore"],
+        );
+
+        let verified = |evidence: &str| Entry {
+            status: Status::Verified,
+            owner: "someone".to_owned(),
+            tests: vec!["tests/a.rs::plain_test".to_owned()],
+            evidence: evidence.to_owned(),
+            ..Entry::missing()
+        };
+        let mut files = TestFiles::default();
+        let mut check = |evidence: &str| validate_entry(&root, &verified(evidence), &mut files);
+        assert!(check("captures/tracked.bin").is_empty());
+        assert!(
+            check("captures").is_empty(),
+            "a directory holding tracked files"
+        );
+        for spelling in [
+            "./captures/tracked.bin",
+            "captures/../captures/tracked.bin",
+            "captures/",
+        ] {
+            assert!(check(spelling).is_empty(), "{spelling}");
+        }
+        for evidence in ["captures/untracked.bin", "captures/ignored.bin"] {
+            let problems = check(evidence);
+            assert!(
+                problems.len() == 1 && problems[0].contains("is not tracked by git"),
+                "{evidence}: {problems:?}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_missing_git_checkout_is_reported_once() {
+        let root = scratch("no-git");
+        let inside_a_repo = Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(["rev-parse", "--git-dir"])
+            .output()
+            .is_ok_and(|output| output.status.success());
+        if inside_a_repo {
+            eprintln!("skipping: the temp directory is inside a git repository");
+            let _ = std::fs::remove_dir_all(root);
+            return;
+        }
+        write(&root, "tests/a.rs", TESTS);
+        let mut problems = Vec::new();
+        let mut files = TestFiles::default();
+        for name in ["a.bin", "b.bin", "c.bin"] {
+            write(&root, &format!("captures/{name}"), "x");
+            let entry = Entry {
+                status: Status::Verified,
+                owner: "someone".to_owned(),
+                tests: vec!["tests/a.rs::plain_test".to_owned()],
+                evidence: format!("captures/{name}"),
+                ..Entry::missing()
+            };
+            problems.extend(validate_entry(&root, &entry, &mut files));
+        }
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("run `parity` inside a git checkout"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn submodule_contents_count_as_tracked() {
+        let tracked =
+            Tracked::parse("100644 aaaa 0\tdocs/a.md\x00160000 bbbb 0\tdata/vanilla_bp\x00");
+        assert!(tracked.contains("docs/a.md"));
+        assert!(tracked.contains("docs"));
+        assert!(tracked.contains("data/vanilla_bp/entities/pig.json"));
+        assert!(!tracked.contains("data/vanilla_bp_extra/pig.json"));
+        assert!(!tracked.contains("doc"));
+        assert!(tracked.contains("./docs/./a.md"));
+        assert!(tracked.contains(r"docs\a.md"), "Windows separators");
+        assert!(!tracked.contains("../docs/a.md"), "outside the repository");
+        assert_eq!(normalise("a/../../b"), None);
+    }
 }

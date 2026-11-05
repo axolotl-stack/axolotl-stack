@@ -5,8 +5,8 @@
 //!
 //! The caller classifies items ([`ItemEnchanting`]: which enchantment slots
 //! the item belongs to and its enchantability); this module has no item
-//! registry. Enchantment ids are the protocol enchantment ids that item NBT
-//! stores in `ench[].id`.
+//! registry. Enchantment ids are the numeric Bedrock enchantment ids that item
+//! NBT stores in `ench[].id` (protection = 0, sharpness = 9, ...).
 //!
 //! Draws follow Bedrock's game random: a bounded integer is one 32-bit
 //! output modulo the bound and a float is one output scaled by 2^-32, so a
@@ -122,7 +122,7 @@ const DIGGER: u32 = slot::HOE | slot::AXE | slot::PICKAXE | slot::SHOVEL;
 /// Unbreaking and mending: primary and secondary slot sets.
 const DURABLE: (u32, u32) = (0x0081_1e7f, 0x0072_e1c0);
 
-/// The enchantment table, indexed by protocol enchantment id.
+/// The BDS enchantment table indexed by numeric enchantment id.
 const ENCHANTMENTS: [Definition; 42] = [
     def(10, ARMOR, 0, (1, 11), 4, 3, 0),               // protection
     def(5, ARMOR, 0, (10, 8), 4, 3, 0),                // fire_protection
@@ -171,7 +171,8 @@ const ENCHANTMENTS: [Definition; 42] = [
 /// Spread of the enchanting level: `level × (1 + uniform(-0.15, 0.15))`.
 const LEVEL_SPREAD: f32 = 0.3;
 const LEVEL_SPREAD_OFFSET: f32 = -0.15;
-/// Each extra enchantment is kept while `nextInt(50) <= cost`.
+/// Each extra enchantment is kept while a uniform roll in `0..50` is at most
+/// `cost`.
 const EXTRA_ENCHANT_ROLL: i32 = 50;
 
 impl Definition {
@@ -234,10 +235,11 @@ pub fn add_enchantment(
 /// Choose enchantments for an item at enchanting `level`: the level is
 /// spread by the item's enchantability, every applicable enchantment gets
 /// the highest level whose minimum cost it reaches, then one weighted pick
-/// plus further picks while `nextInt(50) <= cost` (cost decays to
-/// `cost * 4 / 5 + 1` each time). Picks incompatible with earlier ones are
-/// dropped. Reproduces every offer of the BDS 1.26.51 enchanting capture
-/// draw for draw.
+/// plus further picks while a uniform roll in `0..50` is at most `cost`
+/// (cost decays to `cost * 4 / 5 + 1` each time). Picks incompatible with
+/// earlier ones are dropped. Used for random gear and loot (no
+/// enchanting-table bonus); reproduces every offer of the BDS 1.26.51
+/// enchanting capture draw for draw.
 pub fn select_enchantments(
     item: ItemEnchanting,
     level: i32,

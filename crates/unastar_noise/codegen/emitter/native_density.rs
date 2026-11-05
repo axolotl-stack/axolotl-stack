@@ -264,6 +264,12 @@ impl AotEmitter<'_> {
         quote! { #cell_tokens #column_tokens }
     }
 
+    /// Regression tests for the native cell sampler, emitted into each
+    /// generated router (`{overworld,nether,end}_compiled.rs` in `OUT_DIR`).
+    /// Unlike the `#[cfg(test)]` modules of the codegen sources themselves
+    /// (which `build.rs` compiles without `cfg(test)`), these are part of the
+    /// library and run with `cargo test -p unastar_noise --lib`
+    /// (`*_compiled::native_cell_*_codegen_tests`).
     pub(super) fn emit_native_cell_regression(&mut self) -> TokenStream {
         let narrow = self.emit_native_cell_geometry_regression(4, 8);
         let wide = self.emit_native_cell_geometry_regression(8, 4);

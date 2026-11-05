@@ -660,4 +660,115 @@ mod tests {
             Err(NetherNetError::TooManyIceCandidates { .. })
         ));
     }
+
+    fn actor_with(
+        pending_dials: std::collections::HashMap<(String, u64), mpsc::Sender<Signal>>,
+    ) -> DialerActor {
+        let (_, signal_rx) = mpsc::channel(1);
+        let (_, request_rx) = mpsc::channel(1);
+        DialerActor {
+            signaling: Arc::new(NoSignaling),
+            config: NetherNetDialerConfig::default(),
+            signal_rx,
+            request_rx,
+            pending_dials,
+            local: None,
+        }
+    }
+
+    fn answer(connection_id: u64, data: String) -> Signal {
+        Signal {
+            typ: SignalType::Answer,
+            connection_id,
+            data,
+            network_id: "remote".into(),
+        }
+    }
+
+    /// At most 64 dials negotiate at once; the next one fails at once
+    /// instead of opening another session.
+    #[tokio::test]
+    async fn dial_admission_is_bounded() {
+        let mut receivers = Vec::new();
+        let pending = (0..64u64)
+            .map(|id| {
+                let (tx, rx) = mpsc::channel(1);
+                receivers.push(rx);
+                (("remote".to_string(), id), tx)
+            })
+            .collect();
+        let mut actor = actor_with(pending);
+        let (response_tx, response_rx) = oneshot::channel();
+        actor
+            .handle_request(DialerRequest::Dial {
+                network_id: "remote".into(),
+                response_tx,
+            })
+            .await;
+        assert!(matches!(
+            response_rx.await.unwrap(),
+            Err(NetherNetError::ConnectionClosed)
+        ));
+        assert_eq!(actor.pending_dials.len(), 64);
+    }
+
+    #[tokio::test]
+    async fn oversized_signals_are_not_routed() {
+        let (tx, mut rx) = mpsc::channel(1);
+        let mut actor = actor_with(std::collections::HashMap::from([(
+            ("remote".into(), 7),
+            tx,
+        )]));
+        actor
+            .dispatch_signal(answer(7, "a".repeat(1024 * 1024 + 1)))
+            .await;
+        assert!(rx.try_recv().is_err(), "oversized signal was delivered");
+        actor.dispatch_signal(answer(7, "a".repeat(16))).await;
+        assert!(rx.try_recv().is_ok());
+    }
+
+    /// A peer that floods its own subscription loses it instead of
+    /// blocking the dispatcher for every other dial.
+    #[tokio::test]
+    async fn congested_subscription_is_dropped() {
+        let (tx, _rx) = mpsc::channel(1);
+        let mut actor = actor_with(std::collections::HashMap::from([(
+            ("remote".into(), 7),
+            tx,
+        )]));
+        actor.dispatch_signal(answer(7, "first".into())).await;
+        assert!(actor.pending_dials.contains_key(&("remote".into(), 7)));
+        actor.dispatch_signal(answer(7, "second".into())).await;
+        assert!(!actor.pending_dials.contains_key(&("remote".into(), 7)));
+    }
+
+    /// Candidates arriving before the answer are buffered up to 32; one
+    /// more fails the dial.
+    #[tokio::test]
+    async fn pre_answer_candidate_buffer_is_bounded() {
+        let (tx, rx) = mpsc::channel(64);
+        for index in 0..33 {
+            tx.try_send(Signal {
+                typ: SignalType::Candidate,
+                connection_id: 7,
+                data: format!("candidate:{index} 1 udp 2130706431 127.0.0.1 9 typ host"),
+                network_id: "remote".into(),
+            })
+            .unwrap();
+        }
+        let result = perform_dial(
+            7,
+            "remote".into(),
+            Arc::new(NoSignaling),
+            NetherNetDialerConfig {
+                transport: TransportConfig::loopback_v4(),
+                allow_identityless_server: true,
+                ..Default::default()
+            },
+            LocalIdentity::generate().unwrap(),
+            rx,
+        )
+        .await;
+        assert!(matches!(result, Err(NetherNetError::InvalidPacket)));
+    }
 }

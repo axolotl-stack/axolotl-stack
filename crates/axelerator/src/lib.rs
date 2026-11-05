@@ -28,7 +28,7 @@ pub use config::{
     AxeleratorConfig, ConfigError, DiscordWebhookConfig, FriendExpiryConfig, LoggingConfig,
     ScreenshotConfig,
 };
-pub use discord::{DiscordNotifier, NotificationLevel};
+pub use discord::{DiscordNotifier, NotificationKind, NotificationLevel};
 pub use screenshots::ScreenshotManager;
 pub use session::Axelerator;
 pub use token_cache::{CachedToken, TokenCache};

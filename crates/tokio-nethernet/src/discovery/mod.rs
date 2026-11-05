@@ -48,6 +48,39 @@ const MAX_UDP_PACKET_SIZE: usize = 65_535;
 /// Local resource policy, not a wire constant. Responses share the admitted address set.
 const MAX_DISCOVERY_PEERS: usize = 1024;
 
+/// First delay after a non-benign receive error; doubles per consecutive error.
+const RECV_ERROR_INITIAL_BACKOFF: Duration = Duration::from_millis(10);
+/// Longest delay between receive attempts while the socket keeps failing.
+const RECV_ERROR_MAX_BACKOFF: Duration = Duration::from_secs(1);
+
+/// What the receive loop does after `recv_from` fails. It never stops: the
+/// socket stays bound for the listener's lifetime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecvErrorAction {
+    /// Expected noise for broadcast UDP; receive again at once.
+    Ignore,
+    /// Log, wait, and receive again.
+    Backoff,
+}
+
+fn recv_error_action(error: &std::io::Error) -> RecvErrorAction {
+    use std::io::ErrorKind;
+    match error.kind() {
+        // ICMP port unreachable for an earlier send (WSAECONNRESET on
+        // Windows, ECONNREFUSED elsewhere) and interrupted calls.
+        ErrorKind::ConnectionReset | ErrorKind::ConnectionRefused | ErrorKind::Interrupted => {
+            return RecvErrorAction::Ignore;
+        }
+        _ => {}
+    }
+    // WSAEMSGSIZE: Windows reports a truncated datagram as an error.
+    #[cfg(windows)]
+    if error.raw_os_error() == Some(10040) {
+        return RecvErrorAction::Ignore;
+    }
+    RecvErrorAction::Backoff
+}
+
 /// Configuration for discovery listener.
 #[derive(Clone)]
 pub struct DiscoveryListenerConfig {
@@ -161,7 +194,10 @@ pub struct DiscoveryListener {
     config: DiscoveryListenerConfig,
     addresses: RwLock<HashMap<u64, AddressEntry>>,
     responses: RwLock<HashMap<u64, ResponseEntry>>,
-    pong_data: RwLock<Option<Vec<u8>>>,
+    /// Encoded server data. A synchronous lock: `Signaling::set_pong_data`
+    /// is not async and must never drop an update, and no guard is held
+    /// across an await.
+    pong_data: parking_lot::RwLock<Option<Vec<u8>>>,
     signal_tx: mpsc::Sender<Signal>,
     signal_rx: RwLock<Option<mpsc::Receiver<Signal>>>,
     /// Reused wire-text buffer for outgoing signals; held only while encoding.
@@ -193,7 +229,7 @@ impl DiscoveryListener {
             config,
             addresses: RwLock::new(HashMap::new()),
             responses: RwLock::new(HashMap::new()),
-            pong_data: RwLock::new(None),
+            pong_data: parking_lot::RwLock::new(None),
             signal_tx,
             signal_rx: RwLock::new(Some(signal_rx)),
             signal_text: parking_lot::Mutex::new(String::new()),
@@ -223,7 +259,7 @@ impl DiscoveryListener {
     /// client only broadcasts while browsing).
     pub async fn set_server_data(&self, data: ServerData) {
         let bytes = data.encode();
-        *self.pong_data.write().await = Some(bytes);
+        *self.pong_data.write() = Some(bytes);
     }
 
     /// Send the current server data to `addr` without a request. The client
@@ -231,7 +267,7 @@ impl DiscoveryListener {
     /// request state), so this makes a server visible to a client whose
     /// broadcasts cannot reach this socket, e.g. a loopback-only one.
     pub async fn send_server_data_to(&self, addr: SocketAddr) -> std::io::Result<()> {
-        let response = match self.pong_data.read().await.as_ref() {
+        let response = match self.pong_data.read().as_ref() {
             Some(data) => packet::encode_response(self.config.network_id, data),
             None => {
                 return Err(std::io::Error::new(
@@ -259,10 +295,12 @@ impl DiscoveryListener {
     async fn listen_loop(&self) {
         // Full UDP-sized storage prevents OS-level truncation of ordinary datagrams.
         let mut buf = vec![0u8; MAX_UDP_PACKET_SIZE];
+        let mut backoff = RECV_ERROR_INITIAL_BACKOFF;
         debug!("Discovery listener started, waiting for packets...");
         loop {
             match self.socket.recv_from(&mut buf).await {
                 Ok((len, addr)) => {
+                    backoff = RECV_ERROR_INITIAL_BACKOFF;
                     // A capacity-sized read may be truncated (e.g. a jumbogram).
                     if len == buf.len() {
                         continue;
@@ -277,24 +315,25 @@ impl DiscoveryListener {
                         debug!(error = %e, from = %addr, "Error handling discovery packet");
                     }
                 }
-                Err(e) => {
-                    // On Windows, error 10054 (WSAECONNRESET) happens when we
-                    // send to a port with no listener. This is normal for UDP
-                    // broadcast/discovery - just ignore and continue.
-                    #[cfg(windows)]
-                    if e.raw_os_error() == Some(10054) {
-                        trace!(error = %e, "Ignoring WSAECONNRESET (no listener on broadcast target)");
-                        continue;
+                Err(e) => match recv_error_action(&e) {
+                    RecvErrorAction::Ignore => {
+                        trace!(error = %e, "Ignoring discovery receive error");
                     }
-                    #[cfg(windows)]
-                    if e.raw_os_error() == Some(10040) {
-                        // WSAEMSGSIZE: discard a truncated datagram, keep receiving.
-                        continue;
+                    RecvErrorAction::Backoff => {
+                        // A receive error is a property of one datagram or a
+                        // momentary socket condition (ICMP unreachable, no
+                        // buffers, an interface going down), never a reason
+                        // to stop serving LAN discovery. Back off so a
+                        // persistent error cannot spin the task.
+                        warn!(
+                            error = %e,
+                            retry_ms = backoff.as_millis() as u64,
+                            "Discovery socket receive error"
+                        );
+                        tokio::time::sleep(backoff).await;
+                        backoff = (backoff * 2).min(RECV_ERROR_MAX_BACKOFF);
                     }
-
-                    warn!(error = %e, "Discovery socket error");
-                    break;
-                }
+                },
             }
         }
     }
@@ -306,7 +345,7 @@ impl DiscoveryListener {
 
             self.expire_peers(Instant::now()).await;
 
-            if self.pong_data.read().await.is_some() {
+            if self.pong_data.read().is_some() {
                 continue;
             }
             let request = packet::encode_request(self.config.network_id);
@@ -371,7 +410,7 @@ impl DiscoveryListener {
             // Requests are answered at their source but teach no address
             // (the client's peer database learns from responses and messages).
             packet::Packet::Request => {
-                if let Some(data) = self.pong_data.read().await.as_ref() {
+                if let Some(data) = self.pong_data.read().as_ref() {
                     trace!(to = %addr, len = data.len(), "Sending discovery response");
                     let response = packet::encode_response(self.config.network_id, data);
                     // A saturated UDP send queue must not stall inbound signaling.
@@ -486,9 +525,7 @@ impl Signaling for DiscoveryListener {
                 ..Default::default()
             };
             let bytes = server_data.encode();
-            if let Ok(mut guard) = self.pong_data.try_write() {
-                *guard = Some(bytes);
-            }
+            *self.pong_data.write() = Some(bytes);
         }
     }
 }
@@ -515,7 +552,7 @@ mod tests {
             },
             addresses: RwLock::new(HashMap::new()),
             responses: RwLock::new(HashMap::new()),
-            pong_data: RwLock::new(None),
+            pong_data: parking_lot::RwLock::new(None),
             signal_tx,
             signal_rx: RwLock::new(Some(signal_rx)),
             signal_text: parking_lot::Mutex::new(String::new()),
@@ -706,5 +743,67 @@ mod tests {
             request_destinations([net("192.168.1.20", "255.255.255.0")], 7551, true),
             [addr("[::ffff:192.168.1.255]:7551"), addr("[ff02::1]:7551")]
         );
+    }
+
+    /// Receive errors used to end the listen loop on every platform but
+    /// Windows, silently stopping LAN discovery for the listener's lifetime.
+    #[test]
+    fn receive_errors_never_stop_listening() {
+        use std::io::{Error, ErrorKind};
+        for kind in [
+            ErrorKind::ConnectionRefused,
+            ErrorKind::ConnectionReset,
+            ErrorKind::Interrupted,
+        ] {
+            assert_eq!(
+                recv_error_action(&Error::from(kind)),
+                RecvErrorAction::Ignore
+            );
+        }
+        for kind in [
+            ErrorKind::Other,
+            ErrorKind::OutOfMemory,
+            ErrorKind::NetworkDown,
+            ErrorKind::AddrNotAvailable,
+            ErrorKind::PermissionDenied,
+        ] {
+            assert_eq!(
+                recv_error_action(&Error::from(kind)),
+                RecvErrorAction::Backoff
+            );
+        }
+    }
+
+    /// `set_pong_data` used to `try_write` and drop the update whenever a
+    /// discovery reply was reading the current data at the same moment.
+    #[tokio::test]
+    async fn contended_pong_data_update_is_not_dropped() {
+        let listener = Arc::new(listener().await);
+        let (held, release) = std::sync::mpsc::channel::<()>();
+        let (locked_tx, locked_rx) = std::sync::mpsc::channel::<()>();
+        let reader = listener.clone();
+        let holder = std::thread::spawn(move || {
+            let _guard = reader.pong_data.read();
+            locked_tx.send(()).unwrap();
+            let _ = release.recv_timeout(Duration::from_millis(100));
+        });
+        locked_rx.recv().unwrap();
+        listener.set_pong_data(b"MCPE;Server;1;1.0;2;10;1;Level;Survival;");
+        drop(held);
+        holder.join().unwrap();
+        let encoded = listener.pong_data.read().clone().expect("update dropped");
+        let expected = ServerData {
+            server_name: "Server".into(),
+            level_name: "Level".into(),
+            player_count: 2,
+            max_player_count: 10,
+            game_type: 0,
+            editor_world: false,
+            hardcore: false,
+            transport_layer: TransportLayer::NetherNet,
+            connection_type: 4,
+            ..Default::default()
+        };
+        assert_eq!(encoded, expected.encode());
     }
 }

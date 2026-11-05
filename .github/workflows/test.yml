@@ -44,7 +44,10 @@ jobs:
             crates/valentine/Cargo.toml
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: |
+          cargo clippy --workspace --all-targets -- -D warnings
+          # Workspace feature unification never enables every transport feature.
+          cargo clippy -p tokio-nethernet --all-targets --all-features -- -D warnings
 
       - name: Vanilla parity catalog
         # Fails when a generated row has no status, a status names an unknown
@@ -67,11 +70,16 @@ jobs:
           cargo test -p valentine
           cargo test -p jolyne --all-features
           cargo test -p tokio-nethernet
+          cargo test -p tokio-nethernet --all-features
           cargo test -p axolotl-xbl
           cargo test -p parity
           cargo test -p unastar-rules -p unastar-packs -p unastar-data
+          cargo test -p axelerator
           cargo check -p unastar --all-targets
           cargo test -p unastar --lib --tests
+          # Build-time worldgen toolchains; their BDS-install tests skip
+          # without UNASTAR_BDS_DIR.
+          cargo test -p unastar_noise -p unastar_bedrock_codegen
 
   knowledge:
     # The project knowledge system (AGENTS.md, openspec/, docs/, agent skills); see docs/README.md.
@@ -140,7 +148,9 @@ jobs:
           cargo test -p valentine
           cargo test -p jolyne --all-features
           cargo test -p tokio-nethernet
+          cargo test -p tokio-nethernet --all-features
           cargo test -p axolotl-xbl
+          cargo test -p axelerator
           cargo check -p unastar --all-targets
           cargo test -p unastar --lib --tests
 
