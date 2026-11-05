@@ -17,7 +17,8 @@ from `Axelerator::run` and the process exits non-zero, so the systemd unit's
 On Ctrl+C or `SIGTERM` the gateway stops advertising, sets presence inactive,
 stops RTA, saves friend history and sends the Discord shutdown notice before
 exiting; this has 20 s, inside the unit's `TimeoutStopSec=30`. A signal during
-the device-code login or the RTA wait ends startup at once.
+the device-code login or the RTA wait ends startup at once. A second signal
+during cleanup exits immediately (non-zero) and logs which steps were skipped.
 
 ## Friend expiry history
 

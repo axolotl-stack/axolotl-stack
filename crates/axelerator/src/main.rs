@@ -215,10 +215,10 @@ async fn main() -> Result<()> {
 
     // On Ctrl+C/SIGTERM, request shutdown and keep driving `run` so its
     // cleanup (presence inactive, RTA, Discord) completes. A shutdown during
-    // device-code login ends `run` promptly too.
+    // device-code login ends `run` promptly too. A second signal exits at once.
     let result = run_until_signal(
         axelerator.run(),
-        shutdown_signal(),
+        shutdown_signal,
         axelerator.shutdown(),
         SHUTDOWN_GRACE,
     )
@@ -269,27 +269,37 @@ async fn shutdown_signal() {
     }
 }
 
-/// Drives `run` to completion. When `signal` fires first, `request_shutdown`
-/// runs and `run` gets `grace` to finish its own cleanup; it is never dropped
-/// mid-cleanup unless the grace period expires.
-async fn run_until_signal(
+/// Drives `run` to completion. When `signal()` fires first,
+/// `request_shutdown` runs and `run` gets `grace` to finish its own cleanup;
+/// it is dropped mid-cleanup only when the grace period expires or a second
+/// signal arrives (the operator asking to exit at once).
+async fn run_until_signal<F: Future<Output = ()>>(
     run: impl Future<Output = Result<()>>,
-    signal: impl Future<Output = ()>,
+    mut signal: impl FnMut() -> F,
     request_shutdown: impl Future<Output = ()>,
     grace: Duration,
 ) -> Result<()> {
     tokio::pin!(run);
     tokio::select! {
         result = &mut run => result,
-        () = signal => {
-            tracing::info!("Initiating graceful shutdown...");
+        () = signal() => {
+            tracing::info!("Initiating graceful shutdown (signal again to exit at once)...");
             request_shutdown.await;
-            match tokio::time::timeout(grace, run).await {
-                Ok(result) => result,
-                Err(_) => Err(anyhow::anyhow!(
-                    "graceful shutdown did not finish within {} s",
-                    grace.as_secs()
-                )),
+            tokio::select! {
+                result = tokio::time::timeout(grace, &mut run) => match result {
+                    Ok(result) => result,
+                    Err(_) => Err(anyhow::anyhow!(
+                        "graceful shutdown did not finish within {} s",
+                        grace.as_secs()
+                    )),
+                },
+                () = signal() => {
+                    tracing::warn!(
+                        "Second shutdown signal: exiting now, skipping the remaining cleanup \
+                         (presence inactive, RTA shutdown, history save, Discord notice)"
+                    );
+                    Err(anyhow::anyhow!("shutdown forced by a second signal; cleanup skipped"))
+                }
             }
         }
     }
@@ -318,7 +328,7 @@ mod tests {
         let cleaned_up = Arc::new(AtomicBool::new(false));
         let result = run_until_signal(
             fake_run(shutdown.clone(), cleaned_up.clone()),
-            async {},
+            once(),
             async { shutdown.cancel() },
             Duration::from_secs(20),
         )
@@ -331,7 +341,7 @@ mod tests {
     async fn stuck_cleanup_is_an_error_after_the_grace_period() {
         let result = run_until_signal(
             std::future::pending::<Result<()>>(),
-            async {},
+            once(),
             async {},
             Duration::from_secs(20),
         )
@@ -339,11 +349,53 @@ mod tests {
         assert!(result.is_err());
     }
 
+    /// A signal source that fires `presses` times, `after` apart (the first
+    /// at once), then never again.
+    fn presses(
+        presses: u32,
+        after: Duration,
+    ) -> impl FnMut() -> std::pin::Pin<Box<dyn Future<Output = ()>>> {
+        let mut count = 0;
+        move || {
+            count += 1;
+            let fires = count <= presses;
+            let first = count == 1;
+            Box::pin(async move {
+                if !fires {
+                    std::future::pending::<()>().await;
+                }
+                if !first {
+                    tokio::time::sleep(after).await;
+                }
+            })
+        }
+    }
+
+    fn once() -> impl FnMut() -> std::pin::Pin<Box<dyn Future<Output = ()>>> {
+        presses(1, Duration::ZERO)
+    }
+
+    /// A second Ctrl+C used to do nothing: the grace period always ran out.
+    #[tokio::test(start_paused = true)]
+    async fn second_signal_skips_cleanup() {
+        let started = tokio::time::Instant::now();
+        let result = run_until_signal(
+            std::future::pending::<Result<()>>(),
+            presses(2, Duration::from_secs(1)),
+            async {},
+            Duration::from_secs(20),
+        )
+        .await;
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("cleanup skipped"), "{error}");
+        assert_eq!(started.elapsed(), Duration::from_secs(1));
+    }
+
     #[tokio::test]
     async fn run_errors_without_a_signal_are_returned() {
         let result = run_until_signal(
             async { Err(anyhow::anyhow!("fatal")) },
-            std::future::pending(),
+            std::future::pending,
             async {},
             Duration::from_secs(20),
         )
