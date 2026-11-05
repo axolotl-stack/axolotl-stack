@@ -110,8 +110,10 @@ impl PlayerHistory {
         }
     }
 
-    /// Get XUIDs that haven't been seen within `expiry_days` days.
-    pub async fn get_expired(&self, expiry_days: u64) -> Vec<String> {
+    /// XUIDs not seen within `expiry_days` days, each with the last-seen
+    /// time read now. Pass that time to [`Self::remove_if_unchanged`] so a
+    /// join recorded in the meantime is never removed.
+    pub async fn get_expired(&self, expiry_days: u64) -> Vec<(String, u64)> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -123,8 +125,34 @@ impl PlayerHistory {
             .data
             .iter()
             .filter(|&(_, &last_seen)| last_seen < cutoff)
-            .map(|(xuid, _)| xuid.clone())
+            .map(|(xuid, &last_seen)| (xuid.clone(), last_seen))
             .collect()
+    }
+
+    /// The recorded last-seen time for `xuid`.
+    pub async fn last_seen(&self, xuid: &str) -> Option<u64> {
+        self.inner.read().await.data.get(xuid).copied()
+    }
+
+    /// Sets a last-seen time directly (tests age entries with it).
+    #[cfg(test)]
+    pub(crate) async fn set_last_seen(&self, xuid: &str, at: u64) {
+        let mut inner = self.inner.write().await;
+        inner.data.insert(xuid.to_string(), at);
+        inner.dirty = true;
+    }
+
+    /// Removes `xuid` only if its last-seen time is still `seen` (the value
+    /// [`Self::get_expired`] returned). Returns whether it was removed; false
+    /// means the player joined since, or the entry is already gone.
+    pub async fn remove_if_unchanged(&self, xuid: &str, seen: u64) -> bool {
+        let mut inner = self.inner.write().await;
+        if inner.data.get(xuid) != Some(&seen) {
+            return false;
+        }
+        inner.data.remove(xuid);
+        inner.dirty = true;
+        true
     }
 
     /// Remove an XUID from history (after expiry/unfriend).

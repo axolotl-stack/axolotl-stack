@@ -1907,26 +1907,57 @@ async fn run_friend_expiry_check(
                     }
                 };
 
-                for xuid in &expired {
-                    match friends_client.remove_friend(&token, xuid).await {
-                        Ok(_) => {
-                            info!("Expired friend removed: {}", xuid);
-                            history.remove(xuid).await;
-                        }
-                        Err(e) => {
-                            if is_rate_limited_error(&e) {
-                                warn!("Rate limited during friend expiry, will retry next cycle");
-                                break;
-                            }
-                            warn!("Failed to remove expired friend {}: {}", xuid, e);
-                        }
-                    }
-                }
-
-                history.save_if_dirty().await;
+                let friends = &friends_client;
+                let token = &token;
+                expire_inactive(&history, expired, |xuid| async move {
+                    friends.remove_friend(token, &xuid).await.map(|_| ())
+                })
+                .await;
             }
         }
     }
+}
+
+/// Unfriends each expired entry with `unfriend` and drops it from
+/// `history`, stopping at the first rate-limit error, then saves.
+///
+/// `expired` carries the last-seen time each entry had when it was read. A
+/// player who joined since is not unfriended, and one who joins while the
+/// unfriend call is in flight keeps the join just recorded.
+async fn expire_inactive<F, Fut>(
+    history: &PlayerHistory,
+    expired: Vec<(String, u64)>,
+    mut unfriend: F,
+) where
+    F: FnMut(String) -> Fut,
+    Fut: std::future::Future<Output = std::result::Result<(), axolotl_xbl::XblError>>,
+{
+    for (xuid, seen) in &expired {
+        if history.last_seen(xuid).await != Some(*seen) {
+            debug!(xuid, "Joined since the expiry check; keeping friend");
+            continue;
+        }
+        match unfriend(xuid.clone()).await {
+            Ok(()) => {
+                info!("Expired friend removed: {}", xuid);
+                if !history.remove_if_unchanged(xuid, *seen).await {
+                    info!(
+                        xuid,
+                        "Joined while being removed; keeping their history entry"
+                    );
+                }
+            }
+            Err(e) => {
+                if is_rate_limited_error(&e) {
+                    warn!("Rate limited during friend expiry, will retry next cycle");
+                    break;
+                }
+                warn!("Failed to remove expired friend {}: {}", xuid, e);
+            }
+        }
+    }
+
+    history.save_if_dirty().await;
 }
 
 /// The transfer server's exit reason, or the message for an exit the
@@ -1968,6 +1999,56 @@ fn is_guest_account(xuid: &str) -> bool {
 #[cfg(test)]
 mod auth_scheduling_tests {
     use super::*;
+
+    /// The expiry task read the expired list, unfriended, then removed the
+    /// entry unconditionally, so a player who joined in between lost the
+    /// join just recorded (and would be expired again from scratch).
+    #[tokio::test]
+    async fn join_during_expiry_keeps_the_fresh_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        let history = PlayerHistory::load(&dir.path().join("h.json")).unwrap();
+        history.set_last_seen("42", 0).await;
+        history.set_last_seen("7", 0).await;
+        let expired = history.get_expired(15).await;
+        let joining = history.clone();
+        expire_inactive(&history, expired, |xuid| {
+            let joining = joining.clone();
+            async move {
+                // The player joins while their unfriend call is in flight.
+                if xuid == "42" {
+                    joining.update_last_seen("42").await;
+                }
+                Ok(())
+            }
+        })
+        .await;
+        assert!(
+            history.last_seen("42").await.is_some_and(|t| t > 0),
+            "fresh join was removed"
+        );
+        assert_eq!(history.last_seen("7").await, None);
+    }
+
+    /// A player who joined after the expired list was read is not unfriended.
+    #[tokio::test]
+    async fn join_before_unfriend_skips_the_removal() {
+        let dir = tempfile::tempdir().unwrap();
+        let history = PlayerHistory::load(&dir.path().join("h.json")).unwrap();
+        history.set_last_seen("42", 0).await;
+        let expired = history.get_expired(15).await;
+        history.update_last_seen("42").await;
+        let mut unfriended = Vec::new();
+        expire_inactive(&history, expired, |xuid| {
+            unfriended.push(xuid);
+            async { Ok(()) }
+        })
+        .await;
+        assert!(
+            unfriended.is_empty(),
+            "unfriended a fresh join: {unfriended:?}"
+        );
+        assert!(history.last_seen("42").await.is_some());
+    }
 
     /// `Notify::notify_waiters` only wakes tasks already waiting, so a
     /// shutdown requested during startup or between loop iterations was lost.
