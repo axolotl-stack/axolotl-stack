@@ -900,4 +900,22 @@ mod network_tick_tests {
             assert!(h.inbound.is_empty());
         });
     }
+
+    /// A client that says goodbye with its own `Disconnect` is saved like any other
+    /// leaver; the packet used to despawn it at once, so the save found no player.
+    #[test]
+    fn a_client_disconnect_packet_still_saves_the_player() {
+        on_big_stack(|| async {
+            let mut h = harness();
+            h.packets.try_send(move_to(START_X + 3.0)).unwrap();
+            h.packets
+                .try_send(inbound(jolyne::valentine::DisconnectPacket::default()))
+                .unwrap();
+            h.leave();
+            h.tick().await;
+
+            assert!(!h.joined(), "the leaver is despawned");
+            assert_eq!(h.saved_x(), Some(START_X + 3.0), "the leaver is saved");
+        });
+    }
 }

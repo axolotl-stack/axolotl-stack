@@ -39,7 +39,9 @@ impl GameServer {
             }
         };
 
-        // Disconnect is immediate (not queued) — despawn must happen now
+        // A client `Disconnect` only records the quit. The session's network task ends
+        // with it, and the tick loop's normal leave path saves, then despawns, the
+        // player; despawning here left that save with no player to save.
         if packet.packet_id() == McpePacketName::DisconnectPacket {
             info!(session_id, "Client sent disconnect packet");
             if let Some(mut event_buffer) = self
@@ -49,7 +51,6 @@ impl GameServer {
             {
                 event_buffer.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
             }
-            self.despawn_player(session_id);
             return;
         }
 
