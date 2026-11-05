@@ -117,10 +117,16 @@ NBT accepts segmented `Buf` inputs without consuming following fields. Values
 wholly in the first chunk retain the contiguous extraction path; split values
 copy only the bytes belonging to that NBT value.
 
-Owned MCPE frame decoding rejects unread payload bytes with
-`TrailingPacketBytes`, matching [gophertunnel's default invalid-packet
-handling](https://github.com/Sandertv/gophertunnel/blob/master/minecraft/packet.go).
-There are no packet-specific trailing-data exceptions.
+MCPE frame decoding rejects unread payload bytes with `TrailingPacketBytes`,
+matching [gophertunnel's default invalid-packet
+handling](https://github.com/Sandertv/gophertunnel/blob/master/minecraft/packet.go):
+owned `McpePacketData::decode_inner` and the borrowed
+`BorrowedMcpePacket::decode_inner`, `decode_game_frame` and `from_raw_frame` all
+fail the same way, so a borrowed packet's `into_owned` always equals owned
+decoding. `decode_inner_with_remaining`, `decode_inner_reader` and
+`from_raw_frame_with_remaining` are the diagnostic API: they decode and return
+the unread byte count instead. There are no packet-specific trailing-data
+exceptions.
 
 ## Shared byte payloads and typed views
 
