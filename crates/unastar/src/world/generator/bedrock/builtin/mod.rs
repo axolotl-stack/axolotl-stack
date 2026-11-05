@@ -11,7 +11,7 @@
 //! The behaviour is engine code in BDS, reproduced from observed vanilla
 //! behaviour; numbers that BDS does not ship are measured against BDS
 //! fixtures (owner decision D4) and odd behaviour is logged in
-//! `thoughts/shared/research/bds-quirks.md`.
+//! `docs/quirks/bds.md`.
 
 mod aquatic;
 mod legacy;

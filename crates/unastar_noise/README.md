@@ -331,7 +331,7 @@ output boundary, never a region read/write conversion.
 - Output is a pure function of (seed, chunk): pieces never change while placed. Where
   Java's result depends on which chunk is decorated first, the code picks an
   order-independent rule; these and other deliberate deviations are listed in
-  `thoughts/shared/research/java-quirks.md`.
+  `docs/quirks/java.md`.
 - Concentric-ring points retain Java's sequential RNG/fork order. Biome relocation
   is resolved on demand only for points within seven chunks of a placement query;
   the 112-block search cannot move a point farther on either axis. Results are

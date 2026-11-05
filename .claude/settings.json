@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "OPENSPEC_TELEMETRY": "0",
+    "DO_NOT_TRACK": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(cargo check:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo run -p parity:*)",
+      "Bash(cargo run -p valentine_gen:*)",
+      "Bash(openspec list:*)",
+      "Bash(openspec show:*)",
+      "Bash(openspec status:*)",
+      "Bash(openspec validate:*)",
+      "Bash(openspec instructions:*)",
+      "Bash(tools/agents/sync-skills.sh:*)",
+    "Bash(tools/agents/setup.sh:*)",
+      "Bash(rg:*)"
+    ]
+  }
+}

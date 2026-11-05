@@ -98,6 +98,7 @@ duplicate work. Each `[[claim]]` has:
 | `families` | row families of that domain, as in `PARITY.md`'s family tables |
 | `ids` | row ids; each also covers the row's sub-rows |
 | `prefixes` | plain prefixes of row ids (`bedrock/`, `world.`) |
+| `change` | optional: the OpenSpec change doing the work (`openspec/changes/<change>/`); `parity check` fails if it does not exist or has been archived |
 
 A claim covers one domain; an area spanning several domains has one claim per domain.
 Add a claim in your first pull request for an area and remove it when you stop. Claims
@@ -121,6 +122,7 @@ UNASTAR_BDS_DIR=/path/to/bds/server cargo run -p parity -- generate   # also ref
   the repository;
 - a claim names an unknown domain, family or row id, a prefix that matches no row, has no
   owner, no selector or a `since` that is not a date, or two claims cover the same row;
+- a claim names an OpenSpec `change` that does not exist or is already archived;
 - a status file is not in canonical form, `PARITY.md` is stale, or (with `UNASTAR_BDS_DIR`)
   the Bedrock worldgen snapshot is stale.
 
@@ -128,12 +130,13 @@ UNASTAR_BDS_DIR=/path/to/bds/server cargo run -p parity -- generate   # also ref
 
 These stay where they are and are linked from rows' `evidence`/`notes` where relevant:
 
-- BDS behaviour quirks: [`thoughts/shared/research/bds-quirks.md`](../../thoughts/shared/research/bds-quirks.md)
-- Built-in constants and their provenance (D12): [`thoughts/shared/plans/2026-10-24-data-driven-decisions.md`](../../thoughts/shared/plans/2026-10-24-data-driven-decisions.md)
+- BDS behaviour quirks: [`docs/quirks/bds.md`](../quirks/bds.md)
+- Built-in constants and their provenance: [`docs/research/mob-runtime-constants.md`](../research/mob-runtime-constants.md)
+- Decisions behind the catalog (copy BDS exactly, measure built-in facts, and the rest): [`docs/decisions/`](../decisions/README.md)
 - Java worldgen pipeline and evidence: [`crates/unastar_noise/README.md`](../../crates/unastar_noise/README.md)
 - Bedrock worldgen measurement ledger: [`crates/unastar_bedrock_codegen/README.md`](../../crates/unastar_bedrock_codegen/README.md)
 - Measured BDS tables: [`crates/unastar-data/data/measured/`](../../crates/unastar-data/data/measured/)
 
-The former entity backlog (`thoughts/shared/plans/2026-10-28-entity-backlog.md`) and the
-parity items of the mob-runtime follow-ups are folded into `entities.toml` and
-`systems.toml`.
+The former entity backlog and the parity items of the mob-runtime follow-ups (both removed
+2026-11-04) are folded into `entities.toml` and `systems.toml`; the follow-ups with no parity
+row are tasks in the OpenSpec change `data-driven-gameplay`.
