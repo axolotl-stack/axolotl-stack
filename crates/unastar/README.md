@@ -763,7 +763,11 @@ stored subchunk, biome or block-entity record that doesn't decode fails the load
 of its column the same way, in both providers, rather than loading as air.
 Loaded columns start clean, while generated or edited columns are saved on
 unload and shutdown. A chunk whose save before unload fails stays loaded, with
-its edits and mobs, and the unload is retried after another grace period.
+its edits and mobs. Its unload is retried with a per-chunk exponential backoff
+(the grace period doubled per failure in a row, up to 64 times), and one
+rate-limited summary, `N chunks held in memory awaiting save`, is logged when
+the first chunk is held and then every 30 seconds while any stay held. It's a
+warning, or an error from 64 held chunks.
 Shutdown (Ctrl+C or `/stop`) saves every player, then every chunk with something
 to write, then closes the world and player databases so queued writes reach
 disk; a failed close makes the process exit with an error.

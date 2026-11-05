@@ -13,7 +13,7 @@
 //! - Publisher updates only sent on position/radius change, not per-chunk
 
 use bevy_ecs::prelude::*;
-use tracing::{debug, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 use crate::entity::components::{ChunkRadius, Player, PlayerSession, Position};
 use crate::entity::mob::persistence::{restore_chunk_actors, snapshot_chunks};
@@ -722,27 +722,91 @@ pub fn cancel_chunk_unloads(
     }
 }
 
+/// Rate limit for the summary of chunks held in memory because their save
+/// before unload failed: one line when the first chunk is held, then at most
+/// one per [`Self::INTERVAL_TICKS`] while any stay held.
+#[derive(Resource, Debug, Default)]
+pub struct HeldChunkReport {
+    ticks_until_next: u32,
+}
+
+impl HeldChunkReport {
+    /// 30 seconds at 20 TPS.
+    pub const INTERVAL_TICKS: u32 = 600;
+    /// From this many held chunks the summary is an error, not a warning.
+    pub const ERROR_THRESHOLD: usize = 64;
+
+    /// Advance one tick with `held` chunks held; true when a summary is due.
+    pub fn due(&mut self, held: usize) -> bool {
+        if held == 0 {
+            // The next incident is reported as soon as it starts.
+            self.ticks_until_next = 0;
+            return false;
+        }
+        if self.ticks_until_next == 0 {
+            self.ticks_until_next = Self::INTERVAL_TICKS;
+            true
+        } else {
+            self.ticks_until_next -= 1;
+            false
+        }
+    }
+}
+
 /// System: Process pending chunk unloads.
 /// Ticks down grace periods. An expired chunk is saved together with the mobs
 /// standing in it (when anything changed), then the mobs and the chunk are
 /// removed from the world. If that save fails the chunk and its mobs stay
-/// loaded, with their edits, and the unload is retried after another grace
-/// period.
+/// loaded, with their edits: the unload is retried with an exponential
+/// backoff per chunk (see [`ChunkPendingUnload::after_failed_save`]), and one
+/// rate-limited summary reports how many chunks are held (see
+/// [`HeldChunkReport`]).
 pub fn process_chunk_unloads(world: &mut World) {
     let mut pending = world.query::<(Entity, &mut ChunkPendingUnload)>();
     let expired: Vec<Entity> = pending
         .iter_mut(world)
         .filter_map(|(entity, mut grace)| grace.tick().then_some(entity))
         .collect();
-    if expired.is_empty() {
+    if !expired.is_empty() {
+        unload_expired_chunks(world, &expired);
+    }
+    report_held_chunks(world);
+}
+
+/// Count held chunks and log the rate-limited summary when one is due.
+fn report_held_chunks(world: &mut World) {
+    let held = world
+        .query::<&ChunkPendingUnload>()
+        .iter(world)
+        .filter(|pending| pending.is_held())
+        .count();
+    let due = world
+        .get_resource_or_insert_with(HeldChunkReport::default)
+        .due(held);
+    if !due {
         return;
     }
+    if held >= HeldChunkReport::ERROR_THRESHOLD {
+        error!(
+            held,
+            "{held} chunks held in memory awaiting save; storage writes are failing and memory use grows with every chunk left"
+        );
+    } else {
+        warn!(
+            held,
+            "{held} chunks held in memory awaiting save; storage writes are failing"
+        );
+    }
+}
+
+/// Save and unload the chunks whose grace period ran out.
+fn unload_expired_chunks(world: &mut World, expired: &[Entity]) {
     let (provider, dim) = {
         let chunk_manager = world.resource::<ChunkManager>();
         (chunk_manager.provider(), chunk_manager.dimension())
     };
-    let retry_ticks = world.resource::<ChunkLoadConfig>().unload_grace_ticks;
-    for snapshot in snapshot_chunks(world, &expired, true) {
+    let grace_ticks = world.resource::<ChunkLoadConfig>().unload_grace_ticks;
+    for snapshot in snapshot_chunks(world, expired, true) {
         let pos = snapshot.pos;
         if let (Some(column), Some(provider)) = (snapshot.column, provider.clone()) {
             let (result, column) = block_on_storage(async move {
@@ -752,17 +816,22 @@ pub fn process_chunk_unloads(world: &mut World) {
             match result {
                 Ok(()) => debug!(chunk = ?(pos.x, pos.z), "Saved chunk before unload"),
                 Err(e) => {
-                    warn!(
-                        chunk = ?(pos.x, pos.z),
-                        error = %e,
-                        "Failed to save chunk before unload; keeping it loaded"
-                    );
                     // The snapshot moved the terrain out; put it back and try
                     // again later instead of dropping the unsaved edits.
-                    world.entity_mut(snapshot.chunk).insert((
-                        ChunkData::new(column.chunk),
-                        ChunkPendingUnload::new(retry_ticks),
-                    ));
+                    let retry = world.get::<ChunkPendingUnload>(snapshot.chunk).map_or_else(
+                        || ChunkPendingUnload::new(grace_ticks),
+                        |pending| pending.after_failed_save(grace_ticks),
+                    );
+                    debug!(
+                        chunk = ?(pos.x, pos.z),
+                        error = %e,
+                        failed_saves = retry.failed_saves,
+                        retry_in_ticks = retry.ticks_remaining,
+                        "Failed to save chunk before unload; keeping it loaded"
+                    );
+                    world
+                        .entity_mut(snapshot.chunk)
+                        .insert((ChunkData::new(column.chunk), retry));
                     continue;
                 }
             }
@@ -974,6 +1043,19 @@ pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn held_chunk_summary_is_rate_limited() {
+        let mut report = HeldChunkReport::default();
+        assert!(!report.due(0), "nothing held, nothing to report");
+        assert!(report.due(1), "the first held chunk is reported at once");
+        let repeats = (0..HeldChunkReport::INTERVAL_TICKS * 3)
+            .filter(|_| report.due(5))
+            .count();
+        assert_eq!(repeats, 2, "then once per interval while chunks stay held");
+        assert!(!report.due(0));
+        assert!(report.due(1), "a new incident is reported at once");
+    }
 
     #[test]
     fn test_chunk_load_config_default() {

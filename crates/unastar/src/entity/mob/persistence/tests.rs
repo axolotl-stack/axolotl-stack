@@ -252,8 +252,9 @@ fn unloading_saves_and_removes_the_cow_and_reloading_restores_it() {
     );
 }
 
-/// Storage that reads as empty and refuses every write.
-struct UnwritableWorld;
+/// Storage that reads as empty and refuses every write, counting the attempts.
+#[derive(Default)]
+struct UnwritableWorld(std::sync::atomic::AtomicUsize);
 
 #[async_trait::async_trait]
 impl crate::storage::WorldProvider for UnwritableWorld {
@@ -270,6 +271,7 @@ impl crate::storage::WorldProvider for UnwritableWorld {
         _: i32,
         _: &crate::storage::ChunkColumn,
     ) -> crate::storage::StorageResult<()> {
+        self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Err(crate::storage::StorageError::Database("disk full".into()))
     }
     async fn flush(&self) -> crate::storage::StorageResult<()> {
@@ -291,7 +293,7 @@ fn a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits() {
     let working = world.resource::<ChunkManager>().provider().unwrap();
     world
         .resource_mut::<ChunkManager>()
-        .set_provider(Arc::new(UnwritableWorld));
+        .set_provider(Arc::new(UnwritableWorld::default()));
     let chunk = world.get_or_create_chunk(0, 0).unwrap();
     let diamond = *crate::world::chunk::blocks::DIAMOND_ORE;
     world
@@ -343,6 +345,43 @@ fn a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits() {
         diamond
     );
     assert_eq!(cows(world).len(), 1);
+}
+
+/// While storage keeps refusing writes, a held chunk retries with an
+/// exponential backoff instead of a blocking write every grace period.
+#[test]
+fn a_held_chunk_backs_off_between_save_attempts() {
+    let dir = TempDir::new();
+    let mut server = stored_server(&dir.0);
+    let world = server.ecs.world_mut();
+    world.resource_mut::<ChunkLoadConfig>().unload_grace_ticks = 1;
+    let storage = Arc::new(UnwritableWorld::default());
+    world
+        .resource_mut::<ChunkManager>()
+        .set_provider(storage.clone());
+    // A generated chunk is dirty, so every unload attempt tries to save it.
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
+
+    for _ in 0..64 {
+        server.tick();
+    }
+    // Waits of 2, 4, 8, 16 and 32 ticks: attempts on ticks 1, 3, 7, 15, 31
+    // and 63. Without the backoff it would be one attempt every tick.
+    let attempts = storage.0.load(std::sync::atomic::Ordering::Relaxed);
+    assert!(
+        (5..=7).contains(&attempts),
+        "{attempts} save attempts in 64 ticks"
+    );
+    let world = server.ecs.world_mut();
+    assert_eq!(
+        world.resource::<ChunkManager>().get_by_coords(0, 0),
+        Some(chunk)
+    );
+    let pending = world
+        .get::<crate::world::ecs::ChunkPendingUnload>(chunk)
+        .unwrap();
+    assert!(pending.is_held());
+    assert_eq!(pending.failed_saves as usize, attempts);
 }
 
 #[test]
