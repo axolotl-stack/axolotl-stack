@@ -1002,6 +1002,8 @@ impl GameServer {
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
             session_map.insert(data.session_id, entity);
         }
+        // Plugins see the join (`on-player-join`) once the client has spawned:
+        // `send_spawn_status` queues it when it clears `AwaitingSpawnStatus`.
 
         self.ecs.world_mut().write_message(PlayerSpawnedEvent {
             entity,
@@ -1013,6 +1015,22 @@ impl GameServer {
         Ok(entity)
     }
 
+    /// Queue a plugin `PlayerQuit` for every online player, for shutdown. The
+    /// players stay spawned so they can still be saved afterwards.
+    pub fn queue_quit_for_online_players(&mut self) -> usize {
+        let world = self.ecs.world_mut();
+        let entities: Vec<Entity> = world
+            .get_resource::<SessionEntityMap>()
+            .map(|sessions| sessions.iter().map(|(_, entity)| entity).collect())
+            .unwrap_or_default();
+        if let Some(mut events) = world.get_resource_mut::<crate::ecs::events::EventBuffer>() {
+            for &entity in &entities {
+                events.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
+            }
+        }
+        entities.len()
+    }
+
     pub fn despawn_player(&mut self, session_id: SessionId) {
         let entity = {
             if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
@@ -1022,6 +1040,15 @@ impl GameServer {
             }
         };
         if let Some(entity) = entity {
+            // Every leave path (disconnect packet, network drop) ends here, so
+            // plugins see exactly one `on-player-quit` per online player.
+            if let Some(mut events) = self
+                .ecs
+                .world_mut()
+                .get_resource_mut::<crate::ecs::events::EventBuffer>()
+            {
+                events.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
+            }
             self.ecs.world_mut().despawn(entity);
             info!(session_id, "Player despawned");
         }
@@ -1616,6 +1643,170 @@ mod tests {
         assert!(!join(4, "MobBot2", None));
     }
 
+    fn join_for_events(server: &mut GameServer, session_id: u64) -> Entity {
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+        server
+            .spawn_player(PlayerSpawnData {
+                session_id,
+                display_name: format!("Player{session_id}"),
+                xuid: None,
+                uuid: None,
+                runtime_id: session_id as i64,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .expect("fresh player spawns without saved data")
+    }
+
+    fn drain_events(server: &mut GameServer) -> Vec<crate::ecs::events::ServerEvent> {
+        server
+            .ecs
+            .world_mut()
+            .resource_mut::<crate::ecs::events::EventBuffer>()
+            .drain()
+    }
+
+    fn quits(events: &[crate::ecs::events::ServerEvent]) -> Vec<Entity> {
+        events
+            .iter()
+            .filter_map(|event| match event {
+                crate::ecs::events::ServerEvent::PlayerQuit { entity } => Some(*entity),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn shutdown_queues_one_quit_per_online_player_and_keeps_them_spawned() {
+        let mut server = void_server();
+        let first = join_for_events(&mut server, 5);
+        let second = join_for_events(&mut server, 6);
+        drain_events(&mut server);
+        assert_eq!(server.queue_quit_for_online_players(), 2);
+        let mut quit = quits(&drain_events(&mut server));
+        quit.sort();
+        let mut expected = vec![first, second];
+        expected.sort();
+        assert_eq!(quit, expected);
+        assert!(server.ecs.world().get_entity(first).is_ok());
+        assert!(server.ecs.world().get_entity(second).is_ok());
+    }
+
+    #[test]
+    fn every_despawn_queues_exactly_one_plugin_quit() {
+        use bytes::BytesMut;
+        use jolyne::valentine::{
+            BorrowedMcpePacket, DisconnectPacket, DisconnectPacketMessages,
+            DisconnectPacketMessagesUnion, EnumsConnectionDisconnectFailReason, McpePacket,
+            McpePacketArgs,
+        };
+        let mut server = void_server();
+        let dropped = join_for_events(&mut server, 5);
+        let leaving = join_for_events(&mut server, 6);
+        drain_events(&mut server);
+
+        // A network-level drop despawns without any client packet.
+        server.despawn_player(5);
+        assert_eq!(quits(&drain_events(&mut server)), [dropped]);
+        server.despawn_player(5);
+        assert!(drain_events(&mut server).is_empty(), "already gone");
+
+        // A client disconnect packet keeps the player for the leave path's save, so it
+        // queues nothing itself; the leave path's despawn then queues exactly one quit.
+        let packet = McpePacket::from(DisconnectPacket {
+            reason: EnumsConnectionDisconnectFailReason::Disconnected,
+            messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+                DisconnectPacketMessages {
+                    message: "bye".into(),
+                    filtered_message: "bye".into(),
+                },
+            ),
+        });
+        let mut buf = BytesMut::new();
+        packet.data.encode_inner(&mut buf, 0, 0).unwrap();
+        let borrowed = BorrowedMcpePacket::decode_inner(&mut buf.freeze()).unwrap();
+        server.route_packet(6, McpePacketArgs, borrowed);
+        assert!(
+            quits(&drain_events(&mut server)).is_empty(),
+            "the player stays until the leave path saves it"
+        );
+        server.despawn_player(6);
+        assert_eq!(quits(&drain_events(&mut server)), [leaving]);
+    }
+
+    #[test]
+    fn plugin_join_fires_once_after_the_client_has_spawned() {
+        use crate::ecs::events::ServerEvent;
+        let joins = |events: &[ServerEvent]| -> Vec<(Entity, String, String)> {
+            events
+                .iter()
+                .filter_map(|event| match event {
+                    ServerEvent::PlayerJoin {
+                        entity,
+                        player_id,
+                        username,
+                    } => Some((*entity, player_id.clone(), username.clone())),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mut server = void_server();
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(4096);
+        let entity = server
+            .spawn_player(PlayerSpawnData {
+                session_id: 5,
+                display_name: "Joiner".to_string(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000005".to_string()),
+                runtime_id: 5,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .expect("fresh player spawns without saved data");
+        assert!(
+            joins(&drain_events(&mut server)).is_empty(),
+            "no join while the client is still loading"
+        );
+        let mut seen = Vec::new();
+        for _ in 0..20 {
+            let awaiting = server
+                .ecs
+                .world()
+                .get::<AwaitingSpawnStatus>(entity)
+                .is_some();
+            server.tick();
+            let tick_joins = joins(&drain_events(&mut server));
+            if !tick_joins.is_empty() {
+                assert!(
+                    awaiting,
+                    "join is queued on the tick the spawn status goes out"
+                );
+                assert!(
+                    server
+                        .ecs
+                        .world()
+                        .get::<AwaitingSpawnStatus>(entity)
+                        .is_none(),
+                    "join is queued only once the client has spawned"
+                );
+            }
+            seen.extend(tick_joins);
+        }
+        assert_eq!(
+            seen,
+            [(
+                entity,
+                "00000000-0000-0000-0000-000000000005".to_string(),
+                "Joiner".to_string()
+            )],
+            "exactly one join"
+        );
+    }
+
     #[test]
     fn player_spawn_sets_join_chunk_gate_without_network_io() {
         let mut server = GameServer::with_config(ServerConfig {
@@ -1799,6 +1990,19 @@ mod saved_inventory_validation_tests {
         assert!(
             outbound_rx.try_recv().is_err(),
             "invalid saved state must not emit a successful join"
+        );
+        for _ in 0..3 {
+            server.tick();
+        }
+        assert!(
+            !server
+                .ecs
+                .world_mut()
+                .resource_mut::<crate::ecs::events::EventBuffer>()
+                .drain()
+                .iter()
+                .any(|event| matches!(event, crate::ecs::events::ServerEvent::PlayerJoin { .. })),
+            "a refused join never reaches plugins"
         );
     }
 }

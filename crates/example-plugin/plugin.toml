@@ -5,6 +5,7 @@ api_version = "0.2.0"
 subscriptions = [
     "player_chat",
     "tick",
+    "player_join",
     "block_break",
     "player_move",
     "player_jump",

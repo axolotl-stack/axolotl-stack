@@ -345,9 +345,15 @@ impl UnastarServer {
         }
     }
 
-    /// Saves players and chunks, then flushes and closes storage, before the
-    /// process exits.
+    /// Unloads plugins, then saves players and chunks and flushes and closes
+    /// storage, before the process exits.
     async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Plugins see every online player quit, then unload, before saving, so
+        // `on-player-quit` and `on-unload` still see the live world, and storage is
+        // still open while they run.
+        let online = self.server.queue_quit_for_online_players();
+        self.plugin_manager.shutdown(self.server.ecs.world_mut());
+        info!(players = online, "Plugins unloaded");
         let result = self.server.save_and_close_storage().await;
         info!(
             players = result.players_saved,
