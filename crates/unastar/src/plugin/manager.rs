@@ -104,8 +104,10 @@ impl HostContext {
         Resource::new_own(rep)
     }
 
-    /// Look up a player entity from a Resource handle. A handle this invocation
-    /// did not create is an error, which traps the guest call.
+    /// Look up a player entity from a Resource handle. Player parameters are
+    /// `borrow<player>`, so Wasmtime already rejects handles a guest kept from
+    /// an earlier call; a missing mapping here is defence in depth and returns
+    /// an error (trapping the call) instead of panicking.
     fn player_entity(&self, player: &Resource<wit_types::Player>) -> wasmtime::Result<Entity> {
         self.entity_map
             .get(&player.rep())

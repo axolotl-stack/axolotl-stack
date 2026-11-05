@@ -90,11 +90,13 @@ disconnect packet, a dropped connection or server shutdown. After a disconnect
 the player is already despawned when it is dispatched, so the handle's getters
 return defaults.
 
-Player handles and their host entity mappings are scoped to a host invocation;
-plugins should obtain and use handles during the current callback, not retain
-them for subsequent callbacks. A handle the current invocation did not create
-makes the host call return an error instead of stopping the server; the call
-traps and the plugin is disabled (see below).
+Player parameters are `borrow<player>`, so a handle is valid only for the
+callback it was passed to, and the host's entity mappings are reset after each
+invocation. A well-formed guest cannot keep one: Wasmtime resolves a reused
+index to the current call's handle and traps on an unknown index before the
+host sees it. As defence in depth, a host player method that is still given a
+handle it has no mapping for returns an error instead of panicking the server;
+that traps the call and disables the plugin (see below).
 
 ## Resource Limits
 
