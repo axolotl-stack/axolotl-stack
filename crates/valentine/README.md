@@ -45,6 +45,12 @@ disconnect screen. The union owns the wire control varint; encoding its payload
 struct alone is not a valid disconnect body. `tests/union_conformance.rs`
 cross-checks both variants against protocolgen's Rust contract.
 
+Varints decode strictly: `VarUInt`/`VarULong`, the ZigZag forms and the signed
+`VarInt`/`VarLong` all reject overlong encodings and bits beyond the type's
+width. A signed varint is the minimal encoding of its two's-complement bits, so
+`-1` is `ff ff ff ff 0f` and `ff ff ff ff 7f` is an error, not `-1` with the
+extra bits dropped.
+
 ## Regenerating Protocol Code
 
 From the repo root:
