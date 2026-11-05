@@ -40,10 +40,23 @@ fn listed(manifest: &serde_json::Value) -> Vec<(String, String)> {
     files
 }
 
+/// Editor and OS litter that is never data (`.DS_Store`, `Thumbs.db`,
+/// `desktop.ini`, `file~`, `.file.swp`).
+fn is_junk(file_name: &str) -> bool {
+    matches!(file_name, ".DS_Store" | "Thumbs.db" | "desktop.ini")
+        || file_name.ends_with('~')
+        || file_name.ends_with(".swp")
+        || file_name.ends_with(".swo")
+}
+
 fn on_disk(dir: &Path, prefix: &str, out: &mut BTreeSet<String>) {
     for entry in std::fs::read_dir(dir).unwrap() {
         let entry = entry.unwrap();
-        let name = format!("{prefix}{}", entry.file_name().to_str().unwrap());
+        let file_name = entry.file_name().to_str().unwrap().to_owned();
+        if is_junk(&file_name) {
+            continue;
+        }
+        let name = format!("{prefix}{file_name}");
         if entry.file_type().unwrap().is_dir() {
             on_disk(&entry.path(), &format!("{name}/"), out);
         } else {
@@ -106,4 +119,15 @@ fn an_edited_measured_file_is_reported() {
     assert_eq!(mismatches(dir.path(), &files).len(), 1);
     std::fs::remove_file(dir.path().join("a.json")).unwrap();
     assert!(mismatches(dir.path(), &files)[0].starts_with("a.json: "));
+}
+
+#[test]
+fn editor_and_os_junk_is_not_reported_as_unlisted() {
+    let dir = tempfile::tempdir().unwrap();
+    for name in [".DS_Store", "a.json~", ".a.json.swp", "Thumbs.db", "a.json"] {
+        std::fs::write(dir.path().join(name), b"x").unwrap();
+    }
+    let mut present = BTreeSet::new();
+    on_disk(dir.path(), "", &mut present);
+    assert_eq!(present.into_iter().collect::<Vec<_>>(), ["a.json"]);
 }
