@@ -9,7 +9,11 @@ behaviour, not copies of Mojang data files; the raw per-run logs
 
 `manifest.json` lists every artefact with its SHA-256, the BDS version, the
 harness revision, the sweep runs (start time, status, seconds, item count) and
-the measurement method. Regenerate a family with `sweep.py` (exclusive BDS
+the measurement method. The capture-derived tables (`recipe_legacy_identities.json`,
+`builtin_recipes.json`, `potion_types.json`) are not sweep artefacts and record
+their source capture's SHA-256 inside the file instead.
+`tests/measured_manifest.rs` checks every listed hash and that no other file is
+missing from the manifest. Regenerate a family with `sweep.py` (exclusive BDS
 slot; resumable with `--out`) and then `summarize.py`, e.g.:
 
 ```powershell

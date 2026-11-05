@@ -5,8 +5,8 @@
 //!
 //! The caller classifies items ([`ItemEnchanting`]: which enchantment slots
 //! the item belongs to and its enchantability); this module has no item
-//! registry. Enchantment ids are the Bedrock `Enchant::Type` numbers that item
-//! NBT stores in `ench[].id`.
+//! registry. Enchantment ids are the numeric Bedrock enchantment ids that item
+//! NBT stores in `ench[].id` (protection = 0, sharpness = 9, ...).
 
 use rand::Rng;
 
@@ -115,7 +115,7 @@ const DIGGER: u32 = slot::HOE | slot::AXE | slot::PICKAXE | slot::SHOVEL;
 /// Unbreaking and mending: primary and secondary slot sets.
 const DURABLE: (u32, u32) = (0x0081_1e7f, 0x0072_e1c0);
 
-/// The BDS enchantment table indexed by `Enchant::Type`.
+/// The BDS enchantment table indexed by numeric enchantment id.
 const ENCHANTMENTS: [Definition; 42] = [
     def(10, ARMOR, 0, (1, 11), 4, 3, 0),               // protection
     def(5, ARMOR, 0, (10, 8), 4, 3, 0),                // fire_protection
@@ -164,7 +164,8 @@ const ENCHANTMENTS: [Definition; 42] = [
 /// Spread of the enchanting level: `level × (1 + uniform(-0.15, 0.15))`.
 const LEVEL_SPREAD: f32 = 0.3;
 const LEVEL_SPREAD_OFFSET: f32 = -0.15;
-/// Each extra enchantment is kept while `nextInt(50) <= cost`.
+/// Each extra enchantment is kept while a uniform roll in `0..50` is at most
+/// `cost`.
 const EXTRA_ENCHANT_ROLL: i32 = 50;
 
 impl Definition {
@@ -224,12 +225,13 @@ pub fn add_enchantment(
     true
 }
 
-/// Choose enchantments for an item at enchanting `level` (BDS
-/// `selectEnchantments` with no bonus): the level is spread by the item's
-/// enchantability, every applicable enchantment gets the highest level whose
-/// minimum cost it reaches, then one weighted pick plus further picks while
-/// `nextInt(50) <= cost` (cost decays to `cost * 4 / 5 + 1` each time). Picks
-/// incompatible with earlier ones are dropped.
+/// Choose enchantments for an item at enchanting `level`, as BDS does for
+/// random gear and loot (no enchanting-table bonus): the level is spread by
+/// the item's enchantability, every applicable enchantment gets the highest
+/// level whose minimum cost it reaches, then one weighted pick plus further
+/// picks while a uniform roll in `0..50` is at most `cost` (cost decays to
+/// `cost * 4 / 5 + 1` each time). Picks incompatible with earlier ones are
+/// dropped.
 pub fn select_enchantments(
     item: ItemEnchanting,
     level: i32,

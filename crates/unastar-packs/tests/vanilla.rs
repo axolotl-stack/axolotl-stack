@@ -8,7 +8,9 @@ use unastar_packs::actor::{self, ActorParser, Loaded};
 use unastar_packs::json;
 use unastar_packs::packs::PackStack;
 use unastar_rules::Diagnostics;
-use unastar_rules::filter::{Filter, FilterRegistry};
+use unastar_rules::filter::{
+    BuiltinTest, Fact, Filter, FilterContext, FilterRegistry, FilterTest, Subject,
+};
 use unastar_rules::molang::{self, QueryContext, QueryRegistry};
 
 fn samples_pack() -> PathBuf {
@@ -372,5 +374,194 @@ fn bedrock_samples_match_the_bds_layer_stack() {
             "vanilla_1.16.100/entities:npc.json",
             "vanilla_1.17.20/entities:npc.json"
         ]
+    );
+}
+
+/// Facts about a freshly summoned fidelity probe for the one context the
+/// Bevy-free layers can decide: `self` is the probe (its `type_family`, its
+/// active components and its property defaults); every other subject is
+/// absent.
+struct ProbeContext<'a> {
+    definition: &'a actor::ActorDefinition,
+    properties: BTreeMap<String, Fact>,
+}
+
+impl<'a> ProbeContext<'a> {
+    fn new(definition: &'a actor::ActorDefinition) -> Self {
+        let mut properties = BTreeMap::new();
+        for (name, property) in definition
+            .description
+            .active_properties()
+            .into_iter()
+            .flatten()
+        {
+            let value = match &property.default_expression {
+                Some(expr) => {
+                    let value = molang::eval::evaluate_num(expr, &mut DefaultContext).unwrap();
+                    match property.kind {
+                        actor::PropertyKind::Bool => Fact::Bool(value != 0.0),
+                        _ => Fact::Number(f64::from(value)),
+                    }
+                }
+                None => match property.default.as_ref() {
+                    Some(Value::Bool(b)) => Fact::Bool(*b),
+                    Some(Value::Number(n)) => Fact::Number(n.as_f64().unwrap()),
+                    other => panic!("{name}: unexpected literal default {other:?}"),
+                },
+            };
+            properties.insert(name.clone(), value);
+        }
+        Self {
+            definition,
+            properties,
+        }
+    }
+
+    fn families(&self) -> Vec<&str> {
+        self.definition.components["minecraft:type_family"]["family"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect()
+    }
+}
+
+impl FilterContext for ProbeContext<'_> {
+    fn fact(&self, subject: Subject, test: &FilterTest) -> Option<Fact> {
+        if subject != Subject::Self_ {
+            return None;
+        }
+        let value = test.value.as_str();
+        match test.builtin()? {
+            BuiltinTest::IsFamily => Some(Fact::Matches(self.families().contains(&value?))),
+            BuiltinTest::HasComponent => Some(Fact::Matches(
+                self.definition.components.contains_key(value?),
+            )),
+            BuiltinTest::BoolProperty | BuiltinTest::IntProperty => {
+                self.properties.get(test.domain_str()?).copied()
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Property defaults are evaluated with nothing bound beyond the expression
+/// itself: unset variables and context values, and component-group queries
+/// on a fresh actor, read as 0.
+struct DefaultContext;
+
+impl molang::eval::MolangContext for DefaultContext {
+    fn query(
+        &mut self,
+        _: molang::QueryId,
+        _: &[molang::eval::Value],
+    ) -> Option<molang::eval::Value> {
+        None
+    }
+    fn variable(&self, _: &str) -> Option<molang::eval::Value> {
+        None
+    }
+    fn set_variable(&mut self, _: &str, _: molang::eval::Value) {}
+    fn context(&self, _: &str) -> Option<molang::eval::Value> {
+        None
+    }
+    fn this(&self) -> molang::eval::Value {
+        molang::eval::Value::Num(0.0)
+    }
+    fn enter(&mut self, _: u64) -> bool {
+        false
+    }
+    fn leave(&mut self) {}
+    fn random(&mut self) -> f32 {
+        0.0
+    }
+}
+
+/// Whether the probe's environment sensor fires `fidelity:pass` and that
+/// event runs: the trigger filter passes for a fresh probe and the event
+/// exists with no unknown action (an unknown action invalidates the node).
+fn sensor_fires(definition: &actor::ActorDefinition) -> bool {
+    let Some(sensor) = definition.components.get("minecraft:environment_sensor") else {
+        return false;
+    };
+    let trigger = &sensor["triggers"][0];
+    assert_eq!(trigger["event"], "fidelity:pass");
+    let filter = Filter::parse(
+        &trigger["filters"],
+        FilterRegistry::vanilla(),
+        "filters",
+        &mut Diagnostics::default(),
+    )
+    .unwrap();
+    let Some(event) = definition.events.get("fidelity:pass") else {
+        return false;
+    };
+    let context = ProbeContext::new(definition);
+    event.unknown_actions.is_empty() && filter.evaluate(&context)
+}
+
+/// Probes whose filter names a subject other than `self`. In the BDS
+/// environment-sensor context `baby`, `block`, `holder` and `item` resolve to
+/// something for a summoned actor (the negated `is_family` test fails), while
+/// `player`, `target`, `parent` and `damager` are absent. Which entity each
+/// resolves to is the runtime's business (the server's filter context), so
+/// these are left out of the self-only comparison below.
+const RUNTIME_SUBJECT_PROBES: [&str; 4] = [
+    "subject_numeric_5",
+    "subject_numeric_6",
+    "subject_numeric_8",
+    "subject_numeric_9",
+];
+
+/// Probes with a spawn event change their component groups (or run commands)
+/// before the sensor ticks; executing events is the server runtime's job
+/// (`crates/unastar/src/entity/definition`), so the static check skips them.
+const SPAWN_EVENT: &str = "minecraft:entity_spawned";
+
+/// `filter_pass` of every crafted probe (did the environment sensor's filter
+/// pass and its event run on the summoned actor), not only whether BDS
+/// accepted the definition.
+#[test]
+fn crafted_actor_sensor_outcomes_match_the_recorded_bds_matrix() {
+    let inputs: BTreeMap<String, Value> =
+        serde_json::from_str(include_str!("fixtures/bds-1.26.51-fidelity-inputs.json")).unwrap();
+    let reference: Value =
+        serde_json::from_str(include_str!("fixtures/bds-1.26.51-fidelity.json")).unwrap();
+    let observations = reference["observations"].as_object().unwrap();
+    let mut compared = 0;
+    let mut spawn_event_probes = 0;
+    let mut differing = BTreeSet::new();
+    for (name, document) in &inputs {
+        let observed = observations[name]["filter_pass"].as_bool().unwrap();
+        let ours = match actor::load_value(name, document, parser()) {
+            Ok(Loaded::Definition { definition, .. }) => {
+                if definition.events.contains_key(SPAWN_EVENT) {
+                    spawn_event_probes += 1;
+                    continue;
+                }
+                sensor_fires(&definition)
+            }
+            _ => false,
+        };
+        if RUNTIME_SUBJECT_PROBES.contains(&name.as_str()) {
+            if ours != observed {
+                differing.insert(name.as_str());
+            }
+            continue;
+        }
+        assert_eq!(ours, observed, "{name}: filter_pass");
+        compared += 1;
+    }
+    assert_eq!(spawn_event_probes, 3);
+    assert_eq!(
+        compared,
+        inputs.len() - RUNTIME_SUBJECT_PROBES.len() - spawn_event_probes
+    );
+    // Keep the exclusion list honest: every excluded probe must still be one
+    // the self-only context gets wrong.
+    assert_eq!(
+        differing,
+        RUNTIME_SUBJECT_PROBES.into_iter().collect::<BTreeSet<_>>()
     );
 }

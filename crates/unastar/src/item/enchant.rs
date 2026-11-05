@@ -13,7 +13,7 @@ use zuri_nbt::{NBTTag, tag};
 
 use super::ItemStack;
 
-/// Bedrock enchantment IDs (the `Enchant::Type` enum of Mojang's public
+/// Bedrock enchantment IDs (the enchantment id enum in Mojang's public
 /// bedrock-protocol-docs).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i16)]
@@ -261,6 +261,29 @@ pub fn with_enchantment_ids(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Provenance rule: comments name no scope-qualified engine type (an
+    /// Outer::Inner pair of type names in backticks), even one that appears
+    /// in a public changelog.
+    #[test]
+    fn comments_name_no_scope_qualified_engine_types() {
+        let source = include_str!("enchant.rs");
+        let upper = |s: &str| s.chars().next().is_some_and(|c| c.is_ascii_uppercase());
+        for (number, line) in source.lines().enumerate() {
+            let Some((_, comment)) = line.split_once("//") else {
+                continue;
+            };
+            for span in comment.split('`').skip(1).step_by(2) {
+                if let Some((outer, inner)) = span.split_once("::") {
+                    assert!(
+                        outer == "Self" || !(upper(outer) && upper(inner)),
+                        "enchant.rs:{}: `{span}`",
+                        number + 1
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn plain_items_have_no_enchantments_or_wear() {

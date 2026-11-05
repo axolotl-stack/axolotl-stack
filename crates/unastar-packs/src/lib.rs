@@ -1,8 +1,9 @@
 //! Bevy-free reader for Bedrock behaviour packs.
 //!
-//! One implementation serves every consumer (architecture §2: datagen and
-//! build scripts, the Bedrock-style worldgen codegen, and the startup loader
-//! for addon packs):
+//! One implementation serves every consumer (architecture §2): datagen and
+//! build scripts and the Bedrock-style worldgen codegen. A startup loader for
+//! addon packs is planned (D5) but not built: the server reads only the
+//! vanilla data embedded at build time and loads no pack at runtime.
 //!
 //! 1. **Containers** ([`brarchive`], [`json`]): BDS `.brarchive` files and
 //!    JSON with `//` / `/* */` comments.

@@ -77,6 +77,9 @@ jobs:
           cargo test -p axelerator
           cargo check -p unastar --all-targets
           cargo test -p unastar --lib --tests
+          # Build-time worldgen toolchains; their BDS-install tests skip
+          # without UNASTAR_BDS_DIR.
+          cargo test -p unastar_noise -p unastar_bedrock_codegen
 
   knowledge:
     # The project knowledge system (AGENTS.md, openspec/, docs/, agent skills); see docs/README.md.

@@ -12,7 +12,12 @@ The crate is the boundary between raw Bedrock data sources and the server runtim
    actor definitions, enriched biomes, canonical loot JSON and item/recipe document
    bundles into Cargo's `OUT_DIR`, embeds them
    and decodes it once at startup. Pack-derived JSON/KDL and per-entity Rust
-   are not committed (D2/D13); `output/pack-manifest.json` records counts/hashes.
+   are not committed (D2/D13); `output/pack-manifest.json` records a count and
+   SHA-256 for every build output (actor definitions, component registry, schema
+   defaults and generated component bodies, actor wire catalog, biomes, loot
+   tables, spawn rules, item and recipe bundles). `src/pack_manifest.rs` lists
+   the families; datagen writes from that list and `tests/pack_data.rs` checks
+   every entry, so a family cannot be written without being checked.
 3. `unastar` consumes the decoded typed APIs, not raw pack files in tick paths.
 
 ## Source priority
@@ -252,8 +257,11 @@ Refresh only native block data plus the manifest:
 cargo run -p unastar-data-gen -- --blocks-only
 ```
 
-Actor and biome artefacts regenerate automatically when their submodule inputs
+Pack-derived artefacts regenerate automatically when their submodule inputs
 change. Refresh their committed hash/count manifest with `--manifest-only`.
+`data/measured/manifest.json` is checked too: `tests/measured_manifest.rs`
+fails when a measured file no longer matches its recorded SHA-256 or a new
+file is missing from the manifest.
 The D9 comparison uses the same pack-stack/brarchive reader as worldgen:
 
 ```powershell
@@ -333,8 +341,10 @@ Regenerate all Rust consumers after artifact generation:
 cargo run -p unastar-data-codegen --
 ```
 
-Run datagen and codegen twice to check determinism. Neither embeds wall-clock time;
-leave `UNASTAR_DATA_GENERATED_AT` unset (or pin it to the same value).
+Neither datagen nor codegen embeds wall-clock time; leave
+`UNASTAR_DATA_GENERATED_AT` unset (or pin it to the same value). Determinism is
+not checked automatically: run both twice and diff `output/` and the generated
+sources by hand when you change them.
 
 ## BDS capture workflow
 
