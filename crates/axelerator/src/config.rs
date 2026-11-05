@@ -320,10 +320,7 @@ impl AxeleratorConfig {
             source: e,
         })?;
 
-        toml::from_str(&contents).map_err(|e| ConfigError::Parse {
-            path: path.display().to_string(),
-            span: e.span(),
-        })
+        toml::from_str(&contents).map_err(|e| ConfigError::parse(path, &contents, &e))
     }
 
     /// Save configuration to a TOML file.
@@ -399,12 +396,90 @@ pub enum ConfigError {
     },
     Parse {
         path: String,
-        // Never retain the TOML error: it embeds the original configuration.
+        // Never retain the TOML error: its Display embeds the offending
+        // source line, which may hold the webhook credential.
         span: Option<std::ops::Range<usize>>,
+        /// 1-based line and column of the error, when known.
+        position: Option<(usize, usize)>,
+        /// The parser's message with any quoted value removed
+        /// (see [`redact_toml_message`]); it names keys, never values.
+        message: String,
     },
     Serialize {
         source: toml::ser::Error,
     },
+}
+
+impl ConfigError {
+    fn parse(path: &Path, contents: &str, error: &toml::de::Error) -> Self {
+        let span = error.span();
+        let position = span.as_ref().map(|span| line_column(contents, span.start));
+        let mut message = redact_toml_message(error.message());
+        // Type and value errors point at the value; name its key, read from
+        // the source line up to `=` (the value itself is never copied).
+        if let Some(key) = span
+            .as_ref()
+            .and_then(|span| key_before(contents, span.start))
+            && !message.contains(&format!("`{key}`"))
+        {
+            message = format!("{message} for key `{key}`");
+        }
+        ConfigError::Parse {
+            path: path.display().to_string(),
+            span,
+            position,
+            message,
+        }
+    }
+}
+
+/// 1-based line and column (in characters) of byte offset `at`.
+fn line_column(contents: &str, at: usize) -> (usize, usize) {
+    let before = &contents[..at.min(contents.len())];
+    let line = before.matches('\n').count() + 1;
+    let line_start = before.rfind('\n').map_or(0, |i| i + 1);
+    (line, before[line_start..].chars().count() + 1)
+}
+
+/// The bare key assigned on the line containing byte offset `at`, when the
+/// offset lies in the value of a `key = value` line.
+fn key_before(contents: &str, at: usize) -> Option<&str> {
+    let before = &contents[..at.min(contents.len())];
+    let line_start = before.rfind('\n').map_or(0, |i| i + 1);
+    let (key, _) = before[line_start..].split_once('=')?;
+    let key = key.trim();
+    let bare = !key.is_empty()
+        && key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'));
+    bare.then_some(key)
+}
+
+/// Keeps what the TOML/serde message says about keys and expected types,
+/// and drops any echo of the input value: serde's `invalid type: string
+/// "<value>", expected a boolean` becomes `invalid type, expected a
+/// boolean`, and the long `expected one of ...` key list is cut.
+fn redact_toml_message(message: &str) -> String {
+    let message = message.replace('\n', "; ");
+    for prefix in [
+        "invalid type",
+        "invalid value",
+        "invalid length",
+        "unknown variant",
+    ] {
+        if message.starts_with(prefix) {
+            return match message.split_once(", expected ") {
+                Some((_, expected)) => format!("{prefix}, expected {expected}"),
+                None => prefix.to_string(),
+            };
+        }
+    }
+    if message.starts_with("unknown field")
+        && let Some((field, _)) = message.split_once(", expected ")
+    {
+        return field.to_string();
+    }
+    message
 }
 
 impl std::fmt::Display for ConfigError {
@@ -413,13 +488,21 @@ impl std::fmt::Display for ConfigError {
             ConfigError::Io { path, source } => {
                 write!(f, "Failed to read config file '{}': {}", path, source)
             }
-            ConfigError::Parse { path, span } => {
-                write!(
+            ConfigError::Parse {
+                path,
+                span,
+                position,
+                message,
+            } => match position {
+                Some((line, column)) => write!(
                     f,
-                    "Failed to parse config file '{}' at byte range {:?}",
-                    path, span
-                )
-            }
+                    "Failed to parse config file '{path}' at line {line}, column {column}: {message}"
+                ),
+                None => write!(
+                    f,
+                    "Failed to parse config file '{path}' (byte range {span:?}): {message}"
+                ),
+            },
             ConfigError::Serialize { source } => {
                 write!(f, "Failed to serialize config: {}", source)
             }
@@ -450,6 +533,37 @@ mod tests {
             assert!(!debug.contains("secret-sentinel"));
             assert!(!debug.contains("/api/webhooks/"));
         }
+    }
+
+    /// With strict parsing an operator needs to know which key broke the
+    /// file. Errors used to say only "at byte range Some(0..8)".
+    #[test]
+    fn parse_errors_name_the_key_and_position() {
+        let error = load_str(
+            "server_ip = \"a\"
+sever_ip = \"10.0.0.1\"",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("line 2, column 1"), "{error}");
+        assert!(error.contains("unknown field `sever_ip`"), "{error}");
+        assert!(!error.contains("10.0.0.1"), "{error}");
+
+        let error = load_str(
+            "[discord]
+enabled = \"secret-sentinel\"",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("line 2, column 11"), "{error}");
+        assert!(error.contains("`enabled`"), "{error}");
+        assert!(error.contains("expected a boolean"), "{error}");
+        assert!(!error.contains("secret-sentinel"), "{error}");
+
+        let error = load_str("server_port = 99999999").unwrap_err().to_string();
+        assert!(error.contains("`server_port`"), "{error}");
+        assert!(error.contains("expected u16"), "{error}");
+        assert!(!error.contains("99999999"), "{error}");
     }
 
     /// Unknown keys (typos, removed options) used to be ignored silently.
@@ -556,6 +670,12 @@ mod tests {
         for contents in [
             "[discord]\nwebhook_url = \"secret-sentinel",
             "[discord]\nenabled = \"secret-sentinel\"",
+            "server_port = \"secret-sentinel\"",
+            "host_name = secret-sentinel",
+            "secret-sentinel",
+            "[logging]\nlevel = [\"secret-sentinel\"]",
+            "server_ip = \"a\"\nserver_ip = \"secret-sentinel\"",
+            "[discord]\nwebhook_url = \"secret-sentinel\"\nwebhook_url = \"x\"",
         ] {
             std::fs::write(&path, contents).unwrap();
             let error = AxeleratorConfig::load(&path).unwrap_err();

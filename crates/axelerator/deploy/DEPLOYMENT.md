@@ -74,8 +74,9 @@ show_timestamp = false      # journald adds timestamps
 json_format = false         # one JSON object per log line
 ```
 
-Unknown keys, wrong types and invalid TOML stop startup with an error naming
-the file and byte range; a missing file means defaults. Other options:
+Unknown keys, wrong types and invalid TOML stop startup with an error giving
+the file, line and column and naming the key (for example ``unknown field
+`sever_ip` ``); values are never echoed. A missing file means defaults. Other options:
 `auto_accept_friends` (default `true`) accepts pending friend requests,
 `presence_heartbeat` (default `300`) is the presence refresh interval used when
 Xbox Live returns none.
