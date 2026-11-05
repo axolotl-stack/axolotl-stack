@@ -785,7 +785,6 @@ impl GameServer {
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(uuid::Uuid::new_v4);
         let player_name = data.display_name.clone();
-        let join_name = data.display_name.clone();
         let position = Position(data.position);
         let runtime_id = data.runtime_id;
         let chunk_x = (position.0.x / 16.0).floor() as i32;
@@ -917,18 +916,8 @@ impl GameServer {
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
             session_map.insert(data.session_id, entity);
         }
-        // Plugins see the join on the next plugin tick (`on-player-join`).
-        if let Some(mut events) = self
-            .ecs
-            .world_mut()
-            .get_resource_mut::<crate::ecs::events::EventBuffer>()
-        {
-            events.push(crate::ecs::events::ServerEvent::PlayerJoin {
-                entity,
-                player_id: player_uuid.to_string(),
-                username: join_name,
-            });
-        }
+        // Plugins see the join (`on-player-join`) once the client has spawned:
+        // `send_spawn_status` queues it when it clears `AwaitingSpawnStatus`.
 
         self.ecs.world_mut().write_message(PlayerSpawnedEvent {
             entity,
@@ -1376,9 +1365,23 @@ mod tests {
     }
 
     #[test]
-    fn player_spawn_queues_one_plugin_join_event() {
+    fn plugin_join_fires_once_after_the_client_has_spawned() {
+        use crate::ecs::events::ServerEvent;
+        let joins = |events: &[ServerEvent]| -> Vec<(Entity, String, String)> {
+            events
+                .iter()
+                .filter_map(|event| match event {
+                    ServerEvent::PlayerJoin {
+                        entity,
+                        player_id,
+                        username,
+                    } => Some((*entity, player_id.clone(), username.clone())),
+                    _ => None,
+                })
+                .collect()
+        };
         let mut server = void_server();
-        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(4096);
         let entity = server
             .spawn_player(PlayerSpawnData {
                 session_id: 5,
@@ -1392,18 +1395,44 @@ mod tests {
                 chunk_radius: 2,
             })
             .expect("fresh player spawns without saved data");
-        let events = server
-            .ecs
-            .world_mut()
-            .resource_mut::<crate::ecs::events::EventBuffer>()
-            .drain();
-        assert!(matches!(
-            events.as_slice(),
-            [crate::ecs::events::ServerEvent::PlayerJoin { entity: joined, player_id, username }]
-                if *joined == entity
-                    && player_id == "00000000-0000-0000-0000-000000000005"
-                    && username == "Joiner"
-        ));
+        assert!(
+            joins(&drain_events(&mut server)).is_empty(),
+            "no join while the client is still loading"
+        );
+        let mut seen = Vec::new();
+        for _ in 0..20 {
+            let awaiting = server
+                .ecs
+                .world()
+                .get::<AwaitingSpawnStatus>(entity)
+                .is_some();
+            server.tick();
+            let tick_joins = joins(&drain_events(&mut server));
+            if !tick_joins.is_empty() {
+                assert!(
+                    awaiting,
+                    "join is queued on the tick the spawn status goes out"
+                );
+                assert!(
+                    server
+                        .ecs
+                        .world()
+                        .get::<AwaitingSpawnStatus>(entity)
+                        .is_none(),
+                    "join is queued only once the client has spawned"
+                );
+            }
+            seen.extend(tick_joins);
+        }
+        assert_eq!(
+            seen,
+            [(
+                entity,
+                "00000000-0000-0000-0000-000000000005".to_string(),
+                "Joiner".to_string()
+            )],
+            "exactly one join"
+        );
     }
 
     #[test]
@@ -1589,6 +1618,19 @@ mod saved_inventory_validation_tests {
         assert!(
             outbound_rx.try_recv().is_err(),
             "invalid saved state must not emit a successful join"
+        );
+        for _ in 0..3 {
+            server.tick();
+        }
+        assert!(
+            !server
+                .ecs
+                .world_mut()
+                .resource_mut::<crate::ecs::events::EventBuffer>()
+                .drain()
+                .iter()
+                .any(|event| matches!(event, crate::ecs::events::ServerEvent::PlayerJoin { .. })),
+            "a refused join never reaches plugins"
         );
     }
 }

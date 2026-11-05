@@ -81,6 +81,10 @@ action system rather than exposing mutable ECS references to guests.
 capped at the nominal 20; before two ticks have run it reports 20. `get-game-mode`
 reads the player's current game mode.
 
+`on-player-join` fires once per player, after the client has spawned: on the
+tick the server sends `PlayStatus(PlayerSpawn)`, not while the client is still
+loading. A join the server refuses (for example invalid saved data) never fires.
+
 `on-player-quit` fires once for every player that leaves, whether by a client
 disconnect packet, a dropped connection or server shutdown. After a disconnect
 the player is already despawned when it is dispatched, so the handle's getters

@@ -99,11 +99,25 @@ pub struct AwaitingSpawnStatus;
 /// System: Send `PlayStatus(PlayerSpawn)` once, after this tick's publisher
 /// update and chunks. The client then loads the terrain still streaming in
 /// and sends `SetLocalPlayerAsInitialized` when it is ready.
+///
+/// This is also where plugins learn of the join: `PlayerJoin` is queued
+/// exactly once, when `AwaitingSpawnStatus` clears, so `on-player-join` never
+/// runs while the client is still on the loading screen.
 pub fn send_spawn_status(
     mut commands: Commands,
-    players: Query<(Entity, &PlayerSession, &LastPublisherState), With<AwaitingSpawnStatus>>,
+    players: Query<
+        (
+            Entity,
+            &PlayerSession,
+            &LastPublisherState,
+            &crate::entity::components::PlayerName,
+            &crate::entity::components::PlayerUuid,
+        ),
+        With<AwaitingSpawnStatus>,
+    >,
+    mut events: Option<ResMut<crate::ecs::events::EventBuffer>>,
 ) {
-    for (player_entity, session, publisher_state) in players.iter() {
+    for (player_entity, session, publisher_state, name, uuid) in players.iter() {
         if !publisher_state.published() {
             continue; // the view comes first
         }
@@ -115,6 +129,13 @@ pub fn send_spawn_status(
             commands
                 .entity(player_entity)
                 .remove::<AwaitingSpawnStatus>();
+            if let Some(events) = events.as_mut() {
+                events.push(crate::ecs::events::ServerEvent::PlayerJoin {
+                    entity: player_entity,
+                    player_id: uuid.0.to_string(),
+                    username: name.0.clone(),
+                });
+            }
         } else {
             debug!(player = ?player_entity, "Failed to send PlayStatus(PlayerSpawn) (channel full or closed); retrying next tick");
         }
