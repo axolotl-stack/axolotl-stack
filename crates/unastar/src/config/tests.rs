@@ -325,3 +325,33 @@ fn root_sample_is_a_copy_of_the_embedded_template() {
         DEFAULT_CONFIG_TOML
     );
 }
+
+/// A fixed spawn location outside `world.bounds` would put every player in the void.
+#[test]
+fn fixed_spawn_locations_outside_the_world_bounds_are_refused() {
+    let file = ConfigFile::new();
+    let bounds = "[world.bounds]\nmode = 'radius'\nradius_chunks = 2\n";
+    for (location, valid) in [
+        ("{ x = 0.5, y = 17.0, z = 0.5 }", true),
+        // Chunk 2 spans blocks 32..=47; chunk -2 spans -32..=-17.
+        ("{ x = 47.9, y = 17.0, z = -32.0 }", true),
+        ("{ x = 48.0, y = 17.0, z = 0.5 }", false),
+        ("{ x = 0.5, y = 17.0, z = -32.5 }", false),
+    ] {
+        std::fs::write(
+            &file.0,
+            format!(
+                "{VOID_WORLD}{bounds}[[spawn_rules]]\nalways_at_location = true\nlocation = {location}\n"
+            ),
+        )
+        .unwrap();
+        match UnastarConfig::load_or_create(&file.0) {
+            Ok(_) => assert!(valid, "accepted spawn {location} outside the bounds"),
+            Err(ConfigError::Validation(message)) => {
+                assert!(!valid, "refused spawn {location}: {message}");
+                assert!(message.contains("world.bounds"), "{message}");
+            }
+            Err(other) => panic!("unexpected error for {location}: {other}"),
+        }
+    }
+}

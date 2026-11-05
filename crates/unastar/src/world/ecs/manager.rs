@@ -8,7 +8,7 @@ use super::components::{
     ChunkActorStore, ChunkData, ChunkPosition, ChunkState, ChunkStateFlags, ChunkViewers,
     PendingActorRestore,
 };
-use super::generation_worker::{ChunkGenerationWorker, generate_within_bounds, generation_threads};
+use super::generation_worker::{ChunkGenerationWorker, generation_threads};
 use crate::storage::{ChunkColumn, WorldProvider};
 use crate::world::generator::ChunkPipeline;
 use crate::world::{Chunk, ChunkPos, WorldConfig};
@@ -209,12 +209,9 @@ impl ChunkManager {
     /// Generate a new chunk at the given position (all air outside `world.bounds`).
     /// This creates the chunk data but doesn't spawn an ECS entity.
     pub fn generate_chunk(&self, x: i32, z: i32) -> Chunk {
-        generate_within_bounds(
-            &self.pipeline,
-            self.world_config.bounds,
-            ChunkPos::new(x, z),
-        )
-        .expect("chunk contains an unrepresentable native actor")
+        self.pipeline
+            .generate_within(self.world_config.bounds, ChunkPos::new(x, z))
+            .expect("chunk contains an unrepresentable native actor")
     }
 
     /// Load or generate a chunk column at the given position.

@@ -217,8 +217,8 @@ pub async fn resolve_spawn_location(
     // Final fallback: template spawn (flat/void) or the generator's spawn search
     // (terrain), computed once on a blocking thread.
     if config.world.generator.uses_generation_pool() {
-        let generator = config.world.generator;
-        let spawn = tokio::task::spawn_blocking(move || generator.spawn())
+        let (generator, bounds) = (config.world.generator, config.world.bounds);
+        let spawn = tokio::task::spawn_blocking(move || generator.spawn(bounds))
             .await
             .expect("spawn search panicked");
         return SpawnLocation {
@@ -394,6 +394,40 @@ mod tests {
         assert_eq!(
             resolve(vec![previous()], &store.0, None).await,
             template.start_game_template.position.x
+        );
+    }
+
+    /// The generator's spawn search stays inside `world.bounds`: with a rect far from
+    /// where the unbounded search lands, the spawn is still in a bounded chunk. Java-style
+    /// generation needs the structure templates of `java-worldgen`.
+    #[cfg(feature = "java-worldgen")]
+    #[tokio::test]
+    async fn the_generated_spawn_is_inside_the_world_bounds() {
+        let store = Store::new("bounded-spawn");
+        let bounds = crate::world::WorldBounds::Rect {
+            min_x: 100,
+            max_x: 101,
+            min_z: -101,
+            max_z: -100,
+        };
+        let config = UnastarConfig {
+            world: crate::world::WorldConfig {
+                bounds,
+                generator: crate::world::WorldGenerator::Java { seed: 12345 },
+                ..crate::world::WorldConfig::default()
+            },
+            spawn_rules: vec![previous()],
+            ..UnastarConfig::default()
+        };
+        let spawn =
+            resolve_spawn_location(&config, None, &WorldTemplate::default(), &store.0, None).await;
+        let chunk = crate::world::ChunkPos::new(
+            (spawn.x.floor() as i32) >> 4,
+            (spawn.z.floor() as i32) >> 4,
+        );
+        assert!(
+            bounds.contains(chunk),
+            "spawn {spawn:?} is in chunk {chunk:?}"
         );
     }
 }

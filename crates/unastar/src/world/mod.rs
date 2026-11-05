@@ -29,7 +29,7 @@ impl ChunkPos {
 }
 
 /// World boundary policy in chunk coordinates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
 pub enum WorldBounds {
     /// Infinite world (no bounds checks).
@@ -64,6 +64,32 @@ impl WorldBounds {
                 max_z,
             } => (min_x..=max_x).contains(&pos.x) && (min_z..=max_z).contains(&pos.z),
         }
+    }
+
+    /// The chunk inside the bounds nearest to `pos` (`pos` itself when inside).
+    /// Needs non-empty bounds, which config validation guarantees.
+    pub fn clamp(&self, pos: ChunkPos) -> ChunkPos {
+        match *self {
+            Self::Infinite => pos,
+            Self::Radius { radius_chunks } => {
+                let r = i32::try_from(radius_chunks).unwrap_or(i32::MAX);
+                ChunkPos::new(pos.x.clamp(-r, r), pos.z.clamp(-r, r))
+            }
+            Self::Rect {
+                min_x,
+                max_x,
+                min_z,
+                max_z,
+            } => ChunkPos::new(pos.x.clamp(min_x, max_x), pos.z.clamp(min_z, max_z)),
+        }
+    }
+
+    /// Whether a position in block coordinates lies in a chunk inside the bounds.
+    pub fn contains_block(&self, x: f32, z: f32) -> bool {
+        self.contains(ChunkPos::new(
+            (x.floor() as i32) >> 4,
+            (z.floor() as i32) >> 4,
+        ))
     }
 }
 
@@ -116,20 +142,22 @@ impl WorldGenerator {
         }
     }
 
-    /// World spawn chosen by this generator. The search generates chunks, so it runs once
-    /// per generator config and process; later calls return the cached point.
-    pub fn spawn(&self) -> generator::SpawnPoint {
+    /// World spawn chosen by this generator within `bounds` (chunks outside them count
+    /// as air). The search generates chunks, so it runs once per generator config, bounds
+    /// and process; later calls return the cached point.
+    pub fn spawn(&self, bounds: WorldBounds) -> generator::SpawnPoint {
         use std::collections::HashMap;
         use std::sync::{Arc, LazyLock, Mutex, OnceLock};
-        type Spawns = Mutex<HashMap<WorldGenerator, Arc<OnceLock<generator::SpawnPoint>>>>;
+        type Key = (WorldGenerator, WorldBounds);
+        type Spawns = Mutex<HashMap<Key, Arc<OnceLock<generator::SpawnPoint>>>>;
         static SPAWNS: LazyLock<Spawns> = LazyLock::new(Default::default);
         let cell = SPAWNS
             .lock()
             .expect("spawn cache lock poisoned")
-            .entry(*self)
+            .entry((*self, bounds))
             .or_default()
             .clone();
-        *cell.get_or_init(|| generator::ChunkPipeline::new(self.build()).find_spawn())
+        *cell.get_or_init(|| generator::ChunkPipeline::new(self.build()).find_spawn_within(bounds))
     }
 }
 

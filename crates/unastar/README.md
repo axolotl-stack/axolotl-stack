@@ -49,7 +49,11 @@ refused, since it would leave every chunk outside the world.
 `world.bounds` (`infinite`, `radius` or `rect`, inclusive chunk coordinates) limits
 terrain generation on every path, the inline generators and the generation pool
 alike: a chunk outside the bounds is generated as all air (it still exists, so the
-client can mesh the border). Chunks already in storage load as stored.
+client can mesh the border). Chunks already in storage load as stored. The generator's
+spawn search is centred inside the bounds and treats chunks outside them as air, so a
+generated spawn is always in a bounded chunk. A spawn rule `location` outside the
+bounds fails config load, and startup fails if the resolved world spawn (for example a
+flat world's template spawn) is outside them.
 
 World storage is selected with `world.storage_provider = "level_db"` (default)
 or `"blaze_db"`; `world.blazedb_cache_chunks` defaults to `4096` and applies only

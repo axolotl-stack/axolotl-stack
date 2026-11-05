@@ -5,14 +5,15 @@
 //! miss permits generation; read errors never produce replacement terrain. Generation is a
 //! pure function of `(seed, position)` (see `world::generator::pipeline`), so the number
 //! of workers never changes the output. Positions outside `world.bounds` are generated as
-//! all-air by [`generate_within_bounds`], the same helper the inline path uses.
+//! all-air by [`ChunkPipeline::generate_within`], the same helper the inline path
+//! and the spawn search use.
 
 use std::sync::{Arc, Mutex, mpsc};
 use tokio::sync::oneshot;
 
 use crate::storage::{ChunkColumn, StorageResult, WorldProvider};
 use crate::world::generator::ChunkPipeline;
-use crate::world::{Chunk, ChunkPos, WorldBounds};
+use crate::world::{ChunkPos, WorldBounds};
 
 /// The chunk column (with its stored actors) plus its storage provenance
 /// (`true` means loaded, not generated).
@@ -29,23 +30,6 @@ struct ChunkGenRequest {
     provider: Option<Arc<dyn WorldProvider>>,
     dimension: i32,
     response_tx: oneshot::Sender<ChunkLoadResult>,
-}
-
-/// Generate the chunk at `pos`, or an all-air chunk when `pos` lies outside `bounds`.
-///
-/// Every generation path (inline and the pool) goes through here, so the configured
-/// bounds hold whichever path a generator uses. Out-of-bounds chunks still exist (as air)
-/// so the client can mesh the border.
-pub(crate) fn generate_within_bounds(
-    pipeline: &ChunkPipeline,
-    bounds: WorldBounds,
-    pos: ChunkPos,
-) -> std::io::Result<Chunk> {
-    if !bounds.contains(pos) {
-        tracing::debug!(chunk = ?(pos.x, pos.z), ?bounds, "Chunk outside world bounds - generating air");
-        return Ok(Chunk::new(pos.x, pos.z));
-    }
-    pipeline.generate(pos)
 }
 
 /// Handle to the chunk generation pool. Dropping every handle stops the workers once
@@ -131,7 +115,7 @@ impl ChunkGenerationWorker {
                     return Ok((column, true));
                 }
                 tracing::debug!(chunk = ?(pos.x, pos.z), dimension = req.dimension, "Generating missing chunk");
-                let chunk = generate_within_bounds(pipeline, bounds, pos).map_err(|error| {
+                let chunk = pipeline.generate_within(bounds, pos).map_err(|error| {
                     crate::storage::StorageError::Serialization(format!(
                         "chunk {pos:?}: native Bedrock adaptation failed: {error}"
                     ))

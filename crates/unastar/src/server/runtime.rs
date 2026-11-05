@@ -198,6 +198,19 @@ impl UnastarServer {
             )
             .await
         };
+        if !self
+            .config
+            .world
+            .bounds
+            .contains_block(world_spawn.x, world_spawn.z)
+        {
+            return Err(format!(
+                "the world spawn ({}, {}, {}) is outside `world.bounds`; set a spawn rule \
+                 `location` inside the bounds",
+                world_spawn.x, world_spawn.y, world_spawn.z
+            )
+            .into());
+        }
         self.server.ecs.world_mut().insert_resource(
             crate::entity::player_life::respawn::WorldSpawn(glam::DVec3::new(
                 f64::from(world_spawn.x),

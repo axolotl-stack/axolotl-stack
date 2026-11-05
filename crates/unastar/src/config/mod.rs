@@ -130,6 +130,17 @@ impl UnastarConfig {
                  (got x {min_x}..={max_x}, z {min_z}..={max_z})"
             ));
         }
+        // A fixed spawn outside the bounds would drop every player into the void.
+        if let Some(rule) = self.spawn_rules.iter().find(|rule| {
+            rule.location
+                .is_some_and(|at| !self.world.bounds.contains_block(at.x, at.z))
+        }) {
+            let at = rule.location.expect("found by its location");
+            return Err(format!(
+                "spawn rule `{}` places players at ({}, {}, {}), outside `world.bounds`",
+                rule.name, at.x, at.y, at.z
+            ));
+        }
         if self.server.default_chunk_radius > self.server.max_chunk_radius {
             return Err(
                 "`server.default_chunk_radius` cannot exceed `server.max_chunk_radius`".into(),

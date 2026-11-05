@@ -17,8 +17,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use super::proto::{NativeBiome, ProtoChunk};
 use super::region::{DecorationRegion, DecorationWrites, SLOT_OFFSETS};
-use crate::world::ChunkPos;
 use crate::world::chunk::Chunk;
+use crate::world::{ChunkPos, WorldBounds};
 
 mod native;
 use native::NativeSession;
@@ -71,9 +71,10 @@ pub trait Generator: Send + Sync + 'static {
     /// Bedrock biome id for a generator-native biome.
     fn bedrock_biome(&self, biome: NativeBiome) -> u32;
 
-    /// World spawn. `chunk_at` returns finished chunks (decorated, with biomes) for
-    /// generators that search the generated terrain.
-    fn find_spawn(&self, chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint;
+    /// World spawn inside `bounds`. `chunk_at` returns finished chunks (decorated, with
+    /// biomes, all air outside `bounds`) for generators that search the generated
+    /// terrain; a search centres itself inside `bounds`.
+    fn find_spawn(&self, chunk_at: &dyn Fn(ChunkPos) -> Chunk, bounds: WorldBounds) -> SpawnPoint;
 }
 
 /// Bounded single-flight cache keyed by chunk position (FIFO eviction).
@@ -301,12 +302,35 @@ impl ChunkPipeline {
         chunk
     }
 
-    /// World spawn chosen by the generator over this pipeline's finished chunks.
+    /// The finished chunk at `pos`, or an all-air chunk when `pos` lies outside `bounds`.
+    ///
+    /// Every bounded generation path (inline, the generation pool and the spawn search)
+    /// goes through here. Out-of-bounds chunks still exist (as air) so the client can
+    /// mesh the border.
+    pub fn generate_within(&self, bounds: WorldBounds, pos: ChunkPos) -> std::io::Result<Chunk> {
+        if !bounds.contains(pos) {
+            tracing::debug!(chunk = ?(pos.x, pos.z), ?bounds, "Chunk outside world bounds - generating air");
+            return Ok(Chunk::new(pos.x, pos.z));
+        }
+        self.generate(pos)
+    }
+
+    /// World spawn chosen by the generator over this pipeline's finished chunks, with no
+    /// bounds.
     pub fn find_spawn(&self) -> SpawnPoint {
-        self.generator.find_spawn(&|pos| {
-            self.generate(pos)
-                .expect("spawn chunk contains an unrepresentable native actor")
-        })
+        self.find_spawn_within(WorldBounds::Infinite)
+    }
+
+    /// World spawn chosen by the generator inside `bounds`: the search is centred inside
+    /// them and sees air outside them.
+    pub fn find_spawn_within(&self, bounds: WorldBounds) -> SpawnPoint {
+        self.generator.find_spawn(
+            &|pos| {
+                self.generate_within(bounds, pos)
+                    .expect("spawn chunk contains an unrepresentable native actor")
+            },
+            bounds,
+        )
     }
 
     /// Number of cached protos (for benchmarks and tests).
@@ -374,7 +398,11 @@ mod tests {
         fn bedrock_biome(&self, biome: NativeBiome) -> u32 {
             biome as u32
         }
-        fn find_spawn(&self, _chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
+        fn find_spawn(
+            &self,
+            _chunk_at: &dyn Fn(ChunkPos) -> Chunk,
+            _bounds: WorldBounds,
+        ) -> SpawnPoint {
             SpawnPoint { x: 0, y: 1, z: 0 }
         }
     }
@@ -499,7 +527,11 @@ mod tests {
         fn bedrock_biome(&self, biome: NativeBiome) -> u32 {
             biome as u32
         }
-        fn find_spawn(&self, _chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
+        fn find_spawn(
+            &self,
+            _chunk_at: &dyn Fn(ChunkPos) -> Chunk,
+            _bounds: WorldBounds,
+        ) -> SpawnPoint {
             SpawnPoint { x: 0, y: 11, z: 0 }
         }
     }
