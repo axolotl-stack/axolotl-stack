@@ -78,6 +78,10 @@ action system rather than exposing mutable ECS references to guests.
 capped at the nominal 20; before two ticks have run it reports 20. `get-game-mode`
 reads the player's current game mode.
 
+`on-player-quit` fires once for every player that leaves, whether by a client
+disconnect packet or a dropped connection. The player is already despawned
+when it is dispatched, so the handle's getters return defaults.
+
 Player handles and their host entity mappings are scoped to a host invocation;
 plugins should obtain and use handles during the current callback, not retain
 them for subsequent callbacks. A handle the current invocation did not create

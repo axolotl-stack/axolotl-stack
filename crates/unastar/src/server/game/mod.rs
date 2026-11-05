@@ -949,6 +949,15 @@ impl GameServer {
             }
         };
         if let Some(entity) = entity {
+            // Every leave path (disconnect packet, network drop) ends here, so
+            // plugins see exactly one `on-player-quit` per online player.
+            if let Some(mut events) = self
+                .ecs
+                .world_mut()
+                .get_resource_mut::<crate::ecs::events::EventBuffer>()
+            {
+                events.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
+            }
             self.ecs.world_mut().despawn(entity);
             info!(session_id, "Player despawned");
         }
@@ -1261,6 +1270,77 @@ mod tests {
         assert!(join(2, "Someone", Some("2535400000000042")));
         assert!(!join(3, "Someone", Some("2535400000000043")));
         assert!(!join(4, "MobBot2", None));
+    }
+
+    fn join_for_events(server: &mut GameServer, session_id: u64) -> Entity {
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+        server
+            .spawn_player(PlayerSpawnData {
+                session_id,
+                display_name: format!("Player{session_id}"),
+                xuid: None,
+                uuid: None,
+                runtime_id: session_id as i64,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .expect("fresh player spawns without saved data")
+    }
+
+    fn drain_events(server: &mut GameServer) -> Vec<crate::ecs::events::ServerEvent> {
+        server
+            .ecs
+            .world_mut()
+            .resource_mut::<crate::ecs::events::EventBuffer>()
+            .drain()
+    }
+
+    fn quits(events: &[crate::ecs::events::ServerEvent]) -> Vec<Entity> {
+        events
+            .iter()
+            .filter_map(|event| match event {
+                crate::ecs::events::ServerEvent::PlayerQuit { entity } => Some(*entity),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn every_despawn_queues_exactly_one_plugin_quit() {
+        use bytes::BytesMut;
+        use jolyne::valentine::{
+            BorrowedMcpePacket, DisconnectPacket, DisconnectPacketMessages,
+            DisconnectPacketMessagesUnion, EnumsConnectionDisconnectFailReason, McpePacket,
+            McpePacketArgs,
+        };
+        let mut server = void_server();
+        let dropped = join_for_events(&mut server, 5);
+        let leaving = join_for_events(&mut server, 6);
+        drain_events(&mut server);
+
+        // A network-level drop despawns without any client packet.
+        server.despawn_player(5);
+        assert_eq!(quits(&drain_events(&mut server)), [dropped]);
+        server.despawn_player(5);
+        assert!(drain_events(&mut server).is_empty(), "already gone");
+
+        // A client disconnect packet queues one quit, not two.
+        let packet = McpePacket::from(DisconnectPacket {
+            reason: EnumsConnectionDisconnectFailReason::Disconnected,
+            messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+                DisconnectPacketMessages {
+                    message: "bye".into(),
+                    filtered_message: "bye".into(),
+                },
+            ),
+        });
+        let mut buf = BytesMut::new();
+        packet.data.encode_inner(&mut buf, 0, 0).unwrap();
+        let borrowed = BorrowedMcpePacket::decode_inner(&mut buf.freeze()).unwrap();
+        server.route_packet(6, McpePacketArgs, borrowed);
+        assert_eq!(quits(&drain_events(&mut server)), [leaving]);
     }
 
     #[test]
