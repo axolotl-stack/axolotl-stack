@@ -149,7 +149,7 @@ fn eat_mine_and_shoot_over_loopback() {
     let mut config = UnastarConfig::default();
     config.server.bind_address = format!("127.0.0.1:{port}");
     config.server.online_mode = false;
-    config.server.default_gamemode = "survival".into();
+    config.server.default_gamemode = unastar::entity::components::GameMode::Survival;
     config.server.default_chunk_radius = 2;
     config.server.operators = vec![name.into()];
     config.world = unastar::world::WorldConfig::void_spawn_platform(1);

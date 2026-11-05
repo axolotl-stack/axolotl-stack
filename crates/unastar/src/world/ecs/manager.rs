@@ -110,6 +110,7 @@ impl ChunkManager {
         let generation_worker = world_config.generator.uses_generation_pool().then(|| {
             ChunkGenerationWorker::spawn(
                 pipeline.clone(),
+                world_config.bounds,
                 generation_threads(world_config.generation_threads),
             )
         });
@@ -205,20 +206,11 @@ impl ChunkManager {
         &self.world_config
     }
 
-    /// Generate a new chunk at the given position.
+    /// Generate a new chunk at the given position (all air outside `world.bounds`).
     /// This creates the chunk data but doesn't spawn an ECS entity.
     pub fn generate_chunk(&self, x: i32, z: i32) -> Chunk {
-        let pos = ChunkPos::new(x, z);
-        if !self.world_config.bounds.contains(pos) {
-            tracing::warn!(
-                chunk = ?(x, z),
-                bounds = ?self.world_config.bounds,
-                "Chunk outside world bounds - returning empty"
-            );
-            return Chunk::new(x, z);
-        }
         self.pipeline
-            .generate(pos)
+            .generate_within(self.world_config.bounds, ChunkPos::new(x, z))
             .expect("chunk contains an unrepresentable native actor")
     }
 
@@ -444,6 +436,29 @@ mod tests {
         assert_eq!(manager.remove(&pos), Some(entity));
         assert!(!manager.contains(&pos));
         assert_eq!(manager.remove(&pos), None);
+    }
+
+    /// Inline generation: chunks outside the bounds are air, inside they are terrain.
+    #[test]
+    fn inline_generation_is_air_outside_world_bounds() {
+        let config = WorldConfig {
+            bounds: crate::world::WorldBounds::Rect {
+                min_x: -1,
+                max_x: 0,
+                min_z: 0,
+                max_z: 2,
+            },
+            generator: crate::world::WorldGenerator::SuperFlat,
+            ..WorldConfig::default()
+        };
+        let manager = ChunkManager::new(config);
+        for (x, z, inside) in [(-1, 0, true), (0, 2, true), (1, 0, false), (0, -1, false)] {
+            assert_eq!(
+                manager.generate_chunk(x, z).highest_subchunk() == 0,
+                !inside,
+                "chunk ({x}, {z}) inside bounds: {inside}"
+            );
+        }
     }
 
     #[test]

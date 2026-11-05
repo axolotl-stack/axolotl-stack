@@ -83,21 +83,13 @@ impl UnastarConfig {
     pub fn server_config(&self) -> ServerConfig {
         let defaults = ServerConfig::default();
 
-        // Convert gamemode string to enum
-        let gamemode = match self.server.default_gamemode.to_lowercase().as_str() {
-            "creative" => crate::entity::components::GameMode::Creative,
-            "adventure" => crate::entity::components::GameMode::Adventure,
-            "spectator" => crate::entity::components::GameMode::Spectator,
-            _ => crate::entity::components::GameMode::Survival, // default
-        };
-
         ServerConfig {
             bind_address: self.server.bind_address.clone(),
             motd: self.server.motd.clone(),
             max_players: self.server.max_players,
             default_chunk_radius: self.server.default_chunk_radius,
             max_chunk_radius: self.server.max_chunk_radius,
-            default_gamemode: gamemode,
+            default_gamemode: self.server.default_gamemode,
             difficulty: self.server.difficulty,
             block_network_ids: self.server.block_network_ids,
             operators: self.server.operators.clone(),
@@ -124,6 +116,30 @@ impl UnastarConfig {
         }
         if self.server.max_chunk_radius < 1 {
             return Err("`server.max_chunk_radius` must be >= 1".into());
+        }
+        if let crate::world::WorldBounds::Rect {
+            min_x,
+            max_x,
+            min_z,
+            max_z,
+        } = self.world.bounds
+            && (min_x > max_x || min_z > max_z)
+        {
+            return Err(format!(
+                "`world.bounds` rect is empty: needs `min_x <= max_x` and `min_z <= max_z` \
+                 (got x {min_x}..={max_x}, z {min_z}..={max_z})"
+            ));
+        }
+        // A fixed spawn outside the bounds would drop every player into the void.
+        if let Some(rule) = self.spawn_rules.iter().find(|rule| {
+            rule.location
+                .is_some_and(|at| !self.world.bounds.contains_block(at.x, at.z))
+        }) {
+            let at = rule.location.expect("found by its location");
+            return Err(format!(
+                "spawn rule `{}` places players at ({}, {}, {}), outside `world.bounds`",
+                rule.name, at.x, at.y, at.z
+            ));
         }
         if self.server.default_chunk_radius > self.server.max_chunk_radius {
             return Err(
@@ -154,8 +170,9 @@ pub struct ServerConfigFile {
     pub max_players: u32,
     pub default_chunk_radius: i32,
     pub max_chunk_radius: i32,
-    /// Default game mode for new players: "survival", "creative", "adventure", "spectator"
-    pub default_gamemode: String,
+    /// Default game mode for new players: "survival", "creative", "adventure" or
+    /// "spectator". Any other value fails to load.
+    pub default_gamemode: crate::entity::components::GameMode,
     /// World difficulty at startup: "peaceful", "easy", "normal" or
     /// "hard" (BDS `server.properties` default: easy). `/difficulty`
     /// changes it while the server runs.
@@ -185,7 +202,7 @@ impl Default for ServerConfigFile {
             max_players: 20,
             default_chunk_radius: 4,
             max_chunk_radius: 12,
-            default_gamemode: "survival".into(),
+            default_gamemode: crate::entity::components::GameMode::Survival,
             difficulty: crate::world::rules::Difficulty::Easy,
             online_mode: true,
             allow_legacy_auth: true,

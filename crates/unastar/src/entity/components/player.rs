@@ -106,8 +106,12 @@ impl PlayerSession {
     }
 }
 
-/// Player game mode.
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// Player game mode. In `unastar.toml` (`server.default_gamemode`) it is one of
+/// `"survival"`, `"creative"`, `"adventure"` or `"spectator"`; anything else fails to load.
+#[derive(
+    Component, Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum GameMode {
     #[default]
     Survival,

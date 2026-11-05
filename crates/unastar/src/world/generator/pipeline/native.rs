@@ -172,7 +172,11 @@ mod tests {
         fn bedrock_biome(&self, biome: super::super::NativeBiome) -> u32 {
             u32::from(biome)
         }
-        fn find_spawn(&self, _: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
+        fn find_spawn(
+            &self,
+            _: &dyn Fn(ChunkPos) -> Chunk,
+            _: crate::world::WorldBounds,
+        ) -> SpawnPoint {
             SpawnPoint { x: 0, y: 201, z: 0 }
         }
     }

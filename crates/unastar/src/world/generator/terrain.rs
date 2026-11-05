@@ -595,7 +595,11 @@ impl Generator for JavaGenerator {
             .bedrock_id
     }
 
-    fn find_spawn(&self, chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
+    fn find_spawn(
+        &self,
+        chunk_at: &dyn Fn(ChunkPos) -> Chunk,
+        bounds: crate::world::WorldBounds,
+    ) -> SpawnPoint {
         let start = match &self.backend {
             TerrainBackend::NativeJava(noises) => {
                 biome_source::spawn_search_start(&noises.java_source())
@@ -605,6 +609,7 @@ impl Generator for JavaGenerator {
         };
         super::spawn::java_spawn(
             start,
+            bounds,
             chunk_at,
             &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
         )

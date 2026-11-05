@@ -31,15 +31,29 @@ Unastar aims to be more than just "another server software." It is designed to b
 
 The server loads `unastar.toml` from its working directory and creates it when
 missing. [`unastar.toml`](unastar.toml) in this crate is the canonical commented
-template embedded in the binary; the workspace-root sample mirrors it. Regression
-tests load both samples and a newly generated file and compare their effective
-settings with the Rust defaults.
+template embedded in the binary; the workspace-root sample is an exact copy of it
+(a test compares the two byte for byte). Regression tests also load both samples
+and a newly generated file and compare their effective settings with the Rust
+defaults.
 
 All defaults, including both samples, enable Xbox Live authentication with
 `server.online_mode = true`. Offline mode requires an explicit `false`.
 Unknown keys in the root, server, world (including bounds and generator variants),
 players, spawn-rule, and spawn-location tables are rejected rather than silently
-ignored.
+ignored. Enumerated values parse strictly: `server.default_gamemode` must be one of
+`survival`, `creative`, `adventure` or `spectator` (lower case), like `difficulty`
+and `block_network_ids`, so a typo is a load error instead of silent survival.
+After parsing, a `rect` world bound with `min_x > max_x` or `min_z > max_z` is
+refused, since it would leave every chunk outside the world.
+
+`world.bounds` (`infinite`, `radius` or `rect`, inclusive chunk coordinates) limits
+terrain generation on every path, the inline generators and the generation pool
+alike: a chunk outside the bounds is generated as all air (it still exists, so the
+client can mesh the border). Chunks already in storage load as stored. The generator's
+spawn search is centred inside the bounds and treats chunks outside them as air, so a
+generated spawn is always in a bounded chunk. A spawn rule `location` outside the
+bounds fails config load, and startup fails if the resolved world spawn (for example a
+flat world's template spawn) is outside them.
 
 World storage is selected with `world.storage_provider = "level_db"` (default)
 or `"blaze_db"`; `world.blazedb_cache_chunks` defaults to `4096` and applies only
@@ -48,6 +62,26 @@ directory. The old sample's `[world.storage]` table and its `data_dir`,
 `leveldb_enabled`, and `save_on_shutdown` keys were never supported and now cause
 a configuration error: remove that table and use the supported `[world]` keys.
 Player storage remains configured separately under `[players]`.
+
+## Client input limits
+
+Each joined session has its own bounded queue of decoded packets (512 packets), so at
+most `max_players × 512` packets wait for the tick loop. That bound is a packet count,
+not bytes, and about four times the old shared channel's `max_players × 128`. The
+tick loop applies at most 64 packets per session per tick, oldest first, and leaves
+the rest queued for the next tick, so a legitimate burst is delayed, never dropped
+or reordered. The session that goes first rotates each tick, so no session always
+wins a race decided within one tick (a shared chest slot, a contested block). A network task that finds its own queue full (the client has kept
+sending faster than the budget for several ticks) closes its own connection with a
+`Disconnect` (reason `Kicked`, "Too many packets.") so the player and the operator can
+see why; other sessions' queues are unaffected. When a session leaves, the packets routed in that
+tick are applied by the game tick before the player is saved and despawned; what it
+still had queued beyond that tick's budget is dropped (the count is logged at debug),
+since the client has gone and there is no prediction left to keep in step.
+
+`PlayerAuthInput` is rejected whole (the player stays where it was) when its
+position, rotation, head yaw or move vector is not finite, or when the position is
+more than 64 blocks from the server-tracked one.
 
 ## Joining
 

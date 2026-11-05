@@ -211,7 +211,7 @@ fn chicken_summon_flap_egg_and_kill_over_loopback() {
         // The cow's platform; creative mode lets the bot take an egg from the
         // creative inventory (the server has no `/give`).
         config.world = WorldConfig::void_spawn_platform(4);
-        config.server.default_gamemode = "creative".into();
+        config.server.default_gamemode = unastar::entity::components::GameMode::Creative;
     });
 }
 
@@ -238,7 +238,7 @@ fn zombie_kills_the_player_who_then_respawns_over_loopback() {
         // players). The bot is an operator by default.
         config.world = WorldConfig::void_spawn_platform(4);
         config.server.difficulty = Difficulty::Hard;
-        config.server.default_gamemode = "survival".into();
+        config.server.default_gamemode = unastar::entity::components::GameMode::Survival;
     });
 }
 
@@ -250,7 +250,7 @@ fn tempted_cows_spread_out_while_following_over_loopback() {
         // creative mode lets the bot take wheat from the creative
         // inventory.
         config.world = WorldConfig::void_spawn_platform(4);
-        config.server.default_gamemode = "creative".into();
+        config.server.default_gamemode = unastar::entity::components::GameMode::Creative;
     });
 }
 

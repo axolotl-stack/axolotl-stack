@@ -270,9 +270,13 @@ impl Generator for BedrockGenerator {
         u32::from(biome)
     }
 
-    fn find_spawn(&self, chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
+    fn find_spawn(
+        &self,
+        chunk_at: &dyn Fn(ChunkPos) -> Chunk,
+        bounds: crate::world::WorldBounds,
+    ) -> SpawnPoint {
         // Shared safe-spawn search examines finished Bedrock chunks.
         // BDS spawn-center selection is unmeasured: to confirm by BDS fixture.
-        self.core.find_spawn(chunk_at)
+        self.core.find_spawn(chunk_at, bounds)
     }
 }

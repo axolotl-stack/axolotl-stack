@@ -28,14 +28,17 @@ const SPIRAL_SIDE: i32 = 11;
 
 /// Spawn for a world whose climate search ended at block column `start`.
 ///
-/// `chunk_at` returns finished chunks; `classes` are the generator's block-class flags
-/// indexed by runtime id.
+/// The spiral is centred on `start`'s chunk moved inside `bounds`, so the spawn (and the
+/// fallback centre) is in a bounded chunk; `chunk_at` returns finished chunks, all air
+/// outside `bounds`. `classes` are the generator's block-class flags indexed by
+/// runtime id.
 pub fn java_spawn(
     start: (i32, i32),
+    bounds: crate::world::WorldBounds,
     chunk_at: &dyn Fn(ChunkPos) -> Chunk,
     classes: &[u8],
 ) -> SpawnPoint {
-    let center = ChunkPos::new(start.0 >> 4, start.1 >> 4);
+    let center = bounds.clamp(ChunkPos::new(start.0 >> 4, start.1 >> 4));
     let half = SPIRAL_SIDE / 2;
     let (mut dx, mut dz, mut step_x, mut step_z) = (0i32, 0i32, 0i32, -1i32);
     for _ in 0..SPIRAL_SIDE * SPIRAL_SIDE {
@@ -176,6 +179,32 @@ mod tests {
         assert_eq!(spawn_in_chunk(&chunk, ChunkPos::new(0, 0), &classes), None);
     }
 
+    /// A climate start far outside the bounds still yields a spawn inside them: the
+    /// spiral is centred inside, and chunks outside are air as the pipeline serves them.
+    #[test]
+    fn the_spawn_search_stays_inside_the_world_bounds() {
+        use crate::world::WorldBounds;
+        let classes = classes();
+        let bounds = WorldBounds::Radius { radius_chunks: 2 };
+        let land = |pos: ChunkPos| {
+            let mut chunk = Chunk::new(pos.x, pos.z);
+            if bounds.contains(pos) {
+                for x in 0..16 {
+                    for z in 0..16 {
+                        column(&mut chunk, x, z, 64, None);
+                    }
+                }
+            }
+            chunk
+        };
+        let spawn = java_spawn((2000, -2000), bounds, &land, &classes);
+        assert!(
+            bounds.contains(ChunkPos::new(spawn.x >> 4, spawn.z >> 4)),
+            "spawn {spawn:?}"
+        );
+        assert_eq!(spawn.y, 65, "on the land, not in the void");
+    }
+
     #[test]
     fn spiral_visits_the_climate_chunk_first_then_rings() {
         let classes = classes();
@@ -190,7 +219,12 @@ mod tests {
             }
             chunk
         };
-        let spawn = java_spawn((100, -40), &ocean, &classes);
+        let spawn = java_spawn(
+            (100, -40),
+            crate::world::WorldBounds::Infinite,
+            &ocean,
+            &classes,
+        );
         let visited = visited.into_inner();
         // 121 spiral chunks, then the fallback centre chunk again.
         assert_eq!(visited.len(), 122);
