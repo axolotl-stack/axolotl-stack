@@ -687,19 +687,37 @@ impl PluginManager {
         }
         self.initialize_pending(ecs_world);
         // Drain events from ECS
-        let all_events = {
-            let mut event_buffer = ecs_world
-                .get_resource_mut::<crate::ecs::events::EventBuffer>()
-                .unwrap();
-            let mut events = event_buffer.drain();
-            let tick_id = ecs_world
-                .get_resource::<crate::ecs::resources::TickCounter>()
-                .unwrap()
-                .current;
-            events.push(ServerEvent::Tick { tick_id });
-            events
-        };
+        let mut events = ecs_world
+            .get_resource_mut::<crate::ecs::events::EventBuffer>()
+            .unwrap()
+            .drain();
+        let tick_id = ecs_world
+            .get_resource::<crate::ecs::resources::TickCounter>()
+            .unwrap()
+            .current;
+        events.push(ServerEvent::Tick { tick_id });
+        self.dispatch_events(events, ecs_world);
+    }
 
+    /// Plugin side of server shutdown: dispatch the events still buffered
+    /// (the server queues a `PlayerQuit` for every online player first), with no
+    /// `Tick`, then call `on-unload` on every plugin ([`Self::unload_all`]).
+    pub fn shutdown(&mut self, ecs_world: &mut bevy_ecs::world::World) {
+        let events = ecs_world
+            .get_resource_mut::<crate::ecs::events::EventBuffer>()
+            .map(|mut buffer| buffer.drain())
+            .unwrap_or_default();
+        self.dispatch_events(events, ecs_world);
+        self.unload_all(ecs_world);
+    }
+
+    /// Dispatch `all_events` in order to subscribed plugins, then run the
+    /// default behaviour of every event no plugin cancelled.
+    fn dispatch_events(
+        &mut self,
+        all_events: Vec<ServerEvent>,
+        ecs_world: &mut bevy_ecs::world::World,
+    ) {
         if all_events.is_empty() {
             return;
         }
@@ -1110,8 +1128,9 @@ mod tests {
     }
 
     /// Like [`component`], but `on-timer` and `on-unload` call
-    /// `set-block((0, 0, 0), marker)` so tests can see which plugin was called
-    /// in the `ActionQueue`.
+    /// `set-block((0, 0, 0), marker)` (and `on-player-quit` uses `marker + 100`)
+    /// so tests can see which plugin and export was called in the `ActionQueue`.
+    /// (Plain [`component`] uses marker 0, which tests ignore.)
     fn component_with_marker(engine: &Engine, allow: bool, marker: u32) -> Component {
         build_component(engine, allow, marker, false, false)
     }
@@ -1269,6 +1288,11 @@ mod tests {
                         local.get $i i32.const 1 i32.sub local.set $i
                         br $spin))
                     i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block"
+                )
+            } else if name == "on-player-quit" {
+                format!(
+                    "i32.const 0 i32.const 0 i32.const 0 i32.const {} call $set-block",
+                    marker + 100
                 )
             } else if name == "on-timer" || name == "on-unload" {
                 format!("i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block")
@@ -1598,6 +1622,38 @@ mod tests {
         manager.unload_all(&mut world);
         ticker.join().unwrap();
         assert_eq!(queued_markers(&mut world), [8], "on-unload completed");
+    }
+
+    #[test]
+    fn shutdown_delivers_buffered_quits_before_unloading() {
+        use crate::ecs::events::EventKind;
+        let engine = engine();
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![pending(
+                &engine,
+                manifest("tracker", &[EventKind::PlayerQuit, EventKind::Tick]),
+                1,
+            )],
+            engine,
+            tps: TpsMeter::default(),
+        };
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
+        world.insert_resource(crate::ecs::events::ActionQueue::default());
+        world.insert_resource(crate::ecs::events::EventBuffer::default());
+        manager.tick(&mut world);
+        let player = world.spawn_empty().id();
+        world
+            .resource_mut::<crate::ecs::events::EventBuffer>()
+            .push(ServerEvent::PlayerQuit { entity: player });
+        manager.shutdown(&mut world);
+        assert!(manager.plugins.is_empty());
+        assert_eq!(
+            queued_markers(&mut world),
+            [101, 1],
+            "on-player-quit, then on-unload"
+        );
     }
 
     #[test]

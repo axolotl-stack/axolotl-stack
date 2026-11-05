@@ -60,8 +60,9 @@ instantiates pending components and invokes `on-load`, with the live ECS World
 attached for both operations: component start functions can invoke hosts too.
 A failed instantiation or `on-load` rejects that plugin.
 
-At shutdown, before players and chunks are saved, the server calls `on-unload`
-on every loaded plugin with the World attached and a fresh fuel budget, then
+At shutdown, before players and chunks are saved, the server first dispatches
+a `PlayerQuit` for every player still online (the players are still spawned, so
+handles work), then calls `on-unload` on every loaded plugin with the World attached and a fresh fuel budget, then
 drops it. `on-unload` gets its own wall-clock deadline, `PLUGIN_UNLOAD_DEADLINE`
 (1 s), instead of an event callback's few milliseconds, so a plugin can flush
 its own state there (for example write a file through WASI). The server does
@@ -79,8 +80,9 @@ capped at the nominal 20; before two ticks have run it reports 20. `get-game-mod
 reads the player's current game mode.
 
 `on-player-quit` fires once for every player that leaves, whether by a client
-disconnect packet or a dropped connection. The player is already despawned
-when it is dispatched, so the handle's getters return defaults.
+disconnect packet, a dropped connection or server shutdown. After a disconnect
+the player is already despawned when it is dispatched, so the handle's getters
+return defaults.
 
 Player handles and their host entity mappings are scoped to a host invocation;
 plugins should obtain and use handles during the current callback, not retain

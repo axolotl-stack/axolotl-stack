@@ -940,6 +940,22 @@ impl GameServer {
         Ok(entity)
     }
 
+    /// Queue a plugin `PlayerQuit` for every online player, for shutdown. The
+    /// players stay spawned so they can still be saved afterwards.
+    pub fn queue_quit_for_online_players(&mut self) -> usize {
+        let world = self.ecs.world_mut();
+        let entities: Vec<Entity> = world
+            .get_resource::<SessionEntityMap>()
+            .map(|sessions| sessions.iter().map(|(_, entity)| entity).collect())
+            .unwrap_or_default();
+        if let Some(mut events) = world.get_resource_mut::<crate::ecs::events::EventBuffer>() {
+            for &entity in &entities {
+                events.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
+            }
+        }
+        entities.len()
+    }
+
     pub fn despawn_player(&mut self, session_id: SessionId) {
         let entity = {
             if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
@@ -1305,6 +1321,22 @@ mod tests {
                 _ => None,
             })
             .collect()
+    }
+
+    #[test]
+    fn shutdown_queues_one_quit_per_online_player_and_keeps_them_spawned() {
+        let mut server = void_server();
+        let first = join_for_events(&mut server, 5);
+        let second = join_for_events(&mut server, 6);
+        drain_events(&mut server);
+        assert_eq!(server.queue_quit_for_online_players(), 2);
+        let mut quit = quits(&drain_events(&mut server));
+        quit.sort();
+        let mut expected = vec![first, second];
+        expected.sort();
+        assert_eq!(quit, expected);
+        assert!(server.ecs.world().get_entity(first).is_ok());
+        assert!(server.ecs.world().get_entity(second).is_ok());
     }
 
     #[test]
