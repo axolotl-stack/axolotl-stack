@@ -58,20 +58,22 @@ impl UnastarServer {
             );
         }
 
-        // Initialize LevelDB player provider (if enabled)
+        // A configured player database that won't open (e.g. locked by
+        // another instance) stops startup, like the world database: running
+        // without it would let everyone join with first-join state while their
+        // saved data sits on disk.
         if config.players.leveldb_enabled {
             let player_db_path = config.players.data_dir.join("db");
-            match LevelDBPlayerProvider::open(&player_db_path) {
-                Ok(provider) => {
-                    info!(path = %player_db_path.display(), "Opened player LevelDB");
-                    server.ecs.world_mut().insert_resource(
-                        crate::server::game::types::PlayerProviderResource(Arc::new(provider)),
-                    );
-                }
-                Err(e) => {
-                    warn!(error = %e, "Failed to open player LevelDB, persistence disabled");
-                }
-            }
+            let provider = LevelDBPlayerProvider::open(&player_db_path).map_err(|e| {
+                format!(
+                    "Failed to open player storage at {}: {e}",
+                    player_db_path.display()
+                )
+            })?;
+            info!(path = %player_db_path.display(), "Opened player LevelDB");
+            server.ecs.world_mut().insert_resource(
+                crate::server::game::types::PlayerProviderResource(Arc::new(provider)),
+            );
         }
 
         // Without its world database the server can't load or save terrain,

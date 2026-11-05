@@ -752,7 +752,9 @@ Trapping plugin callbacks are logged, and cancellable callbacks fail closed.
 The world database opens at `worlds/default/db` (LevelDB by default, or BlazeDB
 with `world.blazedb_cache_chunks` cached columns). If it can't be opened, for
 example because another instance holds it, startup fails rather than running
-without chunk persistence.
+without chunk persistence. The same goes for the player database at
+`<players.data_dir>/db` when `players.leveldb_enabled` is on: startup fails
+rather than letting everyone join with first-join state.
 
 Both providers use load-before-generate chunk requests. For Java-style terrain,
 storage reads and generation run off the ECS tick thread; only a confirmed
