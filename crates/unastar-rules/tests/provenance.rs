@@ -2,8 +2,9 @@
 //! engine internals. This scans every comment in the crate's sources for the
 //! two shapes engine symbol names take in prose:
 //!
-//! - a scope-qualified type in backticks, `` `Outer::Inner` ``, outside an
-//!   intra-doc link (`[`...`]` links name this crate's Rust items);
+//! - a scope-qualified type or method in backticks, `` `Outer::Inner` `` or
+//!   `` `Outer::doThing` ``, outside an intra-doc link (`[`...`]` links name
+//!   this crate's Rust items);
 //! - a lowerCamelCase identifier in backticks, `` `doThing` `` or
 //!   `` `doThing(...)` ``; this crate's own items are snake_case, and
 //!   namespaced data ids (`minecraft:muttonRaw`) are not symbols.
@@ -48,13 +49,22 @@ fn looks_internal(span: &str) -> bool {
         .take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == ':')
         .collect();
     if let Some((outer, inner)) = ident.split_once("::") {
-        let upper = |s: &str| s.chars().next().is_some_and(|c| c.is_ascii_uppercase());
-        return upper(outer) && upper(inner);
+        // `Outer::Inner` (a nested type) and `Class::doThing` (a method).
+        return upper(outer) && (upper(inner) || lower_camel(inner));
     }
     if ident.contains(':') {
         // A namespaced data id (`minecraft:muttonRaw`), not a symbol.
         return false;
     }
+    lower_camel(&ident)
+}
+
+fn upper(ident: &str) -> bool {
+    ident.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+}
+
+/// `doThing`: lower-case start, an upper-case letter later, no underscore.
+fn lower_camel(ident: &str) -> bool {
     let mut chars = ident.chars();
     chars.next().is_some_and(|c| c.is_ascii_lowercase())
         && !ident.contains('_')
@@ -96,6 +106,10 @@ fn the_scanner_flags_both_shapes_and_spares_links_and_snake_case() {
     assert!(looks_internal("Outer::Inner"));
     assert!(looks_internal("doThing"));
     assert!(looks_internal("doThing(50)"));
+    assert!(looks_internal("Outer::doThing"));
+    assert!(looks_internal("Outer::doThing(1)"));
+    assert!(!looks_internal("Outer::new"), "a Rust associated fn");
+    assert!(!looks_internal("Outer::do_thing"), "a Rust associated fn");
     assert!(looks_internal("nextInt(50) <= cost"));
     assert!(!looks_internal("do_thing"));
     assert!(!looks_internal("minecraft:zombie"));
