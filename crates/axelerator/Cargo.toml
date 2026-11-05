@@ -21,6 +21,7 @@ p384.workspace = true
 
 # Async runtime
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time", "signal", "fs"] }
+tokio-util.workspace = true
 futures.workspace = true
 
 # Serialization
@@ -30,7 +31,7 @@ toml = "0.8"
 
 # Logging
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "json"] }
 
 # HTTP client for Discord webhooks
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
@@ -46,3 +47,6 @@ windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Securit
 
 [dev-dependencies]
 tempfile = "3"
+tokio = { workspace = true, features = ["test-util", "net", "io-util"] }
+# Local WebSocket stub standing in for franchise signaling.
+tokio-tungstenite.workspace = true

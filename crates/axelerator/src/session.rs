@@ -8,7 +8,7 @@ use crate::discord::DiscordNotifier;
 use crate::player_history::PlayerHistory;
 use crate::screenshots::ScreenshotManager;
 use crate::token_cache::TokenCache;
-use crate::transfer::TransferStats;
+use crate::transfer::{ShutdownReason, TransferStats};
 use anyhow::{Context, Result};
 use axolotl_xbl::{
     ExpandedSessionInfo, FriendsClient, PlayFabClient, PresenceClient, SessionClient, SessionInfo,
@@ -18,7 +18,8 @@ use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
 /// Presence refresh backoff configuration.
@@ -28,6 +29,45 @@ const PRESENCE_MAX_FAILURES: u32 = 5;
 const FRIEND_SYNC_MIN_INTERVAL_SECS: u64 = 20;
 const FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS: u64 = 60;
 const PROCESSED_XUIDS_MAX_ENTRIES: usize = 50_000;
+/// Longest wait for Discord notifications at the end of `run`.
+const DISCORD_FLUSH_TIMEOUT: Duration = Duration::from_secs(5);
+/// Delay before retrying a failed token refresh for the transfer server.
+const TOKEN_REFRESH_RETRY_DELAY: Duration = Duration::from_secs(5);
+
+type TransferResult = Result<ShutdownReason>;
+
+/// The transfer server task the signaling loop waits on, or a scheduled
+/// retry standing in for it.
+///
+/// A `JoinHandle` must not be polled after it completed. The loop waits on
+/// this in a `select!` every iteration, so a finished task is taken out and
+/// later waits stay pending until the loop installs a new task.
+struct TransferTask(Option<tokio::task::JoinHandle<TransferResult>>);
+
+impl TransferTask {
+    fn spawn(future: impl std::future::Future<Output = TransferResult> + Send + 'static) -> Self {
+        Self(Some(tokio::spawn(future)))
+    }
+
+    /// Completes with `reason` after `delay`, so a failed restart is retried
+    /// by the same branch without blocking the loop.
+    fn retry_after(delay: Duration, reason: ShutdownReason) -> Self {
+        Self::spawn(async move {
+            tokio::time::sleep(delay).await;
+            Ok(reason)
+        })
+    }
+
+    /// Waits for the task. Cancel-safe; pending forever once it was reported.
+    async fn join(&mut self) -> std::result::Result<TransferResult, tokio::task::JoinError> {
+        let Some(handle) = self.0.as_mut() else {
+            return std::future::pending().await;
+        };
+        let result = handle.await;
+        self.0 = None;
+        result
+    }
+}
 
 type SharedProcessedXuids = Arc<RwLock<ProcessedXuids>>;
 
@@ -86,8 +126,9 @@ impl ProcessedXuids {
 pub struct Axelerator {
     config: AxeleratorConfig,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
-    shutdown_notify: Arc<Notify>,
-    transfer_shutdown: Arc<Notify>,
+    /// Cancelled once on shutdown; durable, so a request made while no task
+    /// is waiting (during startup or a loop iteration) is never lost.
+    shutdown: CancellationToken,
     discord: DiscordNotifier,
 }
 
@@ -98,8 +139,7 @@ impl Axelerator {
         Self {
             config,
             session_info: Arc::new(RwLock::new(None)),
-            shutdown_notify: Arc::new(Notify::new()),
-            transfer_shutdown: Arc::new(Notify::new()),
+            shutdown: CancellationToken::new(),
             discord,
         }
     }
@@ -112,12 +152,29 @@ impl Axelerator {
             "Starting Axelerator (WebRTC transfer mode)"
         );
 
+        // One shared friend-expiry history for the whole run; a corrupt file
+        // stops startup before anything is advertised.
+        let player_history = if self.config.friend_expiry.enabled {
+            let history_path = PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
+            let history = PlayerHistory::load(&history_path)?;
+            info!("Player history loaded from {}", history_path.display());
+            Some(history)
+        } else {
+            None
+        };
+
         // Step 1: Authenticate with Xbox Live using TokenCache
         let token_cache = Arc::new(TokenCache::new(&self.config.token_cache_path));
-        let xbl_token = token_cache
-            .get_or_authenticate()
-            .await
-            .context("Failed to authenticate with Xbox Live")?;
+        // The device-code login can wait indefinitely for the operator.
+        let xbl_token = tokio::select! {
+            token = token_cache.get_or_authenticate() => {
+                token.context("Failed to authenticate with Xbox Live")?
+            }
+            _ = self.shutdown.cancelled() => {
+                info!("Shutdown requested during authentication");
+                return Ok(());
+            }
+        };
 
         info!(
             gamertag = %xbl_token.gamertag(),
@@ -171,11 +228,16 @@ impl Axelerator {
         let session_client_clone = session_client.clone();
         let session_info_clone = self.session_info.clone();
         let processed_xuids_clone = processed_xuids.clone();
+        let auto_accept = self.config.auto_accept_friends;
+        if !auto_accept {
+            info!("auto_accept_friends is off; pending friend requests are left alone");
+        }
 
         // Handle RTA events
         rta_client
             .on_event(move |data| {
-                if let Some(msg_type) = data.get("NotificationType").and_then(|v| v.as_str())
+                if auto_accept
+                    && let Some(msg_type) = data.get("NotificationType").and_then(|v| v.as_str())
                     && msg_type == "IncomingFriendRequestCountChanged"
                 {
                     info!("Received friend request notification");
@@ -205,6 +267,9 @@ impl Axelerator {
         let resync_processed = processed_xuids.clone();
         rta_client
             .on_resync(move || {
+                if !auto_accept {
+                    return;
+                }
                 let friends = resync_friends.clone();
                 let sessions = resync_sessions.clone();
                 let tokens = resync_tokens.clone();
@@ -220,7 +285,7 @@ impl Axelerator {
         // For long-running services, we retry indefinitely with capped backoff
         // Pass token_cache to allow token refresh on reconnection
         let rta_run = rta_client.clone();
-        let rta_shutdown = self.shutdown_notify.clone();
+        let rta_shutdown = self.shutdown.clone();
         let rta_token_cache = token_cache.clone();
         let rta_handle = tokio::spawn(async move {
             let mut retry_count = 0u32;
@@ -229,7 +294,7 @@ impl Axelerator {
 
             loop {
                 tokio::select! {
-                    _ = rta_shutdown.notified() => {
+                    _ = rta_shutdown.cancelled() => {
                         info!("RTA client shutdown requested");
                         break;
                     }
@@ -291,10 +356,17 @@ impl Axelerator {
 
         // Wait for RTA to connect and get ID
         info!("Waiting for RTA connection...");
-        let connection_id = rta_client
-            .wait_for_connection_id()
-            .await
-            .context("Failed to establish an authenticated RTA connection")?;
+        let connection_id = tokio::select! {
+            id = rta_client.wait_for_connection_id() => {
+                id.context("Failed to establish an authenticated RTA connection")?
+            }
+            _ = self.shutdown.cancelled() => {
+                info!("Shutdown requested while waiting for RTA");
+                rta_client.shutdown().await;
+                rta_handle.abort();
+                return Ok(());
+            }
+        };
 
         // Step 2: Set presence to active
         let presence = PresenceClient::new();
@@ -349,7 +421,7 @@ impl Axelerator {
             let sessions = session_client.clone();
             let token_cache_for_sync = token_cache.clone();
             let session_info_for_sync = self.session_info.clone();
-            let shutdown = self.shutdown_notify.clone();
+            let shutdown = self.shutdown.clone();
 
             Some(tokio::spawn(async move {
                 run_rta_connection_sync(
@@ -364,14 +436,16 @@ impl Axelerator {
         };
 
         // Initial friend sync - now that session is created, accept pending requests and send invites
-        accept_friends_and_invite(
-            &friends_client,
-            &session_client,
-            &token_cache,
-            self.session_info.clone(),
-            &processed_xuids,
-        )
-        .await;
+        if auto_accept {
+            accept_friends_and_invite(
+                &friends_client,
+                &session_client,
+                &token_cache,
+                self.session_info.clone(),
+                &processed_xuids,
+            )
+            .await;
+        }
 
         // Also sync followers on startup (catches people who followed us while we were offline)
         let _ = sync_followers(
@@ -401,7 +475,7 @@ impl Axelerator {
             let sessions = session_client.clone();
             let token_cache_for_sync = token_cache.clone();
             let session_info_for_sync = self.session_info.clone();
-            let shutdown = self.shutdown_notify.clone();
+            let shutdown = self.shutdown.clone();
             let processed_for_sync = processed_xuids.clone();
             let auto_unfollow = self.config.auto_unfollow;
 
@@ -423,10 +497,7 @@ impl Axelerator {
         };
 
         // Initialize friend expiry: seed existing friends on first run
-        let friend_expiry_handle = if self.config.friend_expiry.enabled {
-            let history_path = PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
-            let history = PlayerHistory::load(&history_path);
-
+        let friend_expiry_handle = if let Some(history) = player_history.clone() {
             // Seed existing friends with current timestamp so they aren't immediately expired
             let init_token = match token_cache.get_or_authenticate().await {
                 Ok(t) => t,
@@ -451,7 +522,7 @@ impl Axelerator {
             let expiry_config = self.config.friend_expiry.clone();
             let expiry_friends = friends_client.clone();
             let expiry_token_cache = token_cache.clone();
-            let expiry_shutdown = self.shutdown_notify.clone();
+            let expiry_shutdown = self.shutdown.clone();
             let expiry_history = history;
 
             info!(
@@ -483,6 +554,7 @@ impl Axelerator {
                 &handle_id,
                 heartbeat,
                 &session_client,
+                player_history.clone(),
             )
             .await;
 
@@ -498,9 +570,13 @@ impl Axelerator {
             handle.abort();
         }
 
-        // Stop friend expiry
+        // Stop friend expiry, then persist the shared history it and the
+        // transfer server were updating.
         if let Some(handle) = friend_expiry_handle {
             handle.abort();
+        }
+        if let Some(history) = &player_history {
+            history.save_if_dirty().await;
         }
 
         // Stop RTA connection sync
@@ -516,7 +592,16 @@ impl Axelerator {
         }
 
         // Send shutdown notification to Discord
-        self.discord.notify_shutdown("Graceful shutdown");
+        match &result {
+            Ok(()) => self.discord.notify_shutdown("Graceful shutdown"),
+            Err(e) => self
+                .discord
+                .notify_shutdown(&format!("Exited with error: {e:#}")),
+        }
+
+        // Let the shutdown (and any crash) notification reach Discord
+        // before the process exits.
+        self.discord.flush(DISCORD_FLUSH_TIMEOUT).await;
 
         info!("Cleanup complete");
         result
@@ -553,6 +638,7 @@ impl Axelerator {
         handle_id: &str,
         initial_heartbeat_secs: u64,
         session_client: &SessionClient,
+        player_history: Option<PlayerHistory>,
     ) -> Result<()> {
         // Discover signaling endpoint for regional routing (this doesn't change)
         let discovery = DiscoveryClient::new();
@@ -601,26 +687,16 @@ impl Axelerator {
         let mut token_refresh_attempts = 0u32;
         const MAX_TOKEN_REFRESH_ATTEMPTS: u32 = 5;
 
-        // Load player history for friend expiry tracking
-        let player_history = if self.config.friend_expiry.enabled {
-            let history_path = PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
-            let history = PlayerHistory::load(&history_path);
-            info!("Player history loaded from {}", history_path.display());
-            Some(history)
-        } else {
-            None
-        };
-
         // Spawn the transfer server with proper shutdown handling
         let spawn_transfer_server =
             |signaling_url: String,
              nethernet_id: u64,
              mc_token: String,
              config: AxeleratorConfig,
-             shutdown: Arc<Notify>,
+             shutdown: CancellationToken,
              stats: Arc<TransferStats>,
              history: Option<PlayerHistory>| {
-                tokio::spawn(async move {
+                TransferTask::spawn(async move {
                     crate::transfer::run_transfer_server(
                         &signaling_url,
                         nethernet_id,
@@ -634,12 +710,12 @@ impl Axelerator {
                 })
             };
 
-        let mut transfer_handle = spawn_transfer_server(
+        let mut transfer_task = spawn_transfer_server(
             signaling_url.clone(),
             nethernet_id,
             mc_token.clone(),
             self.config.clone(),
-            self.transfer_shutdown.clone(),
+            self.shutdown.clone(),
             transfer_stats.clone(),
             player_history.clone(),
         );
@@ -648,7 +724,8 @@ impl Axelerator {
         let friends_client = FriendsClient::new();
 
         // Presence refresh with exponential backoff
-        let mut heartbeat_secs = presence_interval(initial_heartbeat_secs);
+        let mut heartbeat_secs =
+            presence_interval(initial_heartbeat_secs, self.config.presence_heartbeat);
         let mut presence_failures = 0u32;
         let mut presence_backoff_secs = PRESENCE_INITIAL_BACKOFF_SECS;
         let mut last_presence_refresh = Instant::now();
@@ -702,149 +779,141 @@ impl Axelerator {
             );
         }
 
-        loop {
+        // Every exit that is not a requested shutdown is an error, so the
+        // process exits non-zero and its supervisor restarts it.
+        let outcome: Result<()> = loop {
             tokio::select! {
                 biased;
 
                 // Prioritize shutdown signal
-                _ = self.shutdown_notify.notified() => {
+                _ = self.shutdown.cancelled() => {
                     info!("Shutdown signal received");
-                    self.transfer_shutdown.notify_waiters();
                     // Give transfer server time to shutdown gracefully
                     tokio::time::sleep(Duration::from_millis(500)).await;
-                    break;
+                    break Ok(());
                 }
 
                 // Transfer server completion
-                res = &mut transfer_handle => {
-                    match res {
-                        Ok(Ok(reason)) => {
-                            use crate::transfer::ShutdownReason;
-                            match reason {
-                                ShutdownReason::Requested => {
-                                    info!("Transfer server shutdown completed");
-                                    break;
-                                }
-                                ShutdownReason::AuthenticationError => {
-                                    // Token expired - refresh and restart
-                                    token_refresh_attempts += 1;
-                                    if token_refresh_attempts > MAX_TOKEN_REFRESH_ATTEMPTS {
-                                        let err_msg = format!(
-                                            "Token refresh failed {} times, giving up",
-                                            token_refresh_attempts
-                                        );
-                                        error!("{}", err_msg);
-                                        self.discord.notify_auth_error(&err_msg);
-                                        break;
-                                    }
+                res = transfer_task.join() => {
+                    let reason = match transfer_exit(res) {
+                        Ok(reason) => reason,
+                        Err(err_msg) => {
+                            error!("{}", err_msg);
+                            self.discord.notify_crash(&err_msg);
+                            break Err(anyhow::anyhow!(err_msg));
+                        }
+                    };
+                    match reason {
+                        ShutdownReason::Requested => {
+                            info!("Transfer server shutdown completed");
+                            break Ok(());
+                        }
+                        ShutdownReason::AuthenticationError => {
+                            // Token expired - refresh and restart
+                            token_refresh_attempts += 1;
+                            if token_refresh_attempts > MAX_TOKEN_REFRESH_ATTEMPTS {
+                                let err_msg = format!(
+                                    "Token refresh failed {} times, giving up",
+                                    token_refresh_attempts
+                                );
+                                error!("{}", err_msg);
+                                self.discord.notify_auth_error(&err_msg);
+                                break Err(anyhow::anyhow!(err_msg));
+                            }
 
-                                    warn!(
-                                        attempt = token_refresh_attempts,
-                                        "Transfer server auth failed, refreshing tokens..."
+                            warn!(
+                                attempt = token_refresh_attempts,
+                                "Transfer server auth failed, refreshing tokens..."
+                            );
+
+                            // Force refresh the XBL token for PlayFab
+                            playfab.invalidate_service_token(&mc_token).await;
+                            if let Err(e) = token_cache.force_refresh_xbl().await {
+                                error!("Failed to refresh XBL token: {}", e);
+                                // Re-enter this branch after a delay, counting the attempt.
+                                transfer_task = TransferTask::retry_after(
+                                    TOKEN_REFRESH_RETRY_DELAY,
+                                    ShutdownReason::AuthenticationError,
+                                );
+                                continue;
+                            }
+
+                            // Get new mc_token
+                            match get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await {
+                                Ok(new_token) => {
+                                    mc_token = new_token;
+                                    info!("Token refresh successful, restarting transfer server...");
+
+                                    // Reset refresh counter on success
+                                    token_refresh_attempts = 0;
+
+                                    // Restart transfer server with new token
+                                    transfer_task = spawn_transfer_server(
+                                        signaling_url.clone(),
+                                        nethernet_id,
+                                        mc_token.clone(),
+                                        self.config.clone(),
+                                        self.shutdown.clone(),
+                                        transfer_stats.clone(),
+                                        player_history.clone(),
                                     );
-
-                                    // Force refresh the XBL token for PlayFab
-                                    playfab.invalidate_service_token(&mc_token).await;
-                                    if let Err(e) = token_cache.force_refresh_xbl().await {
-                                        error!("Failed to refresh XBL token: {}", e);
-                                        // Wait before retrying
-                                        tokio::time::sleep(Duration::from_secs(5)).await;
-                                        continue;
-                                    }
-
-                                    // Get new mc_token
-                                    match get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await {
-                                        Ok(new_token) => {
-                                            mc_token = new_token;
-                                            info!("Token refresh successful, restarting transfer server...");
-
-                                            // Reset refresh counter on success
-                                            token_refresh_attempts = 0;
-
-                                            // Restart transfer server with new token
-                                            transfer_handle = spawn_transfer_server(
-                                                signaling_url.clone(),
-                                                nethernet_id,
-                                                mc_token.clone(),
-                                                self.config.clone(),
-                                                self.transfer_shutdown.clone(),
-                                                transfer_stats.clone(),
-                                                player_history.clone(),
-                                            );
-                                        }
-                                        Err(e) => {
-                                            error!("Failed to get new mc_token: {}", e);
-                                            // Wait before retrying
-                                            tokio::time::sleep(Duration::from_secs(5)).await;
-                                        }
-                                    }
-                                    continue;
                                 }
-                                ShutdownReason::ListenerClosed => {
-                                    // Signaling connection died - try to recover by refreshing
-                                    // MC token and restarting the transfer server.
-                                    // This matches Broadcaster's checkConnection() -> createSession() pattern.
-                                    warn!("Transfer server listener closed, attempting recovery...");
-
-                                    // Refresh MC token
-                                    match get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await {
-                                        Ok(new_token) => {
-                                            mc_token = new_token;
-                                            info!("MC token refreshed, restarting transfer server...");
-
-                                            // Re-PUT session to keep it alive
-                                            let session_token = match token_cache.get_or_authenticate().await {
-                                                Ok(t) => t,
-                                                Err(e) => {
-                                                    let err_msg = format!("Failed to get XBL token for session refresh during recovery: {}", e);
-                                                    error!("{}", err_msg);
-                                                    self.discord.notify_crash(&err_msg);
-                                                    break;
-                                                }
-                                            };
-                                            if let Err(e) = session_client.create_session(&session_token, &current_session).await {
-                                                warn!("Failed to refresh session during recovery: {}", e);
-                                                // Continue anyway - transfer server restart is more important
-                                            }
-
-                                            transfer_handle = spawn_transfer_server(
-                                                signaling_url.clone(),
-                                                nethernet_id,
-                                                mc_token.clone(),
-                                                self.config.clone(),
-                                                self.transfer_shutdown.clone(),
-                                                transfer_stats.clone(),
-                                                player_history.clone(),
-                                            );
-                                            continue;
-                                        }
-                                        Err(e) => {
-                                            let err_msg = format!("Failed to refresh MC token during recovery: {}", e);
-                                            error!("{}", err_msg);
-                                            self.discord.notify_crash(&err_msg);
-                                            break;
-                                        }
-                                    }
-                                }
-                                ShutdownReason::FatalError => {
-                                    let err_msg = format!("Transfer server fatal error: {:?}", reason);
-                                    error!("{}", err_msg);
-                                    self.discord.notify_crash(&err_msg);
-                                    break;
+                                Err(e) => {
+                                    error!("Failed to get new mc_token: {}", e);
+                                    // Re-enter this branch after a delay, counting the attempt.
+                                    transfer_task = TransferTask::retry_after(
+                                        TOKEN_REFRESH_RETRY_DELAY,
+                                        ShutdownReason::AuthenticationError,
+                                    );
                                 }
                             }
+                            continue;
                         }
-                        Ok(Err(e)) => {
-                            let err_msg = format!("Transfer server error: {}", e);
-                            error!("{}", err_msg);
-                            self.discord.notify_crash(&err_msg);
-                            break;
-                        }
-                        Err(e) => {
-                            let err_msg = format!("Transfer server task panicked: {}", e);
-                            error!("{}", err_msg);
-                            self.discord.notify_crash(&err_msg);
-                            break;
+                        ShutdownReason::ListenerClosed => {
+                            // Signaling connection died - try to recover by refreshing
+                            // MC token and restarting the transfer server.
+                            // This matches Broadcaster's checkConnection() -> createSession() pattern.
+                            warn!("Transfer server listener closed, attempting recovery...");
+
+                            // Refresh MC token
+                            match get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await {
+                                Ok(new_token) => {
+                                    mc_token = new_token;
+                                    info!("MC token refreshed, restarting transfer server...");
+
+                                    // Re-PUT session to keep it alive
+                                    let session_token = match token_cache.get_or_authenticate().await {
+                                        Ok(t) => t,
+                                        Err(e) => {
+                                            let err_msg = format!("Failed to get XBL token for session refresh during recovery: {}", e);
+                                            error!("{}", err_msg);
+                                            self.discord.notify_crash(&err_msg);
+                                            break Err(anyhow::anyhow!(err_msg));
+                                        }
+                                    };
+                                    if let Err(e) = session_client.create_session(&session_token, &current_session).await {
+                                        warn!("Failed to refresh session during recovery: {}", e);
+                                        // Continue anyway - transfer server restart is more important
+                                    }
+
+                                    transfer_task = spawn_transfer_server(
+                                        signaling_url.clone(),
+                                        nethernet_id,
+                                        mc_token.clone(),
+                                        self.config.clone(),
+                                        self.shutdown.clone(),
+                                        transfer_stats.clone(),
+                                        player_history.clone(),
+                                    );
+                                    continue;
+                                }
+                                Err(e) => {
+                                    let err_msg = format!("Failed to refresh MC token during recovery: {}", e);
+                                    error!("{}", err_msg);
+                                    self.discord.notify_crash(&err_msg);
+                                    break Err(anyhow::anyhow!(err_msg));
+                                }
+                            }
                         }
                     }
                 }
@@ -874,7 +943,7 @@ impl Axelerator {
 
                         match presence.set_active(&presence_token).await {
                             Ok(new_heartbeat) => {
-                                heartbeat_secs = presence_interval(new_heartbeat);
+                                heartbeat_secs = presence_interval(new_heartbeat, self.config.presence_heartbeat);
                                 presence_failures = 0;
                                 presence_backoff_secs = PRESENCE_INITIAL_BACKOFF_SECS;
                                 last_presence_refresh = now;
@@ -1151,7 +1220,7 @@ impl Axelerator {
                     }
                 }
             }
-        }
+        };
 
         // Summary at shutdown
         info!(stats = %transfer_stats.summary(), "Transfer server final stats");
@@ -1170,14 +1239,16 @@ impl Axelerator {
             }
         }
 
-        Ok(())
+        outcome
     }
 
-    /// Request shutdown.
+    /// Request shutdown. `run` then stops the transfer server, disconnects
+    /// RTA, sets presence inactive, saves history, notifies Discord and
+    /// returns `Ok(())` (the MPSD session itself is not deleted); a
+    /// request made during startup ends `run` at its next authentication wait.
     pub async fn shutdown(&self) {
         info!("Initiating graceful shutdown...");
-        self.transfer_shutdown.notify_waiters();
-        self.shutdown_notify.notify_waiters();
+        self.shutdown.cancel();
     }
 
     /// Get current session info (if available).
@@ -1342,7 +1413,7 @@ async fn run_periodic_friend_sync(
     session_client: Arc<SessionClient>,
     token_cache: Arc<TokenCache>,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
-    shutdown: Arc<Notify>,
+    shutdown: CancellationToken,
     processed_xuids: SharedProcessedXuids,
     auto_unfollow: bool,
 ) {
@@ -1357,7 +1428,7 @@ async fn run_periodic_friend_sync(
         tokio::select! {
             biased;
 
-            _ = shutdown.notified() => {
+            _ = shutdown.cancelled() => {
                 debug!("Friend sync shutting down");
                 break;
             }
@@ -1407,7 +1478,7 @@ async fn run_rta_connection_sync(
     session_client: Arc<SessionClient>,
     token_cache: Arc<TokenCache>,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
-    shutdown: Arc<Notify>,
+    shutdown: CancellationToken,
 ) {
     let mut ticker = tokio::time::interval(Duration::from_secs(5));
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -1419,7 +1490,7 @@ async fn run_rta_connection_sync(
         tokio::select! {
             biased;
 
-            _ = shutdown.notified() => {
+            _ = shutdown.cancelled() => {
                 debug!("RTA connection sync shutting down");
                 break;
             }
@@ -1800,7 +1871,7 @@ async fn run_friend_expiry_check(
     friends_client: Arc<FriendsClient>,
     token_cache: Arc<TokenCache>,
     history: PlayerHistory,
-    shutdown: Arc<Notify>,
+    shutdown: CancellationToken,
 ) {
     let interval = Duration::from_secs(config.check_interval.max(60));
     let mut ticker = tokio::time::interval(interval);
@@ -1813,7 +1884,7 @@ async fn run_friend_expiry_check(
         tokio::select! {
             biased;
 
-            _ = shutdown.notified() => {
+            _ = shutdown.cancelled() => {
                 debug!("Friend expiry check shutting down");
                 // Final save
                 history.save_if_dirty().await;
@@ -1837,25 +1908,69 @@ async fn run_friend_expiry_check(
                     }
                 };
 
-                for xuid in &expired {
-                    match friends_client.remove_friend(&token, xuid).await {
-                        Ok(_) => {
-                            info!("Expired friend removed: {}", xuid);
-                            history.remove(xuid).await;
-                        }
-                        Err(e) => {
-                            if is_rate_limited_error(&e) {
-                                warn!("Rate limited during friend expiry, will retry next cycle");
-                                break;
-                            }
-                            warn!("Failed to remove expired friend {}: {}", xuid, e);
-                        }
-                    }
-                }
-
-                history.save_if_dirty().await;
+                let friends = &friends_client;
+                let token = &token;
+                expire_inactive(&history, expired, |xuid| async move {
+                    friends.remove_friend(token, &xuid).await.map(|_| ())
+                })
+                .await;
             }
         }
+    }
+}
+
+/// Unfriends each expired entry with `unfriend` and drops it from
+/// `history`, stopping at the first rate-limit error, then saves.
+///
+/// `expired` carries the last-seen time each entry had when it was read. A
+/// player who joined since is not unfriended, and one who joins while the
+/// unfriend call is in flight keeps the join just recorded.
+async fn expire_inactive<F, Fut>(
+    history: &PlayerHistory,
+    expired: Vec<(String, u64)>,
+    mut unfriend: F,
+) where
+    F: FnMut(String) -> Fut,
+    Fut: std::future::Future<Output = std::result::Result<(), axolotl_xbl::XblError>>,
+{
+    for (xuid, seen) in &expired {
+        if history.last_seen(xuid).await != Some(*seen) {
+            debug!(xuid, "Joined since the expiry check; keeping friend");
+            continue;
+        }
+        match unfriend(xuid.clone()).await {
+            Ok(()) => {
+                info!("Expired friend removed: {}", xuid);
+                if !history.remove_if_unchanged(xuid, *seen).await {
+                    info!(
+                        xuid,
+                        "Joined while being removed; keeping their history entry"
+                    );
+                }
+            }
+            Err(e) => {
+                if is_rate_limited_error(&e) {
+                    warn!("Rate limited during friend expiry, will retry next cycle");
+                    break;
+                }
+                warn!("Failed to remove expired friend {}: {}", xuid, e);
+            }
+        }
+    }
+
+    history.save_if_dirty().await;
+}
+
+/// The transfer server's exit reason, or the message for an exit the
+/// signaling loop cannot recover from (a fatal configuration error or a
+/// panic).
+fn transfer_exit(
+    res: std::result::Result<TransferResult, tokio::task::JoinError>,
+) -> std::result::Result<ShutdownReason, String> {
+    match res {
+        Ok(Ok(reason)) => Ok(reason),
+        Ok(Err(e)) => Err(format!("Transfer server error: {e:#}")),
+        Err(e) => Err(format!("Transfer server task panicked: {e}")),
     }
 }
 
@@ -1864,10 +1979,16 @@ fn is_rate_limited_error(error: &axolotl_xbl::XblError) -> bool {
         || matches!(error, axolotl_xbl::XblError::RateLimited)
 }
 
-fn presence_interval(heartbeat: u64) -> u64 {
+/// Seconds until the next presence refresh: the service's heartbeat, or
+/// the configured `presence_heartbeat` (at least 1 s) when it returns none.
+fn presence_interval(heartbeat: u64, fallback: u64) -> u64 {
     // Upstream returns zero for absent/invalid heartbeat metadata, not a polling
-    // instruction. Keep the caller's conservative five-minute retry interval.
-    if heartbeat == 0 { 300 } else { heartbeat }
+    // instruction, so it must not become a busy refresh loop.
+    if heartbeat == 0 {
+        fallback.max(1)
+    } else {
+        heartbeat
+    }
 }
 
 /// Check if an XUID is a guest/split-screen account.
@@ -1880,11 +2001,127 @@ fn is_guest_account(xuid: &str) -> bool {
 mod auth_scheduling_tests {
     use super::*;
 
+    /// The expiry task read the expired list, unfriended, then removed the
+    /// entry unconditionally, so a player who joined in between lost the
+    /// join just recorded (and would be expired again from scratch).
+    #[tokio::test]
+    async fn join_during_expiry_keeps_the_fresh_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        let history = PlayerHistory::load(&dir.path().join("h.json")).unwrap();
+        history.set_last_seen("42", 0).await;
+        history.set_last_seen("7", 0).await;
+        let expired = history.get_expired(15).await;
+        let joining = history.clone();
+        expire_inactive(&history, expired, |xuid| {
+            let joining = joining.clone();
+            async move {
+                // The player joins while their unfriend call is in flight.
+                if xuid == "42" {
+                    joining.update_last_seen("42").await;
+                }
+                Ok(())
+            }
+        })
+        .await;
+        assert!(
+            history.last_seen("42").await.is_some_and(|t| t > 0),
+            "fresh join was removed"
+        );
+        assert_eq!(history.last_seen("7").await, None);
+    }
+
+    /// A player who joined after the expired list was read is not unfriended.
+    #[tokio::test]
+    async fn join_before_unfriend_skips_the_removal() {
+        let dir = tempfile::tempdir().unwrap();
+        let history = PlayerHistory::load(&dir.path().join("h.json")).unwrap();
+        history.set_last_seen("42", 0).await;
+        let expired = history.get_expired(15).await;
+        history.update_last_seen("42").await;
+        let mut unfriended = Vec::new();
+        expire_inactive(&history, expired, |xuid| {
+            unfriended.push(xuid);
+            async { Ok(()) }
+        })
+        .await;
+        assert!(
+            unfriended.is_empty(),
+            "unfriended a fresh join: {unfriended:?}"
+        );
+        assert!(history.last_seen("42").await.is_some());
+    }
+
+    /// `Notify::notify_waiters` only wakes tasks already waiting, so a
+    /// shutdown requested during startup or between loop iterations was lost.
+    #[tokio::test]
+    async fn shutdown_request_is_never_lost() {
+        let axelerator = Axelerator::new(AxeleratorConfig::default());
+        axelerator.shutdown().await;
+        // A waiter that starts after the request still sees it.
+        tokio::time::timeout(Duration::from_secs(1), axelerator.shutdown.cancelled())
+            .await
+            .expect("shutdown request was lost");
+    }
+
+    /// Fatal exits used to `break` the loop and return `Ok(())`, so the
+    /// process exited 0 and systemd (`Restart=on-failure`) never restarted it.
+    #[tokio::test]
+    async fn unrecoverable_transfer_exits_are_errors() {
+        assert!(transfer_exit(Ok(Err(anyhow::anyhow!("boom")))).is_err());
+        let panicked = tokio::spawn(async { panic!("transfer task exploded") })
+            .await
+            .map(|()| Ok(ShutdownReason::Requested));
+        assert!(transfer_exit(panicked).unwrap_err().contains("panicked"));
+        assert_eq!(
+            transfer_exit(Ok(Ok(ShutdownReason::Requested))),
+            Ok(ShutdownReason::Requested)
+        );
+    }
+
+    /// After a failed token refresh the loop used to `continue` and poll
+    /// the already-finished transfer `JoinHandle` again, which panics.
+    #[tokio::test]
+    async fn finished_transfer_task_is_not_polled_again() {
+        let mut task = TransferTask::spawn(async { Ok(ShutdownReason::AuthenticationError) });
+        assert_eq!(
+            task.join().await.unwrap().unwrap(),
+            ShutdownReason::AuthenticationError
+        );
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), task.join())
+                .await
+                .is_err(),
+            "a reported task must stay pending"
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn failed_refresh_is_retried_through_the_same_branch() {
+        let mut task = TransferTask::retry_after(
+            TOKEN_REFRESH_RETRY_DELAY,
+            ShutdownReason::AuthenticationError,
+        );
+        let started = tokio::time::Instant::now();
+        assert_eq!(
+            task.join().await.unwrap().unwrap(),
+            ShutdownReason::AuthenticationError
+        );
+        assert!(started.elapsed() >= TOKEN_REFRESH_RETRY_DELAY);
+    }
+
     #[test]
     fn omitted_heartbeat_does_not_create_a_busy_refresh_loop() {
-        assert_eq!(presence_interval(0), 300);
-        assert_eq!(presence_interval(1), 1);
-        assert_eq!(presence_interval(120), 120);
+        assert_eq!(presence_interval(0, 300), 300);
+        assert_eq!(presence_interval(0, 0), 1);
+        assert_eq!(presence_interval(1, 300), 1);
+        assert_eq!(presence_interval(120, 300), 120);
+    }
+
+    /// `presence_heartbeat` used to be ignored; it is the fallback interval.
+    #[test]
+    fn configured_presence_heartbeat_is_the_fallback() {
+        assert_eq!(presence_interval(0, 120), 120);
+        assert_eq!(presence_interval(60, 120), 60);
     }
 
     #[test]
