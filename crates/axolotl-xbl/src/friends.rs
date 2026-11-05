@@ -5,6 +5,7 @@
 //! extensions, not constants provided by go-xsapi.
 use crate::auth::{XblToken, sign_service_request, update_server_time_from_header};
 use crate::error::{XblError, XblResult, response_json};
+use crate::http::LazyClient;
 use serde::{Deserialize, Serialize};
 
 /// Maximum number of friends allowed by Xbox Live.
@@ -54,13 +55,13 @@ pub struct Person {
 }
 
 pub struct FriendsClient {
-    client: reqwest::Client,
+    client: LazyClient,
 }
 
 impl FriendsClient {
     pub fn new() -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: LazyClient::without_timeout(),
         }
     }
 
@@ -114,13 +115,14 @@ impl FriendsClient {
     pub async fn get_summary(&self, token: &XblToken, url: &str) -> XblResult<SocialSummary> {
         let mut request = self
             .client
+            .load()?
             .get(url)
             .header("x-xbl-contract-version", "5")
             .header("Accept", "application/json")
             .header("Accept-Language", "en-US,en")
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         response_json(response, "get friends").await
@@ -130,6 +132,7 @@ impl FriendsClient {
         let url = format!("https://social.xboxlive.com/users/me/people/xuid({})", xuid);
         let mut request = self
             .client
+            .load()?
             .put(&url)
             .header("x-xbl-contract-version", "3")
             .header("Accept", "application/json")
@@ -138,7 +141,7 @@ impl FriendsClient {
             .header("Content-Length", "0")
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         // social/relationship.go:Follow (legacy one-way follow, not AddFriend).
@@ -149,6 +152,7 @@ impl FriendsClient {
         let url = format!("https://social.xboxlive.com/users/me/people/xuid({})", xuid);
         let mut request = self
             .client
+            .load()?
             .delete(&url)
             .header("x-xbl-contract-version", "3")
             .header("Accept", "application/json")
@@ -156,7 +160,7 @@ impl FriendsClient {
             .header("Accept-Language", "en-US,en")
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
         // social/relationship.go:RemoveMutualFollow.
         Self::relationship_result(response, "remove friend", &[200, 204]).await
@@ -166,13 +170,14 @@ impl FriendsClient {
         let url = "https://peoplehub.xboxlive.com/users/me/people/friendRequests(received)/decoration/bio,detail,multiplayerSummary,preferredColor,presenceDetail";
         let mut request = self
             .client
+            .load()?
             .get(url)
             .header("x-xbl-contract-version", "7")
             .header("Accept", "application/json")
             .header("Accept-Language", "en-US,en")
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         let summary: SocialSummary = response_json(response, "get friend requests").await?;
@@ -245,11 +250,12 @@ impl FriendsClient {
         let url = "https://social.xboxlive.com/users/me/summary";
         let mut request = self
             .client
+            .load()?
             .get(url)
             .header("x-xbl-contract-version", "5")
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         let resp: SocialSummaryResponse = response_json(response, "get social summary").await?;
@@ -325,6 +331,7 @@ impl FriendsClient {
         let body_bytes = serde_json::to_vec(&body)?;
         let mut request = self
             .client
+            .load()?
             .post(url)
             .header("Content-Type", "application/json")
             .header("x-xbl-contract-version", "3")
@@ -334,7 +341,7 @@ impl FriendsClient {
             .body(body_bytes)
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         // social/relationship.go:AddFriends/doBulkFriends: never invent success
@@ -426,6 +433,7 @@ impl FriendsClient {
         );
         let mut request = self
             .client
+            .load()?
             .delete(&url)
             .header("x-xbl-contract-version", "3")
             .header("Accept", "application/json")
@@ -433,7 +441,7 @@ impl FriendsClient {
             .header("Accept-Language", "en-US,en")
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         Self::relationship_result(response, "remove follower", &[200, 204]).await
@@ -447,13 +455,14 @@ impl FriendsClient {
         );
         let mut request = self
             .client
+            .load()?
             .get(&url)
             .header("x-xbl-contract-version", "7")
             .header("Accept", "application/json")
             .header("Accept-Language", "en-US,en")
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         #[derive(Deserialize)]
         struct Profile {
             xuid: String,

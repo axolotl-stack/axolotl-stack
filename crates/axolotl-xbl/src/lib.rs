@@ -42,6 +42,7 @@ pub mod discovery;
 pub mod error;
 pub mod friends;
 pub mod gallery;
+mod http;
 pub mod playfab;
 pub mod presence;
 pub mod rta;

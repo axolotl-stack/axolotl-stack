@@ -1,9 +1,9 @@
 //! Windows Live OAuth device-code flow.
 //! Source: go-xsapi/xal/sisu/oauth2.go:DeviceAuth, DeviceAccessToken, tokenRefresher.Token.
 
-use super::http::LazyClient;
 use super::{LIVE_CONNECT_URL, LIVE_TOKEN_URL, MINECRAFT_CLIENT_ID, XAL_USER_AGENT, XBL_SCOPE};
 use crate::error::{XblError, XblResult, response_json};
+use crate::http::LazyClient;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -65,7 +65,7 @@ struct PollResponse {
 impl DeviceCodeAuth {
     pub fn new() -> Self {
         Self {
-            client: LazyClient::new(Duration::from_secs(15)),
+            client: LazyClient::with_timeout(Duration::from_secs(15)),
         }
     }
     pub async fn start(&self) -> XblResult<DeviceCodeResponse> {
@@ -74,7 +74,7 @@ impl DeviceCodeAuth {
     async fn start_at(&self, url: &str) -> XblResult<DeviceCodeResponse> {
         let response = self
             .client
-            .get()?
+            .load()?
             .post(url)
             .form(&[
                 ("client_id", MINECRAFT_CLIENT_ID),
@@ -98,7 +98,7 @@ impl DeviceCodeAuth {
     async fn poll_at(&self, url: &str, device_code: &str) -> XblResult<Option<OAuthToken>> {
         let response = self
             .client
-            .get()?
+            .load()?
             .post(url)
             .form(&[
                 ("client_id", MINECRAFT_CLIENT_ID),
@@ -164,7 +164,7 @@ impl DeviceCodeAuth {
         }
         let response = self
             .client
-            .get()?
+            .load()?
             .post(url)
             .header("User-Agent", XAL_USER_AGENT)
             .form(&[

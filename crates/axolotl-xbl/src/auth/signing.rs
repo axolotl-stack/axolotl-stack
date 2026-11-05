@@ -164,7 +164,8 @@ pub(crate) fn shared_nsal() -> crate::error::XblResult<Arc<super::nsal::NsalClie
     }
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
-        .build()?;
+        .build()
+        .map_err(crate::http::build_error)?;
     Ok(Arc::clone(NSAL.get_or_init(|| {
         Arc::new(super::nsal::NsalClient::new(client))
     })))

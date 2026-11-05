@@ -1,13 +1,13 @@
 //! Xbox authentication, ported from df-mc/go-xsapi xal/sisu/session.go.
 //! SISU yields title/user/default-XSTS tokens; other relying parties use XSTS.
 
-use super::http::LazyClient;
 use super::{
     device_code::OAuthToken,
     nsal::NsalClient,
     signing::{SigningKeyPair, shared_nsal, shared_signing_key},
 };
 use crate::error::{XblError, XblResult, response_json};
+use crate::http::LazyClient;
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -183,7 +183,7 @@ impl XblTokenClient {
     pub fn new() -> Self {
         Self {
             nsal: None,
-            client: LazyClient::new(std::time::Duration::from_secs(30)),
+            client: LazyClient::with_timeout(std::time::Duration::from_secs(30)),
             signing_key: shared_signing_key(),
             state: Mutex::new(SessionState::default()),
             endpoints: AUTH_ENDPOINTS,
@@ -347,7 +347,7 @@ impl XblTokenClient {
         // Go json.Encoder includes a trailing newline, and signs those exact bytes.
         let mut bytes = serde_json::to_vec(&body)?;
         bytes.push(b'\n');
-        let client = self.client.get()?;
+        let client = self.client.load()?;
         let mut request = client
             .post(url)
             .header("Content-Type", "application/json")
@@ -599,7 +599,7 @@ mod tests {
         let client = test_client(&base);
         let mut request = client
             .client
-            .get()
+            .load()
             .unwrap()
             .post(format!("{base}/service"))
             .header("Content-Type", "application/json")
@@ -620,7 +620,13 @@ mod tests {
         };
         super::super::signing::sign_http_request(&mut request, &client.signing_key, &policy)
             .unwrap();
-        client.client.get().unwrap().execute(request).await.unwrap();
+        client
+            .client
+            .load()
+            .unwrap()
+            .execute(request)
+            .await
+            .unwrap();
         let requests = captured.await.unwrap();
         verify_signature(&requests[0], &client.signing_key.proof_key(), 2, 3);
     }
