@@ -166,6 +166,7 @@ fn validate_all(
         .collect();
     let rows: Vec<&DomainRows> = domains.iter().map(|(rows, _)| rows).collect();
     problems.extend(claims::validate(claims, &rows));
+    problems.extend(claims::validate_changes(claims, root));
     problems
 }
 

@@ -40,7 +40,7 @@
 //!
 //! "Full face" is computed from the neighbour's collision shape; whether BDS
 //! uses that or another solidity notion (glass, leaves, ice, soul sand) is
-//! not yet confirmed: see `thoughts/shared/research/bds-quirks.md`.
+//! not yet confirmed: see `docs/quirks/bds.md`.
 
 use glam::{DVec3, IVec3};
 use unastar_data::shapes::{self, ShapeBox, ShapeRef};

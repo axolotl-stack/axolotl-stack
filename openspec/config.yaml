@@ -1,0 +1,56 @@
+schema: spec-driven
+
+# Constraints an agent cannot infer from the code. Everything else is in AGENTS.md.
+context: |
+  Rust workspace for Minecraft Bedrock servers and tooling. Reference behaviour is BDS 1.26.51
+  (protocol 2193); the Java-style world generator follows Java Edition 1.21.11.
+  Specs in openspec/specs describe OUR contracts (codec bounds, transport limits, plugin event
+  order, generator invariants). Vanilla behaviour and progress live in docs/parity and
+  docs/quirks; specs link there and never restate it.
+  Never write Bedrock server/client internal class, function or symbol names, addresses or
+  offsets in any artifact. Black-box provenance ("matches the BDS 1.26.51 capture") is fine.
+  Generated protocol code (crates/valentine/bedrock_versions, crates/valentine/src/bedrock) is
+  never edited by hand; tasks change crates/valentine_gen and regenerate.
+
+rules:
+  proposal:
+    - Before writing, search docs/solutions, docs/decisions, docs/quirks and the affected
+      openspec/specs for prior work, and cite what you found (or say nothing relevant exists).
+    - Name the affected crates.
+    - For any change to vanilla behaviour, add a "Parity rows" subsection under Impact listing the
+      exact docs/parity row ids, families or prefixes the change targets (per domain) and the
+      status each should reach. Start from docs/parity/PARITY.md "Where to help" and check
+      docs/parity/claims.toml so the rows are not claimed by someone else.
+    - 'A change that only touches vanilla behaviour sets `skip_specs: true` in .openspec.yaml; its parity rows are its spec.'
+    - State what is out of scope.
+  design:
+    - Any choice between real alternatives is listed as a decision with options and the reason;
+      it becomes a docs/decisions record at archive time.
+    - Prefer data-driven registries keyed by identifier over per-entry Rust code (see docs/decisions).
+  tasks:
+    - If the proposal lists parity rows, the first task adds a [[claim]] to
+      docs/parity/claims.toml covering them with `change = "<this change's name>"`.
+    - Include a task to update docs/parity/<domain>.toml rows and run
+      `cargo run -p parity -- generate` and `-- check` whenever gameplay behaviour changes.
+    - Include validation tasks with the exact commands (cargo fmt --check, cargo clippy -p <crate>
+      --all-targets -- -D warnings, cargo test -p <crate>).
+    - If valentine_gen changes, include the regen-protocol skill steps.
+  specs:
+    - Every requirement uses SHALL/MUST and has at least one WHEN/THEN scenario that a test could check.
+    - After a requirement's scenarios, an optional `Evidence:` line lists real code/test paths.
+
+operations:
+  apply:
+    guidance:
+      - Read AGENTS.md and the nested AGENTS.md of every crate you touch before the first edit.
+      - Run the validation commands from tasks.md; report what you ran and the result.
+      - Run the review-change skill before declaring the change complete.
+  archive:
+    guidance:
+      - Before archiving, compare the proposal's "Parity rows" with docs/parity; every listed row has moved to its target status, or its gaps say why not.
+      - In the archiving commit, remove the change's claim from docs/parity/claims.toml and run `cargo run -p parity -- generate` and `-- check` (check fails while a claim names an archived change).
+      - After merging delta specs, run the compound step before finishing.
+      - Run record-decision for each decision in design.md (status proposed unless the owner approved it).
+      - Run log-quirk for every BDS oddity the change copies.
+      - Run capture-solution for any lesson worth keeping, and mark contradicted docs/solutions notes stale.
+      - Summarise which records were written in the archive outcome.

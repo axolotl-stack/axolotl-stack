@@ -108,7 +108,7 @@ impl Model {
     /// Rules that run for `biome` in `pass`, in execution order.
     ///
     /// Execution order inside a pass is not observable from BDS data; rules run
-    /// sorted by identifier so output is deterministic (logged in bds-quirks.md).
+    /// sorted by identifier so output is deterministic (logged in docs/quirks/bds.md).
     pub fn rules_for(&self, biome: &Biome, pass: Pass) -> Vec<&FeatureRule> {
         self.rules
             .values()

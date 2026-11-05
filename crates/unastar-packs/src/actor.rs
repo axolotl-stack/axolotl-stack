@@ -13,8 +13,8 @@
 //! |---|---|---|
 //! | Syntax | JSON with `//` and `/* */` comments and an optional BOM | BDS pack files ([`crate::json`]) |
 //! | Shape | `format_version` plus exactly one `minecraft:entity`; other top-level keys are logged | Mojang entity documentation |
-//! | No identifier | A file without `description.identifier` defines nothing and is skipped ([`Loaded::Skipped`]) | `npc.json` in the BDS 1.26.51 layers `vanilla_1.16.100` and `vanilla_1.17.20` has only `components`; the layered stack still matches bedrock-samples. Unconfirmed: recorded in `bds-quirks.md` |
-//! | `events: null` | Same as no events | 23 vanilla files (bedrock-samples 1.26.50.4 = BDS 1.26.51); recorded in `bds-quirks.md` |
+//! | No identifier | A file without `description.identifier` defines nothing and is skipped ([`Loaded::Skipped`]) | `npc.json` in the BDS 1.26.51 layers `vanilla_1.16.100` and `vanilla_1.17.20` has only `components`; the layered stack still matches bedrock-samples. Unconfirmed: recorded in `docs/quirks/bds.md` |
+//! | `events: null` | Same as no events | 23 vanilla files (bedrock-samples 1.26.50.4 = BDS 1.26.51); recorded in `docs/quirks/bds.md` |
 //! | `format_version` upgrade | Before 1.26.10, `minecraft:pushable {is_pushable, is_pushable_by_piston}` (both default `true`) becomes `minecraft:pushable_by_entity {}` when `is_pushable` and `minecraft:pushable_by_block {}` when `is_pushable_by_piston`, in base components and in every group | 25 vanilla files on 1.26.0 still use `minecraft:pushable`; 1.26.10+ files use the pair (Mojang changelog for 1.26.10) |
 //! | Filters | Every filter inside a component (recognised by shape: an object with a string `test`, or an object of group keys) is parsed with every accepted spelling and written in canonical form | [`unastar_rules::filter`] |
 //! | Events | Parsed and written in canonical form, malformed vanilla nodes tolerated | [`unastar_rules::event`] |

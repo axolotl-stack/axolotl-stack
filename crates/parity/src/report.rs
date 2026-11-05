@@ -128,7 +128,8 @@ fn render_where_to_help(out: &mut String, domains: &[(DomainRows, StatusFile)], 
          ### How to claim an area\n\n\
          Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for the \
          area: `area`, `owner` (your `@github-handle`), `since` (the date), `domain`, and the \
-         `families`, `ids` or id `prefixes` you are taking; remove it when you stop. \
+         `families`, `ids` or id `prefixes` you are taking, and `change` (the OpenSpec change \
+         doing the work, if any); remove it when you stop or when the change is archived. \
          `parity check` rejects unknown families or ids and claims that overlap, so talk to the \
          owner of a claimed area before working inside it. The rest of the workflow is in \
          [CONTRIBUTING.md](../../CONTRIBUTING.md).\n\n",
@@ -209,10 +210,18 @@ fn render_where_to_help(out: &mut String, domains: &[(DomainRows, StatusFile)], 
             out.push_str("| Claimed area | Claimed by | Since | Open |\n|---|---|---|---:|\n");
             for i in mine {
                 let claim = &claims[i];
+                let area = match &claim.change {
+                    Some(change) => format!(
+                        "{} ([`{change}`](../../{}/{change}/proposal.md))",
+                        claim.area,
+                        claims::CHANGES_DIR
+                    ),
+                    None => claim.area.clone(),
+                };
                 let _ = writeln!(
                     out,
-                    "| {} | {} | {} | {} |",
-                    claim.area, claim.owner, claim.since, claimed_open[i]
+                    "| {area} | {} | {} | {} |",
+                    claim.owner, claim.since, claimed_open[i]
                 );
             }
             out.push('\n');
