@@ -702,26 +702,12 @@ impl BedrockCodec for VarInt {
         Ok(())
     }
 
+    /// The two's-complement bits as a [`VarUInt`]: the same strict rules
+    /// (minimal encoding, no bits beyond 32), so `-1` is
+    /// `ff ff ff ff 0f` and `ff ff ff ff 7f` is rejected rather than
+    /// truncated.
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, DecodeError> {
-        let mut result = 0;
-        let mut shift = 0;
-        loop {
-            if !buf.has_remaining() {
-                return Err(DecodeError::UnexpectedEof {
-                    needed: 1,
-                    available: 0,
-                });
-            }
-            let byte = buf.get_u8();
-            result |= ((byte & 0x7F) as i32) << shift;
-            if (byte & 0x80) == 0 {
-                return Ok(VarInt(result));
-            }
-            shift += 7;
-            if shift >= 35 {
-                return Err(DecodeError::VarIntTooLarge);
-            }
-        }
+        Ok(VarInt(VarUInt::decode(buf, ())?.0 as i32))
     }
 }
 
@@ -753,26 +739,9 @@ impl BedrockCodec for VarLong {
         Ok(())
     }
 
+    /// The two's-complement bits as a [`VarULong`], with its strict rules.
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, DecodeError> {
-        let mut result = 0;
-        let mut shift = 0;
-        loop {
-            if !buf.has_remaining() {
-                return Err(DecodeError::UnexpectedEof {
-                    needed: 1,
-                    available: 0,
-                });
-            }
-            let byte = buf.get_u8();
-            result |= ((byte & 0x7F) as i64) << shift;
-            if (byte & 0x80) == 0 {
-                return Ok(VarLong(result));
-            }
-            shift += 7;
-            if shift >= 70 {
-                return Err(DecodeError::VarLongTooLarge);
-            }
-        }
+        Ok(VarLong(VarULong::decode(buf, ())?.0 as i64))
     }
 }
 
@@ -1899,6 +1868,68 @@ mod tests {
         let mut reader = &[0x80, 0x80, 0x80, 0x80, 0x80, 0x01][..];
         let err = VarInt::decode(&mut reader, ()).unwrap_err();
         assert!(matches!(err, DecodeError::VarIntTooLarge));
+    }
+
+    /// Signed varints follow the unsigned rules: a minimal encoding of the
+    /// two's-complement bits, so overlong encodings and bits beyond the
+    /// type's width are rejected, while every value (including the most
+    /// negative, which needs all 5/10 bytes) still roundtrips.
+    #[test]
+    fn signed_varints_reject_overlong_and_over_width_encodings() {
+        for (bytes, what) in [
+            (&[0x80, 0x00][..], "overlong zero"),
+            (&[0xff, 0xff, 0xff, 0xff, 0x7f][..], "bits beyond 32"),
+            (&[0x81, 0x80, 0x80, 0x80, 0x00][..], "overlong one"),
+        ] {
+            let mut reader = bytes;
+            assert!(
+                matches!(
+                    VarInt::decode(&mut reader, ()),
+                    Err(DecodeError::VarIntTooLarge)
+                ),
+                "VarInt {what}"
+            );
+        }
+        let mut over_width = [0xff; 10];
+        over_width[9] = 0x7f;
+        for (bytes, what) in [
+            (&[0x80, 0x00][..], "overlong zero"),
+            (&over_width[..], "bits beyond 64"),
+        ] {
+            let mut reader = bytes;
+            assert!(
+                matches!(
+                    VarLong::decode(&mut reader, ()),
+                    Err(DecodeError::VarLongTooLarge)
+                ),
+                "VarLong {what}"
+            );
+        }
+
+        for value in [0, 1, -1, 127, 128, i32::MAX, i32::MIN] {
+            let mut buf = Vec::new();
+            VarInt(value).encode(&mut buf).unwrap();
+            assert_eq!(buf.len(), VarInt(value).encoded_size());
+            let mut reader = &buf[..];
+            assert_eq!(VarInt::decode(&mut reader, ()).unwrap(), VarInt(value));
+            assert!(reader.is_empty());
+        }
+        let mut reader = &[0xff, 0xff, 0xff, 0xff, 0x0f][..];
+        assert_eq!(VarInt::decode(&mut reader, ()).unwrap(), VarInt(-1));
+        let mut reader = &[0x80, 0x80, 0x80, 0x80, 0x08][..];
+        assert_eq!(VarInt::decode(&mut reader, ()).unwrap(), VarInt(i32::MIN));
+        for value in [0, 1, -1, i64::MAX, i64::MIN] {
+            let mut buf = Vec::new();
+            VarLong(value).encode(&mut buf).unwrap();
+            assert_eq!(buf.len(), VarLong(value).encoded_size());
+            let mut reader = &buf[..];
+            assert_eq!(VarLong::decode(&mut reader, ()).unwrap(), VarLong(value));
+            assert!(reader.is_empty());
+        }
+        let mut most_negative = [0x80; 10];
+        most_negative[9] = 0x01;
+        let mut reader = &most_negative[..];
+        assert_eq!(VarLong::decode(&mut reader, ()).unwrap(), VarLong(i64::MIN));
     }
 
     #[test]

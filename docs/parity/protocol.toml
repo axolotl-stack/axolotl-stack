@@ -70,7 +70,7 @@
 "SetActorLinkPacket" = { status = "missing" }  # id 41
 "SetDefaultGameTypePacket" = { status = "missing" }  # id 105
 "SetDifficultyPacket" = { status = "partial", owner = "mainline", tests = ["crates/unastar/src/server/game/command_tests.rs::configured_difficulty_reaches_start_game_and_the_join", "crates/unastar/src/server/game/command_tests.rs::difficulty_command_broadcasts_and_reaches_start_game"], gaps = "sent at join and on /difficulty; the client settings-screen change is not handled" }  # id 60
-"SetLocalPlayerAsInitializedPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::runtime_id_mismatch_is_rejected", "crates/jolyne/src/proto/tests.rs::streamed_spawn_lets_the_application_deliver_the_view_first"] }  # id 113
+"SetLocalPlayerAsInitializedPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::runtime_id_mismatch_is_rejected", "crates/jolyne/src/proto/tests.rs::streamed_spawn_lets_the_application_deliver_the_view_first", "crates/jolyne/src/proto/tests.rs::early_initialize_still_gets_the_spawn_answer", "crates/jolyne/src/proto/tests.rs::streamed_early_initialize_hands_over_an_initialized_session"] }  # id 113
 "SetPlayerFurnaceOptionsPacket" = { status = "missing" }  # id 351
 "SetPlayerGameTypePacket" = { status = "partial", owner = "mainline", gaps = "sent at join only (BDS answers /gamemode with UpdatePlayerGameType, which unastar sends); no test checks the join packet; the client settings-screen change is not handled" }  # id 62
 "SetPlayerInventoryOptionsPacket" = { status = "missing" }  # id 307
