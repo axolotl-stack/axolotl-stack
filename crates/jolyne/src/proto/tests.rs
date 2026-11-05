@@ -1577,3 +1577,44 @@ async fn client_rejects_a_chunk_radius_below_one() {
         JolyneError::Protocol(ProtocolError::InvalidChunkRadius(0))
     ));
 }
+
+/// A streamed spawn whose `SetLocalPlayerAsInitialized` arrives before
+/// `RequestChunkRadius` still answers the radius with `ChunkRadiusUpdated`
+/// alone, then hands over a session that is already initialized (the held
+/// initialize was checked) and knows its radius.
+#[tokio::test]
+async fn streamed_early_initialize_hands_over_an_initialized_session() {
+    use crate::valentine::McpePacketData;
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (world, mut client) = harness.through_world().await;
+    let mut spawn = world
+        .start_game_streamed(params(3), Instant::now())
+        .map_err(|f| f.error)
+        .unwrap();
+    pump(&mut spawn, &mut client); // StartGame .. CreativeContent
+    while client.connection().next_packet().unwrap().is_some() {}
+    send(&mut client, &mut spawn, initialized(3));
+    let mut spawn = wait(spawn);
+    assert_eq!(
+        pump(&mut spawn, &mut client),
+        0,
+        "nothing before the radius"
+    );
+    request_radius(&mut client, 6);
+    pump(&mut client, &mut spawn);
+    let mut server = next(spawn);
+    assert!(server.session.is_initialized());
+    assert_eq!(server.session.chunk_radius(), Some(6));
+    pump(&mut server, &mut client);
+    let mut answer = Vec::new();
+    while let Some(packet) = client.connection().next_packet().unwrap() {
+        answer.push(packet.decode().unwrap().data);
+    }
+    assert!(matches!(
+        answer.as_slice(),
+        [McpePacketData::ChunkRadiusUpdatedPacket(updated)] if updated.chunk_radius == 6
+    ));
+}
