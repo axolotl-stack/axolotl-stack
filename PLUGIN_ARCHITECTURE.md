@@ -104,7 +104,9 @@ it logs one `error!` with the plugin id and the reason, and skips the plugin in
 every later dispatch, `on-unload` included, until the server restarts. The
 event whose callback trapped fails closed if it is cancellable; after that the
 plugin's subscriptions no longer cancel anything, as if it were not subscribed.
-A plugin is not re-instantiated after a trap.
+A plugin is not re-instantiated after a trap. A failed call is rolled back:
+actions it requested before trapping (`set-block`, `send-message`, …) are
+discarded, not applied.
 
 Filesystem capability requests preopen only the plugin directory. Do not infer
 that every declared manifest capability has an implemented host interface.

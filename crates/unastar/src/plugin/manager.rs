@@ -772,6 +772,8 @@ impl PluginManager {
                 plugin.bindings.call_on_unload(&mut *store)
             });
             let actions = std::mem::take(&mut plugin.store.data_mut().pending_actions);
+            // A failed on-unload is rolled back like any other failed call.
+            let actions = if result.is_ok() { actions } else { Vec::new() };
             if let Some(mut queue) = world.get_resource_mut::<crate::ecs::events::ActionQueue>() {
                 for action in actions {
                     queue.push(action);
@@ -985,6 +987,8 @@ impl PluginManager {
         match result {
             Ok(cancelled) => cancelled,
             Err(e) => {
+                // A failed call is rolled back: nothing it requested is applied.
+                plugin.store.data_mut().pending_actions.clear();
                 plugin.disabled = true;
                 error!(
                     plugin = %plugin.manifest.id,
@@ -1496,6 +1500,30 @@ mod tests {
         assert!(
             queued_markers(&mut world).is_empty(),
             "on-unload is not called on a disabled plugin"
+        );
+    }
+
+    #[test]
+    fn trapped_call_actions_are_discarded() {
+        use crate::ecs::events::EventKind;
+        let engine = engine();
+        let manifest = manifest("trapper", &[EventKind::PlayerChat]);
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![PendingPlugin {
+                component: trapping_component(&engine, 6),
+                store: store(&engine, &manifest.limits),
+                manifest,
+            }],
+            engine,
+            tps: TpsMeter::default(),
+        };
+        let (mut world, _rx, entity) = chat_world();
+        push_chat(&mut world, entity);
+        manager.tick(&mut world);
+        assert!(
+            queued_markers(&mut world).is_empty(),
+            "set-block requested before the trap must not apply"
         );
     }
 
