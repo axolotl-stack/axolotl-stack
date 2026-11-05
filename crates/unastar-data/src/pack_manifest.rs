@@ -20,6 +20,19 @@ pub struct PackFamily {
     pub bytes: Cow<'static, [u8]>,
     /// Number of entries the family decodes to.
     pub count: usize,
+    /// For generated Rust source: the build-script generator and the crates
+    /// that print it. Their versions change the hash as much as pack data
+    /// does (a `cargo update` of the formatter is enough).
+    pub generated_by: Option<Generator>,
+}
+
+/// What produces a generated-source family besides its pack inputs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Generator {
+    /// The build-script module that emits the source.
+    pub script: &'static str,
+    /// Crates whose locked versions shape the printed text.
+    pub formatters: &'static [&'static str],
 }
 
 /// Every pack-derived family, in manifest (name) order.
@@ -28,13 +41,20 @@ pub fn families() -> Vec<PackFamily> {
         name,
         bytes: Cow::Borrowed(bytes),
         count,
+        generated_by: None,
     };
     let mut families = vec![
-        family(
-            "actor_component_bodies",
-            crate::actor_components::GENERATED_SOURCE.as_bytes(),
-            crate::actor_components::ActorComponent::ALL.len(),
-        ),
+        PackFamily {
+            generated_by: Some(Generator {
+                script: "crates/unastar-data/build/actor_components.rs",
+                formatters: &["prettyplease", "syn", "quote", "proc-macro2"],
+            }),
+            ..family(
+                "actor_component_bodies",
+                crate::actor_components::GENERATED_SOURCE.as_bytes(),
+                crate::actor_components::ActorComponent::ALL.len(),
+            )
+        },
         family(
             "actor_component_registry",
             crate::actor_definitions::COMPONENT_SCHEMA_JSON,
@@ -64,6 +84,7 @@ pub fn families() -> Vec<PackFamily> {
             name: "item_files",
             bytes: Cow::Owned(bundle(crate::item_components::VANILLA_ITEM_FILES)),
             count: crate::item_components::VANILLA_ITEM_FILES.len(),
+            generated_by: None,
         },
         family(
             "loot_tables",
@@ -74,6 +95,7 @@ pub fn families() -> Vec<PackFamily> {
             name: "recipe_files",
             bytes: Cow::Owned(bundle(crate::recipes::VANILLA_RECIPE_FILES)),
             count: crate::recipes::VANILLA_RECIPE_FILES.len(),
+            generated_by: None,
         },
         family(
             "spawn_rules",
