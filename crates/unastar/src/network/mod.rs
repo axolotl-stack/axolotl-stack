@@ -13,6 +13,12 @@ use tracing::{info, trace, warn};
 pub use events::{NetworkEvent, SessionId};
 pub use inbound::{InboundPacket, InboundQueues};
 
+/// Reason and message of the `Disconnect` sent to a client that filled its inbound
+/// queue, so the player and the operator can see why it was closed.
+const FLOOD_DISCONNECT_REASON: jolyne::valentine::types::EnumsConnectionDisconnectFailReason =
+    jolyne::valentine::types::EnumsConnectionDisconnectFailReason::Kicked;
+const FLOOD_DISCONNECT_MESSAGE: &str = "Too many packets.";
+
 fn terminates_connection(packet: &McpePacket) -> bool {
     match &packet.data {
         McpePacketData::DisconnectPacket(_) => true,
@@ -44,6 +50,8 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     // An inbound failure the client should be told about (e.g. a streamed
     // spawn's `Timeout(Spawn)` or runtime ID mismatch).
     let mut failure = None;
+    // Set when this session filled its own inbound queue.
+    let mut flooded = false;
     'network: loop {
         tokio::select! {
             biased;
@@ -93,6 +101,7 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
                                         session_id,
                                         "Inbound packet queue full; closing noisy connection"
                                     );
+                                    flooded = true;
                                 }
                                 mpsc::error::TrySendError::Closed(_) => {
                                     tracing::error!(session_id, "Main thread dropped inbound queue");
@@ -154,9 +163,13 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     // Close drains the terminal packet and earlier buffered output, never
     // packets queued after it. Every failure path also reaches this epilogue,
     // with the failure's reasoned `Disconnect` when it has one.
-    let reason = failure
-        .as_ref()
-        .and_then(|e| Some((e.disconnect_reason()?, e.disconnect_message())));
+    let reason = if flooded {
+        Some((FLOOD_DISCONNECT_REASON, FLOOD_DISCONNECT_MESSAGE))
+    } else {
+        failure
+            .as_ref()
+            .and_then(|e| Some((e.disconnect_reason()?, e.disconnect_message())))
+    };
     let closed = match reason {
         Some((reason, message)) => stream.disconnect(reason, message).await,
         None => stream.close().await,
