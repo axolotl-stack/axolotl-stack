@@ -6,20 +6,24 @@ How `unastar` persists worlds and players today: the `WorldProvider` and `Player
 ## Requirements
 
 ### Requirement: Provider selection and location
-At startup the server SHALL open exactly one world provider chosen by `world.storage_provider` (`level_db` by default, or `blaze_db` with `world.blazedb_cache_chunks`) at `worlds/default/db` relative to the working directory, for the single configured `world.dimension`. When the provider cannot be opened the server MUST log a warning and run without chunk persistence rather than exit.
+At startup the server SHALL open exactly one world provider chosen by `world.storage_provider` (`level_db` by default, or `blaze_db` with `world.blazedb_cache_chunks`) at `worlds/default/db` relative to the working directory, for the single configured `world.dimension`. When the world database, or the player database while `players.leveldb_enabled` is true, cannot be opened, startup MUST fail with an error naming the path; the server MUST NOT run without persistence.
 
 #### Scenario: Default provider
 - **WHEN** the server starts with the default configuration
 - **THEN** a LevelDB world database is opened at `worlds/default/db` and attached to the `ChunkManager`
 
-#### Scenario: Open failure
-- **WHEN** opening the configured world database fails
-- **THEN** a warning `chunk persistence disabled` is logged, no provider is attached, and chunks are generated and never saved
+#### Scenario: World database open failure
+- **WHEN** `worlds/default/db` cannot be opened (a second instance holds the LevelDB lock, or a regular file sits at that path)
+- **THEN** `UnastarServer::new` returns `Failed to open world storage at worlds/default/db: ...` and the server does not start
 
-Evidence: crates/unastar/src/server/runtime.rs (`UnastarServer::new`), crates/unastar/src/world/mod.rs (`StorageProvider`, `WorldConfig`), crates/unastar/src/config/tests.rs (`storage_settings_reach_runtime_configuration`)
+#### Scenario: Player database open failure
+- **WHEN** `players.leveldb_enabled` is true and `<players.data_dir>/db` cannot be opened
+- **THEN** `UnastarServer::new` returns `Failed to open player storage at <path>: ...` and the server does not start
+
+Evidence: crates/unastar/src/server/runtime.rs (`UnastarServer::new`, `open_world_provider`, tests `a_locked_world_leveldb_fails_to_open`, `an_unopenable_world_blazedb_fails_to_open`), crates/unastar/src/world/mod.rs (`StorageProvider`, `WorldConfig`), crates/unastar/src/config/tests.rs (`storage_settings_reach_runtime_configuration`), crates/unastar/tests/startup_storage.rs (`startup_fails_when_the_world_database_cannot_be_opened`), crates/unastar/tests/startup_player_storage.rs (`startup_fails_when_the_player_database_cannot_be_opened`)
 
 ### Requirement: Chunks load from storage before they are generated
-Every path that creates a chunk entity (the synchronous `ChunkManager::load_or_generate_chunk` and the asynchronous `request_generation` pool) SHALL ask the provider first and MUST generate terrain only when the provider answers `Ok(None)`. A column loaded from storage MUST NOT be replaced by generated terrain.
+Every path that creates a chunk entity (the synchronous `ChunkManager::load_or_generate_chunk`, behind `get_or_create` and `get_or_create_chunk`, and the asynchronous `request_generation` pool) SHALL ask the provider first and MUST generate terrain only when the provider answers `Ok(None)`. A column loaded from storage MUST NOT be replaced by generated terrain.
 
 #### Scenario: Stored column survives the asynchronous path
 - **WHEN** a column with a diamond ore block is saved, then requested through `request_generation` with a Java generator configured
@@ -32,25 +36,41 @@ Every path that creates a chunk entity (the synchronous `ChunkManager::load_or_g
 Evidence: crates/unastar/src/world/ecs/manager.rs (`load_or_generate_chunk`, `request_generation`, `get_or_create_chunk`), crates/unastar/src/world/ecs/generation_worker.rs (`run_worker`), crates/unastar/tests/persistence.rs (`async_stored_chunks_survive_save_cycle_for_both_providers`, `synchronous_world_extension_does_not_replace_stored_column`)
 
 ### Requirement: Storage read errors never become generated terrain
-A provider read error SHALL stop that chunk from being created; it MUST NOT be treated as a miss. The asynchronous path MUST log the error and drop the request without spawning a chunk; the synchronous path MUST panic rather than generate.
+A provider read error SHALL stop that chunk from being created; it MUST NOT be treated as a miss and MUST NOT panic. On both the asynchronous and the synchronous path the server MUST log one error naming the column's coordinates and dimension and saying the stored column is kept on disk untouched, then drop the request without spawning a chunk.
 
-#### Scenario: Unreadable column
+#### Scenario: Unreadable column on the generation pool
 - **WHEN** a provider whose `load_column` always fails is attached and a chunk is requested through the generation pool
 - **THEN** the request resolves to `Err(StorageError::Database(_))` and `save_column` is never called
 
-Evidence: crates/unastar/src/world/ecs/systems.rs (`process_completed_generations`), crates/unastar/src/world/ecs/manager.rs (`load_or_generate_chunk`), crates/unastar/tests/persistence.rs (`storage_read_errors_never_generate_replacement_terrain`)
+#### Scenario: Unreadable column on the synchronous path
+- **WHEN** a void world (synchronous path) with an unreadable provider and a spawned player is ticked
+- **THEN** nothing panics, no chunk entity is spawned, the column is not in `loaded` and no `LevelChunk` is sent
+
+#### Scenario: Synchronous API
+- **WHEN** `World::get_or_create_chunk` is called against an unreadable provider
+- **THEN** it returns the storage error and creates no chunk
+
+Evidence: crates/unastar/src/world/ecs/systems.rs (`process_completed_generations`, `process_chunk_load_queues`, `log_unloadable_column`, test `an_unloadable_column_message_names_it_and_says_it_is_kept`), crates/unastar/src/world/ecs/manager.rs (`load_or_generate_chunk`, `get_or_create`), crates/unastar/src/server/game/mod.rs (test `a_storage_read_error_on_the_sync_load_path_drops_the_request`), crates/unastar/tests/persistence.rs (`storage_read_errors_never_generate_replacement_terrain`, `synchronous_storage_read_error_creates_no_chunk_and_does_not_panic`)
 
 ### Requirement: Dirty tracking decides what is saved
 A chunk entity created from a loaded column SHALL start clean, and one created from generated terrain MUST start dirty. Block edits MUST mark the chunk dirty. A chunk MUST be written only when it is dirty, holds mobs, or had actors stored with it earlier; a successful write MUST clear the dirty flag.
 
 #### Scenario: Loaded column is not rewritten
 - **WHEN** a stored column is loaded and `save_all_chunks` runs with no edits
-- **THEN** the chunk is not dirty, `save_all_chunks` returns 0, and the stored column is unchanged
+- **THEN** the chunk is not dirty, `save_all_chunks` reports 0 saved, and the stored column is unchanged
 
 Evidence: crates/unastar/src/world/ecs/manager.rs (`chunk_entity_components`), crates/unastar/src/world/ecs/components.rs (`ChunkStateFlags::new_generated`), crates/unastar/src/entity/mob/persistence/mod.rs (`snapshot_chunks`, `mark_saved`), crates/unastar/tests/persistence.rs (`async_stored_chunks_survive_save_cycle_for_both_providers`, `synchronous_world_extension_does_not_replace_stored_column`)
 
-### Requirement: Chunks are saved on unload and on shutdown
-A chunk whose unload grace period expires SHALL be saved (when it has something to write) together with the mobs standing in it, and then removed with those mobs. On shutdown or `/stop` the server MUST save all players first and then every loaded chunk that has something to write. A failed chunk save MUST be logged; the unload still removes the chunk. There is no periodic autosave.
+### Requirement: Chunks are saved on unload
+A chunk whose unload grace period expires SHALL be saved (when it has something to write) together with the mobs standing in it, and then removed with those mobs. If that save fails, the chunk and its mobs MUST stay loaded and dirty, and the unload MUST be retried after a backoff. There is no periodic autosave; shutdown is covered by "Shutdown saves everything, then closes storage".
+
+#### Scenario: Failed save before unload
+- **WHEN** a chunk's save before unload fails
+- **THEN** its terrain is put back on the entity, the chunk and its mobs stay loaded with their edits, and the unload is retried after the grace period doubled per failure in a row, capped at 64 grace periods
+
+#### Scenario: Held chunks are summarised
+- **WHEN** chunks are held in memory because their saves keep failing
+- **THEN** one summary `N chunks held in memory awaiting save` is logged when the first is held and then at most every 30 s (600 ticks), as a warning below 64 held chunks and an error from 64; the per-chunk line is only at debug
 
 #### Scenario: Unload saves mobs with the chunk
 - **WHEN** a chunk holding a cow unloads and is later loaded again
@@ -60,7 +80,20 @@ A chunk whose unload grace period expires SHALL be saved (when it has something 
 - **WHEN** cows are saved through LevelDB and the server is rebuilt on the same directory
 - **THEN** the cows load back with their saved state
 
-Evidence: crates/unastar/src/world/ecs/systems.rs (`process_chunk_unloads`), crates/unastar/src/server/runtime.rs (`shutdown`), crates/unastar/src/server/game/mod.rs (`save_all_chunks`), crates/unastar/src/entity/mob/persistence/tests.rs (`unloading_saves_and_removes_the_cow_and_reloading_restores_it`, `cows_round_trip_through_leveldb_across_a_restart`, `a_dead_cow_is_deleted_from_storage_on_the_next_save`, `unknown_stored_actors_are_kept_and_written_back`)
+Evidence: crates/unastar/src/world/ecs/systems.rs (`process_chunk_unloads`, `HeldChunkReport`, test `held_chunk_summary_is_rate_limited`), crates/unastar/src/world/ecs/components.rs (`ChunkPendingUnload::after_failed_save`, test `failed_unload_saves_back_off_exponentially_up_to_the_cap`), crates/unastar/src/entity/mob/persistence/tests.rs (`unloading_saves_and_removes_the_cow_and_reloading_restores_it`, `cows_round_trip_through_leveldb_across_a_restart`, `a_dead_cow_is_deleted_from_storage_on_the_next_save`, `unknown_stored_actors_are_kept_and_written_back`, `a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits`, `a_held_chunk_backs_off_between_save_attempts`)
+
+### Requirement: Shutdown saves everything, then closes storage
+On shutdown or `/stop`, after plugins have seen every online player quit and `on-unload` has run, the server SHALL save all players, then every loaded chunk that has something to write, then close the world provider and then the player provider. Shutdown MUST return an error, so the process exits non-zero, when any player save, chunk save or provider close fails.
+
+#### Scenario: Shutdown order
+- **WHEN** a server with recording world and player providers shuts down
+- **THEN** the calls are player save, chunk save, world close, player close, in that order, and the result is clean
+
+#### Scenario: Failed saves make shutdown unclean
+- **WHEN** both providers refuse every save at shutdown but close cleanly
+- **THEN** `StorageShutdown` reports 1 player and 1 chunk failed, `is_clean()` is false, and `shutdown` returns an error naming both counts
+
+Evidence: crates/unastar/src/server/runtime.rs (`shutdown`), crates/unastar/src/server/game/mod.rs (`save_and_close_storage`, `SaveCounts`, `StorageShutdown::is_clean`, `save_all_players`, `save_all_chunks`, tests `shutdown_saves_players_then_chunks_then_closes_storage`, `failed_shutdown_saves_make_the_shutdown_unclean`)
 
 ### Requirement: LevelDB key layout
 The LevelDB provider SHALL key chunk records by the chunk index: little-endian `x` and `z` as 4 bytes each, followed by a 4-byte little-endian dimension only when the dimension is not 0, then a one-byte record tag. Actor lists MUST use `digp` + chunk index and actor records `actorprefix` + the 8-byte little-endian unique ID.
@@ -80,7 +113,7 @@ The LevelDB provider SHALL key chunk records by the chunk index: little-endian `
 Evidence: crates/unastar/src/storage/keys.rs (tests `test_chunk_key_overworld`, `test_chunk_key_nether`, `test_end_dimension`, `test_subchunk_key`, `test_negative_coords`, `test_biome_key_format`, `test_block_entities_key`, `test_finalisation_key`, `test_entity_ids_key`, `test_entity_data_key`)
 
 ### Requirement: LevelDB column writes are one atomic batch
-`LevelDBWorldProvider::save_column` SHALL write a whole column in one LevelDB write batch: chunk version 41, finalisation 2 (populated) as a 4-byte little-endian integer, the Data3D value, every subchunk in Y index -4..19, the block entity record, the actor digest and actor records. An empty block entity list or actor list MUST delete its record so an overwrite leaves no stale data. Loading MUST treat a column as present only when its version record exists.
+`LevelDBWorldProvider::save_column` SHALL write a whole column in one LevelDB write batch: chunk version 41, finalisation 2 (populated) as a 4-byte little-endian integer, the Data3D value, every subchunk in the chunk's `section_y_indices()`, the block entity record, the actor digest and actor records. An empty block entity list or actor list MUST delete its record so an overwrite leaves no stale data. Loading MUST treat a column as present only when its version record exists.
 
 #### Scenario: Absent column
 - **WHEN** `load_column` is called for a chunk with no version record
@@ -93,7 +126,7 @@ Evidence: crates/unastar/src/storage/keys.rs (tests `test_chunk_key_overworld`, 
 Evidence: crates/unastar/src/storage/leveldb_world.rs (`save_column`, `load_column`), crates/unastar/src/storage/keys.rs (`CHUNK_VERSION`), crates/unastar/tests/persistence.rs (`chunk_biomes_survive_save_and_reopen_for_both_providers`)
 
 ### Requirement: Subchunk palettes store runtime block-state ids
-Both providers SHALL store each subchunk in the version 9 layout (version byte, storage count, Y index, then one or two paletted storages) whose palette entries are unastar's runtime block-state ids written as signed varints, with the network header bit set. Loading MUST accept versions 8 and 9 and at most two storages. Saved worlds therefore depend on the runtime palette order of the build that wrote them.
+Both providers SHALL store each subchunk in the version 9 layout (version byte, storage count, Y index, then one or two paletted storages) whose palette entries are unastar's runtime block-state ids written as signed varints, with the network header bit set. Loading MUST accept versions 8 and 9 and at most two storages; a subchunk that cannot be read or decoded MUST fail the whole column load. Saved worlds depend on the runtime palette order of the build that wrote them.
 
 #### Scenario: Round trip within one build
 - **WHEN** a chunk with stone in every section is saved and loaded by the same build
@@ -101,9 +134,9 @@ Both providers SHALL store each subchunk in the version 9 layout (version byte, 
 
 #### Scenario: LevelDB subchunk that does not decode
 - **WHEN** a stored LevelDB subchunk has an unsupported version or storage count
-- **THEN** a warning is logged and that section loads as air while the rest of the column loads
+- **THEN** `load_column` returns `Err(StorageError::Deserialization(_))` naming the chunk and subchunk Y, so the column is neither loaded as air nor regenerated, and the stored bytes are kept
 
-Evidence: crates/unastar/src/world/chunk.rs (`SUBCHUNK_VERSION`, `encode_subchunk_disk`, `decode_subchunk`, `PalettedStorage::encode`, test `test_subchunk_encoding`), crates/unastar/src/storage/leveldb_world.rs (`load_column`), crates/unastar/tests/leveldb_compression.rs (`provider_writes_independently_decodable_raw_zlib_tables`)
+Evidence: crates/unastar/src/world/chunk.rs (`SUBCHUNK_VERSION`, `encode_subchunk_disk`, `decode_subchunk`, `section_y_indices`, `PalettedStorage::encode`, test `test_subchunk_encoding`), crates/unastar/src/storage/leveldb_world.rs (`load_column`, test `undecodable_subchunk_fails_the_column_load`), crates/unastar/tests/leveldb_compression.rs (`provider_writes_independently_decodable_raw_zlib_tables`)
 
 ### Requirement: Data3D biomes use the BDS layout
 Biomes SHALL be saved as a Data3D value: a 512-byte height map followed by up to 24 biome storages, with header `0xFF` repeating the previous section. Loading MUST also accept unastar's older network biome layout for values shorter than 512 bytes, but only when it parses exactly. Any other malformed value MUST fail the load with a deserialization error instead of losing the biomes.
@@ -167,24 +200,24 @@ When `players.leveldb_enabled` is true, player records SHALL be stored in a Leve
 
 #### Scenario: First join
 - **WHEN** no record exists for the UUID
-- **THEN** `load_player_data` returns `None` and first-join defaults apply
+- **THEN** `load_player_data` returns `Ok(None)` and first-join defaults apply
 
 Evidence: crates/unastar/src/storage/leveldb_player.rs, crates/unastar/src/storage/provider.rs (`PlayerData`, `StoredItemStack::restore`), crates/unastar/src/server/connect.rs (`load_player_data`), crates/unastar/src/server/game/mod.rs (`spawn_player`, `restore_items`), crates/unastar/tests/persistence.rs (`disconnect_reconnect_restores_inventory_and_player_state`)
 
-### Requirement: Invalid player records are kept, not deleted
-A player record that fails to parse or fails `PlayerData::validate` (wrong UUID, non-finite position or rotation, unknown game mode, more than 36 inventory slots, held slot above 8, health outside `0..=max`, food outside `0..=20`, negative experience) SHALL be logged and ignored for that login, and MUST NOT be deleted by the load. A record whose items do not resolve against the item registry MUST make the join fail with a disconnect message instead of spawning the player with lost items.
+### Requirement: Unreadable player records refuse the join and are kept
+A player record that cannot be read, fails to parse or fails `PlayerData::validate` (wrong UUID, non-finite position or rotation, unknown game mode, more than 36 inventory slots, held slot above 8, health outside `0..=max`, food outside `0..=20`, negative experience) SHALL refuse the join, transient read errors included, and MUST be left untouched. A record whose items do not resolve against the item registry MUST also refuse the join.
 
 #### Scenario: Corrupt JSON
-- **WHEN** the stored value for a UUID is `{not valid json`
-- **THEN** `load_player_data` returns `None` and the stored bytes are unchanged afterwards
+- **WHEN** the stored value for a UUID is `{not valid json` and that player joins
+- **THEN** `load_player_data` returns an error, the client is disconnected with "Unable to load saved player data. Contact the server operator.", the join ends with `JoinError::SavedPlayerData`, the log names the UUID, display name and XUID, and the stored bytes are unchanged afterwards
 
-Evidence: crates/unastar/src/storage/provider.rs (`PlayerData::validate`, `StoredItemStack::restore`), crates/unastar/src/server/connect.rs (`load_player_data`), crates/unastar/src/server/runtime.rs (`Rejecting player with invalid saved inventory`), crates/unastar/tests/persistence.rs (`corrupt_player_record_falls_back_without_deleting_data`)
+Evidence: crates/unastar/src/storage/provider.rs (`PlayerData::validate`, `StoredItemStack::restore`), crates/unastar/src/server/connect.rs (`load_player_data`, `accept_join_sequence`, `JoinError::SavedPlayerData`, test `the_unreadable_record_disconnect_points_to_the_operator`), crates/unastar/src/server/runtime.rs (`Rejecting player with invalid saved data`, test `join_with_unresolvable_saved_items_is_rejected`), crates/unastar/tests/persistence.rs (`corrupt_player_record_is_an_error_and_is_kept`)
 
 ### Requirement: Player saves use one snapshot on disconnect and shutdown
-A player SHALL be saved on disconnect when `players.save_on_disconnect` is true, and every connected player MUST be saved on shutdown. Both MUST write the same `PlayerData` snapshot. When `players.save_previous_position` is true the save MUST also write `<players.data_dir>/<uuid>.toml` with the dimension and position used by spawn rules. A save is reported successful only if every configured store succeeds.
+A player SHALL be saved on disconnect when `players.save_on_disconnect` is true, and every connected player MUST be saved on shutdown. Both MUST write the same `PlayerData` snapshot. When `players.save_previous_position` is true the save MUST also write `<players.data_dir>/<uuid>.toml` with the dimension and position used by spawn rules. A save is reported successful only if every configured store succeeds; a failed save at shutdown makes the shutdown unclean.
 
 #### Scenario: Last position file
 - **WHEN** a player at (33.25, 75, -8.5) with yaw 123 and pitch -12 is saved
 - **THEN** both the LevelDB record and the per-player TOML hold that position and rotation
 
-Evidence: crates/unastar/src/server/game/mod.rs (`save_player`, `save_all_players`, `save_player_record`), crates/unastar/src/server/runtime.rs (`NetworkEvent::Disconnected` handling, `shutdown`), crates/unastar/src/config/mod.rs (`PlayerDataStore`), crates/unastar/tests/persistence.rs (`disconnect_reconnect_restores_inventory_and_player_state`), crates/unastar/src/entity/player_life/tests/respawn.rs
+Evidence: crates/unastar/src/server/game/mod.rs (`save_player`, `save_all_players`, `save_player_record`), crates/unastar/src/server/runtime.rs (`network_tick`, `shutdown`), crates/unastar/src/config/mod.rs (`PlayerDataStore`), crates/unastar/tests/persistence.rs (`disconnect_reconnect_restores_inventory_and_player_state`), crates/unastar/src/entity/player_life/tests/respawn.rs
