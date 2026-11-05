@@ -400,6 +400,10 @@ struct LoadedPlugin {
     manifest: PluginManifest,
     store: Store<HostContext>,
     bindings: UnastarPlugin,
+    /// Set when a call into the plugin fails. A Wasmtime component instance that
+    /// trapped cannot be entered again, so the plugin is skipped by every later
+    /// dispatch, `on-unload` included, until the server restarts.
+    disabled: bool,
 }
 
 struct PendingPlugin {
@@ -645,6 +649,7 @@ impl PluginManager {
                             manifest: pending.manifest,
                             store: pending.store,
                             bindings,
+                            disabled: false,
                         },
                     );
                 }
@@ -690,6 +695,9 @@ impl PluginManager {
         let mut cancelled_indices = std::collections::HashSet::new();
 
         for plugin in self.plugins.values_mut() {
+            if plugin.disabled {
+                continue;
+            }
             plugin.store.data_mut().pending_actions.clear();
             if let Err(error) = begin_fuel_budget(&mut plugin.store, &plugin.manifest.limits) {
                 error!(plugin = %plugin.manifest.id, %error, "Failed to set tick fuel budget");
@@ -704,7 +712,9 @@ impl PluginManager {
                     cancelled_indices.insert(index);
                     continue;
                 }
-                if !is_delivered_to(event, &plugin.manifest) {
+                // A plugin disabled by a trap earlier in this tick receives
+                // nothing more; its subscriptions no longer cancel anything.
+                if plugin.disabled || !is_delivered_to(event, &plugin.manifest) {
                     continue;
                 }
                 if cancelled_indices.contains(&index) {
@@ -747,10 +757,15 @@ impl PluginManager {
     /// fuel budget. Actions a plugin requests in `on-unload` are queued in the
     /// `ActionQueue`; at server shutdown no further tick runs, so they are not
     /// applied. A trap is logged and does not stop the other plugins unloading.
-    /// Pending plugins never ran `on-load`, so they are dropped without a call.
+    /// Pending plugins never ran `on-load`, and a plugin disabled by a trap
+    /// cannot be entered again, so both are dropped without a call.
     pub fn unload_all(&mut self, world: &mut bevy_ecs::world::World) {
         self.pending.clear();
         for (id, mut plugin) in self.plugins.drain() {
+            if plugin.disabled {
+                info!(%id, "Disabled plugin dropped without on-unload");
+                continue;
+            }
             let result = with_world(&mut plugin.store, world, |store| -> anyhow::Result<()> {
                 begin_fuel_budget(store, &plugin.manifest.limits)?;
                 prepare_invocation(store);
@@ -771,6 +786,10 @@ impl PluginManager {
 
     /// Dispatch a single ServerEvent to a plugin's typed export.
     /// Returns `true` if the event was cancelled by the plugin.
+    ///
+    /// If the call fails (a trap, fuel or the epoch deadline), the plugin is
+    /// disabled with one `error!`. That event itself fails closed when it is
+    /// cancellable; later events skip the plugin as if it were not subscribed.
     fn dispatch_event(
         plugin: &mut LoadedPlugin,
         event: &ServerEvent,
@@ -966,7 +985,12 @@ impl PluginManager {
         match result {
             Ok(cancelled) => cancelled,
             Err(e) => {
-                error!(plugin = %plugin.manifest.id, error = %e, "Event dispatch failed");
+                plugin.disabled = true;
+                error!(
+                    plugin = %plugin.manifest.id,
+                    error = %e,
+                    "Plugin trapped; it is disabled until the server restarts"
+                );
                 matches!(
                     event,
                     ServerEvent::PlayerChat { .. }
@@ -1072,6 +1096,16 @@ mod tests {
     /// `set-block((0, 0, 0), marker)` so tests can see which plugin was called
     /// in the `ActionQueue`.
     fn component_with_marker(engine: &Engine, allow: bool, marker: u32) -> Component {
+        build_component(engine, allow, marker, false)
+    }
+
+    /// Like [`component_with_marker`], but every cancellable export calls
+    /// `set-block((0, 0, 0), marker)` and then traps.
+    fn trapping_component(engine: &Engine, marker: u32) -> Component {
+        build_component(engine, true, marker, true)
+    }
+
+    fn build_component(engine: &Engine, allow: bool, marker: u32, trap: bool) -> Component {
         let exports = [
             ("on-load", "", "", false),
             ("on-unload", "", "", false),
@@ -1200,6 +1234,10 @@ mod tests {
                 "call $tick i64.const 42 i64.ne if unreachable end".to_string()
             } else if name == "on-timer" || name == "on-unload" {
                 format!("i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block")
+            } else if returns_bool && trap {
+                format!(
+                    "i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block unreachable"
+                )
             } else if returns_bool {
                 format!("i32.const {}", u8::from(allow))
             } else {
@@ -1388,6 +1426,77 @@ mod tests {
         manager.tick(&mut world);
         assert_eq!(manager.plugins.len(), 2);
         assert_eq!(queued_markers(&mut world), [1]);
+    }
+
+    /// One chat event from `Alice`, with a session that records broadcasts.
+    fn chat_world() -> (
+        bevy_ecs::world::World,
+        tokio::sync::mpsc::Receiver<jolyne::valentine::McpePacket>,
+        Entity,
+    ) {
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
+        world.insert_resource(crate::ecs::events::ActionQueue::default());
+        world.insert_resource(crate::ecs::events::EventBuffer::default());
+        let (tx, rx) = tokio::sync::mpsc::channel(8);
+        let entity = world
+            .spawn((
+                crate::entity::components::PlayerName("Alice".into()),
+                crate::entity::components::PlayerSession::new(1, "Alice".into(), None, None, tx),
+            ))
+            .id();
+        let mut sessions = crate::server::game::SessionEntityMap::default();
+        sessions.insert(1, entity);
+        world.insert_resource(sessions);
+        (world, rx, entity)
+    }
+
+    fn push_chat(world: &mut bevy_ecs::world::World, entity: Entity) {
+        world
+            .resource_mut::<crate::ecs::events::EventBuffer>()
+            .push(ServerEvent::PlayerChat {
+                entity,
+                player_id: "test".into(),
+                message: "hello".into(),
+            });
+    }
+
+    #[test]
+    fn trapped_plugin_is_disabled_and_stops_cancelling_events() {
+        use crate::ecs::events::EventKind;
+        let engine = engine();
+        let manifest = manifest("trapper", &[EventKind::PlayerChat]);
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![PendingPlugin {
+                component: trapping_component(&engine, 5),
+                store: store(&engine, &manifest.limits),
+                manifest,
+            }],
+            engine,
+            tps: TpsMeter::default(),
+        };
+        let (mut world, mut rx, entity) = chat_world();
+
+        push_chat(&mut world, entity);
+        manager.tick(&mut world);
+        assert!(rx.try_recv().is_err(), "the trapping call fails closed");
+        assert!(manager.plugins.values().all(|plugin| plugin.disabled));
+
+        push_chat(&mut world, entity);
+        manager.tick(&mut world);
+        assert!(
+            rx.try_recv().is_ok(),
+            "a disabled plugin no longer cancels its subscribed events"
+        );
+        assert!(rx.try_recv().is_err());
+
+        queued_markers(&mut world);
+        manager.unload_all(&mut world);
+        assert!(
+            queued_markers(&mut world).is_empty(),
+            "on-unload is not called on a disabled plugin"
+        );
     }
 
     #[test]

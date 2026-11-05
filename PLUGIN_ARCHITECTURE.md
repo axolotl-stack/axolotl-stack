@@ -78,8 +78,8 @@ reads the player's current game mode.
 Player handles and their host entity mappings are scoped to a host invocation;
 plugins should obtain and use handles during the current callback, not retain
 them for subsequent callbacks. A handle the current invocation did not create
-makes the host call return an error, which traps that callback (cancellable
-callbacks then fail closed) instead of stopping the server.
+makes the host call return an error instead of stopping the server; the call
+traps and the plugin is disabled (see below).
 
 ## Resource Limits
 
@@ -93,8 +93,18 @@ Manifest `[limits]` supports:
 Instantiation and `on-load` share a separate initialization fuel budget of the
 same size. Event callbacks do not replenish one another's budget; the next tick
 replenishes it. Epoch interruption remains an independent wall-clock guard,
-with the deadline reset for each invocation. Traps are logged; cancellable
-callbacks that trap fail closed.
+with the deadline reset for each invocation.
+
+### Traps disable the plugin
+
+A Wasmtime component instance that has trapped (a guest `unreachable`, a host
+call error, out of fuel, the epoch deadline or the memory limit) cannot be
+entered again. The host therefore disables a plugin on its first failed call:
+it logs one `error!` with the plugin id and the reason, and skips the plugin in
+every later dispatch, `on-unload` included, until the server restarts. The
+event whose callback trapped fails closed if it is cancellable; after that the
+plugin's subscriptions no longer cancel anything, as if it were not subscribed.
+A plugin is not re-instantiated after a trap.
 
 Filesystem capability requests preopen only the plugin directory. Do not infer
 that every declared manifest capability has an implemented host interface.
