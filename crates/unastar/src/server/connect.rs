@@ -21,12 +21,18 @@ pub enum JoinError {
     /// The player's stored record exists but can't be read or is invalid.
     /// The join is refused so the record is kept for repair instead of being
     /// overwritten by a save of first-join state.
+    ///
+    /// This includes transient storage I/O errors from the player database,
+    /// on purpose: the server can't tell a passing read failure from a lost
+    /// record, and letting the player in with first-join state would let that
+    /// session's save overwrite the real one. The player can retry the join.
     #[error("saved player data is unreadable: {0}")]
     SavedPlayerData(StorageError),
 }
 
 /// Disconnect message for a join refused over its saved record.
-pub const UNREADABLE_PLAYER_DATA_MESSAGE: &str = "Unable to load saved player data.";
+pub const UNREADABLE_PLAYER_DATA_MESSAGE: &str =
+    "Unable to load saved player data. Contact the server operator.";
 
 /// What StartGame is built from: the startup template and the live clock,
 /// difficulty and game rules.
@@ -96,7 +102,14 @@ pub async fn accept_join_sequence(
     let mut saved_data = match load_player_data(player_provider, Some(&uuid)).await {
         Ok(saved) => saved,
         Err(error) => {
-            tracing::warn!(%uuid, %error, "Refusing join: saved player data is unreadable; keeping the record");
+            tracing::warn!(
+                %uuid,
+                name = identity.display_name(),
+                xuid = identity.xuid().unwrap_or("none"),
+                %error,
+                "Refusing join for {}: saved player data is unreadable; keeping the record",
+                identity.display_name()
+            );
             let _ = start_game_state
                 .disconnect(
                     jolyne::valentine::EnumsConnectionDisconnectFailReason::Disconnected,
@@ -274,4 +287,18 @@ pub async fn resolve_spawn_location(
 /// Convert a spawn location to a DVec3 position.
 pub fn spawn_to_dvec3(pos: &Vec3) -> DVec3 {
     DVec3::new(pos.x as f64, pos.y as f64, pos.z as f64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The refused player is told the server, not their client, is at fault.
+    #[test]
+    fn the_unreadable_record_disconnect_points_to_the_operator() {
+        assert_eq!(
+            UNREADABLE_PLAYER_DATA_MESSAGE,
+            "Unable to load saved player data. Contact the server operator."
+        );
+    }
 }

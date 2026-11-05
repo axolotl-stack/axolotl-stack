@@ -783,7 +783,9 @@ Disconnect and shutdown use the same snapshot: position/rotation, dimension,
 gamemode, main inventory, armour, offhand, cursor, held slot, health, hunger,
 and experience. Older player records without inventory fields load with empty
 slots. Missing records use first-join defaults. A record that can't be read,
-parsed or validated refuses the join with a disconnect message and is left in
+parsed or validated (a transient read error included) refuses the join with
+the disconnect message "Unable to load saved player data. Contact the server
+operator.", logs the player's name, XUID and UUID, and is left in
 storage untouched, so no save can overwrite it with first-join state; the same
 happens when its items don't resolve. When `players.save_previous_position` is
 enabled, saves also update the per-player TOML position used by spawn rules.
