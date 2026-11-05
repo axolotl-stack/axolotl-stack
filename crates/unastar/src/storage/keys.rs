@@ -9,7 +9,6 @@ pub const KEY_VERSION: u8 = b','; // 0x2c
 pub const KEY_SUBCHUNK: u8 = b'/'; // 0x2f (followed by Y index)
 pub const KEY_3D_DATA: u8 = b'+'; // 0x2b (biomes)
 pub const KEY_BLOCK_ENTITIES: u8 = b'1'; // 0x31
-pub const KEY_ENTITIES_OLD: u8 = b'2'; // 0x32 (legacy)
 pub const KEY_FINALISATION: u8 = b'6'; // 0x36
 
 // Entity keys.

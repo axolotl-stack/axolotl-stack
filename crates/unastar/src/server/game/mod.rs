@@ -43,7 +43,7 @@ use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};
 pub(crate) use loot::{LootContext, LootLevel};
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::ecs::{
     CleanupSet, EntityLogicSet, NetworkSendSet, PacketApplySet, PhysicsSet, UnastarEcs,
@@ -88,6 +88,44 @@ pub use types::{
 /// All game state lives inside the World as Resources.
 pub struct GameServer {
     pub ecs: UnastarEcs,
+}
+
+/// How many records a bulk save wrote and how many it failed to write.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SaveCounts {
+    pub saved: usize,
+    pub failed: usize,
+}
+
+/// What [`GameServer::save_and_close_storage`] did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StorageShutdown {
+    pub players_saved: usize,
+    /// Players a configured store refused to save; their latest state is lost.
+    pub players_failed: usize,
+    pub chunks_saved: usize,
+    /// Chunks with something to write that storage refused; their unsaved
+    /// edits are lost when the process exits.
+    pub chunks_failed: usize,
+    /// Every attached provider closed (and so flushed) without error.
+    pub closed: bool,
+}
+
+impl StorageShutdown {
+    /// Every save succeeded and every provider closed.
+    pub fn is_clean(&self) -> bool {
+        self.players_failed == 0 && self.chunks_failed == 0 && self.closed
+    }
+}
+
+/// Result of saving one player record to every configured store.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PlayerSave {
+    Saved,
+    /// At least one configured store failed.
+    Failed,
+    /// No player store is configured.
+    NoStore,
 }
 
 fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
@@ -669,7 +707,7 @@ impl GameServer {
         Self { ecs }
     }
 
-    pub async fn save_all_players(&mut self) -> usize {
+    pub async fn save_all_players(&mut self) -> SaveCounts {
         let records = {
             let world = self.ecs.world_mut();
             let mut query = world.query_filtered::<Entity, With<PlayerUuid>>();
@@ -678,16 +716,18 @@ impl GameServer {
                 .filter_map(|entity| player_record(world, entity))
                 .collect::<Vec<_>>()
         };
-        let mut saved = 0;
+        let mut counts = SaveCounts::default();
         for (uuid, data) in records {
-            if self.save_player_record(uuid, &data).await {
-                saved += 1;
+            match self.save_player_record(uuid, &data).await {
+                PlayerSave::Saved => counts.saved += 1,
+                PlayerSave::Failed => counts.failed += 1,
+                PlayerSave::NoStore => {}
             }
         }
-        saved
+        counts
     }
 
-    pub async fn save_all_chunks(&mut self) -> usize {
+    pub async fn save_all_chunks(&mut self) -> SaveCounts {
         let Some((provider, dimension)) =
             self.ecs
                 .world()
@@ -698,7 +738,7 @@ impl GameServer {
                         .map(|provider| (provider, manager.dimension()))
                 })
         else {
-            return 0;
+            return SaveCounts::default();
         };
 
         // Every chunk with something to write: dirty terrain, mobs standing in
@@ -710,21 +750,64 @@ impl GameServer {
             crate::entity::mob::persistence::snapshot_chunks(world, &chunks, false)
         };
 
-        let mut saved = 0;
+        let mut counts = SaveCounts::default();
         for snapshot in snapshots {
             let Some(column) = &snapshot.column else {
                 continue;
             };
             match provider.save_column(snapshot.pos, dimension, column).await {
                 Ok(()) => {
-                    saved += 1;
+                    counts.saved += 1;
                     crate::entity::mob::persistence::mark_saved(self.ecs.world_mut(), &snapshot);
                 }
-                Err(e) => warn!(chunk = ?snapshot.pos, error = %e, "Failed to save chunk"),
+                Err(e) => {
+                    counts.failed += 1;
+                    warn!(chunk = ?snapshot.pos, error = %e, "Failed to save chunk");
+                }
             }
         }
 
-        saved
+        counts
+    }
+
+    /// Shutdown persistence, in this order: every player, every loaded chunk
+    /// with something to write, then the world provider and the player
+    /// provider are closed so queued writes (BlazeDB's background writer) reach
+    /// disk before the process exits. Failed saves and a failed close are
+    /// logged and counted; see [`StorageShutdown::is_clean`].
+    pub async fn save_and_close_storage(&mut self) -> StorageShutdown {
+        let players = self.save_all_players().await;
+        let chunks = self.save_all_chunks().await;
+        let mut closed = true;
+        let world_provider = self
+            .ecs
+            .world()
+            .get_resource::<ChunkManager>()
+            .and_then(ChunkManager::provider);
+        if let Some(provider) = world_provider
+            && let Err(error) = provider.close().await
+        {
+            error!(%error, "Failed to close world storage; recent chunk saves may be lost");
+            closed = false;
+        }
+        let player_provider = self
+            .ecs
+            .world()
+            .get_resource::<types::PlayerProviderResource>()
+            .map(|r| r.0.clone());
+        if let Some(provider) = player_provider
+            && let Err(error) = provider.close().await
+        {
+            error!(%error, "Failed to close player storage");
+            closed = false;
+        }
+        StorageShutdown {
+            players_saved: players.saved,
+            players_failed: players.failed,
+            chunks_saved: chunks.saved,
+            chunks_failed: chunks.failed,
+            closed,
+        }
     }
 
     pub async fn save_player(&mut self, session_id: SessionId) -> bool {
@@ -738,10 +821,10 @@ impl GameServer {
         let Some((uuid, data)) = record else {
             return false;
         };
-        self.save_player_record(uuid, &data).await
+        self.save_player_record(uuid, &data).await == PlayerSave::Saved
     }
 
-    async fn save_player_record(&self, uuid: uuid::Uuid, data: &PlayerData) -> bool {
+    async fn save_player_record(&self, uuid: uuid::Uuid, data: &PlayerData) -> PlayerSave {
         let provider = self
             .ecs
             .world()
@@ -752,12 +835,15 @@ impl GameServer {
             .world()
             .get_resource::<types::PlayerDataStoreResource>()
             .map(|r| r.0.clone());
-        let mut saved = provider.is_some() || positions.is_some();
+        if provider.is_none() && positions.is_none() {
+            return PlayerSave::NoStore;
+        }
+        let mut saved = PlayerSave::Saved;
         if let Some(provider) = provider
             && let Err(error) = provider.save(uuid, data).await
         {
             warn!(%uuid, %error, "Failed to save player data");
-            saved = false;
+            saved = PlayerSave::Failed;
         }
         if let Some(positions) = positions {
             let last = crate::config::PlayerLastPosition {
@@ -772,7 +858,7 @@ impl GameServer {
             };
             if let Err(error) = positions.save_last_position(&uuid.to_string(), &last).await {
                 warn!(%uuid, %error, "Failed to save last player position");
-                saved = false;
+                saved = PlayerSave::Failed;
             }
         }
         saved
@@ -1118,6 +1204,286 @@ mod tests {
     }
 
     /// A server over a void world: no generation pool, so no tokio runtime needed.
+    /// Storage calls in the order they happened.
+    type CallLog = Arc<std::sync::Mutex<Vec<&'static str>>>;
+
+    struct RecordingWorld(CallLog);
+
+    /// Storage that refuses every write but closes cleanly.
+    struct RefusingWorld;
+
+    #[async_trait::async_trait]
+    impl crate::storage::WorldProvider for RefusingWorld {
+        async fn load_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+        ) -> crate::storage::StorageResult<Option<crate::storage::ChunkColumn>> {
+            Ok(None)
+        }
+        async fn save_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+            _: &crate::storage::ChunkColumn,
+        ) -> crate::storage::StorageResult<()> {
+            Err(crate::storage::StorageError::Database("disk full".into()))
+        }
+        async fn flush(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+    }
+
+    /// Storage whose every read fails.
+    struct UnreadableWorld;
+
+    #[async_trait::async_trait]
+    impl crate::storage::WorldProvider for UnreadableWorld {
+        async fn load_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+        ) -> crate::storage::StorageResult<Option<crate::storage::ChunkColumn>> {
+            Err(crate::storage::StorageError::Database(
+                "unreadable column".into(),
+            ))
+        }
+        async fn save_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+            _: &crate::storage::ChunkColumn,
+        ) -> crate::storage::StorageResult<()> {
+            panic!("a failed read must never produce terrain to save")
+        }
+        async fn flush(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+    }
+
+    /// The synchronous chunk-load system drops a request whose storage read
+    /// fails: the tick doesn't panic, no chunk entity is created, the chunk
+    /// isn't marked loaded for the player and no `LevelChunk` is sent.
+    #[test]
+    fn a_storage_read_error_on_the_sync_load_path_drops_the_request() {
+        let mut server = void_server();
+        assert!(
+            !server
+                .ecs
+                .world()
+                .resource::<ChunkManager>()
+                .has_async_generation(),
+            "the void world loads chunks on the synchronous path"
+        );
+        server
+            .ecs
+            .world_mut()
+            .resource_mut::<ChunkManager>()
+            .set_provider(Arc::new(UnreadableWorld));
+        let (outbound_tx, mut rx) = tokio::sync::mpsc::channel(1 << 16);
+        let player = server
+            .spawn_player(PlayerSpawnData {
+                session_id: 1,
+                display_name: "Steve".into(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000001".into()),
+                runtime_id: 1,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .unwrap();
+        assert!(
+            server
+                .ecs
+                .world()
+                .get::<ChunkLoader>(player)
+                .unwrap()
+                .has_pending(),
+            "the player starts with chunks to load"
+        );
+
+        for _ in 0..3 {
+            server.tick();
+        }
+
+        let world = server.ecs.world_mut();
+        assert!(world.resource::<ChunkManager>().is_empty());
+        assert_eq!(
+            world
+                .query::<&crate::world::ecs::ChunkData>()
+                .iter(world)
+                .count(),
+            0
+        );
+        let loader = world.get::<ChunkLoader>(player).unwrap();
+        assert_eq!(loader.loaded_count(), 0);
+        assert!(!loader.is_loaded(0, 0));
+        let mut level_chunks = 0;
+        while let Ok(packet) = rx.try_recv() {
+            if packet.data.packet_id() == McpePacketName::LevelChunkPacket {
+                level_chunks += 1;
+            }
+        }
+        assert_eq!(level_chunks, 0);
+    }
+
+    struct RefusingPlayers;
+
+    #[async_trait::async_trait]
+    impl crate::storage::PlayerProvider for RefusingPlayers {
+        async fn load(&self, _: uuid::Uuid) -> crate::storage::StorageResult<Option<PlayerData>> {
+            Ok(None)
+        }
+        async fn save(&self, _: uuid::Uuid, _: &PlayerData) -> crate::storage::StorageResult<()> {
+            Err(crate::storage::StorageError::Database("disk full".into()))
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+    }
+
+    /// Saves that fail at shutdown are counted, so the shutdown is not clean
+    /// even though every provider closed.
+    #[tokio::test]
+    async fn failed_shutdown_saves_make_the_shutdown_unclean() {
+        use crate::world::ecs::ChunkManagerWorldExt;
+        let mut server = void_server();
+        let world = server.ecs.world_mut();
+        world
+            .resource_mut::<ChunkManager>()
+            .set_provider(Arc::new(RefusingWorld));
+        world.insert_resource(types::PlayerProviderResource(Arc::new(RefusingPlayers)));
+        world.get_or_create_chunk(0, 0).unwrap();
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+        server
+            .spawn_player(PlayerSpawnData {
+                session_id: 1,
+                display_name: "Steve".into(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000001".into()),
+                runtime_id: 1,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .unwrap();
+
+        let result = server.save_and_close_storage().await;
+        assert_eq!(
+            result,
+            StorageShutdown {
+                players_saved: 0,
+                players_failed: 1,
+                chunks_saved: 0,
+                chunks_failed: 1,
+                closed: true,
+            }
+        );
+        assert!(!result.is_clean());
+    }
+
+    #[async_trait::async_trait]
+    impl crate::storage::WorldProvider for RecordingWorld {
+        async fn load_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+        ) -> crate::storage::StorageResult<Option<crate::storage::ChunkColumn>> {
+            Ok(None)
+        }
+        async fn save_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+            _: &crate::storage::ChunkColumn,
+        ) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("save chunk");
+            Ok(())
+        }
+        async fn flush(&self) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("flush world");
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("close world");
+            Ok(())
+        }
+    }
+
+    struct RecordingPlayers(CallLog);
+
+    #[async_trait::async_trait]
+    impl crate::storage::PlayerProvider for RecordingPlayers {
+        async fn load(&self, _: uuid::Uuid) -> crate::storage::StorageResult<Option<PlayerData>> {
+            Ok(None)
+        }
+        async fn save(&self, _: uuid::Uuid, _: &PlayerData) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("save player");
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("close players");
+            Ok(())
+        }
+    }
+
+    /// Shutdown saves players, then chunks, then closes the world store (so a
+    /// queued BlazeDB write reaches disk) and the player store.
+    #[tokio::test]
+    async fn shutdown_saves_players_then_chunks_then_closes_storage() {
+        use crate::world::ecs::ChunkManagerWorldExt;
+        let log = CallLog::default();
+        let mut server = void_server();
+        let world = server.ecs.world_mut();
+        world
+            .resource_mut::<ChunkManager>()
+            .set_provider(Arc::new(RecordingWorld(log.clone())));
+        world.insert_resource(types::PlayerProviderResource(Arc::new(RecordingPlayers(
+            log.clone(),
+        ))));
+        // A generated chunk is dirty, so it has something to save.
+        world.get_or_create_chunk(0, 0).unwrap();
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+        server
+            .spawn_player(PlayerSpawnData {
+                session_id: 1,
+                display_name: "Steve".into(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000001".into()),
+                runtime_id: 1,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .unwrap();
+
+        let result = server.save_and_close_storage().await;
+        assert_eq!(
+            result,
+            StorageShutdown {
+                players_saved: 1,
+                players_failed: 0,
+                chunks_saved: 1,
+                chunks_failed: 0,
+                closed: true,
+            }
+        );
+        assert_eq!(
+            *log.lock().unwrap(),
+            ["save player", "save chunk", "close world", "close players"]
+        );
+    }
+
     fn void_server() -> GameServer {
         GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
