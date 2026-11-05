@@ -4,7 +4,7 @@
 [![Documentation](https://docs.rs/tokio-raknet/badge.svg)](https://docs.rs/tokio-raknet)
 [![Build Status](https://github.com/jyuggers/tokio-raknet/actions/workflows/rust.yml/badge.svg)](https://github.com/jyuggers/tokio-raknet/actions)
 [![codecov](https://codecov.io/gh/jyuggers/tokio-raknet/branch/main/graph/badge.svg)](https://codecov.io/gh/jyuggers/tokio-raknet)
-[![License](https://img.shields.io/crates/l/tokio-raknet.svg)](LICENSE)
+[![License](https://img.shields.io/crates/l/tokio-raknet.svg)](../../LICENSE)
 
 **tokio-raknet** is a high-performance, asynchronous implementation of the RakNet protocol written in pure Rust. Built on top of the [Tokio](https://tokio.rs) runtime, it is designed to provide a modern, ergonomic API for building robust UDP-based networked applications, games (including Minecraft: Bedrock Edition), and services.
 
@@ -215,7 +215,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Connected!");
 
-    // Send a message (defaults to ReliableOrdered)
+    // Send a message. `&str`, `String`, `Vec<u8>` and `&'static [u8]` (via
+    // `Message::new`) default to ReliableOrdered; a `Bytes` value converts to
+    // UnreliableSequenced, so wrap it in `Message::new` to send it reliably.
     client.send_encoded("Hello, Server!").await?;
 
     // Receive packets
@@ -238,7 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 The `RaknetListener` works similarly to a `TcpListener`, providing a stream of incoming connections.
 
 ```rust,no_run
-use tokio_raknet::transport::RaknetListener;
+use tokio_raknet::transport::{Message, RaknetListener};
 use futures::StreamExt;
 
 #[tokio::main]
@@ -256,8 +258,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             while let Some(result) = conn.next().await {
                 match result {
                     Ok(packet) => {
-                        // Echo back
-                        if let Err(_) = conn.send_encoded(packet).await {
+                        // Echo back reliably: a bare `Bytes` would convert
+                        // to UnreliableSequenced.
+                        if let Err(_) = conn.send_encoded(Message::new(packet)).await {
                             break;
                         }
                     }
@@ -384,7 +387,7 @@ executable path, so keep new tests on loopback.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](../../LICENSE).
 
 ## 🔮 Roadmap
 
@@ -411,7 +414,7 @@ Limits are checked before allocating or scanning peer-controlled windows.
 | Resource | Limit / behavior | go-raknet `6124f52` |
 | --- | --- | --- |
 | Negotiated MTU | 400–1492 bytes including IPv4/UDP headers | Same; a listener grants more than 1200 only after a padded Reply1 (`conn.go:26-38`, `handler.go:118-125`) |
-| Client MTU discovery | Probes `[cap, 1200, 576]`, four per size, 500 ms apart, replies accepted at any time; 10 transient receive errors tolerated | 13 probes (four per size, one more at the last), 500 ms apart, until Reply2; 10 transient errors (`mtu_probe.go:17-53`, `dial.go:386-416,428`) |
+| Client MTU discovery | Probes `[cap, 1200, 576]` 500 ms apart, replies accepted at any time; `Optimized` sends four per size, `Vanilla` 13 (4, 4, then 5 at the last size, like Mojang RakNet); 10 transient receive errors tolerated | 13 probes (four per size, one more at the last), 500 ms apart, until Reply2; 10 transient errors (`mtu_probe.go:17-53`, `dial.go:386-416,428`) |
 | Receive / ordered window | 2048 indices; duplicates do not allocate entries | Ordered window 2048, overflow closes; datagrams more than 50000 ahead dropped (`conn.go:747-751`, `datagram_window.go:3-45`) |
 | ACK/NACK payload | go's rule: a range record while `total + end - start ≤ 8192` (so at most 8193 represented sequences), a single while `total + 1 ≤ 8192`; wrapped ranges and unknown tags rejected; bounded range queues. A NAK resends each awaiting datagram at most once | Same rule (`acknowledge.go:93-127`); a NAK makes each awaiting datagram due (`conn.go:931-957`) |
 | Outgoing reliable data | `max_queued_reliable_bytes` (listener) closes with `QueueTooLong`: Optimized counts unsent bytes, Vanilla counts reliable bytes until ACKed | 16 MiB send queue, `Write` blocks at the limit; 512 reliable datagrams awaiting ACK (`conn.go:61-75,385-426,995-1005`) |

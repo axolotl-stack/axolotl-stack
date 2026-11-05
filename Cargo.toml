@@ -29,7 +29,7 @@ members = [
 [workspace.package]
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/axolotl-stack/axolotl-stack"
+repository = "https://github.com/cinnabar-mc/axolotl-stack"
 
 [profile.release]
 opt-level = 3           # Max optimization

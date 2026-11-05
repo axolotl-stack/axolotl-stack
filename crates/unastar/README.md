@@ -736,7 +736,7 @@ from the pack's `minecraft:food`/`use_modifiers` (or the native
 conversions from registered block names. Evidence: the BDS 1.26.51 capture
 `tools/client-diff/runs/item-use-20261029` (client-diff `item-use-*`
 scenarios); "public reference" rows are not measured yet and are listed in
-`thoughts/shared/research/bds-quirks.md`.
+`docs/quirks/bds.md`.
 
 | Behaviour | Status | Evidence |
 |---|---|---|

@@ -1,7 +1,8 @@
 //! Actor definition loader (`entities/*.json`, `minecraft:entity`).
 //!
-//! One loader for build time (vanilla, embedded per D2/D13) and for addon
-//! packs at startup (D5). It accepts, normalises and rejects pack documents
+//! One loader for build time (vanilla, embedded per D2/D13); addon packs at
+//! startup (D5) are meant to use it too, but no runtime loader calls it yet.
+//! It accepts, normalises and rejects pack documents
 //! according to the measured rules below (entities research §4.7). Supported
 //! vanilla input normalises to a fixed point. Retained legacy unknown data may
 //! still produce diagnostics when loaded again.
@@ -12,8 +13,8 @@
 //! |---|---|---|
 //! | Syntax | JSON with `//` and `/* */` comments and an optional BOM | BDS pack files ([`crate::json`]) |
 //! | Shape | `format_version` plus exactly one `minecraft:entity`; other top-level keys are logged | Mojang entity documentation |
-//! | No identifier | A file without `description.identifier` defines nothing and is skipped ([`Loaded::Skipped`]) | `npc.json` in the BDS 1.26.51 layers `vanilla_1.16.100` and `vanilla_1.17.20` has only `components`; the layered stack still matches bedrock-samples. Unconfirmed: recorded in `bds-quirks.md` |
-//! | `events: null` | Same as no events | 23 vanilla files (bedrock-samples 1.26.50.4 = BDS 1.26.51); recorded in `bds-quirks.md` |
+//! | No identifier | A file without `description.identifier` defines nothing and is skipped ([`Loaded::Skipped`]) | `npc.json` in the BDS 1.26.51 layers `vanilla_1.16.100` and `vanilla_1.17.20` has only `components`; the layered stack still matches bedrock-samples. Unconfirmed: recorded in `docs/quirks/bds.md` |
+//! | `events: null` | Same as no events | 23 vanilla files (bedrock-samples 1.26.50.4 = BDS 1.26.51); recorded in `docs/quirks/bds.md` |
 //! | `format_version` upgrade | Before 1.26.10, `minecraft:pushable {is_pushable, is_pushable_by_piston}` (both default `true`) becomes `minecraft:pushable_by_entity {}` when `is_pushable` and `minecraft:pushable_by_block {}` when `is_pushable_by_piston`, in base components and in every group | 25 vanilla files on 1.26.0 still use `minecraft:pushable`; 1.26.10+ files use the pair (Mojang changelog for 1.26.10) |
 //! | Filters | Every filter inside a component (recognised by shape: an object with a string `test`, or an object of group keys) is parsed with every accepted spelling and written in canonical form | [`unastar_rules::filter`] |
 //! | Events | Parsed and written in canonical form, malformed vanilla nodes tolerated | [`unastar_rules::event`] |
@@ -1413,6 +1414,89 @@ mod tests {
             json!({"description": {"identifier": "t:x"}, "components": {}, "events": null}),
         ));
         assert!(def.events.is_empty() && diags.is_empty());
+    }
+
+    /// A stack of loose-JSON layers under a fresh temporary directory:
+    /// `(layer, file name, document)`.
+    fn stack(name: &str, files: &[(&str, &str, Value)]) -> (PackStack, PathBuf) {
+        let root =
+            std::env::temp_dir().join(format!("unastar-packs-stack-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mut layers: Vec<crate::packs::Layer> = Vec::new();
+        for (layer, file, document) in files {
+            let dir = root.join(layer).join("entities");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join(file), document.to_string()).unwrap();
+            if !layers.iter().any(|l| l.name == *layer) {
+                layers.push(crate::packs::Layer {
+                    name: (*layer).to_owned(),
+                    root: root.join(layer),
+                    is_definitions: false,
+                });
+            }
+        }
+        (PackStack { layers }, root)
+    }
+
+    fn cow(spawnable: bool) -> Value {
+        entity(
+            "1.26.0",
+            json!({"description": {"identifier": "t:cow", "is_spawnable": spawnable}, "components": {}}),
+        )
+    }
+
+    #[test]
+    fn a_second_definition_in_the_same_layer_is_an_error() {
+        let (stack, root) = stack(
+            "duplicate",
+            &[
+                ("base", "a.json", cow(true)),
+                ("base", "b.json", cow(false)),
+            ],
+        );
+        let error = resolve_stack(&stack, &parser()).unwrap_err().to_string();
+        assert!(
+            error.contains("t:cow already defined in the same layer by base/entities:a.json"),
+            "{error}"
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_later_layer_replaces_the_whole_file() {
+        // The base copy would be rejected on its own (an unknown component in
+        // a strict format); it is replaced before parsing, so it is never seen.
+        let broken = entity(
+            "1.26.0",
+            json!({"description": {"identifier": "t:cow"}, "components": {"t:unknown": {}}}),
+        );
+        assert!(load_value("broken.json", &broken, &parser()).is_err());
+        let (stack, root) = stack(
+            "override",
+            &[
+                ("base", "cow.json", broken),
+                (
+                    "base",
+                    "pig.json",
+                    entity(
+                        "1.26.0",
+                        json!({"description": {"identifier": "t:pig"}, "components": {}}),
+                    ),
+                ),
+                ("patch_1", "cow.json", cow(false)),
+                ("patch_2", "renamed_cow.json", cow(true)),
+            ],
+        );
+        let resolved = resolve_stack(&stack, &parser()).unwrap();
+        assert_eq!(resolved.definitions.len(), 2);
+        let cow = &resolved.definitions["t:cow"];
+        assert_eq!(cow.source, "patch_2/entities:renamed_cow.json");
+        assert!(cow.definition.description.is_spawnable);
+        assert_eq!(
+            resolved.definitions["t:pig"].source,
+            "base/entities:pig.json"
+        );
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

@@ -4,6 +4,33 @@
 cargo run -p axelerator
 ```
 
+## Exit status
+
+The process exits `0` only after a requested shutdown (Ctrl+C or `SIGTERM`).
+Any failure it cannot recover from (startup failure, exhausted token refreshes,
+a failed transfer-server recovery, a transfer-server error or panic) is returned
+from `Axelerator::run` and the process exits non-zero, so the systemd unit's
+`Restart=on-failure` restarts it. The unit has no start-rate limit
+(`StartLimitIntervalSec=0`) and backs off from 5 s to 5 min between restarts
+(`RestartSteps=`, systemd 254+), so a long outage never leaves it failed.
+
+On Ctrl+C or `SIGTERM` the gateway stops the transfer server, disconnects RTA,
+sets presence inactive, saves friend history and sends the Discord shutdown
+notice before exiting. It does not delete the MPSD session; advertising stops
+because the session's RTA connection disconnects and presence goes inactive.
+Cleanup has 20 s, inside the unit's `TimeoutStopSec=30`. A signal during the
+device-code login or the RTA wait ends startup at once. A second signal during
+cleanup exits immediately (non-zero) and logs which steps were skipped.
+
+## Friend expiry history
+
+With `friend_expiry.enabled`, last-join times live in `player_history.json`
+beside the token cache. One copy is loaded per run and shared by the transfer
+server (which records joins) and the expiry task (which removes expired
+friends). Saves write a temporary file, sync it and rename it over the old one.
+A malformed or unreadable history file stops startup with an error and is left
+as it is; fix or remove it. A missing file starts empty.
+
 ## Token cache security
 
 OAuth credentials are saved to a uniquely named temporary file in the cache

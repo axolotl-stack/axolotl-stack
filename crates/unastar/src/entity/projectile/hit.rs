@@ -69,7 +69,7 @@ pub(super) fn on_hit(
 /// Speed damage (`power_multiplier`, arrows) is the projectile's speed
 /// times the multiplier, rounded up when `ceil_pre_critical_damage`, plus
 /// for a critical shot a random bonus of up to half that plus one
-/// (public reference; recorded as unmeasured in `bds-quirks.md`).
+/// (public reference; recorded as unmeasured in `docs/quirks/bds.md`).
 fn impact_damage(
     world: &mut World,
     projectile: Entity,

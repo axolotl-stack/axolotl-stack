@@ -3,6 +3,10 @@ Description=Axelerator - Xbox Live Friend Broadcast Server
 Documentation=https://github.com/your-repo/axolotl-stack
 After=network-online.target
 Wants=network-online.target
+# Never stop restarting: failures exit non-zero, and a network or Xbox Live
+# outage can outlast any start-rate limit. The growing RestartSec below
+# paces the retries instead.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -15,14 +19,16 @@ WorkingDirectory=/opt/axelerator
 # Use config file (create with: axelerator init -o /opt/axelerator/axelerator.toml)
 ExecStart=/opt/axelerator/axelerator -c /opt/axelerator/axelerator.toml
 
-# Restart policy
+# Restart policy: restart on any failure (non-zero exit), never after a
+# requested stop (exit 0).
 Restart=on-failure
-RestartSec=5
 RestartPreventExitStatus=0
-
-# Limit restart attempts (5 per 5 minutes)
-StartLimitIntervalSec=300
-StartLimitBurst=5
+# Back off from 5 s to 5 min over 10 restarts. RestartSteps= and
+# RestartMaxDelaySec= need systemd 254 or newer; older versions ignore them
+# (with a warning) and restart every RestartSec.
+RestartSec=5
+RestartSteps=10
+RestartMaxDelaySec=300
 
 # Security hardening
 NoNewPrivileges=yes

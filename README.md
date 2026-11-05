@@ -56,13 +56,22 @@ A standalone library for handling Xbox Live authentication flows (XSTS, Device C
 The protocol generator and the game data come from git submodules, so clone with them:
 
 ```bash
-git clone --recurse-submodules https://github.com/axolotl-stack/axolotl-stack.git
+git clone --recurse-submodules https://github.com/cinnabar-mc/axolotl-stack.git
 # or, in an existing clone:
 git submodule update --init --recursive
 ```
 
 Submodules are pinned by commit. Some pins, such as `crates/valentine_gen/bedrock-protocol-docs`,
 are not the tip of any branch, so git fetches them by SHA; `git submodule update` does this for you.
+
+If `git submodule update` fails with "clone of 'C:/...' failed" or another local path, your
+clone's git config points the submodules at old local mirrors. Reset them to the URLs in
+`.gitmodules` and fetch again:
+
+```bash
+git submodule sync --recursive
+git submodule update --init --recursive
+```
 
 ### Building
 ```bash
@@ -129,6 +138,10 @@ We welcome contributions! Whether it's fixing a protocol bug in Valentine, optim
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first; the individual crate directories have crate-specific guidelines.
 A gameplay feature is not finished until its rows in `docs/parity/` are updated in the same commit.
+
+Coding agents (Claude Code, Codex) and humans share one set of instructions, [AGENTS.md](AGENTS.md),
+and one knowledge system: OpenSpec specs and changes in [`openspec/`](openspec/), and decisions,
+quirks, lessons and research in [`docs/`](docs/README.md).
 
 ---
 

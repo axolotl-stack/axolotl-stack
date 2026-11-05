@@ -157,7 +157,7 @@ pub(super) async fn tick_sessions(
         let pending = state.managed.drain_pending_incoming(now);
         update_handshake_confirmation(&pending, state);
         if state.handshake_confirmed {
-            deliver_packets_to_app(pending, state);
+            deliver_packets_to_app(pending, state, now);
         }
 
         if matches!(state.managed.state(), ConnectionState::Closed) {
@@ -216,7 +216,7 @@ async fn handle_incoming_udp(
         }
         update_handshake_confirmation(&pkts, state);
         if state.handshake_confirmed {
-            deliver_packets_to_app(pkts, state);
+            deliver_packets_to_app(pkts, state, now);
         }
         false
     } else {
@@ -290,7 +290,11 @@ fn update_handshake_confirmation(
     }
 }
 
-fn deliver_packets_to_app(pkts: Vec<crate::session::IncomingPacket>, state: &mut SessionState) {
+fn deliver_packets_to_app(
+    pkts: Vec<crate::session::IncomingPacket>,
+    state: &mut SessionState,
+    now: Instant,
+) {
     for pkt in ManagedSession::filter_app_packets(pkts) {
         if let RaknetPacket::UserData { id, payload } = pkt.packet {
             let msg = crate::transport::ReceivedMessage {
@@ -302,7 +306,9 @@ fn deliver_packets_to_app(pkts: Vec<crate::session::IncomingPacket>, state: &mut
             match state.to_app.try_send(Ok(msg)) {
                 Ok(()) => {}
                 Err(mpsc::error::TrySendError::Full(_)) => {
-                    state.managed.disconnect_now(DisconnectReason::QueueTooLong);
+                    state
+                        .managed
+                        .disconnect_now(DisconnectReason::QueueTooLong, now);
                     break;
                 }
                 Err(mpsc::error::TrySendError::Closed(_)) => {

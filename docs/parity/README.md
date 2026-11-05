@@ -54,7 +54,7 @@ Every row has exactly one entry. Fields, in this order (empty ones omitted):
 |---|---|
 | `status` | `missing`, `partial`, `done`, `verified` or `not_applicable` |
 | `owner` | lane or person responsible (`entities`, `items`, `blocks`, `commands`, `wg-bedrock`, `wg-java`, `protocol`, `mainline`, `platform`) |
-| `tests` | `path` or `path::test_fn`, relative to the repository root |
+| `tests` | `path` or `path::test_fn`, relative to the repository root; `test_fn` must be a `#[test]` (or `#[tokio::test]`) function |
 | `evidence` | committed native evidence (BDS/Java capture or fixture path), or `none` |
 | `gaps` | short text: what is still missing |
 | `notes` | anything else, e.g. work that exists on an unmerged branch |
@@ -64,7 +64,7 @@ Every row has exactly one entry. Fields, in this order (empty ones omitted):
 | `missing` | nothing | nothing implemented |
 | `partial` | `gaps` | some behaviour exists; `gaps` says what does not |
 | `done` | `owner`, `tests` | implemented and a test in the workspace exercises it |
-| `verified` | `owner`, `tests`, `evidence` (an existing repository path) | done, and the test compares against that native evidence |
+| `verified` | `owner`, `tests`, `evidence` (a path git tracks) | done, and the test compares against that native evidence |
 | `not_applicable` | `notes` | vanilla has it but a server never implements it (client-only, editor or Education Edition content); excluded from percentages |
 
 Statuses describe the code on the branch the file is on. Work that only exists on an
@@ -98,6 +98,7 @@ duplicate work. Each `[[claim]]` has:
 | `families` | row families of that domain, as in `PARITY.md`'s family tables |
 | `ids` | row ids; each also covers the row's sub-rows |
 | `prefixes` | plain prefixes of row ids (`bedrock/`, `world.`) |
+| `change` | optional: the OpenSpec change doing the work (`openspec/changes/<change>/`); `parity check` fails if it does not exist or has been archived |
 
 A claim covers one domain; an area spanning several domains has one claim per domain.
 Add a claim in your first pull request for an area and remove it when you stop. Claims
@@ -116,11 +117,14 @@ UNASTAR_BDS_DIR=/path/to/bds/server cargo run -p parity -- generate   # also ref
 
 - a generated row has no status entry, or a status entry names a row that is no longer
   generated (rename or delete it by hand; `generate` refuses to drop it silently);
-- a `done`/`verified` row lists no test, or a test file or `fn` that does not exist;
-- a required field is missing (see the table above), or `verified` evidence is not a path in
-  the repository;
+- a `done`/`verified` row lists no test, or a test file that does not exist, or a `path::name`
+  whose file has no `#[test]` / `#[tokio::test]` function `name` (a mention in a comment or a
+  helper `fn` does not count);
+- a required field is missing (see the table above), or `verified` evidence is not a path git
+  tracks (an untracked or gitignored file fails; files inside a submodule count);
 - a claim names an unknown domain, family or row id, a prefix that matches no row, has no
   owner, no selector or a `since` that is not a date, or two claims cover the same row;
+- a claim names an OpenSpec `change` that does not exist or is already archived;
 - a status file is not in canonical form, `PARITY.md` is stale, or (with `UNASTAR_BDS_DIR`)
   the Bedrock worldgen snapshot is stale.
 
@@ -128,12 +132,13 @@ UNASTAR_BDS_DIR=/path/to/bds/server cargo run -p parity -- generate   # also ref
 
 These stay where they are and are linked from rows' `evidence`/`notes` where relevant:
 
-- BDS behaviour quirks: [`thoughts/shared/research/bds-quirks.md`](../../thoughts/shared/research/bds-quirks.md)
-- Built-in constants and their provenance (D12): [`thoughts/shared/plans/2026-10-24-data-driven-decisions.md`](../../thoughts/shared/plans/2026-10-24-data-driven-decisions.md)
+- BDS behaviour quirks: [`docs/quirks/bds.md`](../quirks/bds.md)
+- Built-in constants and their provenance: [`docs/research/mob-runtime-constants.md`](../research/mob-runtime-constants.md)
+- Decisions behind the catalog (copy BDS exactly, measure built-in facts, and the rest): [`docs/decisions/`](../decisions/README.md)
 - Java worldgen pipeline and evidence: [`crates/unastar_noise/README.md`](../../crates/unastar_noise/README.md)
 - Bedrock worldgen measurement ledger: [`crates/unastar_bedrock_codegen/README.md`](../../crates/unastar_bedrock_codegen/README.md)
 - Measured BDS tables: [`crates/unastar-data/data/measured/`](../../crates/unastar-data/data/measured/)
 
-The former entity backlog (`thoughts/shared/plans/2026-10-28-entity-backlog.md`) and the
-parity items of the mob-runtime follow-ups are folded into `entities.toml` and
-`systems.toml`.
+The former entity backlog and the parity items of the mob-runtime follow-ups (both removed
+2026-11-04) are folded into `entities.toml` and `systems.toml`; the follow-ups with no parity
+row are tasks in the OpenSpec change `data-driven-gameplay`.

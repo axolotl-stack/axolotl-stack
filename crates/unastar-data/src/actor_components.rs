@@ -17,6 +17,11 @@ mod generated {
     include!(concat!(env!("OUT_DIR"), "/actor_components.rs"));
 }
 
+/// The generated source above, hashed into the pack manifest
+/// ([`crate::pack_manifest`]) so a schema or generator change is reviewable.
+pub(crate) const GENERATED_SOURCE: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/actor_components.rs"));
+
 pub use generated::ActorComponent;
 
 /// A filter tree as authored (already canonicalised by the pack loader). The

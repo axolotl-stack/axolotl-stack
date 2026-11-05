@@ -3,11 +3,14 @@
 
 use super::{LIVE_CONNECT_URL, LIVE_TOKEN_URL, MINECRAFT_CLIENT_ID, XAL_USER_AGENT, XBL_SCOPE};
 use crate::error::{XblError, XblResult, response_json};
+use crate::http::LazyClient;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+/// Windows Live device-code login. Construction does no I/O and cannot fail;
+/// the HTTP client is built on the first request.
 pub struct DeviceCodeAuth {
-    client: reqwest::Client,
+    client: LazyClient,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -62,10 +65,7 @@ struct PollResponse {
 impl DeviceCodeAuth {
     pub fn new() -> Self {
         Self {
-            client: reqwest::Client::builder()
-                .timeout(Duration::from_secs(15))
-                .build()
-                .expect("valid HTTP client configuration"),
+            client: LazyClient::with_timeout(Duration::from_secs(15)),
         }
     }
     pub async fn start(&self) -> XblResult<DeviceCodeResponse> {
@@ -74,6 +74,7 @@ impl DeviceCodeAuth {
     async fn start_at(&self, url: &str) -> XblResult<DeviceCodeResponse> {
         let response = self
             .client
+            .load()?
             .post(url)
             .form(&[
                 ("client_id", MINECRAFT_CLIENT_ID),
@@ -97,6 +98,7 @@ impl DeviceCodeAuth {
     async fn poll_at(&self, url: &str, device_code: &str) -> XblResult<Option<OAuthToken>> {
         let response = self
             .client
+            .load()?
             .post(url)
             .form(&[
                 ("client_id", MINECRAFT_CLIENT_ID),
@@ -151,28 +153,7 @@ impl DeviceCodeAuth {
         Ok(Some(token))
     }
     pub async fn wait_for_auth(&self, code: &DeviceCodeResponse) -> XblResult<OAuthToken> {
-        let mut interval = Duration::from_secs(if code.interval == 0 { 5 } else { code.interval });
-        let deadline = tokio::time::Instant::now()
-            .checked_add(Duration::from_secs(code.expires_in))
-            .ok_or_else(|| XblError::Auth("Invalid OAuth device-code lifetime".into()))?;
-        loop {
-            if tokio::time::Instant::now()
-                .checked_add(interval)
-                .is_none_or(|next| next >= deadline)
-            {
-                return Err(XblError::DeviceCodeExpired);
-            }
-            tokio::time::sleep(interval).await;
-            match tokio::time::timeout_at(deadline, self.poll(&code.device_code)).await {
-                Err(_) => return Err(XblError::DeviceCodeExpired),
-                Ok(Ok(Some(token))) => return Ok(token),
-                Ok(Ok(None)) => {}
-                Ok(Err(XblError::AuthorizationSlowDown)) => {
-                    interval = interval.saturating_add(Duration::from_secs(5))
-                }
-                Ok(Err(error)) => return Err(error),
-            }
-        }
+        poll_until_authorized(code, || self.poll(&code.device_code)).await
     }
     pub async fn refresh(&self, refresh_token: &str) -> XblResult<OAuthToken> {
         self.refresh_at(LIVE_TOKEN_URL, refresh_token).await
@@ -183,6 +164,7 @@ impl DeviceCodeAuth {
         }
         let response = self
             .client
+            .load()?
             .post(url)
             .header("User-Agent", XAL_USER_AGENT)
             .form(&[
@@ -200,6 +182,40 @@ impl DeviceCodeAuth {
         }
         validate_token(&token)?;
         Ok(token)
+    }
+}
+/// Polls until the user authorizes: every `interval` seconds (5 when the
+/// server sends 0), five seconds longer after each `slow_down` (RFC 8628
+/// section 3.5), and never past the device code's lifetime.
+async fn poll_until_authorized<F, Fut>(
+    code: &DeviceCodeResponse,
+    mut poll: F,
+) -> XblResult<OAuthToken>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = XblResult<Option<OAuthToken>>>,
+{
+    let mut interval = Duration::from_secs(if code.interval == 0 { 5 } else { code.interval });
+    let deadline = tokio::time::Instant::now()
+        .checked_add(Duration::from_secs(code.expires_in))
+        .ok_or_else(|| XblError::Auth("Invalid OAuth device-code lifetime".into()))?;
+    loop {
+        if tokio::time::Instant::now()
+            .checked_add(interval)
+            .is_none_or(|next| next >= deadline)
+        {
+            return Err(XblError::DeviceCodeExpired);
+        }
+        tokio::time::sleep(interval).await;
+        match tokio::time::timeout_at(deadline, poll()).await {
+            Err(_) => return Err(XblError::DeviceCodeExpired),
+            Ok(Ok(Some(token))) => return Ok(token),
+            Ok(Ok(None)) => {}
+            Ok(Err(XblError::AuthorizationSlowDown)) => {
+                interval = interval.saturating_add(Duration::from_secs(5))
+            }
+            Ok(Err(error)) => return Err(error),
+        }
     }
 }
 fn validate_token(token: &OAuthToken) -> XblResult<()> {
@@ -297,6 +313,87 @@ mod tests {
             .await
             .unwrap_err();
         assert!(!format!("{error} {error:?}").contains("secret"));
+    }
+    /// A refresh response without `refresh_token` keeps the one that was
+    /// sent; a response with one replaces it.
+    #[tokio::test]
+    async fn refresh_keeps_the_refresh_token_unless_replaced() {
+        let auth = DeviceCodeAuth::new();
+        let omitted = server(
+            200,
+            r#"{"access_token":"a","token_type":"bearer","expires_in":3600,"user_id":null}"#,
+        )
+        .await;
+        let token = auth.refresh_at(&omitted, "old-refresh").await.unwrap();
+        assert_eq!(token.refresh_token, "old-refresh");
+        assert_eq!(token.access_token, "a");
+
+        let replaced = server(
+            200,
+            r#"{"access_token":"b","token_type":"bearer","refresh_token":"new-refresh","expires_in":3600,"user_id":null}"#,
+        )
+        .await;
+        let token = auth.refresh_at(&replaced, "old-refresh").await.unwrap();
+        assert_eq!(token.refresh_token, "new-refresh");
+
+        assert!(auth.refresh_at(&replaced, "").await.is_err());
+    }
+
+    /// Each `slow_down` lengthens the poll interval by five seconds for the
+    /// rest of the wait; `authorization_pending` keeps it.
+    #[tokio::test(start_paused = true)]
+    async fn slow_down_backs_off_by_five_seconds_each_time() {
+        let code = DeviceCodeResponse {
+            device_code: "code".into(),
+            user_code: "user".into(),
+            verification_uri: "uri".into(),
+            interval: 5,
+            expires_in: 900,
+        };
+        let start = tokio::time::Instant::now();
+        let polls = std::cell::RefCell::new(Vec::new());
+        let token = poll_until_authorized(&code, || {
+            let mut polls = polls.borrow_mut();
+            polls.push(start.elapsed().as_secs());
+            let answer = match polls.len() {
+                1 | 2 => Err(XblError::AuthorizationSlowDown),
+                3 => Ok(None),
+                _ => Ok(Some(OAuthToken {
+                    access_token: "a".into(),
+                    token_type: "bearer".into(),
+                    refresh_token: "r".into(),
+                    expires_in: 60,
+                    user_id: None,
+                })),
+            };
+            async move { answer }
+        })
+        .await
+        .unwrap();
+        assert_eq!(token.access_token, "a");
+        // 5 s, then +10 s, +15 s after two slow_downs, +15 s after pending.
+        assert_eq!(*polls.borrow(), [5, 15, 30, 45]);
+    }
+
+    /// Back-off never polls past the device code's lifetime.
+    #[tokio::test(start_paused = true)]
+    async fn slow_down_stops_at_the_device_code_lifetime() {
+        let code = DeviceCodeResponse {
+            device_code: "code".into(),
+            user_code: "user".into(),
+            verification_uri: "uri".into(),
+            interval: 5,
+            expires_in: 20,
+        };
+        let polls = std::cell::Cell::new(0);
+        let result = poll_until_authorized(&code, || {
+            polls.set(polls.get() + 1);
+            async { Err(XblError::AuthorizationSlowDown) }
+        })
+        .await;
+        assert!(matches!(result, Err(XblError::DeviceCodeExpired)));
+        // Polls at 5 s and 15 s; the next (at 30 s) would pass 20 s.
+        assert_eq!(polls.get(), 2);
     }
     #[tokio::test]
     async fn expired_device_code_does_not_poll_network() {

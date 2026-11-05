@@ -30,6 +30,13 @@ choosing a relying party. Service requests sign the actual outgoing headers and
 body limit selected by NSAL. Rejected credentials can be invalidated without
 discarding the device/proof-key context.
 
+No client constructor does I/O, fails or panics (`DeviceCodeAuth`,
+`XblTokenClient`, `FriendsClient`, `PresenceClient`, `PlayFabClient`,
+`GalleryClient`, `SessionClient`, `DiscoveryClient`). Each builds its HTTP client
+(and the shared NSAL client) on its first request, and a build failure, such as a
+TLS backend that cannot initialise, is returned from that call as
+`XblError::HttpClientBuild`, never as the network error `XblError::Http`.
+
 Wire references: go-xsapi `90ce120e31cdf8de6c7225ca1378117c23081ddd`,
 `xal/sisu/{oauth2.go,session.go}`, `xal/xasd/authenticate.go`,
 `xal/xsts/authorize.go`, and `xal/nsal/{title.go,resolver.go,transport.go}`.
@@ -59,7 +66,7 @@ messaging UUID. As in the Go token source, service-token JWT claims are decoded
 and time-validated, not signature-verified. This is not a multiplayer identity
 verifier. `multiplayer_token` obtains a fresh connection-specific token from a
 caller-supplied SPKI public key; verification of peer identity tokens is a
-separate responsibility.
+separate responsibility (see below).
 
 Wire references:
 
@@ -78,17 +85,11 @@ loopback HTTP servers and do not contact live authentication services.
 
 ## Multiplayer token verification
 
-`MultiplayerTokenVerifier::new(trusted_issuer)` resolves OpenID configuration and
-verifies peer JWT signatures, issuer, multiplayer audience, and token times.
-It caches signing keys, coalesces concurrent fetches, and permits an unknown
-key ID to refresh keys after the upstream 30-minute interval. A bad signature
-for a known key does not trigger repeated key downloads. Microsoft hex-encoded
-SHA-1 `x5t` values are normalized before decoding keys.
-
-Sources: gophertunnel `minecraft/service/token.go:VerifierContext/configuration`
-and `jwks.go:refreshingKeySet`. The Rust JWT backend rejects unsupported advertised
-algorithms, including ES512, instead of substituting another algorithm. Issuer
-URLs with embedded credentials, query parameters, or fragments are rejected.
+This crate does not verify peer multiplayer tokens. A server verifies the Login
+`Token` with jolyne (`jolyne::auth::openid::OpenIdProvider`), which trusts only
+keys reached from Minecraft build discovery, serves cached keys while refreshes
+fail, and is the one verifier the stack uses. An earlier duplicate here
+(`MultiplayerTokenVerifier`) was unused and has been removed.
 
 ## Friend broadcasting compatibility
 

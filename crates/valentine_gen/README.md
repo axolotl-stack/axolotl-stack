@@ -85,6 +85,11 @@ fingerprints are pinned under `protocolgen/generated/1.26.51/`, from the
 1.26.40, 1.26.44) have been removed; regenerate from their protocolgen
 manifests if a compatibility crate is ever needed again.
 
+The pinned protocolgen commit (`e37c952`) is on the upstream branch
+`feat/mojang-actor-symbols-1.26.51`, not on its `main`. `git submodule update` fetches it by SHA,
+which works only while some upstream ref still contains it, so move the pin to a commit on
+protocolgen `main` (or a tag) once that branch merges.
+
 Do not treat `generated/1.26.50/` as the stable release: it captures Preview 25
 and protocol 2187. Stable 26.50 and 26.51 use protocol 2193; the 26.51 hotfix
 has no packet changes relative to stable 26.50.
@@ -101,6 +106,14 @@ if a manifest for the verified protocol no longer contains the field. The
 upstream-ready reports with evidence are in
 [`PROTOCOLGEN_ISSUES.md`](PROTOCOLGEN_ISSUES.md); the captures come from
 `tools/client-diff -Mode conformance`.
+
+A protocolgen `type_id` names one wire layout. When the manifest reuses an id
+with a different shape, lowering fails, unless the id is listed in
+`ALLOWED_ENUM_NARROWINGS` (`src/parser/protocolgen.rs`) and both shapes are
+enums over the same primitive. Those are uses that admit only part of one wire
+enum (for example each `TextPacket` payload arm). The first shape is registered
+under the id; the narrower use is inlined. 1.26.51 has five such ids, each
+listed with the reason it is safe.
 
 ## Mojang corrections and conformance
 
@@ -162,7 +175,10 @@ today's dump.
 
 Generated Rust is parsed and formatted before its destination is touched, then
 staged in a sibling temporary file and atomically renamed into place. A failed
-format or write preserves the previous generated module.
+format or write preserves the previous generated module. The same staged write
+(`generator::emitter::write_file_atomic`) produces every other output: the
+`bedrock` surface modules, each version crate's `Cargo.toml` and the updated
+`valentine` manifest.
 
 Prismarine data-only generation merges existing live version declarations into
 its manifest and surface updates. A version absent from minecraft-data is kept

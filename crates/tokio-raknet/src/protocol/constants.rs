@@ -61,26 +61,12 @@ pub const RAKNET_DATAGRAM_HEADER_SIZE: usize = 4;
 
 // === Connection / session timing ===
 
-/// Maximum number of connection attempts before giving up.
-pub const MAXIMUM_CONNECTION_ATTEMPTS: usize = 10;
-
-/// Time between sending connection attempts.
-pub const TIME_BETWEEN_SEND_CONNECTION_ATTEMPTS: Duration = Duration::from_millis(1000);
-
 /// Base inactivity timeout, matching go-raknet `6124f52` `conn.go:285`.
 /// Session management adds twice the measured RTT to this base duration.
 pub const SESSION_TIMEOUT: Duration = Duration::from_millis(5000);
 
 /// Time after which a session is considered stale due to no activity.
 pub const SESSION_STALE: Duration = Duration::from_millis(5000);
-
-// === Packet limits / congestion ===
-
-/// Maximum number of datagram packets each address can send within one RakNet tick (10ms).
-pub const DEFAULT_PACKET_LIMIT: usize = 120;
-
-/// Maximum number of datagrams handled within one tick before dropping excess data.
-pub const DEFAULT_GLOBAL_PACKET_LIMIT: usize = 100000;
 
 bitflags! {
     /// Flags for the main RakNet UDP Datagram.

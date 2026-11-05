@@ -1,4 +1,8 @@
 {
+  "actor_component_bodies": {
+    "count": 410,
+    "sha256": "b1a4a99ccc31b4993f01e3817609f0f0d05008ba88f487894f9afee029f77f8b"
+  },
   "actor_component_registry": {
     "count": 410,
     "sha256": "5fef0c2aa5f408eda6b856c479809d7c303d6616d2ac46626148b347d3526cb8"
@@ -19,8 +23,20 @@
     "count": 406,
     "sha256": "2b13c3ad2913bd8311a5e18f76146b6d9751d9cd2a4424dc36761452ddbb3143"
   },
+  "item_files": {
+    "count": 79,
+    "sha256": "6b588aa4c5515237fbf398b6fe554231be62ee5df47402c323e0bdb4b7d422dc"
+  },
   "loot_tables": {
     "count": 508,
     "sha256": "32256b600a7b33082618f8946f867ed171dad3f371b48acbf217cf24b7d8b07b"
+  },
+  "recipe_files": {
+    "count": 1892,
+    "sha256": "dfbf89d08a192b12f6d3f261e6ab0c688a69cdc4b9796f591d3e07f89cfe1c71"
+  },
+  "spawn_rules": {
+    "count": 60,
+    "sha256": "83a103e9949d2d3a14989b34e9958b14522d35b144d03c961cd48e2e5cdaf195"
   }
 }

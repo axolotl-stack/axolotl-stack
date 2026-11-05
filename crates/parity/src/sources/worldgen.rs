@@ -480,3 +480,58 @@ fn read_snapshot(root: &Path) -> anyhow::Result<Vec<Row>> {
     }
     Ok(rows)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("parity-snapshot-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join(BEDROCK_SNAPSHOT).parent().unwrap()).unwrap();
+        root
+    }
+
+    #[test]
+    fn snapshot_round_trips_sorted_by_family_then_id() {
+        let rows = vec![
+            Row::new("bedrock/overworld/feature/b", "bedrock/overworld/feature")
+                .with_label("a label"),
+            Row::new("bedrock/overworld/biome/z", "bedrock/overworld/biome"),
+            Row::new("bedrock/overworld/feature/a", "bedrock/overworld/feature"),
+        ];
+        let text = render_snapshot(&rows);
+        assert!(text.starts_with("# Bedrock 1.26.51 worldgen rows"));
+        let data: Vec<&str> = text.lines().filter(|l| !l.starts_with('#')).collect();
+        assert_eq!(
+            data,
+            [
+                "bedrock/overworld/biome\tbedrock/overworld/biome/z\t",
+                "bedrock/overworld/feature\tbedrock/overworld/feature/a\t",
+                "bedrock/overworld/feature\tbedrock/overworld/feature/b\ta label",
+            ]
+        );
+
+        let root = scratch("roundtrip");
+        std::fs::write(root.join(BEDROCK_SNAPSHOT), &text).unwrap();
+        let mut expected = rows;
+        expected.sort_by(|a, b| a.family.cmp(&b.family).then_with(|| a.id.cmp(&b.id)));
+        assert_eq!(read_snapshot(&root).unwrap(), expected);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn snapshot_reading_fails_on_a_missing_file_or_a_malformed_line() {
+        let root = scratch("malformed");
+        let missing = read_snapshot(&root).unwrap_err().to_string();
+        assert!(missing.contains("run `parity generate`"), "{missing}");
+        std::fs::write(root.join(BEDROCK_SNAPSHOT), "# header\nfamily-only\n").unwrap();
+        let malformed = read_snapshot(&root).unwrap_err().to_string();
+        assert!(
+            malformed.contains("malformed line `family-only`"),
+            "{malformed}"
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+}

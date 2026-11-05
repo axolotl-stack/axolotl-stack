@@ -2,7 +2,7 @@
 
 This document outlines the development path from current state to a fully-featured Bedrock server. Phases are roughly ordered by dependency—later phases often depend on earlier ones.
 
-See `LONGTERM.md` for the architectural vision (WASM plugins, tick phases, API design).
+See `docs/research/2025-12-26-unastar-long-term-direction.md` for the architectural vision (WASM plugins, tick phases, API design).
 
 
 ---
@@ -308,7 +308,7 @@ Internal architecture for future plugins.
 
 ## Phase 9: WASM Plugin Runtime
 
-See `LONGTERM.md` §Plugin system for full design.
+See `docs/research/2025-12-26-unastar-long-term-direction.md` §Plugin system for full design.
 
 - [ ] Embed Wasmtime behind feature flag
 - [ ] Plugin manifest parsing (`plugin.toml`)
@@ -335,4 +335,4 @@ Developer experience and community support.
 - **Phases are not strictly sequential.** Work on Phase 3 (commands) can start before Phase 2 (inventory) is complete.
 - **Prioritize based on user demand.** If commands/chat are more urgent, tackle Phase 3 earlier.
 - **Each phase should have tests.** Unit tests for logic, integration tests for packet flows.
-- **Keep `LONGTERM.md` as the architectural north star.** This roadmap is the tactical checklist.
+- **Keep `docs/research/2025-12-26-unastar-long-term-direction.md` as the architectural north star.** This roadmap is the tactical checklist.

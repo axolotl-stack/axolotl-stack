@@ -45,6 +45,12 @@ disconnect screen. The union owns the wire control varint; encoding its payload
 struct alone is not a valid disconnect body. `tests/union_conformance.rs`
 cross-checks both variants against protocolgen's Rust contract.
 
+Varints decode strictly: `VarUInt`/`VarULong`, the ZigZag forms and the signed
+`VarInt`/`VarLong` all reject overlong encodings and bits beyond the type's
+width. A signed varint is the minimal encoding of its two's-complement bits, so
+`-1` is `ff ff ff ff 0f` and `ff ff ff ff 7f` is an error, not `-1` with the
+extra bits dropped.
+
 ## Regenerating Protocol Code
 
 From the repo root:
@@ -56,7 +62,7 @@ cargo fmt --all
 ```
 
 Protocol code is generated from the pinned
-[`bedrock-mc/protocolgen`](../valentine_gen/protocolgen) canonical manifest by
+[`cinnabar-mc/protocolgen`](../valentine_gen/protocolgen) canonical manifest by
 default. The checked-in protocolgen submodule and generated Valentine sources
 must be advanced together. To use a different canonical manifest explicitly:
 
@@ -111,10 +117,16 @@ NBT accepts segmented `Buf` inputs without consuming following fields. Values
 wholly in the first chunk retain the contiguous extraction path; split values
 copy only the bytes belonging to that NBT value.
 
-Owned MCPE frame decoding rejects unread payload bytes with
-`TrailingPacketBytes`, matching [gophertunnel's default invalid-packet
-handling](https://github.com/Sandertv/gophertunnel/blob/master/minecraft/packet.go).
-There are no packet-specific trailing-data exceptions.
+MCPE frame decoding rejects unread payload bytes with `TrailingPacketBytes`,
+matching [gophertunnel's default invalid-packet
+handling](https://github.com/Sandertv/gophertunnel/blob/master/minecraft/packet.go):
+owned `McpePacketData::decode_inner` and the borrowed
+`BorrowedMcpePacket::decode_inner`, `decode_game_frame` and `from_raw_frame` all
+fail the same way, so a borrowed packet's `into_owned` always equals owned
+decoding. `decode_inner_with_remaining`, `decode_inner_reader` and
+`from_raw_frame_with_remaining` are the diagnostic API: they decode and return
+the unread byte count instead. There are no packet-specific trailing-data
+exceptions.
 
 ## Shared byte payloads and typed views
 
