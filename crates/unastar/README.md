@@ -756,9 +756,11 @@ without chunk persistence.
 
 Both providers use load-before-generate chunk requests. For Java-style terrain,
 storage reads and generation run off the ECS tick thread; only a confirmed
-storage miss generates terrain. A storage read error is logged and drops that
-chunk request on both the asynchronous and the synchronous path: it never
-becomes a generated replacement column and never panics the tick thread. A
+storage miss generates terrain. A storage read error drops that chunk request
+on both the asynchronous and the synchronous path: it never becomes a generated
+replacement column and never panics the tick thread. It is logged as an error
+naming the column's coordinates and dimension and saying the stored column is
+kept on disk untouched; players see a gap there until it is repaired. A
 stored subchunk, biome or block-entity record that doesn't decode fails the load
 of its column the same way, in both providers, rather than loading as air.
 Loaded columns start clean, while generated or edited columns are saved on

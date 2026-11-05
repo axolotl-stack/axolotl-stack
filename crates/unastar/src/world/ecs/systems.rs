@@ -307,21 +307,17 @@ pub fn process_chunk_load_queues(
             // Get or create chunk entity - returns (entity, Option<(encoded_biomes, highest_subchunk)>)
             // Phase 3: Now returns pre-encoded data to avoid ~200KB chunk clone
             // This also registers the player as a pending viewer in the ChunkManager
-            let (chunk_entity, new_chunk_encoded) = match chunk_manager.get_or_create(
-                cx,
-                cz,
-                &mut commands,
-                player_entity,
-            ) {
-                Ok(created) => created,
-                Err(error) => {
-                    // As on the asynchronous path: drop the request rather
-                    // than generate over the stored column.
-                    warn!(chunk = ?(cx, cz), %error, "Chunk storage load failed; refusing to generate replacement terrain");
-                    loader.mark_load_failed(cx, cz);
-                    continue;
-                }
-            };
+            let (chunk_entity, new_chunk_encoded) =
+                match chunk_manager.get_or_create(cx, cz, &mut commands, player_entity) {
+                    Ok(created) => created,
+                    Err(error) => {
+                        // As on the asynchronous path: drop the request rather
+                        // than generate over the stored column.
+                        log_unloadable_column(cx, cz, chunk_manager.dimension(), &error);
+                        loader.mark_load_failed(cx, cz);
+                        continue;
+                    }
+                };
 
             // Track if this is a new chunk for logging
             let is_new_chunk = new_chunk_encoded.is_some();
@@ -432,6 +428,32 @@ pub fn process_chunk_load_queues(
 // =============================================================================
 // Async Chunk Generation Systems (Phase 1 performance optimization)
 // =============================================================================
+
+/// What an operator is told about a stored column that can't be loaded.
+fn unloadable_column_message(
+    x: i32,
+    z: i32,
+    dimension: i32,
+    error: &impl std::fmt::Display,
+) -> String {
+    format!(
+        "Chunk column ({x}, {z}) in dimension {dimension} can't be loaded from storage: {error}. \
+         It is not generated or loaded; the stored column is kept on disk untouched, and \
+         players see a gap there until it is repaired or removed."
+    )
+}
+
+/// Log a stored column that can't be loaded, on either load path.
+fn log_unloadable_column(x: i32, z: i32, dimension: i32, error: &impl std::fmt::Display) {
+    error!(
+        chunk_x = x,
+        chunk_z = z,
+        dimension,
+        %error,
+        "{}",
+        unloadable_column_message(x, z, dimension, error)
+    );
+}
 
 /// System: Request async chunk generation for vanilla worlds.
 ///
@@ -557,6 +579,7 @@ pub fn process_completed_generations(
         return;
     }
 
+    let dimension = chunk_manager.dimension();
     let mut completed = Vec::new();
     let mut failed = Vec::new();
     let initial_pending = pending_gens.len();
@@ -569,7 +592,7 @@ pub fn process_completed_generations(
                 false
             }
             Ok(Err(error)) => {
-                warn!(chunk = ?(pending.x, pending.z), %error, "Chunk storage load failed; refusing to generate replacement terrain");
+                log_unloadable_column(pending.x, pending.z, dimension, &error);
                 failed.push((pending.x, pending.z));
                 false
             }
@@ -1043,6 +1066,23 @@ pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_unloadable_column_message_names_it_and_says_it_is_kept() {
+        let message = unloadable_column_message(
+            -3,
+            7,
+            1,
+            &crate::storage::StorageError::Deserialization("subchunk y=2: bad".into()),
+        );
+        assert_eq!(
+            message,
+            "Chunk column (-3, 7) in dimension 1 can't be loaded from storage: \
+             Deserialization error: subchunk y=2: bad. It is not generated or loaded; \
+             the stored column is kept on disk untouched, and players see a gap there \
+             until it is repaired or removed."
+        );
+    }
 
     #[test]
     fn held_chunk_summary_is_rate_limited() {
