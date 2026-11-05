@@ -506,4 +506,54 @@ mod tests {
             ErrorClass::Transient
         );
     }
+
+    /// A local franchise-signaling stand-in that completes the WebSocket
+    /// handshake and closes it at once, as the service does when it drops
+    /// the gateway's socket.
+    async fn closing_signaling_stub() -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!(
+            "ws://{}/ws/v1.0/signaling/7",
+            listener.local_addr().unwrap()
+        );
+        tokio::spawn(async move {
+            while let Ok((stream, _)) = listener.accept().await {
+                tokio::spawn(async move {
+                    if let Ok(mut socket) = tokio_tungstenite::accept_async(stream).await {
+                        let _ = socket.close(None).await;
+                    }
+                });
+            }
+        });
+        url
+    }
+
+    /// End to end: when the franchise WebSocket closes, the listener must
+    /// end with `ListenerClosed` (so it is rebound) instead of spinning on
+    /// the `ConnectionClosed` that every later `accept()` returns at once.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn closed_signaling_socket_ends_the_listener() {
+        let url = closing_signaling_stub().await;
+        let task = tokio::spawn(async move {
+            let mut bound = false;
+            let reason = run_transfer_server_inner(
+                &url,
+                7,
+                "test-token",
+                &AxeleratorConfig::default(),
+                CancellationToken::new(),
+                Arc::new(TransferStats::new()),
+                None,
+                &mut bound,
+            )
+            .await;
+            (reason, bound)
+        });
+        let (reason, bound) = tokio::time::timeout(Duration::from_secs(10), task)
+            .await
+            .expect("transfer listener kept accepting on a closed signaling socket")
+            .unwrap();
+        assert!(bound, "the stub completes the WebSocket handshake");
+        assert_eq!(reason.unwrap(), ShutdownReason::ListenerClosed);
+    }
 }

@@ -48,3 +48,5 @@ windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Securit
 [dev-dependencies]
 tempfile = "3"
 tokio = { workspace = true, features = ["test-util", "net", "io-util"] }
+# Local WebSocket stub standing in for franchise signaling.
+tokio-tungstenite.workspace = true

@@ -332,6 +332,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-nethernet",
+ "tokio-tungstenite",
  "tokio-util",
  "toml 0.8.23",
  "tracing",
