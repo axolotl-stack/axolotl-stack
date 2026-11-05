@@ -64,7 +64,8 @@ Player storage remains configured separately under `[players]`.
 Each joined session has its own bounded queue of decoded packets (512 packets). The
 tick loop applies at most 64 packets per session per tick, oldest first, and leaves
 the rest queued for the next tick, so a legitimate burst is delayed, never dropped
-or reordered. A network task that finds its own queue full (the client has kept
+or reordered. The session that goes first rotates each tick, so no session always
+wins a race decided within one tick (a shared chest slot, a contested block). A network task that finds its own queue full (the client has kept
 sending faster than the budget for several ticks) closes its own connection; other
 sessions' queues are unaffected. A leaving session's queued packets are applied
 before it is saved and despawned.

@@ -5,7 +5,8 @@
 //! leaves the rest queued, in order, for the next tick. A network task whose own queue is
 //! full closes its own connection: only a client that keeps sending faster than the budget
 //! for [`INBOUND_PACKETS_PER_SESSION`] / 64 ticks reaches that point, and no other
-//! session's packets count against it.
+//! session's packets count against it. The session that goes first rotates each tick,
+//! so no session always wins races decided within a tick.
 
 use std::collections::BTreeMap;
 
@@ -37,14 +38,17 @@ pub fn session_inbound<T>() -> (mpsc::Sender<T>, mpsc::Receiver<T>) {
 /// The tick loop's side of every session's inbound queue.
 #[derive(Debug)]
 pub struct InboundQueues<T = InboundPacket> {
-    /// Ordered by session id so each tick visits sessions in a stable order.
+    /// Ordered by session id; each tick visits them in this order, starting at `start`.
     sessions: BTreeMap<SessionId, mpsc::Receiver<T>>,
+    /// The session id this tick starts from (the next registered id at or after it).
+    start: SessionId,
 }
 
 impl<T> Default for InboundQueues<T> {
     fn default() -> Self {
         Self {
             sessions: BTreeMap::new(),
+            start: 0,
         }
     }
 }
@@ -57,24 +61,26 @@ impl<T> InboundQueues<T> {
 
     /// One tick: hand each session's oldest packets, at most
     /// [`MAX_PACKETS_PER_SESSION_PER_TICK`] per session, to `route` in arrival order.
-    /// Returns how many packets were routed.
+    /// Sessions are visited in id order from a starting session that moves on by one
+    /// each tick. Returns how many packets were routed.
     pub fn drain_tick(&mut self, mut route: impl FnMut(SessionId, T)) -> usize {
+        // This tick's first session: the first id at or after `start`, wrapping round.
+        let Some(first) = self
+            .sessions
+            .range(self.start..)
+            .chain(self.sessions.iter())
+            .map(|(&id, _)| id)
+            .next()
+        else {
+            return 0;
+        };
+        self.start = first.wrapping_add(1);
         let mut routed = 0;
-        for (&session_id, receiver) in &mut self.sessions {
-            for _ in 0..MAX_PACKETS_PER_SESSION_PER_TICK {
-                let Ok(packet) = receiver.try_recv() else {
-                    break;
-                };
-                route(session_id, packet);
-                routed += 1;
-            }
-            if !receiver.is_empty() {
-                tracing::trace!(
-                    session_id,
-                    deferred = receiver.len(),
-                    "deferring inbound packets over the per-tick session budget"
-                );
-            }
+        for (&session_id, receiver) in self.sessions.range_mut(first..) {
+            routed += drain_session(session_id, receiver, &mut route);
+        }
+        for (&session_id, receiver) in self.sessions.range_mut(..first) {
+            routed += drain_session(session_id, receiver, &mut route);
         }
         routed
     }
@@ -104,6 +110,30 @@ impl<T> InboundQueues<T> {
     pub fn is_empty(&self) -> bool {
         self.sessions.is_empty()
     }
+}
+
+/// Route one session's oldest packets, at most [`MAX_PACKETS_PER_SESSION_PER_TICK`].
+fn drain_session<T>(
+    session_id: SessionId,
+    receiver: &mut mpsc::Receiver<T>,
+    route: &mut impl FnMut(SessionId, T),
+) -> usize {
+    let mut routed = 0;
+    for _ in 0..MAX_PACKETS_PER_SESSION_PER_TICK {
+        let Ok(packet) = receiver.try_recv() else {
+            break;
+        };
+        route(session_id, packet);
+        routed += 1;
+    }
+    if !receiver.is_empty() {
+        tracing::trace!(
+            session_id,
+            deferred = receiver.len(),
+            "deferring inbound packets over the per-tick session budget"
+        );
+    }
+    routed
 }
 
 #[cfg(test)]
@@ -153,6 +183,41 @@ mod tests {
         let tick = routed(&mut queues);
         assert_eq!(tick.iter().filter(|(s, _)| *s == 1).count(), 64);
         assert_eq!(tick.iter().filter(|(s, _)| *s == 2).count(), 3);
+    }
+
+    /// No session always goes first: within a tick, the earliest packets win races
+    /// (a shared chest slot, a contested block), so the starting session rotates.
+    #[test]
+    fn the_first_session_of_a_tick_rotates() {
+        let mut queues = InboundQueues::default();
+        let senders: Vec<_> = [4, 9, 12]
+            .into_iter()
+            .map(|session| {
+                let (tx, rx) = session_inbound();
+                queues.register(session, rx);
+                tx
+            })
+            .collect();
+
+        let firsts: Vec<_> = (0..4)
+            .map(|_| {
+                for tx in &senders {
+                    tx.try_send(0).unwrap();
+                }
+                let tick = routed(&mut queues);
+                assert_eq!(tick.len(), 3, "one packet per session per tick");
+                tick.iter().map(|(session, _)| *session).collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(
+            firsts,
+            [
+                vec![4, 9, 12],
+                vec![9, 12, 4],
+                vec![12, 4, 9],
+                vec![4, 9, 12]
+            ]
+        );
     }
 
     /// The queue that fills is the flooder's own, so only its network task sees `Full`
