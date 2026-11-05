@@ -12,7 +12,7 @@
 //! viewer was last sent.
 //!
 //! BDS 1.26.51 rules implemented here (research notes in
-//! `thoughts/shared/research/bds-quirks.md` and the items research doc):
+//! `docs/quirks/bds.md` and the items research doc):
 //! - Opening allocates the next window id and sends `ContainerOpen
 //!   {id, type, clicked position, actor -1}` followed by `InventoryContent`
 //!   for that id (container name byte 0). Double chests show 54 slots, the

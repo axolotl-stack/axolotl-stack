@@ -534,7 +534,7 @@ pub struct StationScreen {
 ///
 /// BDS numbers windows per player with a counter that wraps from 99 to 1;
 /// on a fresh connection the first window it opens (the player's own
-/// inventory) is 2, the next 3 (captured, `bds-quirks.md`).
+/// inventory) is 2, the next 3 (captured, `docs/quirks/bds.md`).
 #[derive(Component, Debug, Clone)]
 pub struct ContainerWindows {
     last_id: u8,

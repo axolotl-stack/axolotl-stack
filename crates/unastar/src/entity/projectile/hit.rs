@@ -153,7 +153,7 @@ fn arrow_effect(world: &mut World, projectile: Entity, actor: Entity) {
 /// [`IMPACT_DAMAGE_GAUSSIAN`] × gaussian); `additive`: those terms added
 /// to the speed damage), rounded up when `ceil_pre_critical_damage`, plus
 /// for a critical shot a random bonus of up to half that plus one
-/// (public reference; recorded as unmeasured in `bds-quirks.md`).
+/// (public reference; recorded as unmeasured in `docs/quirks/bds.md`).
 fn impact_damage(
     world: &mut World,
     projectile: Entity,

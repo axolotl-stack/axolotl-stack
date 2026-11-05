@@ -56,7 +56,7 @@ cargo fmt --all
 ```
 
 Protocol code is generated from the pinned
-[`bedrock-mc/protocolgen`](../valentine_gen/protocolgen) canonical manifest by
+[`cinnabar-mc/protocolgen`](../valentine_gen/protocolgen) canonical manifest by
 default. The checked-in protocolgen submodule and generated Valentine sources
 must be advanced together. To use a different canonical manifest explicitly:
 

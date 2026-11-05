@@ -33,7 +33,7 @@
 //! Measured on BDS 1.26.51 (client-diff `fishing`, items3 capture): the
 //! `OWNER` and `TARGET` actor data, the bite event, the wear (catch 1,
 //! ground 2, hooked cow 3, reel before a bite 0) and the removal on a slot
-//! switch. Public references, unmeasured (recorded in `bds-quirks.md`): the
+//! switch. Public references, unmeasured (recorded in `docs/quirks/bds.md`): the
 //! cast velocity and start, the bobbing motion, the bite timers, the pull,
 //! the catch velocity and experience amount, the range. Not sent: the
 //! approach events 12/14 with the fish position in `FISHX`/`FISHZ`/

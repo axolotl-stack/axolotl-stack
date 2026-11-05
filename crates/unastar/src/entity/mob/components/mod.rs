@@ -88,7 +88,7 @@ use common::inert;
 
 /// Components accepted so the vanilla definition compiles, with no
 /// server-side behaviour implemented yet, and why that is acceptable now.
-/// The decisions doc's D12 table mirrors this list.
+/// `docs/research/mob-runtime-constants.md` mirrors this list.
 pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
     (
         ActorComponent::ConditionalBandwidthOptimization,

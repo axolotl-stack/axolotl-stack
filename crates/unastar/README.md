@@ -863,7 +863,7 @@ captures `tools/client-diff/runs/item-use-20261029` and
 shapes of thrown tridents, ender pearls, lingering potions and area effect
 clouds are retained under `bds-extractor/captures/1.26.51/items`); "public
 reference" rows are not measured yet and are listed in
-`thoughts/shared/research/bds-quirks.md`.
+`docs/quirks/bds.md`.
 
 | Behaviour | Status | Evidence |
 |---|---|---|

@@ -8,7 +8,7 @@
 //! `CompletedUsingItem` -1, the arrow stored as `chargedItem`) and fires
 //! the next use at about 3.15 blocks per tick with `crossbow.shoot`. The
 //! draw-to-power curve `(f² + 2f) / 3` (f = seconds drawn, at least 0.1, at
-//! most 1) is a public reference recorded in `bds-quirks.md`.
+//! most 1) is a public reference recorded in `docs/quirks/bds.md`.
 //!
 //! Tridents drawn for at least 10 ticks are thrown at their definition's
 //! power with `item.trident.throw`; Loyalty brings a thrown trident back to

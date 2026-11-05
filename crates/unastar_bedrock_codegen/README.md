@@ -8,7 +8,7 @@ that `crates/unastar` includes (`world::generator::bedrock::generated`).
 The compiled data path is exercised against the local install; **BDS world parity
 is not established**. Runtime seeding, built-in feature geometry, scatter semantics
 and surface noise still require reference-world measurements. See
-`thoughts/shared/research/bds-quirks.md` for the explicit inference boundaries.
+`docs/quirks/bds.md` for the explicit inference boundaries.
 
 | Runtime area | Status | Needed BDS control |
 |---|---|---|

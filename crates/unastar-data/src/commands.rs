@@ -10,7 +10,7 @@
 //!
 //! BDS sends the identical packet to members and operators; the client filters
 //! commands by the command permission level in `UpdateAbilities`
-//! (`thoughts/shared/research/bds-quirks.md`).
+//! (`docs/quirks/bds.md`).
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

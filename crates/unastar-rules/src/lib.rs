@@ -21,7 +21,7 @@
 //! [`random`] Bedrock's game random (worldgen and the enchanting table).
 //!
 //! Parse rules follow the parser-fidelity requirement of the entities research
-//! (`thoughts/shared/research/2026-10-24-data-driven-entities.md` §4.7): what a
+//! (`docs/research/2026-10-24-data-driven-entities.md` §4.7): what a
 //! parser tolerates is listed next to it, and every tolerated oddity of vanilla
 //! data is reported as a [`Diagnostic`] instead of being silently dropped.
 

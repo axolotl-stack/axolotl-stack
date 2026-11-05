@@ -85,6 +85,11 @@ fingerprints are pinned under `protocolgen/generated/1.26.51/`, from the
 1.26.40, 1.26.44) have been removed; regenerate from their protocolgen
 manifests if a compatibility crate is ever needed again.
 
+The pinned protocolgen commit (`e37c952`) is on the upstream branch
+`feat/mojang-actor-symbols-1.26.51`, not on its `main`. `git submodule update` fetches it by SHA,
+which works only while some upstream ref still contains it, so move the pin to a commit on
+protocolgen `main` (or a tag) once that branch merges.
+
 Do not treat `generated/1.26.50/` as the stable release: it captures Preview 25
 and protocol 2187. Stable 26.50 and 26.51 use protocol 2193; the 26.51 hotfix
 has no packet changes relative to stable 26.50.

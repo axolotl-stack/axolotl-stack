@@ -6,7 +6,7 @@
 //! wear. Damage is stored in the item's `Damage` tag like BDS.
 //!
 //! Wear amounts that are not item data (public references, recorded in
-//! `bds-quirks.md` until measured): a hit with a sword, trident or mace
+//! `docs/quirks/bds.md` until measured): a hit with a sword, trident or mace
 //! costs 1, with an axe, pickaxe, shovel or hoe 2; armour loses
 //! `max(1, damage / 4)` per worn piece for damage armour reduces.
 //! Unbreaking spares a tool point with chance `level / (level + 1)` and an

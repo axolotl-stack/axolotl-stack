@@ -6,7 +6,7 @@
 //! `https://learn.microsoft.com/en-us/minecraft/creator/reference/content/entityreference/examples/entitycomponents/minecraftcomponent_<name>`
 //! and `.../entitygoals/minecraftbehavior_<name>`), or the Mojang Creator
 //! form in `data/upstream/mojang/entity_forms` where ML is silent or wrong.
-//! The decisions doc D12 table mirrors this module; change both together.
+//! `docs/research/mob-runtime-constants.md` mirrors this module; change both together.
 
 use super::body::{
     ActorDamageCause, DealsDamage, DealsDamageMode, Difficulty, DismountMode, FloatRange,

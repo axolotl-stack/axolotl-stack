@@ -20,7 +20,7 @@
 //! Measured on BDS 1.26.51 (client-diff `lead-nametag`, items3 capture):
 //! the leash actor data and flag, no actor link, the leash and break sounds,
 //! the break event and the dropped lead. Public reference, unmeasured
-//! (recorded in `bds-quirks.md`): the pull and the break distance default.
+//! (recorded in `docs/quirks/bds.md`): the pull and the break distance default.
 //! Not implemented: walking towards the holder between `soft_distance` and
 //! `hard_distance` (needs a mob AI goal), tying leads to fences (BDS spawns
 //! a `minecraft:leash_knot` actor that becomes the holder; it has no

@@ -9,7 +9,7 @@
 //! `exposed_`/`weathered_`/`oxidized_`/`waxed_` names) so no conversion
 //! table is retyped. Which blocks a hoe tills and a shovel flattens and the
 //! sound names follow public references and are recorded in
-//! `bds-quirks.md` until a BDS capture of block clicks confirms them. Crop,
+//! `docs/quirks/bds.md` until a BDS capture of block clicks confirms them. Crop,
 //! stem and sugar cane growth from bone meal follows the block behaviour
 //! rules (`block_behaviour::fertilize`).
 
