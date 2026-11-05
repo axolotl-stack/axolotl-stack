@@ -598,8 +598,9 @@ mod tests {
 
     /// A held world database is an error, not a server running with
     /// persistence off. This holds it from the same process at the same path,
-    /// which LevelDB refuses on every platform; `tests/startup_storage.rs`
-    /// covers a lock held by another process.
+    /// which LevelDB's in-process lock table refuses on every platform (a
+    /// different spelling of the path would get past it on Linux).
+    /// `tests/startup_storage.rs` covers the failure through `UnastarServer::new`.
     #[test]
     fn a_locked_world_leveldb_fails_to_open() {
         let path = temp_path("locked-world");
