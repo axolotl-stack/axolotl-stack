@@ -52,8 +52,11 @@ pub fn apply_movement(
     for (entity, input) in queue.0.drain(..) {
         match input {
             MovementInput::AuthInput(pk) => {
-                let moved = process_auth_input(entity, &pk, &mut players, &mut events);
-                if let (Some(moved), Ok((mut hunger, mode))) = (moved, hungry.get_mut(entity))
+                // A rejected input is rejected whole, block actions included.
+                let Some(moved) = process_auth_input(entity, &pk, &mut players, &mut events) else {
+                    continue;
+                };
+                if let Ok((mut hunger, mode)) = hungry.get_mut(entity)
                     && !matches!(mode, GameMode::Creative | GameMode::Spectator)
                 {
                     hunger.exhaust(moved.exhaustion(&exhaustion));
@@ -362,8 +365,17 @@ mod tests {
                 y: rotation[1],
             },
             player_head_rotation: head_yaw,
+            // Every input carries one block action, forwarded only if the input is accepted.
+            player_block_actions: Some(vec![jolyne::valentine::PlayerBlockActionData {
+                player_action_type: EnumsPlayerActionType::Startdestroyblock,
+                ..Default::default()
+            }]),
             ..Default::default()
         }))
+    }
+
+    fn forwarded_block_actions(world: &mut World) -> usize {
+        world.resource_mut::<BlockPacketQueue>().0.drain(..).count()
     }
 
     /// Apply one input and return the player's position and (pitch, yaw, head yaw) after.
@@ -392,6 +404,7 @@ mod tests {
         assert_eq!(pos, DVec3::new(63.5, 70.0, 0.5));
         assert_eq!(rotation, [5.0, 90.0, 95.0]);
         assert_eq!(world.resource::<MovementEvents>().0.len(), 1);
+        assert_eq!(forwarded_block_actions(&mut world), 1);
 
         // 100 blocks from the tracked position is rejected whole: no move, no rotation.
         world.resource_mut::<MovementEvents>().0.clear();
@@ -403,6 +416,11 @@ mod tests {
         assert_eq!(pos, DVec3::new(63.5, 70.0, 0.5));
         assert_eq!(rotation, [5.0, 90.0, 95.0]);
         assert!(world.resource::<MovementEvents>().0.is_empty());
+        assert_eq!(
+            forwarded_block_actions(&mut world),
+            0,
+            "rejected inputs act on no block"
+        );
     }
 
     #[test]
@@ -420,6 +438,11 @@ mod tests {
             let (pos, rotation) = apply(&mut world, player, input);
             assert_eq!(pos, START);
             assert_eq!(rotation, [20.0, 10.0, 10.0]);
+            assert_eq!(
+                forwarded_block_actions(&mut world),
+                0,
+                "rejected inputs act on no block"
+            );
         }
         let mut moving = PlayerAuthInputPacket {
             position: Vec3 {
