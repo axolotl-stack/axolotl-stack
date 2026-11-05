@@ -14,11 +14,13 @@ from `Axelerator::run` and the process exits non-zero, so the systemd unit's
 (`StartLimitIntervalSec=0`) and backs off from 5 s to 5 min between restarts
 (`RestartSteps=`, systemd 254+), so a long outage never leaves it failed.
 
-On Ctrl+C or `SIGTERM` the gateway stops advertising, sets presence inactive,
-stops RTA, saves friend history and sends the Discord shutdown notice before
-exiting; this has 20 s, inside the unit's `TimeoutStopSec=30`. A signal during
-the device-code login or the RTA wait ends startup at once. A second signal
-during cleanup exits immediately (non-zero) and logs which steps were skipped.
+On Ctrl+C or `SIGTERM` the gateway stops the transfer server, disconnects RTA,
+sets presence inactive, saves friend history and sends the Discord shutdown
+notice before exiting. It does not delete the MPSD session; advertising stops
+because the session's RTA connection disconnects and presence goes inactive.
+Cleanup has 20 s, inside the unit's `TimeoutStopSec=30`. A signal during the
+device-code login or the RTA wait ends startup at once. A second signal during
+cleanup exits immediately (non-zero) and logs which steps were skipped.
 
 ## Friend expiry history
 

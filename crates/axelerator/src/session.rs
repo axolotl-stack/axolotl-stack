@@ -1242,9 +1242,10 @@ impl Axelerator {
         outcome
     }
 
-    /// Request shutdown. `run` then stops advertising, sets presence
-    /// inactive, stops RTA, notifies Discord and returns `Ok(())`; a request
-    /// made during startup ends `run` at its next authentication wait.
+    /// Request shutdown. `run` then stops the transfer server, disconnects
+    /// RTA, sets presence inactive, saves history, notifies Discord and
+    /// returns `Ok(())` (the MPSD session itself is not deleted); a
+    /// request made during startup ends `run` at its next authentication wait.
     pub async fn shutdown(&self) {
         info!("Initiating graceful shutdown...");
         self.shutdown.cancel();
