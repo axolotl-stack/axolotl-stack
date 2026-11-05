@@ -65,7 +65,9 @@ Player storage remains configured separately under `[players]`.
 
 ## Client input limits
 
-Each joined session has its own bounded queue of decoded packets (512 packets). The
+Each joined session has its own bounded queue of decoded packets (512 packets), so at
+most `max_players × 512` packets wait for the tick loop. That bound is a packet count,
+not bytes, and about four times the old shared channel's `max_players × 128`. The
 tick loop applies at most 64 packets per session per tick, oldest first, and leaves
 the rest queued for the next tick, so a legitimate burst is delayed, never dropped
 or reordered. The session that goes first rotates each tick, so no session always

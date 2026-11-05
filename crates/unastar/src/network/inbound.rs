@@ -16,7 +16,8 @@ use tokio::sync::mpsc;
 use super::SessionId;
 
 /// Packets one session may have waiting for the tick loop before its network task
-/// closes the connection (eight ticks of budget).
+/// closes the connection (eight ticks of budget). Across the server at most
+/// `max_players × 512` packets wait: a packet count, not a byte size.
 pub const INBOUND_PACKETS_PER_SESSION: usize = 512;
 
 /// Packets from one session applied to game state in a single tick. Packets over the
