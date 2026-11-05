@@ -215,3 +215,143 @@ fn bedrock_config_requires_the_build_time_pack_feature() {
         cfg!(feature = "bedrock-worldgen")
     );
 }
+
+#[test]
+fn default_gamemode_parses_strictly_and_reaches_runtime_configuration() {
+    use crate::entity::components::GameMode;
+    let file = ConfigFile::new();
+    std::fs::write(&file.0, VOID_WORLD).unwrap();
+    let config = UnastarConfig::load_or_create(&file.0).unwrap();
+    assert_eq!(config.server_config().default_gamemode, GameMode::Survival);
+
+    for (name, mode) in [
+        ("survival", GameMode::Survival),
+        ("creative", GameMode::Creative),
+        ("adventure", GameMode::Adventure),
+        ("spectator", GameMode::Spectator),
+    ] {
+        std::fs::write(
+            &file.0,
+            format!("{VOID_WORLD}[server]\ndefault_gamemode = '{name}'"),
+        )
+        .unwrap();
+        let config = UnastarConfig::load_or_create(&file.0).unwrap();
+        assert_eq!(config.server_config().default_gamemode, mode);
+    }
+
+    // A typo used to load as survival without a word.
+    for typo in ["creativ", "Creative", "1", ""] {
+        std::fs::write(
+            &file.0,
+            format!("{VOID_WORLD}[server]\ndefault_gamemode = '{typo}'"),
+        )
+        .unwrap();
+        assert!(
+            matches!(
+                UnastarConfig::load_or_create(&file.0),
+                Err(ConfigError::Parse { .. })
+            ),
+            "accepted default_gamemode = '{typo}'"
+        );
+    }
+}
+
+#[test]
+fn empty_rect_world_bounds_are_refused() {
+    let file = ConfigFile::new();
+    for (bounds, valid) in [
+        ("min_x = 0\nmax_x = 0\nmin_z = 0\nmax_z = 0", true),
+        ("min_x = -4\nmax_x = 4\nmin_z = 2\nmax_z = 3", true),
+        ("min_x = 5\nmax_x = -5\nmin_z = 0\nmax_z = 1", false),
+        ("min_x = 0\nmax_x = 1\nmin_z = 1\nmax_z = 0", false),
+    ] {
+        std::fs::write(
+            &file.0,
+            format!("{VOID_WORLD}[world.bounds]\nmode = 'rect'\n{bounds}"),
+        )
+        .unwrap();
+        match UnastarConfig::load_or_create(&file.0) {
+            Ok(_) => assert!(valid, "accepted empty bounds: {bounds}"),
+            Err(ConfigError::Validation(message)) => {
+                assert!(!valid, "refused valid bounds {bounds}: {message}");
+                assert!(message.contains("world.bounds"), "{message}");
+                assert!(!message.contains("  "), "stray spaces: {message:?}");
+            }
+            Err(other) => panic!("unexpected error for {bounds}: {other}"),
+        }
+    }
+}
+
+#[test]
+fn world_bounds_contain_their_inclusive_chunk_ranges() {
+    use crate::world::{ChunkPos, WorldBounds};
+    let inside = |bounds: WorldBounds, x, z| bounds.contains(ChunkPos::new(x, z));
+
+    assert!(inside(WorldBounds::Infinite, i32::MIN, i32::MAX));
+
+    let radius = WorldBounds::Radius { radius_chunks: 2 };
+    assert!(inside(radius, 2, -2));
+    assert!(inside(radius, -2, 0));
+    assert!(!inside(radius, 3, 0));
+    assert!(!inside(radius, 0, -3));
+    // `unsigned_abs` keeps i32::MIN out of a huge radius instead of overflowing.
+    assert!(!inside(
+        WorldBounds::Radius {
+            radius_chunks: i32::MAX as u32
+        },
+        i32::MIN,
+        0
+    ));
+
+    let rect = WorldBounds::Rect {
+        min_x: -1,
+        max_x: 2,
+        min_z: -3,
+        max_z: 4,
+    };
+    for (x, z) in [(-1, -3), (2, 4), (0, 0)] {
+        assert!(inside(rect, x, z), "({x}, {z})");
+    }
+    for (x, z) in [(-2, 0), (3, 0), (0, -4), (0, 5)] {
+        assert!(!inside(rect, x, z), "({x}, {z})");
+    }
+}
+
+/// The workspace-root sample is a copy of the embedded template, comments included.
+#[test]
+fn root_sample_is_a_copy_of_the_embedded_template() {
+    assert_eq!(
+        include_str!("../../../../unastar.toml"),
+        DEFAULT_CONFIG_TOML
+    );
+}
+
+/// A fixed spawn location outside `world.bounds` would put every player in the void.
+#[test]
+fn fixed_spawn_locations_outside_the_world_bounds_are_refused() {
+    let file = ConfigFile::new();
+    let bounds = "[world.bounds]\nmode = 'radius'\nradius_chunks = 2\n";
+    for (location, valid) in [
+        ("{ x = 0.5, y = 17.0, z = 0.5 }", true),
+        // Chunk 2 spans blocks 32..=47; chunk -2 spans -32..=-17.
+        ("{ x = 47.9, y = 17.0, z = -32.0 }", true),
+        ("{ x = 48.0, y = 17.0, z = 0.5 }", false),
+        ("{ x = 0.5, y = 17.0, z = -32.5 }", false),
+    ] {
+        std::fs::write(
+            &file.0,
+            format!(
+                "{VOID_WORLD}{bounds}[[spawn_rules]]\nalways_at_location = true\nlocation = {location}\n"
+            ),
+        )
+        .unwrap();
+        match UnastarConfig::load_or_create(&file.0) {
+            Ok(_) => assert!(valid, "accepted spawn {location} outside the bounds"),
+            Err(ConfigError::Validation(message)) => {
+                assert!(!valid, "refused spawn {location}: {message}");
+                assert!(message.contains("world.bounds"), "{message}");
+            }
+            Err(other) => panic!("unexpected error for {location}: {other}"),
+        }
+    }
+}

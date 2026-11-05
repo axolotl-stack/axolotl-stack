@@ -18,11 +18,17 @@ bind_address = "127.0.0.1:19132"
 # Shown in the server list (RakNet pong and LAN discovery).
 motd = "Unastar Server"
 
-# Soft maximum: connection acceptance still depends on upstream layers.
+# Players connected at once (including ones still joining); further connections
+# are refused. Also advertised in the server list.
 max_players = 20
 
-# Default gamemode for new players.
+# Game mode for new players: "survival", "creative", "adventure" or "spectator".
+# Any other value is a configuration error.
 default_gamemode = "survival"
+
+# World difficulty at startup: "peaceful", "easy", "normal" or "hard".
+# Operators change it while the server runs with `/difficulty`.
+difficulty = "easy"
 
 # Chunk radius we will *advertise* to clients and stream.
 # (Clients may request a different radius; we clamp it by `max_chunk_radius`.)
@@ -63,8 +69,10 @@ generation_threads = 0
 [world.bounds]
 # Bounds are applied to *terrain generation* (non-air). Chunks outside bounds
 # still exist as all-air so the Bedrock client can mesh borders correctly.
+# Chunks already in storage outside the bounds load as stored.
 #
-# modes: "infinite" | "radius" | "rect"
+# modes: "infinite" | "radius" | "rect" (chunk coordinates, inclusive; a rect needs
+# min_x <= max_x and min_z <= max_z)
 mode = "infinite"
 # radius_chunks = 256
 # min_x = -64

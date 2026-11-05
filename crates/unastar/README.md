@@ -31,15 +31,29 @@ Unastar aims to be more than just "another server software." It is designed to b
 
 The server loads `unastar.toml` from its working directory and creates it when
 missing. [`unastar.toml`](unastar.toml) in this crate is the canonical commented
-template embedded in the binary; the workspace-root sample mirrors it. Regression
-tests load both samples and a newly generated file and compare their effective
-settings with the Rust defaults.
+template embedded in the binary; the workspace-root sample is an exact copy of it
+(a test compares the two byte for byte). Regression tests also load both samples
+and a newly generated file and compare their effective settings with the Rust
+defaults.
 
 All defaults, including both samples, enable Xbox Live authentication with
 `server.online_mode = true`. Offline mode requires an explicit `false`.
 Unknown keys in the root, server, world (including bounds and generator variants),
 players, spawn-rule, and spawn-location tables are rejected rather than silently
-ignored.
+ignored. Enumerated values parse strictly: `server.default_gamemode` must be one of
+`survival`, `creative`, `adventure` or `spectator` (lower case), like `difficulty`
+and `block_network_ids`, so a typo is a load error instead of silent survival.
+After parsing, a `rect` world bound with `min_x > max_x` or `min_z > max_z` is
+refused, since it would leave every chunk outside the world.
+
+`world.bounds` (`infinite`, `radius` or `rect`, inclusive chunk coordinates) limits
+terrain generation on every path, the inline generators and the generation pool
+alike: a chunk outside the bounds is generated as all air (it still exists, so the
+client can mesh the border). Chunks already in storage load as stored. The generator's
+spawn search is centred inside the bounds and treats chunks outside them as air, so a
+generated spawn is always in a bounded chunk. A spawn rule `location` outside the
+bounds fails config load, and startup fails if the resolved world spawn (for example a
+flat world's template spawn) is outside them.
 
 World storage is selected with `world.storage_provider = "level_db"` (default)
 or `"blaze_db"`; `world.blazedb_cache_chunks` defaults to `4096` and applies only
@@ -48,6 +62,26 @@ directory. The old sample's `[world.storage]` table and its `data_dir`,
 `leveldb_enabled`, and `save_on_shutdown` keys were never supported and now cause
 a configuration error: remove that table and use the supported `[world]` keys.
 Player storage remains configured separately under `[players]`.
+
+## Client input limits
+
+Each joined session has its own bounded queue of decoded packets (512 packets), so at
+most `max_players × 512` packets wait for the tick loop. That bound is a packet count,
+not bytes, and about four times the old shared channel's `max_players × 128`. The
+tick loop applies at most 64 packets per session per tick, oldest first, and leaves
+the rest queued for the next tick, so a legitimate burst is delayed, never dropped
+or reordered. The session that goes first rotates each tick, so no session always
+wins a race decided within one tick (a shared chest slot, a contested block). A network task that finds its own queue full (the client has kept
+sending faster than the budget for several ticks) closes its own connection with a
+`Disconnect` (reason `Kicked`, "Too many packets.") so the player and the operator can
+see why; other sessions' queues are unaffected. When a session leaves, the packets routed in that
+tick are applied by the game tick before the player is saved and despawned; what it
+still had queued beyond that tick's budget is dropped (the count is logged at debug),
+since the client has gone and there is no prediction left to keep in step.
+
+`PlayerAuthInput` is rejected whole (the player stays where it was) when its
+position, rotation, head yaw or move vector is not finite, or when the position is
+more than 64 blocks from the server-tracked one.
 
 ## Joining
 
@@ -749,28 +783,56 @@ Trapping plugin callbacks are logged, and cancellable callbacks fail closed.
 
 ## Persistence
 
-Both LevelDB (the default) and BlazeDB use load-before-generate chunk requests.
-For Java-style terrain, storage reads and generation run off the ECS tick thread;
-only a confirmed storage miss generates terrain. Storage read errors are logged
-and never become generated replacement columns. Loaded columns start clean,
-while generated or edited columns are saved on unload/shutdown.
+The world database opens at `worlds/default/db` (LevelDB by default, or BlazeDB
+with `world.blazedb_cache_chunks` cached columns). If it can't be opened, for
+example because another instance holds it, startup fails rather than running
+without chunk persistence. The same goes for the player database at
+`<players.data_dir>/db` when `players.leveldb_enabled` is on: startup fails
+rather than letting everyone join with first-join state.
+
+Both providers use load-before-generate chunk requests. For Java-style terrain,
+storage reads and generation run off the ECS tick thread; only a confirmed
+storage miss generates terrain. A storage read error drops that chunk request
+on both the asynchronous and the synchronous path: it never becomes a generated
+replacement column and never panics the tick thread. It is logged as an error
+naming the column's coordinates and dimension and saying the stored column is
+kept on disk untouched; players see a gap there until it is repaired. A
+stored subchunk, biome or block-entity record that doesn't decode fails the load
+of its column the same way, in both providers, rather than loading as air.
+Loaded columns start clean, while generated or edited columns are saved on
+unload and shutdown. A chunk whose save before unload fails stays loaded, with
+its edits and mobs. Its unload is retried with a per-chunk exponential backoff
+(the grace period doubled per failure in a row, up to 64 times), and one
+rate-limited summary, `N chunks held in memory awaiting save`, is logged when
+the first chunk is held and then every 30 seconds while any stay held. It's a
+warning, or an error from 64 held chunks.
+Shutdown (Ctrl+C or `/stop`) saves every player, then every chunk with something
+to write, then closes the world and player databases so queued writes reach
+disk. If any player or chunk save fails, or a database doesn't close cleanly,
+the process exits with an error naming how many saves failed.
 
 Player state is loaded through the configured player provider before StartGame
 and restored before initial inventory, abilities, and attributes are sent.
 Disconnect and shutdown use the same snapshot: position/rotation, dimension,
 gamemode, main inventory, armour, offhand, cursor, held slot, health, hunger,
 and experience. Older player records without inventory fields load with empty
-slots. Missing records use first-join defaults; corrupt records are logged and
-left in storage rather than deleted. When `players.save_previous_position` is
+slots. Missing records use first-join defaults. A record that can't be read,
+parsed or validated (a transient read error included) refuses the join with
+the disconnect message "Unable to load saved player data. Contact the server
+operator.", logs the player's name, XUID and UUID, and is left in
+storage untouched, so no save can overwrite it with first-join state; the same
+happens when its items don't resolve. When `players.save_previous_position` is
 enabled, saves also update the per-player TOML position used by spawn rules.
 Spawn rules retain their ordering and only use saved positions in the current
 dimension.
 
 Regression coverage: `cargo test -p unastar --test persistence` exercises both
 world providers, stored-column preservation through asynchronous loading and
-the save cycle, player disconnect/reconnect, corrupt player data, storage errors,
-and out-of-range block heights. On Windows, set
-`VCPKG_ROOT=C:\Users\jvigu\vcpkg` before building the LevelDB dependency.
+the save cycle, player disconnect/reconnect, corrupt player data, storage errors
+on both load paths, and out-of-range block heights. Unload save failures, the
+shutdown order and undecodable subchunks are covered by unit tests in
+`entity/mob/persistence`, `server/game` and `storage/leveldb_world`. On Windows,
+set `VCPKG_ROOT=C:\Users\jvigu\vcpkg` before building the LevelDB dependency.
 
 ## Bedrock-style generator
 

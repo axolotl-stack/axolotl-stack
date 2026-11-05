@@ -11,7 +11,28 @@ use jolyne::{JolyneError, WorldTemplate};
 use p384::SecretKey;
 
 use crate::config::{PlayerDataStore, SpawnLocation, UnastarConfig};
-use crate::storage::{PlayerData, PlayerProvider};
+use crate::storage::{PlayerData, PlayerProvider, StorageError, StorageResult};
+
+/// Why a join sequence stopped. The client has been sent a disconnect.
+#[derive(Debug, thiserror::Error)]
+pub enum JoinError {
+    #[error(transparent)]
+    Protocol(#[from] JolyneError),
+    /// The player's stored record exists but can't be read or is invalid.
+    /// The join is refused so the record is kept for repair instead of being
+    /// overwritten by a save of first-join state.
+    ///
+    /// This includes transient storage I/O errors from the player database,
+    /// on purpose: the server can't tell a passing read failure from a lost
+    /// record, and letting the player in with first-join state would let that
+    /// session's save overwrite the real one. The player can retry the join.
+    #[error("saved player data is unreadable: {0}")]
+    SavedPlayerData(StorageError),
+}
+
+/// Disconnect message for a join refused over its saved record.
+pub const UNREADABLE_PLAYER_DATA_MESSAGE: &str =
+    "Unable to load saved player data. Contact the server operator.";
 
 /// What StartGame is built from: the startup template and the live clock,
 /// difficulty and game rules.
@@ -32,7 +53,9 @@ pub struct JoinWorld<'a> {
 /// 6. Start game packet, returning at the client's chunk radius request
 ///    (streamed spawn: the client has not initialized yet)
 ///
-/// A failed step sends the client a reasoned disconnect before returning.
+/// A failed step sends the client a reasoned disconnect before returning. A
+/// stored player record that can't be loaded refuses the join (see
+/// [`load_player_data`]).
 pub async fn accept_join_sequence(
     world: JoinWorld<'_>,
     server_key: &SecretKey,
@@ -48,7 +71,7 @@ pub async fn accept_join_sequence(
         Vec3,
         Option<PlayerData>,
     ),
-    JolyneError,
+    JoinError,
 > {
     /// Tells the client why a join step failed, then surfaces the error.
     async fn reasoned<T>(
@@ -76,7 +99,26 @@ pub async fn accept_join_sequence(
 
     // 5. Resolve spawn before StartGame.
     let uuid = identity.uuid().to_string();
-    let mut saved_data = load_player_data(player_provider, Some(&uuid)).await;
+    let mut saved_data = match load_player_data(player_provider, Some(&uuid)).await {
+        Ok(saved) => saved,
+        Err(error) => {
+            tracing::warn!(
+                %uuid,
+                name = identity.display_name(),
+                xuid = identity.xuid().unwrap_or("none"),
+                %error,
+                "Refusing join for {}: saved player data is unreadable; keeping the record",
+                identity.display_name()
+            );
+            let _ = start_game_state
+                .disconnect(
+                    jolyne::valentine::EnumsConnectionDisconnectFailReason::Disconnected,
+                    UNREADABLE_PLAYER_DATA_MESSAGE,
+                )
+                .await;
+            return Err(JoinError::SavedPlayerData(error));
+        }
+    };
     let spawn = resolve_spawn_location(
         config,
         Some(&uuid),
@@ -131,23 +173,26 @@ pub async fn accept_join_sequence(
 }
 
 /// Load validated player state once, before StartGame and ECS spawning.
-/// Read/parse errors preserve the record and fall back to first-join defaults.
+///
+/// `Ok(None)` means first join (no provider, no UUID, or no record). A record
+/// that can't be read, parsed or validated is an error and is left untouched:
+/// joining with defaults instead would let that session's save overwrite it.
 pub async fn load_player_data(
     provider: Option<&dyn PlayerProvider>,
     uuid: Option<&str>,
-) -> Option<PlayerData> {
-    let provider = provider?;
-    let uuid = uuid.and_then(|uuid| uuid::Uuid::parse_str(uuid).ok())?;
-    let result = match provider.load(uuid).await {
-        Ok(Some(data)) => data.validate(uuid).map(|()| Some(data)),
-        other => other,
+) -> StorageResult<Option<PlayerData>> {
+    let Some(provider) = provider else {
+        return Ok(None);
     };
-    match result {
-        Ok(data) => data,
-        Err(error) => {
-            tracing::warn!(%uuid, %error, "Failed to load player data; using defaults without deleting stored data");
-            None
+    let Some(uuid) = uuid.and_then(|uuid| uuid::Uuid::parse_str(uuid).ok()) else {
+        return Ok(None);
+    };
+    match provider.load(uuid).await? {
+        Some(data) => {
+            data.validate(uuid)?;
+            Ok(Some(data))
         }
+        None => Ok(None),
     }
 }
 
@@ -217,8 +262,8 @@ pub async fn resolve_spawn_location(
     // Final fallback: template spawn (flat/void) or the generator's spawn search
     // (terrain), computed once on a blocking thread.
     if config.world.generator.uses_generation_pool() {
-        let generator = config.world.generator;
-        let spawn = tokio::task::spawn_blocking(move || generator.spawn())
+        let (generator, bounds) = (config.world.generator, config.world.bounds);
+        let spawn = tokio::task::spawn_blocking(move || generator.spawn(bounds))
             .await
             .expect("spawn search panicked");
         return SpawnLocation {
@@ -242,4 +287,201 @@ pub async fn resolve_spawn_location(
 /// Convert a spawn location to a DVec3 position.
 pub fn spawn_to_dvec3(pos: &Vec3) -> DVec3 {
     DVec3::new(pos.x as f64, pos.y as f64, pos.z as f64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{PlayerLastPosition, SpawnRule};
+
+    const UUID: &str = "00000000-0000-0000-0000-00000000002a";
+
+    fn at(x: f32) -> SpawnLocation {
+        SpawnLocation {
+            x,
+            y: 70.0,
+            z: 0.5,
+            yaw: 0.0,
+            pitch: 0.0,
+        }
+    }
+
+    fn previous() -> SpawnRule {
+        SpawnRule {
+            name: "previous".into(),
+            previous_position: true,
+            always_at_location: false,
+            location: None,
+        }
+    }
+
+    fn fixed(x: f32) -> SpawnRule {
+        SpawnRule {
+            name: format!("fixed {x}"),
+            previous_position: false,
+            always_at_location: true,
+            location: Some(at(x)),
+        }
+    }
+
+    /// A fallback-only rule: it has a location but never answers on its own.
+    fn fallback(x: f32) -> SpawnRule {
+        SpawnRule {
+            always_at_location: false,
+            ..fixed(x)
+        }
+    }
+
+    fn saved(x: f64, dimension: i32) -> PlayerData {
+        PlayerData {
+            uuid: UUID.into(),
+            position: [x, 70.0, 0.5],
+            dimension,
+            ..PlayerData::default()
+        }
+    }
+
+    struct Store(PlayerDataStore, std::path::PathBuf);
+
+    impl Store {
+        fn new(name: &str) -> Self {
+            let root = std::env::temp_dir()
+                .join(format!("unastar-spawn-rules-{name}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&root);
+            Self(PlayerDataStore::new(root.clone()), root)
+        }
+    }
+
+    impl Drop for Store {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.1);
+        }
+    }
+
+    async fn resolve(
+        rules: Vec<SpawnRule>,
+        store: &PlayerDataStore,
+        saved_data: Option<&PlayerData>,
+    ) -> f32 {
+        let config = UnastarConfig {
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            spawn_rules: rules,
+            ..UnastarConfig::default()
+        };
+        let template = WorldTemplate::default();
+        resolve_spawn_location(&config, Some(UUID), &template, store, saved_data)
+            .await
+            .x
+    }
+
+    #[tokio::test]
+    async fn spawn_rules_are_evaluated_top_to_bottom() {
+        let store = Store::new("order");
+        let in_world = saved(33.25, 0);
+        let other_dimension = saved(44.0, 1);
+
+        // The saved record answers the previous-position rule...
+        assert_eq!(
+            resolve(vec![previous(), fixed(1.0)], &store.0, Some(&in_world)).await,
+            33.25
+        );
+        // ...but only when listed before a fixed rule.
+        assert_eq!(
+            resolve(vec![fixed(1.0), previous()], &store.0, Some(&in_world)).await,
+            1.0
+        );
+        // A record from another dimension is skipped; the next rule answers.
+        assert_eq!(
+            resolve(
+                vec![previous(), fixed(1.0), fixed(2.0)],
+                &store.0,
+                Some(&other_dimension)
+            )
+            .await,
+            1.0
+        );
+
+        // Without a record the last-position file answers; a record wins over it.
+        store
+            .0
+            .save_last_position(
+                UUID,
+                &PlayerLastPosition {
+                    dimension: 0,
+                    location: at(55.0),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            resolve(vec![previous(), fixed(1.0)], &store.0, None).await,
+            55.0
+        );
+        assert_eq!(
+            resolve(vec![previous(), fixed(1.0)], &store.0, Some(&in_world)).await,
+            33.25
+        );
+    }
+
+    #[tokio::test]
+    async fn without_an_answering_rule_the_first_location_then_the_template_is_used() {
+        let store = Store::new("fallback");
+        assert_eq!(
+            resolve(
+                vec![previous(), fallback(3.0), fallback(4.0)],
+                &store.0,
+                None
+            )
+            .await,
+            3.0
+        );
+        let template = WorldTemplate::default();
+        assert_eq!(
+            resolve(vec![previous()], &store.0, None).await,
+            template.start_game_template.position.x
+        );
+    }
+
+    /// The generator's spawn search stays inside `world.bounds`: with a rect far from
+    /// where the unbounded search lands, the spawn is still in a bounded chunk. Java-style
+    /// generation needs the structure templates of `java-worldgen`.
+    #[cfg(feature = "java-worldgen")]
+    #[tokio::test]
+    async fn the_generated_spawn_is_inside_the_world_bounds() {
+        let store = Store::new("bounded-spawn");
+        let bounds = crate::world::WorldBounds::Rect {
+            min_x: 100,
+            max_x: 101,
+            min_z: -101,
+            max_z: -100,
+        };
+        let config = UnastarConfig {
+            world: crate::world::WorldConfig {
+                bounds,
+                generator: crate::world::WorldGenerator::Java { seed: 12345 },
+                ..crate::world::WorldConfig::default()
+            },
+            spawn_rules: vec![previous()],
+            ..UnastarConfig::default()
+        };
+        let spawn =
+            resolve_spawn_location(&config, None, &WorldTemplate::default(), &store.0, None).await;
+        let chunk = crate::world::ChunkPos::new(
+            (spawn.x.floor() as i32) >> 4,
+            (spawn.z.floor() as i32) >> 4,
+        );
+        assert!(
+            bounds.contains(chunk),
+            "spawn {spawn:?} is in chunk {chunk:?}"
+        );
+    }
+
+    /// The refused player is told the server, not their client, is at fault.
+    #[test]
+    fn the_unreadable_record_disconnect_points_to_the_operator() {
+        assert_eq!(
+            UNREADABLE_PLAYER_DATA_MESSAGE,
+            "Unable to load saved player data. Contact the server operator."
+        );
+    }
 }

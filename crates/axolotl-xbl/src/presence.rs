@@ -4,6 +4,7 @@
 use crate::auth::{XblToken, sign_service_request, update_server_time_from_header};
 use crate::constants::endpoints;
 use crate::error::{XblError, XblResult};
+use crate::http::LazyClient;
 use serde::Serialize;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -20,7 +21,7 @@ pub struct PresenceUpdate {
 }
 
 pub struct PresenceClient {
-    client: reqwest::Client,
+    client: LazyClient,
     // A removal invalidates pending retries without holding the lock over sleeps.
     generation: Mutex<u64>,
 }
@@ -55,7 +56,7 @@ fn retry_after(response: &reqwest::Response) -> Duration {
 impl PresenceClient {
     pub fn new() -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: LazyClient::without_timeout(),
             generation: Mutex::new(0),
         }
     }
@@ -81,6 +82,7 @@ impl PresenceClient {
             };
             let mut request = self
                 .client
+                .load()?
                 .request(
                     if state == PresenceState::Active {
                         reqwest::Method::POST
@@ -96,7 +98,7 @@ impl PresenceClient {
                 .body(body)
                 .build()?;
             sign_service_request(&mut request, token).await?;
-            let response = self.client.execute(request).await?;
+            let response = self.client.load()?.execute(request).await?;
             if let Some(date) = response.headers().get("Date").and_then(|v| v.to_str().ok()) {
                 update_server_time_from_header(date);
             }

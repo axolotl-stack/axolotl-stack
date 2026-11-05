@@ -1,6 +1,7 @@
 //! Network module - connection handling and sessions.
 
 pub mod events;
+pub mod inbound;
 
 use jolyne::BedrockStream;
 use jolyne::stream::{Play, Server as ServerRole};
@@ -10,6 +11,13 @@ use tracing::{info, trace, warn};
 
 // Re-export types
 pub use events::{NetworkEvent, SessionId};
+pub use inbound::{InboundPacket, InboundQueues};
+
+/// Reason and message of the `Disconnect` sent to a client that filled its inbound
+/// queue, so the player and the operator can see why it was closed.
+const FLOOD_DISCONNECT_REASON: jolyne::valentine::types::EnumsConnectionDisconnectFailReason =
+    jolyne::valentine::types::EnumsConnectionDisconnectFailReason::Kicked;
+const FLOOD_DISCONNECT_MESSAGE: &str = "Too many packets.";
 
 fn terminates_connection(packet: &McpePacket) -> bool {
     match &packet.data {
@@ -34,6 +42,7 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     stream: BedrockStream<Play, ServerRole, T>,
     session_id: SessionId,
     event_tx: mpsc::Sender<NetworkEvent>,
+    inbound_tx: mpsc::Sender<InboundPacket>,
     mut outbound_rx: mpsc::Receiver<McpePacket>,
     mut tick_rx: broadcast::Receiver<()>,
 ) {
@@ -41,6 +50,8 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     // An inbound failure the client should be told about (e.g. a streamed
     // spawn's `Timeout(Spawn)` or runtime ID mismatch).
     let mut failure = None;
+    // Set when this session filled its own inbound queue.
+    let mut flooded = false;
     'network: loop {
         tokio::select! {
             biased;
@@ -81,21 +92,19 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
             result = stream.recv_packet_borrowed() => {
                 match result {
                     Ok(packet) => {
-                        let packet_args = McpePacketArgs;
-                        if let Err(e) = event_tx.try_send(NetworkEvent::Packet {
-                            session_id,
-                            packet_args,
-                            packet: Box::new(packet),
-                        }) {
+                        // This session's own queue: a full one means this client has
+                        // outrun the per-tick budget for several ticks.
+                        if let Err(e) = inbound_tx.try_send((McpePacketArgs, Box::new(packet))) {
                             match e {
                                 mpsc::error::TrySendError::Full(_) => {
                                     tracing::warn!(
                                         session_id,
-                                        "Inbound event channel full; closing noisy connection"
+                                        "Inbound packet queue full; closing noisy connection"
                                     );
+                                    flooded = true;
                                 }
                                 mpsc::error::TrySendError::Closed(_) => {
-                                    tracing::error!(session_id, "Main thread dropped event channel");
+                                    tracing::error!(session_id, "Main thread dropped inbound queue");
                                 }
                             }
                             break;
@@ -154,9 +163,13 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     // Close drains the terminal packet and earlier buffered output, never
     // packets queued after it. Every failure path also reaches this epilogue,
     // with the failure's reasoned `Disconnect` when it has one.
-    let reason = failure
-        .as_ref()
-        .and_then(|e| Some((e.disconnect_reason()?, e.disconnect_message())));
+    let reason = if flooded {
+        Some((FLOOD_DISCONNECT_REASON, FLOOD_DISCONNECT_MESSAGE))
+    } else {
+        failure
+            .as_ref()
+            .and_then(|e| Some((e.disconnect_reason()?, e.disconnect_message())))
+    };
     let closed = match reason {
         Some((reason, message)) => stream.disconnect(reason, message).await,
         None => stream.close().await,
@@ -164,6 +177,9 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     if let Err(e) = closed {
         trace!(session_id, "Closing connection failed: {e}");
     }
+    // Close the inbound queue before reporting `Disconnected`, so what the tick
+    // loop drops on `Disconnected` is all this session will ever send.
+    drop(inbound_tx);
     let _ = event_tx
         .send(NetworkEvent::Disconnected { session_id })
         .await;

@@ -540,3 +540,85 @@ fn enchant_random_gear_needs_regional_difficulty_and_item_facts() {
         Err(LootError::MissingContext("item enchanting"))
     );
 }
+
+fn referencing(name: &str, target: &str) -> LootTable {
+    decode_table(
+        name,
+        "authored control",
+        &json!({"pools": [{"rolls": 1, "entries": [{"type": "loot_table", "name": target}]}]}),
+    )
+    .unwrap()
+}
+
+#[test]
+fn a_reference_to_an_absent_table_is_an_error_not_an_empty_drop() {
+    let table = referencing("control", "loot_tables/entities/absent.json");
+    assert_eq!(
+        evaluate(&table, &Context::default()),
+        Err(LootError::UnknownTable("entities/absent".to_owned()))
+    );
+}
+
+#[test]
+fn table_references_resolve_up_to_sixteen_levels_deep() {
+    // `level_0` -> `level_1` -> ... -> `level_{depth}`, which drops an item.
+    let chain = |depth: usize| {
+        let mut tables = LootTables::default();
+        for level in 0..depth {
+            tables.insert(referencing(
+                &format!("level_{level}"),
+                &format!("loot_tables/level_{}.json", level + 1),
+            ));
+        }
+        tables.insert(
+            decode_table(
+                &format!("level_{depth}"),
+                "authored control",
+                &json!({"pools": [{"rolls": 1, "entries": [{"type": "item", "name": "addon:prize"}]}]}),
+            )
+            .unwrap(),
+        );
+        tables
+    };
+    let roll_chain = |depth: usize| {
+        let tables = chain(depth);
+        roll(
+            &tables,
+            tables.get("level_0").unwrap(),
+            &Context::default(),
+            &mut StepRng::new(0, 0),
+        )
+    };
+    let deepest = roll_chain(16).unwrap();
+    assert_eq!(deepest.len(), 1);
+    assert_eq!(deepest[0].item_id, "addon:prize");
+    assert_eq!(roll_chain(17), Err(LootError::TooDeep));
+
+    // A table that references itself fails instead of recursing forever.
+    let mut tables = LootTables::default();
+    tables.insert(referencing("cycle", "loot_tables/cycle.json"));
+    assert_eq!(
+        roll(
+            &tables,
+            tables.get("cycle").unwrap(),
+            &Context::default(),
+            &mut StepRng::new(0, 0)
+        ),
+        Err(LootError::TooDeep)
+    );
+}
+
+#[test]
+fn nested_pools_fail_past_the_depth_limit() {
+    // Seventeen nested `pools` levels below one item each.
+    let mut entry = json!({"type": "item", "name": "addon:leaf"});
+    for _ in 0..17 {
+        entry = json!({"type": "item", "name": "addon:link",
+            "pools": [{"rolls": 1, "entries": [entry]}]});
+    }
+    let table = pool_table(json!({"rolls": 1, "entries": [entry]}));
+    assert_eq!(
+        evaluate(&table, &Context::default()),
+        Err(LootError::TooDeep)
+    );
+}

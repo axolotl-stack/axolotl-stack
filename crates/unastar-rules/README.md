@@ -93,7 +93,11 @@ original item unchanged. The entity/item layer owns the actual frozen recipe
 registry and death context; no cooked-item-by-mob table is maintained here.
 
 The parked evaluator's seven regression scenarios still run in unastar with
-the real pack/block tables. Unsupported functions/conditions, tiered equipment
-pools and entry-level nested pools are retained in decoded data and fail
-explicitly when rolled. This is the E0 relocation/data cutover, not a claim
+the real pack/block tables. Unsupported functions/conditions are retained in decoded data and fail
+explicitly when rolled (`LootError::Unsupported`). Tiered pools (`tiers`: an
+index roll plus bonus rolls) and entry-level nested `pools` (rolled only after
+their entry created an item) are implemented. A `loot_table` entry naming an
+absent table fails with `UnknownTable`, and references or nested pools more
+than 16 levels deep (including a table that references itself) fail with
+`TooDeep`. This is the E0 relocation/data cutover, not a claim
 of I11's complete Bedrock loot semantics or MT19937 draw-order parity.

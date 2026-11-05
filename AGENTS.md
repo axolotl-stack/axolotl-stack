@@ -59,7 +59,7 @@ openspec validate --all --strict                          # when openspec/ chang
 | `crates/unastar-data` (+ `datagen`, `codegen`) | Source-attributed game data embedded into the server. |
 | `crates/unastar-rules`, `crates/unastar-packs` | Bevy-free filters/events/Molang/loot; behaviour-pack ingestion. |
 | `crates/unastar_noise`, `crates/unastar_bedrock_codegen` | Build-time AOT toolchains for the Java-style and Bedrock-style world generators. |
-| `crates/bds-extractor`, `crates/bds-sweep`, `crates/client-diff`, `crates/bench-compare` | BDS capture/extraction, scripted sweeps, wire diffing, benchmarks. Harnesses in `tools/`. |
+| `crates/bds-extractor`, `crates/bds-sweep`, `crates/client-diff`, `crates/bench-compare` | BDS capture/extraction, scripted sweeps, wire diffing, benchmarks. Harnesses in `tools/`. What each one measures or checks: [docs/guides/tools.md](docs/guides/tools.md). |
 | `crates/parity` | Generates and checks the vanilla-parity catalog in `docs/parity/`. |
 
 ## Where knowledge lives

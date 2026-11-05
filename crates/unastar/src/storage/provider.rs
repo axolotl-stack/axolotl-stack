@@ -246,9 +246,6 @@ pub trait PlayerProvider: Send + Sync + 'static {
     /// Save player data.
     async fn save(&self, uuid: Uuid, data: &PlayerData) -> StorageResult<()>;
 
-    /// Delete player data.
-    async fn delete(&self, uuid: Uuid) -> StorageResult<()>;
-
     /// Close the provider.
     async fn close(&self) -> StorageResult<()>;
 }

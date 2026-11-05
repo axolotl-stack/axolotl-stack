@@ -12,6 +12,12 @@ pub enum XblError {
     #[error("HTTP request failed")]
     Http(Option<reqwest::StatusCode>),
 
+    /// The HTTP client could not be built (for example the TLS backend
+    /// failed to initialise). Nothing was sent; retrying the call retries the
+    /// build.
+    #[error("HTTP client could not be built")]
+    HttpClientBuild,
+
     /// JSON serialization/deserialization error
     #[error("Invalid JSON response")]
     Json(serde_json::error::Category),

@@ -674,6 +674,7 @@ impl WorldReady {
             runtime_id: params.start_game.runtime_id.actor_runtime_id,
             radius_override: params.chunk_radius,
             chunk_radius: None,
+            initialized: false,
             streamed,
             conn: self.conn,
             login: self.login,
@@ -692,6 +693,12 @@ impl WorldReady {
 /// no terrain, so it never announces a view itself: the plain spawn answers
 /// like gophertunnel `handleRequestChunkRadius` (empty initial view), and the
 /// streamed spawn leaves the view and its chunks to the application.
+///
+/// A `SetLocalPlayerAsInitialized` that arrives before the first
+/// `RequestChunkRadius` is checked (runtime ID) and held: the spawn completes
+/// only once the radius has been answered, so the client always gets
+/// `ChunkRadiusUpdated` (and, for a plain spawn, `PlayStatus(PlayerSpawn)`)
+/// and the session always knows its radius.
 pub struct ServerSpawn {
     conn: Connection,
     login: AuthenticatedLogin,
@@ -700,6 +707,9 @@ pub struct ServerSpawn {
     runtime_id: u64,
     radius_override: Option<i32>,
     chunk_radius: Option<i32>,
+    /// A matching `SetLocalPlayerAsInitialized` arrived before the radius
+    /// request; the spawn completes when the radius is answered.
+    initialized: bool,
     /// Hand the session over at the first `RequestChunkRadius`.
     streamed: bool,
 }
@@ -728,7 +738,8 @@ impl ServerSpawn {
 
     /// The session after the spawn, with the packets deferred during the
     /// join replayed into it. `streamed_radius` hands over a session that
-    /// waits for `SetLocalPlayerAsInitialized`.
+    /// waits for `SetLocalPlayerAsInitialized`; otherwise the radius has been
+    /// answered and the player is initialized.
     fn into_session(self, streamed_radius: Option<i32>) -> ServerSession {
         let ServerSpawn {
             mut conn,
@@ -764,7 +775,9 @@ impl Phase for ServerSpawn {
         let name = packet.name();
         let first_radius =
             name == Some(McpePacketName::RequestChunkRadiusPacket) && self.chunk_radius.is_none();
-        if !first_radius && name != Some(McpePacketName::SetLocalPlayerAsInitializedPacket) {
+        let first_initialized =
+            name == Some(McpePacketName::SetLocalPlayerAsInitializedPacket) && !self.initialized;
+        if !first_radius && !first_initialized {
             return match self.deferred.push(packet) {
                 Ok(()) => Ok(Step::Wait(self)),
                 Err(error) => Err(Failure::new(error, self)),
@@ -777,6 +790,10 @@ impl Phase for ServerSpawn {
         match decoded.data {
             McpePacketData::RequestChunkRadiusPacket(request) => {
                 match self.on_radius(request.chunk_radius, now) {
+                    Ok(_) if self.initialized => {
+                        tracing::debug!("radius answered after an early initialize");
+                        Ok(Step::Next(self.into_session(None)))
+                    }
                     Ok(radius) if self.streamed => {
                         tracing::debug!(radius, "spawn handed to the application");
                         Ok(Step::Next(self.into_session(Some(radius))))
@@ -793,6 +810,13 @@ impl Phase for ServerSpawn {
                         got,
                     };
                     return Err(Failure::new(error, self));
+                }
+                if self.chunk_radius.is_none() {
+                    // Before the radius request: hold it until the radius is
+                    // answered, so the spawn answer is never skipped.
+                    tracing::debug!(runtime_id = got, "player initialized before radius");
+                    self.initialized = true;
+                    return Ok(Step::Wait(self));
                 }
                 tracing::debug!(runtime_id = got, "player initialized");
                 Ok(Step::Next(self.into_session(None)))

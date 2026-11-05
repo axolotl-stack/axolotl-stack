@@ -10,6 +10,7 @@ use bevy_ecs::prelude::*;
 use glam::DVec3;
 use tracing::trace;
 
+/// Farthest one `PlayerAuthInput` may move a player from its server-tracked position.
 const MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK: f64 = 64.0;
 
 use super::packet_queues::{
@@ -51,8 +52,11 @@ pub fn apply_movement(
     for (entity, input) in queue.0.drain(..) {
         match input {
             MovementInput::AuthInput(pk) => {
-                let moved = process_auth_input(entity, &pk, &mut players, &mut events);
-                if let (Some(moved), Ok((mut hunger, mode))) = (moved, hungry.get_mut(entity))
+                // A rejected input is rejected whole, block actions included.
+                let Some(moved) = process_auth_input(entity, &pk, &mut players, &mut events) else {
+                    continue;
+                };
+                if let Ok((mut hunger, mode)) = hungry.get_mut(entity)
                     && !matches!(mode, GameMode::Creative | GameMode::Spectator)
                 {
                     hunger.exhaust(moved.exhaustion(&exhaustion));
@@ -84,6 +88,20 @@ fn process_auth_input(
     let Ok((mut pos, mut rot, mut state, mut input, fall)) = players.get_mut(entity) else {
         return None;
     };
+
+    // NaN compares false with everything, so a non-finite value would slip past the delta
+    // check below and poison the stored position, rotation or input for good.
+    if !auth_input_is_finite(pk) {
+        tracing::warn!(
+            entity = ?entity,
+            position = ?pk.position,
+            rotation = ?pk.player_rotation,
+            head_yaw = pk.player_head_rotation,
+            move_vector = ?pk.move_vector,
+            "Rejected non-finite PlayerAuthInput"
+        );
+        return None;
+    }
 
     // Update position
     let new_pos = DVec3::new(
@@ -198,6 +216,23 @@ fn process_auth_input(
     })
 }
 
+/// Whether every value the server takes from a `PlayerAuthInput` (position, rotation,
+/// head yaw and move vector) is finite.
+fn auth_input_is_finite(pk: &jolyne::valentine::PlayerAuthInputPacket) -> bool {
+    [
+        pk.position.x,
+        pk.position.y,
+        pk.position.z,
+        pk.player_rotation.x,
+        pk.player_rotation.y,
+        pk.player_head_rotation,
+        pk.move_vector.x,
+        pk.move_vector.y,
+    ]
+    .iter()
+    .all(|value| value.is_finite())
+}
+
 /// What one accepted `PlayerAuthInput` moved, for food exhaustion.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Moved {
@@ -294,6 +329,138 @@ fn process_player_action(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy_ecs::system::RunSystemOnce;
+    use jolyne::valentine::PlayerAuthInputPacket;
+    use jolyne::valentine::types::{Vec2, Vec3};
+
+    const START: DVec3 = DVec3::new(0.5, 70.0, 0.5);
+
+    /// A world with one player at [`START`] and the resources `apply_movement` reads.
+    fn movement_world() -> (World, Entity) {
+        let mut world = World::new();
+        world.init_resource::<MovementPacketQueue>();
+        world.init_resource::<BlockPacketQueue>();
+        world.init_resource::<MovementEvents>();
+        world.insert_resource(super::super::hunger::ExhaustionValues::vanilla());
+        let player = world
+            .spawn((
+                Position(START),
+                Rotation::new(10.0, 20.0),
+                PlayerState::default(),
+                PlayerInput::default(),
+            ))
+            .id();
+        (world, player)
+    }
+
+    fn auth_input(position: [f32; 3], rotation: [f32; 2], head_yaw: f32) -> MovementInput {
+        MovementInput::AuthInput(Box::new(PlayerAuthInputPacket {
+            position: Vec3 {
+                x: position[0],
+                y: position[1],
+                z: position[2],
+            },
+            player_rotation: Vec2 {
+                x: rotation[0],
+                y: rotation[1],
+            },
+            player_head_rotation: head_yaw,
+            // Every input carries one block action, forwarded only if the input is accepted.
+            player_block_actions: Some(vec![jolyne::valentine::PlayerBlockActionData {
+                player_action_type: EnumsPlayerActionType::Startdestroyblock,
+                ..Default::default()
+            }]),
+            ..Default::default()
+        }))
+    }
+
+    fn forwarded_block_actions(world: &mut World) -> usize {
+        world.resource_mut::<BlockPacketQueue>().0.drain(..).count()
+    }
+
+    /// Apply one input and return the player's position and (pitch, yaw, head yaw) after.
+    fn apply(world: &mut World, player: Entity, input: MovementInput) -> (DVec3, [f32; 3]) {
+        world
+            .resource_mut::<MovementPacketQueue>()
+            .0
+            .push((player, input));
+        world.run_system_once(apply_movement).unwrap();
+        let rotation = *world.get::<Rotation>(player).unwrap();
+        (
+            world.get::<Position>(player).unwrap().0,
+            [rotation.pitch, rotation.yaw, rotation.head_yaw],
+        )
+    }
+
+    #[test]
+    fn moves_within_the_delta_are_accepted_and_larger_ones_rejected() {
+        let (mut world, player) = movement_world();
+        // 63 blocks along x is inside the 64-block limit.
+        let (pos, rotation) = apply(
+            &mut world,
+            player,
+            auth_input([63.5, 70.0, 0.5], [5.0, 90.0], 95.0),
+        );
+        assert_eq!(pos, DVec3::new(63.5, 70.0, 0.5));
+        assert_eq!(rotation, [5.0, 90.0, 95.0]);
+        assert_eq!(world.resource::<MovementEvents>().0.len(), 1);
+        assert_eq!(forwarded_block_actions(&mut world), 1);
+
+        // 100 blocks from the tracked position is rejected whole: no move, no rotation.
+        world.resource_mut::<MovementEvents>().0.clear();
+        let (pos, rotation) = apply(
+            &mut world,
+            player,
+            auth_input([163.5, 70.0, 0.5], [0.0, 0.0], 0.0),
+        );
+        assert_eq!(pos, DVec3::new(63.5, 70.0, 0.5));
+        assert_eq!(rotation, [5.0, 90.0, 95.0]);
+        assert!(world.resource::<MovementEvents>().0.is_empty());
+        assert_eq!(
+            forwarded_block_actions(&mut world),
+            0,
+            "rejected inputs act on no block"
+        );
+    }
+
+    #[test]
+    fn non_finite_positions_and_rotations_are_rejected() {
+        let (mut world, player) = movement_world();
+        let inputs = [
+            auth_input([f32::NAN, 70.0, 0.5], [0.0, 0.0], 0.0),
+            auth_input([0.5, f32::INFINITY, 0.5], [0.0, 0.0], 0.0),
+            auth_input([0.5, 70.0, f32::NEG_INFINITY], [0.0, 0.0], 0.0),
+            auth_input([0.5, 71.0, 0.5], [f32::NAN, 0.0], 0.0),
+            auth_input([0.5, 71.0, 0.5], [0.0, f32::INFINITY], 0.0),
+            auth_input([0.5, 71.0, 0.5], [0.0, 0.0], f32::NAN),
+        ];
+        for input in inputs {
+            let (pos, rotation) = apply(&mut world, player, input);
+            assert_eq!(pos, START);
+            assert_eq!(rotation, [20.0, 10.0, 10.0]);
+            assert_eq!(
+                forwarded_block_actions(&mut world),
+                0,
+                "rejected inputs act on no block"
+            );
+        }
+        let mut moving = PlayerAuthInputPacket {
+            position: Vec3 {
+                x: 0.5,
+                y: 71.0,
+                z: 0.5,
+            },
+            ..Default::default()
+        };
+        moving.move_vector.x = f32::NAN;
+        let (pos, _) = apply(
+            &mut world,
+            player,
+            MovementInput::AuthInput(Box::new(moving)),
+        );
+        assert_eq!(pos, START);
+        assert!(world.resource::<MovementEvents>().0.is_empty());
+    }
 
     fn moved(delta: DVec3, sprinting: bool, swimming: bool, jumped: bool) -> Moved {
         Moved {

@@ -130,7 +130,7 @@ fn chest_open_move_close_over_loopback() {
     let mut config = UnastarConfig::default();
     config.server.bind_address = format!("127.0.0.1:{port}");
     config.server.online_mode = false;
-    config.server.default_gamemode = "creative".into();
+    config.server.default_gamemode = unastar::entity::components::GameMode::Creative;
     config.server.default_chunk_radius = 2;
     config.world = unastar::world::WorldConfig::void_spawn_platform(1);
     config.players.data_dir = directory.path().join("players");

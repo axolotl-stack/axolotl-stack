@@ -61,11 +61,11 @@ fn handle_chunk_radius_request(
     sessions: &Query<&PlayerSession>,
     chunk_radii: &mut Query<&mut ChunkRadius>,
 ) {
-    let server_max = config.0.max_chunk_radius.max(1);
-    let client_max = i32::from(req.max_chunk_radius).max(1);
-    let effective_max = server_max.min(client_max);
-    let requested = req.chunk_radius.max(1);
-    let radius = requested.min(effective_max);
+    let radius = granted_chunk_radius(
+        req.chunk_radius,
+        req.max_chunk_radius,
+        config.0.max_chunk_radius,
+    );
 
     if let Ok(mut chunk_radius) = chunk_radii.get_mut(entity) {
         chunk_radius.0 = radius;
@@ -76,6 +76,15 @@ fn handle_chunk_radius_request(
             chunk_radius: radius,
         }));
     }
+}
+
+/// The radius granted for a `RequestChunkRadius`: the requested radius, capped by
+/// the server's `max_chunk_radius` and the client's own maximum, each at least 1.
+fn granted_chunk_radius(requested: i32, client_max: u8, server_max: i32) -> i32 {
+    requested
+        .max(1)
+        .min(server_max.max(1))
+        .min(i32::from(client_max).max(1))
 }
 
 fn handle_subchunk_request(
@@ -258,6 +267,27 @@ fn height_map(map: [u8; 256]) -> [Vec<i8>; 16] {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn chunk_radius_requests_are_clamped() {
+        use super::granted_chunk_radius;
+        // (requested, client max, server max) -> granted
+        for (requested, client_max, server_max, granted) in [
+            (8, 16, 12, 8),
+            (64, 255, 12, 12),
+            (10, 6, 12, 6),
+            (0, 16, 12, 1),
+            (-4, 16, 12, 1),
+            (8, 0, 12, 1),
+            (8, 16, 0, 1),
+        ] {
+            assert_eq!(
+                granted_chunk_radius(requested, client_max, server_max),
+                granted,
+                "request {requested}, client max {client_max}, server max {server_max}"
+            );
+        }
+    }
+
     use super::*;
     use crate::world::chunk::blocks;
     use crate::world::ecs::ChunkManagerWorldExt;
@@ -276,7 +306,7 @@ mod tests {
         }));
         world.insert_resource(ServerConfigResource(Default::default()));
         world.init_resource::<ChunkPacketQueue>();
-        let chunk = world.get_or_create_chunk(0, 0);
+        let chunk = world.get_or_create_chunk(0, 0).unwrap();
         // Replace the grass at y=3 with stone.
         let edited = {
             let mut data = world.get_mut::<ChunkData>(chunk).unwrap();

@@ -57606,15 +57606,32 @@ pub struct BorrowedMcpePacket {
     pub data: BorrowedMcpePacketData,
 }
 impl BorrowedMcpePacket {
+    /// The decoded packet, or `DecodeError::TrailingPacketBytes` when
+    /// the packet decoder left bytes of its own entry unread, so
+    /// borrowed decoding accepts exactly what owned decoding accepts.
+    #[inline]
+    fn reject_trailing(
+        (packet, remaining): (Self, usize),
+    ) -> Result<Self, crate::bedrock::error::DecodeError> {
+        if remaining != 0 {
+            return Err(crate::bedrock::error::DecodeError::TrailingPacketBytes { remaining });
+        }
+        Ok(packet)
+    }
+    /// Decodes one length-prefixed inner frame. Fails with
+    /// `DecodeError::TrailingPacketBytes`, like the owned
+    /// `McpePacketData::decode_inner`, when the packet does not consume
+    /// its whole declared entry; the entry is consumed either way.
     #[inline]
     pub fn decode_inner(
         buf: &mut bytes::Bytes,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        Ok(Self::decode_inner_with_remaining(buf)?.0)
+        Self::reject_trailing(Self::decode_inner_with_remaining(buf)?)
     }
-    /// Decodes one length-prefixed inner frame and also returns the
-    /// number of declared payload bytes the packet decoder did not
-    /// consume, so callers can reject trailing-byte frames.
+    /// Diagnostic variant of [`Self::decode_inner`]: decodes one
+    /// length-prefixed inner frame and returns the number of declared
+    /// payload bytes the packet decoder did not consume instead of
+    /// rejecting them (client-diff, conformance and bench tooling).
     #[inline]
     pub fn decode_inner_with_remaining(
         buf: &mut bytes::Bytes,
@@ -57681,6 +57698,8 @@ impl BorrowedMcpePacket {
         };
         Self::decode_with_header(header, buf)
     }
+    /// Decodes `[0xFE] [Length] [Header] [Body]`; rejects unread
+    /// payload bytes like [`Self::decode_inner`].
     #[inline]
     pub fn decode_game_frame(
         buf: &mut bytes::Bytes,
@@ -57698,13 +57717,15 @@ impl BorrowedMcpePacket {
                 actual: leading,
             });
         }
-        Ok(Self::decode_entry(buf, true)?.0)
+        Self::reject_trailing(Self::decode_entry(buf, true)?)
     }
+    /// Decodes a [`crate::bedrock::borrowed::RawMcpeFrame`]; rejects
+    /// unread payload bytes like [`Self::decode_inner`].
     #[inline]
     pub fn from_raw_frame(
         frame: crate::bedrock::borrowed::RawMcpeFrame,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        Ok(Self::from_raw_frame_with_remaining(frame)?.0)
+        Self::reject_trailing(Self::from_raw_frame_with_remaining(frame)?)
     }
     /// Like [`Self::from_raw_frame`], but also reports the number of
     /// payload bytes left unconsumed inside the frame.

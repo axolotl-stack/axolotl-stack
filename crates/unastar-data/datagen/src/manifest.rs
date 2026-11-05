@@ -288,50 +288,18 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
 
     // Pack-derived data itself lives only in Cargo's OUT_DIR. Commit just
     // counts and hashes so pack bumps have an explicit reviewable ratchet.
-    let families = [
-        (
-            "actor_component_registry",
-            unastar_data::actor_definitions::COMPONENT_SCHEMA_JSON,
-            unastar_data::actor_definitions::parser().component_count(),
-        ),
-        (
-            "component_schema_defaults",
-            unastar_data::actor_definitions::COMPONENT_DEFAULTS_JSON,
-            unastar_data::actor_definitions::component_defaults_count(),
-        ),
-        (
-            "actor_definitions",
-            unastar_data::actor_definitions::VANILLA_JSON,
-            unastar_data::actor_definitions::vanilla().len(),
-        ),
-        (
-            "actor_wire",
-            unastar_data::actor_wire::CATALOG_JSON,
-            unastar_data::actor_wire::vanilla().observations.len(),
-        ),
-        (
-            "biomes",
-            unastar_data::biomes::VANILLA_JSON,
-            unastar_data::biomes::vanilla().len(),
-        ),
-        (
-            "loot_tables",
-            unastar_data::loot::VANILLA_JSON,
-            unastar_data::loot::vanilla().len(),
-        ),
-    ];
     let mut pack_manifest = serde_json::Map::new();
-    for (name, bytes, count) in families {
-        info!("Decoded {count} embedded {name} rows");
+    for family in unastar_data::pack_manifest::families() {
+        info!("Decoded {} embedded {} rows", family.count, family.name);
         pack_manifest.insert(
-            name.to_owned(),
+            family.name.to_owned(),
             serde_json::json!({
-                "count": count,
-                "sha256": format!("{:x}", Sha256::digest(bytes)),
+                "count": family.count,
+                "sha256": format!("{:x}", Sha256::digest(&family.bytes)),
             }),
         );
     }
-    let pack_path = output_dir.join("pack-manifest.json");
+    let pack_path = output_dir.join(unastar_data::pack_manifest::ARTIFACT);
     std::fs::write(
         &pack_path,
         format!(
@@ -408,7 +376,7 @@ fn collect_artifacts(
         "blocks.kdl",
         "items.kdl",
         "creative.kdl",
-        "pack-manifest.json",
+        unastar_data::pack_manifest::ARTIFACT,
         "actor_identifiers.json",
         unastar_data::commands::ARTIFACT,
         unastar_data::game_rules::ARTIFACT,

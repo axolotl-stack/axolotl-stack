@@ -39,11 +39,11 @@ impl GameServer {
             }
         };
 
-        // Disconnect is immediate (not queued) — despawn must happen now.
-        // `despawn_player` queues the plugin `PlayerQuit`.
+        // A client `Disconnect` ends the session's network task. The tick loop's normal
+        // leave path then saves and despawns the player, and `despawn_player` queues the
+        // plugin `PlayerQuit`; despawning here would leave that save with no player.
         if packet.packet_id() == McpePacketName::DisconnectPacket {
             info!(session_id, "Client sent disconnect packet");
-            self.despawn_player(session_id);
             return;
         }
 

@@ -456,6 +456,9 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
     {
         if let Some(existing) = types.get(&type_id) {
             if existing != &lowered {
+                check_type_id_reuse(&type_id, existing, &lowered)?;
+                // The first shape stays registered under the id; this use
+                // keeps its own narrower shape inline.
                 return Ok(lowered);
             }
         } else {
@@ -465,6 +468,57 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
     } else {
         Ok(lowered)
     }
+}
+
+/// Type ids the 1.26.51 manifest reuses with a different enum value set.
+/// Each use is a union arm or field that only admits part of one wire enum, so
+/// the shapes differ only in their variant lists; the generator registers the
+/// first shape under the id and inlines the later ones (`lower_node`). Any other
+/// reuse of a type id with a different shape fails generation
+/// ([`check_type_id_reuse`]): an unexplained mismatch would otherwise silently
+/// pick one of two wire layouts. Add an entry only after checking that both
+/// shapes are the same wire enum.
+const ALLOWED_ENUM_NARROWINGS: &[(&str, &str)] = &[
+    (
+        "enums/TextPacketType",
+        "TextPacket's three payload arms each admit only their own message types",
+    ),
+    (
+        "enums/PlayerListPacketType",
+        "PlayerList's add and remove arms each admit one action",
+    ),
+    (
+        "enums/PlayerLocationPacketPayload::Type",
+        "PlayerLocation's coordinates and hide arms each admit one type",
+    ),
+    (
+        "enums/GameType",
+        "one field also admits `undefined` (-1), another does not",
+    ),
+    (
+        "enums/SubChunkPacketPayload::HeightMapDataType",
+        "one use also admits `allcopied` (4), another does not",
+    ),
+];
+
+/// Fails when `type_id` comes back with a shape other than the registered
+/// one, unless it is an allowlisted enum narrowing: both shapes enums over the
+/// same underlying primitive.
+fn check_type_id_reuse(type_id: &str, existing: &Type, lowered: &Type) -> Result<(), String> {
+    let allowlisted = ALLOWED_ENUM_NARROWINGS.iter().any(|(id, _)| *id == type_id);
+    let same_wire_enum = matches!(
+        (existing, lowered),
+        (
+            Type::Enum { underlying: first, .. },
+            Type::Enum { underlying: second, .. },
+        ) if first == second
+    );
+    if allowlisted && same_wire_enum {
+        return Ok(());
+    }
+    Err(format!(
+        "protocolgen type id {type_id:?} is reused with a different shape;          a reused id must keep one layout (or, for an enum that only narrows its          variants, be listed in ALLOWED_ENUM_NARROWINGS)"
+    ))
 }
 
 fn lower_primitive(code: &str) -> Result<Primitive, String> {
@@ -702,6 +756,76 @@ mod tests {
         assert!(
             matches!(&variants[1].type_def, Type::Reference(name) if name == "Payload::Second")
         );
+    }
+
+    /// A manifest whose two fields reuse `type_id` with different shapes.
+    fn reused_type_id_manifest(type_id: &str, first: &str, second: &str) -> String {
+        let node = |body: &str| body.replace("TYPE_ID", type_id);
+        format!(
+            r#"{{
+          "schema_version": 2,
+          "target": {{"minecraft_version":"1.26.40","protocol_version":2168}},
+          "packets": [{{"id":8,"name":"Packet","fields":[
+            {{"ordinal":0,"name":"First","symmetry":"symmetric","encode":{}}},
+            {{"ordinal":1,"name":"Second","symmetry":"symmetric","encode":{}}}
+          ]}}]
+        }}"#,
+            node(first),
+            node(second)
+        )
+    }
+
+    const EMPTY_STRUCT: &str = r#"{"kind":"struct","type_id":"TYPE_ID","fields":[]}"#;
+    const ONE_FIELD_STRUCT: &str = r#"{"kind":"struct","type_id":"TYPE_ID","fields":[
+        {"ordinal":0,"name":"Value","symmetry":"symmetric","encode":{"kind":"primitive","primitive":{"code":"u8"}}}
+    ]}"#;
+
+    fn enum_node(code: &str, values: &[(&str, i64)]) -> String {
+        let variants: Vec<String> = values
+            .iter()
+            .map(|(name, value)| {
+                format!(r#"{{"value":{value},"name":"{name}","encode":{{"kind":"void"}}}}"#)
+            })
+            .collect();
+        format!(
+            r#"{{"kind":"enum","type_id":"TYPE_ID","primitive":{{"code":"{code}"}},"variants":[{}]}}"#,
+            variants.join(",")
+        )
+    }
+
+    /// A type id that comes back with a different shape fails generation
+    /// unless it is an allowlisted enum narrowing.
+    #[test]
+    fn rejects_a_type_id_reused_with_a_different_shape() {
+        let fixture = reused_type_id_manifest("Shared", EMPTY_STRUCT, ONE_FIELD_STRUCT);
+        let error = parse_reader(fixture.as_bytes()).expect_err("unlisted reuse must fail");
+        assert!(error.to_string().contains("Shared"), "{error}");
+
+        // An allowlisted id still fails when the shapes are not enum
+        // narrowings of one underlying type.
+        let fixture = reused_type_id_manifest("enums/GameType", EMPTY_STRUCT, ONE_FIELD_STRUCT);
+        assert!(parse_reader(fixture.as_bytes()).is_err());
+        let fixture = reused_type_id_manifest(
+            "enums/GameType",
+            &enum_node("u8", &[("A", 0)]),
+            &enum_node("i16le", &[("A", 0)]),
+        );
+        assert!(parse_reader(fixture.as_bytes()).is_err());
+    }
+
+    /// An allowlisted enum whose later use narrows its variants keeps the
+    /// first shape registered and inlines the later one.
+    #[test]
+    fn allowlisted_enum_narrowing_is_inlined() {
+        let fixture = reused_type_id_manifest(
+            "enums/GameType",
+            &enum_node("u8", &[("A", 0), ("B", 1)]),
+            &enum_node("u8", &[("B", 1)]),
+        );
+        let parsed = parse_reader(fixture.as_bytes()).expect("allowlisted narrowing");
+        let fields = &parsed.packets[0].body.fields;
+        assert!(matches!(&fields[0].type_def, Type::Reference(id) if id == "enums/GameType"));
+        assert!(matches!(&fields[1].type_def, Type::Enum { variants, .. } if variants.len() == 1));
     }
 
     #[test]

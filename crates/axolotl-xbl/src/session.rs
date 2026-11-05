@@ -15,6 +15,7 @@
 use crate::auth::{XblToken, sign_service_request, update_server_time_from_header};
 use crate::constants::{SERVICE_CONFIG_ID, TEMPLATE_NAME, TITLE_ID, endpoints};
 use crate::error::{XblError, XblResult, check_status, response_json};
+use crate::http::LazyClient;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{debug, info, warn};
@@ -439,14 +440,14 @@ impl CreateSessionRequest {
 
 /// Xbox Live Session client.
 pub struct SessionClient {
-    client: reqwest::Client,
+    client: LazyClient,
 }
 
 impl SessionClient {
     /// Create a new session client.
     pub fn new() -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: LazyClient::without_timeout(),
         }
     }
 
@@ -474,13 +475,14 @@ impl SessionClient {
 
         let mut request = self
             .client
+            .load()?
             .put(&url)
             .header("Content-Type", "application/json")
             .header("x-xbl-contract-version", "107")
             .body(body_bytes)
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         let session_response: CreateSessionResponse =
@@ -517,13 +519,14 @@ impl SessionClient {
 
         let mut request = self
             .client
+            .load()?
             .post(endpoints::CREATE_HANDLE)
             .header("Content-Type", "application/json")
             .header("x-xbl-contract-version", "107")
             .body(body_bytes)
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         let handle: CreateHandleResponse = response_json(response, "create handle").await?;
@@ -555,13 +558,14 @@ impl SessionClient {
         let body_bytes = serde_json::to_vec(&body)?;
         let mut request = self
             .client
+            .load()?
             .post(endpoints::CREATE_HANDLE)
             .header("Content-Type", "application/json")
             .header("x-xbl-contract-version", "107")
             .body(body_bytes)
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         check_status(&response, "send invite")?;
@@ -585,11 +589,12 @@ impl SessionClient {
         let url = format!("{}{}", endpoints::CREATE_SESSION_FMT, session_id);
         let mut request = self
             .client
+            .load()?
             .get(&url)
             .header("x-xbl-contract-version", "107")
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         let json: serde_json::Value = response_json(response, "get session").await?;
@@ -608,11 +613,12 @@ impl SessionClient {
         let url = endpoints::JOIN_SESSION_FMT.replace("{}", handle_id);
         let mut request = self
             .client
+            .load()?
             .get(&url)
             .header("x-xbl-contract-version", "107")
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         let json: serde_json::Value = response_json(response, "get session via handle").await?;
@@ -773,11 +779,12 @@ impl SessionClient {
         let url = endpoints::GET_HANDLE_FMT.replace("{}", handle_id);
         let mut request = self
             .client
+            .load()?
             .get(&url)
             .header("x-xbl-contract-version", "107")
             .build()?;
         sign_service_request(&mut request, token).await?;
-        let response = self.client.execute(request).await?;
+        let response = self.client.load()?.execute(request).await?;
         Self::sync_server_time(&response);
 
         let json: serde_json::Value = response_json(response, "get handle").await?;

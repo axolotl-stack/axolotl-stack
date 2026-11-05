@@ -1,16 +1,18 @@
 //! Network events for communication between network tasks and main thread.
 
 use glam::DVec3;
-use jolyne::valentine::{BorrowedMcpePacket, McpePacket, McpePacketArgs};
+use jolyne::valentine::McpePacket;
 use tokio::sync::mpsc;
+
+use super::inbound::InboundPacket;
 
 /// Unique session identifier.
 pub type SessionId = u64;
 
-/// Events from network tasks to the main thread.
+/// Session lifecycle events from network tasks to the main thread.
 ///
-/// All network communication is consolidated into this single enum,
-/// reducing channel proliferation while maintaining parallel I/O.
+/// Client packets do not travel here: each session has its own bounded inbound
+/// queue (see [`super::inbound`]), handed over in [`NetworkEvent::Joined`].
 #[derive(Debug)]
 pub enum NetworkEvent {
     /// Player requested its chunk radius at the end of the join (streamed
@@ -29,13 +31,8 @@ pub enum NetworkEvent {
         /// Bounded channel to send packets to this player.
         /// Uses bounded capacity to prevent memory explosion on slow connections.
         outbound_tx: mpsc::Sender<McpePacket>,
-    },
-
-    /// Player sent a packet.
-    Packet {
-        session_id: SessionId,
-        packet_args: McpePacketArgs,
-        packet: Box<BorrowedMcpePacket>,
+        /// This session's inbound packet queue.
+        inbound_rx: mpsc::Receiver<InboundPacket>,
     },
 
     /// Player disconnected (network task exiting).
@@ -47,7 +44,6 @@ impl NetworkEvent {
     pub fn session_id(&self) -> SessionId {
         match self {
             NetworkEvent::Joined { session_id, .. } => *session_id,
-            NetworkEvent::Packet { session_id, .. } => *session_id,
             NetworkEvent::Disconnected { session_id } => *session_id,
         }
     }
