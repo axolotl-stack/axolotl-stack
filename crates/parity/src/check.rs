@@ -88,7 +88,10 @@ pub(crate) fn validate_entry(root: &Path, entry: &Entry, files: &mut TestFiles) 
                      ignored file is not evidence anyone else can check)",
                     entry.evidence
                 )),
-                Err(problem) => problems.push(problem),
+                // Without git no evidence can be checked: say so once, not
+                // once per verified row.
+                Err(Some(problem)) => problems.push(problem),
+                Err(None) => {}
             }
         }
     }
@@ -126,6 +129,8 @@ pub(crate) fn forbidden_provenance(text: &str) -> Option<&'static str> {
 pub struct TestFiles {
     contents: HashMap<String, Option<String>>,
     tracked: Option<Result<Tracked, String>>,
+    /// Whether the `git ls-files` failure has been reported already.
+    untracked_reported: bool,
 }
 
 /// Paths in the git index: tracked files, and submodule roots (whose
@@ -143,10 +148,14 @@ impl Tracked {
             .arg(root)
             .args(["ls-files", "-z", "--stage"])
             .output()
-            .map_err(|e| format!("cannot run `git ls-files` to check evidence: {e}"))?;
+            .map_err(|e| {
+                format!(
+                    "cannot run `git ls-files` to check `verified` evidence ({e});                      run `parity` inside a git checkout"
+                )
+            })?;
         if !output.status.success() {
             return Err(format!(
-                "`git ls-files` failed while checking evidence: {}",
+                "`git ls-files` failed while checking `verified` evidence ({});                  run `parity` inside a git checkout",
                 String::from_utf8_lossy(&output.stderr).trim()
             ));
         }
@@ -186,10 +195,16 @@ impl Tracked {
 
 impl TestFiles {
     /// Whether git tracks `path` (relative to `root`); `git ls-files` runs once.
-    fn is_tracked(&mut self, root: &Path, path: &str) -> Result<bool, String> {
+    /// If it cannot run, the first call returns the problem and later calls
+    /// `Err(None)`, so the failure is reported once per run.
+    fn is_tracked(&mut self, root: &Path, path: &str) -> Result<bool, Option<String>> {
         match self.tracked.get_or_insert_with(|| Tracked::list(root)) {
             Ok(tracked) => Ok(tracked.contains(path)),
-            Err(problem) => Err(problem.clone()),
+            Err(problem) if !self.untracked_reported => {
+                self.untracked_reported = true;
+                Err(Some(problem.clone()))
+            }
+            Err(_) => Err(None),
         }
     }
 
@@ -481,6 +496,39 @@ mod tests {
                 "{evidence}: {problems:?}"
             );
         }
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_missing_git_checkout_is_reported_once() {
+        let root = scratch("no-git");
+        let inside_a_repo = Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(["rev-parse", "--git-dir"])
+            .output()
+            .is_ok_and(|output| output.status.success());
+        if inside_a_repo {
+            eprintln!("skipping: the temp directory is inside a git repository");
+            let _ = std::fs::remove_dir_all(root);
+            return;
+        }
+        write(&root, "tests/a.rs", TESTS);
+        let mut problems = Vec::new();
+        let mut files = TestFiles::default();
+        for name in ["a.bin", "b.bin", "c.bin"] {
+            write(&root, &format!("captures/{name}"), "x");
+            let entry = Entry {
+                status: Status::Verified,
+                owner: "someone".to_owned(),
+                tests: vec!["tests/a.rs::plain_test".to_owned()],
+                evidence: format!("captures/{name}"),
+                ..Entry::missing()
+            };
+            problems.extend(validate_entry(&root, &entry, &mut files));
+        }
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("run `parity` inside a git checkout"));
         let _ = std::fs::remove_dir_all(root);
     }
 
