@@ -181,8 +181,10 @@ impl Tracked {
     /// Whether `path` is a tracked file, a directory holding one, or lies
     /// inside a submodule.
     fn contains(&self, path: &str) -> bool {
-        let path = path.replace('\\', "/");
-        let path = path.trim_end_matches('/');
+        let Some(path) = normalise(path) else {
+            return false;
+        };
+        let path = path.as_str();
         let under = |dir: &str, path: &str| {
             path.strip_prefix(dir)
                 .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
@@ -191,6 +193,23 @@ impl Tracked {
             || self.files.iter().any(|file| under(path, file))
             || self.submodules.iter().any(|dir| under(dir, path))
     }
+}
+
+/// `path` as git lists it: `/` separators, no `.` or empty components and
+/// `..` resolved (`./x` and `a/../x` are `x`). `None` when it climbs above
+/// the repository root.
+fn normalise(path: &str) -> Option<String> {
+    let mut parts: Vec<&str> = Vec::new();
+    for part in path.split(['/', '\\']) {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            part => parts.push(part),
+        }
+    }
+    Some(parts.join("/"))
 }
 
 impl TestFiles {
@@ -489,6 +508,13 @@ mod tests {
             check("captures").is_empty(),
             "a directory holding tracked files"
         );
+        for spelling in [
+            "./captures/tracked.bin",
+            "captures/../captures/tracked.bin",
+            "captures/",
+        ] {
+            assert!(check(spelling).is_empty(), "{spelling}");
+        }
         for evidence in ["captures/untracked.bin", "captures/ignored.bin"] {
             let problems = check(evidence);
             assert!(
@@ -541,5 +567,9 @@ mod tests {
         assert!(tracked.contains("data/vanilla_bp/entities/pig.json"));
         assert!(!tracked.contains("data/vanilla_bp_extra/pig.json"));
         assert!(!tracked.contains("doc"));
+        assert!(tracked.contains("./docs/./a.md"));
+        assert!(tracked.contains(r"docs\a.md"), "Windows separators");
+        assert!(!tracked.contains("../docs/a.md"), "outside the repository");
+        assert_eq!(normalise("a/../../b"), None);
     }
 }
