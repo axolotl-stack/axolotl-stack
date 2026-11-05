@@ -66,8 +66,8 @@ Paths are relative to `crates/unastar/src/` unless shown in full.
 | Area | Finding | Where |
 |---|---|---|
 | Worldgen | The generation pool ignores `world.bounds`; only the synchronous path checks them, so `java` and `bedrock` worlds are unbounded whatever the config says | `crates/unastar/src/world/ecs/generation_worker.rs`, `world/ecs/manager.rs` |
-| Worldgen | Java-style output is not a pure function of (seed, chunk): it decorates in request order through one shared native session, and the pool hands it chunks in nondeterministic order. `worldgen_output_hash` runs single-threaded and can't catch it (see decision 0031) | `world/generator/pipeline.rs`, `pipeline/native.rs` |
-| Worldgen | The Java native session's chunk map is never evicted (grows for the server's lifetime) and one mutex serialises all Java decoration | `world/generator/pipeline/native.rs` |
+| Worldgen | Java-style output is not a pure function of (seed, chunk): it decorates in request order through one shared native session, and the pool hands it chunks in nondeterministic order. `worldgen_output_hash` runs single-threaded and can't catch it. **Decided 2026-11-05:** accepted trade-off, see decision 0031 | `world/generator/pipeline.rs`, `pipeline/native.rs` |
+| Worldgen | The Java native session's chunk map is never evicted (grows for the server's lifetime) and one mutex serialises all Java decoration. **Proposed fix:** decision 0034 | `world/generator/pipeline/native.rs` |
 | Movement | A NaN or infinite `PlayerAuthInput` position passes the 64-block delta check and is stored; rotation is never checked | `server/game/movement.rs` |
 | Player storage | A corrupt player record is kept only until that player's next save, which overwrites it with the first-join state | `server/connect.rs`, `server/game/mod.rs` |
 | Storage | A LevelDB subchunk that fails to decode loads as air; editing the chunk then saves air over the original (BlazeDB fails the load instead) | `storage/leveldb_world.rs` |

@@ -28,9 +28,15 @@ order cannot change the output.
   `bedrock_decoration_is_independent_of_chunk_request_order`). The Java-style generator decorates
   in request order through one shared native session, so its output can depend on request order
   and worker assignment; `worldgen_output_hash` generates single-threaded in fixture order and
-  cannot catch that. Open finding in
-  [docs/audits/2026-11-04-knowledge-migration-findings.md](../audits/2026-11-04-knowledge-migration-findings.md);
-  contract in [openspec/specs/worldgen-pipeline](../../openspec/specs/worldgen-pipeline/spec.md).
+  cannot catch that. Contract in
+  [openspec/specs/worldgen-pipeline](../../openspec/specs/worldgen-pipeline/spec.md).
+- **Accepted trade-off for the Java-style generator (2026-11-05).** Its order dependence is
+  deliberate, not a bug. FEATURES origins see the writes of earlier origins in one shared world,
+  as Java's own chunk generation does, and Java climate ties keep the calling thread's previous
+  search candidate. Making its output a pure function of (seed, chunk) would mean replaying
+  decoration per origin from unmodified protos, which gives up those Java semantics. We keep the
+  Java semantics and accept that Java-style output is reproducible only for the same request
+  order. Its memory bound is [0034](0034-bound-the-java-native-session.md).
 
 ## More Information
 
