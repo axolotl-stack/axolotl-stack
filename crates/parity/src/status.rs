@@ -177,3 +177,87 @@ fn wrap(text: &str, width: usize) -> Vec<String> {
     }
     lines
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::catalog::{Domain, DomainRows, Row};
+
+    fn rows() -> DomainRows {
+        let door = Row::new("minecraft:oak_door", "doors");
+        DomainRows::new(
+            Domain::Blocks,
+            vec![
+                Row::new("minecraft:water", "liquids").with_label("still and flowing"),
+                Row::child(&door, "redstone"),
+                door,
+            ],
+        )
+        .unwrap()
+    }
+
+    fn entries() -> StatusFile {
+        let mut entries = StatusFile::new();
+        entries.insert("minecraft:oak_door".to_owned(), Entry::missing());
+        entries.insert(
+            "minecraft:oak_door/redstone".to_owned(),
+            Entry {
+                status: Status::Done,
+                owner: "blocks".to_owned(),
+                tests: vec!["crates/a/tests/doors.rs::opens".to_owned()],
+                evidence: "none".to_owned(),
+                ..Entry::missing()
+            },
+        );
+        entries.insert(
+            "minecraft:water".to_owned(),
+            Entry {
+                status: Status::Partial,
+                gaps: "no \"flow\" yet".to_owned(),
+                notes: "see docs".to_owned(),
+                ..Entry::missing()
+            },
+        );
+        entries
+    }
+
+    #[test]
+    fn render_writes_families_in_catalog_order_with_one_inline_table_per_row() {
+        let text = render(&rows(), &entries());
+        assert!(text.starts_with("# Parity status: "));
+        assert!(text.contains("Schema and rules: docs/parity/README.md.\n"));
+        let body = &text[text.find("\n# doors").expect("a family header")..];
+        let expected = [
+            "",
+            "# doors (2)",
+            r#""minecraft:oak_door" = { status = "missing" }"#,
+            r#""minecraft:oak_door/redstone" = { status = "done", owner = "blocks", tests = ["crates/a/tests/doors.rs::opens"], evidence = "none" }"#,
+            "",
+            "# liquids (1)",
+            r#""minecraft:water" = { status = "partial", gaps = 'no "flow" yet', notes = "see docs" }  # still and flowing"#,
+            "",
+        ];
+        assert_eq!(body, expected.join("\n"));
+    }
+
+    #[test]
+    fn rendered_files_load_back_to_the_same_entries() {
+        let dir = std::env::temp_dir().join(format!("parity-status-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("blocks.toml");
+        std::fs::write(&file, render(&rows(), &entries())).unwrap();
+        assert_eq!(load(&file).unwrap(), entries());
+        assert!(load(&dir.join("absent.toml")).unwrap().is_empty());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn unknown_fields_are_rejected() {
+        let dir = std::env::temp_dir().join(format!("parity-status-bad-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("blocks.toml");
+        std::fs::write(&file, "\"a\" = { status = \"done\", ownr = \"x\" }\n").unwrap();
+        assert!(load(&file).is_err());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+}

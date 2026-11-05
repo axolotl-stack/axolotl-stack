@@ -13,7 +13,13 @@ use crate::signaling::{Credentials, IceServer, Signal, Signaling, SignalingChann
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::Duration,
+};
 use tokio::sync::{RwLock, mpsc, watch};
 use tokio_tungstenite::{
     connect_async_with_config,
@@ -184,12 +190,14 @@ pub struct XboxSignaling {
     rx: RwLock<Option<mpsc::Receiver<Signal>>>,
     credentials: watch::Receiver<Option<CachedCredentials>>,
     monitor: Arc<SignalMonitor>,
+    /// Inbound signals dropped because the consumer's queue was full.
+    dropped_signals: Arc<AtomicU64>,
     task: tokio::task::JoinHandle<()>,
 }
 
 impl XboxSignaling {
     #[deprecated(
-        since = "0.2.0",
+        since = "0.1.0",
         note = "Use connect_with_url() with a URL from axolotl_xbl::discovery for regional routing"
     )]
     pub async fn connect(nethernet_id: u64, mc_token: &str) -> anyhow::Result<Arc<Self>> {
@@ -203,7 +211,7 @@ impl XboxSignaling {
     }
 
     #[deprecated(
-        since = "0.2.0",
+        since = "0.1.0",
         note = "Use connect_with_url() with a URL from axolotl_xbl::discovery for regional routing"
     )]
     pub async fn connect_with_monitor(
@@ -248,6 +256,8 @@ impl XboxSignaling {
         let (credentials_tx, credentials) = watch::channel(None);
         let monitor = SignalMonitor::new_with_cleanup(monitor_config);
         let task_monitor = Arc::clone(&monitor);
+        let dropped_signals = Arc::new(AtomicU64::new(0));
+        let task_dropped = Arc::clone(&dropped_signals);
         let task = tokio::spawn(async move {
             let mut heartbeat = tokio::time::interval_at(
                 tokio::time::Instant::now() + HEARTBEAT_INTERVAL,
@@ -283,7 +293,20 @@ impl XboxSignaling {
                                 let Ok(signal) = Signal::parse_owned(message, from) else { continue };
                                 task_monitor.process_incoming(&signal).await;
                                 match in_tx.try_send(signal) {
-                                    Ok(()) | Err(mpsc::error::TrySendError::Full(_)) => {},
+                                    Ok(()) => {},
+                                    // Bounded overload policy: drop the newest signal rather
+                                    // than stall the socket (and its heartbeat), but say so.
+                                    Err(mpsc::error::TrySendError::Full(signal)) => {
+                                        let dropped = task_dropped.fetch_add(1, Ordering::Relaxed) + 1;
+                                        if dropped.is_power_of_two() {
+                                            tracing::warn!(
+                                                dropped,
+                                                typ = %signal.typ,
+                                                conn_id = signal.connection_id,
+                                                "Franchise signal queue full; dropping inbound signal"
+                                            );
+                                        }
+                                    }
                                     Err(mpsc::error::TrySendError::Closed(_)) => break,
                                 }
                             }
@@ -307,6 +330,7 @@ impl XboxSignaling {
             rx: RwLock::new(Some(in_rx)),
             credentials,
             monitor,
+            dropped_signals,
             task,
         }))
     }
@@ -314,6 +338,13 @@ impl XboxSignaling {
     /// Returns None after transport closure or after take_signal_receiver().
     pub async fn recv(&self) -> Option<Signal> {
         self.rx.write().await.as_mut()?.recv().await
+    }
+
+    /// Inbound signals dropped so far because the receiver's queue
+    /// (256 signals) was full. Drops are also logged at warn level on the
+    /// 1st, 2nd, 4th, 8th... occurrence.
+    pub fn dropped_signals(&self) -> u64 {
+        self.dropped_signals.load(Ordering::Relaxed)
     }
 
     pub fn monitor(&self) -> &Arc<SignalMonitor> {
@@ -466,6 +497,50 @@ mod tests {
         signaling.closed().await;
         assert!(signaling.credentials().await.is_err());
         assert!(signaling.recv().await.is_none());
+    }
+
+    /// A full inbound queue used to drop signals without any trace.
+    #[tokio::test]
+    async fn full_inbound_queue_counts_dropped_signals() {
+        const SENT: usize = QUEUE_CAPACITY + 5;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (release, keep_open) = tokio::sync::oneshot::channel::<()>();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
+            for id in 0..SENT {
+                let message = serde_json::json!({
+                    "Type": 1, "From": "42",
+                    "Message": format!("CONNECTRESPONSE {id} answer"),
+                });
+                socket
+                    .send(WsMessage::Text(message.to_string()))
+                    .await
+                    .unwrap();
+            }
+            let _ = keep_open.await;
+        });
+        let signaling = XboxSignaling::connect_with_url(
+            format!("ws://{address}/"),
+            7,
+            "test-token",
+            SignalMonitorConfig::default(),
+        )
+        .await
+        .unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while signaling.dropped_signals() < (SENT - QUEUE_CAPACITY) as u64 {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("dropped signals were not counted");
+        assert_eq!(signaling.dropped_signals(), (SENT - QUEUE_CAPACITY) as u64);
+        // The queued signals are the oldest ones.
+        assert_eq!(signaling.recv().await.unwrap().connection_id, 0);
+        drop(release);
+        server.await.unwrap();
     }
 
     /// Retained repository wire format: recipient is a string, not a JSON number.

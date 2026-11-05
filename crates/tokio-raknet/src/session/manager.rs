@@ -832,7 +832,7 @@ mod tests {
         ms.state = ConnectionState::Connected;
 
         let err = ms
-            .send_disconnect(DisconnectReason::Disconnected)
+            .send_disconnect(DisconnectReason::Disconnected, now)
             .unwrap_err();
         assert!(matches!(err, SessionError::Queue(_)));
         assert_eq!(ms.state(), ConnectionState::Connected);

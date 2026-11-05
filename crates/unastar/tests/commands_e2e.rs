@@ -47,7 +47,7 @@ fn operator_commands_answer_like_bds_over_loopback() {
     config.server.online_mode = false;
     config.server.max_players = 2;
     config.server.operators = vec![BOT.into()];
-    config.server.default_gamemode = "survival".into();
+    config.server.default_gamemode = unastar::entity::components::GameMode::Survival;
     config.players.data_dir = dir.path().join("playerdata");
     config.world = WorldConfig::void_spawn_platform(2);
     config.validate().expect("test config is valid");

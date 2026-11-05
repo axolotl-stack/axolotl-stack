@@ -1202,6 +1202,26 @@ mod tests {
         );
     }
 
+    /// Only the first `MAX_BLOCK_ACTIONS` actions of one `PlayerAuthInput` are processed.
+    #[test]
+    fn block_actions_past_the_per_input_limit_are_ignored() {
+        let (mut world, player, _) = block_world(GameMode::Creative, DVec3::new(1.0, 64.0, 1.0));
+        world.init_resource::<crate::ecs::resources::TickCounter>();
+        let action = jolyne::valentine::PlayerBlockActionData {
+            player_action_type: EnumsPlayerActionType::Creativedestroyblock,
+            position: BlockPos { x: 1, y: 64, z: 1 },
+            facing: 1,
+        };
+        process_auth_input_block_actions(&mut world, player, &vec![action; MAX_BLOCK_ACTIONS + 6]);
+        let breaks = world
+            .resource_mut::<EventBuffer>()
+            .drain()
+            .iter()
+            .filter(|event| matches!(event, ServerEvent::BlockBreak { .. }))
+            .count();
+        assert_eq!(breaks, MAX_BLOCK_ACTIONS);
+    }
+
     #[test]
     fn creative_break_is_only_an_intent_until_plugins_allow_it() {
         let (mut world, player, chunk) =

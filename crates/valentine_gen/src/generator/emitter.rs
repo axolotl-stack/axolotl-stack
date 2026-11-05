@@ -29,12 +29,27 @@ pub fn write_rust_file(
     debug_name: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let formatted = format_tokens(tokens, debug_name)?;
+    let mut contents = String::with_capacity(GENERATED_HEADER.len() + formatted.len());
+    contents.push_str(GENERATED_HEADER);
+    contents.push_str(&formatted);
+    write_file_atomic(path, contents.as_bytes()).map_err(Into::into)
+}
+
+/// Replaces `path` with `contents` atomically: the bytes are staged in a
+/// uniquely named file beside the destination and renamed over it, so a
+/// failed or interrupted run leaves either the old file or the new one, never
+/// a truncated mix. Every generator output (Rust modules and manifests) goes
+/// through here. A staged file is removed if anything fails.
+pub fn write_file_atomic(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
+    let file_name = path.file_name().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "output path has no file name",
+        )
+    })?;
     let (temp_path, mut file) = loop {
-        let mut name = path
-            .file_name()
-            .ok_or("Rust output path has no file name")?
-            .to_os_string();
+        let mut name = file_name.to_os_string();
         name.push(format!(
             ".{}.{}.tmp",
             std::process::id(),
@@ -48,21 +63,20 @@ pub fn write_rust_file(
         {
             Ok(file) => break (temp_path, file),
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(err) => return Err(err.into()),
+            Err(err) => return Err(err),
         }
     };
     // Stage beside the destination so rename remains an atomic replacement.
-    let result = (|| -> std::io::Result<()> {
-        file.write_all(GENERATED_HEADER.as_bytes())?;
-        file.write_all(formatted.as_bytes())?;
-        file.flush()
-    })();
+    // No fsync before the rename: that guards against a power loss, not an
+    // interrupted or failed run, and generated output is reproducible by
+    // rerunning the generator, so it is not worth the cost per file.
+    let result = file.write_all(contents).and_then(|()| file.flush());
     drop(file);
     let result = result.and_then(|()| std::fs::rename(&temp_path, path));
     if result.is_err() {
         let _ = std::fs::remove_file(&temp_path);
     }
-    result.map_err(Into::into)
+    result
 }
 
 pub fn generated_module_tokens(

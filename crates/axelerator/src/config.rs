@@ -1,14 +1,16 @@
 //! Configuration for Axelerator.
 //!
 //! Configuration can be loaded from a TOML file or constructed programmatically.
-//! CLI arguments override config file values.
+//! CLI arguments override config file values. A file that is not valid TOML
+//! for this schema, including one with unknown keys, is an error: running on
+//! silently ignored settings would be worse than not starting.
 
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Configuration for the Axelerator broadcast server.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct AxeleratorConfig {
     /// Name shown in friends list.
     pub host_name: String,
@@ -37,7 +39,10 @@ pub struct AxeleratorConfig {
     /// Path to cached OAuth token.
     pub token_cache_path: String,
 
-    /// Auto-accept pending friend requests.
+    /// Accept pending friend requests (and invite the new friends) on
+    /// startup, on RTA friend-request notifications and on RTA resyncs.
+    /// Following back followers is separate (`friend_sync_interval`).
+    /// Default: true.
     pub auto_accept_friends: bool,
 
     /// Automatically unfollow people who have unfollowed us.
@@ -59,7 +64,9 @@ pub struct AxeleratorConfig {
     /// Default: 30 seconds.
     pub session_refresh_interval: u64,
 
-    /// Heartbeat interval for presence (seconds).
+    /// Presence refresh interval (seconds) used when Xbox Live returns no
+    /// heartbeat interval of its own; a returned interval always wins.
+    /// Default: 300.
     pub presence_heartbeat: u64,
 
     /// Enable session tampering detection and auto-repair.
@@ -95,7 +102,7 @@ pub struct AxeleratorConfig {
 /// number of days are automatically unfollowed. This prevents the friend list
 /// from filling up with inactive players.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct FriendExpiryConfig {
     /// Enable friend expiry. Default: false (opt-in).
     pub enabled: bool,
@@ -121,7 +128,7 @@ impl Default for FriendExpiryConfig {
 
 /// Logging configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct LoggingConfig {
     /// Log level: "error", "warn", "info", "debug", "trace".
     /// Can also use module-specific levels like "info,axelerator=debug".
@@ -133,7 +140,7 @@ pub struct LoggingConfig {
     /// Include timestamps in log output (useful for file logging, not needed for journald).
     pub show_timestamp: bool,
 
-    /// Use JSON format for structured logging.
+    /// Write one JSON object per log event instead of text lines.
     pub json_format: bool,
 }
 
@@ -158,7 +165,7 @@ impl Default for LoggingConfig {
 /// - Format: JPEG (.jpg)
 /// - Quality: 90
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ScreenshotConfig {
     /// Enable screenshot uploading feature.
     pub enabled: bool,
@@ -205,7 +212,7 @@ impl Default for ScreenshotConfig {
 /// When enabled, critical errors (auth failures after refresh, crashes, etc.)
 /// will be sent to the configured Discord webhook in addition to terminal logging.
 #[derive(Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct DiscordWebhookConfig {
     /// Enable Discord webhook notifications.
     pub enabled: bool,
@@ -280,7 +287,7 @@ impl Default for AxeleratorConfig {
             max_players: 10,
             display_players: 1,
             token_cache_path: "token.json".into(),
-            auto_accept_friends: false,
+            auto_accept_friends: true,
             auto_unfollow: true,
             friend_sync_interval: 60,
             session_refresh_interval: 30,
@@ -313,23 +320,7 @@ impl AxeleratorConfig {
             source: e,
         })?;
 
-        toml::from_str(&contents).map_err(|e| ConfigError::Parse {
-            path: path.display().to_string(),
-            span: e.span(),
-        })
-    }
-
-    /// Load from file, falling back to default on any error.
-    ///
-    /// Logs warnings if the file exists but can't be parsed.
-    pub fn load_or_default<P: AsRef<Path>>(path: P) -> Self {
-        match Self::load(&path) {
-            Ok(config) => config,
-            Err(e) => {
-                eprintln!("Warning: Failed to load config: {}", e);
-                Self::default()
-            }
-        }
+        toml::from_str(&contents).map_err(|e| ConfigError::parse(path, &contents, &e))
     }
 
     /// Save configuration to a TOML file.
@@ -405,12 +396,90 @@ pub enum ConfigError {
     },
     Parse {
         path: String,
-        // Never retain the TOML error: it embeds the original configuration.
+        // Never retain the TOML error: its Display embeds the offending
+        // source line, which may hold the webhook credential.
         span: Option<std::ops::Range<usize>>,
+        /// 1-based line and column of the error, when known.
+        position: Option<(usize, usize)>,
+        /// The parser's message with any quoted value removed
+        /// (see [`redact_toml_message`]); it names keys, never values.
+        message: String,
     },
     Serialize {
         source: toml::ser::Error,
     },
+}
+
+impl ConfigError {
+    fn parse(path: &Path, contents: &str, error: &toml::de::Error) -> Self {
+        let span = error.span();
+        let position = span.as_ref().map(|span| line_column(contents, span.start));
+        let mut message = redact_toml_message(error.message());
+        // Type and value errors point at the value; name its key, read from
+        // the source line up to `=` (the value itself is never copied).
+        if let Some(key) = span
+            .as_ref()
+            .and_then(|span| key_before(contents, span.start))
+            && !message.contains(&format!("`{key}`"))
+        {
+            message = format!("{message} for key `{key}`");
+        }
+        ConfigError::Parse {
+            path: path.display().to_string(),
+            span,
+            position,
+            message,
+        }
+    }
+}
+
+/// 1-based line and column (in characters) of byte offset `at`.
+fn line_column(contents: &str, at: usize) -> (usize, usize) {
+    let before = &contents[..at.min(contents.len())];
+    let line = before.matches('\n').count() + 1;
+    let line_start = before.rfind('\n').map_or(0, |i| i + 1);
+    (line, before[line_start..].chars().count() + 1)
+}
+
+/// The bare key assigned on the line containing byte offset `at`, when the
+/// offset lies in the value of a `key = value` line.
+fn key_before(contents: &str, at: usize) -> Option<&str> {
+    let before = &contents[..at.min(contents.len())];
+    let line_start = before.rfind('\n').map_or(0, |i| i + 1);
+    let (key, _) = before[line_start..].split_once('=')?;
+    let key = key.trim();
+    let bare = !key.is_empty()
+        && key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'));
+    bare.then_some(key)
+}
+
+/// Keeps what the TOML/serde message says about keys and expected types,
+/// and drops any echo of the input value: serde's `invalid type: string
+/// "<value>", expected a boolean` becomes `invalid type, expected a
+/// boolean`, and the long `expected one of ...` key list is cut.
+fn redact_toml_message(message: &str) -> String {
+    let message = message.replace('\n', "; ");
+    for prefix in [
+        "invalid type",
+        "invalid value",
+        "invalid length",
+        "unknown variant",
+    ] {
+        if message.starts_with(prefix) {
+            return match message.split_once(", expected ") {
+                Some((_, expected)) => format!("{prefix}, expected {expected}"),
+                None => prefix.to_string(),
+            };
+        }
+    }
+    if message.starts_with("unknown field")
+        && let Some((field, _)) = message.split_once(", expected ")
+    {
+        return field.to_string();
+    }
+    message
 }
 
 impl std::fmt::Display for ConfigError {
@@ -419,13 +488,21 @@ impl std::fmt::Display for ConfigError {
             ConfigError::Io { path, source } => {
                 write!(f, "Failed to read config file '{}': {}", path, source)
             }
-            ConfigError::Parse { path, span } => {
-                write!(
+            ConfigError::Parse {
+                path,
+                span,
+                position,
+                message,
+            } => match position {
+                Some((line, column)) => write!(
                     f,
-                    "Failed to parse config file '{}' at byte range {:?}",
-                    path, span
-                )
-            }
+                    "Failed to parse config file '{path}' at line {line}, column {column}: {message}"
+                ),
+                None => write!(
+                    f,
+                    "Failed to parse config file '{path}' (byte range {span:?}): {message}"
+                ),
+            },
             ConfigError::Serialize { source } => {
                 write!(f, "Failed to serialize config: {}", source)
             }
@@ -458,6 +535,133 @@ mod tests {
         }
     }
 
+    /// With strict parsing an operator needs to know which key broke the
+    /// file. Errors used to say only "at byte range Some(0..8)".
+    #[test]
+    fn parse_errors_name_the_key_and_position() {
+        let error = load_str(
+            "server_ip = \"a\"
+sever_ip = \"10.0.0.1\"",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("line 2, column 1"), "{error}");
+        assert!(error.contains("unknown field `sever_ip`"), "{error}");
+        assert!(!error.contains("10.0.0.1"), "{error}");
+
+        let error = load_str(
+            "[discord]
+enabled = \"secret-sentinel\"",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("line 2, column 11"), "{error}");
+        assert!(error.contains("`enabled`"), "{error}");
+        assert!(error.contains("expected a boolean"), "{error}");
+        assert!(!error.contains("secret-sentinel"), "{error}");
+
+        let error = load_str("server_port = 99999999").unwrap_err().to_string();
+        assert!(error.contains("`server_port`"), "{error}");
+        assert!(error.contains("expected u16"), "{error}");
+        assert!(!error.contains("99999999"), "{error}");
+    }
+
+    /// Unknown keys (typos, removed options) used to be ignored silently.
+    #[test]
+    fn unknown_keys_are_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        for contents in [
+            "sever_ip = \"10.0.0.1\"",
+            "[logging]\nlevel = \"info\"\njson = true",
+            "[friend_expiry]\nenable = true",
+            "[discord]\nwebhook = \"x\"",
+            "[screenshots]\ndir = \"x\"",
+        ] {
+            std::fs::write(&path, contents).unwrap();
+            assert!(
+                matches!(
+                    AxeleratorConfig::load(&path),
+                    Err(ConfigError::Parse { .. })
+                ),
+                "{contents}"
+            );
+        }
+    }
+
+    /// Loads `contents` through the same path the binary uses.
+    fn load_str(contents: &str) -> Result<AxeleratorConfig, ConfigError> {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(&path, contents).unwrap();
+        AxeleratorConfig::load(&path)
+    }
+
+    /// `axelerator init` writes this file; it must load under strict parsing.
+    #[test]
+    fn generated_example_loads() {
+        load_str(&AxeleratorConfig::example_toml()).unwrap();
+    }
+
+    /// The `toml` code blocks in `DEPLOYMENT.md`: the full sample operators
+    /// copy, plus the snippets they paste into it.
+    fn documented_configs() -> Vec<String> {
+        const DEPLOYMENT: &str = include_str!("../deploy/DEPLOYMENT.md");
+        let mut blocks = Vec::new();
+        let mut current: Option<String> = None;
+        for line in DEPLOYMENT.lines() {
+            match (&mut current, line.trim_end()) {
+                (None, "```toml") => current = Some(String::new()),
+                (Some(_), "```") => blocks.extend(current.take()),
+                (Some(block), line) => {
+                    block.push_str(line);
+                    block.push('\n');
+                }
+                (None, _) => {}
+            }
+        }
+        assert!(
+            current.is_none(),
+            "unterminated toml block in DEPLOYMENT.md"
+        );
+        blocks
+    }
+
+    /// Strict parsing (unknown keys are errors and stop startup) must accept
+    /// every config the deployment guide documents, alone and combined.
+    #[test]
+    fn documented_configs_load() {
+        let blocks = documented_configs();
+        // The full sample, the module-level logging snippet and the
+        // attack-detection snippet.
+        assert!(blocks.len() >= 3, "found {} toml blocks", blocks.len());
+        for block in &blocks {
+            if let Err(error) = load_str(block) {
+                panic!("DEPLOYMENT.md config does not load ({error}):\n{block}");
+            }
+        }
+    }
+
+    /// The sample documents the fields operators are told about; it must
+    /// mean what it says, not fall back to defaults.
+    #[test]
+    fn documented_sample_values_are_applied() {
+        let config = load_str(&documented_configs()[0]).unwrap();
+        assert_eq!(config.server_ip, "play.example.com");
+        assert_eq!(config.max_players, 20);
+        assert!(config.monitor_tampering);
+        assert!(!config.logging.json_format);
+    }
+
+    /// The default was `false` while every request was accepted anyway;
+    /// the flag is now honoured, so the default keeps that behaviour.
+    #[test]
+    fn friend_requests_are_accepted_by_default() {
+        assert!(AxeleratorConfig::default().auto_accept_friends);
+        let config: AxeleratorConfig = toml::from_str("auto_accept_friends = false").unwrap();
+        assert!(!config.auto_accept_friends);
+    }
+
     #[test]
     fn malformed_config_errors_do_not_retain_input() {
         use std::error::Error;
@@ -466,6 +670,12 @@ mod tests {
         for contents in [
             "[discord]\nwebhook_url = \"secret-sentinel",
             "[discord]\nenabled = \"secret-sentinel\"",
+            "server_port = \"secret-sentinel\"",
+            "host_name = secret-sentinel",
+            "secret-sentinel",
+            "[logging]\nlevel = [\"secret-sentinel\"]",
+            "server_ip = \"a\"\nserver_ip = \"secret-sentinel\"",
+            "[discord]\nwebhook_url = \"secret-sentinel\"\nwebhook_url = \"x\"",
         ] {
             std::fs::write(&path, contents).unwrap();
             let error = AxeleratorConfig::load(&path).unwrap_err();

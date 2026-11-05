@@ -54,7 +54,7 @@ Every row has exactly one entry. Fields, in this order (empty ones omitted):
 |---|---|
 | `status` | `missing`, `partial`, `done`, `verified` or `not_applicable` |
 | `owner` | lane or person responsible (`entities`, `items`, `blocks`, `commands`, `wg-bedrock`, `wg-java`, `protocol`, `mainline`, `platform`) |
-| `tests` | `path` or `path::test_fn`, relative to the repository root |
+| `tests` | `path` or `path::test_fn`, relative to the repository root; `test_fn` must be a `#[test]` (or `#[tokio::test]`) function |
 | `evidence` | committed native evidence (BDS/Java capture or fixture path), or `none` |
 | `gaps` | short text: what is still missing |
 | `notes` | anything else, e.g. work that exists on an unmerged branch |
@@ -64,7 +64,7 @@ Every row has exactly one entry. Fields, in this order (empty ones omitted):
 | `missing` | nothing | nothing implemented |
 | `partial` | `gaps` | some behaviour exists; `gaps` says what does not |
 | `done` | `owner`, `tests` | implemented and a test in the workspace exercises it |
-| `verified` | `owner`, `tests`, `evidence` (an existing repository path) | done, and the test compares against that native evidence |
+| `verified` | `owner`, `tests`, `evidence` (a path git tracks) | done, and the test compares against that native evidence |
 | `not_applicable` | `notes` | vanilla has it but a server never implements it (client-only, editor or Education Edition content); excluded from percentages |
 
 Statuses describe the code on the branch the file is on. Work that only exists on an
@@ -117,9 +117,11 @@ UNASTAR_BDS_DIR=/path/to/bds/server cargo run -p parity -- generate   # also ref
 
 - a generated row has no status entry, or a status entry names a row that is no longer
   generated (rename or delete it by hand; `generate` refuses to drop it silently);
-- a `done`/`verified` row lists no test, or a test file or `fn` that does not exist;
-- a required field is missing (see the table above), or `verified` evidence is not a path in
-  the repository;
+- a `done`/`verified` row lists no test, or a test file that does not exist, or a `path::name`
+  whose file has no `#[test]` / `#[tokio::test]` function `name` (a mention in a comment or a
+  helper `fn` does not count);
+- a required field is missing (see the table above), or `verified` evidence is not a path git
+  tracks (an untracked or gitignored file fails; files inside a submodule count);
 - a claim names an unknown domain, family or row id, a prefix that matches no row, has no
   owner, no selector or a `since` that is not a date, or two claims cover the same row;
 - a claim names an OpenSpec `change` that does not exist or is already archived;

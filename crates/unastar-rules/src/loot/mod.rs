@@ -185,7 +185,7 @@ pub struct LootPool {
     pub tiers: Option<LootTiers>,
 }
 
-/// Pool `tiers`: the entry at index `nextInt(initial_range)` plus one for
+/// Pool `tiers`: the entry at a uniform index in `0..initial_range` plus one for
 /// each of `bonus_rolls` draws below `bonus_chance` (no entry when past the
 /// end). Entry conditions and weights are not consulted.
 #[derive(Debug, Clone, Copy, PartialEq)]

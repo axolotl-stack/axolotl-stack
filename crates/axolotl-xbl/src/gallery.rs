@@ -34,6 +34,7 @@
 
 use crate::constants::endpoints;
 use crate::error::{XblError, XblResult, check_status, response_json};
+use crate::http::LazyClient;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -88,14 +89,14 @@ pub struct SetShowcaseResult {
 
 /// Xbox Live Gallery client for managing showcase images.
 pub struct GalleryClient {
-    client: reqwest::Client,
+    client: LazyClient,
 }
 
 impl GalleryClient {
     /// Create a new Gallery client.
     pub fn new() -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: LazyClient::without_timeout(),
         }
     }
 
@@ -123,6 +124,7 @@ impl GalleryClient {
 
         let response = self
             .client
+            .load()?
             .post(endpoints::GALLERY)
             .header("Authorization", mc_token)
             .header("Content-Type", "application/octet-stream")
@@ -161,6 +163,7 @@ impl GalleryClient {
 
         let response = self
             .client
+            .load()?
             .get(&url)
             .header("Authorization", mc_token)
             .send()
@@ -188,6 +191,7 @@ impl GalleryClient {
 
         let response = self
             .client
+            .load()?
             .delete(&url)
             .header("Authorization", mc_token)
             .send()
@@ -215,6 +219,7 @@ impl GalleryClient {
 
         let response = self
             .client
+            .load()?
             .get(&image.url)
             .header("Authorization", mc_token)
             .send()

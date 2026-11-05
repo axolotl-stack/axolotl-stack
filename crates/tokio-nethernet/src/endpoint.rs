@@ -318,8 +318,11 @@ impl Signaling for Client {
     fn network_id(&self) -> String {
         self.config.network_id.clone()
     }
+    /// A dialing client advertises nothing. go-nethernet's `Client.PongData`
+    /// panics; here the call is generic `Signaling` API that status
+    /// publishers may make on any signaling, so it is a logged no-op.
     fn set_pong_data(&self, _data: &[u8]) {
-        panic!("nethernet/endpoint: Client.PongData: unsupported");
+        tracing::debug!("nethernet/endpoint: client has no pong data; ignoring update");
     }
 }
 
@@ -848,6 +851,14 @@ mod tests {
         );
         assert!(head.bytes().await.unwrap().is_empty());
         handler.close();
+    }
+
+    /// Used to panic, taking down whichever task published status through
+    /// a generic `Signaling` that happened to be an endpoint client.
+    #[test]
+    fn client_pong_data_is_a_no_op() {
+        let client = ClientConfig::default().build();
+        client.set_pong_data(b"MCPE;Server;1;1.0;2;10;1;Level;Survival;");
     }
 
     #[tokio::test]

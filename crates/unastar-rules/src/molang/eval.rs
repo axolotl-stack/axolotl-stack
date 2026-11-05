@@ -544,4 +544,39 @@ mod tests {
                 .is_err()
         );
     }
+
+    fn try_eval(src: &str, ctx: &mut Ctx) -> Result<Value, EvalError> {
+        let mut e = parse(src).unwrap();
+        e.bind(QueryRegistry::vanilla(), QueryContext::Runtime)
+            .unwrap();
+        evaluate(&e, ctx)
+    }
+
+    #[test]
+    fn loops_run_at_most_1024_times() {
+        let ctx = &mut Ctx::default();
+        assert_eq!(
+            try_eval("v.n = 0; loop(1024, {v.n = v.n + 1;}); return v.n;", ctx),
+            Ok(Value::Num(1024.0))
+        );
+        assert_eq!(
+            try_eval("v.n = 0; loop(1025, {v.n = v.n + 1;}); return v.n;", ctx),
+            Err(EvalError::LoopLimit(1025))
+        );
+        // The limit applies before any iteration runs.
+        assert_eq!(ctx.variables["n"], Value::Num(0.0));
+        // Zero and negative counts run nothing; the count is truncated.
+        assert_eq!(
+            try_eval(
+                "v.m = 0; loop(-5, {v.m = 1;}); loop(0.9, {v.m = 2;}); return v.m;",
+                ctx
+            ),
+            Ok(Value::Num(0.0))
+        );
+        assert_eq!(
+            try_eval("loop(1024.9, {});", ctx),
+            Ok(Value::Num(0.0)),
+            "1024.9 truncates to 1024"
+        );
+    }
 }

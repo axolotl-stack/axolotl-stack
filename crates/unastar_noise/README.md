@@ -116,7 +116,9 @@ this cross-root alias without substituting zero or recomputing cached values.
 
 ## Native Java numeric source
 
-`NoiseRegistry::with_router_settings(seed, legacy_random_source, blended)` accepts
+The registry lives in the server crate, not here:
+`NoiseRegistry::with_router_settings(seed, legacy_random_source, blended)`
+(`crates/unastar/src/world/generator/density/types.rs`) accepts
 the router's five blended-noise parameters in XZ scale, Y scale, XZ factor, Y
 factor, smear order. Use its borrowed `java_source()` adapter for statically
 dispatched Java scalar/SIMD arithmetic. The default `NoiseRegistry::new(seed)`

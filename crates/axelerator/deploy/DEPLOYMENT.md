@@ -71,7 +71,15 @@ token_cache_path = "token.json"
 level = "info"              # error, warn, info, debug, trace
 show_target = false         # show module names
 show_timestamp = false      # journald adds timestamps
+json_format = false         # one JSON object per log line
 ```
+
+Unknown keys, wrong types and invalid TOML stop startup with an error giving
+the file, line and column and naming the key (for example ``unknown field
+`sever_ip` ``); values are never echoed. A missing file means defaults. Other options:
+`auto_accept_friends` (default `true`) accepts pending friend requests,
+`presence_heartbeat` (default `300`) is the presence refresh interval used when
+Xbox Live returns none.
 
 ### Configuration Priority
 
@@ -208,7 +216,11 @@ sudo journalctl -u axelerator --since today > axelerator.log
 
 ### Re-Authentication (Token Refresh)
 
-OAuth tokens last ~90 days. If you see authentication errors:
+Axelerator assumes no fixed OAuth token lifetime: it refreshes the cached token
+whenever it has a refresh token, and the Microsoft authentication server decides
+whether that refresh is still valid (see the crate README). When the server
+rejects it (for example after a password change or revoked consent), startup and
+token refreshes fail with authentication errors. Then re-authenticate:
 
 ```bash
 # Stop the service

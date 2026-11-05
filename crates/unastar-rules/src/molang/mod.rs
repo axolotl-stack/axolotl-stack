@@ -805,6 +805,18 @@ mod tests {
     }
 
     #[test]
+    fn registering_a_taken_query_name_fails_whatever_its_case() {
+        let mut registry = QueryRegistry::default();
+        let id = registry.register("addon_mood").unwrap();
+        assert_eq!(
+            registry.register("Addon_Mood"),
+            Err("query.addon_mood is already registered".to_owned())
+        );
+        assert_eq!(registry.lookup("addon_mood"), Some(id));
+        assert!(registry.register("is_baby").is_err(), "built-in name");
+    }
+
+    #[test]
     fn rejects_malformed_input() {
         for bad in [
             "1 +",

@@ -4,14 +4,16 @@
 //! worker threads (16 MiB stacks for Windows terrain generation). Only an explicit storage
 //! miss permits generation; read errors never produce replacement terrain. Generation is a
 //! pure function of `(seed, position)` (see `world::generator::pipeline`), so the number
-//! of workers never changes the output.
+//! of workers never changes the output. Positions outside `world.bounds` are generated as
+//! all-air by [`ChunkPipeline::generate_within`], the same helper the inline path
+//! and the spawn search use.
 
 use std::sync::{Arc, Mutex, mpsc};
 use tokio::sync::oneshot;
 
 use crate::storage::{ChunkColumn, StorageResult, WorldProvider};
-use crate::world::ChunkPos;
 use crate::world::generator::ChunkPipeline;
+use crate::world::{ChunkPos, WorldBounds};
 
 /// The chunk column (with its stored actors) plus its storage provenance
 /// (`true` means loaded, not generated).
@@ -47,9 +49,9 @@ pub fn generation_threads(configured: usize) -> usize {
 }
 
 impl ChunkGenerationWorker {
-    /// Spawn `threads` workers driving `pipeline`. Storage reads run on the current tokio
-    /// runtime (this must be called inside one).
-    pub fn spawn(pipeline: Arc<ChunkPipeline>, threads: usize) -> Self {
+    /// Spawn `threads` workers driving `pipeline` within `bounds`. Storage reads run on
+    /// the current tokio runtime (this must be called inside one).
+    pub fn spawn(pipeline: Arc<ChunkPipeline>, bounds: WorldBounds, threads: usize) -> Self {
         assert!(threads > 0, "generation pool needs at least one thread");
         let (request_tx, request_rx) = mpsc::channel::<ChunkGenRequest>();
         let request_rx = Arc::new(Mutex::new(request_rx));
@@ -61,7 +63,7 @@ impl ChunkGenerationWorker {
             std::thread::Builder::new()
                 .name(format!("unastar-chunk-gen-{index}"))
                 .stack_size(CHUNK_GENERATION_STACK_SIZE)
-                .spawn(move || Self::run_worker(&pipeline, &request_rx, &runtime))
+                .spawn(move || Self::run_worker(&pipeline, bounds, &request_rx, &runtime))
                 .expect("spawn chunk generation worker");
         }
         Self { request_tx }
@@ -90,6 +92,7 @@ impl ChunkGenerationWorker {
 
     fn run_worker(
         pipeline: &ChunkPipeline,
+        bounds: WorldBounds,
         request_rx: &Mutex<mpsc::Receiver<ChunkGenRequest>>,
         runtime: &tokio::runtime::Handle,
     ) {
@@ -112,7 +115,7 @@ impl ChunkGenerationWorker {
                     return Ok((column, true));
                 }
                 tracing::debug!(chunk = ?(pos.x, pos.z), dimension = req.dimension, "Generating missing chunk");
-                let chunk = pipeline.generate(pos).map_err(|error| {
+                let chunk = pipeline.generate_within(bounds, pos).map_err(|error| {
                     crate::storage::StorageError::Serialization(format!(
                         "chunk {pos:?}: native Bedrock adaptation failed: {error}"
                     ))
@@ -132,7 +135,7 @@ mod tests {
     #[tokio::test]
     async fn pool_generates_requested_chunks() {
         let pipeline = Arc::new(ChunkPipeline::new(Arc::new(FlatGenerator)));
-        let worker = ChunkGenerationWorker::spawn(pipeline, 2);
+        let worker = ChunkGenerationWorker::spawn(pipeline, WorldBounds::Infinite, 2);
 
         let receivers: Vec<_> = [(0, 0), (1, 0), (0, 1), (-3, 7)]
             .into_iter()
@@ -142,6 +145,30 @@ mod tests {
             let (column, loaded) = receiver.await.unwrap().unwrap();
             assert_eq!((column.chunk.x, column.chunk.z), (x, z));
             assert!(!loaded);
+        }
+    }
+
+    /// The pool honours `world.bounds` like the inline path: chunks outside are air,
+    /// chunks inside are generated terrain.
+    #[tokio::test]
+    async fn pool_generates_air_outside_world_bounds() {
+        let pipeline = Arc::new(ChunkPipeline::new(Arc::new(FlatGenerator)));
+        let bounds = WorldBounds::Radius { radius_chunks: 1 };
+        let worker = ChunkGenerationWorker::spawn(pipeline, bounds, 2);
+
+        for (x, z, inside) in [(1, -1, true), (2, 0, false), (0, -5, false)] {
+            let (column, loaded) = worker
+                .generate(x, z, None, 0)
+                .unwrap()
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(!loaded);
+            assert_eq!(
+                column.chunk.highest_subchunk() == 0,
+                !inside,
+                "chunk ({x}, {z}) inside bounds: {inside}"
+            );
         }
     }
 
