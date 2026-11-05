@@ -93,6 +93,8 @@ struct ListenerActor {
     generated_identity_key: Option<p384::ecdsa::SigningKey>,
     /// DTLS certificate shared by this listener's connections (generated on first offer).
     local: Option<LocalIdentity>,
+    /// Budget for rejection replies still being sent (see `reject`).
+    rejections: Arc<tokio::sync::Semaphore>,
 }
 
 struct ConnectionHandle {
@@ -145,6 +147,7 @@ impl NetherNetListener {
             cleanup_tx: message_tx,
             generated_identity_key: None,
             local: None,
+            rejections: rejection_budget(),
         };
 
         tokio::spawn(actor.run());
@@ -189,6 +192,7 @@ impl NetherNetListener {
             cleanup_tx: message_tx.clone(),
             generated_identity_key: None,
             local: None,
+            rejections: rejection_budget(),
         };
 
         // Install subscription before processing offers.
@@ -343,13 +347,23 @@ impl ListenerActor {
     }
 
     /// Sends a terminal `CONNECTERROR` without blocking the actor.
+    ///
+    /// At most [`MAX_PENDING_REJECTIONS`] replies are in flight; beyond that
+    /// (an offer flood against slow signaling) the reply is dropped, which
+    /// leaves that dialer to its own timeout but keeps the task count bounded.
     fn reject(&self, conn_id: u64, network_id: String, code: SignalErrorCode) {
-        tokio::spawn(send_terminal_error(
-            self.signaling.clone(),
-            conn_id,
-            network_id,
-            code,
-        ));
+        let Ok(permit) = self.rejections.clone().try_acquire_owned() else {
+            debug!(
+                conn_id,
+                "Rejection reply budget exhausted; dropping CONNECTERROR"
+            );
+            return;
+        };
+        let signaling = self.signaling.clone();
+        tokio::spawn(async move {
+            send_terminal_error(signaling, conn_id, network_id, code).await;
+            drop(permit);
+        });
     }
 
     /// Admits an offer and starts its negotiation task.
@@ -481,6 +495,14 @@ impl ListenerActor {
 
 /// Bounded like listener.go:listenerNegotiator.signalError; dial.go:SignalErrorTimeout.
 const TERMINAL_SIGNAL_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Rejection replies (limit and SDP-size) that may be in flight at once.
+/// Local resource policy, not a wire constant.
+const MAX_PENDING_REJECTIONS: usize = 16;
+
+fn rejection_budget() -> Arc<tokio::sync::Semaphore> {
+    Arc::new(tokio::sync::Semaphore::new(MAX_PENDING_REJECTIONS))
+}
 
 async fn send_terminal_error(
     signaling: Arc<dyn Signaling>,
@@ -687,6 +709,7 @@ mod tests {
             cleanup_tx,
             generated_identity_key: None,
             local: None,
+            rejections: rejection_budget(),
         }
     }
 
@@ -1055,6 +1078,41 @@ mod tests {
             reply.data,
             (SignalErrorCode::SignalingParsingFailure as i32).to_string()
         );
+        assert!(actor.connections.is_empty());
+    }
+
+    /// Signaling whose sends never complete, counting those in flight.
+    struct StuckSignaling(Arc<std::sync::atomic::AtomicUsize>);
+    #[async_trait::async_trait]
+    impl Signaling for StuckSignaling {
+        async fn signal(&self, _: Signal) -> anyhow::Result<()> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            std::future::pending().await
+        }
+        fn network_id(&self) -> String {
+            "local".into()
+        }
+    }
+
+    /// Each rejection used to spawn its own reply task, so a flood of
+    /// offers (each task living up to 2 s) created tasks without bound.
+    #[tokio::test]
+    async fn rejection_replies_are_bounded() {
+        let in_flight = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut actor = actor(
+            Arc::new(StuckSignaling(in_flight.clone())),
+            NetherNetListenerConfig {
+                max_sdp_size: 64,
+                ..loopback_config()
+            },
+        );
+        for id in 0..200 {
+            actor.handle_signal(offer(id)).await.unwrap();
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let sending = in_flight.load(Ordering::SeqCst);
+        assert!(sending > 0, "rejections are still replied to");
+        assert!(sending <= 32, "{sending} rejection replies in flight");
         assert!(actor.connections.is_empty());
     }
 
