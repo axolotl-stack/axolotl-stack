@@ -168,6 +168,31 @@ api_version = "0.2.0"
         }
     }
 
+    /// The example plugin's manifest must load on this host and subscribe to
+    /// every event its `Plugin` impl handles, or those callbacks never run.
+    #[test]
+    fn example_plugin_manifest_loads_and_subscribes_to_its_callbacks() {
+        let manifest = parse(include_str!("../../../example-plugin/plugin.toml")).unwrap();
+        manifest.check_api_version().unwrap();
+        let source = include_str!("../../../example-plugin/src/lib.rs");
+        for (callback, kind) in [
+            ("fn on_tick(", EventKind::Tick),
+            ("fn on_player_join(", EventKind::PlayerJoin),
+            ("fn on_player_quit(", EventKind::PlayerQuit),
+            ("fn on_player_chat(", EventKind::PlayerChat),
+            ("fn on_block_break(", EventKind::BlockBreak),
+            ("fn on_block_place(", EventKind::BlockPlace),
+            ("fn on_timer(", EventKind::Timer),
+        ] {
+            if source.contains(callback) {
+                assert!(
+                    manifest.subscriptions.contains(&kind),
+                    "example plugin implements `{callback}` but does not subscribe to {kind:?}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn unknown_top_level_key_is_rejected() {
         let error = parse(&format!("{MINIMAL}subscription = [\"tick\"]\n")).unwrap_err();
