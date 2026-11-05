@@ -596,8 +596,10 @@ mod tests {
         std::env::temp_dir().join(format!("unastar-{name}-{}", uuid::Uuid::new_v4()))
     }
 
-    /// A world database another instance holds is an error, not a server
-    /// running with persistence off.
+    /// A held world database is an error, not a server running with
+    /// persistence off. This holds it from the same process at the same path,
+    /// which LevelDB refuses on every platform; `tests/startup_storage.rs`
+    /// covers a lock held by another process.
     #[test]
     fn a_locked_world_leveldb_fails_to_open() {
         let path = temp_path("locked-world");
