@@ -67,6 +67,9 @@ pub fn write_file_atomic(path: &Path, contents: &[u8]) -> std::io::Result<()> {
         }
     };
     // Stage beside the destination so rename remains an atomic replacement.
+    // No fsync before the rename: that guards against a power loss, not an
+    // interrupted or failed run, and generated output is reproducible by
+    // rerunning the generator, so it is not worth the cost per file.
     let result = file.write_all(contents).and_then(|()| file.flush());
     drop(file);
     let result = result.and_then(|()| std::fs::rename(&temp_path, path));
