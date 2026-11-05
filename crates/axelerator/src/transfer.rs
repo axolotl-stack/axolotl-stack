@@ -27,6 +27,10 @@ const INITIAL_BACKOFF_MS: u64 = 1000;
 /// Maximum backoff delay in milliseconds (5 minutes).
 const MAX_BACKOFF_MS: u64 = 300_000;
 
+/// How long a bound listener that accepted nobody must stay up before its
+/// end counts as a working session that resets the retry budget.
+const MIN_HEALTHY_UPTIME: Duration = Duration::from_secs(60);
+
 /// Statistics for the transfer server.
 #[derive(Debug, Default)]
 pub struct TransferStats {
@@ -100,7 +104,7 @@ pub async fn run_transfer_server(
             return Ok(ShutdownReason::Requested);
         }
 
-        let mut bound = false;
+        let mut run = ListenerRun::default();
         match run_transfer_server_inner(
             signaling_url,
             nethernet_id,
@@ -109,7 +113,7 @@ pub async fn run_transfer_server(
             shutdown.clone(),
             stats.clone(),
             player_history.clone(),
-            &mut bound,
+            &mut run,
         )
         .await
         {
@@ -143,7 +147,7 @@ pub async fn run_transfer_server(
 
         stats.reconnect_attempts.fetch_add(1, Ordering::Relaxed);
 
-        let Some(delay) = retry.next_delay(bound) else {
+        let Some(delay) = retry.next_delay(run.was_healthy()) else {
             error!(
                 "Transfer server failed {} times in a row, handing back for recovery",
                 MAX_RETRY_ATTEMPTS
@@ -169,11 +173,33 @@ pub async fn run_transfer_server(
     }
 }
 
+/// What one listener session achieved before it ended.
+#[derive(Debug, Default)]
+struct ListenerRun {
+    /// When `bind()` succeeded.
+    bound_at: Option<tokio::time::Instant>,
+    /// Whether at least one friend connection was accepted.
+    accepted: bool,
+}
+
+impl ListenerRun {
+    /// Whether this session proved the token and signaling URL work: it
+    /// accepted a connection or stayed up for [`MIN_HEALTHY_UPTIME`]. A bind
+    /// alone proves nothing, because the service accepts the WebSocket and
+    /// then drops it at once when, for example, the Minecraft token expired.
+    fn was_healthy(&self) -> bool {
+        self.accepted
+            || self
+                .bound_at
+                .is_some_and(|bound_at| bound_at.elapsed() >= MIN_HEALTHY_UPTIME)
+    }
+}
+
 /// Consecutive-failure budget and backoff for rebinding the listener.
 ///
-/// A listener that bound successfully proves the token and signaling URL
-/// work, so the failure that ended it starts a fresh sequence: the budget
-/// limits consecutive failures, not failures over the process lifetime.
+/// A session that worked (see [`ListenerRun::was_healthy`]) starts a fresh
+/// sequence when it ends: the budget limits consecutive failures, not
+/// failures over the process lifetime.
 struct RetryState {
     attempts: u32,
     backoff_ms: u64,
@@ -193,9 +219,10 @@ impl RetryState {
 
     /// Records a failure and returns the delay before the next attempt
     /// (backoff plus up to 25 % jitter), or `None` once
-    /// `MAX_RETRY_ATTEMPTS` consecutive attempts have failed.
-    fn next_delay(&mut self, was_bound: bool) -> Option<Duration> {
-        if was_bound {
+    /// `MAX_RETRY_ATTEMPTS` consecutive attempts have failed. `was_healthy`
+    /// says the session that just ended worked, which restarts the count.
+    fn next_delay(&mut self, was_healthy: bool) -> Option<Duration> {
+        if was_healthy {
             *self = Self::new();
         }
         self.attempts += 1;
@@ -230,7 +257,7 @@ async fn run_transfer_server_inner(
     shutdown: CancellationToken,
     stats: Arc<TransferStats>,
     player_history: Option<PlayerHistory>,
-    bound: &mut bool,
+    run: &mut ListenerRun,
 ) -> anyhow::Result<ShutdownReason> {
     // Create listener with builder API
     let mut builder = BedrockListener::nethernet().xbox(signaling_url, nethernet_id, mc_token);
@@ -246,7 +273,7 @@ async fn run_transfer_server_inner(
     }
 
     let mut listener = builder.bind().await?;
-    *bound = true;
+    run.bound_at = Some(tokio::time::Instant::now());
 
     // Setup for handshake
     let template = Arc::new(WorldTemplate::default());
@@ -275,6 +302,7 @@ async fn run_transfer_server_inner(
             result = listener.accept() => {
                 match result {
                     Ok(handshake_stream) => {
+                        run.accepted = true;
                         stats.connections_accepted.fetch_add(1, Ordering::Relaxed);
                         info!(
                             total_connections = stats.connections_accepted.load(Ordering::Relaxed),
@@ -465,10 +493,31 @@ mod tests {
         for _ in 1..MAX_RETRY_ATTEMPTS {
             assert!(retry.next_delay(false).is_some());
         }
-        // The listener bound, served for a while, then dropped.
+        // The listener worked for a while, then dropped.
         let delay = retry.next_delay(true).expect("a fresh failure sequence");
         assert_eq!(retry.attempts(), 1);
         assert!(delay < Duration::from_millis(INITIAL_BACKOFF_MS * 5 / 4 + 1));
+    }
+
+    /// Only a session that accepted a friend or stayed up for a minute
+    /// counts as working; a bind alone does not.
+    #[tokio::test(start_paused = true)]
+    async fn healthy_session_needs_uptime_or_a_connection() {
+        assert!(!ListenerRun::default().was_healthy());
+        let run = ListenerRun {
+            bound_at: Some(tokio::time::Instant::now()),
+            accepted: false,
+        };
+        assert!(!run.was_healthy());
+        tokio::time::advance(MIN_HEALTHY_UPTIME - Duration::from_secs(1)).await;
+        assert!(!run.was_healthy());
+        tokio::time::advance(Duration::from_secs(1)).await;
+        assert!(run.was_healthy());
+        let served = ListenerRun {
+            bound_at: Some(tokio::time::Instant::now()),
+            accepted: true,
+        };
+        assert!(served.was_healthy());
     }
 
     #[test]
@@ -535,7 +584,7 @@ mod tests {
     async fn closed_signaling_socket_ends_the_listener() {
         let url = closing_signaling_stub().await;
         let task = tokio::spawn(async move {
-            let mut bound = false;
+            let mut run = ListenerRun::default();
             let reason = run_transfer_server_inner(
                 &url,
                 7,
@@ -544,16 +593,62 @@ mod tests {
                 CancellationToken::new(),
                 Arc::new(TransferStats::new()),
                 None,
-                &mut bound,
+                &mut run,
             )
             .await;
-            (reason, bound)
+            (reason, run)
         });
-        let (reason, bound) = tokio::time::timeout(Duration::from_secs(10), task)
+        let (reason, run) = tokio::time::timeout(Duration::from_secs(10), task)
             .await
             .expect("transfer listener kept accepting on a closed signaling socket")
             .unwrap();
-        assert!(bound, "the stub completes the WebSocket handshake");
+        assert!(
+            run.bound_at.is_some(),
+            "the stub completes the WebSocket handshake"
+        );
+        assert!(!run.was_healthy(), "an immediate close proves nothing");
         assert_eq!(reason.unwrap(), ShutdownReason::ListenerClosed);
+    }
+
+    /// A service that accepts the WebSocket and drops it at once (for
+    /// example on an expired Minecraft token) must not count as a working
+    /// listener: after `MAX_RETRY_ATTEMPTS` such binds the server hands back
+    /// `ListenerClosed` so the session recovers with a fresh token. Binding
+    /// alone used to reset the budget, so this rebound forever.
+    #[tokio::test(start_paused = true)]
+    async fn bind_then_immediate_close_exhausts_the_retry_budget() {
+        let url = closing_signaling_stub().await;
+        let stats = Arc::new(TransferStats::new());
+        // The paused clock auto-advances whenever the test waits on socket
+        // I/O, so a virtual-time timeout would fire early. Bound the test in
+        // real time instead: a rebind loop that never gives up is stopped by
+        // this watchdog and reports `Requested`.
+        let shutdown = CancellationToken::new();
+        let watchdog = shutdown.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(20));
+            watchdog.cancel();
+        });
+        let reason = run_transfer_server(
+            &url,
+            7,
+            "test-token",
+            &AxeleratorConfig::default(),
+            shutdown,
+            Some(stats.clone()),
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            reason,
+            ShutdownReason::ListenerClosed,
+            "a listener that binds and closes at once was rebound until shutdown ({} reconnects)",
+            stats.reconnect_attempts.load(Ordering::Relaxed)
+        );
+        assert_eq!(
+            stats.reconnect_attempts.load(Ordering::Relaxed),
+            u64::from(MAX_RETRY_ATTEMPTS)
+        );
     }
 }
