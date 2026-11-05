@@ -126,7 +126,8 @@ impl UnastarConfig {
             && (min_x > max_x || min_z > max_z)
         {
             return Err(format!(
-                "`world.bounds` rect is empty: needs `min_x <= max_x` and `min_z <= max_z`                  (got x {min_x}..={max_x}, z {min_z}..={max_z})"
+                "`world.bounds` rect is empty: needs `min_x <= max_x` and `min_z <= max_z` \
+                 (got x {min_x}..={max_x}, z {min_z}..={max_z})"
             ));
         }
         if self.server.default_chunk_radius > self.server.max_chunk_radius {

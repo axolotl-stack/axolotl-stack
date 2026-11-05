@@ -275,6 +275,7 @@ fn empty_rect_world_bounds_are_refused() {
             Err(ConfigError::Validation(message)) => {
                 assert!(!valid, "refused valid bounds {bounds}: {message}");
                 assert!(message.contains("world.bounds"), "{message}");
+                assert!(!message.contains("  "), "stray spaces: {message:?}");
             }
             Err(other) => panic!("unexpected error for {bounds}: {other}"),
         }
