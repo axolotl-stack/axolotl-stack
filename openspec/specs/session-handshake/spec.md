@@ -32,9 +32,9 @@ The server SHALL accept packets only in the order `RequestNetworkSettings`, `Log
 
 #### Scenario: Wrong first packet
 - **WHEN** the first packet a server receives is not `RequestNetworkSettings`
-- **THEN** the phase fails with `ProtocolError::UnexpectedPacket` naming `HandshakePhase::NetworkSettings` and the packet
+- **THEN** the phase fails with `ProtocolError::UnexpectedPacket` naming `HandshakePhase::NetworkSettings` and the packet; likewise a server waiting for `Login` fails on any other packet
 
-Evidence: crates/jolyne/src/proto/server.rs, crates/jolyne/src/proto/phase.rs (`unexpected`), crates/jolyne/src/proto/testdata/bds-1.26.51-join-s2c.txt, crates/jolyne/src/proto/tests.rs (`join_sequence_follows_the_bds_capture`, `post_encryption_packets_match_bds_bytes`), docs/parity/protocol.toml (`NetworkSettingsPacket`, `StartGamePacket` rows)
+Evidence: crates/jolyne/src/proto/server.rs, crates/jolyne/src/proto/phase.rs (`unexpected`), crates/jolyne/src/proto/testdata/bds-1.26.51-join-s2c.txt, crates/jolyne/src/proto/tests.rs (`join_sequence_follows_the_bds_capture`, `post_encryption_packets_match_bds_bytes`, `out_of_order_packets_fail_network_settings_and_login`), docs/parity/protocol.toml (`NetworkSettingsPacket`, `StartGamePacket` rows)
 Verified by: `tools/client-diff` (jolyne and gophertunnel clients complete `join-idle` and `join-chat` against BDS 1.26.51)
 
 ### Requirement: Exact protocol version
@@ -56,7 +56,7 @@ The server SHALL send `NetworkSettings` carrying the configured algorithm and th
 
 #### Scenario: Levels
 - **WHEN** a deflate level above 9 is configured
-- **THEN** it is clamped to 9, and level 0 or algorithm `None` sends every batch with the `0xFF` marker
+- **THEN** it is clamped to 9, and level 0 (Deflate or Snappy) or algorithm `None` sends every batch with the `0xFF` marker while `NetworkSettings` still advertises the configured algorithm
 
 #### Scenario: Bad markers
 - **WHEN** a negotiated connection receives an empty batch body or an unknown algorithm byte
@@ -70,7 +70,7 @@ The server SHALL send `NetworkSettings` carrying the configured algorithm and th
 - **WHEN** a join completes under Deflate, Snappy or None with threshold 0
 - **THEN** play packets travel compressed and encrypted in both directions
 
-Evidence: crates/jolyne/src/config.rs (`CompressionConfig`), crates/jolyne/src/proto/batch.rs (`BatchCodec`, `threshold_selects_marker_and_roundtrips_all_algorithms`, `rejects_wrong_marker_empty_payload_and_unknown_algorithm`), crates/jolyne/src/proto/compression.rs (`engine_follows_the_negotiated_algorithm_and_level`), crates/jolyne/src/proto/conn.rs (`enabling_compression_and_encryption_seals_pending_in_the_old_format`), crates/jolyne/src/proto/tests.rs (`compression_and_encryption_are_active_in_play`)
+Evidence: crates/jolyne/src/config.rs (`CompressionConfig`), crates/jolyne/src/proto/batch.rs (`BatchCodec`, `threshold_selects_marker_and_roundtrips_all_algorithms`, `rejects_wrong_marker_empty_payload_and_unknown_algorithm`), crates/jolyne/src/proto/compression.rs (`engine_follows_the_negotiated_algorithm_and_level`), crates/jolyne/src/proto/conn.rs (`enabling_compression_and_encryption_seals_pending_in_the_old_format`), crates/jolyne/src/proto/tests.rs (`compression_and_encryption_are_active_in_play`, `client_rejects_an_unknown_network_compression`)
 
 ### Requirement: Batch framing and inbound limits
 A batch SHALL be `[0xFE when RakNet][algorithm byte once negotiated][(varuint length, header varuint, body)*]`, where the header holds a ten-bit packet ID and two two-bit subclient IDs. Inbound batches MUST be bounded by `BatchLimits` and a violation MUST be a terminal error for the connection.
@@ -146,7 +146,7 @@ When `encryption_enabled`, the server SHALL send `ServerToClientHandshake` in pl
 - **WHEN** `ClientConfig::require_encryption` is set and the server sends `PlayStatus(LoginSuccess)` without a handshake
 - **THEN** the client fails with `InvalidHandshake`; with the default `false` it continues
 
-Evidence: crates/jolyne/src/proto/handshake.rs (`derive_key_matches_an_independent_vector`, `token_roundtrip_derives_matching_keys`, `rejects_non_es384_and_tampered_tokens`), crates/jolyne/src/proto/crypto.rs (`BatchCipher`, `known_vectors_preserve_continuous_stream_and_batch_counter`, `tampering_zeroizes_plaintext_and_invalidates_cipher_permanently`, `exhausted_keystream_invalidates_instead_of_panicking`), crates/jolyne/src/proto/conn.rs (`checksum_failure_is_terminal_for_the_connection`, `unreliable_batches_are_refused_once_encrypted`), crates/jolyne/src/proto/tests.rs (`client_can_require_encryption`)
+Evidence: crates/jolyne/src/proto/handshake.rs (`derive_key_matches_an_independent_vector`, `token_roundtrip_derives_matching_keys`, `rejects_non_es384_and_tampered_tokens`), crates/jolyne/src/proto/tests.rs (`client_rejects_a_duplicate_server_handshake`), crates/jolyne/src/proto/crypto.rs (`BatchCipher`, `known_vectors_preserve_continuous_stream_and_batch_counter`, `tampering_zeroizes_plaintext_and_invalidates_cipher_permanently`, `exhausted_keystream_invalidates_instead_of_panicking`), crates/jolyne/src/proto/conn.rs (`checksum_failure_is_terminal_for_the_connection`, `unreliable_batches_are_refused_once_encrypted`), crates/jolyne/src/proto/tests.rs (`client_can_require_encryption`)
 
 ### Requirement: Bounded deferral of early packets
 A join phase that receives a packet belonging to a later phase SHALL keep it, compacted and in arrival order, and replay it ahead of unread packets into the next owner or the play session. The buffer MUST be bounded by `max_deferred_packets` and `max_deferred_bytes`, and overflowing it MUST fail the phase with `ProtocolError::DeferredOverflow`.
@@ -183,7 +183,7 @@ Every join phase SHALL have an absolute deadline, checked first in `advance`, th
 Evidence: crates/jolyne/src/proto/phase.rs (`deadline_after`), crates/jolyne/src/config.rs (`BedrockListenerConfig::default`, `ClientConfig::default`), crates/jolyne/src/stream/server/mod.rs (`authenticate`), crates/jolyne/src/proto/tests.rs (`each_stage_has_a_mandatory_deadline`, `deadline_elapses_exactly_at_login_timeout`, `huge_configured_timeouts_mean_far_deadlines_not_overflow`, `resource_pack_timeouts_and_failures_have_their_own_disconnect_reasons`), crates/jolyne/src/stream/tests.rs (`advancing_is_bounded_by_the_step_deadline`)
 
 ### Requirement: Spawn completion
-After `StartGame` the server SHALL answer the first `RequestChunkRadius` (radius at least 1, else `ProtocolError::InvalidChunkRadius`) with `ChunkRadiusUpdated` carrying `WorldJoinParams::chunk_radius` when set, and complete at a `SetLocalPlayerAsInitialized` whose runtime ID equals the `StartGame` one, else `ProtocolError::RuntimeIdMismatch`. A streamed spawn MUST hand over the session at the radius request and enforce both checks on the play receive path.
+After `StartGame` the server SHALL answer the first `RequestChunkRadius` (radius at least 1, else `InvalidChunkRadius`) with `ChunkRadiusUpdated` carrying `WorldJoinParams::chunk_radius` when set, and complete at a `SetLocalPlayerAsInitialized` whose runtime ID equals the `StartGame` one, else `RuntimeIdMismatch`. One sent before the radius request MUST be checked and held, never completing the spawn alone. A streamed spawn MUST hand over at the radius request.
 
 #### Scenario: Server override
 - **WHEN** the client requests radius 16 and the join params set radius 4
@@ -197,7 +197,19 @@ After `StartGame` the server SHALL answer the first `RequestChunkRadius` (radius
 - **WHEN** `start_game_streamed` is used
 - **THEN** the radius answer is `ChunkRadiusUpdated` only, the session reports `is_initialized() == false`, and play receives fail with `RuntimeIdMismatch` or `Timeout(Spawn)` until a matching `SetLocalPlayerAsInitialized` arrives
 
-Evidence: crates/jolyne/src/proto/server.rs (`ServerSpawn`), crates/jolyne/src/proto/session.rs (`Session::next_packet`), crates/jolyne/src/proto/tests.rs (`chunk_radius_requires_one_and_honours_the_server_override`, `runtime_id_mismatch_is_rejected`, `spawn_does_not_announce_terrain_it_does_not_send`, `streamed_spawn_lets_the_application_deliver_the_view_first`, `streamed_spawn_keeps_the_spawn_deadline_and_runtime_id_check`), crates/jolyne/src/stream/tests.rs (`streamed_spawn_completes_on_the_play_receive_path`, `streamed_spawn_times_out_on_the_play_receive_path`)
+#### Scenario: Initialize before the radius request
+- **WHEN** a client sends a matching `SetLocalPlayerAsInitialized` before its first `RequestChunkRadius`
+- **THEN** the server holds it and still answers the radius (`ChunkRadiusUpdated`, plus `PlayStatus(PlayerSpawn)` for `start_game`), then completes the spawn with the radius known; a streamed spawn hands over a session that is already initialized
+
+#### Scenario: Radius never requested
+- **WHEN** a client sends `SetLocalPlayerAsInitialized` and never sends `RequestChunkRadius`
+- **THEN** the spawn fails with `Timeout(Spawn)` at the spawn deadline
+
+#### Scenario: Client spawn checks
+- **WHEN** a client receives a `ChunkRadiusUpdated` below 1, or a second `StartGame` with a different runtime ID
+- **THEN** it fails with `InvalidChunkRadius` or `ConflictingStartGame`
+
+Evidence: crates/jolyne/src/proto/server.rs (`ServerSpawn`), crates/jolyne/src/proto/session.rs (`Session::next_packet`), crates/jolyne/src/proto/tests.rs (`chunk_radius_requires_one_and_honours_the_server_override`, `runtime_id_mismatch_is_rejected`, `spawn_does_not_announce_terrain_it_does_not_send`, `streamed_spawn_lets_the_application_deliver_the_view_first`, `streamed_spawn_keeps_the_spawn_deadline_and_runtime_id_check`, `early_initialize_still_gets_the_spawn_answer`, `streamed_early_initialize_hands_over_an_initialized_session`, `client_rejects_a_chunk_radius_below_one`, `client_rejects_a_conflicting_start_game`), crates/jolyne/docs/LOGIN_SEQUENCE.md, crates/jolyne/src/stream/tests.rs (`streamed_spawn_completes_on_the_play_receive_path`, `streamed_spawn_times_out_on_the_play_receive_path`)
 
 ### Requirement: Refusals and disconnects
 A failed step SHALL keep its connection in `Failed`; `Failed::disconnect()` MUST send a `Disconnect` whose reason is mapped from the error and whose message is one fixed sentence per reason, never the error text. Refusals MUST be answered by the phase itself: `PlayStatus(LoginFailedServerFull)` when `max_players` is reached and `Disconnect{Kicked}` with the hook's message when admission refuses. An inbound `Disconnect` MUST surface once as `JolyneError::Disconnected`, then `ConnectionClosed`.
