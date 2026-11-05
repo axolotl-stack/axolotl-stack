@@ -10,7 +10,9 @@ The process exits `0` only after a requested shutdown (Ctrl+C or `SIGTERM`).
 Any failure it cannot recover from (startup failure, exhausted token refreshes,
 a failed transfer-server recovery, a transfer-server error or panic) is returned
 from `Axelerator::run` and the process exits non-zero, so the systemd unit's
-`Restart=on-failure` restarts it.
+`Restart=on-failure` restarts it. The unit has no start-rate limit
+(`StartLimitIntervalSec=0`) and backs off from 5 s to 5 min between restarts
+(`RestartSteps=`, systemd 254+), so a long outage never leaves it failed.
 
 On Ctrl+C or `SIGTERM` the gateway stops advertising, sets presence inactive,
 stops RTA, saves friend history and sends the Discord shutdown notice before
