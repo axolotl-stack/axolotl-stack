@@ -164,8 +164,8 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     if let Err(e) = closed {
         trace!(session_id, "Closing connection failed: {e}");
     }
-    // Close the inbound queue first, so the tick loop's drain of it on
-    // `Disconnected` is finite.
+    // Close the inbound queue before reporting `Disconnected`, so what the tick
+    // loop drops on `Disconnected` is all this session will ever send.
     drop(inbound_tx);
     let _ = event_tx
         .send(NetworkEvent::Disconnected { session_id })

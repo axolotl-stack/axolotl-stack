@@ -85,20 +85,27 @@ impl<T> InboundQueues<T> {
         routed
     }
 
-    /// The session's network task has ended: route what it still had queued (its sender
-    /// is gone, so this is bounded by the queue capacity) and forget the session.
-    /// Returns how many packets were routed.
-    pub fn close(&mut self, session_id: SessionId, mut route: impl FnMut(SessionId, T)) -> usize {
+    /// The session's network task has ended: forget its queue and drop what it still
+    /// held. The client is gone, so there is no prediction left to keep in step, and
+    /// routing the rest at once would let a leaving flooder spend several ticks' budget
+    /// in one. Returns how many packets were dropped.
+    pub fn close(&mut self, session_id: SessionId) -> usize {
         let Some(mut receiver) = self.sessions.remove(&session_id) else {
             return 0;
         };
         receiver.close();
-        let mut routed = 0;
-        while let Ok(packet) = receiver.try_recv() {
-            route(session_id, packet);
-            routed += 1;
+        let mut dropped = 0;
+        while receiver.try_recv().is_ok() {
+            dropped += 1;
         }
-        routed
+        if dropped > 0 {
+            tracing::debug!(
+                session_id,
+                dropped,
+                "dropping a closed session's queued packets"
+            );
+        }
+        dropped
     }
 
     /// Number of sessions with a registered queue.
@@ -236,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn closing_a_session_routes_its_remaining_packets_then_forgets_it() {
+    fn closing_a_session_drops_its_remaining_packets_then_forgets_it() {
         let (tx, rx) = session_inbound();
         let mut queues = InboundQueues::default();
         queues.register(3, rx);
@@ -246,10 +253,9 @@ mod tests {
         drop(tx);
         assert_eq!(routed(&mut queues).len(), 64);
 
-        let mut rest = Vec::new();
-        assert_eq!(queues.close(3, |s, p| rest.push((s, p))), 36);
-        assert_eq!(rest, (64..100).map(|p| (3, p)).collect::<Vec<_>>());
+        assert_eq!(queues.close(3), 36);
         assert!(queues.is_empty());
-        assert_eq!(queues.close(3, |_, _| unreachable!()), 0);
+        assert_eq!(routed(&mut queues), []);
+        assert_eq!(queues.close(3), 0);
     }
 }

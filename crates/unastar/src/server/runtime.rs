@@ -309,75 +309,20 @@ impl UnastarServer {
 
                     let tick_start = std::time::Instant::now();
 
-                    // Drain session events, then each session's packets (up to
-                    // its per-tick budget; the rest wait for the next tick).
-                    let mut events_processed = 0usize;
-                    let mut disconnected = Vec::new();
-                    while let Ok(event) = event_rx.try_recv() {
-                        events_processed += 1;
-                        match event {
-                            NetworkEvent::Joined {
-                                session_id,
-                                display_name,
-                                xuid,
-                                uuid,
-                                runtime_id,
-                                initial_position,
-                                saved_data,
-                                chunk_radius,
-                                outbound_tx,
-                                inbound_rx,
-                            } => {
-                                // Registered even when the spawn is refused: the
-                                // router drops packets of sessions without a player.
-                                inbound.register(session_id, inbound_rx);
-                                spawn_or_reject(
-                                    &mut self.server,
-                                    PlayerSpawnData {
-                                        session_id,
-                                        display_name,
-                                        xuid,
-                                        uuid,
-                                        runtime_id,
-                                        position: initial_position,
-                                        saved_data: saved_data.map(|data| *data),
-                                        outbound_tx,
-                                        chunk_radius,
-                                    },
-                                );
-                            }
-                            NetworkEvent::Disconnected { session_id } => {
-                                disconnected.push(session_id);
-                            }
-                        }
-                    }
-                    let server = &mut self.server;
-                    let mut route = |session_id, (packet_args, packet): InboundPacket| {
-                        server.route_packet(session_id, packet_args, *packet);
-                    };
-                    events_processed += inbound.drain_tick(&mut route);
-                    // A leaving session's last packets are applied before it despawns.
-                    for &session_id in &disconnected {
-                        events_processed += inbound.close(session_id, &mut route);
-                    }
-                    for session_id in disconnected {
-                        if self.config.players.save_on_disconnect {
-                            let saved = self.server.save_player(session_id).await;
-                            if saved {
-                                info!(session_id, "Player data saved on disconnect");
-                            }
-                        }
-                        self.server.despawn_player(session_id);
-                    }
-
-                    let events_elapsed = tick_start.elapsed();
-
-                    // Run game tick (this queues packets to broadcast systems)
                     let tick_logic_start = std::time::Instant::now();
-                    self.server.tick();
-
-                    // Run plugin tick
-                    self.plugin_manager.tick(self.server.ecs.world_mut());
+                    let plugin_manager = &mut self.plugin_manager;
+                    let events_processed = network_tick(
+                        &mut self.server,
+                        &mut event_rx,
+                        &mut inbound,
+                        self.config.players.save_on_disconnect,
+                        |server| {
+                            // Game tick (queues packets to broadcast systems), then plugins.
+                            server.tick();
+                            plugin_manager.tick(server.ecs.world_mut());
+                        },
+                    )
+                    .await;
                     let tick_logic_elapsed = tick_logic_start.elapsed();
 
                     // Signal all network tasks to flush their buffers
@@ -390,7 +335,6 @@ impl UnastarServer {
                         trace!(
                             tick = tick_count,
                             events = events_processed,
-                            events_ms = events_elapsed.as_millis(),
                             tick_ms = tick_logic_elapsed.as_millis(),
                             total_ms = total_elapsed.as_millis(),
                             "Tick timing"
@@ -425,6 +369,74 @@ impl UnastarServer {
         info!("Server shutdown complete");
         Ok(())
     }
+}
+
+/// One tick of the server loop as far as the network is concerned, in this order:
+/// apply join events, route each session's packets within its per-tick budget, drop
+/// what leaving sessions still had queued, run `game_tick` (which applies the routed
+/// packets), then save and despawn the leaving sessions. Saving after the game tick is
+/// what makes a leaving player's last routed packets part of its saved state. Returns
+/// how many events and packets were taken.
+async fn network_tick(
+    server: &mut GameServer,
+    event_rx: &mut mpsc::Receiver<NetworkEvent>,
+    inbound: &mut InboundQueues,
+    save_on_disconnect: bool,
+    game_tick: impl FnOnce(&mut GameServer),
+) -> usize {
+    let mut events_processed = 0usize;
+    let mut disconnected = Vec::new();
+    while let Ok(event) = event_rx.try_recv() {
+        events_processed += 1;
+        match event {
+            NetworkEvent::Joined {
+                session_id,
+                display_name,
+                xuid,
+                uuid,
+                runtime_id,
+                initial_position,
+                saved_data,
+                chunk_radius,
+                outbound_tx,
+                inbound_rx,
+            } => {
+                // Registered even when the spawn is refused: the router drops packets
+                // of sessions without a player.
+                inbound.register(session_id, inbound_rx);
+                spawn_or_reject(
+                    server,
+                    PlayerSpawnData {
+                        session_id,
+                        display_name,
+                        xuid,
+                        uuid,
+                        runtime_id,
+                        position: initial_position,
+                        saved_data: saved_data.map(|data| *data),
+                        outbound_tx,
+                        chunk_radius,
+                    },
+                );
+            }
+            NetworkEvent::Disconnected { session_id } => disconnected.push(session_id),
+        }
+    }
+    let mut route = |session_id, (packet_args, packet): InboundPacket| {
+        server.route_packet(session_id, packet_args, *packet);
+    };
+    events_processed += inbound.drain_tick(&mut route);
+    for &session_id in &disconnected {
+        inbound.close(session_id);
+    }
+    game_tick(server);
+    for session_id in disconnected {
+        if save_on_disconnect && server.save_player(session_id).await {
+            info!(session_id, "Player data saved on disconnect");
+        }
+        server.despawn_player(session_id);
+    }
+    events_processed
 }
 
 /// Message of the `Disconnect` sent to a player whose saved data cannot be restored.
@@ -677,5 +689,215 @@ mod tests {
             .unwrap()
             .join()
             .unwrap();
+    }
+}
+
+/// The tick loop's handling of joins, packets and leaves, driven through
+/// [`network_tick`] exactly as `run()` drives it.
+#[cfg(test)]
+mod network_tick_tests {
+    use super::*;
+    use crate::network::inbound::session_inbound;
+    use crate::storage::{PlayerData, PlayerProvider, StorageResult};
+    use bytes::BytesMut;
+    use jolyne::valentine::types::Vec3;
+    use jolyne::valentine::{
+        BorrowedMcpePacket, McpePacket, McpePacketArgs, PlayerAuthInputPacket,
+    };
+    use std::collections::HashMap;
+
+    const SESSION: u64 = 5;
+    const START_X: f64 = 0.5;
+
+    /// Player records kept in memory.
+    #[derive(Default)]
+    struct MemoryPlayers(parking_lot::Mutex<HashMap<uuid::Uuid, PlayerData>>);
+
+    #[async_trait::async_trait]
+    impl PlayerProvider for MemoryPlayers {
+        async fn load(&self, uuid: uuid::Uuid) -> StorageResult<Option<PlayerData>> {
+            Ok(self.0.lock().get(&uuid).cloned())
+        }
+        async fn save(&self, uuid: uuid::Uuid, data: &PlayerData) -> StorageResult<()> {
+            self.0.lock().insert(uuid, data.clone());
+            Ok(())
+        }
+        async fn delete(&self, uuid: uuid::Uuid) -> StorageResult<()> {
+            self.0.lock().remove(&uuid);
+            Ok(())
+        }
+        async fn close(&self) -> StorageResult<()> {
+            Ok(())
+        }
+    }
+
+    /// A packet as the network task hands it over: encoded, then decoded borrowed.
+    fn inbound(packet: impl Into<McpePacket>) -> InboundPacket {
+        let packet: McpePacket = packet.into();
+        let mut buf = BytesMut::new();
+        packet.data.encode_inner(&mut buf, 0, 0).unwrap();
+        let borrowed = BorrowedMcpePacket::decode_inner(&mut buf.freeze()).unwrap();
+        (McpePacketArgs, Box::new(borrowed))
+    }
+
+    /// One `PlayerAuthInput` moving the player to `x` (eye height kept).
+    fn move_to(x: f64) -> InboundPacket {
+        inbound(PlayerAuthInputPacket {
+            position: Vec3 {
+                x: x as f32,
+                y: 17.0 + 1.62,
+                z: 0.5,
+            },
+            ..Default::default()
+        })
+    }
+
+    struct Harness {
+        server: GameServer,
+        players: Arc<MemoryPlayers>,
+        events: mpsc::Sender<NetworkEvent>,
+        event_rx: mpsc::Receiver<NetworkEvent>,
+        inbound: InboundQueues,
+        packets: mpsc::Sender<InboundPacket>,
+        /// Keeps the session's outbound queue open.
+        _outbound: mpsc::Receiver<McpePacket>,
+    }
+
+    fn uuid() -> uuid::Uuid {
+        uuid::Uuid::from_u128(u128::from(SESSION))
+    }
+
+    /// A server with in-memory player storage and one session's `Joined` queued.
+    fn harness() -> Harness {
+        let mut server = GameServer::with_config(crate::ServerConfig {
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            ..Default::default()
+        });
+        let players = Arc::new(MemoryPlayers::default());
+        server
+            .ecs
+            .world_mut()
+            .insert_resource(crate::server::game::types::PlayerProviderResource(
+                players.clone(),
+            ));
+        let (events, event_rx) = mpsc::channel(16);
+        let (outbound_tx, outbound) = mpsc::channel(4096);
+        let (packets, inbound_rx) = session_inbound();
+        events
+            .try_send(NetworkEvent::Joined {
+                session_id: SESSION,
+                display_name: "leaver".into(),
+                xuid: None,
+                uuid: Some(uuid().to_string()),
+                runtime_id: SESSION as i64,
+                initial_position: glam::DVec3::new(START_X, 17.0, 0.5),
+                saved_data: None,
+                chunk_radius: 0,
+                outbound_tx,
+                inbound_rx,
+            })
+            .unwrap();
+        Harness {
+            server,
+            players,
+            events,
+            event_rx,
+            inbound: InboundQueues::default(),
+            packets,
+            _outbound: outbound,
+        }
+    }
+
+    impl Harness {
+        async fn tick(&mut self) -> usize {
+            network_tick(
+                &mut self.server,
+                &mut self.event_rx,
+                &mut self.inbound,
+                true,
+                GameServer::tick,
+            )
+            .await
+        }
+
+        /// The network task ends: its queue closes, then `Disconnected` follows.
+        fn leave(&mut self) {
+            let (closed, _) = mpsc::channel(1);
+            drop(std::mem::replace(&mut self.packets, closed));
+            self.events
+                .try_send(NetworkEvent::Disconnected {
+                    session_id: SESSION,
+                })
+                .unwrap();
+        }
+
+        fn saved_x(&self) -> Option<f64> {
+            self.players
+                .0
+                .lock()
+                .get(&uuid())
+                .map(|data| data.position[0])
+        }
+
+        fn joined(&self) -> bool {
+            self.server
+                .ecs
+                .world()
+                .resource::<crate::SessionEntityMap>()
+                .get(SESSION)
+                .is_some()
+        }
+    }
+
+    /// Runs `test` on a current-thread runtime on a thread with a large stack (the
+    /// server's join packets need it in debug builds).
+    fn on_big_stack<F, Fut>(test: F)
+    where
+        F: FnOnce() -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = ()>,
+    {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+                    .block_on(test());
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    /// register -> drain -> close -> save -> despawn: the packets routed in the
+    /// leaving tick are applied before the save, and the rest of the queue is dropped
+    /// rather than routed past the per-tick budget.
+    #[test]
+    fn a_leaving_session_is_saved_after_its_budgeted_packets_and_the_rest_are_dropped() {
+        on_big_stack(|| async {
+            let mut h = harness();
+            // 100 one-block steps east, all queued before the tick that sees the leave.
+            for step in 1..=100 {
+                h.packets
+                    .try_send(move_to(START_X + f64::from(step)))
+                    .unwrap();
+            }
+            h.leave();
+            let taken = h.tick().await;
+
+            // Joined + Disconnected + one tick's budget of packets.
+            assert_eq!(
+                taken,
+                2 + crate::network::inbound::MAX_PACKETS_PER_SESSION_PER_TICK
+            );
+            assert!(!h.joined(), "the leaver is despawned");
+            assert_eq!(
+                h.saved_x(),
+                Some(START_X + crate::network::inbound::MAX_PACKETS_PER_SESSION_PER_TICK as f64),
+                "the save sees the 64 packets applied this tick and none of the rest"
+            );
+            assert!(h.inbound.is_empty());
+        });
     }
 }

@@ -67,8 +67,10 @@ the rest queued for the next tick, so a legitimate burst is delayed, never dropp
 or reordered. The session that goes first rotates each tick, so no session always
 wins a race decided within one tick (a shared chest slot, a contested block). A network task that finds its own queue full (the client has kept
 sending faster than the budget for several ticks) closes its own connection; other
-sessions' queues are unaffected. A leaving session's queued packets are applied
-before it is saved and despawned.
+sessions' queues are unaffected. When a session leaves, the packets routed in that
+tick are applied by the game tick before the player is saved and despawned; what it
+still had queued beyond that tick's budget is dropped (the count is logged at debug),
+since the client has gone and there is no prediction left to keep in step.
 
 `PlayerAuthInput` is rejected whole (the player stays where it was) when its
 position, rotation, head yaw or move vector is not finite, or when the position is
