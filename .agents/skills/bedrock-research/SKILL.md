@@ -16,6 +16,7 @@ rg -n '<id>' docs/parity/*.toml
 
 1. **Measured BDS 1.26.51 behaviour**: our captures and sweeps (`crates/bds-extractor`,
    `tools/bds-sweep`, `tools/client-diff`, `crates/unastar-data/data/measured/`, test fixtures).
+   What each tool measures and needs: `docs/guides/tools.md`.
    If the question matters and no measurement exists, propose one rather than guessing.
 2. **Data BDS ships**: protocolgen's pinned native inputs and manifest
    (`crates/valentine_gen/protocolgen/`), the vanilla behaviour packs, Mojang's published

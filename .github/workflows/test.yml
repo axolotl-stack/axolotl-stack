@@ -68,6 +68,8 @@ jobs:
           cargo test -p jolyne --all-features
           cargo test -p tokio-nethernet
           cargo test -p axolotl-xbl
+          cargo test -p parity
+          cargo test -p unastar-rules -p unastar-packs -p unastar-data
           cargo check -p unastar --all-targets
           cargo test -p unastar --lib --tests
 
