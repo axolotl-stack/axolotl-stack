@@ -770,7 +770,8 @@ the first chunk is held and then every 30 seconds while any stay held. It's a
 warning, or an error from 64 held chunks.
 Shutdown (Ctrl+C or `/stop`) saves every player, then every chunk with something
 to write, then closes the world and player databases so queued writes reach
-disk; a failed close makes the process exit with an error.
+disk. If any player or chunk save fails, or a database doesn't close cleanly,
+the process exits with an error naming how many saves failed.
 
 Player state is loaded through the configured player provider before StartGame
 and restored before initial inventory, abilities, and attributes are sent.

@@ -129,6 +129,7 @@ fn save_all_chunks(server: &mut GameServer) -> usize {
         .build()
         .unwrap()
         .block_on(server.save_all_chunks())
+        .saved
 }
 
 #[test]

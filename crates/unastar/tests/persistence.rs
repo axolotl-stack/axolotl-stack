@@ -78,7 +78,7 @@ async fn async_stored_chunks_survive_save_cycle_for_both_providers() {
                 .unwrap()
                 .is_dirty()
         );
-        assert_eq!(server.save_all_chunks().await, 0);
+        assert_eq!(server.save_all_chunks().await.saved, 0);
         assert_eq!(
             provider
                 .load_column(ChunkPos::new(2, -3), 0)

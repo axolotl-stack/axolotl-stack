@@ -415,8 +415,18 @@ impl UnastarServer {
             chunks = result.chunks_saved,
             "Player and chunk data saved"
         );
-        if !result.closed {
-            return Err("storage did not close cleanly; recent saves may be lost".into());
+        if !result.is_clean() {
+            return Err(format!(
+                "shutdown lost data: {} player saves and {} chunk saves failed{}",
+                result.players_failed,
+                result.chunks_failed,
+                if result.closed {
+                    ""
+                } else {
+                    ", and storage did not close cleanly"
+                }
+            )
+            .into());
         }
         info!("Server shutdown complete");
         Ok(())
