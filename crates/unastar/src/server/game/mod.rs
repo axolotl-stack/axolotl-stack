@@ -1237,6 +1237,104 @@ mod tests {
         }
     }
 
+    /// Storage whose every read fails.
+    struct UnreadableWorld;
+
+    #[async_trait::async_trait]
+    impl crate::storage::WorldProvider for UnreadableWorld {
+        async fn load_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+        ) -> crate::storage::StorageResult<Option<crate::storage::ChunkColumn>> {
+            Err(crate::storage::StorageError::Database(
+                "unreadable column".into(),
+            ))
+        }
+        async fn save_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+            _: &crate::storage::ChunkColumn,
+        ) -> crate::storage::StorageResult<()> {
+            panic!("a failed read must never produce terrain to save")
+        }
+        async fn flush(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+    }
+
+    /// The synchronous chunk-load system drops a request whose storage read
+    /// fails: the tick doesn't panic, no chunk entity is created, the chunk
+    /// isn't marked loaded for the player and no `LevelChunk` is sent.
+    #[test]
+    fn a_storage_read_error_on_the_sync_load_path_drops_the_request() {
+        let mut server = void_server();
+        assert!(
+            !server
+                .ecs
+                .world()
+                .resource::<ChunkManager>()
+                .has_async_generation(),
+            "the void world loads chunks on the synchronous path"
+        );
+        server
+            .ecs
+            .world_mut()
+            .resource_mut::<ChunkManager>()
+            .set_provider(Arc::new(UnreadableWorld));
+        let (outbound_tx, mut rx) = tokio::sync::mpsc::channel(1 << 16);
+        let player = server
+            .spawn_player(PlayerSpawnData {
+                session_id: 1,
+                display_name: "Steve".into(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000001".into()),
+                runtime_id: 1,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .unwrap();
+        assert!(
+            server
+                .ecs
+                .world()
+                .get::<ChunkLoader>(player)
+                .unwrap()
+                .has_pending(),
+            "the player starts with chunks to load"
+        );
+
+        for _ in 0..3 {
+            server.tick();
+        }
+
+        let world = server.ecs.world_mut();
+        assert!(world.resource::<ChunkManager>().is_empty());
+        assert_eq!(
+            world
+                .query::<&crate::world::ecs::ChunkData>()
+                .iter(world)
+                .count(),
+            0
+        );
+        let loader = world.get::<ChunkLoader>(player).unwrap();
+        assert_eq!(loader.loaded_count(), 0);
+        assert!(!loader.is_loaded(0, 0));
+        let mut level_chunks = 0;
+        while let Ok(packet) = rx.try_recv() {
+            if packet.data.packet_id() == McpePacketName::LevelChunkPacket {
+                level_chunks += 1;
+            }
+        }
+        assert_eq!(level_chunks, 0);
+    }
+
     struct RefusingPlayers;
 
     #[async_trait::async_trait]
