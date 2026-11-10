@@ -11,6 +11,7 @@ from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import bds_runtime  # noqa: E402
 import native  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
@@ -193,6 +194,22 @@ class Wear(unittest.TestCase):
                   {'held_after': None}]
         self.assertEqual(summarize.wear_per_trial({'item': 'minecraft:golden_sword', 'damage': 0}, trials),
                          [1, 2, None])
+
+
+class RuntimeSlotTest(unittest.TestCase):
+    def test_only_processes_from_this_server_folder_belong_to_the_runtime(self):
+        server = Path(tempfile.gettempdir()) / 'slot1' / 'server'
+        self.assertTrue(bds_runtime.process_in_runtime(str(server / 'bedrock_server.exe'), server))
+        other = Path(tempfile.gettempdir()) / 'slot2' / 'server' / 'bedrock_server.exe'
+        self.assertFalse(bds_runtime.process_in_runtime(str(other), server))
+        self.assertTrue(bds_runtime.process_in_runtime('?', server))
+
+    def test_session_ports_follow_the_runtime_port(self):
+        properties = bds_runtime.base_properties('level')
+        self.assertEqual(properties['server-port'], bds_runtime.PORT)
+        self.assertEqual(properties['server-portv6'], bds_runtime.PORT + 1)
+        self.assertEqual(properties['enable-lan-visibility'], 'false')
+        self.assertEqual(bds_runtime.ADDR, f'127.0.0.1:{bds_runtime.PORT}')
 
 
 if __name__ == '__main__':

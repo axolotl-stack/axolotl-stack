@@ -2,13 +2,13 @@
 
 Measures BDS 1.26.51 on loopback so unastar can copy it (decisions D3/D4):
 packet captures with `bds-extractor` (T1) and built-in facts with an Endstone
-sweep harness (T2). Everything here needs the **exclusive** shared BDS slot
-(`C:/Users/jvigu/orca/bds-runtime`): announce long runs to the coordinator and
-the impl workers first. Never launches the Minecraft client.
+sweep harness (T2). Everything here needs a BDS runtime: the shared one
+(`C:/Users/jvigu/orca/bds-runtime`, one session at a time) or a parallel slot
+(see [Parallel slots](#parallel-slots)). Never launches the Minecraft client.
 
 | File | Role |
 |---|---|
-| `bds_runtime.py` | Starts/stops the shared BDS (plain or under Endstone): refuses when a `bedrock_server` runs or the port is bound, backs up and restores `server.properties`, harness-owned world names only, graceful `stop` |
+| `bds_runtime.py` | Starts/stops the BDS of one runtime, `BDS_RUNTIME` on `BDS_PORT` (plain or under Endstone): refuses when a `bedrock_server` from that runtime's `server/` runs or the port is bound, backs up and restores `server.properties`, harness-owned world names only, graceful `stop` |
 | `capture.py` | T1: two `bds-extractor --capture-dir` sessions on plain BDS (member join; operator join + `/summon` of every summonable identifier) into `<runtime>/captures/1.26.51/<UTC>/`; `--commands FILE` runs one operator session of scripted commands instead (`operator-commands/command-outputs.json`) |
 | `command-script.txt` | The vanilla command feedback script for `capture.py --commands` |
 | `command_digest.py` | `command-outputs.json` to a readable per-command `digest.md` (CommandOutput fields, key fields of every other packet) |
@@ -26,6 +26,36 @@ $py = 'C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe'
 & $py -m pip install --no-deps -e tools/bds-sweep/endstone-sweep
 cargo build -p bds-extractor -p bds-sweep
 ```
+
+## Parallel slots
+
+The shared runtime runs one BDS at a time. To run several captures or sweeps at
+once, use slot runtimes: copies of the server folder, each on its own port. The
+launcher only refuses a `bedrock_server` started from its own `server/` folder,
+so slots never block each other. A slot directory holds `server/` (a copy of the
+shared server without its worlds, logs or crash reports), `world-template/`,
+`captures/`, `sweeps/` and `venv`, a directory junction to the shared venv, so
+the editable `endstone-bds-sweep` install is shared.
+
+| Slot | `BDS_RUNTIME` | `BDS_PORT` |
+|---|---|---|
+| 1 | `C:/Users/jvigu/orca/bds-slots/slot1` | 19150 |
+| 2 | `C:/Users/jvigu/orca/bds-slots/slot2` | 19160 |
+| 3 | `C:/Users/jvigu/orca/bds-slots/slot3` | 19170 |
+| 4 | `C:/Users/jvigu/orca/bds-slots/slot4` | 19180 |
+
+Set both variables before running `capture.py` or `sweep.py`; the harness passes
+`127.0.0.1:<BDS_PORT>` to `bds-extractor` and `bds-sweep-client`. The IPv6 port
+is `BDS_PORT + 1`. Keep slot ports off 19132, where unastar listens. Agents
+sharing the machine claim a slot with `mkdir <slot>/agent.lock` (atomic), write
+who and what into `agent.lock/owner.txt`, and remove the directory when the run
+ends.
+
+To create a slot, copy `bds-runtime/server` without `worlds/`, `logs/` and
+`crash_reports/`, copy `world-template/`, create empty `server/worlds/`,
+`captures/` and `sweeps/`, and link the venv:
+`mklink /J <slot>\venv C:\Users\jvigu\orca\bds-runtime\venv`. Slots hold the
+same BDS 1.26.51 build; the launcher checks `version.txt` either way.
 
 ## Scripted client controls
 
