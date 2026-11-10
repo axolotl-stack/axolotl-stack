@@ -103,12 +103,12 @@
 "minecraft:nautilus/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but nautilus cannot spawn yet" }
 "minecraft:nautilus/is_saddled" = { status = "partial", owner = "entities", gaps = "saddling sets the SADDLED flag through the interact row, untested; saddled mobs cannot be ridden; nautilus cannot spawn yet" }
 "minecraft:nautilus/is_tamed" = { status = "missing", gaps = "not implemented: needs taming and owners" }
-"minecraft:nautilus/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:nautilus/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but nautilus cannot spawn yet" }
 "minecraft:nautilus/leashable" = { status = "missing", gaps = "leads are not implemented; using a lead on the mob does nothing" }
 "minecraft:nautilus/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
 "minecraft:nautilus/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but nautilus cannot spawn yet" }
 "minecraft:nautilus/mob_effect" = { status = "missing", gaps = "not implemented: needs mob effects" }
-"minecraft:nautilus/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:nautilus/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented (attack effects skip immune mobs) and tested on the zombie pigman, but nautilus cannot spawn yet" }
 "minecraft:nautilus/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but nautilus cannot spawn yet" }
 "minecraft:nautilus/movement.sway" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:nautilus/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; nautilus cannot spawn yet" }
@@ -290,7 +290,7 @@
 "minecraft:ender_dragon/game_event_movement_tracking" = { status = "missing", gaps = "game events and vibrations are not implemented; no movement vibrations are emitted" }
 "minecraft:ender_dragon/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:ender_dragon/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet" }
-"minecraft:ender_dragon/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:ender_dragon/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but ender_dragon cannot spawn yet" }
 "minecraft:ender_dragon/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet" }
 "minecraft:ender_dragon/on_death" = { status = "missing", gaps = "not implemented: needs bosses" }
 "minecraft:ender_dragon/on_start_landing" = { status = "missing", gaps = "not implemented: needs bosses" }
@@ -361,7 +361,7 @@
 "minecraft:blaze/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
 "minecraft:blaze/fire_immune" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:blaze/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:blaze/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but blaze cannot spawn yet" }
 "minecraft:blaze/freezing_vulnerable" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:blaze/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:blaze/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
@@ -440,12 +440,12 @@
 "minecraft:breeze/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:breeze/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
 "minecraft:breeze/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
-"minecraft:breeze/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:breeze/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but breeze cannot spawn yet" }
 "minecraft:breeze/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:breeze/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
 "minecraft:breeze/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
 "minecraft:breeze/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
-"minecraft:breeze/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:breeze/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but breeze cannot spawn yet" }
 "minecraft:breeze/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
 "minecraft:breeze/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
 "minecraft:breeze/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
@@ -512,7 +512,7 @@
 "minecraft:creaking/dimension_bound" = { status = "missing", gaps = "changing dimension is not implemented, so there are no portals to keep the actor out of; creaking cannot spawn yet" }
 "minecraft:creaking/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
 "minecraft:creaking/fire_immune" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
-"minecraft:creaking/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:creaking/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but creaking cannot spawn yet" }
 "minecraft:creaking/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
 "minecraft:creaking/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:creaking/home" = { status = "missing", gaps = "not implemented: needs villages and raids" }
@@ -520,7 +520,7 @@
 "minecraft:creaking/instant_despawn" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:creaking/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
 "minecraft:creaking/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
-"minecraft:creaking/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:creaking/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but creaking cannot spawn yet" }
 "minecraft:creaking/looked_at" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:creaking/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
 "minecraft:creaking/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creaking cannot spawn yet" }
@@ -635,7 +635,7 @@
 "minecraft:elder_guardian/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but elder_guardian cannot spawn yet" }
 "minecraft:elder_guardian/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:elder_guardian/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but elder_guardian cannot spawn yet" }
-"minecraft:elder_guardian/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:elder_guardian/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but elder_guardian cannot spawn yet" }
 "minecraft:elder_guardian/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but elder_guardian cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:elder_guardian/home" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:elder_guardian/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but elder_guardian cannot spawn yet" }
@@ -671,7 +671,7 @@
 "minecraft:enderman/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but enderman cannot spawn yet" }
 "minecraft:enderman/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but enderman cannot spawn yet" }
 "minecraft:enderman/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but enderman cannot spawn yet" }
-"minecraft:enderman/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:enderman/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but enderman cannot spawn yet" }
 "minecraft:enderman/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but enderman cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:enderman/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but enderman cannot spawn yet" }
 "minecraft:enderman/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but enderman cannot spawn yet" }
@@ -741,7 +741,7 @@
 "minecraft:evocation_illager/dweller" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:evocation_illager/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
-"minecraft:evocation_illager/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:evocation_illager/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:evocation_illager/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
@@ -772,7 +772,7 @@
 "minecraft:ghast/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/fire_immune" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
-"minecraft:ghast/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:ghast/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but ghast cannot spawn yet" }
 "minecraft:ghast/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:ghast/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
@@ -801,7 +801,7 @@
 "minecraft:guardian/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:guardian/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
 "minecraft:guardian/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
-"minecraft:guardian/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:guardian/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but guardian cannot spawn yet" }
 "minecraft:guardian/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:guardian/home" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:guardian/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
@@ -931,7 +931,7 @@
 "minecraft:parched/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet; loot functions not implemented: set_potion (an unsupported function or condition fails the roll)" }
-"minecraft:parched/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:parched/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented (attack effects skip immune mobs) and tested on the zombie pigman, but parched cannot spawn yet" }
 "minecraft:parched/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; parched cannot spawn yet" }
@@ -955,7 +955,7 @@
 "minecraft:phantom/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:phantom/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
 "minecraft:phantom/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
-"minecraft:phantom/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:phantom/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but phantom cannot spawn yet" }
 "minecraft:phantom/game_event_movement_tracking" = { status = "missing", gaps = "game events and vibrations are not implemented; no movement vibrations are emitted" }
 "minecraft:phantom/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:phantom/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
@@ -1004,7 +1004,7 @@
 "minecraft:piglin/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
 "minecraft:piglin/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
 "minecraft:piglin/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
-"minecraft:piglin/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:piglin/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but piglin cannot spawn yet" }
 "minecraft:piglin/group_size" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:piglin/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:piglin/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
@@ -1048,11 +1048,11 @@
 "minecraft:piglin_brute/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; piglin_brute cannot spawn yet" }
 "minecraft:piglin_brute/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet" }
 "minecraft:piglin_brute/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
-"minecraft:piglin_brute/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet" }
+"minecraft:piglin_brute/despawn" = { status = "partial", owner = "entities", gaps = "despawn filters are implemented and tested on the zoglin, but piglin_brute cannot spawn yet" }
 "minecraft:piglin_brute/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet" }
 "minecraft:piglin_brute/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet" }
 "minecraft:piglin_brute/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet" }
-"minecraft:piglin_brute/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:piglin_brute/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but piglin_brute cannot spawn yet" }
 "minecraft:piglin_brute/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:piglin_brute/home" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:piglin_brute/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin_brute cannot spawn yet" }
@@ -1102,7 +1102,7 @@
 "minecraft:pillager/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:pillager/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:pillager/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
-"minecraft:pillager/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:pillager/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but pillager cannot spawn yet" }
 "minecraft:pillager/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:pillager/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:pillager/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
@@ -1148,13 +1148,13 @@
 "minecraft:ravager/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/dweller" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:ravager/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
-"minecraft:ravager/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:ravager/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but ravager cannot spawn yet" }
 "minecraft:ravager/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:ravager/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/is_stunned" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:ravager/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
-"minecraft:ravager/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:ravager/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but ravager cannot spawn yet" }
 "minecraft:ravager/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
@@ -1215,7 +1215,7 @@
 "minecraft:silverfish/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
 "minecraft:silverfish/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
 "minecraft:silverfish/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
-"minecraft:silverfish/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:silverfish/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented (attack effects skip immune mobs) and tested on the zombie pigman, but silverfish cannot spawn yet" }
 "minecraft:silverfish/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
 "minecraft:silverfish/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
 "minecraft:silverfish/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; silverfish cannot spawn yet" }
@@ -1289,7 +1289,7 @@
 "minecraft:slime/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
 "minecraft:slime/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
 "minecraft:slime/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
-"minecraft:slime/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:slime/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented (attack effects skip immune mobs) and tested on the zombie pigman, but slime cannot spawn yet" }
 "minecraft:slime/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
 "minecraft:slime/movement.jump" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
 "minecraft:slime/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; slime cannot spawn yet" }
@@ -1436,7 +1436,7 @@
 "minecraft:vindicator/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
-"minecraft:vindicator/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:vindicator/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but vindicator cannot spawn yet" }
 "minecraft:vindicator/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:vindicator/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
@@ -1475,12 +1475,12 @@
 "minecraft:warden/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet" }
 "minecraft:warden/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet" }
 "minecraft:warden/fire_immune" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet" }
-"minecraft:warden/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:warden/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but warden cannot spawn yet" }
 "minecraft:warden/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:warden/heartbeat" = { status = "missing", gaps = "not implemented: needs warden behaviour" }
 "minecraft:warden/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet" }
 "minecraft:warden/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet" }
-"minecraft:warden/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:warden/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but warden cannot spawn yet" }
 "minecraft:warden/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet" }
 "minecraft:warden/mob_effect" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:warden/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but warden cannot spawn yet" }
@@ -1517,7 +1517,7 @@
 "minecraft:witch/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
 "minecraft:witch/dweller" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:witch/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
-"minecraft:witch/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:witch/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but witch cannot spawn yet" }
 "minecraft:witch/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:witch/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
 "minecraft:witch/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
@@ -1568,44 +1568,44 @@
 "minecraft:wither_skeleton/shareables" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_pick_up_a_better_sword_and_drop_their_old_one"] }
 "minecraft:wither_skeleton/spawn_rules" = { status = "missing", gaps = "the rule has no natural conditions: wither_skeleton spawns only from structures or villages, which do not spawn mobs yet" }
 "minecraft:wither_skeleton/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_belong_to_their_authored_families"] }
-"minecraft:zoglin" = { status = "missing", gaps = "not spawnable: needs custom_hit_test, knockback_resistance" }
-"minecraft:zoglin/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman (spreading, calm, sounds on the zoglin, filters, broadcast targets, spreading on hits and while dying), but zoglin cannot spawn yet" }
-"minecraft:zoglin/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
+"minecraft:zoglin" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_adult_zoglin_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/anger.rs::an_angry_zoglin_plays_its_angry_sound_until_it_calms", "crates/unastar/src/entity/mob/tests/facets.rs::a_zoglin_despawns_by_its_filters"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zoglin.bin", notes = "Sub-row gaps: knockback resistance is kept but pushes do not read it yet; leads and riding are not implemented; the zoglin does not climb out of a one-block pit in the jump test; no natural spawning (zoglins come from hoglin conversion). Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (see docs/research/mob-runtime-constants.md)." }
+"minecraft:zoglin/angry" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/anger.rs::an_angry_zoglin_plays_its_angry_sound_until_it_calms"], evidence = "crates/unastar/src/entity/mob/testdata/bds-1.26.51-anger-chain.json" }
+"minecraft:zoglin/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_hostile_mobs_target_and_hit_a_survival_player"] }
 "minecraft:zoglin/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
-"minecraft:zoglin/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; zoglin cannot spawn yet" }
-"minecraft:zoglin/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; zoglin cannot spawn yet" }
-"minecraft:zoglin/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
-"minecraft:zoglin/custom_hit_test" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
-"minecraft:zoglin/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/fire_immune" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:zoglin/is_baby" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:zoglin/behavior.hurt_by_target" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::hurt_mobs_target_the_mob_that_hurt_them"] }
+"minecraft:zoglin/behavior.look_at_player" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_turn_their_heads_toward_a_nearby_player"] }
+"minecraft:zoglin/behavior.melee_box_attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_hostile_mobs_target_and_hit_a_survival_player", "crates/unastar/src/entity/mob/tests/anger.rs::an_angry_zoglin_plays_its_angry_sound_until_it_calms"] }
+"minecraft:zoglin/behavior.nearest_attackable_target" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_hostile_mobs_target_and_hit_a_survival_player", "crates/unastar/src/entity/mob/tests/facets.rs::listed_hostile_mobs_ignore_creative_players"] }
+"minecraft:zoglin/behavior.random_look_around" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::idle_listed_mobs_look_around_within_the_angle_range"] }
+"minecraft:zoglin/behavior.random_stroll" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:zoglin/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
+"minecraft:zoglin/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
+"minecraft:zoglin/collision_box" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_adult_zoglin_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zoglin.bin" }
+"minecraft:zoglin/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: network send-rate tuning is not modelled; every significant change is replicated" }
+"minecraft:zoglin/custom_hit_test" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_adult_zoglin_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/facets.rs::a_zoglin_is_hit_on_its_hit_box_beyond_its_collision_box"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zoglin.bin", notes = "The boxes go to viewers as the HITBOX actor data (byte-equal to the native summon) and count in the player melee reach check; projectiles still hit the collision box only." }
+"minecraft:zoglin/despawn" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::a_zoglin_despawns_by_its_filters", "crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_despawn_far_from_players_and_stay_near_them"] }
+"minecraft:zoglin/experience_reward" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player"] }
+"minecraft:zoglin/fire_immune" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::wither_skeletons_never_catch_fire"] }
+"minecraft:zoglin/health" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_adult_zoglin_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zoglin.bin" }
+"minecraft:zoglin/is_baby" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_babies_are_flagged_half_scale_and_small"] }
+"minecraft:zoglin/is_hidden_when_invisible" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_adult_zoglin_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zoglin.bin" }
+"minecraft:zoglin/jump.static" = { status = "partial", owner = "entities", gaps = "jumping is implemented and tested on other mobs, but the 1.4-wide zoglin does not climb out of a one-block pit in the jump test" }
+"minecraft:zoglin/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept, but knockback pushes do not read it yet" }
 "minecraft:zoglin/leashable" = { status = "missing", gaps = "leads are not implemented; using a lead on the mob does nothing" }
 "minecraft:zoglin/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
-"minecraft:zoglin/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; zoglin cannot spawn yet" }
-"minecraft:zoglin/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/offspring" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/on_target_acquired" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); zoglin cannot spawn yet" }
-"minecraft:zoglin/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
-"minecraft:zoglin/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zoglin cannot spawn yet" }
+"minecraft:zoglin/loot" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player"] }
+"minecraft:zoglin/movement" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_adult_zoglin_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zoglin.bin" }
+"minecraft:zoglin/movement.basic" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:zoglin/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
+"minecraft:zoglin/navigation.walk" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles", "crates/unastar/src/entity/navigation.rs::open_ground_paths_walk_the_diagonal"] }
+"minecraft:zoglin/offspring" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_spawn_a_baby_from_their_own_spawn_egg"], notes = "The offspring pair maps the mob to itself and it does not breed, so the observable use is its spawn egg's baby." }
+"minecraft:zoglin/on_target_acquired" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/anger.rs::an_angry_zoglin_plays_its_angry_sound_until_it_calms"], evidence = "crates/unastar/src/entity/mob/testdata/bds-1.26.51-anger-chain.json" }
+"minecraft:zoglin/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_fall_and_stay_on_the_ground"] }
+"minecraft:zoglin/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:zoglin/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::overlapping_listed_mobs_push_each_other_apart"] }
+"minecraft:zoglin/scale" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_adult_zoglin_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/facets.rs::listed_babies_are_flagged_half_scale_and_small"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zoglin.bin" }
+"minecraft:zoglin/spawn_egg_interaction" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_spawn_a_baby_from_their_own_spawn_egg"] }
+"minecraft:zoglin/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_belong_to_their_authored_families"] }
 "minecraft:zombie" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::spawned_baby_zombie_add_actor_matches_native_summon", "crates/unastar/tests/mob_e2e.rs::zombie_kills_the_player_who_then_respawns_over_loopback"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie.bin", notes = "Sub-row gaps: drowned conversion, jockeys and riding, turtle-egg stomping and spear attacks (accepted without behaviour); hurt_by_target untested; spawn rules lack block light. Built-in constants (entity/mob/constants.rs) were confirmed on the 26.30 game build, not yet re-checked on 1.26.51 (see docs/research/mob-runtime-constants.md)." }
 "minecraft:zombie/annotation.break_door" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/doors.rs::breaker_breaks_a_closed_oak_door_after_the_native_time_on_hard", "crates/unastar/src/entity/mob/tests/doors.rs::breaker_never_breaks_doors_on_normal"] }
 "minecraft:zombie/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
@@ -1687,12 +1687,12 @@
 "minecraft:zombie_nautilus/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/is_saddled" = { status = "partial", owner = "entities", gaps = "saddling sets the SADDLED flag through the interact row, untested; saddled mobs cannot be ridden; zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/is_tamed" = { status = "missing", gaps = "not implemented: needs taming and owners" }
-"minecraft:zombie_nautilus/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:zombie_nautilus/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/leashable" = { status = "missing", gaps = "leads are not implemented; using a lead on the mob does nothing" }
 "minecraft:zombie_nautilus/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
 "minecraft:zombie_nautilus/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/mob_effect" = { status = "missing", gaps = "not implemented: needs mob effects" }
-"minecraft:zombie_nautilus/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:zombie_nautilus/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented (attack effects skip immune mobs) and tested on the zombie pigman, but zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_nautilus cannot spawn yet" }
 "minecraft:zombie_nautilus/movement.sway" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:zombie_nautilus/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; zombie_nautilus cannot spawn yet" }
@@ -1855,7 +1855,7 @@
 "minecraft:armor_stand/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armor_stand cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:armor_stand/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armor_stand cannot spawn yet" }
 "minecraft:armor_stand/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armor_stand cannot spawn yet" }
-"minecraft:armor_stand/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:armor_stand/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but armor_stand cannot spawn yet" }
 "minecraft:armor_stand/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armor_stand cannot spawn yet" }
 "minecraft:armor_stand/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; armor_stand cannot spawn yet" }
 "minecraft:armor_stand/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
@@ -2037,7 +2037,7 @@
 "minecraft:allay/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:allay/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but allay cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:allay/flying_speed" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
-"minecraft:allay/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:allay/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but allay cannot spawn yet" }
 "minecraft:allay/game_event_movement_tracking" = { status = "missing", gaps = "game events and vibrations are not implemented; no movement vibrations are emitted" }
 "minecraft:allay/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but allay cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:allay/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but allay cannot spawn yet" }
@@ -2201,7 +2201,7 @@
 "minecraft:bee/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:bee/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:bee/flying_speed" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
-"minecraft:bee/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:bee/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but bee cannot spawn yet" }
 "minecraft:bee/game_event_movement_tracking" = { status = "missing", gaps = "game events and vibrations are not implemented; no movement vibrations are emitted" }
 "minecraft:bee/grows_crop" = { status = "missing", gaps = "not implemented: needs block interaction" }
 "minecraft:bee/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
@@ -2538,7 +2538,7 @@
 "minecraft:dolphin/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
 "minecraft:dolphin/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
 "minecraft:dolphin/flocking" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
-"minecraft:dolphin/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:dolphin/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but dolphin cannot spawn yet" }
 "minecraft:dolphin/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:dolphin/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
 "minecraft:dolphin/is_baby" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
@@ -2796,7 +2796,7 @@
 "minecraft:happy_ghast/entity_sensor" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:happy_ghast/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/flying_speed" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
-"minecraft:happy_ghast/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:happy_ghast/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/free_camera_controlled" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:happy_ghast/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:happy_ghast/home" = { status = "missing", gaps = "not implemented: needs villages and raids" }
@@ -2807,7 +2807,7 @@
 "minecraft:happy_ghast/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/is_tamed" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:happy_ghast/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
-"minecraft:happy_ghast/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:happy_ghast/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/leashable" = { status = "missing", gaps = "leads are not implemented; using a lead on the mob does nothing" }
 "minecraft:happy_ghast/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
 "minecraft:happy_ghast/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
@@ -2848,7 +2848,7 @@
 "minecraft:hoglin/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; hoglin cannot spawn yet" }
 "minecraft:hoglin/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
 "minecraft:hoglin/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
-"minecraft:hoglin/custom_hit_test" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:hoglin/custom_hit_test" = { status = "partial", owner = "entities", gaps = "implemented (HITBOX actor data, player reach) and tested on the zoglin, but hoglin cannot spawn yet" }
 "minecraft:hoglin/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
 "minecraft:hoglin/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
 "minecraft:hoglin/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
@@ -2859,7 +2859,7 @@
 "minecraft:hoglin/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
 "minecraft:hoglin/is_shaking" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
 "minecraft:hoglin/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
-"minecraft:hoglin/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:hoglin/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but hoglin cannot spawn yet" }
 "minecraft:hoglin/leashable" = { status = "missing", gaps = "leads are not implemented; using a lead on the mob does nothing" }
 "minecraft:hoglin/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
 "minecraft:hoglin/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
@@ -2960,7 +2960,7 @@
 "minecraft:llama/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
 "minecraft:llama/equippable" = { status = "missing", gaps = "not implemented: needs mob inventories and mount gear" }
 "minecraft:llama/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
-"minecraft:llama/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:llama/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but llama cannot spawn yet" }
 "minecraft:llama/healable" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:llama/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:llama/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but llama cannot spawn yet" }
@@ -3310,7 +3310,7 @@
 "minecraft:polar_bear/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:polar_bear/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
 "minecraft:polar_bear/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:polar_bear/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but polar_bear cannot spawn yet" }
 "minecraft:polar_bear/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
 "minecraft:polar_bear/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:polar_bear/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
@@ -3484,7 +3484,7 @@
 "minecraft:sniffer/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sniffer cannot spawn yet" }
 "minecraft:sniffer/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:sniffer/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sniffer cannot spawn yet" }
-"minecraft:sniffer/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:sniffer/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but sniffer cannot spawn yet" }
 "minecraft:sniffer/healable" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:sniffer/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sniffer cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:sniffer/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sniffer cannot spawn yet" }
@@ -3621,10 +3621,10 @@
 "minecraft:sulfur_cube/interact" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
-"minecraft:sulfur_cube/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:sulfur_cube/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/leashable" = { status = "missing", gaps = "leads are not implemented; using a lead on the mob does nothing" }
 "minecraft:sulfur_cube/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
-"minecraft:sulfur_cube/mob_effect_immunity" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:sulfur_cube/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented (attack effects skip immune mobs) and tested on the zombie pigman, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sulfur_cube cannot spawn yet" }
 "minecraft:sulfur_cube/movement.jump" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
 "minecraft:sulfur_cube/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; sulfur_cube cannot spawn yet" }
@@ -3672,7 +3672,7 @@
 "minecraft:trader_llama/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
 "minecraft:trader_llama/equippable" = { status = "missing", gaps = "not implemented: needs mob inventories and mount gear" }
 "minecraft:trader_llama/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
-"minecraft:trader_llama/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:trader_llama/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but trader_llama cannot spawn yet" }
 "minecraft:trader_llama/healable" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:trader_llama/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:trader_llama/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
@@ -3728,7 +3728,7 @@
 "minecraft:turtle/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:turtle/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet" }
 "minecraft:turtle/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet" }
-"minecraft:turtle/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:turtle/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but turtle cannot spawn yet" }
 "minecraft:turtle/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:turtle/home" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:turtle/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet" }
@@ -4074,13 +4074,13 @@
 "minecraft:iron_golem/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:iron_golem/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:iron_golem/dweller" = { status = "missing", gaps = "not implemented: needs villages and raids" }
-"minecraft:iron_golem/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:iron_golem/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but iron_golem cannot spawn yet" }
 "minecraft:iron_golem/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:iron_golem/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet" }
 "minecraft:iron_golem/interact" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet" }
 "minecraft:iron_golem/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet" }
 "minecraft:iron_golem/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet" }
-"minecraft:iron_golem/knockback_resistance" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
+"minecraft:iron_golem/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but iron_golem cannot spawn yet" }
 "minecraft:iron_golem/leashable" = { status = "missing", gaps = "leads are not implemented; using a lead on the mob does nothing" }
 "minecraft:iron_golem/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
 "minecraft:iron_golem/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet" }
@@ -4179,7 +4179,7 @@
 "minecraft:villager_v2/dweller" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:villager_v2/economy_trade_table" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:villager_v2/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet" }
-"minecraft:villager_v2/follow_range" = { status = "missing", gaps = "not implemented: needs anger and target events" }
+"minecraft:villager_v2/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but villager_v2 cannot spawn yet" }
 "minecraft:villager_v2/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:villager_v2/hide" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:villager_v2/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet" }
@@ -4226,7 +4226,7 @@
 "minecraft:wandering_trader/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wandering_trader cannot spawn yet" }
 "minecraft:wandering_trader/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:wandering_trader/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wandering_trader cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:wandering_trader/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wandering_trader cannot spawn yet" }
+"minecraft:wandering_trader/despawn" = { status = "partial", owner = "entities", gaps = "despawn filters are implemented and tested on the zoglin, but wandering_trader cannot spawn yet" }
 "minecraft:wandering_trader/economy_trade_table" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:wandering_trader/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wandering_trader cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:wandering_trader/home" = { status = "missing", gaps = "not implemented: needs villages and raids" }

@@ -81,6 +81,7 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
     if let Some(effect) = attack.effect
         && alive(world, target)
         && !immune(world, target)
+        && !crate::entity::mob::components::stats::immune_to_effect(world, target, effect.effect)
     {
         world
             .entity_mut(target)

@@ -32,6 +32,7 @@ pub mod movement;
 pub mod sensors;
 pub mod shearing;
 pub mod spawn_entity;
+pub mod stats;
 pub mod target_triggers;
 pub mod variant;
 
@@ -199,5 +200,6 @@ pub fn register_component_kinds(
     knockback::register_component_kinds(builder)?;
     variant::register_component_kinds(builder)?;
     target_triggers::register_component_kinds(builder)?;
+    stats::register_component_kinds(builder)?;
     angry::register_component_kinds(builder)
 }

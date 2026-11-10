@@ -197,6 +197,7 @@ fn vanilla_husk_wither_skeleton_endermite_and_zombie_pigman_compile_to_spawnable
         "minecraft:wither_skeleton",
         "minecraft:endermite",
         "minecraft:zombie_pigman",
+        "minecraft:zoglin",
     ] {
         assert!(
             registry.get(identifier).is_some(),
@@ -262,6 +263,16 @@ fn spawned_endermite_add_actor_matches_native_summon() {
     ));
     let endermite = h.at_native("minecraft:endermite", &native);
     assert_add_actor_matches(h.world(), "minecraft:endermite", endermite, &native);
+}
+
+#[test]
+fn spawned_adult_zoglin_add_actor_matches_native_summon() {
+    let mut h = harness(17, Difficulty::Easy);
+    let native = native(include_bytes!(
+        "../../../../../bds-extractor/captures/1.26.51/operator/summons/zoglin.bin"
+    ));
+    let zoglin = h.at_native("minecraft:zoglin", &native);
+    assert_add_actor_matches(h.world(), "minecraft:zoglin", zoglin, &native);
 }
 
 #[test]
@@ -334,19 +345,26 @@ fn appearance_filters_read_the_ids_the_actor_data_carries() {
 #[test]
 fn wither_skeletons_never_catch_fire() {
     let mut h = harness(7, Difficulty::Easy);
-    let wither = h.spawn(
-        "minecraft:wither_skeleton",
-        DVec3::new(0.5, 64.0, 0.5),
-        false,
-    );
     let zombie = h.spawn("minecraft:zombie", DVec3::new(3.5, 64.0, 0.5), false);
+    for identifier in [
+        "minecraft:wither_skeleton",
+        "minecraft:zombie_pigman",
+        "minecraft:zoglin",
+    ] {
+        let immune = h.spawn(identifier, DVec3::new(0.5, 64.0, 0.5), false);
+        let world = h.world();
+        assert!(
+            flag(world, immune, actor_flags::FIRE_IMMUNE),
+            "{identifier}"
+        );
+        fire::ignite(world, immune, 160);
+        assert!(!fire::is_burning(world, immune), "{identifier}");
+        assert!(!flag(world, immune, actor_flags::ONFIRE), "{identifier}");
+        world.despawn(immune);
+    }
     let world = h.world();
-    assert!(flag(world, wither, actor_flags::FIRE_IMMUNE));
     assert!(!flag(world, zombie, actor_flags::FIRE_IMMUNE));
-    fire::ignite(world, wither, 160);
     fire::ignite(world, zombie, 160);
-    assert!(!fire::is_burning(world, wither));
-    assert!(!flag(world, wither, actor_flags::ONFIRE));
     assert!(fire::is_burning(world, zombie));
 }
 
@@ -508,23 +526,33 @@ fn the_target_is_replicated_as_target_actor_data() {
     assert_eq!(target(h.world()), 0);
 }
 
-/// `behavior.hurt_by_target`: a zombie, husk or wither skeleton, ignoring
-/// the creative player, turns on the cow that hurt it. The zombie and husk
-/// list `entity_types` (anything but a breeze); the wither skeleton lists
-/// none, the published default, which retaliates against any attacker.
+/// `behavior.hurt_by_target`: a zombie, husk, wither skeleton or zoglin,
+/// ignoring the creative player, turns on the cow that hurt it. The zombie
+/// and husk list `entity_types` (anything but a breeze); the wither skeleton
+/// and the zoglin list none, the published default, which retaliates
+/// against any attacker.
 #[test]
 fn hurt_mobs_target_the_mob_that_hurt_them() {
     use crate::entity::mob::state::AttackTarget;
-    for identifier in [
-        "minecraft:wither_skeleton",
-        "minecraft:zombie",
-        "minecraft:husk",
+    // The zoglin attacks cows on sight within 16 blocks: its cow stands 20
+    // blocks away, which retaliation without `entity_types` still reaches.
+    for (identifier, cow_x) in [
+        ("minecraft:wither_skeleton", 3.5),
+        ("minecraft:zombie", 3.5),
+        ("minecraft:husk", 3.5),
+        ("minecraft:zoglin", 20.5),
     ] {
         let mut h = harness(11, Difficulty::Normal);
         let player = h.player;
         *h.world().get_mut::<GameMode>(player).unwrap() = GameMode::Creative;
         let mob = h.spawn(identifier, DVec3::new(0.5, 64.0, 0.5), false);
-        let cow = h.spawn("minecraft:cow", DVec3::new(3.5, 64.0, 0.5), false);
+        h.world()
+            .entity_mut(mob)
+            .remove::<crate::entity::mob::components::RandomStrollGoal>();
+        let cow = h.spawn("minecraft:cow", DVec3::new(cow_x, 64.0, 0.5), false);
+        h.world()
+            .entity_mut(cow)
+            .remove::<crate::entity::mob::components::RandomStrollGoal>();
         h.ticks(5);
         assert!(h.world().get::<AttackTarget>(mob).is_none(), "{identifier}");
         let applied = combat::hurt_mob(
@@ -535,17 +563,22 @@ fn hurt_mobs_target_the_mob_that_hurt_them() {
                 cause: ActorDamageCause::EntityAttack,
                 attacker: Some(cow),
                 by_player: false,
-                knockback_from: Some(DVec3::new(3.5, 64.0, 0.5)),
+                knockback_from: Some(DVec3::new(cow_x, 64.0, 0.5)),
                 knockback_power: KnockbackPower::DEFAULT,
             },
         );
         assert_eq!(applied, 1.0, "{identifier}");
-        h.ticks(2);
+        h.ticks(1);
         assert_eq!(
             h.world().get::<AttackTarget>(mob),
             Some(&AttackTarget(cow)),
             "{identifier}"
         );
+        h.ticks(1);
+        // Beyond its follow range (16) the zoglin lets the cow go again on
+        // the next tick, as the BDS pigman 40 blocks away did.
+        let kept = h.world().get::<AttackTarget>(mob) == Some(&AttackTarget(cow));
+        assert_eq!(kept, cow_x < 16.0, "{identifier}");
     }
 }
 

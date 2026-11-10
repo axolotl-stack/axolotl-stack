@@ -26,6 +26,7 @@ use crate::entity::definition::flags::ActorFlags;
 use crate::entity::item_drop::PLAYER_EYE_HEIGHT;
 use crate::entity::mob::MobKind;
 use crate::entity::mob::components::hostile::{TargetEntry, TargetGoalBase};
+use crate::entity::mob::components::stats::FollowRangeConfig;
 use crate::entity::mob::components::{HurtByTargetGoal, NearestAttackableTargetGoal};
 use crate::entity::mob::constants::{
     DEFAULT_FOLLOW_RANGE, DISGUISED_PLAYER_RANGE_FACTOR, HURT_BY_TARGET_MEMORY_TICKS,
@@ -191,12 +192,14 @@ impl GoalContext<'_> {
     }
 
     /// The follow range: the nearest-attackable-target goal's
-    /// `within_radius`, else the native default.
+    /// `within_radius`, else `minecraft:follow_range`, else the native
+    /// default.
     fn follow_range(&self) -> f64 {
-        f64::from(
-            self.config::<NearestAttackableTargetGoal>()
-                .map_or(DEFAULT_FOLLOW_RANGE, |goal| goal.follow_range),
-        )
+        if let Some(goal) = self.config::<NearestAttackableTargetGoal>() {
+            return f64::from(goal.follow_range);
+        }
+        self.config::<FollowRangeConfig>()
+            .map_or(f64::from(DEFAULT_FOLLOW_RANGE), |range| range.0)
     }
 
     /// Set (or clear) the target; mirrored to `AttackTarget` after the tick.

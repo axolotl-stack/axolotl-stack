@@ -677,3 +677,195 @@ fn on_target_escape_fires_when_the_target_is_lost_or_the_anger_ends() {
     assert!(target(a.world(), near).is_none());
     assert!(baby(a.world(), near), "escape fired at the calm");
 }
+
+/// The zoglin of the fixture: it takes the survival player as its target,
+/// shows `ANGRY` and sends `mob.warning` a tick later, plays `angry` the tick
+/// after that and then every 41 to 101 ticks, keeps playing it after the
+/// player turns creative and it drops its target, and calms 199 ticks after
+/// its last swing, after which it is silent.
+#[test]
+fn an_angry_zoglin_plays_its_angry_sound_until_it_calms() {
+    use jolyne::valentine::types::EnumsActorEvent;
+    let fixture = fixture();
+    let zoglin_row = &fixture["zoglin"];
+    let mut a = arena(10);
+    let world = a.world();
+    let zoglin = (0..200)
+        .find_map(|_| {
+            let mob = spawn_mob(
+                world,
+                "minecraft:zoglin",
+                PLAYER_FEET + offset(zoglin_row),
+                0.0,
+                SpawnCause::Spawned,
+            )
+            .unwrap();
+            apply_pending_definitions(world);
+            let baby = world
+                .get::<ActorFlags>(mob)
+                .unwrap()
+                .get(actor_flags::BABY)
+                .unwrap();
+            if baby {
+                world.despawn(mob);
+                None
+            } else {
+                Some(mob)
+            }
+        })
+        .expect("an adult zoglin");
+    let runtime_id = a.world().get::<RuntimeId>(zoglin).unwrap().0;
+    while a.rx.try_recv().is_ok() {}
+    let player = a.player;
+    let mut target_tick = None;
+    let mut angry_tick = None;
+    let mut warning_tick = None;
+    let mut sounds = Vec::new();
+    let mut last_swing = None;
+    let mut creative_tick = None;
+    let mut calm_tick = None;
+    for tick in 1..=1200u64 {
+        if let Some(first) = target_tick
+            && creative_tick.is_none()
+            && tick == first + zoglin_row["player_creative_tick"].as_u64().unwrap()
+        {
+            *a.world().get_mut::<GameMode>(player).unwrap() = GameMode::Creative;
+            creative_tick = Some(tick);
+        }
+        a.server.tick();
+        while let Ok(packet) = a.rx.try_recv() {
+            match packet.data {
+                McpePacketData::LevelSoundEventPacket(sound)
+                    if sound.actor_unique_id == runtime_id =>
+                {
+                    match &*sound.sound_event {
+                        "mob.warning" => warning_tick = warning_tick.or(Some(tick)),
+                        "angry" => {
+                            let head = a.world().get::<Position>(zoglin).unwrap().0.y
+                                + zoglin_row["head_height"].as_f64().unwrap();
+                            assert!((f64::from(sound.position.y) - head).abs() < 1e-3);
+                            sounds.push(tick);
+                        }
+                        _ => {}
+                    }
+                }
+                McpePacketData::ActorEventPacket(event)
+                    if event.event_id == EnumsActorEvent::StartAttacking
+                        && event.target_runtime_id.actor_runtime_id == runtime_id as u64 =>
+                {
+                    last_swing = Some(tick);
+                }
+                _ => {}
+            }
+        }
+        let world = a.world();
+        if target_tick.is_none() && target(world, zoglin).is_some() {
+            target_tick = Some(tick);
+        }
+        if angry_tick.is_none() && angry(world, zoglin) {
+            angry_tick = Some(tick);
+        }
+        if angry_tick.is_some() && calm_tick.is_none() && !angry(world, zoglin) {
+            calm_tick = Some(tick);
+            for _ in 0..200 {
+                a.server.tick();
+            }
+            break;
+        }
+    }
+    let t0 = target_tick.expect("the zoglin targets the player");
+    let row = |key: &str| zoglin_row[key].as_u64().unwrap();
+    assert_eq!(angry_tick, Some(t0 + row("angry_tick")), "ANGRY");
+    assert_eq!(warning_tick, Some(t0 + row("warning_tick")), "mob.warning");
+    let bds: Vec<u64> = serde_json::from_value(zoglin_row["angry_sound_ticks"].clone()).unwrap();
+    assert_eq!(
+        sounds.first().copied(),
+        Some(t0 + bds[0]),
+        "first angry sound"
+    );
+    for pair in sounds.windows(2) {
+        let gap = pair[1] - pair[0];
+        assert!(
+            (41..=101).contains(&gap),
+            "angry sound gap {gap}: {sounds:?}"
+        );
+    }
+    let swing = last_swing.expect("the zoglin swung");
+    let calm = calm_tick.expect("the zoglin calmed");
+    assert!(
+        swing < creative_tick.unwrap(),
+        "no swing at a creative player"
+    );
+    assert_eq!(
+        calm - swing,
+        row("calm_tick") - row("last_swing_tick"),
+        "calm after the last swing"
+    );
+    assert!(
+        sounds.iter().all(|&tick| tick <= calm + 1),
+        "silent after calming: {sounds:?}"
+    );
+    assert!(
+        sounds.iter().any(|&tick| tick > creative_tick.unwrap() + 2),
+        "sounds after the target was dropped"
+    );
+}
+
+/// `minecraft:follow_range` sets how far a mob keeps its target: with a
+/// follow range of 48 the pigman 40 blocks away keeps the player it
+/// retaliated against (the vanilla pigman, at the native 16, lets it go).
+#[test]
+fn a_follow_range_keeps_targets_up_to_its_distance() {
+    let mut a = arena(11);
+    install_pigman(
+        &mut a,
+        anger(serde_json::json!({})),
+        &[(
+            "minecraft:follow_range",
+            serde_json::json!({"value": 48, "max": 48}),
+        )],
+    );
+    let far = a.pinned_pigman(PLAYER_FEET + DVec3::new(0.0, 0.0, -40.0));
+    a.server.tick();
+    a.hit(far);
+    for _ in 0..20 {
+        a.server.tick();
+    }
+    let player = a.player;
+    assert_eq!(target(a.world(), far), Some(player));
+}
+
+/// `minecraft:mob_effect_immunity`: a husk's hunger hit lands on a pigman,
+/// but not on a pigman immune to hunger.
+#[test]
+fn an_attack_effect_skips_a_mob_immune_to_it() {
+    use crate::entity::components::{EffectType, Effects};
+    for immune in [false, true] {
+        let mut a = arena(12);
+        let extra = if immune {
+            vec![(
+                "minecraft:mob_effect_immunity",
+                serde_json::json!({"mob_effects": ["hunger"]}),
+            )]
+        } else {
+            Vec::new()
+        };
+        install_pigman(&mut a, anger(serde_json::json!({})), &extra);
+        let pigman = a.pinned_pigman(PLAYER_FEET + DVec3::new(4.0, 0.0, 0.0));
+        let world = a.world();
+        let husk = spawn_mob(
+            world,
+            "minecraft:husk",
+            PLAYER_FEET + DVec3::new(5.0, 0.0, 0.0),
+            0.0,
+            SpawnCause::Spawned,
+        )
+        .unwrap();
+        apply_pending_definitions(world);
+        combat::melee::melee_attack(world, husk, pigman);
+        let hungry = world
+            .get::<Effects>(pigman)
+            .is_some_and(|effects| effects.get(EffectType::HUNGER).is_some());
+        assert_eq!(hungry, !immune, "immune {immune}");
+    }
+}

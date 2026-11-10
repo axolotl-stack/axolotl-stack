@@ -117,7 +117,10 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::IsDifficulty
         | BuiltinTest::BoolProperty
         | BuiltinTest::IntProperty
-        | BuiltinTest::RiderCount => subject == Subject::Self_,
+        | BuiltinTest::RiderCount
+        | BuiltinTest::IsPersistent
+        | BuiltinTest::DistanceToNearestPlayer
+        | BuiltinTest::InactivityTimer => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
         BuiltinTest::IsFamily
         | BuiltinTest::HasComponent
@@ -168,6 +171,15 @@ impl EventBindings for MobBindings {
 
 /// Reject a filter containing any test the runtime cannot answer.
 pub(super) fn check_filter(filter: &Filter) -> Result<(), UnsupportedFilterTest> {
+    check_filter_with(filter, &[])
+}
+
+/// [`check_filter`], also accepting `extra` tests on `self`: tests only a
+/// particular evaluator answers (the despawn filters' `random_chance`).
+pub(super) fn check_filter_with(
+    filter: &Filter,
+    extra: &[BuiltinTest],
+) -> Result<(), UnsupportedFilterTest> {
     let mut failure = None;
     filter.for_each_test(&mut |test| {
         if failure.is_some() {
@@ -175,6 +187,7 @@ pub(super) fn check_filter(filter: &Filter) -> Result<(), UnsupportedFilterTest>
         }
         match test.builtin() {
             Some(builtin) if supported_test(builtin, test.subject) => {}
+            Some(builtin) if test.subject == Subject::Self_ && extra.contains(&builtin) => {}
             _ => {
                 failure = Some(UnsupportedFilterTest {
                     test: test.name.clone(),

@@ -43,6 +43,7 @@ const HUSK: &str = "minecraft:husk";
 const WITHER_SKELETON: &str = "minecraft:wither_skeleton";
 const ENDERMITE: &str = "minecraft:endermite";
 const ZOMBIE_PIGMAN: &str = "minecraft:zombie_pigman";
+const ZOGLIN: &str = "minecraft:zoglin";
 
 fn block(name: &str) -> u32 {
     BlockRegistry::vanilla()
@@ -261,7 +262,7 @@ fn horizontal(a: DVec3, b: DVec3) -> f64 {
 /// stays on it.
 #[test]
 fn listed_mobs_fall_and_stay_on_the_ground() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN] {
+    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN, ZOGLIN] {
         let mut a = floor(1, Difficulty::Normal, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, 70.0, 0.5));
         a.without::<RandomStrollGoal>(mob);
@@ -286,7 +287,7 @@ fn listed_mobs_fall_and_stay_on_the_ground() {
 #[test]
 fn listed_mobs_stroll_within_their_range_around_obstacles() {
     let stone = block("minecraft:stone");
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN] {
+    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN, ZOGLIN] {
         let mut a = arena(3, Difficulty::Normal, GameMode::Creative, move |pos| {
             let pillar = matches!((pos.x, pos.z), (3, 1) | (-2, 4) | (1, -3));
             (pillar && (64..=66).contains(&pos.y)).then_some(stone)
@@ -323,14 +324,14 @@ fn listed_mobs_stroll_within_their_range_around_obstacles() {
     }
 }
 
-/// `jump.static`: in a one-block pit, each mob jumps out to reach a stroll
-/// target on the raised ground around it.
+/// `jump.static`: in a one-block-deep pit three blocks wide, each mob
+/// jumps out to reach a stroll target on the raised ground around it.
 #[test]
 fn listed_mobs_jump_a_block_to_reach_a_stroll_target() {
     let grass = block("minecraft:grass_block");
     for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN] {
         let mut a = arena(5, Difficulty::Normal, GameMode::Creative, move |pos| {
-            let pit = (pos.x, pos.z) == (0, 0);
+            let pit = (-1..=1).contains(&pos.x) && (-1..=1).contains(&pos.z);
             (pos.y == 64 && !pit).then_some(grass)
         });
         a.move_player(DVec3::new(-14.5, SURFACE + 1.0, -14.5));
@@ -352,7 +353,7 @@ fn listed_mobs_jump_a_block_to_reach_a_stroll_target() {
 /// other until their boxes no longer overlap.
 #[test]
 fn overlapping_listed_mobs_push_each_other_apart() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN] {
+    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN, ZOGLIN] {
         let mut a = floor(7, Difficulty::Normal, GameMode::Creative);
         let first = a.adult(identifier, DVec3::new(0.4, SURFACE, 0.5));
         let second = a.adult(identifier, DVec3::new(0.6, SURFACE, 0.5));
@@ -400,7 +401,7 @@ fn listed_mobs_float_up_in_water() {
 /// turns its head (not its body) toward a creative player four blocks east.
 #[test]
 fn listed_mobs_turn_their_heads_toward_a_nearby_player() {
-    for identifier in [HUSK, WITHER_SKELETON, ZOMBIE_PIGMAN] {
+    for identifier in [HUSK, WITHER_SKELETON, ZOMBIE_PIGMAN, ZOGLIN] {
         let mut a = floor(11, Difficulty::Normal, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         a.without::<RandomStrollGoal>(mob);
@@ -425,7 +426,7 @@ fn listed_mobs_turn_their_heads_toward_a_nearby_player() {
 /// goal's angle range of its body without moving.
 #[test]
 fn idle_listed_mobs_look_around_within_the_angle_range() {
-    for identifier in [HUSK, WITHER_SKELETON, ZOMBIE_PIGMAN] {
+    for identifier in [HUSK, WITHER_SKELETON, ZOMBIE_PIGMAN, ZOGLIN] {
         let mut a = floor(13, Difficulty::Normal, GameMode::Creative);
         a.move_player(DVec3::new(-14.5, SURFACE, -14.5));
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
@@ -459,7 +460,7 @@ fn idle_listed_mobs_look_around_within_the_angle_range() {
 /// 32 blocks.
 #[test]
 fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN] {
+    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN, ZOGLIN] {
         let mut a = floor(15, Difficulty::Normal, GameMode::Creative);
         let near = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         a.without::<RandomStrollGoal>(near);
@@ -522,7 +523,13 @@ fn listed_mobs_belong_to_their_authored_families() {
 /// kill without equipment.
 #[test]
 fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
-    let cases: [(&str, &[&str], Option<&str>, u32); 4] = [
+    let cases: [(&str, &[&str], Option<&str>, u32); 5] = [
+        (
+            ZOGLIN,
+            &["minecraft:rotten_flesh"],
+            Some("minecraft:rotten_flesh"),
+            5,
+        ),
         (
             HUSK,
             &[
@@ -657,7 +664,7 @@ fn tough_player(a: &mut Arena) {
 /// cooldown.
 #[test]
 fn listed_hostile_mobs_target_and_hit_a_survival_player() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE] {
+    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOGLIN] {
         let mut a = floor(23, Difficulty::Normal, GameMode::Survival);
         tough_player(&mut a);
         a.move_player(DVec3::new(6.5, SURFACE, 0.5));
@@ -682,7 +689,7 @@ fn listed_hostile_mobs_target_and_hit_a_survival_player() {
 /// targeted.
 #[test]
 fn listed_hostile_mobs_ignore_creative_players() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE] {
+    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOGLIN] {
         let mut a = floor(25, Difficulty::Hard, GameMode::Creative);
         a.move_player(DVec3::new(4.5, SURFACE, 0.5));
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
@@ -854,7 +861,7 @@ fn listed_babies_are_flagged_half_scale_and_small() {
     use crate::entity::definition::metadata::EntityMetadata;
     use jolyne::valentine::actor_data_i_ds as ids;
     use jolyne::valentine::types::DataItemEntryPayload;
-    for identifier in [HUSK, ZOMBIE_PIGMAN] {
+    for identifier in [HUSK, ZOMBIE_PIGMAN, ZOGLIN] {
         let mut a = floor(33, Difficulty::Normal, GameMode::Creative);
         let adult = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         let baby = a.spawn(identifier, DVec3::new(-3.5, SURFACE, 0.5), true);
@@ -891,7 +898,7 @@ fn listed_mobs_spawn_a_baby_from_their_own_spawn_egg() {
         ActorRuntimeId, EnumsItemUseOnActorInventoryTransactionActionType as ActionType,
         ItemUseOnActorInventoryTransaction,
     };
-    for identifier in [HUSK, ZOMBIE_PIGMAN] {
+    for identifier in [HUSK, ZOMBIE_PIGMAN, ZOGLIN] {
         let mut a = floor(35, Difficulty::Normal, GameMode::Survival);
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         a.without::<RandomStrollGoal>(mob);
@@ -995,4 +1002,71 @@ fn an_underwater_husk_starts_converting_and_shakes_when_its_timer_fires() {
     assert!(a.world().get::<Timer>(husk).is_none(), "stopped converting");
     hold(&mut a, husk, 700);
     assert!(!flag(a.world(), husk, actor_flags::SHAKING));
+}
+
+/// `despawn` with `filters` (the zoglin's): beyond 54 blocks of every player
+/// a mob that is not persistent despawns at once; a persistent one stays;
+/// 40 blocks away it is kept for its first 30 inactive seconds and then
+/// goes at random (1 in 800 per tick); within 32 blocks it stays.
+#[test]
+fn a_zoglin_despawns_by_its_filters() {
+    let feet = DVec3::new(0.5, SURFACE, 0.5);
+    let mut a = floor(41, Difficulty::Normal, GameMode::Creative);
+    let far = a.adult(ZOGLIN, feet);
+    a.without::<RandomStrollGoal>(far);
+    a.move_player(DVec3::new(60.5, SURFACE, 0.5));
+    a.ticks(1);
+    assert!(a.world().get_entity(far).is_err(), "beyond 54 blocks");
+
+    let mut a = floor(42, Difficulty::Normal, GameMode::Creative);
+    let kept = a.adult(ZOGLIN, feet);
+    a.without::<RandomStrollGoal>(kept);
+    a.world().entity_mut(kept).insert(Persistent);
+    a.move_player(DVec3::new(60.5, SURFACE, 0.5));
+    a.ticks(50);
+    assert!(a.world().get_entity(kept).is_ok(), "persistent");
+
+    let mut a = floor(43, Difficulty::Normal, GameMode::Creative);
+    let near = a.adult(ZOGLIN, feet);
+    let inactive = a.adult(ZOGLIN, DVec3::new(-10.5, SURFACE, 0.5));
+    for mob in [near, inactive] {
+        a.without::<RandomStrollGoal>(mob);
+    }
+    // The player's eye is 26.4 blocks from `near`'s block and 35.6 from
+    // `inactive`'s.
+    a.move_player(DVec3::new(20.5, SURFACE + 15.0, 0.5));
+    a.ticks(590);
+    assert!(a.world().get_entity(inactive).is_ok(), "within 30 s");
+    let mut gone = None;
+    for tick in 0..20_000 {
+        a.ticks(1);
+        if a.world().get_entity(inactive).is_err() {
+            gone = Some(tick);
+            break;
+        }
+    }
+    assert!(gone.is_some(), "1 in 800 per tick after 30 s");
+    a.ticks(4000);
+    assert!(a.world().get_entity(near).is_ok(), "within 32 blocks");
+}
+
+/// `custom_hit_test`: a player whose eye is out of reach of the zoglin's
+/// collision box but within reach of its wider hit box still hits it; the
+/// same distance from a zombie pigman's box misses.
+#[test]
+fn a_zoglin_is_hit_on_its_hit_box_beyond_its_collision_box() {
+    for (identifier, half_width, lands) in [(ZOGLIN, 0.7, true), (ZOMBIE_PIGMAN, 0.3, false)] {
+        let mut a = floor(44, Difficulty::Normal, GameMode::Creative);
+        let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
+        a.without::<RandomStrollGoal>(mob);
+        let player = a.player;
+        let world = a.world();
+        let max = world.get::<Health>(mob).unwrap().current;
+        // 6.15 blocks from the collision box's side, level with it.
+        world.get_mut::<Position>(player).unwrap().0 =
+            DVec3::new(0.5 + half_width + 6.15, SURFACE + 1.0, 0.5);
+        combat::player_attack(world, player, mob, &Default::default());
+        let hit = world.get::<Health>(mob).unwrap().current < max;
+        assert_eq!(hit, lands, "{identifier}");
+    }
 }

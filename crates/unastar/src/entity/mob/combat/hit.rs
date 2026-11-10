@@ -75,8 +75,9 @@ pub fn knockback_power_of(world: &World, attacker: Entity) -> KnockbackPower {
 /// transaction are not trusted.
 ///
 /// Spectators, dead players and players whose eye is farther than
-/// [`constants::MELEE_REACH`] from the mob's box cannot hit. Creative
-/// players deal normal melee damage.
+/// [`constants::MELEE_REACH`] from the mob's box (or, with
+/// `minecraft:custom_hit_test`, from every one of its boxes) cannot hit.
+/// Creative players deal normal melee damage.
 pub fn player_attack(
     world: &mut World,
     player: Entity,
@@ -93,9 +94,18 @@ pub fn player_attack(
         return;
     };
     let mob_box = Aabb::from_feet(feet, body.width, body.height);
-    if eye.distance_squared(eye.clamp(mob_box.min, mob_box.max))
-        > constants::MELEE_REACH * constants::MELEE_REACH
-    {
+    let distance_sq = |aabb: &Aabb| eye.distance_squared(eye.clamp(aabb.min, aabb.max));
+    // `minecraft:custom_hit_test` boxes count as much as the collision box.
+    let nearest_sq = world
+        .get::<crate::entity::mob::components::stats::CustomHitTest>(target)
+        .map_or(distance_sq(&mob_box), |hit_test| {
+            hit_test
+                .0
+                .iter()
+                .map(|hitbox| distance_sq(&hitbox.at(feet)))
+                .fold(distance_sq(&mob_box), f64::min)
+        });
+    if nearest_sq > constants::MELEE_REACH * constants::MELEE_REACH {
         return;
     }
     let held = held_item(world, player).cloned();
