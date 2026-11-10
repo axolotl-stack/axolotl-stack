@@ -130,6 +130,14 @@ fn data(seen: &[Seen]) -> Vec<Seen> {
         .collect()
 }
 
+/// Only the actor events.
+fn events(seen: &[Seen]) -> Vec<Seen> {
+    seen.iter()
+        .filter(|seen| matches!(seen, Seen::Event(..)))
+        .cloned()
+        .collect()
+}
+
 /// Only the health updates.
 fn health(seen: &[Seen]) -> Vec<Seen> {
     seen.iter()
@@ -350,10 +358,8 @@ fn adventure_players_hold_their_breath() {
     assert_eq!(h.seen(), bds);
 }
 
-/// The killing hit sends the air with the death (BDS sends no hurt event for
-/// it, which the shared death path does not copy; only the breath updates
-/// and the health are compared here), and the respawned player breathes at
-/// full air.
+/// The killing hit sends the death event without a hurt event and the air
+/// with the death, and the respawned player breathes at full air.
 #[test]
 fn drowning_to_death_and_respawning_refill_the_air() {
     let bds = captured("drowning_death_and_respawn");
@@ -387,13 +393,16 @@ fn drowning_to_death_and_respawning_refill_the_air() {
     let seen = h.seen();
     assert_eq!(data(&seen), data(&bds));
     assert_eq!(health(&seen), health(&bds));
-    assert!(
-        seen.iter()
-            .filter_map(|seen| match seen {
-                Seen::Event(EnumsActorEvent::Hurt, data) => Some(*data),
-                _ => None,
-            })
-            .all(|data| data == 9)
+    assert_eq!(events(&seen), events(&bds));
+    assert_eq!(
+        events(&bds),
+        [
+            Seen::Event(EnumsActorEvent::Hurt, 9),
+            Seen::Event(EnumsActorEvent::Hurt, 9),
+            Seen::Event(EnumsActorEvent::Hurt, 9),
+            Seen::Event(EnumsActorEvent::Death, 0),
+            Seen::Event(EnumsActorEvent::SpawnAlive, 0),
+        ]
     );
 }
 

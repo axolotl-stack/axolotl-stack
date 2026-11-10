@@ -16,10 +16,12 @@
 //! 4. Armour: the summed defence and toughness of the worn pieces reduce
 //!    the damage of the causes armour stops (`unastar_data::armour`).
 //!
-//! A full hit sends `ActorEvent` hurt, its data the damage cause's ID, to
-//! the player and its viewers and, when the hit has a source position,
-//! knocks the player back: the player moves itself, so the push goes to its
-//! own client as `SetActorMotion`.
+//! A full hit that leaves the player alive knocks it back when the hit has
+//! a source position (the player moves itself, so the push goes to its own
+//! client as `SetActorMotion`), then sends `ActorEvent` hurt, its data the
+//! damage cause's ID, to the player and its viewers. A killing hit sends
+//! neither: the death event is all the clients see of it (BDS 1.26.51:
+//! the drowning death of `testdata/bds-1.26.51-breath.json`).
 //! The health change reaches the client through
 //! `server::game::attributes::sync_player_attributes`; at zero health the player dies
 //! (`death`).
@@ -132,11 +134,11 @@ pub(super) fn apply_hit(
         health.damage(dealt);
         (before - health.current, health.is_dead())
     };
-    if full {
-        send_hurt_event(world, player, hit.cause);
+    if full && !dead {
         if let Some(from) = hit.knockback_from {
             knock_back(world, player, from, hit.knockback_power);
         }
+        send_hurt_event(world, player, hit.cause);
     }
     // A hit that hurt wears the worn armour and costs the player food.
     if applied > 0.0 {
