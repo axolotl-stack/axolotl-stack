@@ -76,6 +76,11 @@ pub enum ArchetypeError {
     /// and only living mobs and projectiles are implemented.
     #[error("{0} is not a living mob, and non-living actors are not implemented")]
     NotLiving(String),
+    /// A living class whose native behaviour makes it something else than
+    /// a mob (the armor stand breaks on two quick hits, holds poses and
+    /// equipment): spawned as a mob it would behave wrongly.
+    #[error("{0}: the native {1} behaviour is not implemented")]
+    NativeClass(String, &'static str),
     #[error(transparent)]
     Attributes(#[from] AttributeError),
     /// What the projectile spawns on hit is not spawnable.
@@ -275,6 +280,12 @@ impl MobArchetype {
         let (attributes, attribute_seed) = attribute_seed(identifier)?;
         if !projectile && attribute_seed.is_empty() {
             return Err(ArchetypeError::NotLiving(identifier.to_owned()));
+        }
+        if actor_type == ActorType::ArmorStand {
+            return Err(ArchetypeError::NativeClass(
+                identifier.to_owned(),
+                "armor stand (breaking on two quick hits, poses, worn equipment)",
+            ));
         }
         let attributes = Arc::new(attributes);
         Ok(Self {

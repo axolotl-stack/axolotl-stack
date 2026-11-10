@@ -175,10 +175,8 @@ fn spawn_unattached(
             .expect("catalogue flag index");
     }
     let metadata = if archetype.projectile {
-        // Projectiles are spawned invisible (shown from their second tick).
-        flags
-            .update(actor_flags::INVISIBLE, true)
-            .expect("catalogue flag index");
+        // Turned invisible once its definition applies
+        // (`projectile::derive_projectile`).
         EntityMetadata::actor_base()
     } else {
         let mut metadata = EntityMetadata::living_base();

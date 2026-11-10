@@ -4,8 +4,9 @@
 //! ([`passive`]), the zombie ([`zombie`]), the other hostile mobs
 //! ([`hostile`]), door breaking ([`doors`]), environment sensors and
 //! timers ([`sensors`]), anger replayed against BDS captures ([`anger`]),
-//! and shared behaviour checked mob by mob for every spawnable mob that uses
-//! it ([`facets`]).
+//! projectile actors replayed against BDS captures ([`projectiles`]), and
+//! shared behaviour checked mob by mob for every spawnable mob that uses it
+//! ([`facets`]).
 
 mod anger;
 mod chicken;
@@ -14,6 +15,7 @@ mod facets;
 mod hostile;
 mod interaction;
 mod passive;
+mod projectiles;
 mod sensors;
 mod spawn;
 mod zombie;

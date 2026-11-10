@@ -14,27 +14,38 @@ use crate::entity::EntityRandom;
 use crate::entity::components::{GameMode, Player, Rotation};
 use crate::entity::definition::apply_pending_definitions;
 use crate::entity::mob::combat::{Hit, hurt_mob, knockback_power_of};
-use crate::entity::mob::constants::{ICONCRACK_ITEM_SHIFT, PROJECTILE_PARTICLE_LEVEL_EVENT};
+use crate::entity::mob::constants::{
+    DEFAULT_POTION_COLOUR_ARGB, ICONCRACK_ITEM_SHIFT, POTION_SPLASH_LEVEL_EVENT,
+    PROJECTILE_PARTICLE_LEVEL_EVENT,
+};
 use crate::entity::mob::events::{MobFacts, fire_event};
-use crate::entity::mob::net::sound::{level_event, play_level_sound};
+use crate::entity::mob::net::sound::{level_event, queue_synced_sound};
 use crate::entity::mob::{MobKind, MobRegistry, SpawnCause, derive_entity, spawn_mob};
 use crate::entity::systems::physics::collect_block_boxes;
+use crate::entity::xp_orb::spawn_experience;
 use crate::registry::collision::Aabb;
 use crate::server::game::types::ItemRegistryResource;
 
-/// Run the `on_hit` effects of one hit at `at`; returns whether the
-/// projectile is removed.
+/// Run the `on_hit` effects of one hit at `at` (where the flight segment
+/// starting at `origin` meets the target); returns whether the projectile
+/// is removed.
 pub(super) fn on_hit(
     world: &mut World,
     projectile: Entity,
     owner: Option<Entity>,
     rules: &ProjectileRules,
+    origin: DVec3,
     at: DVec3,
     target: Target,
 ) -> bool {
     let mut removed = false;
+    if let Some(range) = rules.grant_xp {
+        grant_xp(world, range, at);
+    }
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
-        let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);
+        // Knockback pushes away from where the projectile flew from this
+        // tick.
+        let (destroyed, applied) = impact_damage(world, projectile, owner, impact, origin, actor);
         removed |= destroyed;
         if !destroyed {
             rebound(world, projectile, rules, applied);
@@ -57,10 +68,39 @@ pub(super) fn on_hit(
             .filter(|_| world.get::<GameMode>(actor) != Some(&GameMode::Creative)),
         Target::Block => rules.hit_ground_sound.as_ref().or(rules.hit_sound.as_ref()),
     };
+    // Not attributed to the projectile (no actor identifier, unique id -1)
+    // and sent on the next tick, as BDS 1.26.51 sends an xp bottle's
+    // `glass`.
     if let Some(sound) = sound {
-        play_level_sound(world, Some(projectile), at, sound, -1);
+        queue_synced_sound(world, None, at, sound, -1);
     }
     removed
+}
+
+/// `grant_xp`: the potion-splash level event in the default potion colour
+/// at the hit, then `minXP + random(maxXP − minXP)` experience as orbs
+/// there (`maxXP` itself is never granted; just `minXP` unless `maxXP` is
+/// above it).
+fn grant_xp(world: &mut World, (min, max): (i32, i32), at: DVec3) {
+    level_event(
+        world,
+        at,
+        POTION_SPLASH_LEVEL_EVENT,
+        DEFAULT_POTION_COLOUR_ARGB,
+    );
+    let amount = if max > min {
+        min + world
+            .get_resource_or_init::<EntityRandom>()
+            .0
+            .gen_range(0..max - min)
+    } else {
+        min
+    };
+    if let Ok(amount) = u32::try_from(amount)
+        && amount > 0
+    {
+        spawn_experience(world, at, amount);
+    }
 }
 
 /// `impact_damage` on a hit actor: whether it destroys the projectile, and

@@ -93,11 +93,14 @@ fn level_sound_packet(
 }
 
 /// Level sounds an actor makes as part of its own state change (a mob
-/// taking a target, an angry mob's sound): built when they happen, sent to
-/// the viewers on the next tick, before that tick's actor data. Measured:
-/// BDS 1.26.51 sends `mob.warning` one batch after the `TARGET` actor data
-/// that caused it, and an angry zoglin's `angry` one batch after its
-/// `ANGRY` flag.
+/// taking a target, an angry mob's sound, a projectile turning visible) or
+/// a projectile's hit sound: built when they happen, sent to the viewers on
+/// the next tick, before that tick's actor data. Measured: BDS 1.26.51
+/// sends `mob.warning` one batch after the `TARGET` actor data that caused
+/// it, an angry zoglin's `angry` one batch after its `ANGRY` flag, a
+/// projectile's `reappeared` one batch after its cleared `INVISIBLE` flag
+/// and an xp bottle's `glass` one batch after the splash level event of the
+/// same hit.
 #[derive(Resource, Default)]
 pub struct SyncedSounds(Vec<(u64, DVec3, McpePacket)>);
 
@@ -105,12 +108,12 @@ pub struct SyncedSounds(Vec<(u64, DVec3, McpePacket)>);
 /// [`SyncedSounds`]).
 pub fn queue_synced_sound(
     world: &mut World,
-    source: Entity,
+    source: Option<Entity>,
     position: DVec3,
     sound: &str,
     data: i32,
 ) {
-    let packet = level_sound_packet(world, Some(source), position, sound, data);
+    let packet = level_sound_packet(world, source, position, sound, data);
     let due = world.resource::<crate::ecs::TickCounter>().current + 1;
     world
         .get_resource_or_init::<SyncedSounds>()

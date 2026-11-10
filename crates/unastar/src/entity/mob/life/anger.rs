@@ -187,7 +187,13 @@ pub fn tick_anger(
             if let Some(sound) = &config.sound
                 && let Some(head) = head(world, mob)
             {
-                crate::entity::mob::net::sound::queue_synced_sound(world, mob, head, sound, -1);
+                crate::entity::mob::net::sound::queue_synced_sound(
+                    world,
+                    Some(mob),
+                    head,
+                    sound,
+                    -1,
+                );
             }
             let (min, max) = config.sound_interval;
             let u: f32 = world.resource_mut::<EntityRandom>().0.r#gen();

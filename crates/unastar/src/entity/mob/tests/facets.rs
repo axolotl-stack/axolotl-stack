@@ -35,7 +35,7 @@ use crate::world::ecs::{ChunkData, ChunkManager, ChunkPosition, ChunkViewers};
 use crate::world::rules::Difficulty;
 
 /// Top of the floor: feet of a mob standing on it.
-const SURFACE: f64 = 64.0;
+pub(super) const SURFACE: f64 = 64.0;
 const MIDNIGHT: u64 = 18_000;
 
 /// The mobs these tests cover, in the order the lists below use.
@@ -51,9 +51,9 @@ fn block(name: &str) -> u32 {
         .expect(name)
 }
 
-struct Arena {
-    server: GameServer,
-    player: Entity,
+pub(super) struct Arena {
+    pub(super) server: GameServer,
+    pub(super) player: Entity,
     rx: mpsc::Receiver<McpePacket>,
 }
 
@@ -124,7 +124,7 @@ fn arena(
 }
 
 /// [`arena`] on the plain floor.
-fn floor(seed: u64, difficulty: Difficulty, mode: GameMode) -> Arena {
+pub(super) fn floor(seed: u64, difficulty: Difficulty, mode: GameMode) -> Arena {
     arena(seed, difficulty, mode, |_| None)
 }
 
@@ -133,7 +133,7 @@ fn flag(world: &World, mob: Entity, index: u32) -> bool {
 }
 
 impl Arena {
-    fn world(&mut self) -> &mut World {
+    pub(super) fn world(&mut self) -> &mut World {
         self.server.ecs.world_mut()
     }
 
@@ -164,7 +164,7 @@ impl Arena {
         self.world().get::<Position>(mob).unwrap().0
     }
 
-    fn ticks(&mut self, n: u64) {
+    pub(super) fn ticks(&mut self, n: u64) {
         for _ in 0..n {
             self.server.tick();
         }
@@ -197,7 +197,7 @@ impl Arena {
         self.world().entity_mut(mob).remove::<T>();
     }
 
-    fn packets(&mut self) -> Vec<McpePacketData> {
+    pub(super) fn packets(&mut self) -> Vec<McpePacketData> {
         std::iter::from_fn(|| self.rx.try_recv().ok().map(|p| p.data)).collect()
     }
 
@@ -477,7 +477,12 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
 /// definition gives it, and not for a family it lacks.
 #[test]
 fn listed_mobs_belong_to_their_authored_families() {
-    let cases: [(&str, &[&str], &str); 4] = [
+    let cases: [(&str, &[&str], &str); 5] = [
+        (
+            ZOGLIN,
+            &["zoglin", "zoglin_adult", "undead", "monster", "mob"],
+            "zoglin_baby",
+        ),
         (
             HUSK,
             &["husk", "zombie", "undead", "monster", "mob"],

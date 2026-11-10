@@ -38,11 +38,22 @@ pub struct DespawnConfig {
     pub filter: Option<Arc<Filter>>,
 }
 
-/// Register the `minecraft:despawn` component kind. The inactivity anchor
-/// comes and goes with the despawn rules.
+/// Register the `minecraft:despawn` component kind (the inactivity anchor
+/// comes and goes with the despawn rules) and `minecraft:persistent` (the
+/// mob never despawns while it has the component; removing the component
+/// removes the persistence, whatever gave it).
 pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
 ) -> Result<(), DefinitionError> {
+    builder.register(
+        |_: body::Persistent| Ok::<_, crate::entity::definition::ComponentCompileError>(()),
+        |_: &(), entity| {
+            entity.insert(crate::entity::mob::state::Persistent);
+        },
+        |entity| {
+            entity.remove::<crate::entity::mob::state::Persistent>();
+        },
+    )?;
     builder.register(
         |b: body::Despawn| {
             let filter = b

@@ -596,7 +596,7 @@ fn warn_of_target(world: &mut World, mob: Entity) {
     } else {
         "mob.warning"
     };
-    super::net::sound::queue_synced_sound(world, mob, head, sound, -1);
+    super::net::sound::queue_synced_sound(world, Some(mob), head, sound, -1);
 }
 
 /// The actor ID viewers know `actor` by: a mob's runtime ID, a player's

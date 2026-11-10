@@ -466,11 +466,13 @@ mob ignores (`bds-1.26.51-fire-immune-causes.json`), the effect a husk or wither
 skeleton hit applies per difficulty (`bds-1.26.51-attack-effects.json`), how a
 zombie pigman's anger spreads and ends (`bds-1.26.51-pigman-anger.json`, and
 with pigmen pinned in barrier cells `bds-1.26.51-anger-chain.json`, which also
-holds the retaliation distances and a zoglin's anger sounds), and how often its
+holds the retaliation distances and a zoglin's anger sounds), how often its
 spawn event draws a branch that names an undeclared event
-(`bds-1.26.51-pigman-spawn-branches.json`). The tests in
-`src/entity/mob/tests/hostile.rs` and `src/entity/mob/tests/anger.rs` replay
-each fixture; `src/entity/mob/tests/facets.rs` runs every shared behaviour
+(`bds-1.26.51-pigman-spawn-branches.json`), and what 30 bottles o' enchanting
+send from their AddActor to their orbs (`bds-1.26.51-xp-bottles.json`). The
+tests in `src/entity/mob/tests/hostile.rs`, `src/entity/mob/tests/anger.rs`
+and `src/entity/mob/tests/projectiles.rs` replay each fixture;
+`src/entity/mob/tests/facets.rs` runs every shared behaviour
 check (physics, strolling, loot, targeting, gear, ...) for each spawnable mob
 that uses it.
 

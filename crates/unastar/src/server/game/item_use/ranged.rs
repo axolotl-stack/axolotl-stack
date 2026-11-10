@@ -464,8 +464,8 @@ mod tests {
     fn arrows_stick_in_the_ground_and_come_back() {
         let mut r = range(&[("minecraft:bow", 1), ("minecraft:arrow", 2)]);
         let player = r.player;
-        // Look down at the floor in front.
-        r.world().get_mut::<Rotation>(player).unwrap().pitch = 60.0;
+        // Look down at the floor a few blocks in front.
+        r.world().get_mut::<Rotation>(player).unwrap().pitch = 30.0;
         r.send(UseRequest::UseAir);
         r.ticks(24);
         r.send(UseRequest::Release);
@@ -478,6 +478,8 @@ mod tests {
             .collect();
         assert_eq!(stuck.len(), 1, "one stuck arrow");
         assert_eq!(r.slot(1).count, 1);
+        // It stays where it met the floor top.
+        assert!((stuck[0].y - 64.0).abs() < 1e-9, "{}", stuck[0]);
         // Walk onto it.
         let at = stuck[0];
         r.world().get_mut::<Position>(player).unwrap().0 =

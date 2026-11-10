@@ -295,7 +295,7 @@
 "minecraft:ender_dragon/on_death" = { status = "missing", gaps = "not implemented: needs bosses" }
 "minecraft:ender_dragon/on_start_landing" = { status = "missing", gaps = "not implemented: needs bosses" }
 "minecraft:ender_dragon/on_start_takeoff" = { status = "missing", gaps = "not implemented: needs bosses" }
-"minecraft:ender_dragon/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:ender_dragon/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but ender_dragon cannot spawn yet" }
 "minecraft:ender_dragon/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet" }
 "minecraft:ender_dragon/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
 "minecraft:ender_dragon/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ender_dragon cannot spawn yet" }
@@ -327,7 +327,7 @@
 "minecraft:wither/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
 "minecraft:wither/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; wither cannot spawn yet" }
 "minecraft:wither/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
-"minecraft:wither/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:wither/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but wither cannot spawn yet" }
 "minecraft:wither/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
 "minecraft:wither/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); wither cannot spawn yet" }
 "minecraft:wither/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
@@ -451,7 +451,7 @@
 "minecraft:breeze/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
 "minecraft:breeze/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; breeze cannot spawn yet" }
 "minecraft:breeze/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
-"minecraft:breeze/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:breeze/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but breeze cannot spawn yet" }
 "minecraft:breeze/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
 "minecraft:breeze/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); breeze cannot spawn yet" }
 "minecraft:breeze/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
@@ -751,7 +751,7 @@
 "minecraft:evocation_illager/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
-"minecraft:evocation_illager/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:evocation_illager/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
@@ -1116,7 +1116,7 @@
 "minecraft:pillager/on_hurt" = { status = "missing", gaps = "not implemented: needs anger and target events" }
 "minecraft:pillager/on_hurt_by_player" = { status = "missing", gaps = "not implemented: needs anger and target events" }
 "minecraft:pillager/on_target_escape" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman, but pillager cannot spawn yet" }
-"minecraft:pillager/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:pillager/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but pillager cannot spawn yet" }
 "minecraft:pillager/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:pillager/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); pillager cannot spawn yet" }
 "minecraft:pillager/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
@@ -1160,7 +1160,7 @@
 "minecraft:ravager/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; ravager cannot spawn yet" }
 "minecraft:ravager/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
-"minecraft:ravager/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:ravager/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but ravager cannot spawn yet" }
 "minecraft:ravager/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); ravager cannot spawn yet" }
 "minecraft:ravager/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
@@ -1449,7 +1449,7 @@
 "minecraft:vindicator/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/on_target_acquired" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/on_target_escape" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman, but vindicator cannot spawn yet" }
-"minecraft:vindicator/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:vindicator/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but vindicator cannot spawn yet" }
 "minecraft:vindicator/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); vindicator cannot spawn yet" }
 "minecraft:vindicator/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
@@ -1527,7 +1527,7 @@
 "minecraft:witch/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
 "minecraft:witch/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; witch cannot spawn yet" }
 "minecraft:witch/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
-"minecraft:witch/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:witch/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but witch cannot spawn yet" }
 "minecraft:witch/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
 "minecraft:witch/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); witch cannot spawn yet" }
 "minecraft:witch/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but witch cannot spawn yet" }
@@ -1849,7 +1849,7 @@
 "minecraft:area_effect_cloud" = { status = "missing", gaps = "not spawnable: no native AddActor attribute observation is retained for it" }
 "minecraft:area_effect_cloud/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:area_effect_cloud/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but area_effect_cloud cannot spawn yet" }
-"minecraft:armor_stand" = { status = "missing", gaps = "not spawnable: needs knockback_resistance, persistent" }
+"minecraft:armor_stand" = { status = "missing", gaps = "not spawnable: the native armor stand behaviour (breaking on two quick hits, poses, worn equipment) is not implemented, so the definition is refused rather than spawned as a mob" }
 "minecraft:armor_stand/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armor_stand cannot spawn yet" }
 "minecraft:armor_stand/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
 "minecraft:armor_stand/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armor_stand cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
@@ -1858,7 +1858,7 @@
 "minecraft:armor_stand/knockback_resistance" = { status = "partial", owner = "entities", gaps = "the value is kept (pushes do not read it yet), but armor_stand cannot spawn yet" }
 "minecraft:armor_stand/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armor_stand cannot spawn yet" }
 "minecraft:armor_stand/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; armor_stand cannot spawn yet" }
-"minecraft:armor_stand/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:armor_stand/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but its native class behaviour is refused" }
 "minecraft:armor_stand/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armor_stand cannot spawn yet" }
 "minecraft:armor_stand/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); armor_stand cannot spawn yet" }
 "minecraft:armor_stand/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but armor_stand cannot spawn yet" }
@@ -1976,7 +1976,7 @@
 "minecraft:npc/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but npc cannot spawn yet" }
 "minecraft:npc/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; npc cannot spawn yet" }
 "minecraft:npc/npc" = { status = "missing", gaps = "component behaviour not implemented" }
-"minecraft:npc/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:npc/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but npc cannot spawn yet" }
 "minecraft:npc/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but npc cannot spawn yet" }
 "minecraft:npc/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but npc cannot spawn yet" }
 "minecraft:ominous_item_spawner" = { status = "missing", gaps = "not spawnable: no native AddActor attribute observation is retained for it" }
@@ -2460,7 +2460,7 @@
 "minecraft:copper_golem/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but copper_golem cannot spawn yet" }
 "minecraft:copper_golem/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; copper_golem cannot spawn yet" }
 "minecraft:copper_golem/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but copper_golem cannot spawn yet" }
-"minecraft:copper_golem/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:copper_golem/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but copper_golem cannot spawn yet" }
 "minecraft:copper_golem/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but copper_golem cannot spawn yet" }
 "minecraft:copper_golem/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); copper_golem cannot spawn yet" }
 "minecraft:copper_golem/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but copper_golem cannot spawn yet" }
@@ -3499,7 +3499,7 @@
 "minecraft:sniffer/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; sniffer cannot spawn yet" }
 "minecraft:sniffer/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sniffer cannot spawn yet" }
 "minecraft:sniffer/offspring" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sniffer cannot spawn yet" }
-"minecraft:sniffer/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:sniffer/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but sniffer cannot spawn yet" }
 "minecraft:sniffer/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sniffer cannot spawn yet" }
 "minecraft:sniffer/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); sniffer cannot spawn yet" }
 "minecraft:sniffer/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but sniffer cannot spawn yet" }
@@ -3534,7 +3534,7 @@
 "minecraft:snow_golem/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
 "minecraft:snow_golem/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; snow_golem cannot spawn yet" }
 "minecraft:snow_golem/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
-"minecraft:snow_golem/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:snow_golem/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but snow_golem cannot spawn yet" }
 "minecraft:snow_golem/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
 "minecraft:snow_golem/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); snow_golem cannot spawn yet" }
 "minecraft:snow_golem/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but snow_golem cannot spawn yet" }
@@ -3695,7 +3695,7 @@
 "minecraft:trader_llama/on_friendly_anger" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman, but trader_llama cannot spawn yet" }
 "minecraft:trader_llama/on_target_acquired" = { status = "partial", owner = "entities", gaps = "target triggers are implemented (tested on the zombie pigman), but trigger filters on the target subject are not implemented, so the trader_llama definition is rejected" }
 "minecraft:trader_llama/on_target_escape" = { status = "partial", owner = "entities", gaps = "target triggers are implemented, but trigger filters on the target subject are not implemented, so the trader_llama definition is rejected" }
-"minecraft:trader_llama/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:trader_llama/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but trader_llama cannot spawn yet" }
 "minecraft:trader_llama/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
 "minecraft:trader_llama/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); trader_llama cannot spawn yet" }
 "minecraft:trader_llama/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but trader_llama cannot spawn yet" }
@@ -4043,14 +4043,14 @@
 "minecraft:wither_skull_dangerous/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); wither_skull_dangerous cannot spawn yet" }
 "minecraft:wither_skull_dangerous/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skull_dangerous cannot spawn yet" }
 "minecraft:wither_skull_dangerous/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skull_dangerous cannot spawn yet" }
-"minecraft:xp_bottle" = { status = "missing", gaps = "not spawnable: projectile features on_hit.grant_xp are rejected" }
-"minecraft:xp_bottle/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but xp_bottle cannot spawn yet" }
-"minecraft:xp_bottle/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
-"minecraft:xp_bottle/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but xp_bottle cannot spawn yet" }
-"minecraft:xp_bottle/projectile" = { status = "partial", owner = "entities", gaps = "projectile flight and impact are implemented (egg), but this definition uses rejected features: on_hit.grant_xp; xp_bottle cannot spawn yet" }
-"minecraft:xp_bottle/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); xp_bottle cannot spawn yet" }
-"minecraft:xp_bottle/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but xp_bottle cannot spawn yet" }
-"minecraft:xp_bottle/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but xp_bottle cannot spawn yet" }
+"minecraft:xp_bottle" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/projectiles.rs::summoned_xp_bottle_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/projectiles.rs::an_xp_bottle_breaks_into_orbs_like_the_native_bottles", "crates/unastar/src/entity/mob/tests/projectiles.rs::xp_bottles_grant_min_to_max_exclusive_experience"], evidence = "crates/unastar/src/entity/mob/testdata/bds-1.26.51-xp-bottles.json", notes = "Summoned or launched bottles fly, break on the first block or actor they meet and grant minXP to maxXP - 1 experience as orbs (measured on 30 BDS bottles; native AddActor in operator/summons/xp_bottle.bin). Players cannot throw bottles yet: the bottle o' enchanting item has no throw handler. Measured difference kept: BDS sends a new actor's AddActor and a removed actor's RemoveActor one tick after the change, this server on the tick itself (see the replay test)." }
+"minecraft:xp_bottle/collision_box" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/projectiles.rs::summoned_xp_bottle_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/projectiles.rs::an_xp_bottle_breaks_into_orbs_like_the_native_bottles"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/xp_bottle.bin" }
+"minecraft:xp_bottle/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: network send-rate tuning is not modelled; every significant change is replicated" }
+"minecraft:xp_bottle/physics" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/projectiles.rs::summoned_xp_bottle_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/projectiles.rs::an_xp_bottle_breaks_into_orbs_like_the_native_bottles"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/xp_bottle.bin" }
+"minecraft:xp_bottle/projectile" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/projectiles.rs::an_xp_bottle_breaks_into_orbs_like_the_native_bottles", "crates/unastar/src/entity/mob/tests/projectiles.rs::xp_bottles_grant_min_to_max_exclusive_experience"], evidence = "crates/unastar/src/entity/mob/testdata/bds-1.26.51-xp-bottles.json", notes = "Flight (gravity 0.05, the hit sixteen ticks after the AddActor of a bottle dropped six blocks), invisibility on the first tick with the disappeared/reappeared sounds and CAN_SHOW_NAME, the splash level event 2002 in the default potion colour at the hit point, the orbs and the unattributed glass sound one tick later, as BDS sends them. The angle_offset and power apply to launches, which no player item makes yet." }
+"minecraft:xp_bottle/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:xp_bottle/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "presence is recorded, but projectiles have no living body, so actor pushing never moves them; untested" }
+"minecraft:xp_bottle/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/projectiles.rs::summoned_xp_bottle_add_actor_matches_native_summon"] }
 
 # village (191)
 "minecraft:iron_golem" = { status = "missing", gaps = "not spawnable: needs behavior.defend_village_target, behavior.move_through_village, behavior.move_towards_dwelling_restriction, behavior.move_towards_target, behavior.offer_flower, behavior.target_when_pushed (+5 more)" }
@@ -4088,7 +4088,7 @@
 "minecraft:iron_golem/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet" }
 "minecraft:iron_golem/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; iron_golem cannot spawn yet" }
 "minecraft:iron_golem/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet" }
-"minecraft:iron_golem/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:iron_golem/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but iron_golem cannot spawn yet" }
 "minecraft:iron_golem/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but iron_golem cannot spawn yet" }
 "minecraft:iron_golem/preferred_path" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:iron_golem/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); iron_golem cannot spawn yet" }
@@ -4131,7 +4131,7 @@
 "minecraft:villager/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager cannot spawn yet" }
 "minecraft:villager/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; villager cannot spawn yet" }
 "minecraft:villager/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager cannot spawn yet" }
-"minecraft:villager/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:villager/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but villager cannot spawn yet" }
 "minecraft:villager/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager cannot spawn yet" }
 "minecraft:villager/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); villager cannot spawn yet" }
 "minecraft:villager/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager cannot spawn yet" }
@@ -4193,7 +4193,7 @@
 "minecraft:villager_v2/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; villager_v2 cannot spawn yet" }
 "minecraft:villager_v2/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet" }
 "minecraft:villager_v2/offspring" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet" }
-"minecraft:villager_v2/persistent" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
+"minecraft:villager_v2/persistent" = { status = "partial", owner = "entities", gaps = "implemented (a mob with it never despawns) and tested on a zombie pigman given the component, but villager_v2 cannot spawn yet" }
 "minecraft:villager_v2/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet" }
 "minecraft:villager_v2/preferred_path" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:villager_v2/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); villager_v2 cannot spawn yet" }

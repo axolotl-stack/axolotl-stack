@@ -869,3 +869,30 @@ fn an_attack_effect_skips_a_mob_immune_to_it() {
         assert_eq!(hungry, !immune, "immune {immune}");
     }
 }
+
+/// `minecraft:persistent`: a mob with it is never despawned far from every
+/// player (here the pigman's definition with the component added to its
+/// base; without it a pigman 200 blocks from every player despawns at once,
+/// `facets::listed_mobs_despawn_far_from_players_and_stay_near_them`).
+#[test]
+fn a_persistent_mob_never_despawns() {
+    let mut a = arena(13);
+    install_pigman(
+        &mut a,
+        anger(serde_json::json!({})),
+        &[("minecraft:persistent", serde_json::json!({}))],
+    );
+    let kept = a.pinned_pigman(PLAYER_FEET + DVec3::new(4.0, 0.0, 0.0));
+    let player = a.player;
+    a.world().get_mut::<Position>(player).unwrap().0 =
+        PLAYER_FEET + DVec3::new(200.0, crate::entity::PLAYER_EYE_HEIGHT, 0.0);
+    for _ in 0..40 {
+        a.server.tick();
+    }
+    assert!(a.world().get_entity(kept).is_ok(), "persistent");
+    assert!(
+        a.world()
+            .get::<crate::entity::mob::state::Persistent>(kept)
+            .is_some()
+    );
+}

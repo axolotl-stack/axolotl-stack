@@ -208,6 +208,20 @@ fn vanilla_husk_wither_skeleton_endermite_and_zombie_pigman_compile_to_spawnable
 }
 
 #[test]
+fn the_armor_stand_is_refused_until_its_native_class_behaviour_exists() {
+    let mut h = harness(18, Difficulty::Easy);
+    let world = h.world();
+    let reason = world
+        .resource::<MobRegistry>()
+        .unsupported("minecraft:armor_stand")
+        .cloned();
+    assert!(
+        matches!(reason.as_deref(), Some(ArchetypeError::NativeClass(..))),
+        "{reason:?}"
+    );
+}
+
+#[test]
 fn non_living_actors_are_refused_instead_of_spawned_as_mobs() {
     let mut h = harness(2, Difficulty::Easy);
     for identifier in [

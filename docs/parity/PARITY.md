@@ -12,8 +12,8 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 116 | 0 | 3 | 14 | 4 | 12.8% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1032 | 2683 | 280 | 41 | 46 | 8.0% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 115 | 0 | 3 | 15 | 4 | 13.5% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1014 | 2697 | 281 | 44 | 46 | 8.1% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
@@ -30,13 +30,13 @@ Open rows are missing or partial headline rows (the first summary line of each d
 
 Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for the area: `area`, `owner` (your `@github-handle`), `since` (the date), `domain`, and the `families`, `ids` or id `prefixes` you are taking, and `change` (the OpenSpec change doing the work, if any); remove it when you stop or when the change is archived. `parity check` rejects unknown families or ids and claims that overlap, so talk to the owner of a claimed area before working inside it. The rest of the workflow is in [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-**Entities**: 62 open rows free, 54 claimed.
+**Entities**: 61 open rows free, 54 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | passive (part claimed) | 21 | 21 | 0 |
 | object | 16 | 16 | 0 |
-| projectile | 15 | 15 | 0 |
+| projectile | 14 | 14 | 0 |
 | built_in | 4 | 4 | 0 |
 | village | 4 | 4 | 0 |
 | boss | 2 | 2 | 0 |
@@ -126,7 +126,7 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| projectile | 18 | 15 | 0 | 2 | 1 | 0 | 16.7% |
+| projectile | 18 | 14 | 0 | 2 | 2 | 0 | 22.2% |
 | village | 4 | 4 | 0 | 0 | 0 | 0 | 0.0% |
 
 Sub-rows by facet, most incomplete first (30 of 371):
@@ -134,10 +134,10 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | pushable_by_block | 117 | 2 | 115 | 0 | 0 | 0 | 0.0% |
-| conditional_bandwidth_optimization | 116 | 100 | 15 | 0 | 0 | 1 | 0.0% |
-| physics | 125 | 0 | 110 | 14 | 0 | 1 | 11.3% |
-| type_family | 124 | 1 | 108 | 14 | 0 | 1 | 11.4% |
-| collision_box | 124 | 0 | 108 | 10 | 5 | 1 | 12.2% |
+| conditional_bandwidth_optimization | 116 | 99 | 16 | 0 | 0 | 1 | 0.0% |
+| physics | 125 | 0 | 109 | 14 | 1 | 1 | 12.1% |
+| type_family | 124 | 1 | 107 | 15 | 0 | 1 | 12.2% |
+| collision_box | 124 | 0 | 107 | 10 | 6 | 1 | 13.0% |
 | pushable_by_entity | 109 | 0 | 99 | 10 | 0 | 0 | 9.2% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
 | breathable | 84 | 1 | 83 | 0 | 0 | 0 | 0.0% |
@@ -194,7 +194,7 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **projectile**
 
-- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:splash_potion`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile` and 3 more
+- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:splash_potion`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile` and 2 more
 
 **village**
 
