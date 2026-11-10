@@ -13,7 +13,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 117 | 0 | 3 | 13 | 4 | 12.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1084 | 2658 | 277 | 17 | 46 | 7.3% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1084 | 2658 | 261 | 33 | 46 | 7.3% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
@@ -137,13 +137,13 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | conditional_bandwidth_optimization | 116 | 101 | 14 | 0 | 0 | 1 | 0.0% |
 | physics | 125 | 0 | 111 | 13 | 0 | 1 | 10.5% |
 | type_family | 124 | 1 | 109 | 13 | 0 | 1 | 10.6% |
-| collision_box | 124 | 0 | 109 | 14 | 0 | 1 | 11.4% |
+| collision_box | 124 | 0 | 109 | 10 | 4 | 1 | 11.4% |
 | pushable_by_entity | 109 | 0 | 100 | 9 | 0 | 0 | 8.3% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
 | breathable | 84 | 1 | 83 | 0 | 0 | 0 | 0.0% |
-| health | 94 | 1 | 83 | 9 | 0 | 1 | 9.7% |
+| health | 94 | 1 | 83 | 5 | 4 | 1 | 9.7% |
 | is_hidden_when_invisible | 92 | 1 | 82 | 0 | 9 | 0 | 9.8% |
-| movement | 92 | 0 | 83 | 9 | 0 | 0 | 9.8% |
+| movement | 92 | 0 | 83 | 5 | 4 | 0 | 9.8% |
 | hurt_on_condition | 87 | 0 | 78 | 8 | 0 | 1 | 9.3% |
 | experience_reward | 80 | 0 | 70 | 10 | 0 | 0 | 12.5% |
 | jump.static | 79 | 0 | 70 | 9 | 0 | 0 | 11.4% |
@@ -161,7 +161,7 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | attack | 48 | 0 | 43 | 5 | 0 | 0 | 10.4% |
 | leashable | 43 | 39 | 4 | 0 | 0 | 0 | 0.0% |
 | leashable_to | 42 | 38 | 4 | 0 | 0 | 0 | 0.0% |
-| scale | 47 | 0 | 39 | 8 | 0 | 0 | 17.0% |
+| scale | 47 | 0 | 39 | 5 | 3 | 0 | 17.0% |
 | behavior.hurt_by_target | 42 | 0 | 38 | 3 | 1 | 0 | 9.5% |
 
 ### Entities gaps
