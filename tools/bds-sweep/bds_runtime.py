@@ -3,8 +3,10 @@
 Used by the T1 capture runner (`capture.py`, plain BDS) and the T2 sweep
 runner (`sweep.py`, BDS under Endstone). Rules this module enforces:
 
-* one BDS machine-wide: refuses to start when any `bedrock_server` process
-  runs or the game port is bound;
+* one BDS per runtime: refuses to start when a `bedrock_server` process from
+  this runtime's `server/` folder runs, or the game port is bound. Several
+  runtimes (slots) can run side by side: each is a copy of the server folder
+  with its own `BDS_RUNTIME` and `BDS_PORT` (see the README, "Parallel slots");
 * `server.properties` is backed up before a session writes its own and is
   restored afterwards, also after a crash of a previous session (a stale
   backup is restored first);
@@ -30,6 +32,10 @@ from pathlib import Path
 RUNTIME = Path(os.environ.get('BDS_RUNTIME', 'C:/Users/jvigu/orca/bds-runtime')).resolve()
 SERVER = RUNTIME / 'server'
 PYTHON = RUNTIME / 'venv' / 'Scripts' / 'python.exe'
+# IPv4 game port of this runtime; IPv6 uses the next port. Slots use their own
+# ports so they never collide with each other or with unastar on 19132.
+PORT = int(os.environ.get('BDS_PORT', '19132'))
+ADDR = f'127.0.0.1:{PORT}'
 PROPERTIES = SERVER / 'server.properties'
 BACKUP = SERVER / 'server.properties.bds-sweep-backup'
 EXPECTED_VERSION = '26.51'
@@ -40,10 +46,23 @@ SWEEPS = RUNTIME / 'sweeps' / '1.26.51'
 
 
 def bds_processes() -> list[str]:
-    """Running `bedrock_server` processes (Windows `tasklist`)."""
-    out = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq bedrock_server.exe', '/FO', 'CSV', '/NH'],
+    """Executable paths of running `bedrock_server` processes started from this
+    runtime's `server/` folder. A process whose path cannot be read (another
+    user's or an elevated one) counts as this runtime's, to stay safe."""
+    script = ("Get-CimInstance Win32_Process -Filter \"Name='bedrock_server.exe'\" | "
+              "ForEach-Object { if ($_.ExecutablePath) { $_.ExecutablePath } else { '?' } }")
+    out = subprocess.run(['powershell', '-NoProfile', '-Command', script],
                          capture_output=True, text=True, check=True).stdout
-    return [line for line in out.splitlines() if 'bedrock_server' in line.lower()]
+    return [line.strip() for line in out.splitlines()
+            if line.strip() and process_in_runtime(line.strip(), SERVER)]
+
+
+def process_in_runtime(executable: str, server: Path) -> bool:
+    """Whether a `bedrock_server` executable path belongs to `server` ('?' when
+    the path is unreadable counts as belonging)."""
+    if executable == '?':
+        return True
+    return Path(executable).resolve().parent == server.resolve()
 
 
 def udp_port_bound(port: int) -> bool:
@@ -84,14 +103,14 @@ class Bds:
 
     @property
     def port(self) -> int:
-        return int(self.properties.get('server-port', 19132))
+        return int(self.properties.get('server-port', PORT))
 
     def __enter__(self) -> 'Bds':
         version = (SERVER / 'version.txt').read_text(encoding='utf-8').strip()
         if version != EXPECTED_VERSION:
             raise RuntimeError(f'shared runtime is BDS {version}, expected {EXPECTED_VERSION}')
         if bds_processes():
-            raise RuntimeError('a bedrock_server process is already running; one BDS at a time')
+            raise RuntimeError(f'a bedrock_server process from {SERVER} is already running; one BDS per runtime')
         if udp_port_bound(self.port):
             raise RuntimeError(f'UDP port {self.port} is bound by another process')
         restore_properties()
@@ -175,8 +194,8 @@ def base_properties(level_name: str, **overrides: object) -> dict[str, object]:
     the BDS default."""
     values: dict[str, object] = {
         'server-name': f'bds-sweep {level_name}',
-        'server-port': 19132,
-        'server-portv6': 19133,
+        'server-port': PORT,
+        'server-portv6': PORT + 1,
         'online-mode': 'false',
         'enable-lan-visibility': 'false',
         'allow-cheats': 'true',
