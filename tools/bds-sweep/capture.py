@@ -54,7 +54,7 @@ def session(out: Path, extractor: Path, permission: str, summon: bool, timeout: 
             commands: Path | None = None) -> int:
     out.mkdir(parents=True)
     properties = bds_runtime.base_properties(LEVEL, default_player_permission_level=permission, **WORLD)
-    command = [str(extractor), '--addr', '127.0.0.1:19132', '--name', PLAYER, '--timeout', '120',
+    command = [str(extractor), '--addr', bds_runtime.ADDR, '--name', PLAYER, '--timeout', '120',
                '--capture-dir', str(out), '--log', 'info']
     if summon:
         command.append('--summon')
