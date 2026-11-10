@@ -28,8 +28,9 @@ it exactly.
   `target/debug/unastar.exe` for a side-by-side capture with the same client. Its super-flat
   surface is y=4 (BDS: −60), it has `/spawnpoint` but no `/setworldspawn` or `/damage`, and the
   `super_flat` generator rejects a `seed` key.
-- Traps: unastar's hunger regeneration reads `naturalregeneration` from the announced world
-  template, not from `/gamerule`, so a test that needs no healing keeps food below 18 instead.
+- Traps: until the change in `game-state-read-from-the-start-game-template-is-frozen.md`,
+  unastar's hunger regeneration read `naturalregeneration` from the announced world template, not
+  from `/gamerule`; tests now set the live rule like the captures did.
   `cargo run -p parity -- generate` with `UNASTAR_BDS_DIR` set rewrites
   `docs/parity/source/bedrock-worldgen.tsv` line endings; restore it if its content did not change.
 

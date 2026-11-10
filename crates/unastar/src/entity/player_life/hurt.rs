@@ -4,7 +4,9 @@
 //! 1. A dead player, or one whose game mode is immune (creative and
 //!    spectator; void and override damage still hurt them), takes nothing.
 //!    Neither does a cause its game rule turns off (`fall_damage`,
-//!    `fire_damage`, `drowning_damage`).
+//!    `fire_damage`, `drowning_damage`, `freeze_damage`; read every hit, so
+//!    `/gamerule` acts at once: BDS 1.26.51 refuses `/damage` of each of
+//!    those causes while its rule is off).
 //! 2. Damage from a non-player attacker scales with the difficulty:
 //!    peaceful none, easy `min(damage / 2 + 1, damage)`, normal as is, hard
 //!    × 1.5 (provisional: Minecraft Wiki "Difficulty", which gives the
@@ -172,6 +174,7 @@ fn allowed_by_rules(rules: &GameRules, cause: ActorDamageCause) -> bool {
         | ActorDamageCause::Campfire
         | ActorDamageCause::SoulCampfire => rules.fire_damage,
         ActorDamageCause::Drowning => rules.drowning_damage,
+        ActorDamageCause::Freezing => rules.freeze_damage,
         _ => true,
     }
 }

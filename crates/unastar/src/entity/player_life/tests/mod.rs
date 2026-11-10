@@ -10,6 +10,7 @@ mod environment;
 mod hurt;
 mod input_tick;
 mod respawn;
+mod rules;
 
 use bevy_ecs::prelude::*;
 use bytes::BytesMut;

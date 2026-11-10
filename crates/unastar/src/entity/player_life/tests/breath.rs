@@ -188,15 +188,10 @@ impl Harness {
 }
 
 /// A survival player on the platform that does not heal: the captures ran
-/// with `naturalregeneration` off; here the food stays below the 18 that
-/// natural regeneration needs.
+/// with `naturalregeneration` off, and so does this world.
 fn subject() -> Harness {
     let mut h = harness(Difficulty::Easy);
-    let player = h.player;
-    h.world()
-        .get_mut::<crate::entity::components::Hunger>(player)
-        .unwrap()
-        .food_level = 17;
+    h.rules().natural_regeneration = false;
     h.tick();
     h.drain();
     h
