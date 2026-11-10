@@ -157,6 +157,13 @@ ids = [
 ]
 
 [[claim]]
+area = "Survival block breaking"
+owner = "lane ITEMS"
+since = 2026-11-10
+domain = "systems"
+ids = ["player.block_breaking"]
+
+[[claim]]
 area = "Commands"
 owner = "lane COMMANDS"
 since = 2026-10-29

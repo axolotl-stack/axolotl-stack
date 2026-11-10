@@ -16,6 +16,9 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `sweep.py` | T2: one sweep job under Endstone with `bds-sweep-client` as the player; output in `<runtime>/sweeps/1.26.51/<kind>-<UTC>/` |
 | `endstone-sweep/` | The Endstone Python plugin that runs jobs server-side (inert unless `BDS_SWEEP_JOB` is set) |
 | `summarize.py` | Raw sweep results to `crates/unastar-data/data/measured/` + `manifest.json` |
+| `script.py` | Plays a `bds-sweep-client --script` scenario against plain BDS (no Endstone) and records the client's packets; the same script runs against unastar with `bds-sweep-client --addr <unastar> --script ...` |
+| `scripts/breaking.txt` | Survival block breaking scenarios: by hand, tools, instant, abort, a frozen client, Haste, a block above, client predictions on time and early, `StopDestroyBlock`, blocks put back where a break goes on, a burst of inputs |
+| `breaking_fixture.py` | Cuts the committed breaking fixture (`crates/unastar/src/server/game/blocks/testdata/bds-breaking.jsonl`) out of a `script.py` capture of `scripts/breaking.txt` |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
 
@@ -65,10 +68,17 @@ The plugin sends these chat orders to `bds-sweep-client`:
 |---|---|
 | `bds-sweep:mine X Y Z FACE PREDICT` | Start/continue breaking; optional predicted break after `PREDICT` ticks |
 | `bds-sweep:stop` | Abort the current mining action |
+| `bds-sweep:pause TICKS` | Send no `PlayerAuthInput` for that many ticks (a frozen client), then carry on |
+| `bds-sweep:burst INPUTS` | Send that many more `PlayerAuthInput`s right after the next one, at once (a client running faster than real time) |
+| `bds-sweep:release` | Release the button: `StopDestroyBlock` with the default position, and no more mining |
 | `bds-sweep:attack RUNTIME_ID` | Attack using the synchronized held stack |
 | `bds-sweep:drop hotbar SLOT COUNT` | Closed-screen Drop from hotbar index 0..8; count 1 is Q, a full stack is ctrl-Q |
 | `bds-sweep:drop inventory SLOT COUNT` | Open the inventory, wait for its server-allocated window ID, then Drop from native inventory index 0..35 |
 | `bds-sweep:close-inventory` | Close the tracked native inventory window |
+
+`bds-sweep-client --script FILE` plays timed orders without the plugin: one `TICK ORDER` line per
+step at that client input tick, an order above without its `bds-sweep:` prefix, a slash command
+(sent as `CommandRequest`; the player must be an operator) or `exit`.
 
 Drop references come only from server `InventoryContent`/`InventorySlot`
 updates; missing/empty/idless slots and invalid counts fail rather than invent
@@ -99,6 +109,8 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 & $py tools/bds-sweep/sweep.py mining --variants held --trials 1      # non-tool items and tool wear
 & $py tools/bds-sweep/sweep.py mining --variants effects --mine-ticks 1200
 & $py tools/bds-sweep/sweep.py attack --items spears --gap 20 --gamemode survival --client-capture
+& $py tools/bds-sweep/sweep.py mining --variants capture --client-capture   # breaking packet flow
+python tools/bds-sweep/script.py tools/bds-sweep/scripts/breaking.txt --out <dir>   # plain BDS, no plugin
 & $py tools/bds-sweep/sweep.py armor-slots --items all
 & $py tools/bds-sweep/sweep.py armor-wear
 & $py tools/bds-sweep/sweep.py fuel --items all

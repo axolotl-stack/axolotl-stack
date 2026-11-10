@@ -205,15 +205,43 @@ def effect_mining_items(args) -> list[dict]:
     return items
 
 
+def capture_mining_items(args) -> list[dict]:
+    """One trial of each breaking situation, for packet captures of the whole
+    flow (run with `--client-capture`): a break BDS completes itself (dirt by
+    hand, stone with a diamond pickaxe, Haste II, a block above, a tool that
+    wears), an instant break (short grass), a client prediction on time and
+    early, and an abort after 5 ticks."""
+    dirt = ('minecraft:dirt', {})
+    cells = [
+        ('hand', dirt, None, {}),
+        ('diamond_pickaxe', ('minecraft:stone', {}), {'item': 'minecraft:diamond_pickaxe'}, {}),
+        ('iron_shovel', dirt, {'item': 'minecraft:iron_shovel'}, {}),
+        ('hand+instant', ('minecraft:short_grass', {}), None, {}),
+        ('hand+predict14', dirt, None, {'predict_after': 14}),
+        ('hand+predict10', dirt, None, {'predict_after': 10, 'max_ticks': 40}),
+        ('hand+abort5', dirt, None, {'max_ticks': 5}),
+        ('hand+haste2', dirt, None, {'commands': ['effect {player} haste 1000 1 true']}),
+        ('hand+stone_above', dirt, None, {'commands': ['setblock 1 -58 0 stone'],
+                                          'cleanup': ['setblock 1 -58 0 air']}),
+    ]
+    items = []
+    for variant, (block, states), spec, extra in cells:
+        items.append({'key': f'{state_key(block, states)}|{variant}', 'block': block, 'states': states,
+                      'tool': spec, 'commands': [], 'max_ticks': args.mine_ticks, 'repeats': 1, **extra})
+    return items
+
+
 def mining_items(args) -> list[dict]:
     """Hand, every tier of each correct digger, shears, efficiency I-V on the
     diamond correct tool, and haste I/II and mining fatigue I with it
-    (`--variants tools`); see `held_mining_items` and `effect_mining_items`
-    for the other variant sets."""
+    (`--variants tools`); see `held_mining_items`, `effect_mining_items` and
+    `capture_mining_items` for the other variant sets."""
     if args.variants == 'held':
         return held_mining_items(args)
     if args.variants == 'effects':
         return effect_mining_items(args)
+    if args.variants == 'capture':
+        return capture_mining_items(args)
     facts = native.mining()
     cells = list(SLICE_BLOCKS.items()) if args.blocks == 'slice' else [
         (name, native.default_states()[name]) for name in args.blocks.split(',')]
@@ -339,10 +367,11 @@ def main() -> int:
     parser.add_argument('--samples', type=int, default=200)
     parser.add_argument('--max-ticks', type=int, default=24000, help='fuel: longest burn to wait for')
     parser.add_argument('--mine-ticks', type=int, default=600, help='mining: longest break to wait for')
-    parser.add_argument('--variants', default='tools', choices=['tools', 'held', 'effects'],
+    parser.add_argument('--variants', default='tools', choices=['tools', 'held', 'effects', 'capture'],
                         help="mining: 'tools' (every tier, efficiency, effects with the diamond tool), "
                              "'held' (--items held on --blocks; default every non-tool digger on dirt, "
-                             "netherrack and leaves) or 'effects' (haste/mining fatigue levels by hand)")
+                             "netherrack and leaves), 'effects' (haste/mining fatigue levels by hand) or 'capture' "
+                             "(one trial of each breaking situation, for --client-capture)")
     parser.add_argument('--trials', type=int, default=3, help='mining held/effects: trials per item')
     parser.add_argument('--gamemode', choices=['survival', 'creative'],
                         help='attack: the player game mode (survival shows wear per hit)')

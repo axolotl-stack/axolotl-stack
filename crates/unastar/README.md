@@ -656,7 +656,18 @@ data is stored verbatim and compared decoded, so a default buffer equals none.
 
 Block interaction requires Survival or Creative mode and server-position reach
 (five blocks in Survival, six in Creative, measured to the block's bounding box).
-Survival predicted breaks must complete the server-tracked mining duration.
+Survival breaking follows BDS input by input:
+- The break advances once per `PlayerAuthInput`, not per server tick. Inputs that arrive together
+  are applied together, as BDS does; a player's inputs after one that completed a break wait one
+  tick, for its commit.
+- The server completes the break itself when the progress does.
+- A client prediction is accepted only on the input that completes the break. An early one gets
+  the blocks back and the break goes on.
+- `StopDestroyBlock` does not end the break, and a completed break goes on at that position from
+  zero.
+- Every input is answered with BDS's crack events, and no sound is sent for a break.
+
+`server/game/blocks/breaking_tests.rs` replays a BDS capture of all of this.
 Block break/place intents dispatch before mutation; cancellation sends authoritative
 corrections. Allowed intents revalidate current state before committing, and
 Survival placement consumes one server-owned selected item. Placement does not

@@ -151,6 +151,15 @@ class HeldAndEffectVariants(unittest.TestCase):
                          ['effect {player} mining_fatigue 1000 1 true'])
         self.assertTrue(all(i['tool'] is None and i['repeats'] == 3 for i in items))
 
+    def test_capture_cells_cover_every_breaking_situation_once(self):
+        items = {i['key']: i for i in sweep.mining_items(self.args(variants='capture', mine_ticks=600))}
+        self.assertEqual(len(items), 9)
+        self.assertTrue(all(i['repeats'] == 1 for i in items.values()))
+        self.assertEqual(items['minecraft:dirt[]|hand+predict10']['predict_after'], 10)
+        self.assertEqual(items['minecraft:dirt[]|hand+abort5']['max_ticks'], 5)
+        self.assertEqual(items['minecraft:dirt[]|hand+stone_above']['cleanup'], ['setblock 1 -58 0 air'])
+        self.assertEqual(items['minecraft:stone[]|diamond_pickaxe']['tool'], {'item': 'minecraft:diamond_pickaxe'})
+
     def test_spears_join_the_attack_list_with_their_gap(self):
         items = sweep.attack_items(self.args(kind='attack', items='spears', gap=20))
         self.assertEqual(items[0], {'key': 'hand', 'tool': None})
