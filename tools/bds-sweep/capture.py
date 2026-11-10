@@ -21,7 +21,7 @@ the commands of FILE one at a time (`bds-extractor --commands`), giving
 `command-outputs.json` (every server packet attributed to the command before
 it). Such a capture does not update `latest.txt`.
 
-    python tools/bds-sweep/capture.py [--out DIR] [--extractor PATH] [--commands FILE]
+    python tools/bds-sweep/capture.py [--out DIR] [--extractor PATH] [--commands FILE [--command-wait MS]]
 
 Output (outside the repository, shared by every worktree):
 `<BDS runtime>/captures/1.26.51/<UTC timestamp>/` with one directory per
@@ -51,7 +51,7 @@ WORLD = dict(level_seed=12345, gamemode='survival', difficulty='easy')
 
 
 def session(out: Path, extractor: Path, permission: str, summon: bool, timeout: int,
-            commands: Path | None = None) -> int:
+            commands: Path | None = None, command_wait: int | None = None) -> int:
     out.mkdir(parents=True)
     properties = bds_runtime.base_properties(LEVEL, default_player_permission_level=permission, **WORLD)
     command = [str(extractor), '--addr', '127.0.0.1:19132', '--name', PLAYER, '--timeout', '120',
@@ -60,6 +60,8 @@ def session(out: Path, extractor: Path, permission: str, summon: bool, timeout: 
         command.append('--summon')
     if commands is not None:
         command += ['--commands', str(commands)]
+    if command_wait is not None:
+        command += ['--command-wait', str(command_wait)]
     (out / 'session.json').write_text(json.dumps({
         'bds_version': bds_runtime.EXPECTED_VERSION,
         'server': 'bedrock_server.exe (no Endstone)',
@@ -82,6 +84,8 @@ def main() -> int:
     parser.add_argument('--extractor', type=Path, default=REPO / 'target' / 'debug' / 'bds-extractor.exe')
     parser.add_argument('--timeout', type=int, default=1800, help='seconds per extractor session')
     parser.add_argument('--commands', type=Path, help='run only an operator session with this command script')
+    parser.add_argument('--command-wait', type=int,
+                        help='milliseconds after each scripted command (extractor default 1500)')
     args = parser.parse_args()
     if not args.extractor.exists():
         parser.error(f'{args.extractor} missing: cargo build -p bds-extractor')
@@ -102,7 +106,8 @@ def main() -> int:
         for name, permission, summon, commands in sessions:
             if world.exists():
                 shutil.rmtree(world)
-            code = session(out / name, args.extractor, permission, summon, args.timeout, commands)
+            code = session(out / name, args.extractor, permission, summon, args.timeout, commands,
+                           args.command_wait)
             print(f'{name}: extractor exit {code}')
             if code != 0:
                 return code

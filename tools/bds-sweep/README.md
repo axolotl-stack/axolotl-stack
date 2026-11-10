@@ -10,9 +10,10 @@ the impl workers first. Never launches the Minecraft client.
 |---|---|
 | `bds_runtime.py` | Starts/stops the shared BDS (plain or under Endstone): refuses when a `bedrock_server` runs or the port is bound, backs up and restores `server.properties`, harness-owned world names only, graceful `stop` |
 | `capture.py` | T1: two `bds-extractor --capture-dir` sessions on plain BDS (member join; operator join + `/summon` of every summonable identifier) into `<runtime>/captures/1.26.51/<UTC>/`; `--commands FILE` runs one operator session of scripted commands instead (`operator-commands/command-outputs.json`) |
-| `command-script.txt` | The vanilla command feedback script for `capture.py --commands` |
+| `command-script.txt` | The vanilla command feedback script for `capture.py --commands` (`# segment: NAME` groups lines that unastar's tests replay together; every segment leaves the world as it found it) |
 | `command_digest.py` | `command-outputs.json` to a readable per-command `digest.md` (CommandOutput fields, key fields of every other packet) |
-| `commit_fixtures.py` | Copies the committed subset of a capture into `crates/bds-extractor/captures/1.26.51/` (see the crate README) |
+| `commit_fixtures.py` | Copies the committed subset of a capture into `crates/bds-extractor/captures/1.26.51/` (see the crate README); `--commands CAPTURE` commits a command session's `feedback.json` |
+| `block_names.py` | `script OUT` writes a `/testforblock` script over every palette block; `table CAPTURE` turns its capture into `crates/unastar-data/data/measured/block_name_keys.json` |
 | `sweep.py` | T2: one sweep job under Endstone with `bds-sweep-client` as the player; output in `<runtime>/sweeps/1.26.51/<kind>-<UTC>/` |
 | `endstone-sweep/` | The Endstone Python plugin that runs jobs server-side (inert unless `BDS_SWEEP_JOB` is set) |
 | `summarize.py` | Raw sweep results to `crates/unastar-data/data/measured/` + `manifest.json` |
