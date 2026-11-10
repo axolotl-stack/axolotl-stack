@@ -52,8 +52,8 @@ pub use derive::derive_mob_state;
 pub use events::EventError;
 
 use crate::entity::components::{
-    ActorViewers, Age, FallDistance, Living, Mob, OnGround, PhysicsBody, Position, Rotation,
-    RuntimeId, Velocity,
+    ActorViewers, Age, FallDistance, Living, Mob, OnGround, PhysicsBody, PhysicsModel, Position,
+    Rotation, RuntimeId, Velocity,
 };
 use crate::entity::definition::attributes::ActorAttributes;
 use crate::entity::definition::flags::ActorFlags;
@@ -143,6 +143,14 @@ pub fn spawn_mob(
     }
     apply_pending_definitions(world);
     derive_entity(world, entity);
+    if cause != SpawnCause::Loaded
+        && world
+            .get::<PhysicsBody>(entity)
+            .is_some_and(|body| body.model == PhysicsModel::Living && body.gravity > 0.0)
+        && let Some(mut velocity) = world.get_mut::<Velocity>(entity)
+    {
+        velocity.0.y = constants::MOB_SPAWN_VELOCITY_Y;
+    }
     Ok(entity)
 }
 
@@ -163,6 +171,11 @@ fn spawn_unattached(
     };
     let mut molang = PropertyDefaults(rand::SeedableRng::seed_from_u64(seed));
     let properties = ActorProperties::new(Arc::clone(&archetype.properties), &mut molang)?;
+    // From the mob's own seed, so the shared random sequence is unchanged.
+    let knockback_resistance = archetype
+        .native
+        .knockback_resistance_bonus
+        .map(|max| combat::knockback::KnockbackResistance::roll(&mut molang.0, max));
     let attributes = ActorAttributes::new(
         Arc::clone(&archetype.attributes),
         archetype.attribute_seed.clone(),
@@ -228,6 +241,9 @@ fn spawn_unattached(
             FallDistance::default(),
             ai::MobBrain::default(),
         ));
+        if let Some(resistance) = knockback_resistance {
+            entity.insert(resistance);
+        }
     }
     Ok(entity.id())
 }

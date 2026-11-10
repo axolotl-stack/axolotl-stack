@@ -220,6 +220,60 @@ def attack_items(args) -> list[dict]:
     return [{'key': tool_key(spec), 'tool': spec} for spec in tools]
 
 
+def knockback_items(args) -> list[dict]:
+    """`--items slice` (default): a cow and a zombie hit three times (at 0,
+    11 and 30 ticks after a 40-tick settle) by the player standing two blocks
+    west facing east; variants from the south-west (direction from positions
+    differs from the player's facing), with the player's back to the mob,
+    with a sword, and with the mob's AI left to move it (`natural`) instead
+    of frozen. `--items air`: mobs moving through the air under their AI or
+    hit there: a cow tempted by wheat over a one-block step (plain, Speed II,
+    Slowness I), cows and zombies hit while falling, a panicking cow hit
+    four times. `--items all`: both."""
+    east = {'from': [-2.0, 0.0], 'yaw': -90}
+    diagonal = {'from': [-1.5, -1.0], 'yaw': -90}
+    away = {'from': [-2.0, 0.0], 'yaw': 90}
+    trials = [
+        ('cow', 'east', True, east, None),
+        ('cow', 'diagonal', True, diagonal, None),
+        ('cow', 'away', True, away, None),
+        ('zombie', 'east', True, east, None),
+        ('zombie', 'east-sword', True, east, {'item': 'minecraft:wooden_sword'}),
+        ('cow', 'east', False, east, None),
+        ('cow', 'diagonal', False, diagonal, None),
+        ('zombie', 'east', False, east, None),
+    ]
+    hits = []
+    for mob, geometry, frozen, hit, tool_spec in trials:
+        hits.append({'key': f'{mob}|{geometry}|{"frozen" if frozen else "natural"}',
+                     'mob': f'minecraft:{mob}', 'at': [2.5, -60, 0.5, 90], 'frozen': frozen,
+                     'tool': tool_spec, 'settle': 40, 'tail': 40,
+                     'hits': [{**hit, 'tick': tick} for tick in (0, 11, 30)]})
+    step = 'fill 5 -60 -2 9 -60 3 {}'
+    air = []
+    for name, effects in (('plain', []), ('speed2', ['effect @e[type=minecraft:cow] speed 1000 1 true']),
+                          ('slowness1', ['effect @e[type=minecraft:cow] slowness 1000 0 true'])):
+        air.append({'key': f'cow|tempt-step-{name}|natural', 'mob': 'minecraft:cow', 'at': [1.5, -60, 0.5, -90],
+                    'frozen': False, 'effects': effects, 'tool': {'item': 'minecraft:wheat'},
+                    'player': [7.5, -59, 0.5, 90], 'setup': [step.format('stone')],
+                    'cleanup': [step.format('air')], 'settle': 0, 'tail': 120, 'hits': []})
+    for mob, key in (('cow', 'falling'), ('zombie', 'falling'), ('zombie', 'falling-2')):
+        air.append({'key': f'{mob}|{key}|frozen', 'mob': f'minecraft:{mob}', 'at': [2.5, -56, 0.5, 90],
+                    'frozen': True, 'tool': None, 'settle': 0, 'tail': 40, 'hits': [{**east, 'tick': 2}]})
+    air.append({'key': 'cow|panic-run|natural', 'mob': 'minecraft:cow', 'at': [2.5, -60, 0.5, 90],
+                'frozen': False, 'tool': None, 'settle': 20, 'tail': 40,
+                'hits': [{**east, 'tick': tick} for tick in (0, 20, 40, 60)]})
+    # Frozen cows falling 20 blocks at increasing horizontal distances from
+    # the player: how BDS sends a moving actor's updates by distance.
+    far = [{'key': f'cow|fall-{distance}|frozen', 'mob': 'minecraft:cow', 'at': [0.5 + distance, -40, 0.5, 90],
+            'frozen': True, 'tool': None, 'player': [0.5, -60, 0.5, -90], 'settle': 0, 'tail': 45, 'hits': []}
+           for distance in (4, 6, 7, 10, 16, 24, 32, 48)]
+    sets = {'slice': hits, 'air': air, 'far': far, 'all': hits + air + far}
+    if args.items not in sets:
+        raise SystemExit(f"knockback --items must be one of {sorted(sets)}")
+    return sets[args.items]
+
+
 def build_job(args, out: Path) -> dict:
     job = {'kind': args.kind.replace('-', '_'), 'player': PLAYER, 'output_dir': str(out),
            'arena': ARENA, 'setup_commands': SETUP}
@@ -237,12 +291,17 @@ def build_job(args, out: Path) -> dict:
         job.update(furnace='furnace', lit_furnace='minecraft:lit_furnace', input='cobblestone',
                    max_ticks=args.max_ticks,
                    items=[{'key': name, 'item': name} for name in item_names(args.items, SLICE_FUELS)])
+    elif args.kind == 'knockback':
+        # Zombies need a difficulty above peaceful and burn in daylight.
+        job['setup_commands'] = SETUP + ['difficulty easy', 'time set 18000']
+        job['items'] = knockback_items(args)
     return job
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel'])
+    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
+                                         'knockback'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
@@ -252,6 +311,8 @@ def main() -> int:
     parser.add_argument('--mine-ticks', type=int, default=600, help='mining: longest break to wait for')
     parser.add_argument('--client', type=Path, default=REPO / 'target' / 'debug' / 'bds-sweep-client.exe')
     parser.add_argument('--timeout', type=float, default=6 * 3600, help='seconds for the whole job')
+    parser.add_argument('--client-capture', action='store_true',
+                        help="record the sweep player's packets to <out>/client/packets.jsonl")
     args = parser.parse_args()
     # A queue of sweep.py runs can be paused for someone else's BDS slot:
     # while this file exists, every new run exits without starting BDS.
@@ -281,10 +342,15 @@ def main() -> int:
     properties = bds_runtime.base_properties(
         LEVEL, level_type='FLAT', gamemode='creative', force_gamemode='true', difficulty='peaceful',
         default_player_permission_level='operator', view_distance=6, tick_distance=4)
-    env = {'BDS_SWEEP_JOB': str(job_path), 'CLIENT_DIFF_CAPTURE_DIR': str(out / 'client-diff-plugin')}
+    # The plugin's jobs come from this checkout, ahead of the editable
+    # install in the shared venv (which may point at another worktree).
+    env = {'BDS_SWEEP_JOB': str(job_path), 'CLIENT_DIFF_CAPTURE_DIR': str(out / 'client-diff-plugin'),
+           'PYTHONPATH': str(REPO / 'tools' / 'bds-sweep' / 'endstone-sweep' / 'src')}
     started = time.monotonic()
     status = 'timeout'
     client_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', PLAYER]
+    if args.client_capture:
+        client_command += ['--capture-dir', str(out / 'client')]
     try:
         with bds_runtime.Bds(properties, out / 'bds.log', endstone=True, env=env):
             with (out / 'client.log').open('a', encoding='utf-8') as log:

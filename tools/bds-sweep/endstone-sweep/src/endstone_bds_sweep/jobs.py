@@ -408,5 +408,104 @@ def attack(ctx: Context, job: dict):
     ctx.player.inventory.item_in_main_hand = None
 
 
+def actor_state(actor) -> dict:
+    """Position (feet), rotation (pitch, yaw), velocity and ground contact of
+    a live actor."""
+    loc = actor.location
+    vel = actor.velocity
+    return {'pos': [loc.x, loc.y, loc.z], 'rot': [loc.pitch, loc.yaw], 'vel': [vel.x, vel.y, vel.z],
+            'ground': actor.is_on_ground}
+
+
+def find_actor(ctx: Context, runtime_id: int):
+    for actor in ctx.dimension.actors:
+        if actor.runtime_id == runtime_id and actor.is_valid:
+            return actor
+    return None
+
+
+def knockback(ctx: Context, job: dict):
+    """Knockback and movement of a mob the sweep player hits. Per item: the
+    `setup` commands run, a fresh `mob` is spawned at `at` (x, y, z, yaw),
+    with `frozen` given Slowness 255 so its AI cannot accelerate it and then
+    the `effects` commands run; it settles for `settle` ticks; then each of
+    `hits` lands `tick` ticks later: three ticks before it the player
+    (holding `tool`) is teleported to the mob's position + `from` (x, z) on
+    the ground, facing `yaw`, and on the tick the client gets a
+    `bds-sweep:attack` order. Without hits the player stands at `player`
+    (x, y, z, yaw). Every tick until `tail` ticks after the last hit (or the
+    settle) records the mob's and the player's state; every
+    ActorKnockbackEvent and ActorDamageEvent is kept with its tick; the
+    `cleanup` commands run last. `--client-capture` on sweep.py records the
+    packets the player received alongside."""
+    from endstone.level import Location
+    name = job['player']
+    ground = job['arena']['player'][1]
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        ctx.begin(item)
+        for line in item.get('setup', []):
+            ctx.must(line)
+        ctx.player.inventory.held_item_slot = 0
+        ctx.player.inventory.item_in_main_hand = ctx.stack(item.get('tool'))
+        at = item['at']
+        if item['hits']:
+            first = item['hits'][0]
+            start = [at[0] + first['from'][0], ground, at[2] + first['from'][1], first['yaw']]
+        else:
+            start = item['player']
+        ctx.must(f'tp "{name}" {start[0]} {start[1]} {start[2]} {start[3]} 0')
+        yield 5
+        mob = ctx.dimension.spawn_actor(Location(ctx.dimension, at[0], at[1], at[2], 0.0, at[3]), item['mob'])
+        runtime_id = mob.runtime_id
+        if item.get('frozen'):
+            ctx.must(f'effect @e[type={item["mob"]}] slowness 100000 255 true')
+        for line in item.get('effects', []):
+            ctx.must(line)
+        ctx.plugin.knockbacks.clear()
+        ctx.plugin.damage.clear()
+        hits = {int(item['settle']) + int(hit['tick']): hit for hit in item['hits']}
+        moves = {tick - 3: hit for tick, hit in hits.items()}
+        end = max(hits, default=int(item['settle'])) + int(item['tail'])
+        first_tick = ctx.plugin.ticks
+        samples, orders = [], []
+        for t in range(end + 1):
+            actor = find_actor(ctx, runtime_id)
+            if actor is None:
+                break
+            samples.append({'t': t, 'tick': ctx.plugin.ticks, 'mob': actor_state(actor),
+                            'player': actor_state(ctx.player)})
+            if t in moves:
+                hit, loc = moves[t], actor.location
+                ctx.must(f'tp "{name}" {loc.x + hit["from"][0]:.4f} {ground} {loc.z + hit["from"][1]:.4f} '
+                         f'{hit["yaw"]} 0')
+            if t in hits:
+                ctx.player.send_message(f'bds-sweep:attack {runtime_id}')
+                orders.append({'t': t, 'tick': ctx.plugin.ticks})
+            yield 1
+        actor = find_actor(ctx, runtime_id)
+        if actor is not None:
+            actor.remove()
+        for line in item.get('cleanup', []):
+            ctx.must(line)
+        ctx.record({
+            'key': item['key'],
+            'mob': item['mob'],
+            'runtime_id': runtime_id,
+            'frozen': bool(item.get('frozen')),
+            'tool': item.get('tool'),
+            'spec': {k: item[k] for k in ('at', 'hits', 'settle', 'tail', 'player', 'setup', 'effects')
+                     if k in item},
+            'first_tick': first_tick,
+            'orders': orders,
+            'knockbacks': [k for k in ctx.plugin.knockbacks if k['actor'] == runtime_id],
+            'damage': [list(d) for d in ctx.plugin.damage if d[1] == item['mob']],
+            'samples': samples,
+        })
+        yield 5
+    ctx.player.inventory.item_in_main_hand = None
+
+
 JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'attack': attack,
-        'fuel': fuel, 'mining': mining}
+        'fuel': fuel, 'mining': mining, 'knockback': knockback}

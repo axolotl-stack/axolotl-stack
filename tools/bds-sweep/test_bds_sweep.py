@@ -4,6 +4,7 @@
 """
 
 import json
+import struct
 import sys
 import tempfile
 import unittest
@@ -11,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
+import knockback_fixture  # noqa: E402
 import native  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
@@ -126,6 +128,74 @@ class RuntimeSlotTest(unittest.TestCase):
         self.assertEqual(properties['enable-lan-visibility'], 'false')
         self.assertEqual(bds_runtime.ADDR, f'127.0.0.1:{bds_runtime.PORT}')
 
+
+class KnockbackTrials(unittest.TestCase):
+    def items(self, which: str) -> list[dict]:
+        return sweep.knockback_items(type('Args', (), {'items': which})())
+
+    def test_sets_have_unique_keys_and_hits_after_the_settle(self):
+        sets = {which: self.items(which) for which in ('slice', 'air', 'far', 'all')}
+        self.assertEqual([len(sets[which]) for which in ('slice', 'air', 'far')], [8, 7, 8])
+        self.assertEqual(len(sets['all']), 23)
+        keys = [item['key'] for item in sets['all']]
+        self.assertEqual(len(keys), len(set(keys)))
+        for item in sets['all']:
+            self.assertTrue(item['hits'] or 'player' in item, item['key'])
+            for hit in item['hits']:
+                self.assertEqual(set(hit), {'from', 'yaw', 'tick'})
+
+    def test_unknown_set_is_refused(self):
+        with self.assertRaises(SystemExit):
+            self.items('every')
+
+
+def varint(value: int) -> bytes:
+    out = bytearray()
+    while value >= 0x80:
+        out.append(value & 0x7F | 0x80)
+        value >>= 7
+    out.append(value)
+    return bytes(out)
+
+
+class KnockbackFixture(unittest.TestCase):
+    def capture(self, records: list[tuple[int, int, bytes]]) -> Path:
+        path = Path(tempfile.mkdtemp()) / 'packets.jsonl'
+        lines = [json.dumps({'t_ms': t, 'dir': 's2c', 'id': pid, 'hex': (varint(pid) + body).hex()})
+                 for t, pid, body in records]
+        path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+        return path
+
+    def test_position_updates_and_motion_are_tied_to_their_samples(self):
+        # MoveActorDelta: runtime id, three optional f32 positions, three
+        # optional rotation bytes, on-ground and three force flags, ticks.
+        delta = (varint(2) + b'\x01' + struct.pack('<f', 2.75) + b'\x01' + struct.pack('<f', -59.5) + b'\x00'
+                 + b'\x00' * 3 + b'\x00\x00\x00\x00' + varint(0))
+        motion = varint(2) + struct.pack('<3f', 0.21875, 0.3125, 0.0) + varint(0)
+        rotation_only = varint(2) + b'\x00' * 3 + b'\x01\x05' + b'\x00' * 2 + b'\x01\x00\x00\x00' + varint(0)
+        capture = list(knockback_fixture.packets(self.capture(
+            [(100, 111, rotation_only), (150, 111, delta), (152, 40, motion)])))
+        trial = {'key': 'cow', 'runtime_id': 2}
+        samples = [{'mob': {'pos': [2.5, -60.0, 0.5]}}, {'mob': {'pos': [2.75, -59.5, 0.5]}}]
+        wire = knockback_fixture.wire_for(trial, capture, samples)
+        self.assertEqual(wire, [
+            {'sample': 1, 'delta': [2.75, -59.5, None], 'ground': False, 'ticks': 0},
+            {'sample': 1, 'motion': [0.21875, 0.3125, 0.0], 'tick': 0},
+        ])
+
+    def test_motion_before_the_mob_was_added_is_refused(self):
+        motion = varint(2) + struct.pack('<3f', 0.1, 0.0, 0.0) + varint(0)
+        capture = list(knockback_fixture.packets(self.capture([(10, 40, motion)])))
+        with self.assertRaises(SystemExit):
+            knockback_fixture.wire_for({'key': 'cow', 'runtime_id': 2}, capture, [{'mob': {'pos': [0, 0, 0]}}])
+
+    def test_a_far_mobs_motion_without_an_update_counts_ticks_from_the_last_one(self):
+        add_actor = varint(4) + varint(2) + varint(len(b'minecraft:cow')) + b'minecraft:cow'
+        motion = varint(2) + struct.pack('<3f', 0.0, -0.25, 0.0) + varint(0)
+        capture = list(knockback_fixture.packets(self.capture([(1000, 13, add_actor), (1148, 40, motion)])))
+        samples = [{'mob': {'pos': [0.5, -40.0, 0.5]}} for _ in range(5)]
+        wire = knockback_fixture.wire_for({'key': 'cow', 'runtime_id': 2}, capture, samples)
+        self.assertEqual(wire, [{'sample': 3, 'motion': [0.0, -0.25, 0.0], 'tick': 0}])
 
 if __name__ == '__main__':
     unittest.main()
