@@ -23,16 +23,17 @@
 //! Each change reaches the player and its viewers as one `SetActorData` of
 //! the changed keys, in key order, with the player's input tick:
 //! - at the end of every tick ([`sync_players`]): the breath, the pose,
-//!   burning, effects, and a death during the player tick (environment and
-//!   breath) together with its 0.2 × 0.2 box;
+//!   burning, effects, and a death during the player tick (landing,
+//!   environment and breath damage, [`PlayerTick`]) together with its
+//!   0.2 × 0.2 box;
 //! - at once, when an item use starts or stops or the game mode changes
 //!   ([`send_changes`]), when the player dies outside the player tick (the
 //!   death keys; the box follows at the end of the tick), and when it
 //!   respawns (the box; the breath follows at the end of the tick);
-//! - starting or stopping a sneak sends three updates: the flags, box and
-//!   unchanged second flag word with key 139, then the second flag word
-//!   with the blocking bits, and on the next tick the flags and both words
-//!   again.
+//! - starting or stopping a sneak sends three updates, whichever update
+//!   carries it first: the flags, box and unchanged second flag word with
+//!   key 139, then the second flag word with the blocking bits, and on the
+//!   next tick the flags, the second word and 139 again.
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
@@ -64,6 +65,10 @@ const STANDING_HEIGHT: f32 = 1.8;
 const SNEAKING_HEIGHT: f32 = 1.49;
 /// Height of a crawling player's box.
 const CRAWLING_HEIGHT: f32 = 0.6;
+/// How far the crawl test's boxes are shrunk on every side: positions come
+/// from the client as `f32`, so feet on a floor can sit a hair below its
+/// top (eyes at 5.62f32 are 3.99999988 + 1.62).
+const CRAWL_TOLERANCE: f64 = 1.0e-5;
 /// Width and height of a dead player's box.
 const DEAD_SIZE: f32 = 0.2;
 /// The air supply a player's actor data starts with (keys 7 and 42).
@@ -315,11 +320,14 @@ fn blocks_overlap(world: &World, area: Aabb) -> Option<bool> {
 /// `None` while the blocks there are not loaded.
 fn crawls(world: &World, player: Entity) -> Option<bool> {
     let feet = world.get::<Position>(player)?.0 - DVec3::Y * PLAYER_EYE_HEIGHT;
-    let standing = Aabb::from_feet(feet, f64::from(WIDTH), f64::from(STANDING_HEIGHT));
+    let shrink = DVec3::splat(-CRAWL_TOLERANCE);
+    let standing =
+        Aabb::from_feet(feet, f64::from(WIDTH), f64::from(STANDING_HEIGHT)).inflate(shrink);
     if !blocks_overlap(world, standing)? {
         return Some(false);
     }
-    let crawling = Aabb::from_feet(feet, f64::from(WIDTH), f64::from(CRAWLING_HEIGHT));
+    let crawling =
+        Aabb::from_feet(feet, f64::from(WIDTH), f64::from(CRAWLING_HEIGHT)).inflate(shrink);
     Some(!blocks_overlap(world, crawling)?)
 }
 
@@ -534,6 +542,16 @@ pub fn send_changes(world: &mut World, player: Entity, keys: Keys) {
         return;
     };
     let now = current(world, player, data);
+    let flag = 1i64 << actor_flags::SNEAKING;
+    if keys == Keys::All && now.flags & flag != data.sent.flags & flag {
+        // A sneak started or stopped: its own updates first, whatever else
+        // sends the flag word.
+        sneak(world, player);
+    }
+    let Some(data) = world.get::<PlayerActorData>(player) else {
+        return;
+    };
+    let now = current(world, player, data);
     let rows = changed_rows(&data.sent, &now, keys);
     if rows.is_empty() {
         return;
@@ -546,14 +564,19 @@ pub fn send_changes(world: &mut World, player: Entity, keys: Keys) {
 
 /// A sneak started or stopped since the last update: BDS's first two
 /// updates (flags, box and the second word as it was, with key 139; then
-/// the second word), the third follows on the next tick.
-fn sneak(world: &mut World, player: Entity, now: &Synced) {
+/// the second word with the blocking bits), the third follows on the next
+/// tick ([`sync_players`]).
+fn sneak(world: &mut World, player: Entity) {
     let Some(mut data) = world.get_mut::<PlayerActorData>(player) else {
         return;
     };
+    // Remembered before the new values are computed: TRANSITION_BLOCKING
+    // stays from the first sneak on.
     data.sneaked = true;
     data.repeat_sneak = true;
+    let data = world.get::<PlayerActorData>(player).expect("read above");
     let before = data.sent;
+    let now = current(world, player, data);
     let mut first = vec![long(ids::RESERVED_0, now.flags)];
     if now.width != before.width {
         first.push(float(ids::RESERVED_053, now.width));
@@ -563,9 +586,11 @@ fn sneak(world: &mut World, player: Entity, now: &Synced) {
     }
     first.push(long(ids::RESERVED_092, before.flags2));
     first.push(long(ids::RESERVED_139, 0));
-    data.sent.flags = now.flags;
-    data.sent.width = now.width;
-    data.sent.height = now.height;
+    if let Some(mut data) = world.get_mut::<PlayerActorData>(player) {
+        data.sent.flags = now.flags;
+        data.sent.width = now.width;
+        data.sent.height = now.height;
+    }
     send_rows(world, player, first);
     if now.flags2 != before.flags2 {
         if let Some(mut data) = world.get_mut::<PlayerActorData>(player) {
@@ -590,35 +615,22 @@ type Synchronized = QueryState<
 pub fn sync_players(world: &mut World, players: &mut Synchronized, mut due: Local<Vec<Entity>>) {
     due.extend(players.iter(world));
     for player in due.drain(..) {
-        let Some(data) = world
+        if world
             .get::<PlayerActorData>(player)
-            .filter(|data| data.ticked)
-        else {
+            .is_none_or(|data| !data.ticked)
+        {
             continue;
-        };
-        let repeat = data.repeat_sneak;
+        }
         let invisible = world
             .get::<Effects>(player)
             .is_some_and(|effects| effects.has(EffectType::INVISIBILITY));
-        if invisible && !data.was_invisible {
-            world
-                .get_mut::<PlayerActorData>(player)
-                .expect("read above")
-                .was_invisible = true;
-        }
-        let data = world.get::<PlayerActorData>(player).expect("read above");
-        let now = current(world, player, data);
-        let sent_sneaking = data.sent.flags & (1i64 << actor_flags::SNEAKING) != 0;
-        let sneaking = now.flags & (1i64 << actor_flags::SNEAKING) != 0;
+        let mut data = world
+            .get_mut::<PlayerActorData>(player)
+            .expect("read above");
+        data.was_invisible |= invisible;
+        let repeat = std::mem::take(&mut data.repeat_sneak);
+        let sent = data.sent;
         if repeat {
-            world
-                .get_mut::<PlayerActorData>(player)
-                .expect("read above")
-                .repeat_sneak = false;
-            let sent = world
-                .get::<PlayerActorData>(player)
-                .expect("read above")
-                .sent;
             send_rows(
                 world,
                 player,
@@ -629,31 +641,24 @@ pub fn sync_players(world: &mut World, players: &mut Synchronized, mut due: Loca
                 ],
             );
         }
-        if sneaking != sent_sneaking {
-            // Recompute with the sneak remembered (TRANSITION_BLOCKING).
-            if let Some(mut data) = world.get_mut::<PlayerActorData>(player) {
-                data.sneaked |= sneaking;
-            }
-            let data = world.get::<PlayerActorData>(player).expect("read above");
-            let now = current(world, player, data);
-            sneak(world, player, &now);
-        }
         send_changes(world, player, Keys::All);
     }
 }
 
-/// Whether a death happens inside the player tick (environment and breath
-/// damage), whose update [`sync_players`] sends with the dead box.
+/// Set while the player tick's own damage runs (landings, the environment
+/// and breath, between [`enter_player_tick`] and [`leave_player_tick`] in
+/// those exclusive systems, so no other system sees it): a death then waits
+/// for [`sync_players`], which sends it with the dead box.
 #[derive(Resource, Debug, Default, Clone, Copy)]
-pub struct PlayerTick(pub bool);
+pub struct PlayerTick(bool);
 
-/// System (exclusive): the player tick's damage begins.
-pub fn begin_player_tick(world: &mut World) {
+/// The player tick's own damage starts (see [`PlayerTick`]).
+pub fn enter_player_tick(world: &mut World) {
     world.get_resource_or_init::<PlayerTick>().0 = true;
 }
 
-/// System (exclusive): the player tick's damage ends.
-pub fn end_player_tick(world: &mut World) {
+/// The player tick's own damage is done.
+pub fn leave_player_tick(world: &mut World) {
     world.get_resource_or_init::<PlayerTick>().0 = false;
 }
 

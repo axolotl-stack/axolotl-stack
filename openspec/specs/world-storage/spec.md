@@ -159,7 +159,7 @@ BlazeDB SHALL store each column as an appended entry with magic `BLAZ`, its size
 Evidence: crates/unastar/src/storage/blazedb.rs (`FORMAT_VERSION`, `load_column`, `deserialize_chunk`, tests `entry_size_includes_compression_prefix`, `saved_column_loads_after_reopen`, `public_lz4_save_column_loads_after_reopen`, `version_1_network_biomes_are_skipped_on_load`, `version_2_data3d_entries_remain_readable_without_metadata`, `legacy_short_size_index_is_repaired_on_open`, `legacy_short_size_entry_is_repaired_during_index_rebuild`, `oversized_index_entry_is_dropped_before_read_allocation`)
 
 ### Requirement: Player data is restored before spawn
-When `players.leveldb_enabled` is true, player records SHALL be stored in a LevelDB database at `<players.data_dir>/db`, keyed by the 16 UUID bytes, as JSON `PlayerData`. A record MUST be loaded and validated during login and applied when the player entity spawns, before the initial inventory is sent: position, rotation, dimension, game mode, main inventory, armour, offhand, cursor, held slot, ender chest, health, hunger and experience. Fields added later MUST default when missing.
+When `players.leveldb_enabled` is true, player records SHALL be stored in a LevelDB database at `<players.data_dir>/db`, keyed by the 16 UUID bytes, as JSON `PlayerData`. A record MUST be loaded and validated during login and applied when the player entity spawns, before the initial inventory is sent: position, rotation, dimension, game mode, main inventory, armour, offhand, cursor, held slot, ender chest, health, hunger, experience and air. Fields added later MUST default when missing.
 
 #### Scenario: Disconnect and reconnect
 - **WHEN** a player's position, rotation, adventure mode, inventory slot 8 (17 diamonds), damaged helmet, offhand torches, held slot, health 13/24, hunger and experience are saved and the player joins again
@@ -169,7 +169,11 @@ When `players.leveldb_enabled` is true, player records SHALL be stored in a Leve
 - **WHEN** no record exists for the UUID
 - **THEN** `load_player_data` returns `None` and first-join defaults apply
 
-Evidence: crates/unastar/src/storage/leveldb_player.rs, crates/unastar/src/storage/provider.rs (`PlayerData`, `StoredItemStack::restore`), crates/unastar/src/server/connect.rs (`load_player_data`), crates/unastar/src/server/game/mod.rs (`spawn_player`, `restore_items`), crates/unastar/tests/persistence.rs (`disconnect_reconnect_restores_inventory_and_player_state`)
+#### Scenario: Air supply
+- **WHEN** a player saved with 39 ticks of air joins on land
+- **THEN** its join `SetActorData` says 300 and the first update after it carries `BREATHING` and 43
+
+Evidence: crates/unastar/src/storage/leveldb_player.rs, crates/unastar/src/storage/provider.rs (`PlayerData`, `StoredItemStack::restore`), crates/unastar/src/server/connect.rs (`load_player_data`), crates/unastar/src/server/game/mod.rs (`spawn_player`, `restore_items`, `player_record`), crates/unastar/tests/persistence.rs (`disconnect_reconnect_restores_inventory_and_player_state`), crates/unastar/src/entity/player_life/tests/actor_data.rs (`a_rejoining_player_keeps_its_air`, `the_saved_record_keeps_the_air`)
 
 ### Requirement: Invalid player records are kept, not deleted
 A player record that fails to parse or fails `PlayerData::validate` (wrong UUID, non-finite position or rotation, unknown game mode, more than 36 inventory slots, held slot above 8, health outside `0..=max`, food outside `0..=20`, negative experience) SHALL be logged and ignored for that login, and MUST NOT be deleted by the load. A record whose items do not resolve against the item registry MUST make the join fail with a disconnect message instead of spawning the player with lost items.
@@ -178,7 +182,11 @@ A player record that fails to parse or fails `PlayerData::validate` (wrong UUID,
 - **WHEN** the stored value for a UUID is `{not valid json`
 - **THEN** `load_player_data` returns `None` and the stored bytes are unchanged afterwards
 
-Evidence: crates/unastar/src/storage/provider.rs (`PlayerData::validate`, `StoredItemStack::restore`), crates/unastar/src/server/connect.rs (`load_player_data`), crates/unastar/src/server/runtime.rs (`Rejecting player with invalid saved inventory`), crates/unastar/tests/persistence.rs (`corrupt_player_record_falls_back_without_deleting_data`)
+#### Scenario: Air out of range
+- **WHEN** a record's air supply is outside `-19..=300` (-20 never stays: the drowning hit resets it to 0)
+- **THEN** `PlayerData::validate` fails
+
+Evidence: crates/unastar/src/storage/provider.rs (`PlayerData::validate`, `StoredItemStack::restore`, test `air_outside_the_supply_is_invalid`), crates/unastar/src/server/connect.rs (`load_player_data`), crates/unastar/src/server/runtime.rs (`Rejecting player with invalid saved inventory`), crates/unastar/tests/persistence.rs (`corrupt_player_record_falls_back_without_deleting_data`)
 
 ### Requirement: Player saves use one snapshot on disconnect and shutdown
 A player SHALL be saved on disconnect when `players.save_on_disconnect` is true, and every connected player MUST be saved on shutdown. Both MUST write the same `PlayerData` snapshot. When `players.save_previous_position` is true the save MUST also write `<players.data_dir>/<uuid>.toml` with the dimension and position used by spawn rules. A save is reported successful only if every configured store succeeds.

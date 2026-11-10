@@ -620,6 +620,62 @@ fn drowning_to_death_sends_the_air_box_and_death_rows_at_once() {
     assert_eq!(data(&wire(&h.drain(), SESSION)), died_at(&bds, died));
 }
 
+/// The client reports its eyes as `f32`: feet a hair below the floor's top
+/// (eyes 17.619997 over a floor at 16) still crawl under a block at eye
+/// height.
+#[test]
+fn a_client_position_just_below_the_floor_still_crawls() {
+    let (mut server, mut steve) = server();
+    let mut position = input(HOME, 1, &[]);
+    position.position.y = 17.619_997;
+    route_as(&mut server, SESSION, position);
+    server.tick();
+    drain(&mut steve);
+    let eyes = eyes(HOME).floor().as_ivec3();
+    set_block_in(&mut server, eyes, *blocks::STONE);
+    server.tick();
+    let seen = data(&wire(&drain(&mut steve), SESSION));
+    let Some(Wire::Data(rows)) = seen.first() else {
+        panic!("no update: {seen:?}");
+    };
+    assert_eq!(rows[0].id, ids::RESERVED_054);
+    assert_eq!(
+        rows[0].payload,
+        DataItemEntryPayload::DataItemFloatPayload(
+            jolyne::valentine::types::DataItemFloatPayload {
+                type_: jolyne::valentine::types::EnumsDataItemType::Float,
+                value: 0.6,
+            }
+        )
+    );
+}
+
+/// A sneak that another update carries first (an item use, a game-mode
+/// change in the same tick) still sends BDS's sneak updates and keeps
+/// `TRANSITION_BLOCKING` afterwards.
+#[test]
+fn a_sneak_sent_by_another_update_keeps_its_sequence() {
+    let bds = data(&wire(&bds("sneak"), bds_subject("sneak")));
+    let (mut server, mut steve) = server();
+    let player = steve.entity;
+    for sneaking in [true, false] {
+        server
+            .ecs
+            .world_mut()
+            .get_mut::<crate::entity::components::PlayerState>(player)
+            .unwrap()
+            .sneaking = sneaking;
+        super::super::actor_data::send_changes(
+            server.ecs.world_mut(),
+            player,
+            super::super::actor_data::Keys::All,
+        );
+        server.tick();
+        server.tick();
+    }
+    assert_eq!(data(&wire(&drain(&mut steve), SESSION)), bds);
+}
+
 /// `/kill` on land: the last death block and the died flag at once, the
 /// 0.2 × 0.2 box on the next tick, the living box after the respawn; the
 /// player and its viewers alike.
@@ -631,6 +687,24 @@ fn a_kill_sends_the_death_rows_then_the_dead_box() {
         bds_subject("kill_on_land_viewer"),
     );
     assert_eq!(subject_view, viewer_view);
+    // Another /kill sent the rows together, the tick after the death event
+    // (`kill_keepinventory`, has-died already 1): which grouping BDS picks
+    // depends on where in its tick the command runs.
+    let together = data(&wire(
+        &bds("kill_keepinventory"),
+        bds_subject("kill_keepinventory"),
+    ));
+    let Wire::Data(rows) = &together[0] else {
+        unreachable!()
+    };
+    assert_eq!(
+        rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+        [
+            ids::RESERVED_053,
+            ids::RESERVED_054,
+            ids::PLAYER_LAST_DEATH_POS
+        ]
+    );
     let (mut server, mut steve) = server();
     let mut alex = join(&mut server, VIEWER, "Alex", HOME + DVec3::X, None);
     for _ in 0..40 {
@@ -822,29 +896,36 @@ fn respiration_spares_the_air() {
     }
 }
 
-/// Water over a bubble column's source: two ticks holding the breath, then
-/// the column reaches the feet and the air is full at once.
+/// Water over a bubble column's source (soul sand, then magma with fire
+/// resistance on, as captured): two ticks holding the breath, then the
+/// column reaches the feet and the air is full at once.
 #[test]
 fn a_bubble_column_fills_the_air_at_once() {
-    let bds = data(&wire(
-        &bds("soul_sand_column"),
-        bds_subject("soul_sand_column"),
-    ));
-    let mut h = harness(Difficulty::Easy);
-    h.ticks(5);
-    h.drain();
-    let feet = HOME.floor().as_ivec3();
-    for pos in [feet, feet + IVec3::Y] {
-        h.set_block(pos, *blocks::WATER);
+    for (phase, fire_resistance) in [("soul_sand_column", false), ("magma_column", true)] {
+        let bds = data(&wire(&bds(phase), bds_subject(phase)));
+        let mut h = harness(Difficulty::Easy);
+        if fire_resistance {
+            let player = h.player;
+            h.world()
+                .get_mut::<Effects>(player)
+                .unwrap()
+                .add(EffectType::FIRE_RESISTANCE, 0, 1200);
+        }
+        h.ticks(5);
+        h.drain();
+        let feet = HOME.floor().as_ivec3();
+        for pos in [feet, feet + IVec3::Y] {
+            h.set_block(pos, *blocks::WATER);
+        }
+        h.ticks(2);
+        let column = crate::world::chunk::blocks::get_block_id("minecraft:bubble_column");
+        h.set_block(feet, column);
+        h.ticks(5);
+        let seen = data(&wire(&h.drain(), SESSION));
+        // BDS then pushes the player up and flags it MOVING, which the
+        // client does here; only the breath updates are compared.
+        assert_eq!(seen, bds[..3], "{phase}");
     }
-    h.ticks(2);
-    let column = crate::world::chunk::blocks::get_block_id("minecraft:bubble_column");
-    h.set_block(feet, column);
-    h.ticks(5);
-    let seen = data(&wire(&h.drain(), SESSION));
-    // BDS then pushes the player up and flags it MOVING, which the client
-    // does here; only the breath updates are compared.
-    assert_eq!(seen, bds[..3]);
 }
 
 /// A mob's hit: knockback, then the hurt event; the killing hit sends only

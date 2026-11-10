@@ -91,13 +91,10 @@ fn build_add_player_packet(
     position: &Position,
     rotation: &Rotation,
     player_game_type: EnumsGameType,
-    actor_data: Option<&PlayerActorData>,
+    actor_data: &PlayerActorData,
 ) -> AddPlayerPacket {
     let entity_data = SynchedActorDataCopyableDataList {
-        data: actor_data.map_or_else(
-            || full_actor_data(name, &PlayerActorData::joined(1)),
-            |data| full_actor_data(name, data),
-        ),
+        data: full_actor_data(name, actor_data),
     };
 
     AddPlayerPacket {
@@ -222,7 +219,7 @@ pub fn broadcast_spawn_system(
             &GameMode,
             &PlayerSession,
             Has<ExplicitGameMode>,
-            Option<&PlayerActorData>,
+            &PlayerActorData,
         ),
         With<Player>,
     >,

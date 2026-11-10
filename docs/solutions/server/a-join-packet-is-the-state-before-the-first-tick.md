@@ -31,5 +31,5 @@ off or the air is short of full, so the pinned packet was the bug.
 ## Where it lives
 
 `crates/unastar/src/entity/player_life/breath.rs`, `crates/unastar/src/server/game/join.rs`
-(`initial_player_actor_data`), evidence `crates/unastar/src/entity/player_life/testdata/bds-1.26.51-breath.json`
+(`send_join_packets`, its rows from `entity/player_life/actor_data.rs::join_actor_data`), evidence `crates/unastar/src/entity/player_life/testdata/bds-1.26.51-breath.json`
 (phase `spawn`), tests `crates/unastar/src/entity/player_life/tests/breath.rs`.

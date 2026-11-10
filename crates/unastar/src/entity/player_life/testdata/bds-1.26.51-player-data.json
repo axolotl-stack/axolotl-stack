@@ -892,6 +892,26 @@
     "1b01030000"
    ]
   },
+  "kill_keepinventory": {
+   "capture": "rules-20261110T213621Z",
+   "client": "Subject",
+   "seq_ranges": [
+    [
+     9465,
+     9506
+    ]
+   ],
+   "subject_runtime_id": 1,
+   "note": "A second /kill (keepinventory on): this time the dead box and the last death block came in one update the tick after the death event (has-died was already 1).",
+   "packets": [
+    "1b01030000",
+    "270103350303cdcc4c3e360303cdcc4c3e7f060610751000009d13",
+    "1d0101000000000000a04100000000000000000000a0410000a041106d696e6563726166743a6865616c7468009d13",
+    "1b01120000",
+    "1d0104000000000000a0410000a041000000000000a0410000a041106d696e6563726166743a6865616c746800000000000000a0410000a041000000000000a0410000a041176d696e6563726166743a706c617965722e68756e67657200000000000000a04100000000000000000000a041000000001b6d696e6563726166743a706c617965722e65786861757374696f6e00000000000000a0410000a040000000000000a0410000a0401b6d696e6563726166743a706c617965722e73617475726174696f6e00a013",
+    "2701023503039a99193f3603036666e63f0000a113"
+   ]
+  },
   "rejoin_under_water": {
    "capture": "breath-20261110T214622Z",
    "client": "Subject-rejoin",
@@ -997,6 +1017,23 @@
     "2702010007078080c0808080800300009221",
     "270201070101220100009221",
     "270201070101210100009321"
+   ]
+  },
+  "magma_column": {
+   "capture": "breath2-20261110T215344Z",
+   "client": "Subject-rejoin",
+   "seq_ranges": [
+    [
+     7275,
+     7290
+    ]
+   ],
+   "subject_runtime_id": 2,
+   "note": "Water over magma under the feet (fire resistance on): two ticks holding the breath, then the downward column reaches the feet block and the air is 300 with BREATHING at once.",
+   "packets": [
+    "2702020007078080c080808080070701012b0100009e1d",
+    "2702010701012a0100009f1d",
+    "2702020007078080c080808280070701012c010000a01d"
    ]
   },
   "respiration_3": {

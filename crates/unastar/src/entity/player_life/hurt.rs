@@ -23,7 +23,8 @@
 //! client as `SetActorMotion`), then sends `ActorEvent` hurt, its data the
 //! damage cause's ID, to the player and its viewers. A killing hit sends
 //! neither: the death event is all the clients see of it (BDS 1.26.51:
-//! drowning and slime kills in `testdata/bds-1.26.51-player-data.json`).
+//! the drowning death of `testdata/bds-1.26.51-breath.json` and the slime
+//! kill of `testdata/bds-1.26.51-player-data.json`).
 //! The health change reaches the client through
 //! `server::game::attributes::sync_player_attributes`; at zero health the player dies
 //! (`death`).

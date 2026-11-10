@@ -25,9 +25,10 @@
 //! * `bds-sweep:hold FLAG...` / `bds-sweep:release FLAG...`: add them to
 //!   every input from the next one on, until released;
 //! * `bds-sweep:use`: use the held item in the air (`InventoryTransaction`
-//!   item use, hotbar slot as last synchronized), which equips armour;
-//! * `bds-sweep:quit`: close the connection (RakNet disconnect) and exit, so
-//!   the server removes and saves the player at once;
+//!   item use, hotbar slot as last synchronized); BDS rejects it for armour
+//!   and resends the whole inventory, which refreshes stack net IDs;
+//! * `bds-sweep:quit`: close the connection and exit (BDS keeps the player
+//!   until the connection times out, about 10 s later);
 //! * `bds-sweep:equip-head SLOT`: open the inventory (as an inventory drop
 //!   does) and move one item from hotbar index SLOT to the head armour slot
 //!   (`ItemStackRequest` place).

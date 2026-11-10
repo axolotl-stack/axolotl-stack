@@ -563,11 +563,9 @@ impl GameServer {
         // clients with the tick's actor-data update.
         ecs.schedule_mut().add_systems(
             (
-                crate::entity::player_life::actor_data::begin_player_tick,
                 crate::entity::player_life::environment::land_players,
                 crate::entity::player_life::environment::hurt_players_by_environment,
                 crate::entity::player_life::breath::breathe,
-                crate::entity::player_life::actor_data::end_player_tick,
             )
                 .chain()
                 .in_set(EntityLogicSet)
@@ -586,6 +584,7 @@ impl GameServer {
                 .chain()
                 .in_set(EntityLogicSet)
                 .after(crate::entity::xp_orb::tick_xp_orbs)
+                .after(crate::entity::player_life::breath::breathe)
                 .before(tick_block_breaking),
         );
         // What changed for each player's client this tick.

@@ -44,9 +44,6 @@ use crate::world::ecs::AwaitingSpawnStatus;
 /// Width and height of the box a bubble column must reach (a standing
 /// player's).
 const BOX: (f64, f64) = (0.6, 1.8);
-/// The Bedrock enchantment ID of Respiration (the published enchantment id
-/// enum; the `/enchant` enum lists it sixth from 0).
-const RESPIRATION: i16 = 6;
 
 /// A player's air supply and `BREATHING` flag.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
@@ -110,9 +107,10 @@ impl PlayerBreath {
 /// Whether a bubble column block overlaps `player`'s box. `None` while a
 /// block there is not loaded.
 fn in_bubble_column(world: &World, feet: DVec3) -> Option<bool> {
-    let Some(column) = world.registry().get_by_name("minecraft:bubble_column") else {
-        return Some(false);
-    };
+    let column = world
+        .registry()
+        .get_by_name("minecraft:bubble_column")
+        .expect("the vanilla block registry has minecraft:bubble_column");
     let states = column.min_state_id..=column.max_state_id;
     let half = BOX.0 / 2.0;
     let min = (feet - DVec3::new(half, 0.0, half)).floor().as_ivec3();
@@ -155,10 +153,10 @@ fn breath_of(world: &World, player: Entity) -> Option<Breath> {
 /// The Respiration level of the helmet `player` wears.
 fn respiration(world: &World, player: Entity) -> u8 {
     world.get::<ArmourInventory>(player).map_or(0, |armour| {
-        crate::item::enchant::enchantment_ids(armour.helmet())
-            .into_iter()
-            .find(|(id, _)| *id == RESPIRATION)
-            .map_or(0, |(_, level)| level)
+        crate::item::enchant::enchantment_level(
+            armour.helmet(),
+            crate::item::enchant::Enchantment::Respiration,
+        )
     })
 }
 
@@ -194,6 +192,7 @@ pub fn breathe(world: &mut World, players: &mut Breathers, mut due: Local<Vec<En
         return;
     }
     let rules = world.resource::<PlayerRules>().breath;
+    super::actor_data::enter_player_tick(world);
     for player in due.drain(..) {
         let Some(mut breath) = breath_of(world, player) else {
             continue;
@@ -226,6 +225,7 @@ pub fn breathe(world: &mut World, players: &mut Breathers, mut due: Local<Vec<En
             );
         }
     }
+    super::actor_data::leave_player_tick(world);
 }
 
 /// Refill a respawned player's air.

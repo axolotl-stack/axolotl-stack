@@ -28,7 +28,8 @@ it exactly.
   `target/debug/unastar.exe` for a side-by-side capture with the same client. Its super-flat
   surface is y=4 (BDS: −60), it has `/spawnpoint` but no `/setworldspawn` or `/damage`, and the
   `super_flat` generator rejects a `seed` key.
-- Traps: until the change in `game-state-read-from-the-start-game-template-is-frozen.md`,
+- Traps: until the change in
+  [`../server/game-state-read-from-the-start-game-template-is-frozen.md`](../server/game-state-read-from-the-start-game-template-is-frozen.md),
   unastar's hunger regeneration read `naturalregeneration` from the announced world template, not
   from `/gamerule`; tests now set the live rule like the captures did.
   `cargo run -p parity -- generate` with `UNASTAR_BDS_DIR` set rewrites

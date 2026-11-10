@@ -186,13 +186,15 @@ impl GameServer {
             tick: input_tick.clone(),
         }));
 
-        let name = world
+        let name = &world
             .get::<crate::entity::components::PlayerName>(entity)
-            .map(|name| name.0.clone())
-            .unwrap_or_default();
-        let actor_data = world.get::<PlayerActorData>(entity).map_or_else(
-            || join_actor_data(&name, &PlayerActorData::joined(1)),
-            |data| join_actor_data(&name, data),
+            .expect("spawned players have a name")
+            .0;
+        let actor_data = join_actor_data(
+            name,
+            world
+                .get::<PlayerActorData>(entity)
+                .expect("spawn_player inserts the player's actor data"),
         );
 
         let _ = session.send(McpePacket::from(SetActorDataPacket {
