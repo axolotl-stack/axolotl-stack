@@ -48,7 +48,12 @@ Install each plugin in its own directory beneath the server working directory's
 `crates/example-plugin/plugin.toml` and
 `target/wasm32-wasip2/debug/example_plugin.wasm`. Its manifest subscriptions select
 which exported callbacks receive server events. The current WIT package version
-is `0.2.0`; the manifest's `api_version` should match it.
+is `0.2.0`. The manifest's `api_version` is checked at load with Cargo's caret
+rule: while the major version is 0 the minor must match, and a plugin needing a
+newer patch than the server provides is rejected. An incompatible or malformed
+`api_version` skips that plugin with an error.
+`plugin.toml` and its `[limits]` table reject unknown keys, so a misspelt key
+fails that plugin's load instead of being silently ignored.
 
 ## Loading and Host Access
 
@@ -57,15 +62,41 @@ instantiates pending components and invokes `on-load`, with the live ECS World
 attached for both operations: component start functions can invoke hosts too.
 A failed instantiation or `on-load` rejects that plugin.
 
+At shutdown, before players and chunks are saved, the server first dispatches
+a `PlayerQuit` for every player still online (the players are still spawned, so
+handles work), then calls `on-unload` on every loaded plugin with the World attached and a fresh fuel budget, then
+drops it. `on-unload` gets its own wall-clock deadline, `PLUGIN_UNLOAD_DEADLINE`
+(1 s), instead of an event callback's few milliseconds, so a plugin can flush
+its own state there (for example write a file through WASI). The server does
+not change the world at shutdown: world edits and player actions requested in
+`on-unload` are never applied, because no tick runs after it.
+
 `HostContext` scopes its raw World attachment to the synchronous Wasmtime call.
 The attachment is cleared on return and unwind; callbacks cannot retain a World
 reference. Host queries read current ECS state. Player mutation requests become
 `PluginAction` entries in the ECS action queue, processed by the server's plugin
 action system rather than exposing mutable ECS references to guests.
 
-Player handles and their host entity mappings are scoped to a host invocation;
-plugins should obtain and use handles during the current callback, not retain
-them for subsequent callbacks.
+`get-tps` reports ticks per second measured over the last 100 server ticks,
+capped at the nominal 20; before two ticks have run it reports 20. `get-game-mode`
+reads the player's current game mode.
+
+`on-player-join` fires once per player, after the client has spawned: on the
+tick the server sends `PlayStatus(PlayerSpawn)`, not while the client is still
+loading. A join the server refuses (for example invalid saved data) never fires.
+
+`on-player-quit` fires once for every player that leaves, whether by a client
+disconnect packet, a dropped connection or server shutdown. After a disconnect
+the player is already despawned when it is dispatched, so the handle's getters
+return defaults.
+
+Player parameters are `borrow<player>`, so a handle is valid only for the
+callback it was passed to, and the host's entity mappings are reset after each
+invocation. A well-formed guest cannot keep one: Wasmtime resolves a reused
+index to the current call's handle and traps on an unknown index before the
+host sees it. As defence in depth, a host player method that is still given a
+handle it has no mapping for returns an error instead of panicking the server;
+that traps the call and disables the plugin (see below).
 
 ## Resource Limits
 
@@ -79,8 +110,20 @@ Manifest `[limits]` supports:
 Instantiation and `on-load` share a separate initialization fuel budget of the
 same size. Event callbacks do not replenish one another's budget; the next tick
 replenishes it. Epoch interruption remains an independent wall-clock guard,
-with the deadline reset for each invocation. Traps are logged; cancellable
-callbacks that trap fail closed.
+with the deadline reset for each invocation.
+
+### Traps disable the plugin
+
+A Wasmtime component instance that has trapped (a guest `unreachable`, a host
+call error, out of fuel, the epoch deadline or the memory limit) cannot be
+entered again. The host therefore disables a plugin on its first failed call:
+it logs one `error!` with the plugin id and the reason, and skips the plugin in
+every later dispatch, `on-unload` included, until the server restarts. The
+event whose callback trapped fails closed if it is cancellable; after that the
+plugin's subscriptions no longer cancel anything, as if it were not subscribed.
+A plugin is not re-instantiated after a trap. A failed call is rolled back:
+actions it requested before trapping (`set-block`, `send-message`, …) are
+discarded, not applied.
 
 Filesystem capability requests preopen only the plugin directory. Do not infer
 that every declared manifest capability has an implemented host interface.

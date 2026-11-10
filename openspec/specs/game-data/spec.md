@@ -32,17 +32,21 @@ Data derived from the vanilla packs (actor definitions, component registry, sche
 Evidence: crates/unastar-data/build.rs, crates/unastar-data/build/actors.rs, crates/unastar-data/build/loot.rs, crates/unastar-data/build/biomes.rs, crates/unastar-data/build/items_recipes.rs, crates/unastar-data/build/spawn_rules.rs, crates/unastar-data/src/actor_definitions.rs (`VANILLA_JSON`), crates/unastar-data/src/loot.rs (`VANILLA_JSON`), crates/unastar-data/src/biomes.rs (`VANILLA_JSON`)
 
 ### Requirement: Hash and count ratchet for generated pack data
-`output/pack-manifest.json` SHALL record a count and SHA-256 for each embedded pack-derived family it lists, written by `unastar-data-gen --manifest-only`. A test MUST fail when the build's actor component registry, actor definitions, biomes or loot tables differ from the committed count or hash, so a pack bump is reviewed and re-recorded rather than accepted silently.
+`output/pack-manifest.json` SHALL record a count and SHA-256 for every pack-derived family in `pack_manifest::families()`, the one list both `unastar-data-gen --manifest-only` writes from and the `pack_data` test checks. The test MUST fail when the manifest's keys differ from that list or any family's count or hash differs, so a pack or generator bump is reviewed and re-recorded rather than accepted silently.
 
 #### Scenario: Pack data changes
 - **WHEN** the samples submodule moves and the generated actor definitions change
 - **THEN** `build_generated_pack_data_matches_committed_manifest` fails and asks for `--manifest-only` after review
 
-#### Scenario: Current counts
+#### Scenario: Families recorded
 - **WHEN** the committed manifest is read
-- **THEN** it lists 410 actor component registry names, 128 actor definitions, 89 biomes and 508 loot tables
+- **THEN** it lists exactly `actor_component_bodies`, `actor_component_registry`, `actor_definitions`, `actor_wire`, `biomes`, `component_schema_defaults`, `item_files`, `loot_tables`, `recipe_files` and `spawn_rules`, with 128 actor definitions, 89 biomes, 508 loot tables and 60 spawn rules
 
-Evidence: crates/unastar-data/output/pack-manifest.json, crates/unastar-data/tests/pack_data.rs (`build_generated_pack_data_matches_committed_manifest`), crates/unastar-data/datagen/src/manifest.rs
+#### Scenario: Generated source changes without a pack bump
+- **WHEN** the `actor_component_bodies` hash differs
+- **THEN** the failure names `crates/unastar-data/build/actor_components.rs` and the locked `prettyplease`, `syn`, `quote` and `proc-macro2` versions as possible causes
+
+Evidence: crates/unastar-data/src/pack_manifest.rs (`families`, `PackFamily`, `Generator`), crates/unastar-data/output/pack-manifest.json, crates/unastar-data/tests/pack_data.rs (`build_generated_pack_data_matches_committed_manifest`, `generated_source_failures_name_the_generator_and_formatter_versions`), crates/unastar-data/datagen/src/manifest.rs
 
 ### Requirement: Embedded data decoded once at startup
 Each embedded family SHALL be decoded at most once per process, on first use, into immutable shared data, and gameplay MUST read the decoded typed values rather than raw pack files. A decode failure of embedded data MUST panic with the family name, since the build produced it. Actor definitions MUST be re-validated through the shared actor loader and MUST decode with no diagnostics.
@@ -118,7 +122,7 @@ Pack-derived data SHALL contain only what the sources state. Actor definitions M
 Evidence: crates/unastar-data/tests/pack_data.rs (`actor_components_have_no_invented_defaults`), crates/unastar-data/tests/component_schema_defaults.rs (`numeric_schema_versions_and_referenced_defaults_preserve_false_and_zero`, `cyclic_schema_reference_is_an_error_not_an_invented_default`), crates/unastar-data/tests/actor_components.rs (`every_typed_vanilla_component_body_decodes`, `component_names_round_trip_and_cover_every_vanilla_definition`), crates/unastar-data/src/actor_definitions.rs (`component_field_default`)
 
 ### Requirement: Measured BDS facts with recorded method
-Facts BDS keeps in code (armour slots and values, fuel burn times, attack damage, mining ticks, block drops, built-in recipes, legacy recipe identities, potion aux values) SHALL come from measurements of BDS 1.26.51 committed under `data/measured`, and `data/measured/manifest.json` MUST record each file's SHA-256, the BDS version, the harness revision and the method. Consumers MUST read these files rather than wiki tables or values derived from item names.
+Facts BDS keeps in code (armour slots and values, fuel burn times, attack damage, mining ticks, block drops, built-in recipes, legacy recipe identities, potion aux values) SHALL come from measurements of BDS 1.26.51 committed under `data/measured`, and `data/measured/manifest.json` MUST record each swept file's SHA-256, the BDS version, the harness revision and the method. Consumers MUST read these files rather than wiki tables or values derived from item names.
 
 #### Scenario: Armour formula against measurements
 - **WHEN** the armour damage formula is applied to every measured hit in `armor_values.json`
@@ -130,6 +134,19 @@ Facts BDS keeps in code (armour slots and values, fuel burn times, attack damage
 
 Evidence: crates/unastar-data/data/measured/manifest.json, crates/unastar-data/data/measured/README.md, crates/unastar-data/src/armour.rs (tests `measured_defence_per_item`, `formula_reproduces_every_measured_hit`, `toughness_lies_in_every_measured_interval`), crates/unastar-data/src/equipment.rs (test `measured_slot_and_defense_are_not_derived_from_item_names`), crates/unastar-data/src/fuel.rs (test `measured_fuels_scale_with_the_cook_interval`), crates/unastar-data/src/melee.rs (test `measured_weapons_and_the_empty_hand`)
 Verified by: `crates/bds-sweep` + `tools/bds-sweep` (`sweep.py`, `summarize.py`)
+
+### Requirement: Measured files match their manifest hashes
+A test SHALL hash every file `data/measured/manifest.json` lists and fail on a missing file or a SHA-256 mismatch. Every other file under `data/measured` MUST be listed, except the manifest, its README and the capture-derived tables (`builtin_recipes.json`, `potion_types.json`, `recipe_legacy_identities.json`), which record their source capture's hash inside; each exception MUST still exist. Editor and OS junk (`.DS_Store`, `Thumbs.db`, `desktop.ini`, `*~`, `*.swp`, `*.swo`) MUST be ignored.
+
+#### Scenario: Hand-edited measurement
+- **WHEN** a listed measured file is edited or removed without updating the manifest
+- **THEN** the test reports that path
+
+#### Scenario: Unlisted file and editor junk
+- **WHEN** a new JSON file and a `.DS_Store` are added under `data/measured`
+- **THEN** the JSON file is reported as missing from `manifest.json` and the `.DS_Store` is not
+
+Evidence: crates/unastar-data/tests/measured_manifest.rs (`every_measured_file_matches_its_manifest_hash`, `an_edited_measured_file_is_reported`, `editor_and_os_junk_is_not_reported_as_unlisted`, `NOT_SWEPT`), crates/unastar-data/data/measured/README.md
 
 ### Requirement: Captured BDS packets as committed artefacts
 Facts BDS sends at join SHALL be committed only from real BDS 1.26.51 captures made with `crates/bds-extractor`: actor identifiers, `AvailableCommands`, game rules and `/help` usage. Each artefact MUST record its capture source, and the runtime MUST rebuild the packets from them so the result can be compared byte for byte with the capture.
