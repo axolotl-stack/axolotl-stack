@@ -20,6 +20,11 @@
 //! * `bds-sweep:drop inventory SLOT COUNT`: open the native inventory, wait
 //!   for `ContainerOpen`, then drop from main-inventory index 0..35;
 //! * `bds-sweep:close-inventory`: close the inventory opened by this client.
+//! * `bds-sweep:use X Y Z FACE CX CY CZ TARGET`: use the held stack on the
+//!   block at X Y Z (`InventoryTransaction` item use `Place`, the block
+//!   click a vanilla client sends to place a block), clicking face FACE at
+//!   (CX, CY, CZ)/1000 within the block; TARGET is the clicked block's
+//!   network id.
 //!
 //! Drop orders require server-synchronized nonempty slots with stack net IDs.
 //! Inventory drops leave the screen open; hotbar drops close it first.
@@ -40,16 +45,20 @@ use jolyne::{
         ActorRuntimeId, BlockPos, CerealizerNetworkItemStackDescriptorSerializedData,
         ContainerClosePacket, EnumsClientPlayMode, EnumsContainerEnumName, EnumsInputMode,
         EnumsInteractPacketPayloadAction, EnumsItemStackRequestActionType,
+        EnumsItemUseInventoryTransactionActionType,
+        EnumsItemUseInventoryTransactionClientCooldownState,
+        EnumsItemUseInventoryTransactionPredictedResult,
+        EnumsItemUseInventoryTransactionTriggerType,
         EnumsItemUseOnActorInventoryTransactionActionType, EnumsNewInteractionModel,
         EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData, EnumsPlayerRespawnState,
         FullContainerName, InteractPacket, InventoryTransactionPacket,
         InventoryTransactionPacketTransaction, ItemStackRequestCerealDropActionData,
         ItemStackRequestCerealSlotInfoData, ItemStackRequestPacket,
         ItemStackRequestPacketDataRequestData, ItemStackRequestPacketDataRequestDataActionsItem,
-        ItemUseOnActorInventoryTransaction, McpePacket, McpePacketData, McpePacketName,
-        MobEquipmentPacket, PlayerActionPacket, PlayerAuthInputPacket, PlayerBlockActionData,
-        PlayerInputTick, RespawnPacket, TypedClientNetIdstructItemStackRequestIdTagint32T0, Vec2,
-        Vec3,
+        ItemUseInventoryTransaction, ItemUseOnActorInventoryTransaction, McpePacket,
+        McpePacketData, McpePacketName, MobEquipmentPacket, PlayerActionPacket,
+        PlayerAuthInputPacket, PlayerBlockActionData, PlayerInputTick, RespawnPacket,
+        TypedClientNetIdstructItemStackRequestIdTagint32T0, Vec2, Vec3,
     },
 };
 use std::net::SocketAddr;
@@ -96,6 +105,17 @@ struct DropOrder {
     count: u8,
 }
 
+/// A block click with the held stack.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct UseOrder {
+    pos: [i32; 3],
+    face: u8,
+    /// Click position within the block, in thousandths.
+    click: [i32; 3],
+    /// Network id of the clicked block.
+    target: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Order {
     Mine(Mining),
@@ -104,6 +124,7 @@ enum Order {
     Attack(u64),
     Drop(DropOrder),
     CloseInventory,
+    Use(UseOrder),
 }
 
 /// The first `n` numbers of an order. The order arrives inside the Debug
@@ -151,6 +172,18 @@ fn parse_order(text: &str) -> Option<Order> {
             }))
         }
         "close-inventory" | "close-inventory\"" => Some(Order::CloseInventory),
+        "use" => {
+            let numbers = numbers(words, 8)?;
+            let [x, y, z, face, cx, cy, cz, target] = numbers[..] else {
+                return None;
+            };
+            Some(Order::Use(UseOrder {
+                pos: [x as i32, y as i32, z as i32],
+                face: u8::try_from(face).ok()?,
+                click: [cx as i32, cy as i32, cz as i32],
+                target: u32::try_from(target).ok()?,
+            }))
+        }
         _ => None,
     }
 }
@@ -220,6 +253,7 @@ impl Player {
                 }
             }
             Order::Attack(target) => return Ok(vec![self.attack(target)]),
+            Order::Use(order) => return Ok(vec![self.use_on_block(order)]),
             Order::Drop(drop) => return self.drop_order(drop),
             Order::CloseInventory => {
                 ensure!(
@@ -246,6 +280,43 @@ impl Player {
                     from_position: self.position.clone(),
                     ..Default::default()
                 },
+            ),
+            ..Default::default()
+        })
+    }
+
+    /// `InventoryTransaction` item use `Place` with the selected hotbar
+    /// stack, as a vanilla client sends when it places a block.
+    fn use_on_block(&self, order: UseOrder) -> McpePacket {
+        let [cx, cy, cz] = order.click.map(|v| v as f32 / 1000.0);
+        McpePacket::from(InventoryTransactionPacket {
+            transaction: InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
+                Box::new(ItemUseInventoryTransaction {
+                    action_type: EnumsItemUseInventoryTransactionActionType::Place,
+                    trigger_type: EnumsItemUseInventoryTransactionTriggerType::Playerinput,
+                    position: BlockPos {
+                        x: order.pos[0],
+                        y: order.pos[1],
+                        z: order.pos[2],
+                    },
+                    face: order.face,
+                    slot: i32::from(self.selected_slot),
+                    hand: jolyne::valentine::EnumsHandSlot::Mainhand,
+                    item: self.inventory[usize::from(self.selected_slot)]
+                        .clone()
+                        .unwrap_or_default(),
+                    from_position: self.position.clone(),
+                    click_position: Vec3 {
+                        x: cx,
+                        y: cy,
+                        z: cz,
+                    },
+                    target_block_id: order.target,
+                    client_interact_prediction:
+                        EnumsItemUseInventoryTransactionPredictedResult::Success,
+                    client_cooldown_state: EnumsItemUseInventoryTransactionClientCooldownState::Off,
+                    ..Default::default()
+                }),
             ),
             ..Default::default()
         })
@@ -663,6 +734,42 @@ mod tests {
             pending_drop: None,
             next_request_id: -1,
         }
+    }
+
+    #[test]
+    fn use_orders_parse_and_send_a_block_click() {
+        let order =
+            parse_order(r#"{ message: "bds-sweep:use 3 -60 0 1 500 1000 250 12345" }"#).unwrap();
+        assert_eq!(
+            order,
+            Order::Use(UseOrder {
+                pos: [3, -60, 0],
+                face: 1,
+                click: [500, 1000, 250],
+                target: 12345,
+            })
+        );
+        let mut player = player();
+        let packets = player.order(order).unwrap();
+        let McpePacketData::InventoryTransactionPacket(packet) = &packets[0].data else {
+            panic!("{packets:?}");
+        };
+        let InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(click) =
+            &packet.transaction
+        else {
+            panic!("{packet:?}");
+        };
+        assert_eq!(
+            click.action_type,
+            EnumsItemUseInventoryTransactionActionType::Place
+        );
+        assert_eq!(
+            (click.position.x, click.position.y, click.position.z),
+            (3, -60, 0)
+        );
+        assert_eq!(click.face, 1);
+        assert_eq!(click.click_position.z, 0.25);
+        assert_eq!(click.target_block_id, 12345);
     }
 
     #[test]

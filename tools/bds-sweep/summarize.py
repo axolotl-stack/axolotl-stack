@@ -4,6 +4,8 @@
     python tools/bds-sweep/summarize.py armor-slots SWEEP_DIR
     python tools/bds-sweep/summarize.py fuel SWEEP_DIR
     python tools/bds-sweep/summarize.py compare-drops SWEEP_DIR_A SWEEP_DIR_B
+    python tools/bds-sweep/summarize.py scenarios SWEEP_DIR [SWEEP_DIR ...]
+    python tools/bds-sweep/summarize.py placements SWEEP_DIR
 
 Writes into `crates/unastar-data/data/measured/` and records every artefact
 (SHA-256, sweep parameters, sample counts, run times) in `manifest.json`
@@ -16,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import subprocess
 import sys
 from collections import Counter, defaultdict
@@ -410,6 +413,537 @@ def summarize_mining(sweep: Path) -> None:
     })
 
 
+# ---------------------------------------------------------------- scenarios
+
+def write_rows(relative: str, header: dict, rows: list) -> dict:
+    """`{header..., "rows": [...]}` with one compact row per line."""
+    head = json.dumps(header, separators=(',', ':'), sort_keys=True)[:-1]
+    lines = ',\n'.join(json.dumps(row, separators=(',', ':'), sort_keys=True) for row in rows)
+    text = f'{head},"rows":[\n{lines}\n]}}\n'
+    path = MEASURED / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode('utf-8'))
+    return {'path': relative, 'sha256': hashlib.sha256(text.encode('utf-8')).hexdigest(), 'rows': len(rows)}
+
+
+def scenario_parts(row: dict) -> list:
+    return [json.loads(part) for part in row['key'].split('|')[1:]]
+
+
+SCENARIO_HEADERS = {
+    'stairs': {
+        'family': 'stairs',
+        'row': '[centre_weirdo, centre_upside_down, neighbours, order, corners]',
+        'method': 'oak stairs (minecraft:corner none) set with a block update at the cell origin and '
+                  'one or two neighbouring stairs ([side, block, weirdo_direction, upside_down_bit]); '
+                  'order neighbour_first places the neighbours first, centre_first the centre first; '
+                  '`corners` is the stored minecraft:corner of the centre and then of each neighbour, '
+                  'read 1 tick after the last placement',
+    },
+    'connections': {
+        'family': 'connections',
+        'row': '[neighbour_block, neighbour_states, centres]',
+        'method': 'the neighbour (its stored states) is set with a block update one block east of the '
+                  'centre, then the centre is set with a block update; `centres` maps each centre block '
+                  'to its stored states read 3 ticks later (walls settle a tick after placement); rows '
+                  'whose neighbour did not stay in place are left out',
+    },
+    'wall_above': {
+        'family': 'wall_above',
+        'row': '[above_block, above_states, walls]',
+        'method': 'cobblestone walls: `straight` (walls east and west of the centre), `end` (a wall '
+                  'east) and `lone`; the walls are set with block updates, 3 ticks later the block above '
+                  'the centre, and the centre is read 3 ticks after that; `walls` maps each shape to '
+                  'the centre stored states; rows whose block above did not stay in place are left out',
+    },
+    'gate_in_wall': {
+        'family': 'gate_in_wall',
+        'row': '[cardinal_direction, open_bit, side_block, sides, in_wall_bit]',
+        'method': 'side blocks set with block updates beside the cell origin, then a fence_gate with '
+                  'in_wall_bit false; in_wall_bit read 3 ticks later',
+    },
+    'surfaces': {
+        'family': 'surfaces',
+        'row': '[block, states, side, holders]',
+        'method': 'the holder (the default state of every block and each further collision shape) is set without a '
+                  'block update on the support side of the cell origin, the attached block (`block`, `states`) '
+                  'at the origin with one, then stone with one on another side as a poke; `holders` lists '
+                  '[holder_block, holder_states, stays] read 2 ticks later (rows whose holder did not stay in '
+                  'place are left out)',
+    },
+    'soils': {
+        'family': 'soils',
+        'row': '[plant, states, soils]',
+        'method': 'the default state of every block is set without a block update below the cell origin, the plant '
+                  'at the origin with one, then stone above the plant with one as a poke; `soils` lists '
+                  '[soil_block, soil_states, stays] read 2 ticks later (rows whose soil did not stay are left out)',
+    },
+    'junctions': {
+        'family': 'junctions',
+        'row': '[above_block, above_states, walls]',
+        'method': 'cobblestone walls: `cross` (walls on all four sides of the centre) and `t` (north, east and '
+                  'south); the walls are set with block updates, 3 ticks later the block above the centre, '
+                  'read 3 ticks after that; `walls` maps each shape to the centre stored states',
+    },
+    'halves': {
+        'family': 'halves',
+        'row': '[block, floor, removed, placed, after, items]',
+        'method': 'the floor below the cell origin without a block update, the lower and upper half with '
+                  'block updates, then the lower half, the upper half or the floor removed with a block update; '
+                  '`placed` and `after` are [origin, above] read 2 ticks after each step, `items` the item '
+                  'actors that appeared',
+    },
+    'support': {
+        'family': 'support',
+        'row': '[block, states, placed_states, forward, backward]',
+        'method': 'six stone neighbours set without block updates, the block set with one, then the '
+                  'neighbours removed with block updates one at a time, 2 ticks apart: forward in the '
+                  'order east, west, south, north, up, down and backward in the reverse order; '
+                  'forward/backward = [side whose removal left the cell without the block or null, '
+                  'what the cell held then, item actors that appeared in the cell]',
+    },
+}
+
+
+def face_covered(boxes: list, x_face: float) -> bool:
+    """Whether collision boxes cover the whole square of the block face at
+    x = `x_face` (0 or 1); the same check unastar runs."""
+    rects = [[max(0.0, min(1.0, v)) for v in (z0, z1, y0, y1)]
+             for x0, y0, z0, x1, y1, z1 in boxes if (x0 <= 0.0 if x_face == 0 else x1 >= 1.0)]
+    us = sorted({0.0, 1.0} | {r[0] for r in rects} | {r[1] for r in rects})
+    vs = sorted({0.0, 1.0} | {r[2] for r in rects} | {r[3] for r in rects})
+    return all(any(r[0] <= u0 and u1 <= r[1] and r[2] <= v0 and v1 <= r[3] for r in rects)
+               for u0, u1 in zip(us, us[1:]) for v0, v1 in zip(vs, vs[1:]))
+
+
+CONNECTION_FAMILIES = ('_fence', 'glass_pane', '_bars', '_wall', 'fence_gate', 'border_block')
+
+
+def connection_faces(rows: list) -> dict:
+    """Blocks a fence, pane, bars or wall treats differently from their
+    collision face: `never` connect although the face toward the centre is
+    covered, `always` connect although it is not. Every centre and every
+    measured state of the block must agree."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import native
+    shapes = json.loads((REPO / 'crates' / 'unastar-data' / 'output' / 'shapes.json').read_text(encoding='utf-8'))
+    ids = {(e['name'], json.dumps(e['states'], sort_keys=True)): rid
+           for rid, e in enumerate(native.block_states(typed=True))}
+    verdicts: dict[str, set] = defaultdict(set)
+    for block, states, centres in rows:
+        if any(part in block for part in CONNECTION_FAMILIES):
+            continue
+        boxes = shapes['shapes'][shapes['states'][ids[(block, json.dumps(states, sort_keys=True))]][0]] or []
+        # The neighbour stands east of the centre: its west face (x = 0) faces it.
+        covered = face_covered(boxes, 0.0)
+        for centre, centre_states in centres.items():
+            value = centre_states.get('wall_connection_type_east', centre_states.get('minecraft:connection_east'))
+            verdicts[block].add('match' if (value not in (False, 'none')) == covered else
+                                ('always' if not covered else 'never'))
+    mixed = {block: sorted(v) for block, v in verdicts.items() if len(v) > 1}
+    if mixed:
+        raise SystemExit(f'connection behaviour differs between states or centres: {mixed}')
+    return {
+        'method': 'derived from block_updates/connections.json: blocks whose observed connection differs '
+                  'from the collision-face rule (a fence, pane, bars or wall connects to a neighbour whose '
+                  'collision boxes cover the face toward it), for every centre and measured state',
+        'never': sorted(b for b, v in verdicts.items() if v == {'never'}),
+        'always': sorted(b for b, v in verdicts.items() if v == {'always'}),
+    }
+
+
+def face_rects(boxes: list, face: str) -> list:
+    """Rectangles `(u0, u1, v0, v1)` of the boxes lying on a block face."""
+    out = []
+    for x0, y0, z0, x1, y1, z1 in boxes:
+        if face == 'up' and y1 >= 1.0 or face == 'down' and y0 <= 0.0:
+            out.append((x0, x1, z0, z1))
+        elif face == 'west' and x0 <= 0.0 or face == 'east' and x1 >= 1.0:
+            out.append((z0, z1, y0, y1))
+        elif face == 'north' and z0 <= 0.0 or face == 'south' and z1 >= 1.0:
+            out.append((x0, x1, y0, y1))
+    return [tuple(max(0.0, min(1.0, v)) for v in r) for r in out]
+
+
+def rects_cover(rects: list, area: tuple) -> bool:
+    u0, u1, v0, v1 = area
+    us = sorted({u0, u1} | {min(max(r[0], u0), u1) for r in rects} | {min(max(r[1], u0), u1) for r in rects})
+    vs = sorted({v0, v1} | {min(max(r[2], v0), v1) for r in rects} | {min(max(r[3], v0), v1) for r in rects})
+    return all(any(r[0] <= a and b <= r[1] and r[2] <= c and d <= r[3] for r in rects)
+               for a, b in zip(us, us[1:]) if b > a for c, d in zip(vs, vs[1:]) if d > c)
+
+
+def falling_blocks() -> set[str]:
+    """Blocks with the native `falling` flag (unastar-data's normalized
+    protocolgen block table)."""
+    text = (REPO / 'crates' / 'unastar-data' / 'output' / 'blocks.kdl').read_text(encoding='utf-8')
+    return {m.group(1) for m in re.finditer(r'^block (\S+) .*\\"falling\\":true', text, re.M)}
+
+
+# Holder rules unastar evaluates on the holder's collision shape, on the face
+# toward the attached block.
+HOLDER_RULES = {
+    'present': lambda block, boxes, face: block != 'minecraft:air',
+    'collision': lambda block, boxes, face: bool(boxes),
+    'face_full': lambda block, boxes, face: rects_cover(face_rects(boxes, face), (0.0, 1.0, 0.0, 1.0)),
+    'face_centre': lambda block, boxes, face: rects_cover(face_rects(boxes, face), (7 / 16, 9 / 16, 7 / 16, 9 / 16)),
+}
+TOWARD = {'down': 'up', 'up': 'down', 'east': 'west'}
+
+
+def support_holders(rows: list) -> dict:
+    """Per attached block (`block/side`, the support side): the holder rule
+    that explains the most of `surfaces.json` and the measured exceptions
+    (whole blocks, then single states)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import native
+    shapes = json.loads((REPO / 'crates' / 'unastar-data' / 'output' / 'shapes.json').read_text(encoding='utf-8'))
+    ids = {(e['name'], json.dumps(e['states'], sort_keys=True)): rid
+           for rid, e in enumerate(native.block_states(typed=True))}
+    falling = falling_blocks()
+    classes = {}
+    for block, states, side, cases in rows:
+        face = TOWARD[side]
+        # A gravity block as holder varies with its own fall: identical
+        # stored states both held and dropped the attached block.
+        cases = [case for case in cases if case[0] not in falling]
+        best = None
+        for rule, predicate in HOLDER_RULES.items():
+            by_block: dict[str, list] = defaultdict(list)
+            for holder, holder_states, stays in cases:
+                rid = ids[(holder, json.dumps(holder_states, sort_keys=True))]
+                boxes = shapes['shapes'][shapes['states'][rid][0]] or []
+                by_block[holder].append((holder_states, predicate(holder, boxes, face), stays))
+            always, never, states_always, states_never = [], [], [], []
+            for holder, values in sorted(by_block.items()):
+                if all(p == s for _, p, s in values):
+                    continue
+                if all(s for _, _, s in values):
+                    always.append(holder)
+                elif not any(s for _, _, s in values):
+                    never.append(holder)
+                else:
+                    for holder_states, p, s in values:
+                        if p != s:
+                            (states_always if s else states_never).append([holder, holder_states])
+            cost = len(always) + len(never) + len(states_always) + len(states_never)
+            if best is None or cost < best[0]:
+                best = (cost, {'rule': rule, 'always': always, 'never': never,
+                               'always_states': states_always, 'never_states': states_never,
+                               'cases': len(cases)})
+        classes[f'{block}/{side}'] = best[1]
+    return {
+        'method': 'derived from block_updates/surfaces.json: for each attached block and support side, the '
+                  'holder rule (present: any block but air; collision: any collision box; face_full: '
+                  'collision covers the face toward the attached block; face_centre: collision covers the '
+                  'middle 2/16 square of that face) with the fewest exceptions, then the holders that '
+                  'always or never hold it against the rule (every measured state agreeing) and single '
+                  'holder states that differ; gravity blocks as holders are left out (they vary with their '
+                  'own fall)',
+        'classes': classes,
+    }
+
+
+def summarize_scenarios(sweeps: list[Path]) -> None:
+    rows = [row for sweep in sweeps for row in results(sweep)]
+    by_family: dict[str, list[dict]] = defaultdict(list)
+    for row in rows:
+        by_family[row['key'].split('|', 1)[0]].append(row)
+    files = []
+    for family, header in SCENARIO_HEADERS.items():
+        out = []
+        found = by_family.get(family, [])
+        if not found:
+            continue
+        if family == 'stairs':
+            for row in found:
+                parts = scenario_parts(row)
+                if parts[0] in ('one', 'material'):
+                    (cw, cu), side, (nw, nu) = parts[1], parts[2], parts[3]
+                    block = 'minecraft:oak_stairs' if parts[0] == 'one' else 'minecraft:stone_brick_stairs'
+                    neighbours = [[side, block, nw, nu]]
+                    order = parts[4] if parts[0] == 'one' else 'neighbour_first'
+                else:
+                    (cw, cu), a, av, b, bv = parts[1:]
+                    neighbours = [[a, 'minecraft:oak_stairs', *av], [b, 'minecraft:oak_stairs', *bv]]
+                    order = 'neighbour_first'
+                corners = [states['minecraft:corner'] for _, states in row['reads']['after']]
+                out.append([cw, cu, neighbours, order, corners])
+        elif family == 'connections':
+            grouped: dict[str, list] = {}
+            for row in found:
+                centre, block, _requested = scenario_parts(row)
+                (_, centre_states), (neighbour, neighbour_states) = row['reads']['after']
+                if neighbour != block:
+                    continue
+                k = json.dumps([block, neighbour_states], sort_keys=True)
+                grouped.setdefault(k, [block, neighbour_states, {}])[2][centre] = centre_states
+            out = sorted(grouped.values(), key=lambda r: json.dumps(r[:2], sort_keys=True))
+        elif family == 'wall_above':
+            grouped = {}
+            for row in found:
+                shape, block, _requested = scenario_parts(row)
+                (_, centre_states), (above, above_states) = row['reads']['after']
+                if above != block:
+                    continue
+                k = json.dumps([block, above_states], sort_keys=True)
+                grouped.setdefault(k, [block, above_states, {}])[2][shape] = centre_states
+            out = sorted((r for r in grouped.values() if len(r[2]) == 3),
+                         key=lambda r: json.dumps(r[:2], sort_keys=True))
+        elif family == 'gate_in_wall':
+            for row in found:
+                direction, open_, side_block, sides = scenario_parts(row)
+                (_, states), = row['reads']['after']
+                out.append([direction, open_, side_block, sides, states['in_wall_bit']])
+        elif family == 'surfaces':
+            grouped = {}
+            for row in found:
+                block, states, side, holder, _requested = scenario_parts(row)
+                (_, _), (now, holder_states) = row['reads']['after']
+                if now != holder:
+                    continue
+                (here, _), _ = row['reads']['after']
+                k = json.dumps([block, states, side], sort_keys=True)
+                grouped.setdefault(k, [block, states, side, []])[3].append([holder, holder_states, here == block])
+            out = sorted(grouped.values(), key=lambda r: json.dumps(r[:3], sort_keys=True))
+            for entry in out:
+                entry[3].sort(key=lambda case: json.dumps(case, sort_keys=True))
+        elif family == 'soils':
+            grouped = {}
+            for row in found:
+                plant, states, soil, _requested = scenario_parts(row)
+                (here, _), (now, soil_states) = row['reads']['after']
+                if now != soil:
+                    continue
+                k = json.dumps([plant, states], sort_keys=True)
+                grouped.setdefault(k, [plant, states, []])[2].append([soil, soil_states, here == plant])
+            out = sorted(grouped.values(), key=lambda r: json.dumps(r[:2], sort_keys=True))
+            for entry in out:
+                entry[2].sort(key=lambda case: json.dumps(case, sort_keys=True))
+        elif family == 'junctions':
+            grouped = {}
+            for row in found:
+                shape, block, _requested = scenario_parts(row)
+                (_, centre_states), (above, above_states) = row['reads']['after']
+                if above != block:
+                    continue
+                k = json.dumps([block, above_states], sort_keys=True)
+                grouped.setdefault(k, [block, above_states, {}])[2][shape] = centre_states
+            out = sorted((r for r in grouped.values() if len(r[2]) == 2),
+                         key=lambda r: json.dumps(r[:2], sort_keys=True))
+        elif family == 'halves':
+            for row in found:
+                block, floor, removed = scenario_parts(row)
+                out.append([block, floor, removed, row['reads']['placed'], row['reads']['after'], row['items']])
+            out.sort(key=lambda r: json.dumps(r[:3]))
+        elif family == 'support':
+            orders = {'forward': ['east', 'west', 'south', 'north', 'up', 'down']}
+            orders['backward'] = list(reversed(orders['forward']))
+            grouped = {}
+            for row in found:
+                order, block, states = scenario_parts(row)
+                (placed, placed_states), = row['reads']['placed']
+                popped = None
+                held = None
+                for side in orders[order]:
+                    (now, _), = row['reads'][f'without_{side}']
+                    if now != block:
+                        popped, held = side, now
+                        break
+                if placed != block:
+                    popped, held = 'placement', placed
+                k = json.dumps([block, states], sort_keys=True)
+                entry = grouped.setdefault(k, [block, states, placed_states, None, None])
+                entry[3 if order == 'forward' else 4] = [popped, held, row['items']]
+            out = sorted(grouped.values(), key=lambda r: json.dumps(r[:2], sort_keys=True))
+        files.append(write_rows(f'block_updates/{family}.json', header, out))
+        if family == 'connections':
+            files.append(write('block_updates/connection_faces.json', connection_faces(out)))
+        if family == 'surfaces':
+            files.append(write('block_updates/support_holders.json', support_holders(out)))
+        if family == 'soils':
+            files.append(write('block_updates/plant_soils.json', {
+                'method': 'derived from block_updates/soils.json: the blocks (default state) each plant stays on',
+                'plants': {plant: sorted(soil for soil, _, stays in soils if stays) for plant, _, soils in out},
+            }))
+    update_manifest('block_updates', {
+        **provenance('scenarios', sweeps),
+        'method': 'block scenarios (tools/bds-sweep/scenarios.py) run by the endstone-sweep `scenarios` job '
+                  'on a superflat world with random ticks off: blocks set through the Endstone block API with '
+                  'or without the block update a placement triggers, read back after the stated wait; '
+                  'see each file\'s `method`',
+        'files': files,
+    })
+
+
+# ---------------------------------------------------------------- placements
+
+PLACEMENT_FIXTURE = REPO / 'crates' / 'unastar' / 'src' / 'server' / 'game' / 'testdata' / 'bds-placements.json'
+
+
+def block_hashes() -> dict[int, tuple[str, dict]]:
+    """Network hash -> (block, states) of every canonical state, from
+    unastar-data's `output/blocks.kdl` (byte properties as booleans, the
+    Endstone form the other measured files use)."""
+    out: dict[int, tuple[str, dict]] = {}
+    block = None
+    text = (REPO / 'crates' / 'unastar-data' / 'output' / 'blocks.kdl').read_text(encoding='utf-8')
+    row = re.compile(r'network_hash=(\d+) properties_json="((?:[^"\\]|\\.)*)"')
+    for line in text.splitlines():
+        if line.startswith('block '):
+            block = line.split()[1]
+        elif line.startswith('    state ') and block:
+            match = row.search(line)
+            if not match:
+                continue
+            states = {}
+            for name, typed in json.loads(match.group(2).replace('\\"', '"')).items():
+                kind, value = next(iter(typed.items()))
+                states[name] = bool(value) if kind == 'byte' else value
+            out[int(match.group(1))] = (block, states)
+    return out
+
+
+def _slot_zero(hex_text: str) -> tuple[int, int]:
+    """(item network id, block runtime id) of slot 0 of a main-inventory
+    `InventoryContent` (packet id, container 0, slot count, then the first
+    descriptor: i16 id, u16 count, varuint aux, optional zigzag net id,
+    varuint block runtime id)."""
+    data = bytes.fromhex(hex_text)
+    pos = 0
+
+    def uvarint() -> int:
+        nonlocal pos
+        value = shift = 0
+        while True:
+            byte = data[pos]
+            pos += 1
+            value |= (byte & 0x7F) << shift
+            if not byte & 0x80:
+                return value
+            shift += 7
+
+    uvarint()  # packet id
+    if uvarint() != 0:
+        raise ValueError('not the main inventory')
+    uvarint()  # slot count
+    item = int.from_bytes(data[pos:pos + 2], 'little', signed=True)
+    pos += 4  # id, count
+    uvarint()  # aux
+    present = data[pos]
+    pos += 1
+    if present:
+        uvarint()  # zigzag stack net id
+    return item, uvarint()
+
+
+def summarize_item_blocks(sweep: Path) -> None:
+    """The `item-blocks` sweep: per item the block BDS describes a stack of
+    it with (null for an item that is no block item), from the client's
+    capture of the inventory BDS sends after each `/replaceitem`."""
+    rows = {row['key']: row for row in results(sweep)}
+    hashes = block_hashes()
+    seen: dict[str, tuple[int, int]] = {}
+    current = None
+    for line in (sweep / 'client-capture' / 'packets.jsonl').read_text(encoding='utf-8').splitlines():
+        record = json.loads(line)
+        if record['dir'] != 's2c':
+            continue
+        if record['name'] == 'TextPacket':
+            text = bytes.fromhex(record['hex']).decode('utf-8', 'replace')
+            if 'bds-sweep:mark ' in text:
+                marker = text.split('bds-sweep:mark ', 1)[1]
+                current = ''.join(ch for ch in marker if ch.isalnum() or ch in '_.')
+                continue
+        if current and record['name'] == 'InventoryContentPacket' and record['hex'][2:4] == '00':
+            seen[current] = _slot_zero(record['hex'])
+    table, refused = {}, []
+    for key, row in sorted(rows.items()):
+        if not row['given']:
+            refused.append(row['item'])
+            continue
+        if key not in seen:
+            raise SystemExit(f'{row["item"]}: given but no inventory captured')
+        _, block = seen[key]
+        if block == 0:
+            table[row['item']] = None
+            continue
+        name, states = hashes[block]
+        table[row['item']] = {'block': name, 'states': states}
+    files = [write('item_blocks.json', {'items': table, 'not_given': refused})]
+    update_manifest('item_blocks', {
+        **provenance('item-blocks', [sweep]),
+        'method': '`/replaceitem entity <player> slot.hotbar 0 <item> 1` from the console for every item of the '
+                  'item registry; the block runtime id of hotbar slot 0 in the next main-inventory '
+                  '`InventoryContent` the scripted client received (null: no block); `not_given` lists the '
+                  'items the command refuses',
+        'files': files,
+    })
+    blocks = sum(1 for value in table.values() if value)
+    print(f'{len(table)} items ({blocks} with a block), {len(refused)} not given')
+# Packets of the client capture that are not answers to the click.
+PLACEMENT_NOISE = {'PlayerAuthInputPacket', 'LevelChunkPacket', 'NetworkStackLatencyPacket', 'SetTimePacket',
+                   'NetworkChunkPublisherUpdatePacket', 'MoveActorDeltaPacket', 'CurrentStructureFeaturePacket',
+                   'SyncWorldClocksPacket', 'TextPacket'}
+
+
+# Packets the placement test decodes keep their bytes; the others (the full
+# player resync BDS sends after a click: attributes, actor data, the armour,
+# UI and offhand windows) are listed by name only.
+PLACEMENT_DECODED = {'InventoryTransactionPacket', 'UpdateBlockPacket', 'UpdateSubChunkBlocksPacket',
+                     'LevelSoundEventPacket', 'BlockActorDataPacket', 'OpenSignPacket', 'PlayerHotbarPacket'}
+
+
+def placement_decoded(record: dict) -> bool:
+    if record['name'] == 'InventoryContentPacket':
+        # Packet id 0x31, then the container id: 0 is the main inventory.
+        return record['hex'][2:4] == '00'
+    return record['name'] in PLACEMENT_DECODED
+
+
+def summarize_placements(sweep: Path) -> None:
+    """The `placements` sweep as a unastar test fixture: each case's setup,
+    the client's click, what BDS stored and every packet between the case's
+    marker and its end marker (noise left out), hex as recorded for the
+    packets the test decodes."""
+    rows = {row['key']: row for row in results(sweep)}
+    job = json.loads((sweep / 'job.json').read_text(encoding='utf-8'))
+    packets: dict[str, list] = {}
+    current = None
+    for line in (sweep / 'client-capture' / 'packets.jsonl').read_text(encoding='utf-8').splitlines():
+        record = json.loads(line)
+        if record['name'] == 'TextPacket' and record['dir'] == 's2c':
+            text = bytes.fromhex(record['hex']).decode('utf-8', 'replace')
+            if 'bds-sweep:mark ' in text:
+                marker = text.split('bds-sweep:mark ', 1)[1]
+                key = ''.join(ch for ch in marker if ch.isalnum() or ch in '_-')
+                current = None if key == 'end' else key
+                if current:
+                    packets[current] = []
+                continue
+        if current and record['name'] not in PLACEMENT_NOISE:
+            packet = {'dir': record['dir'], 'name': record['name']}
+            if placement_decoded(record):
+                packet['hex'] = record['hex']
+            packets[current].append(packet)
+    cases = []
+    for item in job['items']:
+        row = rows[item['key']]
+        cases.append({**{k: item[k] for k in ('key', 'setup', 'hand', 'player', 'click', 'read')},
+                      'origin': job['arena']['placements']['origin'],
+                      'bds': {'reads': row['reads'], 'held': row['held']},
+                      'packets': packets.get(item['key'], [])})
+    fixture = {
+        'source': f'BDS {BDS_VERSION}, tools/bds-sweep placements job at {harness_revision()}, '
+                  f'sweep {sweep.name}: the scripted player (survival) clicks with the stack in hotbar slot 0; '
+                  'packets are the client capture between the case marker and its end marker',
+        'cases': cases,
+    }
+    PLACEMENT_FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+    PLACEMENT_FIXTURE.write_bytes((json.dumps(fixture, indent=1) + '\n').encode('utf-8'))
+    print(f'{len(cases)} cases -> {PLACEMENT_FIXTURE}')
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         print(__doc__)
@@ -431,6 +965,12 @@ def main() -> int:
         summarize_mining(dirs[0])
     elif kind == 'attack':
         summarize_attack(dirs[0])
+    elif kind == 'scenarios':
+        summarize_scenarios(dirs)
+    elif kind == 'item-blocks':
+        summarize_item_blocks(dirs[0])
+    elif kind == 'placements':
+        summarize_placements(dirs[0])
     else:
         print(__doc__)
         return 2
