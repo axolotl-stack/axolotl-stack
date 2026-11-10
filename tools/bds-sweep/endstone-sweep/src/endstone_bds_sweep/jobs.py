@@ -95,6 +95,15 @@ class Context:
                 actor.remove()
         return found
 
+    def held(self) -> dict | None:
+        """The main-hand stack as `{item, damage}` (`damage`: the durability
+        damage BDS stores, 0 when none), `None` for an empty hand."""
+        stack = self.player.inventory.item_in_main_hand
+        if stack is None or stack.type.id == 'minecraft:air':
+            return None
+        meta = stack.item_meta
+        return {'item': stack.type.id, 'damage': meta.damage if meta.has_damage else 0}
+
 
 def run(ctx: Context, job: dict):
     arena = job['arena']
@@ -252,7 +261,9 @@ def mining(ctx: Context, job: dict):
     LEFT_CLICK_BLOCK interaction to the BlockBreakEvent, measured `repeats`
     times per item; every trial ends with a stop order so no mining state
     carries over. With `predict_after` > 0 the client predicts the break after
-    that many ticks instead."""
+    that many ticks instead. The held stack is read back after every trial
+    (`held_after`: item and durability damage, `None` once it broke), so the
+    wear one break costs is the difference to `held_before`."""
     name = job['player']
     miner = job['arena']['miner']
     pos = tuple(job['arena']['mine_block'])
@@ -282,6 +293,7 @@ def mining(ctx: Context, job: dict):
         ctx.take_items()
         events = [[t, k] for t, k, w in ctx.plugin.events if w == pos][:8]
         return {'start_tick': start, 'break_tick': broke, 'events': events, **environment,
+                'held_after': ctx.held(),
                 'ticks': broke - start if start is not None and broke is not None else None}
 
     for item in job['items']:
@@ -292,7 +304,14 @@ def mining(ctx: Context, job: dict):
         ctx.cmd(f'effect "{name}" clear')
         for line in item.get('commands', []):
             ctx.must(line.replace('{player}', f'"{name}"'))
-        ctx.player.inventory.item_in_main_hand = ctx.stack(item['tool'])
+        try:
+            ctx.player.inventory.item_in_main_hand = ctx.stack(item['tool'])
+        except Exception as error:  # an identifier Endstone cannot make a stack of
+            ctx.record({'key': item['key'], 'block': item['block'], 'states': item['states'],
+                        'tool': item['tool'], 'stack_error': str(error), 'ticks': [], 'trials': []})
+            continue
+        yield 1
+        held_before = ctx.held()
         trials = []
         for _ in range(int(item.get('repeats', 3))):
             trials.append((yield from trial(item)))
@@ -306,6 +325,7 @@ def mining(ctx: Context, job: dict):
             'tool': item['tool'],
             'commands': item.get('commands', []),
             'predict_after': int(item.get('predict_after', 0)),
+            'held_before': held_before,
             'ticks': ticks,
             'consistent': len(set(ticks)) == 1 and ticks[0] is not None,
             'trials': trials,
@@ -368,12 +388,18 @@ def armor_values(ctx: Context, job: dict):
 
 def attack(ctx: Context, job: dict):
     """Melee damage per held item: a fresh target mob is spawned in front of
-    the sweep player (creative, on the ground, not sprinting), the client
-    gets a `bds-sweep:attack <runtime id>` order, and the damage events of
-    that mob are recorded; `repeats` trials per item."""
+    the sweep player (creative unless the job sets `gamemode`, on the ground,
+    not sprinting), the client gets a `bds-sweep:attack <runtime id>` order,
+    and the damage events of that mob are recorded; `repeats` trials per
+    item, `gap` extra ticks between them (items with an attack cooldown).
+    The held stack is read back after every trial (`held_after`), so in
+    survival the wear of each hit is the change of its durability damage."""
     from endstone.level import Location
     spot = job['arena']['target']
     miner = job['arena']['miner']
+    gamemode = job.get('gamemode')
+    if gamemode:
+        ctx.must(f'gamemode {gamemode} "{job["player"]}"')
     ctx.must(f'tp "{job["player"]}" {miner[0]} {miner[1]} {miner[2]} {miner[3]} {miner[4]}')
     for item in job['items']:
         if item['key'] in ctx.done:
@@ -381,6 +407,7 @@ def attack(ctx: Context, job: dict):
         ctx.player.inventory.held_item_slot = 0
         ctx.player.inventory.item_in_main_hand = ctx.stack(item['tool'])
         yield 5
+        held_before = ctx.held()
         trials = []
         # Trial 0 is a warm-up and not recorded as a measurement: the first
         # attack after the held item changed through Endstone never deals
@@ -398,14 +425,21 @@ def attack(ctx: Context, job: dict):
             yield 6
             damage = [round(d, 4) for _, kind, d, _ in ctx.plugin.damage if kind == job['target']]
             causes = sorted({c for _, kind, _, c in ctx.plugin.damage if kind == job['target']})
-            trials.append({'damage': damage, 'causes': causes, 'warmup': index == 0})
+            trials.append({'damage': damage, 'causes': causes, 'warmup': index == 0,
+                           'held_after': ctx.held()})
             for actor in ctx.dimension.actors:
                 if actor.runtime_id == target:
                     actor.remove()
             ctx.take_items()
-            yield 2
-        ctx.record({'key': item['key'], 'tool': item['tool'], 'target': job['target'], 'trials': trials})
+            yield 2 + int(item.get('gap', 0))
+        row = {'key': item['key'], 'tool': item['tool'], 'target': job['target'], 'trials': trials,
+               'held_before': held_before}
+        if gamemode:
+            row['gamemode'] = gamemode
+        ctx.record(row)
     ctx.player.inventory.item_in_main_hand = None
+    if gamemode:
+        ctx.must(f'gamemode creative "{job["player"]}"')
 
 
 JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'attack': attack,

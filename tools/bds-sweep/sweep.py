@@ -144,9 +144,76 @@ def item_names(spec: str, slice_: list[str]) -> list[str]:
     return spec.split(',')
 
 
+HELD_BLOCKS = ['minecraft:dirt', 'minecraft:netherrack', 'minecraft:oak_leaves']
+# Per block, the effects measured on the empty hand: stone resolves the haste
+# multipliers (150 ticks by hand), dirt the mining fatigue ones (15 ticks).
+EFFECT_CELLS = {'minecraft:stone': ['haste1', 'haste2', 'haste3'],
+                'minecraft:dirt': ['mining_fatigue1', 'mining_fatigue2']}
+
+
+def block_cells(names: list[str]) -> list[tuple[str, dict]]:
+    first = native.default_states()
+    return [(name, SLICE_BLOCKS.get(name, first[name])) for name in names]
+
+
+def non_tool_diggers() -> list[str]:
+    """Items the parity catalog gives a `digger` facet through their native
+    mining class alone (no `minecraft:digger` tag and no digger or shears
+    class): armour, bows, bundles, spears, music discs, ... Education
+    Edition items (glow sticks, sparklers) are skipped."""
+    rows = json.loads((REPO / 'crates' / 'unastar-data' / 'src' / 'items.json').read_text(encoding='utf-8'))
+    return sorted(row['identifier'] for row in rows
+                  if row['mine_block_type'] in (1, 2) and 'minecraft:digger' not in row.get('tags', [])
+                  and row['identifier'] not in ('minecraft:glow_stick', 'minecraft:sparkler'))
+
+
+def wear_tools() -> list[str]:
+    """Every tier of every digger and sword, shears, trident and mace."""
+    return ([f'minecraft:{tier}_{kind}' for kind in DIGGERS for tier in TIERS]
+            + ['minecraft:shears', 'minecraft:trident', 'minecraft:mace'])
+
+
+def held_mining_items(args) -> list[dict]:
+    """The empty hand (3 trials) and every held item (`--trials` trials) on
+    each block: whether a non-tool item mines like the hand, and what one
+    break costs its durability. The default set also breaks dirt and
+    netherrack (cells the tool slice does not have) with every tool, for the
+    wear a break costs each tool."""
+    default = args.items in ('slice', 'non-tool-diggers')
+    names = non_tool_diggers() if default else args.items.split(',')
+    blocks = HELD_BLOCKS if args.blocks == 'slice' else args.blocks.split(',')
+    items = []
+    for block, states in block_cells(blocks):
+        held = names + (wear_tools() if default and block != 'minecraft:oak_leaves' else [])
+        for spec, repeats in [(None, 3)] + [({'item': name}, args.trials) for name in held]:
+            items.append({'key': f'{state_key(block, states)}|{tool_key(spec)}', 'block': block,
+                          'states': states, 'tool': spec, 'commands': [], 'max_ticks': args.mine_ticks,
+                          'repeats': repeats})
+    return items
+
+
+def effect_mining_items(args) -> list[dict]:
+    """Haste and mining fatigue levels on the empty hand (`EFFECT_CELLS`),
+    `--trials` trials each, keyed like the slice's `+haste1` variants."""
+    items = []
+    for block, states in block_cells(list(EFFECT_CELLS)):
+        for effect in EFFECT_CELLS[block]:
+            name, level = effect.rstrip('0123456789'), int(effect[len(effect.rstrip('0123456789')):])
+            items.append({'key': f'{state_key(block, states)}|hand+{effect}', 'block': block, 'states': states,
+                          'tool': None, 'commands': [f'effect {{player}} {name} 1000 {level - 1} true'],
+                          'max_ticks': args.mine_ticks, 'repeats': args.trials})
+    return items
+
+
 def mining_items(args) -> list[dict]:
     """Hand, every tier of each correct digger, shears, efficiency I-V on the
-    diamond correct tool, and haste I/II and mining fatigue I with it."""
+    diamond correct tool, and haste I/II and mining fatigue I with it
+    (`--variants tools`); see `held_mining_items` and `effect_mining_items`
+    for the other variant sets."""
+    if args.variants == 'held':
+        return held_mining_items(args)
+    if args.variants == 'effects':
+        return effect_mining_items(args)
     facts = native.mining()
     cells = list(SLICE_BLOCKS.items()) if args.blocks == 'slice' else [
         (name, native.default_states()[name]) for name in args.blocks.split(',')]
@@ -208,16 +275,23 @@ def armor_value_items(args) -> list[dict]:
     return items
 
 
+SPEARS = [f'minecraft:{tier}_spear' for tier in TIERS]
+
+
 def attack_items(args) -> list[dict]:
     """Hand, every tier of every digger and sword, trident and mace, and
-    sharpness I-V on the diamond sword."""
+    sharpness I-V on the diamond sword; `--items` adds held items (`spears`:
+    every spear tier), spaced `--gap` extra ticks apart (spears declare a
+    0.65 s attack cooldown)."""
     tools: list[dict | None] = [None]
     tools += [tool(kind, tier) for kind in DIGGERS for tier in TIERS]
     tools += [{'item': 'minecraft:trident'}, {'item': 'minecraft:mace'}]
     tools += [tool('sword', 'diamond', sharpness=level) for level in range(1, 6)]
+    items = [{'key': tool_key(spec), 'tool': spec} for spec in tools]
     if args.items not in ('slice', 'all'):
-        tools += [{'item': name} for name in args.items.split(',')]
-    return [{'key': tool_key(spec), 'tool': spec} for spec in tools]
+        names = SPEARS if args.items == 'spears' else args.items.split(',')
+        items += [{'key': tool_key({'item': name}), 'tool': {'item': name}, 'gap': args.gap} for name in names]
+    return items
 
 
 def build_job(args, out: Path) -> dict:
@@ -233,6 +307,8 @@ def build_job(args, out: Path) -> dict:
         job.update(max_health=2000, damage=ARMOR_DAMAGE, items=armor_value_items(args))
     elif args.kind == 'attack':
         job.update(target='minecraft:pig', items=attack_items(args))
+        if args.gamemode:
+            job['gamemode'] = args.gamemode
     elif args.kind == 'fuel':
         job.update(furnace='furnace', lit_furnace='minecraft:lit_furnace', input='cobblestone',
                    max_ticks=args.max_ticks,
@@ -250,6 +326,16 @@ def main() -> int:
     parser.add_argument('--samples', type=int, default=200)
     parser.add_argument('--max-ticks', type=int, default=24000, help='fuel: longest burn to wait for')
     parser.add_argument('--mine-ticks', type=int, default=600, help='mining: longest break to wait for')
+    parser.add_argument('--variants', default='tools', choices=['tools', 'held', 'effects'],
+                        help="mining: 'tools' (every tier, efficiency, effects with the diamond tool), "
+                             "'held' (--items held on --blocks; default every non-tool digger on dirt, "
+                             "netherrack and leaves) or 'effects' (haste/mining fatigue levels by hand)")
+    parser.add_argument('--trials', type=int, default=3, help='mining held/effects: trials per item')
+    parser.add_argument('--gamemode', choices=['survival', 'creative'],
+                        help='attack: the player game mode (survival shows wear per hit)')
+    parser.add_argument('--gap', type=int, default=0, help='attack: extra ticks between trials of --items')
+    parser.add_argument('--client-capture', action='store_true',
+                        help="record the client's packets to <out>/client-capture/packets.jsonl")
     parser.add_argument('--client', type=Path, default=REPO / 'target' / 'debug' / 'bds-sweep-client.exe')
     parser.add_argument('--timeout', type=float, default=6 * 3600, help='seconds for the whole job')
     args = parser.parse_args()
@@ -287,8 +373,10 @@ def main() -> int:
     try:
         with bds_runtime.Bds(properties, out / 'bds.log', endstone=True, env=env):
             with (out / 'client.log').open('a', encoding='utf-8') as log:
-                client = subprocess.Popen([str(args.client), '--name', PLAYER], cwd=REPO,
-                                          stdout=log, stderr=subprocess.STDOUT)
+                command = [str(args.client), '--name', PLAYER]
+                if args.client_capture:
+                    command += ['--capture-dir', str(out / 'client-capture')]
+                client = subprocess.Popen(command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT)
                 logins = 1
                 try:
                     while time.monotonic() - started < args.timeout:
@@ -309,8 +397,8 @@ def main() -> int:
                             # start; retry during the first minutes of the run.
                             if client.returncode != 0 and logins < 3 and time.monotonic() - started < 300:
                                 logins += 1
-                                client = subprocess.Popen([str(args.client), '--name', PLAYER], cwd=REPO,
-                                                          stdout=log, stderr=subprocess.STDOUT)
+                                client = subprocess.Popen(command, cwd=REPO, stdout=log,
+                                                          stderr=subprocess.STDOUT)
                                 continue
                             status = f'client exited {client.returncode}'
                             break

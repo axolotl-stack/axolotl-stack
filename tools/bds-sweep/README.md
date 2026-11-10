@@ -55,20 +55,27 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | Kind | What one item measures | Arena / method |
 |---|---|---|
 | `drops` | `samples` x `/loot spawn … mine … mainhand` per (block state, tool) | block at (3,-60,0) set without physics; tools: hand, every tier of each correct digger, one wrong digger, shears, silk touch and fortune I-III on the diamond correct tool |
-| `mining` | break ticks per (block state, tool, effect/environment), 3 trials | player (survival) at (0.5,-60,0.5) facing the west face of (1,-59,0); client sends Start/ContinueDestroyBlock, BDS breaks the block itself; ticks from the LEFT_CLICK_BLOCK event to the BlockBreakEvent (±1 tick) |
+| `mining` | break ticks per (block state, tool, effect/environment), 3 trials (`--trials` for the held and effect sets), and the held stack's durability damage after every break | player (survival) at (0.5,-60,0.5) facing the west face of (1,-59,0); client sends Start/ContinueDestroyBlock, BDS breaks the block itself; ticks from the LEFT_CLICK_BLOCK event to the BlockBreakEvent (±1 tick). `--variants tools` (default): the tool slice; `held`: `--items` held on `--blocks` (default every non-tool item the parity catalog gives a `digger` facet, on dirt, netherrack and oak leaves, plus every tool on dirt and netherrack for its wear); `effects`: Haste I-III by hand on stone, Mining Fatigue I-II by hand on dirt |
 | `armor-slots` | `/replaceitem` accept per slot (head, chest, legs, feet, offhand) | read back with Endstone `PlayerInventory` |
 | `armor-values` | health lost per `/damage <player> D entity_attack` wearing one item | max health 2000, hits repeated for sub-point precision; needs the full `armor-slots` result for slot assignment |
-| `attack` | melee damage per held item, warm-up + 3 trials | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value |
+| `attack` | melee damage per held item, warm-up + 3 trials, and the held stack's durability damage after every trial | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value. `--gamemode survival` lets hits wear the item; `--items spears` adds every spear tier, `--gap` ticks apart |
 | `fuel` | furnace burn ticks per item | pool of 32 furnaces, 1 cobblestone input + the item as fuel |
 
 ```powershell
 & $py tools/bds-sweep/sweep.py drops --blocks all --samples 400   # first palette state of every block
 & $py tools/bds-sweep/sweep.py drops --blocks minecraft:wheat --states all
 & $py tools/bds-sweep/sweep.py mining --blocks slice
+& $py tools/bds-sweep/sweep.py mining --variants held --trials 1      # non-tool items and tool wear
+& $py tools/bds-sweep/sweep.py mining --variants effects --mine-ticks 1200
+& $py tools/bds-sweep/sweep.py attack --items spears --gap 20 --gamemode survival --client-capture
 & $py tools/bds-sweep/sweep.py armor-slots --items all
 & $py tools/bds-sweep/sweep.py fuel --items all
 & $py tools/bds-sweep/summarize.py drops <dir> [<repeat dir> ...]
+& $py tools/bds-sweep/summarize.py mining <slice dir> <held dir> <effects dir>   # merged, first wins
 ```
+
+`--client-capture` records the scripted client's packets (both directions) to
+`<out>/client-capture/packets.jsonl`, outside the repository like every raw result.
 
 Sweeps are resumable: rerun with the same `--out` and finished items
 (`results.jsonl`) are skipped. To hand the BDS over mid-run, create
@@ -95,4 +102,6 @@ tool and moves on, so rerunning `sweep.py` with the same `--out` until
 | `attack` (43 tools, warm-up + 3 trials) | 43 | 2 min |
 | `fuel --items all` (lava bucket burns 20,000 ticks) | 2,075 | 19 min |
 | `mining --blocks slice` (10 blocks, 3 trials per variant) | 176 | ~20 min in two parts |
+| `mining --variants held --trials 1` (2026-11-10) | 409 | 10 min |
+| `mining --variants effects` (2026-11-10) | 5 | 2 min |
 | `drops --blocks all --states all --samples 64` | 287,231 cells | ~50 min over 7 attempts (5 crashing states skipped, 3 handovers) |

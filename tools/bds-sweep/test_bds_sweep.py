@@ -109,5 +109,62 @@ class ToolSets(unittest.TestCase):
                          'minecraft:oak_log[a=1,b=false,pillar_axis="y"]')
 
 
+class HeldAndEffectVariants(unittest.TestCase):
+    def args(self, **overrides):
+        import argparse
+        values = dict(kind='mining', variants='tools', items='slice', blocks='slice', trials=1, mine_ticks=600,
+                      gap=0, gamemode=None)
+        values.update(overrides)
+        return argparse.Namespace(**values)
+
+    def test_non_tool_diggers_are_the_mining_class_items_without_a_digger_tag(self):
+        names = sweep.non_tool_diggers()
+        for expected in ('minecraft:apple', 'minecraft:bow', 'minecraft:iron_chestplate', 'minecraft:wooden_spear',
+                         'minecraft:music_disc_13', 'minecraft:bundle'):
+            self.assertIn(expected, names)
+        for tool in ('minecraft:iron_pickaxe', 'minecraft:shears', 'minecraft:iron_sword', 'minecraft:dirt',
+                     'minecraft:glow_stick'):
+            self.assertNotIn(tool, names)
+
+    def test_held_items_follow_a_three_trial_hand_reference_per_block(self):
+        items = sweep.mining_items(self.args(variants='held', items='minecraft:apple,minecraft:bow',
+                                             blocks='minecraft:dirt'))
+        self.assertEqual([(i['key'], i['repeats']) for i in items], [
+            ('minecraft:dirt[]|hand', 3), ('minecraft:dirt[]|apple', 1), ('minecraft:dirt[]|bow', 1)])
+        self.assertEqual(items[2]['tool'], {'item': 'minecraft:bow'})
+
+    def test_the_default_held_set_adds_every_tool_off_the_slice_blocks(self):
+        items = sweep.mining_items(self.args(variants='held'))
+        keys = {i['key'] for i in items}
+        self.assertIn('minecraft:dirt[]|wooden_pickaxe', keys)
+        self.assertIn('minecraft:netherrack[]|mace', keys)
+        self.assertNotIn('minecraft:oak_leaves[persistent_bit=false,update_bit=false]|wooden_hoe', keys)
+        self.assertIn('minecraft:oak_leaves[persistent_bit=false,update_bit=false]|apple', keys)
+
+    def test_effect_levels_are_zero_based_amplifiers_on_the_hand(self):
+        items = sweep.mining_items(self.args(variants='effects', trials=3))
+        keys = {i['key']: i['commands'] for i in items}
+        self.assertEqual(keys['minecraft:stone[]|hand+haste3'], ['effect {player} haste 1000 2 true'])
+        self.assertEqual(keys['minecraft:dirt[]|hand+mining_fatigue2'],
+                         ['effect {player} mining_fatigue 1000 1 true'])
+        self.assertTrue(all(i['tool'] is None and i['repeats'] == 3 for i in items))
+
+    def test_spears_join_the_attack_list_with_their_gap(self):
+        items = sweep.attack_items(self.args(kind='attack', items='spears', gap=20))
+        self.assertEqual(items[0], {'key': 'hand', 'tool': None})
+        spears = [i for i in items if 'gap' in i]
+        self.assertEqual([i['key'] for i in spears], [f'{tier}_spear' for tier in sweep.TIERS])
+        self.assertTrue(all(i['gap'] == 20 for i in spears))
+
+
+class Wear(unittest.TestCase):
+    def test_wear_is_the_damage_each_trial_added_and_none_once_broken(self):
+        trials = [{'held_after': {'item': 'minecraft:golden_sword', 'damage': 1}},
+                  {'held_after': {'item': 'minecraft:golden_sword', 'damage': 3}},
+                  {'held_after': None}]
+        self.assertEqual(summarize.wear_per_trial({'item': 'minecraft:golden_sword', 'damage': 0}, trials),
+                         [1, 2, None])
+
+
 if __name__ == '__main__':
     unittest.main()

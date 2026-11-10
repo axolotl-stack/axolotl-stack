@@ -3,6 +3,8 @@
     python tools/bds-sweep/summarize.py drops SWEEP_DIR [SWEEP_DIR ...] [repeat=SWEEP_DIR ...]
     python tools/bds-sweep/summarize.py armor-slots SWEEP_DIR
     python tools/bds-sweep/summarize.py fuel SWEEP_DIR
+    python tools/bds-sweep/summarize.py mining SWEEP_DIR [SWEEP_DIR ...]   # first sweep wins per cell
+    python tools/bds-sweep/summarize.py attack SWEEP_DIR [SWEEP_DIR ...]
     python tools/bds-sweep/summarize.py compare-drops SWEEP_DIR_A SWEEP_DIR_B
 
 Writes into `crates/unastar-data/data/measured/` and records every artefact
@@ -363,36 +365,77 @@ def summarize_fuel(sweep: Path) -> None:
     })
 
 
-def summarize_attack(sweep: Path) -> None:
+def wear_per_trial(before: dict | None, trials: list[dict]) -> list[int | None]:
+    """Durability damage each trial added to the held stack (`held_before`,
+    then each trial's `held_after`; `None` for a trial after which the stack
+    was gone, i.e. it broke)."""
+    out = []
+    previous = (before or {}).get('damage', 0)
+    for trial in trials:
+        after = trial.get('held_after')
+        if after is None:
+            out.append(None)
+            continue
+        out.append(after['damage'] - previous)
+        previous = after['damage']
+    return out
+
+
+def merged_results(sweeps: list[Path]) -> list[dict]:
+    """Rows of several sweeps by key; the first sweep that has a key wins."""
+    chosen: dict[str, dict] = {}
+    for sweep in sweeps:
+        for row in results(sweep):
+            chosen.setdefault(row['key'], row)
+    return list(chosen.values())
+
+
+def summarize_attack(sweeps: list[Path]) -> None:
     """`attack_damage.json`: per held item the damage event value of each
     measured trial's first hit on the target and whether all trials agree
-    (the warm-up trial after each held-item change is skipped)."""
+    (the warm-up trial after each held-item change is skipped). Rows of a
+    survival sweep also record `wear`, the durability damage each trial
+    (warm-up included, first) added to the held stack."""
     table = {}
-    for row in results(sweep):
+    for row in merged_results(sweeps):
         measured = [trial for trial in row['trials'] if not trial.get('warmup')]
         firsts = [trial['damage'][0] if trial['damage'] else None for trial in measured]
-        table[row['key']] = {
+        entry = {
             'tool_item': row['tool'],
             'damage': firsts,
             'consistent': len(set(firsts)) == 1 and firsts[0] is not None,
         }
+        if 'held_before' in row:
+            entry['gamemode'] = row.get('gamemode', 'creative')
+            if row['tool']:
+                entry['wear'] = wear_per_trial(row['held_before'], row['trials'])
+        table[row['key']] = entry
     files = [write('attack_damage.json', dict(sorted(table.items())))]
     update_manifest('attack_damage', {
-        **provenance('attack', [sweep]),
-        'method': 'sweep player (creative, on the ground, not sprinting) holding the item attacks a freshly '
-                  'spawned minecraft:pig through an InventoryTransaction use-item-on-actor Attack; value of the '
-                  'Endstone ActorDamageEvent for the pig, three trials after one warm-up attack',
+        **provenance('attack', sweeps),
+        'method': 'sweep player (creative, or survival where `gamemode` says so; on the ground, not sprinting) '
+                  'holding the item attacks a freshly spawned minecraft:pig through an InventoryTransaction '
+                  'use-item-on-actor Attack; value of the Endstone ActorDamageEvent for the pig, three trials '
+                  'after one warm-up attack; `wear`: change of the durability damage of the held stack per trial '
+                  '(warm-up first), read back through Endstone',
         'files': files,
     })
 
 
-def summarize_mining(sweep: Path) -> None:
+def summarize_mining(sweeps: list[Path]) -> None:
+    """`mining_ticks.json` from one or more mining sweeps (tool slice, held
+    items, effect levels); the first sweep that has a cell wins. Variants of
+    sweeps that read the held stack back also record `wear`, the durability
+    damage each trial added."""
     table: dict[str, dict] = defaultdict(dict)
-    for row in results(sweep):
+    for row in merged_results(sweeps):
         state, variant = row['key'].split('|', 1)
+        if 'stack_error' in row:
+            table[state][variant] = {'tool_item': row['tool'], 'stack_error': row['stack_error']}
+            continue
         ticks = sorted(t for t in row['ticks'] if t is not None)
         trial = row['trials'][0]
-        table[state][variant] = {
+        entry = {
             'ticks': row['ticks'],
             'median': ticks[len(ticks) // 2] if ticks else None,
             'tool_item': row['tool'],
@@ -400,12 +443,17 @@ def summarize_mining(sweep: Path) -> None:
             'on_ground': trial['on_ground'],
             'in_water': trial['in_water'],
         }
+        if 'held_before' in row and row['tool']:
+            entry['wear'] = wear_per_trial(row['held_before'], row['trials'])
+        table[state][variant] = entry
     files = [write('mining_ticks.json', dict(sorted(table.items())))]
     update_manifest('mining_ticks', {
-        **provenance('mining', [sweep]),
+        **provenance('mining', sweeps),
         'method': 'sweep player in survival facing the block keeps sending StartDestroyBlock then '
                   'ContinueDestroyBlock (no prediction); BDS breaks the block itself; server ticks from the '
-                  'LEFT_CLICK_BLOCK interaction to the BlockBreakEvent, three trials (resolution +/-1 tick)',
+                  'LEFT_CLICK_BLOCK interaction to the BlockBreakEvent (resolution +/-1 tick); three trials per '
+                  'tool-slice, effect and empty-hand cell, one per held-item cell; `wear`: change of the durability '
+                  'damage of the held stack per trial, read back through Endstone',
         'files': files,
     })
 
@@ -428,9 +476,9 @@ def main() -> int:
     elif kind == 'fuel':
         summarize_fuel(dirs[0])
     elif kind == 'mining':
-        summarize_mining(dirs[0])
+        summarize_mining(dirs)
     elif kind == 'attack':
-        summarize_attack(dirs[0])
+        summarize_attack(dirs)
     else:
         print(__doc__)
         return 2
