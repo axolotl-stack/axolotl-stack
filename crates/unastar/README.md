@@ -100,6 +100,14 @@ Java world radius 4, about 0.5 s / 3.0 s fresh and 0.16 s / 0.45 s when the area
 is already generated; radius 12, about 0.6 s / 17 s fresh and 0.14 s / 2.9 s
 generated (8 chunks per player per tick bound the generated case).
 
+A player's actor data follows BDS 1.26.51 (`entity/player_life/actor_data.rs`):
+its own join `SetActorData` and the `AddPlayer` other players get carry every
+row BDS sends (72 and 79), from the state the player's viewers last received;
+`AddPlayer` names game type `default` until the player's mode is set. Changes
+(breath, game mode, sneak, crawl pose, burning, effects, death) reach the
+player and its viewers as BDS groups them; the evidence and tests are in
+`entity/player_life/testdata/` and `entity/player_life/tests/`.
+
 ## World Generation
 
 `[world.generator]` selects the generator; new configs default to Java-style terrain:
@@ -793,8 +801,10 @@ Player state is loaded through the configured player provider before StartGame
 and restored before initial inventory, abilities, and attributes are sent.
 Disconnect and shutdown use the same snapshot: position/rotation, dimension,
 gamemode, main inventory, armour, offhand, cursor, held slot, health, hunger,
-and experience. Older player records without inventory fields load with empty
-slots. Missing records use first-join defaults; corrupt records are logged and
+experience and air supply (BDS keeps it across a rejoin; the join packet still
+says full air and the first update after it carries the saved value). Older
+player records without inventory fields load with empty slots, and without an
+air supply with full air. Missing records use first-join defaults; corrupt records are logged and
 left in storage rather than deleted. When `players.save_previous_position` is
 enabled, saves also update the per-player TOML position used by spawn rules.
 Spawn rules retain their ordering and only use saved positions in the current

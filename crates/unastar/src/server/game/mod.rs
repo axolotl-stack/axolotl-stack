@@ -100,9 +100,9 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 }
 
 /// The stored state of a player. A player saved while dead is stored as it
-/// will respawn (respawn position, full health, fresh hunger), so it never
-/// reloads with zero health.
-fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
+/// will respawn (respawn position, full health, fresh hunger, full air), so
+/// it never reloads with zero health.
+pub(crate) fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
     use crate::entity::components::{Experience, Health, Hunger};
     let uuid = world.get::<PlayerUuid>(entity)?.0;
     let dead = world
@@ -141,6 +141,10 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
             exhaustion: hunger.exhaustion,
             experience: experience.level,
             experience_progress: experience.progress,
+            air: world
+                .get::<crate::entity::player_life::breath::PlayerBreath>(entity)
+                .filter(|_| !dead)
+                .map_or(crate::storage::default_air(), |breath| breath.air),
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -555,12 +559,15 @@ impl GameServer {
                 .before(tick_block_breaking),
         );
         // Player landings, then lava, fire, burning and the void, then the
-        // air supply and drowning.
+        // air supply and drowning: the player tick, whose deaths reach the
+        // clients with the tick's actor-data update.
         ecs.schedule_mut().add_systems(
             (
+                crate::entity::player_life::actor_data::begin_player_tick,
                 crate::entity::player_life::environment::land_players,
                 crate::entity::player_life::environment::hurt_players_by_environment,
                 crate::entity::player_life::breath::breathe,
+                crate::entity::player_life::actor_data::end_player_tick,
             )
                 .chain()
                 .in_set(EntityLogicSet)
@@ -585,6 +592,7 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             (
                 effects::sync_player_effects,
+                crate::entity::player_life::actor_data::sync_players,
                 attributes::sync_player_attributes,
             )
                 .chain()
@@ -832,6 +840,7 @@ impl GameServer {
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
         let mut experience = crate::entity::components::Experience::default();
+        let mut air = None;
         if let Some(saved) = saved_data {
             rotation = Rotation::new(saved.rotation[0], saved.rotation[1]);
             game_mode = match saved.game_mode {
@@ -849,7 +858,9 @@ impl GameServer {
             hunger.exhaustion = saved.exhaustion;
             experience.level = saved.experience;
             experience.progress = saved.experience_progress;
+            air = Some(saved.air);
         }
+        let explicit_game_mode = air.is_some() && game_mode != default_gamemode;
 
         let entity = self
             .ecs
@@ -896,19 +907,38 @@ impl GameServer {
         // The streamed spawn still owes `PlayStatus(PlayerSpawn)`; the chunk
         // systems send it after the player's first view and chunks.
         let (health_sent, hunger_sent) = (health.clone(), hunger.clone());
-        let breath = crate::entity::player_life::breath::PlayerBreath::joined(
-            &self
-                .ecs
-                .world()
-                .resource::<crate::entity::player_life::PlayerRules>()
-                .breath,
-        );
+        let breath_rules = self
+            .ecs
+            .world()
+            .resource::<crate::entity::player_life::PlayerRules>()
+            .breath;
+        let breath = match air {
+            Some(air) => {
+                crate::entity::player_life::breath::PlayerBreath::restored(&breath_rules, air)
+            }
+            None => crate::entity::player_life::breath::PlayerBreath::joined(&breath_rules),
+        };
+        let index = crate::entity::player_life::actor_data::next_index(self.ecs.world_mut());
+        let actor_data = if air.is_some() {
+            crate::entity::player_life::actor_data::PlayerActorData::rejoined(index)
+        } else {
+            crate::entity::player_life::actor_data::PlayerActorData::joined(index)
+        };
+        self.ecs.world_mut().entity_mut(entity).insert((
+            actor_data,
+            crate::entity::player_life::environment::PlayerFall::default(),
+        ));
+        if explicit_game_mode {
+            self.ecs
+                .world_mut()
+                .entity_mut(entity)
+                .insert(crate::entity::player_life::actor_data::ExplicitGameMode);
+        }
         self.ecs.world_mut().entity_mut(entity).insert((
             health,
             hunger,
             experience,
             breath,
-            crate::entity::player_life::environment::PlayerFall::default(),
             AwaitingSpawnStatus,
             hunger::FoodTimer::default(),
             // Join sends these values in its first UpdateAttributes.

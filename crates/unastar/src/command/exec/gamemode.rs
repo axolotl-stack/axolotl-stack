@@ -85,12 +85,17 @@ fn mode_key(mode: GameMode) -> &'static str {
 /// Changes a player's game mode: `UpdatePlayerGameType` to every player (as
 /// BDS does), and the new mode's abilities. BDS sends no abilities update, but
 /// unastar's join abilities depend on the game mode (flight, instant build),
-/// so they are resent rather than left stale.
+/// so they are resent rather than left stale. A flag word the mode changes
+/// (a spectator has no `HAS_COLLISION`) goes to the player and its viewers
+/// right after, as BDS sends it (`player_life::actor_data`).
 pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
     if world.get::<Player>(player).is_none() {
         return;
     }
-    world.entity_mut(player).insert(mode);
+    world.entity_mut(player).insert((
+        mode,
+        crate::entity::player_life::actor_data::ExplicitGameMode,
+    ));
     let runtime_id = world.get::<RuntimeEntityId>(player).map_or(0, |id| id.0);
     let operator = world.get::<crate::command::Operator>(player).is_some();
     let game_type = UpdatePlayerGameTypePacket {
@@ -107,6 +112,11 @@ pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
         let _ = session.send(game_type.clone().into());
         let _ = session.send(abilities.clone().into());
     }
+    crate::entity::player_life::actor_data::send_changes(
+        world,
+        player,
+        crate::entity::player_life::actor_data::Keys::All,
+    );
 }
 
 #[cfg(test)]

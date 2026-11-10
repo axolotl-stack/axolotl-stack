@@ -30,6 +30,7 @@ use crate::entity::components::{
     GameMode, LastBroadcastPosition, Player, PlayerName, PlayerSession, PlayerUuid, Position,
     Rotation, RuntimeEntityId, SpatialChunk,
 };
+use crate::entity::player_life::actor_data::{ExplicitGameMode, PlayerActorData, full_actor_data};
 use crate::world::ecs::{PlayerDespawnedEvent, PlayerSpawnedEvent};
 
 /// Spatial hash grid for efficient neighbor lookups.
@@ -70,20 +71,33 @@ impl EntityGrid {
     }
 }
 
-/// Builds an AddPlayer packet for broadcasting a player to others.
+/// The game type `AddPlayer` names: BDS's `default` unless the player's
+/// mode was set for it ([`ExplicitGameMode`]).
+fn add_player_game_type(game_mode: GameMode, explicit: bool) -> EnumsGameType {
+    if explicit {
+        crate::server::game::join::game_type(game_mode)
+    } else {
+        EnumsGameType::Default
+    }
+}
+
+/// Builds an AddPlayer packet for broadcasting a player to others: its
+/// whole actor data as its viewers last received it
+/// (`player_life::actor_data::full_actor_data`) and its game type.
 fn build_add_player_packet(
     runtime_id: i64,
     uuid: Uuid,
     name: &str,
     position: &Position,
     rotation: &Rotation,
-    game_mode: GameMode,
+    player_game_type: EnumsGameType,
+    actor_data: Option<&PlayerActorData>,
 ) -> AddPlayerPacket {
-    let protocol_gamemode = match game_mode {
-        GameMode::Survival => EnumsGameType::Survival,
-        GameMode::Creative => EnumsGameType::Creative,
-        GameMode::Adventure => EnumsGameType::Adventure,
-        GameMode::Spectator => EnumsGameType::Creative, // No spectator in protocol
+    let entity_data = SynchedActorDataCopyableDataList {
+        data: actor_data.map_or_else(
+            || full_actor_data(name, &PlayerActorData::joined(1)),
+            |data| full_actor_data(name, data),
+        ),
     };
 
     AddPlayerPacket {
@@ -105,8 +119,8 @@ fn build_add_player_packet(
         },
         y_head_rotation: rotation.yaw,
         carried_item: CerealizerNetworkItemStackDescriptorSerializedData::default(),
-        player_game_type: protocol_gamemode,
-        entity_data: SynchedActorDataCopyableDataList::default(),
+        player_game_type,
+        entity_data,
         synched_properties: PropertySyncData::default(),
         abilities_data: SerializedAbilitiesData {
             target_player_raw_id: runtime_id,
@@ -196,21 +210,8 @@ const ROTATION_THRESHOLD: f32 = 1.0;
 #[allow(clippy::type_complexity)]
 pub fn broadcast_spawn_system(
     mut events: MessageReader<PlayerSpawnedEvent>,
-    // Query for new players by entity from the event
-    new_players: Query<
-        (
-            &RuntimeEntityId,
-            &PlayerUuid,
-            &PlayerName,
-            &Position,
-            &Rotation,
-            &GameMode,
-            &PlayerSession,
-        ),
-        With<Player>,
-    >,
-    // Query for all existing players (to send to new player and to broadcast new player to them)
-    existing_players: Query<
+    // Every player: the new one and the players it is shown to and shown.
+    players: Query<
         (
             Entity,
             &RuntimeEntityId,
@@ -220,16 +221,31 @@ pub fn broadcast_spawn_system(
             &Rotation,
             &GameMode,
             &PlayerSession,
+            Has<ExplicitGameMode>,
+            Option<&PlayerActorData>,
         ),
         With<Player>,
     >,
 ) {
+    let add_player = |entity: Entity| {
+        let (_, rid, uuid, name, position, rotation, mode, _, explicit, data) =
+            players.get(entity).ok()?;
+        Some(build_add_player_packet(
+            rid.0,
+            uuid.0,
+            &name.0,
+            position,
+            rotation,
+            add_player_game_type(*mode, explicit),
+            data,
+        ))
+    };
     for event in events.read() {
         let new_entity = event.entity;
 
         // Get the new player's data
-        let Ok((new_rid, new_uuid, new_name, new_pos, new_rot, new_mode, new_session)) =
-            new_players.get(new_entity)
+        let (Ok((.., new_session, _, _)), Some(new_packet)) =
+            (players.get(new_entity), add_player(new_entity))
         else {
             // Entity may have been despawned between event emission and processing
             tracing::warn!(entity = ?new_entity, "PlayerSpawnedEvent for non-existent entity");
@@ -238,47 +254,15 @@ pub fn broadcast_spawn_system(
 
         // Note: EntityGrid insertion handled by SpatialChunk on_insert hook
 
-        let new_packet = build_add_player_packet(
-            new_rid.0,
-            new_uuid.0,
-            &new_name.0,
-            new_pos,
-            new_rot,
-            *new_mode,
-        );
-
-        // Send new player to all existing players (except themselves)
-        for (other_entity, _, _, _, _, _, _, other_session) in existing_players.iter() {
+        for (other_entity, .., other_session, _, _) in players.iter() {
             if other_entity == new_entity {
                 continue;
             }
+            // The new player to the others, and each of them to it.
             let _ = other_session.send(McpePacket::from(new_packet.clone()));
-        }
-
-        // Send all existing players to the new player
-        for (
-            other_entity,
-            other_rid,
-            other_uuid,
-            other_name,
-            other_pos,
-            other_rot,
-            other_mode,
-            _,
-        ) in existing_players.iter()
-        {
-            if other_entity == new_entity {
-                continue;
+            if let Some(other_packet) = add_player(other_entity) {
+                let _ = new_session.send(McpePacket::from(other_packet));
             }
-            let other_packet = build_add_player_packet(
-                other_rid.0,
-                other_uuid.0,
-                &other_name.0,
-                other_pos,
-                other_rot,
-                *other_mode,
-            );
-            let _ = new_session.send(McpePacket::from(other_packet));
         }
 
         // LastBroadcastPosition is now included in PlayerBundle at spawn time,

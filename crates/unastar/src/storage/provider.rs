@@ -122,6 +122,10 @@ pub struct PlayerData {
     pub exhaustion: f32,
     #[serde(default)]
     pub experience_progress: f32,
+    /// Air supply in ticks (below zero while drowning). BDS 1.26.51 keeps
+    /// it across a rejoin; records saved before it have full air.
+    #[serde(default = "default_air")]
+    pub air: i16,
 }
 
 impl Default for PlayerData {
@@ -145,6 +149,7 @@ impl Default for PlayerData {
             saturation: default_saturation(),
             exhaustion: 0.0,
             experience_progress: 0.0,
+            air: default_air(),
         }
     }
 }
@@ -154,6 +159,10 @@ fn default_max_health() -> f32 {
 }
 fn default_saturation() -> f32 {
     5.0
+}
+/// A player's full air supply (`minecraft:breathable` 15 s).
+pub fn default_air() -> i16 {
+    300
 }
 
 /// Stable persistence representation, independent of ECS inventory internals.
@@ -226,6 +235,7 @@ impl PlayerData {
             || !self.saturation.is_finite()
             || !self.exhaustion.is_finite()
             || !(0.0..=1.0).contains(&self.experience_progress)
+            || !(-20..=300).contains(&self.air)
         {
             return Err(StorageError::Deserialization("invalid player state".into()));
         }
