@@ -138,11 +138,16 @@ fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
 /// returns the health actually removed (0 when the hit was ignored). A hit
 /// that empties the mob's health starts its death. Zero damage still counts
 /// as a hit (hurt animation, hurt timer, knockback), as BDS hurts with it.
+/// A fire-immune mob ignores the [`constants::FIRE_IMMUNE_CAUSES`] before
+/// anything else looks at the hit.
 pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
         return 0.0;
     }
     if world.get::<Health>(target).is_none_or(Health::is_dead) {
+        return 0.0;
+    }
+    if constants::FIRE_IMMUNE_CAUSES.contains(&hit.cause) && fire_immune(world, target) {
         return 0.0;
     }
     let (hit, sensor_trigger) = match damage_sensor::sense(world, target, hit) {
@@ -205,6 +210,17 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
         death::begin_death(world, target);
     }
     applied
+}
+
+/// Whether `entity` carries the `FIRE_IMMUNE` flag (`minecraft:fire_immune`).
+pub fn fire_immune(world: &World, entity: Entity) -> bool {
+    world
+        .get::<crate::entity::definition::flags::ActorFlags>(entity)
+        .is_some_and(|flags| {
+            flags
+                .get(jolyne::valentine::actor_flags::FIRE_IMMUNE)
+                .unwrap_or(false)
+        })
 }
 
 /// Push `target` away from `from` (horizontally).
