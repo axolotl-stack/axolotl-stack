@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import knockback_fixture  # noqa: E402
+import replication_fixture  # noqa: E402
 import native  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
@@ -148,6 +149,29 @@ class KnockbackTrials(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.items('every')
 
+    def test_cadence_sets_place_both_viewers_and_time_their_commands(self):
+        items = self.items('cadence') + self.items('cadence2')
+        self.assertEqual(len(items), 20)
+        keys = [item['key'] for item in items]
+        self.assertEqual(len(keys), len(set(keys)))
+        for item in items:
+            self.assertEqual(len(item['observer']), 4, item['key'])
+            self.assertTrue(item['hits'] or 'player' in item, item['key'])
+            for action in item.get('actions', []):
+                self.assertEqual(set(action), {'t', 'commands'})
+                self.assertTrue(action['commands'] and all(isinstance(c, str) for c in action['commands']))
+
+    def test_reload_phases_name_the_same_zombies(self):
+        def items(which):
+            return sweep.reload_items(type('Args', (), {'items': which})())
+        spawn, reload = items('spawn'), items('reload')
+        self.assertEqual([i['key'] for i in spawn], [i['key'] for i in reload])
+        self.assertEqual({i['phase'] for i in spawn} | {i['phase'] for i in reload}, {'spawn', 'reload'})
+        # Away from the world spawn, so they load only once the player is there.
+        self.assertTrue(all(i['at'][0] >= 200 for i in spawn))
+        with self.assertRaises(SystemExit):
+            items('slice')
+
 
 def varint(value: int) -> bytes:
     out = bytearray()
@@ -196,6 +220,31 @@ class KnockbackFixture(unittest.TestCase):
         samples = [{'mob': {'pos': [0.5, -40.0, 0.5]}} for _ in range(5)]
         wire = knockback_fixture.wire_for({'key': 'cow', 'runtime_id': 2}, capture, samples)
         self.assertEqual(wire, [{'sample': 3, 'motion': [0.0, -0.25, 0.0], 'tick': 0}])
+
+
+class ReplicationFixture(unittest.TestCase):
+    capture = KnockbackFixture.capture
+
+    def test_timed_packets_stay_with_their_batch_or_between_anchors(self):
+        add_actor = (varint(4) + varint(2) + varint(len(b'minecraft:cow')) + b'minecraft:cow'
+                     + struct.pack('<6f', 0.5, -40.0, 0.5, 0.0, -1e-5, 0.0))
+        rotation_only = varint(2) + b'\x00' * 3 + b'\x00\x01\x05\x00' + b'\x00' * 4 + varint(3)
+        delta = (varint(2) + b'\x00' + b'\x01' + struct.pack('<f', -40.5) + b'\x00' + b'\x00' * 3
+                 + b'\x00' * 4 + varint(0))
+        motion = varint(2) + struct.pack('<3f', 0.0, -0.25, 0.0) + varint(0)
+        capture = list(replication_fixture.packets(self.capture([
+            (1000, 13, add_actor), (1001, 111, rotation_only),
+            # Arrives 77 ms after the AddActor batch but 31 ms before the
+            # batch of the next matched update: it belongs to the tick before.
+            (1077, 40, motion), (1108, 111, delta), (1109, 40, motion)])))
+        samples = [{'mob': {'pos': [0.5, y, 0.5]}} for y in (-40.0, -40.0, -40.2, -40.5, -41.0)]
+        wire = replication_fixture.wire_for(2, capture, samples)
+        self.assertEqual([(event['sample'], event.get('timed', False)) for event in wire],
+                         [(0, False), (1, True), (2, True), (3, False), (3, True)])
+        self.assertEqual(wire[0]['add'], {'pos': [0.5, -40.0, 0.5], 'vel': [0.0, -1e-05, 0.0]})
+        self.assertEqual(wire[1]['rot'], [None, 5, None])
+        self.assertEqual(wire[1]['ticks'], 3)
+
 
 if __name__ == '__main__':
     unittest.main()
