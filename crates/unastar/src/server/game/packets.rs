@@ -57,6 +57,12 @@ impl GameServer {
         // Route by packet type into domain queues
         let world = self.ecs.world_mut();
 
+        if applied_before_commands(packet.packet_id())
+            && let Some(mut order) = world.get_resource_mut::<super::commands::CommandOrder>()
+        {
+            order.input(entity);
+        }
+
         match packet {
             // ── Movement ──────────────────────────────────────────────────
             BorrowedMcpePacket {
@@ -81,8 +87,16 @@ impl GameServer {
                 data: BorrowedMcpePacketData::CommandRequestPacket(pk),
                 ..
             } => {
-                if let Some(mut q) = world.get_resource_mut::<ChatPacketQueue>() {
-                    q.0.push((entity, session_id, ChatAction::Command(pk.into())));
+                // A request ahead of its player's inputs runs before them.
+                let request = pk.into();
+                let late = match world.get_resource_mut::<super::commands::CommandOrder>() {
+                    Some(mut order) => order.request(entity, request),
+                    None => Some(request),
+                };
+                if let Some(request) = late
+                    && let Some(mut q) = world.get_resource_mut::<ChatPacketQueue>()
+                {
+                    q.0.push((entity, session_id, ChatAction::Command(request)));
                 }
             }
 
@@ -225,6 +239,25 @@ impl GameServer {
             }
         }
     }
+}
+
+/// Packets whose queues a system drains before `run_commands` (movement and
+/// block actions, inventory, item use, mob actions, respawn). A command
+/// request after one of them in a tick waits for them
+/// ([`super::commands::CommandOrder`]).
+fn applied_before_commands(name: McpePacketName) -> bool {
+    matches!(
+        name,
+        McpePacketName::PlayerAuthInputPacket
+            | McpePacketName::PlayerActionPacket
+            | McpePacketName::RespawnPacket
+            | McpePacketName::InventoryTransactionPacket
+            | McpePacketName::ItemStackRequestPacket
+            | McpePacketName::MobEquipmentPacket
+            | McpePacketName::InteractPacket
+            | McpePacketName::BlockPickRequestPacket
+            | McpePacketName::ContainerClosePacket
+    )
 }
 
 /// The air-use request an inventory transaction makes, if any: `ItemUse`

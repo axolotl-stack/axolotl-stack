@@ -4,9 +4,12 @@
 //! CommandRequest packets; `run_commands` (exclusive, executors need the whole
 //! world) runs queued player requests and server-console lines through
 //! [`crate::command::execute`] and answers each player request with a
-//! `CommandOutputPacket` whose origin echoes the request's.
+//! `CommandOutputPacket` whose origin echoes the request's. Requests that
+//! arrived ahead of their player's inputs run earlier, in
+//! `run_early_commands` ([`CommandOrder`]).
 
 use bevy_ecs::prelude::*;
+use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, Sender};
 use tracing::{debug, error, info, trace, warn};
@@ -23,6 +26,42 @@ use jolyne::valentine::{CommandRequestPacket, McpePacket, TextPacket};
 /// Player command requests waiting for `run_commands`.
 #[derive(Resource, Default)]
 pub struct PendingCommands(pub Vec<(Entity, CommandRequestPacket)>);
+
+/// Keeps a player's command requests in place among that player's inputs.
+///
+/// BDS handles a client's packets in the order they arrive: a `/setblock`
+/// sent just before an input that starts breaking the block is in place for
+/// that input. Here inputs go to per-domain queues, and `run_commands` runs
+/// after the systems that apply them. So routing records which players sent
+/// an input this tick, and a request from a player with none yet runs in
+/// `run_early_commands`, before every input system. A request after an input
+/// still runs after all of the tick's inputs.
+#[derive(Resource, Default)]
+pub struct CommandOrder {
+    early: Vec<(Entity, CommandRequestPacket)>,
+    sent_input: HashSet<Entity>,
+}
+
+impl CommandOrder {
+    /// `entity` sent a packet that a system before `run_commands` applies.
+    pub(super) fn input(&mut self, entity: Entity) {
+        self.sent_input.insert(entity);
+    }
+
+    /// Keeps `request` for `run_early_commands` when `entity` sent no input
+    /// yet this tick, else hands it back for `run_commands`.
+    pub(super) fn request(
+        &mut self,
+        entity: Entity,
+        request: CommandRequestPacket,
+    ) -> Option<CommandRequestPacket> {
+        if self.sent_input.contains(&entity) {
+            return Some(request);
+        }
+        self.early.push((entity, request));
+        None
+    }
+}
 
 /// Lines typed on the server console (stdin), run with server permission.
 #[derive(Resource)]
@@ -91,14 +130,23 @@ pub fn apply_chat_and_commands(
     for (entity, _session_id, action) in queue.0.drain(..) {
         match action {
             ChatAction::Text(pk) => handle_text(entity, &pk, &names, &mut events),
-            ChatAction::Command(request) => {
-                if request.is_internal {
-                    trace!("Ignoring internal CommandRequest");
-                } else {
-                    pending.0.push((entity, request));
-                }
-            }
+            ChatAction::Command(request) => pending.0.push((entity, request)),
         }
+    }
+}
+
+/// Exclusive ECS system, before every input system of `PacketApplySet`:
+/// runs the requests that arrived ahead of their player's inputs
+/// ([`CommandOrder`]). The routing of this tick is over, so it also starts
+/// the next tick's record.
+pub fn run_early_commands(world: &mut World) {
+    let Some(mut order) = world.get_resource_mut::<CommandOrder>() else {
+        return;
+    };
+    order.sent_input.clear();
+    let requests = std::mem::take(&mut order.early);
+    for (entity, request) in requests {
+        run_player_request(world, entity, request);
     }
 }
 
@@ -106,18 +154,7 @@ pub fn apply_chat_and_commands(
 pub fn run_commands(world: &mut World) {
     let requests = std::mem::take(&mut world.resource_mut::<PendingCommands>().0);
     for (entity, request) in requests {
-        debug!(command = %request.command, "Command");
-        let Some(output) = crate::command::run_as_player(world, entity, &request.command) else {
-            continue;
-        };
-        print_console_notes(world);
-        // BDS answers `/say` and `/me` with their chat line only.
-        if output.messages.is_empty() {
-            continue;
-        }
-        if let Some(session) = world.get::<PlayerSession>(entity) {
-            let _ = session.send(McpePacket::from(output.to_packet(request.origin)));
-        }
+        run_player_request(world, entity, request);
     }
     let lines = world
         .get_resource::<ConsoleCommands>()
@@ -140,6 +177,26 @@ pub fn run_commands(world: &mut World) {
     }
     // `/schedule`d functions whose time came or whose area loaded.
     crate::command::exec::run_scheduled_functions(world);
+}
+
+/// Runs one player request and answers it with a `CommandOutputPacket`.
+fn run_player_request(world: &mut World, entity: Entity, request: CommandRequestPacket) {
+    if request.is_internal {
+        trace!("Ignoring internal CommandRequest");
+        return;
+    }
+    debug!(command = %request.command, "Command");
+    let Some(output) = crate::command::run_as_player(world, entity, &request.command) else {
+        return;
+    };
+    print_console_notes(world);
+    // BDS answers `/say` and `/me` with their chat line only.
+    if output.messages.is_empty() {
+        return;
+    }
+    if let Some(session) = world.get::<PlayerSession>(entity) {
+        let _ = session.send(McpePacket::from(output.to_packet(request.origin)));
+    }
 }
 
 /// Prints the extra console lines the last command left

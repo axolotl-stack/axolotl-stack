@@ -8,6 +8,8 @@ mod block_drops;
 pub(crate) mod blocks;
 mod chunks;
 #[cfg(test)]
+mod command_order_tests;
+#[cfg(test)]
 mod command_tests;
 mod commands;
 mod containers;
@@ -336,6 +338,7 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<crate::command::CommandRegistry>();
         ecs.world_mut().init_resource::<commands::PendingCommands>();
+        ecs.world_mut().init_resource::<commands::CommandOrder>();
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
             .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
@@ -410,6 +413,14 @@ impl GameServer {
                 commands::apply_chat_and_commands,
             )
                 .in_set(PacketApplySet),
+        );
+        // Command requests that arrived ahead of their player's inputs run
+        // before every input system, like BDS (`commands::CommandOrder`).
+        ecs.schedule_mut().add_systems(
+            commands::run_early_commands
+                .in_set(PacketApplySet)
+                .before(movement::apply_movement)
+                .before(inventory::apply_inventory),
         );
         // Exclusive block system runs after movement (which forwards block actions)
         ecs.schedule_mut().add_systems(
