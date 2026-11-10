@@ -136,7 +136,7 @@ mod tests {
             let player = world.spawn((Player, Position(COW_FEET))).id();
             for x in -1..=1 {
                 for z in -1..=1 {
-                    let chunk = world.get_or_create_chunk(x, z);
+                    let chunk = world.get_or_create_chunk(x, z).unwrap();
                     world.get_mut::<ChunkViewers>(chunk).unwrap().insert(player);
                 }
             }
