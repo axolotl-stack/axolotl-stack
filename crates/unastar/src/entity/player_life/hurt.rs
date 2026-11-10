@@ -16,9 +16,10 @@
 //! 4. Armour: the summed defence and toughness of the worn pieces reduce
 //!    the damage of the causes armour stops (`unastar_data::armour`).
 //!
-//! A full hit sends `ActorEvent` hurt to the player and its viewers and,
-//! when the hit has a source position, knocks the player back: the player
-//! moves itself, so the push goes to its own client as `SetActorMotion`.
+//! A full hit sends `ActorEvent` hurt, its data the damage cause's ID, to
+//! the player and its viewers and, when the hit has a source position,
+//! knocks the player back: the player moves itself, so the push goes to its
+//! own client as `SetActorMotion`.
 //! The health change reaches the client through
 //! `server::game::attributes::sync_player_attributes`; at zero health the player dies
 //! (`death`).
@@ -132,7 +133,7 @@ pub(super) fn apply_hit(
         (before - health.current, health.is_dead())
     };
     if full {
-        send_hurt_event(world, player);
+        send_hurt_event(world, player, hit.cause);
         if let Some(from) = hit.knockback_from {
             knock_back(world, player, from, hit.knockback_power);
         }
@@ -228,6 +229,10 @@ fn worn_armour(world: &World, player: Entity) -> (f32, f32) {
 
 /// Send `ActorEvent(event)` about `player` to it and its viewers.
 pub(super) fn send_player_event(world: &World, player: Entity, event: EnumsActorEvent) {
+    send_player_event_with_data(world, player, event, 0);
+}
+
+fn send_player_event_with_data(world: &World, player: Entity, event: EnumsActorEvent, data: i32) {
     let Some(runtime_id) = world.get::<RuntimeEntityId>(player) else {
         return;
     };
@@ -236,14 +241,23 @@ pub(super) fn send_player_event(world: &World, player: Entity, event: EnumsActor
             actor_runtime_id: runtime_id.0 as u64,
         },
         event_id: event,
-        data: 0,
+        data,
         fire_at_position: None,
     });
     send_to_player_and_viewers(world, player, &packet);
 }
 
-fn send_hurt_event(world: &World, player: Entity) {
-    send_player_event(world, player, EnumsActorEvent::Hurt);
+fn send_hurt_event(world: &World, player: Entity, cause: ActorDamageCause) {
+    send_player_event_with_data(world, player, EnumsActorEvent::Hurt, cause_id(cause));
+}
+
+/// The wire ID of a damage cause: its place in the published
+/// `ActorDamageCause` enum, counting `override` as 0 (`none` is -1). BDS
+/// 1.26.51 sends it as the hurt event's data (fall 5, lava 8, entity attack
+/// 2, magic 14, drowning 9 and void 12 in `testdata/bds-1.26.51-breath.json`).
+fn cause_id(cause: ActorDamageCause) -> i32 {
+    // The generated enum declares the causes in the published order.
+    cause as i32 - 1
 }
 
 /// Push `player` away from `from` (horizontally) with the native knockback

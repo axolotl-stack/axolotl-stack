@@ -3,6 +3,7 @@
 //! packets routed through `route_packet` and the server's packets captured
 //! from each player's session channel.
 
+mod breath;
 mod death;
 mod environment;
 mod hurt;

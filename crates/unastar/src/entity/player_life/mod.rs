@@ -6,6 +6,8 @@
 //!   to the player and its viewers and pushes the player's client.
 //! - [`environment`] deals the damage of the world around a player: falls
 //!   (tracked from `PlayerAuthInput`), lava, fire, burning and the void.
+//! - [`breath`] keeps the air supply and the `BREATHING` flag: drowning
+//!   under water, refilling above it, and their updates to the client.
 //! - [`death`] runs when health reaches zero: the death event, the death
 //!   message, the drops and the respawn screen.
 //! - [`respawn`] answers the client's respawn and puts the player back at
@@ -18,6 +20,7 @@
 //! [`Hit`]: crate::entity::mob::combat::Hit
 
 pub mod attributes;
+pub mod breath;
 pub mod constants;
 pub mod death;
 pub mod environment;

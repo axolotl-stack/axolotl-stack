@@ -6,9 +6,9 @@
 //! join: the player's eye position and runtime ID 0).
 //! The client answers with `Respawn` client-ready-to-spawn, which the server
 //! acknowledges with ready-to-spawn, and `PlayerAction` respawn; the first
-//! of them respawns the player ([`respawn`]): full health, fresh hunger, no
-//! fire or fall, back at the respawn position (`MovePlayer` in respawn mode)
-//! and `ActorEvent` spawn-alive.
+//! of them respawns the player ([`respawn`]): full health, fresh hunger,
+//! full air, no fire or fall, back at the respawn position (`MovePlayer` in
+//! respawn mode) and `ActorEvent` spawn-alive.
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -131,6 +131,7 @@ pub fn respawn(world: &mut World, player: Entity) {
             position.0 = spawn;
         }
     }
+    super::breath::refill(world, player);
     let (Some(session), Some(runtime_id)) = (
         world.get::<PlayerSession>(player),
         world.get::<RuntimeEntityId>(player).map(|id| id.0 as u64),

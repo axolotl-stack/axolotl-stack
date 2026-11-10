@@ -554,11 +554,13 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Player landings, then lava, fire, burning and the void.
+        // Player landings, then lava, fire, burning and the void, then the
+        // air supply and drowning.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::player_life::environment::land_players,
                 crate::entity::player_life::environment::hurt_players_by_environment,
+                crate::entity::player_life::breath::breathe,
             )
                 .chain()
                 .in_set(EntityLogicSet)
@@ -894,10 +896,18 @@ impl GameServer {
         // The streamed spawn still owes `PlayStatus(PlayerSpawn)`; the chunk
         // systems send it after the player's first view and chunks.
         let (health_sent, hunger_sent) = (health.clone(), hunger.clone());
+        let breath = crate::entity::player_life::breath::PlayerBreath::joined(
+            &self
+                .ecs
+                .world()
+                .resource::<crate::entity::player_life::PlayerRules>()
+                .breath,
+        );
         self.ecs.world_mut().entity_mut(entity).insert((
             health,
             hunger,
             experience,
+            breath,
             crate::entity::player_life::environment::PlayerFall::default(),
             AwaitingSpawnStatus,
             hunger::FoodTimer::default(),

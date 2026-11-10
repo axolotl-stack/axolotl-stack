@@ -28,6 +28,7 @@ use crate::entity::components::{
     GameMode, Health, HeldSlot, MainInventory, PlayerSession, PlayerState, Position,
     RuntimeEntityId,
 };
+use crate::entity::player_life::breath::PlayerBreath;
 use crate::item::ItemStack;
 use crate::server::broadcast::EntityGrid;
 
@@ -170,14 +171,25 @@ fn can_use(world: &World, player: Entity) -> bool {
         && world.get::<Health>(player).is_some_and(|h| !h.is_dead())
 }
 
-/// The flag word BDS sends for a player using an item: CANCLIMB,
-/// BREATHING, HAS_COLLISION and HAS_GRAVITY plus the movement state and
-/// USINGITEM (capture `item-use-20261029`).
-fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
-    let mut flags = (1u64 << actor_flags::CANCLIMB)
-        | (1u64 << actor_flags::BREATHING)
-        | (1u64 << actor_flags::HAS_COLLISION)
-        | (1u64 << actor_flags::HAS_GRAVITY);
+/// The flag word BDS sends for a player: CANCLIMB and HAS_GRAVITY,
+/// HAS_COLLISION unless it is a spectator, BREATHING while it breathes
+/// (`player_life::breath`), its movement state and USINGITEM while `using`
+/// (capture `item-use-20261029` and
+/// `entity/player_life/testdata/bds-1.26.51-breath.json`).
+pub(crate) fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
+    let mut flags = (1u64 << actor_flags::CANCLIMB) | (1u64 << actor_flags::HAS_GRAVITY);
+    if world
+        .get::<GameMode>(player)
+        .is_none_or(|mode| *mode != GameMode::Spectator)
+    {
+        flags |= 1u64 << actor_flags::HAS_COLLISION;
+    }
+    if world
+        .get::<PlayerBreath>(player)
+        .is_none_or(|breath| breath.breathing)
+    {
+        flags |= 1u64 << actor_flags::BREATHING;
+    }
     if let Some(state) = world.get::<PlayerState>(player) {
         for (on, flag) in [
             (state.sneaking, actor_flags::SNEAKING),
