@@ -380,7 +380,12 @@ pub const LEGACY_BUCKET_ITEMS: [(i16, &str); 11] = [
 /// regard to case, as item names are. Provisional: pmmp's
 /// BedrockItemUpgradeSchema, which agrees with the identity BDS reports for
 /// its own `muttonRaw` furnace recipe input.
-pub const LEGACY_ITEM_NAMES: [(&str, &str); 1] = [("minecraft:muttonRaw", "minecraft:mutton")];
+pub const LEGACY_ITEM_NAMES: [(&str, &str); 2] = [
+    ("minecraft:muttonRaw", "minecraft:mutton"),
+    // `entities/wither_boss` (measured: `/loot … loot "entities/wither_boss"`
+    // drops a nether star).
+    ("minecraft:netherStar", "minecraft:nether_star"),
+];
 /// The legacy loot item name that picks its wool item by data value
 /// (the palette colour): `minecraft:wool` with data 14 is red wool.
 pub const LEGACY_WOOL: &str = "minecraft:wool";

@@ -220,6 +220,14 @@ impl GameServer {
             .packet()
             .clone();
         let _ = session.send(McpePacket::from(commands));
+        // BDS lists the player's unlocked recipes (right after PlayerSpawn).
+        let unlocked = world
+            .get::<crate::command::exec::UnlockedRecipes>(entity)
+            .cloned()
+            .unwrap_or_default();
+        let _ = session.send(McpePacket::from(crate::command::exec::recipes_join_packet(
+            &unlocked,
+        )));
 
         // Creative content is sent via WorldTemplate during the StartGame sequence
         // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.

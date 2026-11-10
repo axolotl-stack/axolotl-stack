@@ -201,7 +201,7 @@ pub(super) fn with_components(
 
 /// Put `amount` of `stack` into `player`'s main inventory, matching stacks
 /// first; what does not fit drops at the player as if it threw it.
-fn give(world: &mut World, player: Entity, stack: &ItemStack, amount: u32) {
+pub(super) fn give(world: &mut World, player: Entity, stack: &ItemStack, amount: u32) {
     let per_stack = u32::from(stack.max_stack_size().max(1));
     let mut overflow = Vec::new();
     if let Some(mut main) = world.get_mut::<MainInventory>(player) {

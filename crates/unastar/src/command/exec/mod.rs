@@ -22,21 +22,26 @@ mod fill;
 mod function;
 mod gamemode;
 mod gamerule;
+mod gametest;
 mod give;
 mod help;
 mod inputpermission;
 mod kick;
 mod kill;
+mod loot;
 mod mobevent;
 mod music;
 mod op;
+mod recipe;
 mod replaceitem;
 mod scoreboard;
 mod scriptevent;
 mod setblock;
 mod sound;
 mod spawnpoint;
+mod spreadplayers;
 mod stop;
+mod structure;
 mod summon;
 mod tag;
 mod teleport;
@@ -59,7 +64,9 @@ pub use function::{FunctionRegistry, run_due as run_scheduled_functions};
 pub use gamemode::set_game_mode;
 pub use kick::Kicked;
 pub use op::OperatorList;
+pub use recipe::{UnlockedRecipes, join_packet as recipes_join_packet};
 pub use stop::StopRequested;
+pub use structure::{StructureTemplate, Structures};
 pub use teleport::move_entity;
 pub use tickingarea::TickingAreas;
 
@@ -81,6 +88,7 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(damage::run)
         .register(daylock::run)
         .register(op::run_deop)
+        .register(gametest::run_dialogue)
         .register(difficulty::run)
         .register(effect::run)
         .register(enchant::run)
@@ -91,12 +99,14 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(visuals::run_fog)
         .register(gamemode::run)
         .register(gamerule::run)
+        .register(gametest::run_gametest)
         .register(give::run)
         .register(help::run)
         .register(visuals::run_hud)
         .register(inputpermission::run)
         .register(kick::run)
         .register(kill::run)
+        .register_raw("loot", loot::run)
         .register(chat::run_list)
         .register(chat::run_me)
         .register(mobevent::run)
@@ -107,6 +117,7 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(visuals::run_particle)
         .register(visuals::run_playanimation)
         .register(sound::run_playsound)
+        .register(recipe::run)
         .register(replaceitem::run)
         .register(chat::run_say)
         .register(admin::run_save)
@@ -119,7 +130,9 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(admin::run_serveridentity)
         .register(spawnpoint::run_setworldspawn)
         .register(spawnpoint::run_spawnpoint)
+        .register(spreadplayers::run)
         .register(stop::run)
+        .register(structure::run)
         .register(sound::run_stopsound)
         .register(summon::run)
         .register(tag::run)

@@ -334,6 +334,19 @@ fn space_is_clear(world: &World, feet: DVec3) -> bool {
 
 /// Moves one entity; `position` is its new feet position.
 pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32, pitch: f32) {
+    move_entity_as(world, entity, position, yaw, pitch, SOURCE_ACTOR_TYPE);
+}
+
+/// [`move_entity`] with the `MovePlayer` teleport's source actor type
+/// (`/tp` sends 1, `/spreadplayers` 0: measured).
+pub(super) fn move_entity_as(
+    world: &mut World,
+    entity: Entity,
+    position: DVec3,
+    yaw: f32,
+    pitch: f32,
+    source_actor_type: i32,
+) {
     if let Some(mut rotation) = world.get_mut::<Rotation>(entity) {
         *rotation = Rotation::new(yaw, pitch);
     }
@@ -373,7 +386,7 @@ pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32,
         },
         teleport_data: Some(MovePlayerTeleportData {
             teleportation_cause: TELEPORT_CAUSE_COMMAND,
-            source_actor_type: SOURCE_ACTOR_TYPE,
+            source_actor_type,
         }),
         // The teleported player's own input tick, like every packet about it.
         tick: crate::entity::components::input_tick_of(world, entity),

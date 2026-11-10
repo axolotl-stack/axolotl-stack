@@ -573,68 +573,66 @@ Commands follow BDS 1.26.51 (`src/command/`):
   parameters, success flags and counts, plus the side packets BDS sends
   (rawtext target messages, `UpdatePlayerGameType`, `MovePlayer`, …).
 - **Evidence is a replayed capture.** `tools/bds-sweep/command-script.txt`
-  (587 commands in segments) was run on BDS 1.26.51 and its answers committed
-  (`crates/bds-extractor/captures/1.26.51/operator-commands/feedback.json`);
+  (908 steps in segments, including server-console lines and a second player
+  who joins, watches and leaves) was run on BDS 1.26.51 and its answers
+  committed (`crates/bds-extractor/captures/1.26.51/operator-commands/feedback.json`);
   each executor's `bds_capture` tests replay their segment on the test harness
-  (`src/command/exec/evidence.rs`) and compare every answer and the feedback
-  packets with BDS's.
+  (`src/command/exec/evidence.rs`) and compare every answer, the feedback
+  packets, the console lines and what the second player received with BDS's.
 - **`/execute`** runs its subcommands as a list of execution contexts (actor
   sources, positions, rotations, the eye anchor) and nests other commands
   through the same registry; chains are validated with the whole line when it
   is parsed. Selectors read entity tags (`tag=`), the scoreboard (`scores=`) and
   input locks (`haspermission=`).
 - **Permissions:** players have BDS command level `any`; operators
-  (`server.operators` in the config, or `/op` from the console) get
-  `gamedirectors`, BDS's operator abilities and permission level. Unknown
-  commands answer `commands.generic.unknown`, commands above the source's level
+  (`server.operators` in the config, `permissions.json` by XUID, or `/op` and
+  `/permission` from the console) get `gamedirectors`, BDS's operator
+  abilities and permission level. Unknown commands answer
+  `commands.generic.unknown`, commands above the source's level
   `commands.generic.error.permissions`. Client-supplied origins never grant
-  permissions.
+  permissions. Other operators see a player's successful commands as BDS's grey
+  admin line.
 - **Server console:** lines typed on stdin run as commands with owner level
-  (so `/stop`, `/op`, `/deop` work there); output is printed in English from
-  the vanilla `en_US.lang`.
+  (so `/stop`, `/op`, `/deop`, `/allowlist`, `/permission`, `/save` work there);
+  like BDS, each answer is one log record (messages one per line, `ERROR` when
+  the command failed), printed in English from the vanilla `en_US.lang`.
+- **Order:** a player's command request that arrives before that player's
+  inputs of the tick runs before them, so a `/setblock` sent just before an
+  input is in place for it, as on BDS
+  (`src/server/game/command_order_tests.rs`). A request that arrives after an
+  input runs after all of the tick's inputs.
 
-Implemented: `/camerashake`, `/clear`, `/clearspawnpoint`, `/clone`, `/damage`,
-`/daylock` (`/alwaysday`), `/deop`, `/difficulty`, `/effect`, `/enchant`,
-`/event`, `/execute`, `/fill`, `/fog`, `/gamemode`, `/gamerule`, `/give`,
-`/help` (`/?`), `/hud`, `/inputpermission`, `/kick`, `/kill`, `/list`, `/me`,
-`/mobevent`, `/music`, `/op`, `/particle`, `/playanimation`, `/playsound`,
-`/replaceitem`, `/say`, `/scoreboard`, `/scriptevent`, `/setblock`,
-`/setworldspawn`, `/spawnpoint`, `/stop`, `/stopsound`, `/summon`, `/tag`,
-`/teleport` (`/tp`), `/tell` (`/msg`, `/w`), `/tellraw`, `/testfor`,
-`/testforblock`, `/testforblocks`, `/time`, `/title`, `/titleraw`,
-`/toggledownfall`, `/weather`, `/xp`. Odd BDS answers copied on purpose are in
-`docs/quirks/bds.md`. Known differences from BDS:
+Every command BDS advertises is implemented except `/locate`, `/packstack`,
+`/place`, `/reloadconfig`, `/reloadpacketlimitconfig`, `/ride`, `/script` and
+`/wsserver` (and the Editor's `/editor-allowlist`); these stay advertised
+exactly as BDS sends them and answer a literal "/<name> is not implemented in
+unastar yet" failure. Each command's status is in
+[`docs/parity/commands.toml`](../../docs/parity/commands.toml); odd BDS answers
+copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 
 | Command | Difference | Why |
 |---|---|---|
-| `/give`, `/clear`, `/setblock`, `/fill` | Legacy names and data values (`wool 14`, `wool ["color"="red"]`) fail with "not implemented"; current identifiers (`red_wool`) work | No legacy item/block upgrade table in the repository yet |
-| `/give` | No `UnlockedRecipes`; `PlayerHotbar` sent with `shouldselectslot=true` | No recipe-unlock system; shared inventory resync |
+| `/give`, `/clear`, `/setblock`, `/fill`, `/clone` | Legacy names with old block states map only for the colour families (and `/give`'s data values also for log, log2 and planks); other legacy names fail with "not implemented" | No full legacy item/block upgrade table yet |
+| `/give`, `/recipe` | Items reaching an inventory unlock no recipes (BDS follows a give with `UnlockedRecipes`); unlocked recipes are not saved; `PlayerHotbar` sent with `shouldselectslot=true` | No recipe-unlock system; shared inventory resync |
 | `/gamemode` | Also resends `UpdateAbilities`; `default` puts the player in the configured mode instead of keeping it on `default` | Unastar's join abilities depend on the game mode; no `default` player mode |
 | `/time set` | A negative time answers `commands.generic.num.tooSmall`; BDS accepts it | The world clock starts at 0 |
 | `/effect` | Speed/slowness do not change movement; no visible-effects actor data | No attribute-modifier system yet |
 | `/xp` | `UpdateAttributes` lists each attribute once with a level maximum of 2^31; BDS uses 24791 and lists the experience twice when the level changes | Shared experience attributes |
 | `/weather`, `/toggledownfall` | State, client events and the fading levels `/weather query` reports; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
-| `/spawnpoint`, `/setworldspawn` | Not persisted; new joiners still use the config spawn rules | No level-data store |
-| `/op`, `/deop` | Not written back to the config file | Runtime-only operator list |
-| `/fill`, `/clone` | One `UpdateBlock` per block instead of `UpdateSubChunkBlocks`; `/clone` copies no block-entity data | Block update path |
-| `/scoreboard`, `/tag` | Objectives, scores and tags are not saved; `belowname` sends no score actor data | No world store for them yet |
+| `/spawnpoint`, `/setworldspawn`, `/scoreboard`, `/tag`, `/tickingarea`, `/structure` | Spawn points, the world spawn, objectives and scores, tags, ticking areas and structures are not saved with the world | No store for them yet |
+| `/scoreboard` | `belowname` sends no score actor data | Not built |
+| `/tickingarea` | Areas do not keep their chunks loaded or ticking | Chunk loading follows players only |
+| `/fill`, `/clone`, `/structure` | One `UpdateBlock` per block instead of `UpdateSubChunkBlocks`; `/clone` copies no block-entity data; `/structure` neither turns block states with the box nor saves block entities or entities | Block update path |
 | `/execute` | `in nether` and `in the_end` fail with "not implemented" | One dimension per world |
-| `/event` | Every event on a player is refused | Players have no actor definition |
 | `/damage` | The hurt `ActorEvent` carries no damage cause | Shared hurt path |
 | `/replaceitem` | No armour equip sound; armour and offhand changes resend the whole inventory | No equip-sound table |
 | `/mobevent`, `/scriptevent` | Switches and events are kept or acknowledged but nothing acts on them | No mob events or behaviour-pack scripts |
+| `/aimassist` | `set` always answers that the camera type is unsupported | The client's camera type is not tracked |
+| `/dialogue`, `/gametest` | Answer as BDS does for a world without NPC dialogue or GameTests | No NPC dialogue; no behaviour-pack scripts |
+| `/loot` | An unquoted table path with a `/` is read whole; BDS answers a syntax error at the `/` | Shared string lexing |
 | `/tellraw`, `/titleraw` | A malformed JSON message's syntax error names another token | Unastar parses JSON in one piece |
 | `/help` | Lists the operator listing for the console too | Owner-only usage lines were not captured |
 | Item names in feedback | Flattened block items without their own language key use the title-cased identifier ("Red Wool") | Block names are measured as translation keys only |
-
-Every other command BDS offers stays advertised exactly as BDS sends it and
-answers a literal "/<name> is not implemented in unastar yet" failure, because
-the game system behind it does not exist yet: `aimassist`, `allowlist`,
-`camera`, `changesetting`, `controlscheme`, `dialogue`, `editor-allowlist`,
-`function`, `gametest`, `locate`, `loot`, `packstack`, `permission`, `place`,
-`recipe`, `reload`, `reloadconfig`, `reloadpacketlimitconfig`, `ride`, `save`,
-`schedule`, `script`, `sendshowstoreoffer`, `serveridentity`, `setmaxplayers`,
-`spreadplayers`, `structure`, `tickingarea`, `transfer`, `wsserver`.
 
 Adding a command: declare its overloads and write `run` in
 `src/command/exec/<name>.rs`, then add one `register` line in

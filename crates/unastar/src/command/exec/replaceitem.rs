@@ -238,7 +238,7 @@ fn replace_block(
 }
 
 /// Where a slot lives on a player.
-enum PlayerSlot {
+pub(super) enum PlayerSlot {
     Main(usize),
     Armour(usize),
     Offhand,
@@ -247,7 +247,7 @@ enum PlayerSlot {
     None,
 }
 
-fn player_slot(
+pub(super) fn player_slot(
     world: &World,
     player: Entity,
     slot: EntitySlot,
@@ -280,7 +280,7 @@ fn player_slot(
     })
 }
 
-fn slot_name(slot: EntitySlot) -> &'static str {
+pub(super) fn slot_name(slot: EntitySlot) -> &'static str {
     <EntitySlot as crate::command::ArgEnum>::SPELLINGS[slot as usize]
 }
 
