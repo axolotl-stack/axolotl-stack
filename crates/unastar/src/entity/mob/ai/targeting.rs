@@ -74,6 +74,8 @@ pub struct TargetStates {
     reach_countdown: i32,
     /// Per-entry cooldown deadlines (`cooldown`).
     cooldowns: Vec<(usize, u64)>,
+    /// The tick of the hurt `behavior.hurt_by_target` last retaliated for.
+    retaliated_for: Option<u64>,
 }
 
 /// An actor as the target goals see it.
@@ -169,11 +171,11 @@ impl GoalContext<'_> {
 
     /// A target no target goal holds (one the mob was provoked into) is
     /// dropped once it can no longer be attacked: gone or dead, a creative
-    /// or spectator player, any player on Peaceful, or beyond the follow
-    /// range (the rule the target goals keep their targets by). Measured: a
-    /// provoked zombie pigman drops a player who turns creative in the same
-    /// tick as the pigman whose hurt-by goal holds the player; the follow
-    /// range part is unmeasured.
+    /// or spectator player, or any player on Peaceful. Distance does not
+    /// matter: no target goal keeps it. Measured: a provoked zombie pigman
+    /// drops a player who turns creative in the same tick as the pigman
+    /// whose hurt-by goal holds the player, while provoked pigmen 19, 34
+    /// and 49 blocks from a survival player kept it until they calmed.
     pub(super) fn check_unheld_target(&mut self) {
         if self.states.targets.source.is_some() {
             return;
@@ -181,11 +183,8 @@ impl GoalContext<'_> {
         let Some(target) = self.states.targets.target else {
             return;
         };
-        let range = self.follow_range();
-        let attackable = Candidate::of(self.world, target).is_some_and(|candidate| {
-            !(candidate.player && self.untargetable_player(target))
-                && self.body.feet.distance_squared(candidate.pos) <= range * range
-        });
+        let attackable = Candidate::of(self.world, target)
+            .is_some_and(|candidate| !(candidate.player && self.untargetable_player(target)));
         if !attackable {
             self.set_target(None);
         }
@@ -590,9 +589,17 @@ impl GoalContext<'_> {
 
     // ----- behavior.hurt_by_target -----
 
-    /// The actor that hurt this mob within the native memory window.
+    /// The actor that hurt this mob within the native memory window, unless
+    /// the goal already retaliated for that hurt: a target lost after
+    /// retaliating is not taken again until the mob is hurt again
+    /// (measured: a BDS zombie pigman 40 blocks from the player that hit it
+    /// took the player as its target, lost it beyond its follow range on
+    /// the next tick and stayed without a target).
     fn last_attacker(&self) -> Option<Entity> {
         let hurt = self.world.get::<LastHurt>(self.entity)?;
+        if self.states.targets.retaliated_for == Some(hurt.tick) {
+            return None;
+        }
         (self.tick.saturating_sub(hurt.tick) < HURT_BY_TARGET_MEMORY_TICKS)
             .then_some(hurt.attacker)
             .flatten()
@@ -628,6 +635,10 @@ impl GoalContext<'_> {
         self.start_targeting();
         self.set_target(target);
         self.states.targets.source = Some(TargetSource::HurtBy);
+        self.states.targets.retaliated_for = self
+            .world
+            .get::<LastHurt>(self.entity)
+            .map(|hurt| hurt.tick);
     }
 
     pub(super) fn hurt_by_can_continue(&mut self) -> bool {
@@ -661,18 +672,18 @@ impl TargetStates {
     pub(super) fn provoke(&mut self, target: Entity) {
         *self = Self {
             target: Some(target),
+            retaliated_for: self.retaliated_for,
             ..Self::default()
         };
     }
 
-    /// Give up a target no goal holds; the target it was.
-    pub(super) fn release_unheld(&mut self) -> Option<Entity> {
-        if self.source.is_some() {
-            return None;
-        }
-        let target = self.target.take()?;
-        *self = Self::default();
-        Some(target)
+    /// Drop the target and every goal's hold on it (keeping which hurt was
+    /// already retaliated for).
+    pub(super) fn clear(&mut self) {
+        *self = Self {
+            retaliated_for: self.retaliated_for,
+            ..Self::default()
+        };
     }
 
     /// Forget everything when the goal composition is rebuilt.
@@ -680,6 +691,7 @@ impl TargetStates {
         let target = self.target;
         *self = Self {
             target,
+            retaliated_for: self.retaliated_for,
             ..Self::default()
         };
     }

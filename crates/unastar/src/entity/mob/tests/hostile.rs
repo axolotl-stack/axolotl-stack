@@ -565,77 +565,6 @@ fn spawned_baby_zombie_pigman_add_actor_matches_native_summon() {
     assert_add_actor_matches(h.world(), "minecraft:zombie_pigman", pigman, &native);
 }
 
-/// The anger experiment of `testdata/bds-1.26.51-pigman-anger.json`
-/// replayed: the hurt pigman and its kin within 20 blocks target the
-/// attacker and show `ANGRY`; a pigman out of the hurt one's range stays
-/// calm although it is within range of a pigman that received the anger.
-#[test]
-fn hurting_a_zombie_pigman_angers_its_kin_within_range_but_not_beyond() {
-    use crate::entity::mob::state::AttackTarget;
-    let fixture: serde_json::Value =
-        serde_json::from_str(include_str!("../testdata/bds-1.26.51-pigman-anger.json")).unwrap();
-    let mut h = harness(13, Difficulty::Normal);
-    let player = h.player;
-    let feet = DVec3::new(8.5, 64.0, 12.5);
-    h.world().get_mut::<Position>(player).unwrap().0 =
-        feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT;
-    // The BDS player had full resistance; here the pigmen's hits must not
-    // kill it either.
-    *h.world().get_mut::<Health>(player).unwrap() = Health {
-        current: 10_000.0,
-        max: 10_000.0,
-    };
-    let mut pigmen = Vec::new();
-    for row in fixture["pigmen"].as_array().unwrap() {
-        let offset: Vec<f64> = serde_json::from_value(row["offset"].clone()).unwrap();
-        let mob = h.spawn(
-            "minecraft:zombie_pigman",
-            feet + DVec3::new(offset[0], offset[1], offset[2]),
-            false,
-        );
-        pigmen.push((row.clone(), mob));
-    }
-    h.ticks(2);
-    for (_, mob) in &pigmen {
-        assert!(h.world().get::<AttackTarget>(*mob).is_none());
-    }
-    let (_, hit) = pigmen.iter().find(|(row, _)| row["hit"] == true).unwrap();
-    let applied = combat::hurt_mob(
-        h.world(),
-        *hit,
-        combat::Hit {
-            damage: 1.0,
-            cause: ActorDamageCause::EntityAttack,
-            attacker: Some(player),
-            by_player: true,
-            knockback_from: Some(feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT),
-            knockback_power: KnockbackPower::DEFAULT,
-        },
-    );
-    assert_eq!(applied, 1.0);
-    h.ticks(5);
-    for (row, mob) in &pigmen {
-        let name = row["name"].as_str().unwrap();
-        let world = h.world();
-        let targets = world.get::<AttackTarget>(*mob) == Some(&AttackTarget(player));
-        assert_eq!(
-            targets,
-            row["targets_attacker"] == true,
-            "pigman {name} target"
-        );
-        let angry = flag(world, *mob, actor_flags::ANGRY);
-        assert_eq!(angry, row["angry"] == true, "pigman {name} ANGRY");
-    }
-    // The calm pigman stays calm while the others keep fighting.
-    h.ticks(100);
-    let (_, calm) = pigmen
-        .iter()
-        .find(|(row, _)| row["angry"] == false)
-        .unwrap();
-    assert!(!flag(h.world(), *calm, actor_flags::ANGRY));
-    assert!(h.world().get::<AttackTarget>(*calm).is_none());
-}
-
 /// The calm run of `testdata/bds-1.26.51-pigman-anger.json`: two angry
 /// pigmen fight the player, who then turns creative so both drop it; each
 /// calms (ANGRY cleared) one anger span after its own last swing, not after
@@ -714,9 +643,10 @@ fn an_angry_zombie_pigman_calms_one_span_after_its_last_swing() {
             swing < 90 + 5,
             "pigman {index} swung after the player turned creative"
         );
-        // BDS: 24.95 s after the swing (packet timestamps, ±1 tick).
+        // BDS: 24.95 s after the swing (packet timestamps, ±1 tick): the
+        // span counts down from the swing's own tick.
         assert!(
-            (span - 2..=span + 2).contains(&(calmed - swing)),
+            (span - 2..=span).contains(&(calmed - swing)),
             "pigman {index} calmed {} ticks after its last swing",
             calmed - swing
         );
@@ -777,64 +707,4 @@ fn a_zombie_pigman_drawing_the_undeclared_jockey_branch_spawns_without_groups() 
         );
     }
     assert!(none > 0, "the undeclared branch never drawn");
-}
-
-/// When a provoked pigman's anger runs out it drops the target it only had
-/// through its kin's anger; the hurt pigman, whose hurt-by goal holds the
-/// same target, keeps it.
-#[test]
-fn a_provoked_zombie_pigman_drops_its_target_when_its_anger_ends() {
-    use crate::entity::mob::life::anger::Angry;
-    use crate::entity::mob::state::AttackTarget;
-    let mut h = harness(16, Difficulty::Normal);
-    let player = h.player;
-    let feet = DVec3::new(8.5, 64.0, 12.5);
-    h.world().get_mut::<Position>(player).unwrap().0 =
-        feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT;
-    *h.world().get_mut::<Health>(player).unwrap() = Health {
-        current: 10_000.0,
-        max: 10_000.0,
-    };
-    let hurt_one = h.spawn(
-        "minecraft:zombie_pigman",
-        feet + DVec3::new(4.0, 0.0, 0.0),
-        false,
-    );
-    let provoked = h.spawn(
-        "minecraft:zombie_pigman",
-        feet + DVec3::new(4.0, 0.0, 6.0),
-        false,
-    );
-    combat::hurt_mob(
-        h.world(),
-        hurt_one,
-        combat::Hit {
-            damage: 1.0,
-            cause: ActorDamageCause::EntityAttack,
-            attacker: Some(player),
-            by_player: true,
-            knockback_from: Some(feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT),
-            knockback_power: KnockbackPower::DEFAULT,
-        },
-    );
-    h.ticks(5);
-    for mob in [hurt_one, provoked] {
-        assert_eq!(
-            h.world().get::<AttackTarget>(mob),
-            Some(&AttackTarget(player))
-        );
-    }
-    // Both run out of anger now (as after 25 s without a swing).
-    let now = h.world().resource::<crate::ecs::TickCounter>().current;
-    for mob in [hurt_one, provoked] {
-        h.world().get_mut::<Angry>(mob).unwrap().until_tick = Some(now);
-    }
-    h.ticks(2);
-    let world = h.world();
-    assert!(!flag(world, provoked, actor_flags::ANGRY));
-    assert!(world.get::<AttackTarget>(provoked).is_none());
-    assert_eq!(
-        world.get::<AttackTarget>(hurt_one),
-        Some(&AttackTarget(player))
-    );
 }

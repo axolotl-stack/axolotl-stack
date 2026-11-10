@@ -72,6 +72,10 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
         hurt_mob(world, target, hit)
     };
     if dealt > 0.0 {
+        let tick = world.resource::<TickCounter>().current;
+        world
+            .entity_mut(attacker)
+            .insert(crate::entity::mob::state::LastAttack { tick, target });
         after_hurt(world, attacker, target, &goal, holding, is_player);
     }
     if let Some(effect) = attack.effect

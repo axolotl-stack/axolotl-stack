@@ -611,7 +611,8 @@ impl GameServer {
                 .before(tick_block_breaking),
         );
         // Environment sensors, timers, then anger. Their group changes apply
-        // at the next tick's definition barrier (`PhysicsSet`).
+        // at the next tick's definition barrier (`PhysicsSet`), which is when
+        // anger that spread this tick starts on its receivers.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::life::sensors::tick_environment_sensors,
@@ -650,6 +651,7 @@ impl GameServer {
                 broadcast_despawn_system,
                 broadcast_block_updates,
                 sync_actor_viewers,
+                crate::entity::mob::net::sound::flush_synced_sounds,
                 crate::entity::mob::net::network::sync_mob_viewers,
             )
                 .chain()

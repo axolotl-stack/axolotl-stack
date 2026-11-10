@@ -3,9 +3,11 @@
 //! player interactions ([`interaction`]), the other passive mobs
 //! ([`passive`]), the zombie ([`zombie`]), the other hostile mobs
 //! ([`hostile`]), door breaking ([`doors`]), environment sensors and
-//! timers ([`sensors`]), and shared behaviour checked mob by mob for every
-//! spawnable mob that uses it ([`facets`]).
+//! timers ([`sensors`]), anger replayed against BDS captures ([`anger`]),
+//! and shared behaviour checked mob by mob for every spawnable mob that uses
+//! it ([`facets`]).
 
+mod anger;
 mod chicken;
 mod doors;
 mod facets;

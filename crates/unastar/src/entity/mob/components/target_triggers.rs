@@ -48,6 +48,11 @@ pub struct OnTargetAcquired(pub TargetTrigger);
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct OnTargetEscape(pub TargetTrigger);
 
+/// `minecraft:on_friendly_anger`: fired on a mob another mob's anger spread
+/// to (`mob::life::anger`), with the angry mob as `other`.
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct OnFriendlyAnger(pub TargetTrigger);
+
 fn trigger(
     event: String,
     filters: Option<&unastar_data::actor_components::FilterJson>,
@@ -77,5 +82,8 @@ pub fn register_component_kinds(
     })?;
     insert(builder, |b: body::OnTargetEscape| {
         trigger(b.event, b.filters.as_ref(), b.target).map(OnTargetEscape)
+    })?;
+    insert(builder, |b: body::OnFriendlyAnger| {
+        trigger(b.event, b.filters.as_ref(), b.target).map(OnFriendlyAnger)
     })
 }

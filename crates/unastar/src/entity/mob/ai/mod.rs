@@ -315,8 +315,10 @@ fn think(
     };
     match turn {
         Turn::Die => {
+            // The goals stop; the target stays (BDS keeps a dying mob's
+            // `TARGET` actor data, and a dying angry mob can still spread
+            // its anger at it).
             selector.stop_all(&mut ctx);
-            ctx.effects.target = Some(None);
             return Some(Output {
                 yaw: rotation.yaw,
                 head_yaw: rotation.head_yaw,
@@ -502,13 +504,15 @@ pub(crate) fn provoke(world: &mut World, mob: Entity, target: Entity) -> bool {
     true
 }
 
-/// Drop `mob`'s target when no target goal holds it (one its kin's anger
-/// provoked it into, see [`provoke`]); its `on_target_escape` fires.
-pub(crate) fn release_unheld_target(world: &mut World, mob: Entity) {
-    let Some(mut brain) = world.get_mut::<MobBrain>(mob) else {
-        return;
-    };
-    let Some(previous) = brain.states.targets.release_unheld() else {
+/// Drop `mob`'s target whichever goal holds it (the native target clear an
+/// angry mob makes when it calms); its `on_target_escape` fires. A running
+/// target goal then stops, its target gone.
+pub(crate) fn drop_target(world: &mut World, mob: Entity) {
+    let previous = world.get::<AttackTarget>(mob).map(|t| t.0);
+    if let Some(mut brain) = world.get_mut::<MobBrain>(mob) {
+        brain.states.targets.clear();
+    }
+    let Some(previous) = previous else {
         return;
     };
     let mut entity = world.entity_mut(mob);
@@ -533,6 +537,9 @@ fn fire_target_trigger(world: &mut World, change: TargetChange) {
     use super::components::{OnTargetAcquired, OnTargetEscape};
     if world.get::<Dead>(change.mob).is_some() {
         return;
+    }
+    if change.acquired.is_some() {
+        warn_of_target(world, change.mob);
     }
     let (trigger, other) = match change.acquired {
         Some(target) => (
@@ -571,6 +578,25 @@ fn fire_target_trigger(world: &mut World, change: TargetChange) {
     if let Err(error) = super::events::fire_event(world, change.mob, &handle, other) {
         tracing::warn!(event = %event.0, %error, "target trigger event failed");
     }
+}
+
+/// Every mob that takes a new target plays `mob.warning` (`mob.warning.baby`
+/// for a baby) at its head, reaching viewers on the next tick (measured: one
+/// batch after the `TARGET` actor data, for each of the zombie pigmen, the
+/// wither skeleton and the zoglin of the BDS 1.26.51 anger captures).
+fn warn_of_target(world: &mut World, mob: Entity) {
+    let Some(head) = super::life::anger::head(world, mob) else {
+        return;
+    };
+    let baby = world
+        .get::<ActorFlags>(mob)
+        .is_some_and(|flags| flags.get(actor_flags::BABY).unwrap_or(false));
+    let sound = if baby {
+        "mob.warning.baby"
+    } else {
+        "mob.warning"
+    };
+    super::net::sound::queue_synced_sound(world, mob, head, sound, -1);
 }
 
 /// The actor ID viewers know `actor` by: a mob's runtime ID, a player's

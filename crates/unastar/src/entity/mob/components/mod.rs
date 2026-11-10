@@ -64,7 +64,7 @@ pub use loot::{ExperienceRewardConfig, LootConfig};
 pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
 pub use sensors::{EnvironmentSensorConfig, Timer};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
-pub use target_triggers::{OnTargetAcquired, OnTargetEscape, TargetTrigger};
+pub use target_triggers::{OnFriendlyAnger, OnTargetAcquired, OnTargetEscape, TargetTrigger};
 
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
 use crate::registry::ItemRegistry;
