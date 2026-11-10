@@ -284,11 +284,11 @@ def main() -> int:
     env = {'BDS_SWEEP_JOB': str(job_path), 'CLIENT_DIFF_CAPTURE_DIR': str(out / 'client-diff-plugin')}
     started = time.monotonic()
     status = 'timeout'
+    client_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', PLAYER]
     try:
         with bds_runtime.Bds(properties, out / 'bds.log', endstone=True, env=env):
             with (out / 'client.log').open('a', encoding='utf-8') as log:
-                client = subprocess.Popen([str(args.client), '--name', PLAYER], cwd=REPO,
-                                          stdout=log, stderr=subprocess.STDOUT)
+                client = subprocess.Popen(client_command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT)
                 logins = 1
                 try:
                     while time.monotonic() - started < args.timeout:
@@ -309,8 +309,8 @@ def main() -> int:
                             # start; retry during the first minutes of the run.
                             if client.returncode != 0 and logins < 3 and time.monotonic() - started < 300:
                                 logins += 1
-                                client = subprocess.Popen([str(args.client), '--name', PLAYER], cwd=REPO,
-                                                          stdout=log, stderr=subprocess.STDOUT)
+                                client = subprocess.Popen(client_command, cwd=REPO, stdout=log,
+                                                          stderr=subprocess.STDOUT)
                                 continue
                             status = f'client exited {client.returncode}'
                             break
