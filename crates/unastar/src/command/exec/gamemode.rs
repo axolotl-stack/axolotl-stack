@@ -54,7 +54,12 @@ pub fn run(ctx: &mut CommandContext<'_>, args: GameModeArgs) -> CommandResult {
             .get_resource::<ServerConfigResource>()
             .map_or(GameMode::Survival, |config| config.0.default_gamemode),
     };
-    let mode_name = format!("%createWorldScreen.gameMode.{}", mode_key(mode));
+    // Measured: `default` is named as the server default, not the mode it is.
+    let mode_name = if name == GameModeName::Default {
+        "%createWorldScreen.gameMode.serverDefault".to_owned()
+    } else {
+        format!("%createWorldScreen.gameMode.{}", mode_key(mode))
+    };
 
     let players = ctx.players(player.as_ref())?;
     let mut output = CommandOutput::default();
@@ -165,5 +170,18 @@ mod tests {
         );
         let output = h.run(alice, "/gamemode creative @a[m=spectator]");
         assert_eq!(output, CommandOutput::no_targets());
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::{Replay, assert_same_packets};
+
+    #[test]
+    fn gamemode_matches_the_bds_capture() {
+        let steps = Replay::new().assert_segment("gamemode", &[]);
+        assert_same_packets(&steps, &["TextPacket"], &[]);
     }
 }

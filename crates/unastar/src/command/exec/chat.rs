@@ -124,7 +124,7 @@ pub fn run_list(ctx: &mut CommandContext<'_>, args: ListArgs) -> CommandResult {
 
 /// `message` with every selector replaced by the names it matches.
 /// [INFERENCE] A selector that matches nothing (or fails) becomes empty.
-fn expand(ctx: &mut CommandContext<'_>, message: &str) -> String {
+pub(super) fn expand(ctx: &mut CommandContext<'_>, message: &str) -> String {
     let mut out = String::with_capacity(message.len());
     let mut cursor = Cursor::new(message);
     while let Some(c) = cursor.peek() {
@@ -296,5 +296,18 @@ mod tests {
         let output = h.run(alice, "/list");
         assert_eq!(output.messages[0].params, ["2", "20"]);
         assert_eq!(output.messages[1].params, ["Alice, Bob"]);
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::{Replay, assert_same_packets};
+
+    #[test]
+    fn chat_matches_the_bds_capture() {
+        let steps = Replay::new().assert_segment("chat", &[]);
+        assert_same_packets(&steps, &["TextPacket"], &[]);
     }
 }

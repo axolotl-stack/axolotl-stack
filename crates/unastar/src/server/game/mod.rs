@@ -34,6 +34,7 @@ use bevy_ecs::prelude::*;
 pub(crate) use block_drops::{drop_block_items, loot_stacks};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use commands::ConsoleCommands;
+pub use containers::{command_container_slots, command_set_container_slot};
 pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
