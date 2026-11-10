@@ -34,8 +34,9 @@ them turned out to match BDS 1.26.51 already.
   resistance U(0, 0.05) that scales the push and the lift.
 - **The wire was right within 8 blocks.** BDS sends `MoveActorDelta` every tick with `ticks` 0 and
   `SetActorMotion` (post-tick velocity, tick 0) past Δv² 0.04, like unastar. Beyond 8 blocks
-  BDS sends `ticks` = ⌊distance from the eye / 8⌋ and only every that many ticks. unastar does
-  not model that yet.
+  BDS sends `ticks` = ⌊distance from the eye / 8⌋ and only every that many ticks. Round 2
+  modelled that and found more (per-actor bands, a shared last-sent state):
+  `far-mob-updates-follow-a-per-viewer-cadence-over-a-shared-last-sent-state.md`.
 - **How to measure this cheaply.** Endstone's `ActorKnockbackEvent.knockback` is the exact velocity
   change BDS applies (new − old, cap included). `actor.velocity` is the last tick's position delta,
   not the stored velocity. The knockback move appears in the per-tick sample two plugin ticks after
