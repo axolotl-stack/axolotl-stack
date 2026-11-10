@@ -14,11 +14,11 @@ approved. Each row names the slice that removes it.
 | Branch | Deviation | Against | Removed by |
 |---|---|---|---|
 | `Jviguy/stab-vanilla-entities` | **X1:** 199 block loot tables (`unastar-data/data/overrides/loot_tables/blocks.json`) are authored from Java Edition tables, not measured from BDS | D4 | Entities E9: BDS block-drop sweep |
-| `Jviguy/stab-vanilla-entities` | **X2:** tool-tier speeds/harvest levels, sword/shears speeds, mining wear and the break-time formula use unmeasured vanilla constants | D4 | Entities E9: BDS mining/tool-wear sweep; see [the entities research](2026-10-24-data-driven-entities.md) §1.5 |
+| `Jviguy/stab-vanilla-entities` | **X2 (partly removed 2026-11-10):** the break-time formula, tool-tier speeds, Efficiency, Haste I-III, Mining Fatigue I-II, non-tool items and mining wear now match the BDS mining sweep cell by cell (`unastar-data/data/measured/mining_ticks.json`, `server/game/mining/measured_tests.rs`). Still unmeasured: harvest levels beyond the slice blocks, the airborne, riding and underwater divisors, and higher effect levels | D4 | Entities E9: airborne/underwater mining sweep; see [the entities research](2026-10-24-data-driven-entities.md) §1.5 |
 
 E0 removed the former D2 loot deviation: canonical pack/override JSON is built
 into `OUT_DIR`, embedded, and decoded once into `unastar-rules::loot` types.
-The evaluator moved to that bevy-free crate; X1/X2 above remain until E9.
+The evaluator moved to that bevy-free crate; X1 and the rest of X2 above remain until E9.
 
 ## Constants
 

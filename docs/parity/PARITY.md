@@ -15,7 +15,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
@@ -65,11 +65,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
-**Items**: 0 open rows free, 1069 claimed.
+**Items**: 0 open rows free, 950 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Item use | lane ITEMS | 2026-10-29 | 1069 |
+| Item use | lane ITEMS | 2026-10-29 | 950 |
 
 **Commands**: 0 open rows free, 65 claimed.
 
@@ -457,34 +457,32 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| armour_wearables | 90 | 1 | 32 | 29 | 28 | 0 | 63.3% |
-| block_items | 1568 | 24 | 680 | 817 | 0 | 47 | 53.7% |
-| buckets | 9 | 3 | 3 | 3 | 0 | 0 | 33.3% |
+| armour_wearables | 90 | 1 | 2 | 0 | 87 | 0 | 96.7% |
+| block_items | 1568 | 24 | 680 | 614 | 203 | 47 | 53.7% |
+| buckets | 9 | 3 | 3 | 2 | 1 | 0 | 33.3% |
 | education | 121 | 0 | 0 | 0 | 0 | 121 | n/a |
-| entity_placers | 57 | 31 | 0 | 24 | 0 | 2 | 43.6% |
-| food | 46 | 4 | 2 | 39 | 0 | 1 | 86.7% |
-| materials_misc | 40 | 2 | 0 | 38 | 0 | 0 | 95.0% |
-| melee_weapons | 17 | 0 | 1 | 16 | 0 | 0 | 94.1% |
+| entity_placers | 57 | 31 | 0 | 0 | 24 | 2 | 43.6% |
+| food | 46 | 4 | 0 | 40 | 1 | 1 | 91.1% |
+| materials_misc | 40 | 2 | 0 | 0 | 38 | 0 | 95.0% |
+| melee_weapons | 17 | 0 | 1 | 0 | 16 | 0 | 94.1% |
 | other_tools | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
 | potions_drinks | 3 | 2 | 0 | 0 | 0 | 1 | 0.0% |
-| ranged_weapons | 8 | 0 | 4 | 4 | 0 | 0 | 50.0% |
+| ranged_weapons | 8 | 0 | 2 | 2 | 4 | 0 | 75.0% |
 | spawn_eggs | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
-| throwables | 16 | 8 | 5 | 3 | 0 | 0 | 18.8% |
-| tools | 280 | 95 | 87 | 94 | 0 | 4 | 34.1% |
+| throwables | 16 | 8 | 2 | 2 | 4 | 0 | 37.5% |
+| tools | 280 | 81 | 19 | 1 | 175 | 4 | 63.8% |
 
 Sub-rows by facet, most incomplete first (25 of 25):
 
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | block_placer | 1504 | 28 | 692 | 615 | 0 | 169 | 46.1% |
-| digger | 141 | 0 | 111 | 28 | 0 | 2 | 20.1% |
 | spawn_egg | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
 | entity_placer | 33 | 31 | 0 | 0 | 0 | 2 | 0.0% |
 | record | 22 | 22 | 0 | 0 | 0 | 0 | 0.0% |
 | bundle | 17 | 17 | 0 | 0 | 0 | 0 | 0.0% |
-| durability | 83 | 11 | 1 | 69 | 0 | 2 | 85.2% |
+| durability | 83 | 4 | 8 | 3 | 66 | 2 | 85.2% |
 | cooldown | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
-| weapon | 44 | 7 | 1 | 36 | 0 | 0 | 81.8% |
 | enchantable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
 | kinetic_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
 | piercing_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
@@ -496,17 +494,18 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | shooter | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | wearable | 30 | 0 | 2 | 0 | 28 | 0 | 93.3% |
 | brush | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| food | 40 | 0 | 1 | 39 | 0 | 0 | 97.5% |
 | instrument | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | shield | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | spyglass | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| fuel | 277 | 0 | 0 | 277 | 0 | 0 | 100.0% |
+| weapon | 44 | 0 | 1 | 0 | 43 | 0 | 97.7% |
+| digger | 141 | 0 | 0 | 0 | 139 | 2 | 100.0% |
+| food | 40 | 0 | 0 | 40 | 0 | 0 | 100.0% |
+| fuel | 277 | 0 | 0 | 0 | 277 | 0 | 100.0% |
 
 ### Items gaps
 
 **armour_wearables**
 
-- `minecraft:chainmail_boots/digger`, `minecraft:chainmail_chestplate/digger`, `minecraft:chainmail_helmet/digger`, `minecraft:chainmail_leggings/digger`, `minecraft:copper_boots/digger`, `minecraft:copper_chestplate/digger`, `minecraft:copper_helmet/digger`, `minecraft:copper_leggings/digger`, `minecraft:diamond_boots/digger`, `minecraft:diamond_chestplate/digger`, `minecraft:diamond_helmet/digger`, `minecraft:diamond_leggings/digger` and 18 more: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:elytra/wearable`: equips to the chest slot; gliding is not implemented
 - `minecraft:turtle_helmet/wearable`: protection only: Water Breathing from the helmet is not applied
 - missing: `minecraft:elytra/durability`
@@ -534,8 +533,6 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **food**
 
-- `minecraft:apple/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
-- `minecraft:chorus_fruit/food`: the random teleport after eating is not covered by a test
 - missing: `minecraft:carrot/block_placer`, `minecraft:glow_berries/block_placer`, `minecraft:potato/block_placer`, `minecraft:sweet_berries/block_placer`
 
 **materials_misc**
@@ -552,7 +549,6 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **ranged_weapons**
 
-- `minecraft:bow/digger`, `minecraft:crossbow/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:bow/shooter`: Power, Punch and Flame are not applied; tipped arrows are not shot
 - `minecraft:crossbow/shooter`: Multishot, Piercing and Quick Charge are not applied; cannot load firework rockets or tipped arrows
 
@@ -567,18 +563,16 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **throwables**
 
-- `minecraft:arrow/digger`, `minecraft:snowball/digger`, `minecraft:wind_charge/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:arrow/throwable`: tipped arrows (arrow data values above 0) are not used as ammunition or shot with their effects
 - `minecraft:trident/durability`: tridents cannot be thrown, so throws do not wear it
 - missing: `minecraft:ender_pearl/throwable`, `minecraft:lingering_potion/drink`, `minecraft:lingering_potion/throwable`, `minecraft:splash_potion/drink`, `minecraft:splash_potion/throwable`, `minecraft:trident/throwable`, `minecraft:wind_charge/cooldown`, `minecraft:wind_charge/throwable`
 
 **tools**
 
-- `minecraft:black_bundle/digger`, `minecraft:blue_bundle/digger`, `minecraft:breeze_rod/digger`, `minecraft:brewing_stand/digger`, `minecraft:brown_bundle/digger`, `minecraft:brush/digger`, `minecraft:bundle/digger`, `minecraft:cake/digger`, `minecraft:campfire/digger`, `minecraft:carrot_on_a_stick/digger`, `minecraft:cauldron/digger`, `minecraft:charcoal/digger` and 62 more: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:brewing_stand/block_placer`, `minecraft:cake/block_placer`, `minecraft:campfire/block_placer`, `minecraft:cauldron/block_placer`, `minecraft:flower_pot/block_placer`, `minecraft:kelp/block_placer`, `minecraft:nether_sprouts/block_placer`, `minecraft:red_shrub/block_placer`, `minecraft:shelf_mushroom/block_placer`, `minecraft:soul_campfire/block_placer`: non-cube block: support and attachment rules are not checked and its placement has no test
+- `minecraft:copper_spear/durability`, `minecraft:diamond_spear/durability`, `minecraft:golden_spear/durability`, `minecraft:iron_spear/durability`, `minecraft:netherite_spear/durability`, `minecraft:stone_spear/durability`, `minecraft:wooden_spear/durability`: the jab reach and the charge attack are not implemented, so only plain hits wear it
 - `minecraft:frame/block_placer`, `minecraft:glow_frame/block_placer`: facing_direction is not set from the click or look
-- `minecraft:shears/digger`: shears speeds on cobweb, leaves, wool and vines exist but have no test
-- missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/cooldown`, `minecraft:copper_spear/durability`, `minecraft:copper_spear/enchantable`, `minecraft:copper_spear/kinetic_weapon`, `minecraft:copper_spear/piercing_weapon` and 83 more
+- missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/cooldown`, `minecraft:copper_spear/enchantable`, `minecraft:copper_spear/kinetic_weapon`, `minecraft:copper_spear/piercing_weapon`, `minecraft:copper_spear/repairable` and 69 more
 
 ## Commands
 
