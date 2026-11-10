@@ -17,6 +17,12 @@ overloads! {
     }
 }
 
+/// A player a `/kick` disconnected: gone for everything that follows in the
+/// tick (BDS sends it no more command broadcasts), until the network drops
+/// its session.
+#[derive(bevy_ecs::prelude::Component, Debug, Clone, Copy)]
+pub struct Kicked;
+
 pub fn run(ctx: &mut CommandContext<'_>, args: KickArgs) -> CommandResult {
     let KickArgs::Kick { name, reason } = args;
     let players = match ctx.players(Some(&name)) {
@@ -33,6 +39,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: KickArgs) -> CommandResult {
     let names = ctx.names(&players);
     let kicks_source = ctx.source.entity().is_some_and(|s| players.contains(&s));
     for &player in &players {
+        ctx.world.entity_mut(player).insert(Kicked);
         ctx.send(
             player,
             DisconnectPacket {

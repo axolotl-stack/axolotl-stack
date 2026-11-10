@@ -32,6 +32,7 @@ pub mod args;
 pub mod context;
 pub mod exec;
 pub mod format;
+pub mod legacy;
 pub mod names;
 pub mod output;
 pub mod parser;
@@ -42,7 +43,7 @@ pub mod selector;
 
 pub use args::{ArgEnum, Args, FromArg, Overloads, RelativeFloat};
 pub use context::{CommandContext, CommandSource, Operator, SourceKind};
-pub use output::{CommandMessage, CommandOutput, CommandResult};
+pub use output::{CommandMessage, CommandOutput, CommandResult, ConsoleNote, ConsoleNotes};
 pub use registry::{CommandHandler, CommandRegistry};
 pub use schema::CommandSchema;
 
@@ -79,6 +80,33 @@ pub fn execute(world: &mut World, source: CommandSource, line: &str) -> CommandO
     world.resource_scope(|world, registry: Mut<CommandRegistry>| {
         dispatch(world, &registry, source, line)
     })
+}
+
+/// Runs a line a player typed: [`execute`] as the player, then BDS's admin
+/// broadcast. Measured on BDS 1.26.51: when the command succeeds, every
+/// other operator online gets each successful message as a rawtext
+/// `§7§o[<name>: <message>]` (failed commands and non-operators get
+/// nothing). `None` when `player` is not a player.
+pub fn run_as_player(world: &mut World, player: Entity, line: &str) -> Option<CommandOutput> {
+    let source = CommandSource::player(world, player)?;
+    let name = source.name.clone();
+    let output = execute(world, source, line);
+    if output.is_success() {
+        let mut operators = world.query_filtered::<
+            (Entity, &crate::entity::components::PlayerSession),
+            (With<Operator>, Without<exec::Kicked>),
+        >();
+        for (operator, session) in operators.iter(world) {
+            if operator == player {
+                continue;
+            }
+            for message in output.messages.iter().filter(|m| m.success) {
+                let _ =
+                    session.send(output::admin_text(&name, &message.key, &message.params).into());
+            }
+        }
+    }
+    Some(output)
 }
 
 fn dispatch(

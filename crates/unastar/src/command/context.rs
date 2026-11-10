@@ -258,6 +258,18 @@ impl<'w> CommandContext<'w> {
         self.send(entity, super::output::translation_text(key, &params));
     }
 
+    /// Prints a line on the server console besides the command's answer
+    /// (see [`ConsoleNote`](super::output::ConsoleNote)).
+    pub fn console_note(&mut self, error: bool, text: impl Into<String>) {
+        self.world
+            .get_resource_or_insert_with(super::output::ConsoleNotes::default)
+            .0
+            .push(super::output::ConsoleNote {
+                error,
+                text: text.into(),
+            });
+    }
+
     /// Sends a packet to a player (no-op for other entities).
     pub fn send(&self, entity: Entity, packet: impl Into<McpePacket>) {
         if let Some(session) = self.world.get::<PlayerSession>(entity) {

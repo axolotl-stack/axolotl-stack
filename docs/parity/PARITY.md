@@ -17,7 +17,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
-| [Commands](#commands) | 82 | 29 | 16 | 3 | 33 | 1 | 44.4% |
+| [Commands](#commands) | 82 | 14 | 17 | 3 | 47 | 1 | 61.7% |
 | [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
@@ -71,11 +71,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Item use | lane ITEMS | 2026-10-29 | 1069 |
 
-**Commands**: 0 open rows free, 45 claimed.
+**Commands**: 0 open rows free, 31 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Commands | lane COMMANDS | 2026-10-29 | 45 |
+| Commands | lane COMMANDS | 2026-10-29 | 31 |
 
 **Protocol**: 158 open rows free, 0 claimed.
 
@@ -586,18 +586,17 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| admin | 7 | 5 | 2 | 0 | 0 | 0 | 0.0% |
+| admin | 7 | 3 | 0 | 1 | 3 | 0 | 57.1% |
 | any | 4 | 1 | 0 | 0 | 3 | 0 | 75.0% |
-| gamedirectors | 60 | 14 | 14 | 2 | 30 | 0 | 53.3% |
-| host | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| owner | 10 | 8 | 0 | 1 | 0 | 1 | 11.1% |
+| gamedirectors | 60 | 8 | 17 | 1 | 34 | 0 | 58.3% |
+| host | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
+| owner | 10 | 2 | 0 | 1 | 6 | 1 | 77.8% |
 
 ### Commands gaps
 
 **admin**
 
-- `deop`, `op`: changes last until the server restarts: they are not written to the config or a permissions file
-- missing: `permission`, `place`, `reload`, `script`, `wsserver`
+- missing: `place`, `script`, `wsserver`
 
 **any**
 
@@ -605,21 +604,17 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 
 **gamedirectors**
 
+- `aimassist`: set never applies aim assist: BDS checks the camera type the client reports and unastar learns none, so it always answers unsupportedCameraType (as BDS did for the capture's client); the join does not send BDS's aim assist definitions
 - `clone`: block entity data (container contents, sign text) is not cloned; legacy block names with old block states are refused; changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
-- `event`: players have no actor definition in unastar, so every event on a player is refused (BDS refused the one captured)
 - `execute`: in nether and in the_end answer a not-implemented failure (unastar runs one dimension per world)
-- `fill`: legacy block names with old block states are refused; changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
-- `give`: no recipe unlocking after a give (BDS follows with UnlockedRecipes); legacy data values of flattened item families (wool with data 14) are not remapped
-- 9 more partial rows with other gaps (see [commands.toml](commands.toml))
-- missing: `aimassist`, `camera`, `controlscheme`, `dialogue`, `function`, `gametest`, `locate`, `loot`, `recipe`, `ride`, `schedule`, `spreadplayers` and 2 more
-
-**host**
-
-- missing: `setmaxplayers`
+- `fill`: legacy block names with old block states map only for the colour families (other legacy names are refused); changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
+- `function`: running a function is not measured (the captured world has none): the success answer follows the lang
+- 12 more partial rows with other gaps (see [commands.toml](commands.toml))
+- missing: `dialogue`, `gametest`, `locate`, `loot`, `recipe`, `ride`, `spreadplayers`, `structure`
 
 **owner**
 
-- missing: `allowlist`, `changesetting`, `reloadconfig`, `reloadpacketlimitconfig`, `save`, `sendshowstoreoffer`, `serveridentity`, `transfer`
+- missing: `reloadconfig`, `reloadpacketlimitconfig`
 
 ## Protocol
 

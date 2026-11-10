@@ -91,6 +91,12 @@ pub(super) fn given_stack(
     let invalid = || CommandOutput::failure("commands.give.item.invalid", vec![name.to_owned()]);
     let items = &world.resource::<ItemRegistryResource>().0;
     let blocks = &world.resource::<BlockRegistryResource>().0;
+    // Flattened families take their data value as the item (`wool 1 14`).
+    if data != 0
+        && let Some(current) = crate::command::legacy::item(name, data)
+    {
+        return given_stack(world, &current, 0);
+    }
     let spelled = if data == 0 {
         name.to_owned()
     } else {
@@ -364,14 +370,18 @@ mod tests {
             h.run(op, "/give @s bucket 1 2"),
             CommandOutput::failure("commands.give.item.invalid", vec!["bucket".into()])
         );
-        let legacy = h.run(op, "/give @s wool 3 14");
+        // Flattened families take the data value as the item.
+        assert!(h.run(op, "/give @s wool 3 14").is_success());
+        assert_eq!(slot(&mut h, op, 2).item_id(), "minecraft:red_wool");
+        // Other legacy data values are not mapped.
+        let legacy = h.run(op, "/give @s stone 3 1");
         assert!(!legacy.is_success());
         assert!(
             legacy.messages[0]
                 .key
                 .contains("not implemented in unastar yet")
         );
-        assert_eq!(main_slots(&mut h, op)[2].1, 0, "nothing given");
+        assert_eq!(main_slots(&mut h, op)[3].1, 0, "nothing given");
     }
 
     #[test]

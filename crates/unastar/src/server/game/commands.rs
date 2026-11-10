@@ -9,7 +9,7 @@
 use bevy_ecs::prelude::*;
 use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, Sender};
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 use super::packet_queues::{ChatAction, ChatEvents, ChatPacketQueue};
 use crate::command::{CommandSource, execute};
@@ -106,11 +106,11 @@ pub fn apply_chat_and_commands(
 pub fn run_commands(world: &mut World) {
     let requests = std::mem::take(&mut world.resource_mut::<PendingCommands>().0);
     for (entity, request) in requests {
-        let Some(source) = CommandSource::player(world, entity) else {
+        debug!(command = %request.command, "Command");
+        let Some(output) = crate::command::run_as_player(world, entity, &request.command) else {
             continue;
         };
-        debug!(player = %source.name, command = %request.command, "Command");
-        let output = execute(world, source, &request.command);
+        print_console_notes(world);
         // BDS answers `/say` and `/me` with their chat line only.
         if output.messages.is_empty() {
             continue;
@@ -125,8 +125,34 @@ pub fn run_commands(world: &mut World) {
         .unwrap_or_default();
     for line in lines {
         let output = execute(world, CommandSource::server(), &line);
-        for text in output.to_text() {
+        print_console_notes(world);
+        // Like BDS: one log record per answer, its messages one per line,
+        // logged as an error when the command failed.
+        if output.messages.is_empty() {
+            continue;
+        }
+        let text = output.to_text().join("\n");
+        if output.is_success() {
             info!(target: "console", "{text}");
+        } else {
+            error!(target: "console", "{text}");
+        }
+    }
+    // `/schedule`d functions whose time came or whose area loaded.
+    crate::command::exec::run_scheduled_functions(world);
+}
+
+/// Prints the extra console lines the last command left
+/// ([`crate::command::ConsoleNote`]).
+fn print_console_notes(world: &mut World) {
+    let Some(mut notes) = world.get_resource_mut::<crate::command::ConsoleNotes>() else {
+        return;
+    };
+    for note in std::mem::take(&mut notes.0) {
+        if note.error {
+            error!(target: "console", "{}", note.text);
+        } else {
+            info!(target: "console", "{}", note.text);
         }
     }
 }

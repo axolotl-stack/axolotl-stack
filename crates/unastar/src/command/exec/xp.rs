@@ -33,8 +33,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: XpArgs) -> CommandResult {
         } => (Change::Levels(amount), player),
     };
     let players = ctx.players(player.as_ref())?;
-    let mut output = CommandOutput::default();
-    for player in players {
+    for &player in &players {
         let mut experience = ctx
             .world
             .get::<Experience>(player)
@@ -47,25 +46,20 @@ pub fn run(ctx: &mut CommandContext<'_>, args: XpArgs) -> CommandResult {
             experience_attributes(&experience).to_vec(),
         );
         ctx.world.entity_mut(player).insert(experience);
-        let name = ctx.name(player);
-        match change {
-            Change::Points(points) => {
-                output.add_success("commands.xp.success", vec![points.to_string(), name]);
-            }
-            Change::Levels(levels) if levels < 0 => output.add_success(
-                "commands.xp.success.negative.levels",
-                vec![levels.unsigned_abs().to_string(), name],
-            ),
-            // Measured: `/xp 0L` answers like zero points.
-            Change::Levels(0) => {
-                output.add_success("commands.xp.success", vec!["0".into(), name]);
-            }
-            Change::Levels(levels) => {
-                output.add_success("commands.xp.success.levels", vec![levels.to_string(), name]);
-            }
-        }
     }
-    Ok(output)
+    // Measured: one message naming every player, counting each.
+    let names = ctx.names(&players);
+    let (key, amount) = match change {
+        Change::Points(points) => ("commands.xp.success", points.to_string()),
+        Change::Levels(levels) if levels < 0 => (
+            "commands.xp.success.negative.levels",
+            levels.unsigned_abs().to_string(),
+        ),
+        // Measured: `/xp 0L` answers like zero points.
+        Change::Levels(0) => ("commands.xp.success", "0".to_owned()),
+        Change::Levels(levels) => ("commands.xp.success.levels", levels.to_string()),
+    };
+    Ok(CommandOutput::success(key, vec![amount, names]).with_count(players.len()))
 }
 
 #[derive(Debug, Clone, Copy)]

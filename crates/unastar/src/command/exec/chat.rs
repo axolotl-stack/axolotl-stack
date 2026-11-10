@@ -118,7 +118,11 @@ pub fn run_list(ctx: &mut CommandContext<'_>, args: ListArgs) -> CommandResult {
         "commands.players.list",
         vec![players.len().to_string(), max.to_string()],
     );
-    output.add_message("commands.players.list.names", vec![ctx.names(&players)]);
+    // Measured: the names are sorted ("Alice, BDSExtractor" although
+    // BDSExtractor joined first).
+    let mut names: Vec<String> = players.iter().map(|&p| ctx.name(p)).collect();
+    names.sort_by_key(|name| name.to_ascii_lowercase());
+    output.add_message("commands.players.list.names", vec![names.join(", ")]);
     Ok(output)
 }
 

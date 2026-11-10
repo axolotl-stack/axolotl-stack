@@ -7,10 +7,10 @@
 //! `commands.setblock.noChange`.
 //!
 //! Legacy block names BDS still accepts with old states
-//! (`wool ["color"="red"]` is `minecraft:red_wool` on BDS) need BDS's legacy
-//! block-state upgrade table, which unastar does not have: such names answer
-//! a literal "not implemented" failure. Current identifiers with their
-//! current states work.
+//! (`wool ["color"="red"]` is `minecraft:red_wool` on BDS) resolve through
+//! [`crate::command::legacy`] for the colour families; other legacy names
+//! answer a literal "not implemented" failure. Current identifiers with
+//! their current states work.
 
 use crate::command::parser::StateLiteral;
 use crate::command::prelude::*;
@@ -103,7 +103,12 @@ impl BlockSpec {
         };
         let Some(entry) = BlockRegistry::vanilla().get_by_name(&identifier) else {
             // Every captured `Block` value that is not a current identifier
-            // is a legacy alias resolved through the upgrade table.
+            // is a legacy alias: the mapped families resolve to the current
+            // block, the rest are not implemented.
+            let old = states.map_or(&[][..], |s| s.0.as_slice());
+            if let Some((current, rest)) = crate::command::legacy::block(tile_name, old) {
+                return Self::resolve(&current, Some(&BlockStates(rest)));
+            }
             return Err(CommandOutput::failure(
                 format!("Legacy block name '{tile_name}' is not implemented in unastar yet"),
                 vec![],
@@ -343,7 +348,18 @@ pub(super) mod tests {
     fn legacy_names_and_unloaded_blocks_fail() {
         let mut h = Harness::new();
         let op = h.player("Op", true);
-        let legacy = h.run(op, r#"/setblock ~1 ~ ~ minecraft:wool ["color"="red"]"#);
+        // A colour family resolves to the flattened block.
+        assert!(
+            h.run(op, r#"/setblock ~1 ~ ~ minecraft:wool ["color"="silver"]"#)
+                .is_success()
+        );
+        assert_eq!(block(&mut h, 4, 64, 3), state("minecraft:light_gray_wool"));
+        h.run(op, "/setblock ~1 ~ ~ air");
+        // Other legacy names are not mapped.
+        let legacy = h.run(
+            op,
+            r#"/setblock ~1 ~ ~ minecraft:log ["old_log_type"="birch"]"#,
+        );
         assert!(!legacy.is_success());
         assert!(
             legacy.messages[0]

@@ -4,6 +4,8 @@
 //! Captured commands without a `register` line answer
 //! [`CommandOutput::not_implemented`](super::CommandOutput::not_implemented).
 
+mod admin;
+mod camera;
 mod chat;
 mod clear;
 mod clone;
@@ -17,6 +19,7 @@ mod event;
 pub(crate) mod evidence;
 mod execute;
 mod fill;
+mod function;
 mod gamemode;
 mod gamerule;
 mod give;
@@ -41,16 +44,24 @@ mod tellraw;
 #[cfg(test)]
 pub(crate) mod test_support;
 mod testfor;
+mod tickingarea;
 mod time;
 mod title;
 mod visuals;
 mod weather;
 mod xp;
 
+pub use admin::{
+    Allowlist, PlayerLimit, SaveState, ServerFiles, ServerIdentity, WorldFiles, load_identity,
+};
+pub use camera::{CameraState, join_packets as camera_join_packets};
+pub use function::{FunctionRegistry, run_due as run_scheduled_functions};
 pub use gamemode::set_game_mode;
+pub use kick::Kicked;
 pub use op::OperatorList;
 pub use stop::StopRequested;
 pub use teleport::move_entity;
+pub use tickingarea::TickingAreas;
 
 use super::registry::CommandRegistry;
 
@@ -58,10 +69,15 @@ use super::registry::CommandRegistry;
 /// typed declaration against the captured syntax.
 pub fn register_vanilla(registry: &mut CommandRegistry) {
     registry
+        .register(camera::run_aimassist)
+        .register(admin::run_allowlist)
+        .register_raw("camera", camera::run_camera)
         .register(visuals::run_camerashake)
         .register(clear::run)
         .register(spawnpoint::run_clearspawnpoint)
         .register(clone::run)
+        .register(admin::run_changesetting)
+        .register(camera::run_controlscheme)
         .register(damage::run)
         .register(daylock::run)
         .register(op::run_deop)
@@ -71,6 +87,7 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(event::run)
         .register(execute::run)
         .register(fill::run)
+        .register(function::run_function_command)
         .register(visuals::run_fog)
         .register(gamemode::run)
         .register(gamerule::run)
@@ -85,14 +102,21 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(mobevent::run)
         .register(music::run)
         .register(op::run_op)
+        .register(op::run_permission)
+        .register(function::run_reload)
         .register(visuals::run_particle)
         .register(visuals::run_playanimation)
         .register(sound::run_playsound)
         .register(replaceitem::run)
         .register(chat::run_say)
+        .register(admin::run_save)
+        .register(function::run_schedule)
         .register(scoreboard::run)
         .register(scriptevent::run)
         .register(setblock::run)
+        .register(admin::run_setmaxplayers)
+        .register(admin::run_sendshowstoreoffer)
+        .register(admin::run_serveridentity)
         .register(spawnpoint::run_setworldspawn)
         .register(spawnpoint::run_spawnpoint)
         .register(stop::run)
@@ -105,9 +129,11 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(testfor::run_testfor)
         .register(testfor::run_testforblock)
         .register(testfor::run_testforblocks)
+        .register(tickingarea::run)
         .register(time::run)
         .register(title::run)
         .register(title::run_raw)
+        .register(admin::run_transfer)
         .register(weather::run_toggledownfall)
         .register(weather::run)
         .register(xp::run);
@@ -131,6 +157,17 @@ mod tests {
         for name in segments {
             let mut replay = Replay::new();
             for step in replay.segment(name) {
+                if let Some(("console", _)) = step.captured.directive() {
+                    if step.console != step.captured.console {
+                        println!(
+                            "[{name}] {}
+    BDS: {:?}
+    us:  {:?}",
+                            step.captured.command, step.captured.console, step.console
+                        );
+                    }
+                    continue;
+                }
                 let theirs = step.captured.output().unwrap_or_default();
                 if step.ours != theirs {
                     println!(
@@ -167,5 +204,27 @@ mod bds_capture {
     #[test]
     fn permission_and_syntax_answers_match_the_bds_capture() {
         Replay::new().assert_segment("permissions", &[]);
+    }
+
+    /// A second player: commands naming or selecting it, what it receives
+    /// (target messages, the operators' broadcast, transfer, store offer,
+    /// kick) and the console's op/deop/permission changes of it.
+    #[test]
+    fn a_second_player_sees_what_bds_sends_it() {
+        use super::evidence::assert_same_client_packets;
+        let steps = Replay::new().assert_segment("players", &[]);
+        assert_same_client_packets(
+            &steps,
+            "Alice",
+            &[
+                "TextPacket",
+                "SetTitlePacket",
+                "TransferPacket",
+                "ShowStoreOfferPacket",
+                "DisconnectPacket",
+            ],
+            &[],
+        );
+        assert_same_client_packets(&steps, "Bob", &["DisconnectPacket"], &[]);
     }
 }

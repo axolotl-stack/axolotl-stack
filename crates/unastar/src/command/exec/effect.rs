@@ -467,6 +467,25 @@ fn clear(
             }
         }
     }
+    // Measured: clearing every effect of several players is one message
+    // naming them all (`/effect @a clear`), counting each.
+    let all_cleared = output.messages.len() > 1
+        && output
+            .messages
+            .iter()
+            .all(|m| m.success && m.key == "commands.effect.success.removed.all");
+    if all_cleared {
+        let names: Vec<String> = output
+            .messages
+            .iter()
+            .map(|m| m.params[0].clone())
+            .collect();
+        return Ok(CommandOutput::success(
+            "commands.effect.success.removed.all",
+            vec![names.join(", ")],
+        )
+        .with_count(names.len()));
+    }
     if output.is_success() {
         Ok(output)
     } else {

@@ -26,7 +26,11 @@ From a command session (`capture.py --commands`), replacing
   feedback/effect packets in `FEEDBACK`, without the running world's traffic
   (actor packets of actors the script did not summon, block and level events
   away from the platform). The SHA-256 of the session's `command-outputs.json`
-  and `packets.jsonl` tie it to the full capture.
+  and `packets.jsonl` tie it to the full capture. A `!console` step also
+  carries `console`, the BDS console records it printed (`{level, text}`,
+  timestamps dropped); a step during which a second client (`!join NAME`)
+  was online carries `clients.NAME`, the packets that client kept by the
+  same rules from its own point of view.
 
 Everything else (CraftingData, AvailableCommands, JigsawStructureData, the
 full `packets.jsonl`, normalised JSON) stays in the capture directory; tests
@@ -38,6 +42,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -72,7 +77,9 @@ FEEDBACK = {
     'BlockActorDataPacket', 'LevelEventPacket', 'LevelSoundEventPacket', 'AddActorPacket',
     'RemoveActorPacket', 'SetActorDataPacket', 'ActorEventPacket', 'UpdateAttributesPacket',
     'MobEffectPacket', 'MobEquipmentPacket', 'MobArmorEquipmentPacket', 'SetActorMotionPacket',
-    'MoveActorAbsolutePacket', 'SyncWorldClocksPacket',
+    'MoveActorAbsolutePacket', 'SyncWorldClocksPacket', 'UnlockedRecipesPacket', 'TransferPacket',
+    'ShowStoreOfferPacket', 'SetEntityLinkPacket', 'NpcDialoguePacket', 'AddItemActorPacket',
+    'ChangeDimensionPacket',
 }
 # Actor packets are kept for the player and for actors the script summoned.
 ACTOR_PACKETS = {
@@ -82,7 +89,7 @@ ACTOR_PACKETS = {
 }
 # World events are kept on the platform the script plays on (and at the
 # origin, where weather events are placed).
-POSITIONAL = {'UpdateBlockPacket', 'LevelEventPacket', 'LevelSoundEventPacket'}
+POSITIONAL = {'UpdateBlockPacket', 'LevelEventPacket', 'LevelSoundEventPacket', 'AddItemActorPacket'}
 PLATFORM = (8.0, 8.0)
 NEAR = 24.0
 # A summoned actor's own updates (AI flags, attributes) and the periodic
@@ -133,7 +140,8 @@ def commit_t1(capture: Path) -> int:
 
 
 def script_segments(script: Path) -> list[tuple[str, str]]:
-    """`(segment, command)` for every command line of a command script."""
+    """`(segment, command)` for every step line of a command script (player
+    commands and `!console`/`!join`/`!leave` directives)."""
     segment = ''
     out = []
     for raw in script.read_text(encoding='utf-8').splitlines():
@@ -153,6 +161,24 @@ def bare(command: str) -> str:
     return command.strip().removeprefix('/')
 
 
+# One BDS console log record starts `[2026-11-10 16:23:20:009 INFO] `;
+# the lines after it up to the next record continue its message.
+CONSOLE_RECORD = re.compile(r'^\s*\[\d{4}-\d\d-\d\d \d\d:\d\d:\d\d:\d{3} (\w+)\] ?(.*)$')
+
+
+def console_records(lines: list[str]) -> list[dict]:
+    """BDS console lines as `{level, text}` records (multi-line text joined
+    with LF, timestamps dropped)."""
+    records: list[dict] = []
+    for line in lines:
+        match = CONSOLE_RECORD.match(line)
+        if match:
+            records.append({'level': match.group(1), 'text': match.group(2)})
+        elif records:
+            records[-1]['text'] += LF + line
+    return records
+
+
 class Relevance:
     """Which packets of a command window belong to the command."""
 
@@ -168,14 +194,18 @@ class Relevance:
     def near(pos: dict) -> bool:
         return max(abs(pos['x'] - PLATFORM[0]), abs(pos['z'] - PLATFORM[1])) <= NEAR
 
-    def keep(self, command: str, name: str, d: dict, dt_ms: float) -> bool:
+    def keep(self, command: str, name: str, d: dict, dt_ms: float, viewer: int | None = None) -> bool:
+        """Whether a packet `viewer` (default: the capturing player; a second
+        client's runtime id for its own recording) received belongs to the
+        command."""
+        viewer = self.player_runtime if viewer is None else viewer
         if name not in FEEDBACK:
             return False
         if name == 'SyncWorldClocksPacket':
             return dt_ms <= PROMPT_MS
         if name == 'AddActorPacket':
             words = bare(command).split()
-            if 'summon' not in words and 'summon_rider' not in words:
+            if not {'summon', 'summon_rider', 'summon_ride'} & set(words):
                 return False
             self.runtime.add(d['target_runtime_id']['actor_runtime_id'])
             self.unique.add(d['target_actor_id']['actor_unique_id'])
@@ -186,9 +216,12 @@ class Relevance:
             target = d.get('target_runtime_id') or d.get('runtime_entity_id')
             if target is None and name == 'MoveActorAbsolutePacket':
                 target = d.get('move_data', {}).get('actor_runtime_id')
-            if target is None or target['actor_runtime_id'] not in self.runtime:
+            if target is None:
                 return False
-            return target['actor_runtime_id'] == self.player_runtime or dt_ms <= PROMPT_MS
+            actor = target['actor_runtime_id']
+            if actor != viewer and actor not in self.runtime:
+                return False
+            return actor == viewer or dt_ms <= PROMPT_MS
         if name == 'LevelSoundEventPacket' and d.get('actor_unique_id', -1) != -1:
             return d['actor_unique_id'] in self.unique
         if name == 'LevelEventPacket' and d['position'] == {'x': 0.0, 'y': 0.0, 'z': 0.0}:
@@ -200,6 +233,31 @@ class Relevance:
             return any(self.near(b['pos']) for key in ('blocks_changed_standards', 'blocks_changed_extras')
                        for b in blocks[key])
         return True
+
+
+def read_hexes(path: Path, wanted: set[int]) -> dict[int, tuple[str, str]]:
+    """`seq -> (name, hex)` of the wanted server records of a recording."""
+    hexes: dict[int, tuple[str, str]] = {}
+    with path.open(encoding='utf-8') as file:
+        for line in file:
+            record = json.loads(line)
+            if record['dir'] == 's2c' and record['seq'] in wanted:
+                hexes[record['seq']] = (record['name'], record['hex'])
+    missing = wanted - hexes.keys()
+    if missing:
+        raise SystemExit(f'{len(missing)} kept packets missing from {path}')
+    return hexes
+
+
+def packet_entry(packet: dict, t_ms: float, hexes: dict[int, tuple[str, str]]) -> dict:
+    """A kept packet as committed: seq, time after its step, name and bytes."""
+    name, payload = hexes[packet['seq']]
+    assert name == packet['packet'], (name, packet)
+    return {'seq': packet['seq'], 'dt_ms': round(packet['t_ms'] - t_ms), 'packet': name, 'hex': payload}
+
+
+def output_t(outputs: list[dict], index: int) -> float:
+    return outputs[index]['t_ms']
 
 
 def commit_commands(capture: Path) -> int:
@@ -221,28 +279,47 @@ def commit_commands(capture: Path) -> int:
         kept.append(packets)
         wanted.update(p['seq'] for p in packets)
 
-    hexes: dict[int, tuple[str, str]] = {}
-    with packets_path.open(encoding='utf-8') as file:
-        for line in file:
-            record = json.loads(line)
-            if record['dir'] == 's2c' and record['seq'] in wanted:
-                hexes[record['seq']] = (record['name'], record['hex'])
-    missing = wanted - hexes.keys()
-    if missing:
-        raise SystemExit(f'{len(missing)} kept packets missing from {packets_path}')
+    hexes = read_hexes(packets_path, wanted)
+
+    # Second clients (`!join NAME`): their packets per step, kept like the
+    # player's but from their own point of view.
+    clients: dict[str, dict] = {}
+    client_packets: dict[str, dict[int, list[dict]]] = {}
+    sources = {}
+    for path in sorted((session / 'clients').glob('*-outputs.json')):
+        data = json.loads(path.read_text(encoding='utf-8'))
+        name = data['name']
+        recording = session / 'clients' / f'{name}.jsonl'
+        clients[name] = {'runtime_id': data['runtime_id'], 'unique_id': data['unique_id']}
+        steps = {}
+        for step in data['steps']:
+            output = outputs[step['step']]
+            steps[step['step']] = [
+                p for p in step['packets']
+                if relevance.keep(output['command'], p['packet'], p['data'], p['t_ms'] - output['t_ms'],
+                                  viewer=data['runtime_id'])]
+        wanted_client = {p['seq'] for packets in steps.values() for p in packets}
+        client_hexes = read_hexes(recording, wanted_client)
+        client_packets[name] = {index: [packet_entry(p, output_t(outputs, index), client_hexes) for p in packets]
+                                for index, packets in steps.items() if packets}
+        sources[f'clients/{name}.jsonl'] = sha256(recording)
+
+    console_path = session / 'console-outputs.json'
+    console = {}
+    if console_path.exists():
+        console = {entry['step']: console_records(entry['lines'])
+                   for entry in json.loads(console_path.read_text(encoding='utf-8'))}
+        sources['console-outputs.json'] = sha256(console_path)
 
     commands = []
-    for (segment, _), output, packets in zip(lines, outputs, kept):
-        entry = {'segment': segment, 'command': output['command'], 'request_seq': output['request_seq'], 'packets': []}
-        for packet in packets:
-            name, payload = hexes[packet['seq']]
-            assert name == packet['packet'], (name, packet)
-            entry['packets'].append({
-                'seq': packet['seq'],
-                'dt_ms': round(packet['t_ms'] - output['t_ms']),
-                'packet': name,
-                'hex': payload,
-            })
+    for index, ((segment, _), output, packets) in enumerate(zip(lines, outputs, kept)):
+        entry = {'segment': segment, 'command': output['command'], 'request_seq': output['request_seq'],
+                 'packets': [packet_entry(packet, output['t_ms'], hexes) for packet in packets]}
+        if output.get('kind') == 'console':
+            entry['console'] = console.get(index, [])
+        others = {name: steps[index] for name, steps in client_packets.items() if index in steps}
+        if others:
+            entry['clients'] = others
         commands.append(entry)
 
     manifest = json.loads((session / 'manifest.json').read_text(encoding='utf-8'))
@@ -254,6 +331,7 @@ def commit_commands(capture: Path) -> int:
         'sources': {
             'command-outputs.json': sha256(outputs_path),
             'packets.jsonl': sha256(packets_path),
+            **sources,
         },
         'player': {
             'name': 'BDSExtractor',
@@ -262,6 +340,8 @@ def commit_commands(capture: Path) -> int:
         },
         'commands': commands,
     }
+    if clients:
+        feedback['clients'] = clients
 
     dest = DEST / 'operator-commands'
     if dest.exists():

@@ -26,6 +26,11 @@ pub struct ServerConfig {
     /// Players given operator permission on join: display names
     /// (ASCII case-insensitive) or XUIDs.
     pub operators: Vec<String>,
+    /// Whether players are authenticated with Xbox Live (`/allowlist on`
+    /// refuses without it, like BDS).
+    pub online_mode: bool,
+    /// Whether only allowlisted players may join (BDS `allow-list`).
+    pub allow_list: bool,
     /// Simulation distance in chunks.
     /// Chunks within this range of ANY player get random ticks and entity updates.
     /// Should typically be 1-2 larger than default_chunk_radius to avoid
@@ -50,6 +55,8 @@ impl Default for ServerConfig {
             difficulty: crate::world::rules::Difficulty::Easy,
             block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
             operators: Vec::new(),
+            online_mode: false,
+            allow_list: false,
             simulation_distance: 6,  // 2 more than default view
             chunk_unload_ticks: 100, // 5 second grace period
             world: WorldConfig::default(),

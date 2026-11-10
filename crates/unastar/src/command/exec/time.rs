@@ -180,8 +180,10 @@ mod bds_capture {
     #[test]
     fn time_matches_the_bds_capture() {
         let differ = [
-            // BDS keeps a signed clock and accepts it; unastar's clock starts at 0.
+            // BDS keeps a signed clock and accepts it (daytime then reads
+            // 23995); unastar's clock starts at 0.
             "/time set -5",
+            "/time query daytime",
         ];
         Replay::new().assert_segment("time", &differ);
     }
