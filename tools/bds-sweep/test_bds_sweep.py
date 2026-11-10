@@ -7,6 +7,7 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -155,6 +156,34 @@ class HeldAndEffectVariants(unittest.TestCase):
         spears = [i for i in items if 'gap' in i]
         self.assertEqual([i['key'] for i in spears], [f'{tier}_spear' for tier in sweep.TIERS])
         self.assertTrue(all(i['gap'] == 20 for i in spears))
+
+
+class ArmorWear(unittest.TestCase):
+    def test_every_armour_piece_in_its_measured_slot(self):
+        import argparse
+        items = sweep.armor_wear_items(argparse.Namespace(items='slice'))
+        slots = {item['item']: item['slot'] for item in items}
+        self.assertEqual(slots['minecraft:iron_chestplate'], 'chest')
+        self.assertEqual(slots['minecraft:turtle_helmet'], 'head')
+        self.assertNotIn(None, slots)
+
+    def test_summary_keys_wear_by_damage_amount(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            sweep_dir = Path(tmp) / 'wear'
+            sweep_dir.mkdir()
+            (sweep_dir / 'job.json').write_text(json.dumps({'items': [{'key': 'minecraft:iron_boots'}]}))
+            row = {'key': 'minecraft:iron_boots', 'item': 'minecraft:iron_boots', 'slot': 'feet',
+                   'hits': [{'damage': 4, 'before': 0, 'after': 1, 'wear': 1},
+                            {'damage': 8, 'before': 1, 'after': 3, 'wear': 2}]}
+            (sweep_dir / 'results.jsonl').write_text(json.dumps(row) + '\n')
+            (sweep_dir / 'runs.jsonl').write_text(json.dumps({'status': 'done'}) + '\n')
+            written = {}
+            with (mock.patch.object(summarize, 'write', lambda relative, value: written.setdefault(relative, value)),
+                  mock.patch.object(summarize, 'update_manifest', lambda family, entry: None),
+                  mock.patch.object(summarize, 'harness_revision', lambda: 'test')):
+                summarize.summarize_armor_wear(sweep_dir)
+        self.assertEqual(written['armor_wear.json'],
+                         {'minecraft:iron_boots': {'slot': 'feet', 'wear': {'4': 1, '8': 2}}})
 
 
 class Wear(unittest.TestCase):

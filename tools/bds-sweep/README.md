@@ -58,6 +58,7 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `mining` | break ticks per (block state, tool, effect/environment), 3 trials (`--trials` for the held and effect sets), and the held stack's durability damage after every break | player (survival) at (0.5,-60,0.5) facing the west face of (1,-59,0); client sends Start/ContinueDestroyBlock, BDS breaks the block itself; ticks from the LEFT_CLICK_BLOCK event to the BlockBreakEvent (±1 tick). `--variants tools` (default): the tool slice; `held`: `--items` held on `--blocks` (default every non-tool item the parity catalog gives a `digger` facet, on dirt, netherrack and oak leaves, plus every tool on dirt and netherrack for its wear); `effects`: Haste I-III by hand on stone, Mining Fatigue I-II by hand on dirt |
 | `armor-slots` | `/replaceitem` accept per slot (head, chest, legs, feet, offhand) | read back with Endstone `PlayerInventory` |
 | `armor-values` | health lost per `/damage <player> D entity_attack` wearing one item | max health 2000, hits repeated for sub-point precision; needs the full `armor-slots` result for slot assignment |
+| `armor-wear` | durability one `/damage <player> D entity_attack` hit costs a worn piece, per D (1, 3, 4, 5, 7, 8, 12, 16, 40) | one breakable piece in its `armor_slots.json` slot, read back through Endstone before and after every hit |
 | `attack` | melee damage per held item, warm-up + 3 trials, and the held stack's durability damage after every trial | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value. `--gamemode survival` lets hits wear the item; `--items spears` adds every spear tier, `--gap` ticks apart |
 | `fuel` | furnace burn ticks per item | pool of 32 furnaces, 1 cobblestone input + the item as fuel |
 
@@ -69,6 +70,7 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 & $py tools/bds-sweep/sweep.py mining --variants effects --mine-ticks 1200
 & $py tools/bds-sweep/sweep.py attack --items spears --gap 20 --gamemode survival --client-capture
 & $py tools/bds-sweep/sweep.py armor-slots --items all
+& $py tools/bds-sweep/sweep.py armor-wear
 & $py tools/bds-sweep/sweep.py fuel --items all
 & $py tools/bds-sweep/summarize.py drops <dir> [<repeat dir> ...]
 & $py tools/bds-sweep/summarize.py mining <slice dir> <held dir> <effects dir>   # merged, first wins

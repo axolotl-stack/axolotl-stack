@@ -278,6 +278,16 @@ def armor_value_items(args) -> list[dict]:
 SPEARS = [f'minecraft:{tier}_spear' for tier in TIERS]
 
 
+# One hit of each amount per piece: wear rules round the damage per 4 points.
+ARMOR_WEAR_AMOUNTS = [1, 3, 4, 5, 7, 8, 12, 16, 40]
+
+
+def armor_wear_items(args) -> list[dict]:
+    """Every item with the native tag `minecraft:is_armor` (or `--items`), in
+    the slot the measured `armor_slots.json` assigns, like `armor-values`."""
+    return [item for item in armor_value_items(args) if item['item']]
+
+
 def attack_items(args) -> list[dict]:
     """Hand, every tier of every digger and sword, trident and mace, and
     sharpness I-V on the diamond sword; `--items` adds held items (`spears`:
@@ -305,6 +315,8 @@ def build_job(args, out: Path) -> dict:
         job['items'] = [{'key': name, 'item': name} for name in item_names(args.items, SLICE_ITEMS)]
     elif args.kind == 'armor-values':
         job.update(max_health=2000, damage=ARMOR_DAMAGE, items=armor_value_items(args))
+    elif args.kind == 'armor-wear':
+        job.update(max_health=2000, amounts=ARMOR_WEAR_AMOUNTS, items=armor_wear_items(args))
     elif args.kind == 'attack':
         job.update(target='minecraft:pig', items=attack_items(args))
         if args.gamemode:
@@ -318,7 +330,8 @@ def build_job(args, out: Path) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel'])
+    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'armor-wear', 'attack',
+                                         'fuel'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])

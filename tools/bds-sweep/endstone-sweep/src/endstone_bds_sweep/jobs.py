@@ -386,6 +386,49 @@ def armor_values(ctx: Context, job: dict):
     ctx.must(f'gamemode creative "{name}"')
 
 
+def armor_wear(ctx: Context, job: dict):
+    """Durability a hit costs worn armour: the sweep player (survival, raised
+    max health, no natural regeneration) wears one breakable piece and takes
+    one `/damage <player> D entity_attack` per configured D, spaced past the
+    hurt cooldown; the piece is read back before and after every hit."""
+    name = job['player']
+    inventory = ctx.player.inventory
+    for line in ('gamerule naturalregeneration false', 'difficulty normal', f'gamemode survival "{name}"',
+                 f'effect "{name}" saturation 1000000 255 true'):
+        ctx.must(line)
+    ctx.player.max_health = int(job['max_health'])
+
+    def worn(attribute):
+        stack = getattr(inventory, attribute)
+        if stack is None or stack.type.id == 'minecraft:air':
+            return None
+        meta = stack.item_meta
+        return meta.damage if meta.has_damage else 0
+
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        for attribute in ARMOR_ATTRIBUTES.values():
+            setattr(inventory, attribute, None)
+        attribute = ARMOR_ATTRIBUTES[item['slot']]
+        setattr(inventory, attribute, ctx.stack({'item': item['item']}))
+        yield 2
+        hits = []
+        for amount in job['amounts']:
+            ctx.player.health = ctx.player.max_health
+            before = worn(attribute)
+            ctx.must(f'damage "{name}" {amount} entity_attack')
+            yield int(job.get('cooldown_ticks', 15))
+            after = worn(attribute)
+            hits.append({'damage': amount, 'before': before, 'after': after,
+                         'wear': after - before if before is not None and after is not None else None})
+        ctx.record({'key': item['key'], 'item': item['item'], 'slot': item['slot'], 'hits': hits})
+    for attribute in ARMOR_ATTRIBUTES.values():
+        setattr(inventory, attribute, None)
+    ctx.player.health = ctx.player.max_health
+    ctx.must(f'gamemode creative "{name}"')
+
+
 def attack(ctx: Context, job: dict):
     """Melee damage per held item: a fresh target mob is spawned in front of
     the sweep player (creative unless the job sets `gamemode`, on the ground,
@@ -442,5 +485,5 @@ def attack(ctx: Context, job: dict):
         ctx.must(f'gamemode creative "{job["player"]}"')
 
 
-JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'attack': attack,
-        'fuel': fuel, 'mining': mining}
+JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'armor_wear': armor_wear,
+        'attack': attack, 'fuel': fuel, 'mining': mining}

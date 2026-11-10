@@ -2,6 +2,7 @@
 
     python tools/bds-sweep/summarize.py drops SWEEP_DIR [SWEEP_DIR ...] [repeat=SWEEP_DIR ...]
     python tools/bds-sweep/summarize.py armor-slots SWEEP_DIR
+    python tools/bds-sweep/summarize.py armor-wear SWEEP_DIR
     python tools/bds-sweep/summarize.py fuel SWEEP_DIR
     python tools/bds-sweep/summarize.py mining SWEEP_DIR [SWEEP_DIR ...]   # first sweep wins per cell
     python tools/bds-sweep/summarize.py attack SWEEP_DIR [SWEEP_DIR ...]
@@ -335,6 +336,23 @@ def summarize_armor_values(sweep: Path) -> None:
 
 
 
+def summarize_armor_wear(sweep: Path) -> None:
+    """`armor_wear.json`: per armour item its slot and the durability damage
+    one `/damage <player> D entity_attack` hit added to the worn piece, per D."""
+    table = {}
+    for row in results(sweep):
+        table[row['item']] = {'slot': row['slot'],
+                              'wear': {str(hit['damage']): hit['wear'] for hit in row['hits']}}
+    files = [write('armor_wear.json', dict(sorted(table.items())))]
+    update_manifest('armor_wear', {
+        **provenance('armor-wear', [sweep]),
+        'method': 'sweep player (survival, max health 2000, natural regeneration off) wearing one breakable piece '
+                  '(the slot armor_slots.json assigns) takes one `/damage <player> D entity_attack` per D, spaced past '
+                  'the hurt cooldown; the piece is read back through Endstone before and after every hit',
+        'files': files,
+    })
+
+
 def summarize_armor(sweep: Path) -> None:
     table = {}
     for row in results(sweep):
@@ -473,6 +491,8 @@ def main() -> int:
         summarize_armor(dirs[0])
     elif kind == 'armor-values':
         summarize_armor_values(dirs[0])
+    elif kind == 'armor-wear':
+        summarize_armor_wear(dirs[0])
     elif kind == 'fuel':
         summarize_fuel(dirs[0])
     elif kind == 'mining':
