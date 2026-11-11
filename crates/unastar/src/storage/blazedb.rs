@@ -114,6 +114,11 @@ pub struct BlazeDBProvider {
 }
 
 impl BlazeDBProvider {
+    /// The database directory (level records keep a side file there).
+    pub(crate) fn directory(&self) -> &Path {
+        &self.path
+    }
+
     /// Open or create a BlazeDB database.
     ///
     /// # Arguments

@@ -63,13 +63,15 @@ pub use camera::{CameraState, join_packets as camera_join_packets};
 pub use function::{FunctionRegistry, run_due as run_scheduled_functions};
 pub use gamemode::set_game_mode;
 pub use kick::Kicked;
+pub use mobevent::MobEvents;
 pub use op::OperatorList;
 pub use recipe::{UnlockedRecipes, join_packet as recipes_join_packet};
+pub use scoreboard::join_packets as scoreboard_join_packets;
 pub(crate) use setblock::box_loaded;
 pub use stop::StopRequested;
 pub use structure::{StructureTemplate, Structures};
 pub use teleport::move_entity;
-pub use tickingarea::TickingAreas;
+pub use tickingarea::{TickingArea, TickingAreas};
 
 use super::registry::CommandRegistry;
 

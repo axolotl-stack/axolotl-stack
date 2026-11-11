@@ -56,6 +56,12 @@ impl Lang {
         if self.get(text).is_some() {
             return self.format(text, params);
         }
+        // A literal list of escaped placeholders (`/scoreboard players
+        // list`'s `%%s, %%s`) takes the parameters in order, as BDS's
+        // console prints it.
+        if text.contains("%%s") {
+            return self.format_template(&text.replace("%%s", "%s"), params);
+        }
         let mut out = String::with_capacity(text.len());
         let mut rest = text;
         while let Some(index) = rest.find('%') {
@@ -71,8 +77,11 @@ impl Lang {
                 .rev()
                 .find_map(|end| self.get(&after[..end]).map(|value| (end, value)));
             match found {
+                // The reference takes the message's parameters (BDS's
+                // console prints `§a%commands.scoreboard.objectives.list.count`
+                // with its count filled in).
                 Some((end, value)) => {
-                    out.push_str(value);
+                    out.push_str(&self.format_template(value, params));
                     rest = &after[end..];
                 }
                 None => {
@@ -93,6 +102,11 @@ impl Lang {
         let Some(template) = self.get(key) else {
             return key.to_owned();
         };
+        self.format_template(template, params)
+    }
+
+    /// [`Self::format`] with the template given.
+    fn format_template(&self, template: &str, params: &[String]) -> String {
         let params: Vec<String> = params
             .iter()
             .map(|param| match param.strip_prefix('%') {

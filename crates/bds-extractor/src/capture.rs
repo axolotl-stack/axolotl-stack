@@ -98,6 +98,8 @@ pub struct Options {
     pub commands: Vec<Step>,
     /// Wait after each scripted command.
     pub command_wait: Duration,
+    /// The player's UUID; random when `None`.
+    pub uuid: Option<uuid::Uuid>,
 }
 
 /// `next_seq` of the recorder at each phase boundary.
@@ -216,7 +218,10 @@ pub async fn run(options: &Options) -> Result<()> {
     std::fs::create_dir_all(&options.out_dir)
         .with_context(|| format!("creating {}", options.out_dir.display()))?;
     let packets_path = options.out_dir.join("packets.jsonl");
-    let config = ClientHandshakeConfig::random(options.addr, &options.name);
+    let mut config = ClientHandshakeConfig::random(options.addr, &options.name);
+    if let Some(uuid) = options.uuid {
+        config.uuid = uuid;
+    }
     let recorder = Arc::new(Mutex::new(Recorder::create(
         &packets_path,
         config.identity_key.clone(),

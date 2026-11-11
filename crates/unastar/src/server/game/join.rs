@@ -212,6 +212,11 @@ impl GameServer {
             .0
             .wire_packet(super::types::block_network_ids(world));
         let _ = session.send(McpePacket::from(crafting));
+        // The displayed objectives and their scores (BDS: right after
+        // CraftingData).
+        for packet in crate::command::exec::scoreboard_join_packets(world) {
+            let _ = session.send(packet);
+        }
         // BDS ends the join with its command list (identical for every
         // permission level; the client filters by UpdateAbilities).
         let commands = world

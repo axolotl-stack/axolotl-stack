@@ -20,6 +20,9 @@ pub mod blazedb;
 pub mod cache;
 pub mod morton;
 
+// level.dat and the world database's level records
+pub mod level;
+
 pub use blazedb::BlazeDBProvider;
 pub use keys::*;
 pub use leveldb_player::LevelDBPlayerProvider;
