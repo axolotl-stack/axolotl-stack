@@ -18,7 +18,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
-| [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
+| [Protocol](#protocol) | 231 | 137 | 21 | 44 | 14 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
 
@@ -628,7 +628,7 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | bidirectional | 80 | 44 | 13 | 16 | 1 | 6 | 23.0% |
-| clientbound | 146 | 88 | 8 | 30 | 11 | 9 | 29.9% |
+| clientbound | 146 | 88 | 8 | 28 | 13 | 9 | 29.9% |
 | serverbound | 5 | 5 | 0 | 0 | 0 | 0 | 0.0% |
 
 ### Protocol gaps

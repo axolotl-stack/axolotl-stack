@@ -202,10 +202,11 @@ fn step(
     let (yaw, pitch) = heading(velocity);
     let mut entity = world.entity_mut(projectile);
     entity.insert((Position(to), Velocity(next)));
+    // The head yaw stays as spawned (0): BDS 1.26.51 never sends a
+    // projectile's head yaw in its position updates.
     if let Some(mut rotation) = entity.get_mut::<Rotation>() {
         rotation.yaw = lerp_rotation(rotation.yaw, yaw);
         rotation.pitch = lerp_rotation(rotation.pitch, pitch);
-        rotation.head_yaw = rotation.yaw;
     }
     show_from_visible_tick(world, projectile, ticks);
 }

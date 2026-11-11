@@ -12,7 +12,7 @@
 //! | `Motion` | List of 3 Float | velocity, blocks per tick |
 //! | `OnGround` | Byte | |
 //! | `definitions` | List of String | `+<identifier>`, then every component group added (`+group`) or removed (`-group`) in order of its latest change |
-//! | `Attributes` | List of Compound | `minecraft:health` with `Base`, `Current`, `Max`, `Min`, `DefaultMax`, `DefaultMin` |
+//! | `Attributes` | List of Compound | `minecraft:health` with `Base`, `Current`, `Max`, `Min`, `DefaultMax`, `DefaultMin`; for a mob with a spawn knockback resistance (the zombie) also `minecraft:knockback_resistance` as BDS saves it: `Base` 0, `Current` the resistance, `Min` -2, `Max` 1 (and the same defaults), `Modifiers` holding one `RandomSpawnBonus` (`Amount` the resistance, `Operation` 0, `Operand` 2, fixed `UUIDMost`/`UUIDLeast`) |
 //! | `properties` | Compound | actor properties by name; enums by value name |
 //! | `Persistent` | Byte | never despawns |
 //! | `InLove` | Int | remaining love ticks, when in love |
@@ -35,6 +35,8 @@
 //! anywhere; actors that walked into another chunk keep their record, which
 //! that chunk's save rewrites.
 
+#[cfg(test)]
+mod bds_zombie;
 mod load;
 mod save;
 
@@ -57,6 +59,14 @@ use crate::world::ecs::{
 };
 
 pub(super) const HEALTH_ATTRIBUTE: &str = "minecraft:health";
+pub(super) const KNOCKBACK_RESISTANCE_ATTRIBUTE: &str = "minecraft:knockback_resistance";
+/// The attribute modifier a zombie's random knockback resistance is saved
+/// as, with the modifier id BDS 1.26.51 writes for it (the same for every
+/// zombie, and for its follow-range bonus:
+/// `testdata/bds-1.26.51-zombie-reload.json`).
+pub(super) const SPAWN_BONUS_MODIFIER: &str = "RandomSpawnBonus";
+pub(super) const SPAWN_BONUS_UUID: (i64, i64) =
+    (-4_391_065_492_226_947_424, -5_445_178_238_703_144_195);
 
 /// The mob's actor unique ID in storage (`UniqueID`). Assigned when the mob
 /// is first saved and kept across saves and restarts. Sparse-set storage, so
