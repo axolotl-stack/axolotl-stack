@@ -813,6 +813,24 @@ naming the column's coordinates and dimension and saying the stored column is
 kept on disk untouched; players see a gap there until it is repaired. A
 stored subchunk, biome or block-entity record that doesn't decode fails the load
 of its column the same way, in both providers, rather than loading as air.
+
+Sub-chunks saved by BDS 1.26.51 load block for block. Each sub-chunk storage says
+in the low bit of its header how its palette is written: BDS writes block names
+and states as NBT (resolved through `BlockRegistry::state_by_properties`),
+unastar writes runtime ids. Reading follows what BDS reads: the key places a
+record whatever its Y byte, bytes after the last storage are skipped, and a
+palette may list more entries than its bit width indexes. Damage that BDS would
+paper over fails the column instead: an index past its palette, or an unknown
+block name, state or NBT shape (`docs/quirks/bds.md`, "World / storage";
+`tests/bds_subchunks.rs` against `tests/fixtures/bds_1_26_51_subchunks.json`,
+written by `tools/bds-sweep/subchunk_fixture.py`). Block names and states are
+not upgraded, so a sub-chunk an older Bedrock version wrote with a block or
+state renamed since fails its column too.
+
+Saving still writes runtime ids, which BDS reads as air (OpenSpec change
+`persist-block-states-by-name`). A column is saved again after any edit and
+whenever it holds or held actors, so running unastar on a BDS world makes those
+columns unreadable to BDS: use a copy of the world.
 Loaded columns start clean, while generated or edited columns are saved on
 unload and shutdown. A chunk whose save before unload fails stays loaded, with
 its edits and mobs. Its unload is retried with a per-chunk exponential backoff
@@ -845,7 +863,9 @@ world providers, stored-column preservation through asynchronous loading and
 the save cycle, player disconnect/reconnect, corrupt player data, storage errors
 on both load paths, and out-of-range block heights. Unload save failures, the
 shutdown order and undecodable subchunks are covered by unit tests in
-`entity/mob/persistence`, `server/game` and `storage/leveldb_world`. On Windows,
+`entity/mob/persistence`, `server/game` and `storage/leveldb_world`;
+`cargo test -p unastar --test bds_subchunks` loads BDS-saved sub-chunks of every
+palette width, both layers and all three dimensions. On Windows,
 set `VCPKG_ROOT=C:\Users\jvigu\vcpkg` before building the LevelDB dependency.
 
 ## Bedrock-style generator
