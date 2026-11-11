@@ -116,6 +116,11 @@ async fn session(faults: Faults, hold: Duration, client_mtu: u16, big: usize) ->
                 received = conn.recv_message() => if !matches!(received, Some(Ok(_))) { break },
             }
         }
+        // A real server keeps its listener after a connection ends. A write
+        // racing the client's `0x15` ends this loop (the session is closing)
+        // while the ACK of that `0x15` (KA-6) is still due; dropping the
+        // listener here would stop its muxer before the ACK leaves.
+        std::future::pending::<()>().await
     });
     let mut client = timeout(
         Duration::from_secs(10),
