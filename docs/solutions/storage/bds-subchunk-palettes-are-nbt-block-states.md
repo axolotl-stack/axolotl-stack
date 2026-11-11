@@ -3,7 +3,7 @@ title: BDS saves sub-chunk palettes as NBT block states, so reading them as runt
 area: storage
 tags: [leveldb, subchunk, palette, nbt, bds, persistence, corrupt-data]
 date: 2026-11-10
-origin: openspec/changes/persist-block-states-by-name (read side, landed ahead of the writer)
+origin: openspec/changes/archive/2026-11-11-persist-block-states-by-name (read side, landed ahead of the writer)
 status: current
 ---
 

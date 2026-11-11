@@ -94,14 +94,6 @@ domain = "systems"
 ids = ["world.liquids"]
 
 [[claim]]
-area = "World persistence: sub-chunks saved by block name and states"
-owner = "lane STORAGE"
-since = 2026-11-10
-domain = "systems"
-ids = ["world.persistence"]
-change = "persist-block-states-by-name"
-
-[[claim]]
 area = "Item use"
 owner = "lane ITEMS"
 since = 2026-10-29

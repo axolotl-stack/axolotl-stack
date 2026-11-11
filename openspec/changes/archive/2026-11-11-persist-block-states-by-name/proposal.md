@@ -8,7 +8,7 @@ unchanged). A saved world therefore breaks when the palette changes in a later v
 cannot read it, although `crates/unastar/src/storage/mod.rs` describes the LevelDB storage as
 Bedrock-compatible. The `world.persistence` parity row does not list this gap.
 
-Prior work: [decision 0008](../../../docs/decisions/0008-blocks-are-data-rows-with-hashed-network-ids.md)
+Prior work: [decision 0008](../../../../docs/decisions/0008-blocks-are-data-rows-with-hashed-network-ids.md)
 settled hashed network ids on the wire but not the disk format; lesson
 `docs/solutions/data/block-state-ordinals-are-not-one-mixed-radix-order.md` shows palette order
 can't be derived from properties. Origin: the unfinished persistence part of the 2026-01-04
@@ -33,9 +33,9 @@ block-registry plan (removed 2026-11-04; see git history).
 Out of scope: upgrading block names across Bedrock versions (an upgrade schema), entity storage,
 level data, and the Data3D heights and section counts per dimension.
 
-**Decisions:** [record 0033](../../../docs/decisions/0033-persist-block-states-by-name.md)
+**Decisions:** [record 0033](../../../../docs/decisions/0033-persist-block-states-by-name.md)
 (option A, name + states; accepted by the owner on 2026-11-10) and
-[record 0039](../../../docs/decisions/0039-fail-the-column-on-damaged-sub-chunks.md) (damaged
+[record 0039](../../../../docs/decisions/0039-fail-the-column-on-damaged-sub-chunks.md) (damaged
 sub-chunks fail the column). Claim: `world.persistence` with
 `change = "persist-block-states-by-name"`.
 

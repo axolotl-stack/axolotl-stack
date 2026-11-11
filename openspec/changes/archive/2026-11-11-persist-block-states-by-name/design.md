@@ -8,7 +8,7 @@
 | B. Keep runtime palette positions | Fast, already implemented | Worlds break on any palette change; not BDS-compatible, so the storage docs must stop claiming it |
 
 Recommendation: A, reading B as a legacy format so existing worlds keep loading. Recorded as
-[0033](../../../docs/decisions/0033-persist-block-states-by-name.md); the owner accepted it on 2026-11-10.
+[0033](../../../../docs/decisions/0033-persist-block-states-by-name.md); the owner accepted it on 2026-11-10.
 
 ## Notes
 
@@ -45,7 +45,7 @@ their persistent palettes were read as runtime ids (lesson:
 
 BDS itself never writes such data (none in the fixture worlds), so the choice only affects
 worlds damaged by other tools or disk errors. The owner confirmed this on 2026-11-10:
-[decision 0039](../../../docs/decisions/0039-fail-the-column-on-damaged-sub-chunks.md).
+[decision 0039](../../../../docs/decisions/0039-fail-the-column-on-damaged-sub-chunks.md).
 
 ## Writing BDS's form (task 1.2, 2026-11-10)
 
@@ -73,7 +73,7 @@ through unastar's provider, and comparing every sub-chunk record of the edited c
 ### Which BDS save unastar copies: the unload save
 
 BDS writes a changed section two ways, so "copy BDS exactly"
-([0013](../../../docs/decisions/0013-copy-bds-behaviour-exactly.md)) needs one more step:
+([0013](../../../../docs/decisions/0013-copy-bds-behaviour-exactly.md)) needs one more step:
 unastar saves a chunk only when it unloads and at shutdown, the moments BDS uses its
 unload save, so unastar writes what that save writes. Writing the periodic save's
 palettes would differ from BDS at the same moment; compacting every section on every save

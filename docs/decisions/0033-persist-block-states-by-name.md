@@ -31,7 +31,7 @@ settled ids on the wire, not on disk.
 Proposed option: A, reading B as a legacy format so worlds saved before the change still load,
 because it is the only option that survives palette changes and matches how BDS stores worlds.
 Awaiting owner approval; the work is the open OpenSpec change
-[`persist-block-states-by-name`](../../openspec/changes/persist-block-states-by-name/proposal.md).
+[`persist-block-states-by-name`](../../openspec/changes/archive/2026-11-11-persist-block-states-by-name/proposal.md).
 
 ### Consequences
 

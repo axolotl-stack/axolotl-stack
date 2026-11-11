@@ -3,7 +3,7 @@ title: BDS compacts a changed section's palette only when the chunk unloads and 
 area: storage
 tags: [leveldb, subchunk, palette, compaction, bds, persistence, unload, autosave, waterlogged]
 date: 2026-11-10
-origin: openspec/changes/persist-block-states-by-name (task 1.2, the sub-chunk writer)
+origin: openspec/changes/archive/2026-11-11-persist-block-states-by-name (task 1.2, the sub-chunk writer)
 status: current
 ---
 

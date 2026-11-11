@@ -3,7 +3,7 @@ title: A Data3D "same as below" marker under a stored biome section stops BDS, s
 area: storage
 tags: [leveldb, data3d, biomes, bds, crash, persistence]
 date: 2026-11-10
-origin: openspec/changes/persist-block-states-by-name (the unastar-generated world opened in BDS)
+origin: openspec/changes/archive/2026-11-11-persist-block-states-by-name (the unastar-generated world opened in BDS)
 status: current
 ---
 

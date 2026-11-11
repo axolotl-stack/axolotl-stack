@@ -3,7 +3,7 @@ title: A plain BDS console can build and check sub-chunk fixtures, but the End o
 area: tooling
 tags: [bds, console, tickingarea, testforblock, fixtures, leveldb, subchunk]
 date: 2026-11-10
-origin: tools/bds-sweep/subchunk_fixture.py (openspec/changes/persist-block-states-by-name, read side)
+origin: tools/bds-sweep/subchunk_fixture.py (openspec/changes/archive/2026-11-11-persist-block-states-by-name, read side)
 status: current
 ---
 
