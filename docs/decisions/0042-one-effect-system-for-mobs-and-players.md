@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-11
 decision-makers: [project owner (delegated)]
 ---
@@ -36,6 +36,8 @@ they must count down, expire, act each tick, show on the client and change attri
 3. **Players as mobs:** run players through the mob definition pipeline and its effect handling.
 
 ## Decision Outcome
+
+Accepted by the owner on 2026-11-11.
 
 Chosen option: 2, one shared effect module.
 
