@@ -93,15 +93,26 @@ pub(crate) fn block_drops(
     }
 }
 
-/// Item stacks for rolled loot, oversized counts split into full stacks.
+/// Item stacks for rolled loot, oversized counts split into full stacks. A
+/// legacy name and aux the measured identities alias to another item drops
+/// that item: the wither skeleton's `minecraft:skull` with data 1 drops a
+/// `minecraft:wither_skeleton_skull` with data 0 (BDS 1.26.51: 19 skulls in
+/// 800 `/loot spawn … kill` rolls, every one of them so).
 pub(crate) fn loot_stacks(world: &World, drops: Vec<LootDrop>) -> Vec<ItemStack> {
     let mut stacks = Vec::new();
     for drop in drops {
-        let Some(template) = world_stack(world, &drop.item_id, 1) else {
-            warn!(item = drop.item_id, "Loot item is not in the item registry");
+        let (item_id, data) = match unastar_data::item_identity::input_alias(
+            &drop.item_id,
+            Some(drop.data),
+        ) {
+            Some(alias) if drop.data != 0 => (alias.name.to_owned(), alias.data.unwrap_or(0)),
+            _ => (drop.item_id.clone(), drop.data),
+        };
+        let Some(template) = world_stack(world, &item_id, 1) else {
+            warn!(item = item_id, "Loot item is not in the item registry");
             continue;
         };
-        let mut template = template.with_damage(drop.data);
+        let mut template = template.with_damage(data);
         if drop.nbt.is_some() {
             template.nbt = drop.nbt.map(bytes::Bytes::from);
         }

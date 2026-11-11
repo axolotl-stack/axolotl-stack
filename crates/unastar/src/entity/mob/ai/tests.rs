@@ -436,8 +436,12 @@ fn walking_cow_sends_move_actor_delta_to_viewers() {
     let mut terrain = Terrain::new(19, Terrain::grass());
     let (tx, mut rx): (_, Receiver<McpePacket>) = tokio::sync::mpsc::channel(4096);
     let world = terrain.world();
+    // A viewer in send range of the cow (`entity::send_range`).
     let viewer = world
-        .spawn(PlayerSession::new(2, "viewer".into(), None, None, tx))
+        .spawn((
+            PlayerSession::new(2, "viewer".into(), None, None, tx),
+            Position(DVec3::new(8.5, SURFACE + 1.62, 8.5)),
+        ))
         .id();
     let chunks: Vec<Entity> = world
         .query_filtered::<Entity, With<ChunkData>>()

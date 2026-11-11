@@ -15,6 +15,9 @@ import bds_runtime  # noqa: E402
 import knockback_fixture  # noqa: E402
 import replication_fixture  # noqa: E402
 import native  # noqa: E402
+import player_relay_fixture  # noqa: E402
+import range_fixture  # noqa: E402
+import spawn_bonus_fixture  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
 
@@ -161,6 +164,30 @@ class KnockbackTrials(unittest.TestCase):
                 self.assertEqual(set(action), {'t', 'commands'})
                 self.assertTrue(action['commands'] and all(isinstance(c, str) for c in action['commands']))
 
+    def test_cadence3_rests_vehicles_twice_and_shoots_from_dispensers(self):
+        items = self.items('cadence3')
+        vehicles = [item for item in items if item['mob'] in ('minecraft:minecart', 'minecraft:boat')]
+        self.assertEqual(len(vehicles), 2)
+        for item in vehicles:
+            self.assertEqual([action['t'] for action in item['actions']], [40, 80])
+        shots = [item for item in items if 'spawn_commands' in item]
+        self.assertEqual(len(shots), 4)
+        for item in shots:
+            self.assertTrue(any(line.startswith('setblock 20 ') and 'dispenser' in line for line in item['setup']))
+            self.assertTrue(item['spawn_commands'][0].endswith('redstone_block'))
+
+    def test_range_walks_one_block_per_step_out_and_back(self):
+        items = sweep.range_items(type('Args', (), {'items': 'all'})())
+        self.assertEqual([item['key'] for item in items],
+                         ['east-out', 'east-in', 'diagonal-out', 'diagonal-in', 'west-out', 'west-in', 'jump'])
+        east = items[0]['path']
+        self.assertEqual(len(east), 73)
+        self.assertEqual(east[0], [48.5, 8.5])
+        self.assertEqual(east[1][0] - east[0][0], 1)
+        self.assertEqual(items[1]['path'], east[::-1])
+        self.assertEqual(items[-1]['ticks'], 60)
+        self.assertEqual(len(sweep.range_items(type('Args', (), {'items': 'pilot'})())), 1)
+
     def test_reload_phases_name_the_same_zombies(self):
         def items(which):
             return sweep.reload_items(type('Args', (), {'items': which})())
@@ -244,6 +271,73 @@ class ReplicationFixture(unittest.TestCase):
         self.assertEqual(wire[0]['add'], {'pos': [0.5, -40.0, 0.5], 'vel': [0.0, -1e-05, 0.0]})
         self.assertEqual(wire[1]['rot'], [None, 5, None])
         self.assertEqual(wire[1]['ticks'], 3)
+
+
+class VehicleWireOffset(unittest.TestCase):
+    capture = KnockbackFixture.capture
+
+    def test_a_minecart_is_matched_0_35_above_its_sampled_position(self):
+        add_actor = (varint(4) + varint(2) + varint(len(b'minecraft:minecart')) + b'minecraft:minecart'
+                     + struct.pack('<6f', 32.5, -54.0, 0.5, 0.0, 0.0, 0.0))
+        delta = (varint(2) + b'\x00' + b'\x01' + struct.pack('<f', -54.04) + b'\x00' + b'\x00' * 3
+                 + b'\x00' * 4 + varint(10))
+        capture = list(replication_fixture.packets(self.capture([(1000, 13, add_actor), (1001, 111, delta)])))
+        samples = [{'mob': {'pos': [32.5, -54.35, 0.5]}}, {'mob': {'pos': [32.5, -54.39, 0.5]}}]
+        offset = replication_fixture.wire_offset(2, capture, samples)
+        self.assertAlmostEqual(offset, 0.35, places=4)
+        wire = replication_fixture.wire_for(2, capture, samples, offset)
+        self.assertEqual([(event['sample'], event.get('timed', False)) for event in wire], [(0, False), (1, False)])
+        self.assertEqual(wire[1]['ticks'], 10)
+
+
+class RangeFixture(unittest.TestCase):
+    def test_actor_packets_are_put_on_the_last_mark_before_them(self):
+        def text(message: str) -> bytes:
+            body = message.encode()
+            return varint(9) + b'\x00' + varint(len(body)) + body
+        remove = varint(14) + varint(9)  # unique id -5, zigzag
+        add_actor = varint(13) + varint(7) + varint(3)
+        records = [
+            {'t_ms': 1, 'dir': 's2c', 'id': 14, 'hex': remove.hex()},
+            {'t_ms': 2, 'dir': 's2c', 'id': 9, 'hex': text('bds-sweep:mark east-out 4 104').hex()},
+            {'t_ms': 3, 'dir': 's2c', 'id': 13, 'hex': add_actor.hex()},
+            {'t_ms': 50, 'dir': 's2c', 'id': 9, 'hex': text('bds-sweep:mark east-out 4 105').hex()},
+            {'t_ms': 51, 'dir': 's2c', 'id': 14, 'hex': remove.hex()},
+        ]
+        path = Path(tempfile.mkdtemp()) / 'packets.jsonl'
+        path.write_text('\n'.join(json.dumps(record) for record in records) + '\n', encoding='utf-8')
+        events = list(range_fixture.actor_events(path))
+        self.assertEqual(events, [
+            (('east-out', 4, 104), 'add', ('unique', -4)),
+            (('east-out', 4, 105), 'remove', ('unique', -5)),
+        ])
+
+
+class SpawnBonusFixture(unittest.TestCase):
+    def test_nbt_compounds_lists_and_binary_strings_are_read(self):
+        def named(kind: int, name: str, payload: bytes) -> bytes:
+            return bytes([kind]) + struct.pack('<H', len(name)) + name.encode() + payload
+        modifier = (named(5, 'Amount', struct.pack('<f', 1.25)) + named(3, 'Operation', struct.pack('<i', 2))
+                    + b'\x00')
+        attribute = (named(8, 'Name', struct.pack('<H', 22) + b'minecraft:follow_range')
+                     + named(9, 'Modifiers', bytes([10]) + struct.pack('<i', 1) + modifier) + b'\x00')
+        root = named(10, '', named(8, 'identifier', struct.pack('<H', 16) + b'minecraft:zombie')
+                     + named(8, 'Key', struct.pack('<H', 2) + b'\xff\x00')
+                     + named(9, 'Attributes', bytes([10]) + struct.pack('<i', 1) + attribute) + b'\x00')
+        record = spawn_bonus_fixture.read_nbt(root)
+        self.assertEqual(record['identifier'], 'minecraft:zombie')
+        self.assertEqual(record['Key'], 'hex:ff00')
+        self.assertEqual(record['Attributes'][0]['Modifiers'][0], {'Amount': {'Float': 1.25}, 'Operation': {'Int': 2}})
+
+
+class PlayerRelayFixture(unittest.TestCase):
+    def test_inputs_are_read_by_their_tick(self):
+        body = (varint(144) + struct.pack('<2f', -2.0, 5.0) + struct.pack('<3f', 0.5, -58.38, 0.5)
+                + struct.pack('<2f', 0.0, 1.0) + struct.pack('<f', 5.0) + varint(1) + varint(20) + varint(1)
+                + varint(0) + varint(2) + struct.pack('<2f', 0.0, 0.0) + varint(800))
+        path = Path(tempfile.mkdtemp()) / 'packets.jsonl'
+        path.write_text(json.dumps({'t_ms': 0, 'dir': 'c2s', 'id': 144, 'hex': body.hex()}) + '\n', encoding='utf-8')
+        self.assertEqual(player_relay_fixture.inputs(path), {800: {'pitch': -2.0, 'yaw': 5.0, 'head': 5.0}})
 
 
 if __name__ == '__main__':

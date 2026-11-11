@@ -39,6 +39,9 @@ pub struct NativeTraits {
     /// The class spawns with a random knockback resistance below this
     /// (`mob::combat::knockback`); `None` for no resistance.
     pub knockback_resistance_bonus: Option<f64>,
+    /// The class rolls a follow-range bonus at spawn and saves its
+    /// `minecraft:follow_range` (`mob::spawn_bonus`).
+    pub follow_range_bonus: bool,
 }
 
 /// Which native natural-spawn check an actor class runs.
@@ -59,11 +62,19 @@ impl NativeTraits {
         let ambient_sound_interval = ambient_sound_interval(actor_type);
         let aux_value = zombie_kind(actor_type);
         let variant = skeleton_kind(actor_type);
-        // Measured on the zombie only.
-        let knockback_resistance_bonus = match actor_type {
-            ActorType::Zombie => Some(ZOMBIE_KNOCKBACK_RESISTANCE_BONUS),
-            _ => None,
+        // The zombie classes BDS 1.26.51 saved spawn bonuses for (the
+        // spawn-bonus sweep: zombies, husks, drowned and zombified piglins
+        // all have both; zombie villagers neither).
+        let zombie_bonuses = matches!(
+            actor_type,
+            ActorType::Zombie | ActorType::Husk | ActorType::Drowned | ActorType::ZombiePigman
+        );
+        let knockback_resistance_bonus = if zombie_bonuses {
+            Some(ZOMBIE_KNOCKBACK_RESISTANCE_BONUS)
+        } else {
+            None
         };
+        let follow_range_bonus = zombie_bonuses;
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -74,6 +85,7 @@ impl NativeTraits {
                 aux_value,
                 variant,
                 knockback_resistance_bonus,
+                follow_range_bonus,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -84,6 +96,7 @@ impl NativeTraits {
                 aux_value,
                 variant,
                 knockback_resistance_bonus,
+                follow_range_bonus,
             },
         }
     }

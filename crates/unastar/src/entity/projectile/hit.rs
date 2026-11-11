@@ -195,7 +195,10 @@ fn rebound(world: &mut World, projectile: Entity, rules: &ProjectileRules, appli
 }
 
 /// `stick_in_ground`: stop at the hit point and shake for `shake` ticks
-/// (`ActorEvent` 39 with the shake time, as BDS sends for arrows).
+/// (`ActorEvent` 39 with the shake time, as BDS sends for arrows). From the
+/// tick of the hit the projectile is on the ground with no motion (BDS
+/// 1.26.51: falling and dispensed arrows stop exactly where their flight met
+/// the block, to 1e-6, grounded, and send one zero `SetActorMotion`).
 fn stick(world: &mut World, projectile: Entity, at: DVec3, shake: u32) {
     let now = world
         .resource::<crate::ecs::resources::TickCounter>()
@@ -204,6 +207,7 @@ fn stick(world: &mut World, projectile: Entity, at: DVec3, shake: u32) {
         super::Stuck { since: now },
         crate::entity::components::Position(at),
         crate::entity::components::Velocity(DVec3::ZERO),
+        crate::entity::components::OnGround(true),
     ));
     crate::entity::mob::combat::send_actor_event(
         world,

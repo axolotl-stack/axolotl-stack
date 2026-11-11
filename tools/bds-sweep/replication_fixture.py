@@ -1,4 +1,4 @@
-"""Distil `sweep.py knockback --items cadence|cadence2 --observer
+"""Distil `sweep.py knockback --items cadence|cadence2|cadence3 --observer
 --client-capture` runs into the committed replication fixture
 (`crates/unastar/src/entity/mob/net/testdata/bds-1.26.51-replication.json`).
 
@@ -9,8 +9,10 @@ position, ground contact, pitch and yaw), where each viewer stood (the sweep
 player and the observer client), the hits and timed commands, and, from each
 viewer's packet capture, the actor's `AddActor`, every `MoveActorDelta` and
 every `SetActorMotion`, each tied to the sample it reports. A delta that
-carries a position is matched to the sample with that position; a
-rotation-only delta and a motion packet are counted in 50 ms ticks from the
+carries a position is matched to the closest sample with that position (plus the
+actor's `wire_offset`: a minecart is sent 0.35 and a boat 0.375 above the
+position Endstone reports, seen as the `AddActor` against the spawn sample);
+a rotation-only delta and a motion packet are counted in 50 ms ticks from the
 last matched packet (`timed`). Only observed values are kept: no packet
 bytes, no login data.
 """
@@ -96,7 +98,20 @@ def r6(values):
 SAME_BATCH_MS = 6
 
 
-def wire_for(rid: int, capture: list, samples: list) -> list[dict]:
+def wire_offset(rid: int, capture: list, samples: list) -> float:
+    """How far above the sampled position the actor is sent: its `AddActor`
+    against the spawn sample, when they differ in y only."""
+    for _, decoded in capture:
+        if decoded.get('rid') == rid and decoded['kind'] == 'add':
+            spawn = samples[0]['mob']['pos']
+            dx, dy, dz = (decoded['pos'][axis] - spawn[axis] for axis in range(3))
+            if abs(dx) < 1e-6 and abs(dz) < 1e-6 and abs(dy) > 1e-4:
+                return round(dy, 4)
+            return 0.0
+    return 0.0
+
+
+def wire_for(rid: int, capture: list, samples: list, offset: float = 0.0) -> list[dict]:
     """The actor's packets as one viewer received them, each tied to a sample.
     A delta with a position is matched to the sample with that position (an
     anchor; the `AddActor` batch is an anchor for sample 1). Any other packet
@@ -111,13 +126,21 @@ def wire_for(rid: int, capture: list, samples: list) -> list[dict]:
         if decoded['kind'] == 'add':
             anchors.append((t_ms, 1))
         elif decoded['kind'] == 'delta' and any(v is not None for v in decoded['pos']):
+            # The closest sample within 2e-5 (the first of equally close
+            # ones): a settling actor moves less than that per tick.
+            best = None
             for candidate in range(cursor, len(samples)):
                 pos = samples[candidate]['mob']['pos']
-                if all(v is None or abs(v - pos[axis]) < 2e-5 for axis, v in enumerate(decoded['pos'])):
-                    matched[order] = candidate
-                    anchors.append((t_ms, candidate))
-                    cursor = candidate
+                pos = [pos[0], pos[1] + offset, pos[2]]
+                error = max(abs(v - pos[axis]) for axis, v in enumerate(decoded['pos']) if v is not None)
+                if error < 2e-5 and (best is None or error < best[0]):
+                    best = (error, candidate)
+                elif best is not None and error >= 2e-5:
                     break
+            if best is not None:
+                matched[order] = best[1]
+                anchors.append((t_ms, best[1]))
+                cursor = best[1]
     if mine and mine[0][1]['kind'] != 'add':
         raise SystemExit(f'actor {rid}: {mine[0][1]["kind"]} before its AddActor')
 
@@ -185,21 +208,25 @@ def distil(trial: dict, captures: dict, job_item: dict) -> dict:
                      'source': r6(event['source']['pos']) if event['source'] else None,
                      'push': r6(event['knockback'])})
     viewers = {}
+    offset = wire_offset(trial['runtime_id'], next(iter(captures.values())), samples)
     for viewer, capture in captures.items():
         place = positions(samples, viewer)
         if not place:
             continue
-        viewers[viewer] = {'positions': place, 'wire': wire_for(trial['runtime_id'], capture, samples)}
-    return {
+        viewers[viewer] = {'positions': place, 'wire': wire_for(trial['runtime_id'], capture, samples, offset)}
+    distilled = {
         'actor': trial['mob'],
         'frozen': trial['frozen'],
         'spec': {k: job_item[k] for k in ('at', 'hits', 'settle', 'tail', 'player', 'observer', 'setup',
-                                          'actions', 'effects', 'tool') if k in job_item},
+                                          'actions', 'effects', 'tool', 'spawn_commands') if k in job_item},
         # x, y, z, on ground (0/1), pitch, yaw of the actor after each tick.
         'samples': [r6(s['mob']['pos']) + [int(s['mob']['ground'])] + r6(s['mob']['rot']) for s in samples],
         'hits': hits,
         'viewers': viewers,
     }
+    if offset:
+        distilled['wire_offset'] = offset
+    return distilled
 
 
 def main() -> int:
@@ -220,9 +247,9 @@ def main() -> int:
         'bds_version': '1.26.51',
         'protocol': sources[0]['protocol_version'],
         'sources': sources,
-        'method': 'tools/bds-sweep/sweep.py knockback --items cadence / cadence2 --observer --client-capture '
-                  '--view-distance 10 --tick-distance 10; Endstone per-tick samples, ActorKnockbackEvent, '
-                  'packet captures of two clients (player, observer)',
+        'method': 'tools/bds-sweep/sweep.py knockback --items cadence / cadence2 / cadence3 --observer '
+                  '--client-capture --view-distance 10 --tick-distance 10; Endstone per-tick samples, '
+                  'ActorKnockbackEvent, packet captures of two clients (player, observer)',
         'trials': trials,
     }
     out.write_text(json.dumps(fixture, separators=(',', ':')) + '\n', encoding='utf-8', newline='\n')
