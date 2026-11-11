@@ -21,17 +21,13 @@
 //! same players online listed them differently); unastar lists players in
 //! join order.
 
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD;
 use bevy_ecs::prelude::{Component, Entity, World};
 use bytes::{BufMut, Bytes, BytesMut};
 use jolyne::auth::ClientData;
 use jolyne::valentine::types::{
-    ActorUniqueId, AdventureSettings, AnimatedImageData, EnumsBuildPlatform,
-    EnumsPlayerListPacketType, EnumsSharedTypespersonaArmSizeType, EnumspersonaAnimatedTextureType,
-    EnumspersonaAnimationExpression, MceColor, PlayerListPacketEntriesItem,
-    PlayerListPacketPayloadAddEntry, PlayerListPacketPayloadAddEntryAction,
-    PlayerListPacketPayloadRemoveEntry, SerializedSkinRef, SkinImage,
+    ActorUniqueId, AdventureSettings, EnumsBuildPlatform, EnumsPlayerListPacketType, MceColor,
+    PlayerListPacketEntriesItem, PlayerListPacketPayloadAddEntry,
+    PlayerListPacketPayloadAddEntryAction, PlayerListPacketPayloadRemoveEntry,
 };
 use jolyne::valentine::{LevelEventGenericPacket, PlayerListPacket, UpdateAdventureSettingsPacket};
 use uuid::Uuid;
@@ -196,108 +192,10 @@ pub fn build_platform(device_os: i32) -> EnumsBuildPlatform {
         .expect("every i32 decodes to a build platform")
 }
 
-fn base64(value: &str) -> Vec<u8> {
-    // The login validator has already checked every image and JSON field.
-    STANDARD.decode(value).unwrap_or_default()
-}
+mod skin;
+pub use skin::skin;
 
-fn image(data: &str, width: u32, height: u32) -> SkinImage {
-    SkinImage {
-        width,
-        height,
-        image_bytes: base64(data),
-    }
-}
-
-/// `#rrggbb` as an RGB integer without alpha, as BDS echoes `SkinColor`.
-/// [INFERENCE] A malformed colour (the login validator does not check it) is 0.
-fn skin_colour(value: &str) -> i32 {
-    value
-        .strip_prefix('#')
-        .and_then(|hex| i32::from_str_radix(hex, 16).ok())
-        .unwrap_or(0)
-}
-
-/// The serialized skin BDS forwards for a login. Measured for a plain custom
-/// skin (`crates/bds-extractor/captures/1.26.51/member/join/00012-*`): ids,
-/// images, resource patch and colour are echoed; an empty geometry becomes
-/// `null` followed by a newline and an empty geometry engine version
-/// `0.0.0`; the trusted flag is the string `false`. Persona pieces and tint
-/// colours are not forwarded yet.
-pub fn skin(client: &ClientData) -> SerializedSkinRef {
-    let geometry = String::from_utf8(base64(&client.skin_geometry)).unwrap_or_default();
-    SerializedSkinRef {
-        id: client.skin_id.as_str().into(),
-        play_fab_id: client.playfab_id.as_str().into(),
-        resource_patch: String::from_utf8(base64(&client.skin_resource_patch))
-            .unwrap_or_default()
-            .into(),
-        image_data: image(
-            &client.skin_data,
-            client.skin_image_width,
-            client.skin_image_height,
-        ),
-        animated_image_data: client
-            .animated_image_data
-            .iter()
-            .map(|animation| AnimatedImageData {
-                skin_image: image(
-                    &animation.image,
-                    animation.image_width,
-                    animation.image_height,
-                ),
-                animated_texture_type: match animation.animation_type {
-                    1 => EnumspersonaAnimatedTextureType::Face,
-                    2 => EnumspersonaAnimatedTextureType::Body32X32,
-                    3 => EnumspersonaAnimatedTextureType::Body128X128,
-                    _ => EnumspersonaAnimatedTextureType::None,
-                },
-                frames: animation.frames as f32,
-                animation_expression: match animation.animation_expression {
-                    1 => EnumspersonaAnimationExpression::Blinking,
-                    _ => EnumspersonaAnimationExpression::Linear,
-                },
-            })
-            .collect(),
-        cape_image_data: image(
-            &client.cape_data,
-            client.cape_image_width,
-            client.cape_image_height,
-        ),
-        // [INFERENCE] A non-empty geometry is forwarded as the client sent it.
-        geometry_data: if geometry.is_empty() {
-            "null\n".into()
-        } else {
-            geometry.into()
-        },
-        geometry_data_min_engine_version: if client.skin_geometry_version.is_empty() {
-            "0.0.0".into()
-        } else {
-            client.skin_geometry_version.as_str().into()
-        },
-        animation_data: client.skin_animation_data.as_str().into(),
-        cape_id: client.cape_id.as_str().into(),
-        // [INFERENCE] Skin id then cape id; measured only without a cape.
-        full_id: format!("{}{}", client.skin_id, client.cape_id).into(),
-        arm_size: if client.arm_size == "slim" {
-            EnumsSharedTypespersonaArmSizeType::Slim
-        } else {
-            EnumsSharedTypespersonaArmSizeType::Wide
-        },
-        skin_color: MceColor {
-            color: skin_colour(&client.skin_colour),
-        },
-        persona_pieces: Vec::new(),
-        piece_tint_colors: Vec::new(),
-        is_premium: client.premium_skin,
-        is_persona: client.persona_skin,
-        is_persona_cape_on_classic_skin: client.cape_on_classic_skin,
-        is_primary_user: false,
-        overrides_player_appearance: client.override_skin,
-        trusted_skin_flag: "false".into(),
-        profile_hash: client.profile_hash.as_str().into(),
-    }
-}
-
+#[cfg(test)]
+mod probe_tests;
 #[cfg(test)]
 mod tests;

@@ -1,0 +1,66 @@
+[
+ {
+  "unix": 1794417534.025,
+  "command": "gamemode creative BDSExtractor2"
+ },
+ {
+  "unix": 1794417537.024,
+  "command": "deop BDSExtractor2"
+ },
+ {
+  "unix": 1794417540.025,
+  "command": "op BDSExtractor2"
+ },
+ {
+  "unix": 1794417543.025,
+  "command": "gamemode adventure BDSExtractor2"
+ },
+ {
+  "unix": 1794417546.025,
+  "command": "deop BDSExtractor2"
+ },
+ {
+  "unix": 1794417549.025,
+  "command": "op BDSExtractor2"
+ },
+ {
+  "unix": 1794417552.024,
+  "command": "gamemode spectator BDSExtractor2"
+ },
+ {
+  "unix": 1794417555.025,
+  "command": "deop BDSExtractor2"
+ },
+ {
+  "unix": 1794417558.025,
+  "command": "op BDSExtractor2"
+ },
+ {
+  "unix": 1794417561.025,
+  "command": "gamemode survival BDSExtractor2"
+ },
+ {
+  "unix": 1794417564.024,
+  "command": "deop BDSExtractor2"
+ },
+ {
+  "unix": 1794417567.024,
+  "command": "op BDSExtractor2"
+ },
+ {
+  "unix": 1794417579.576,
+  "command": "defaultgamemode creative"
+ },
+ {
+  "unix": 1794417589.632,
+  "command": "defaultgamemode adventure"
+ },
+ {
+  "unix": 1794417599.395,
+  "command": "defaultgamemode spectator"
+ },
+ {
+  "unix": 1794417609.018,
+  "command": "defaultgamemode survival"
+ }
+]

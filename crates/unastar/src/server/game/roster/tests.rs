@@ -259,6 +259,22 @@ mod server {
         std::iter::from_fn(|| rx.try_recv().ok().map(|packet| packet.data)).collect()
     }
 
+    /// The targets of the `UpdateAbilities` that directly follow the last
+    /// `PlayerList` of a join.
+    fn abilities_after_full_list(packets: &[McpePacketData]) -> Vec<i64> {
+        let last = packets
+            .iter()
+            .rposition(|packet| matches!(packet, McpePacketData::PlayerListPacket(_)))
+            .expect("a full list");
+        packets[last + 1..]
+            .iter()
+            .map_while(|packet| match packet {
+                McpePacketData::UpdateAbilitiesPacket(p) => Some(p.data.target_player_raw_id),
+                _ => None,
+            })
+            .collect()
+    }
+
     fn player_lists(packets: &[McpePacketData]) -> Vec<Vec<String>> {
         packets
             .iter()
@@ -296,8 +312,12 @@ mod server {
                 McpePacketData::PlayerListPacket(_)
             ]
         ));
+        // After the full list, each listed player's abilities in list order
+        // (`protocol/abilities` joins: the host's, then the joiner's own).
+        assert_eq!(abilities_after_full_list(&host_join), [1]);
         let mut guest = join(&mut server, 2, "Guest");
         let guest_join = drain(&mut guest);
+        assert_eq!(abilities_after_full_list(&guest_join), [1, 2]);
         assert_eq!(
             player_lists(&guest_join),
             [
@@ -317,18 +337,25 @@ mod server {
         let names: Vec<_> = announced.iter().map(|packet| packet.packet_id()).collect();
         let position = |name| names.iter().position(|n| *n == name);
         use jolyne::valentine::McpePacketName as N;
-        let (Some(count), Some(list), Some(settings), Some(add_player)) = (
+        let (Some(count), Some(list), Some(settings), Some(abilities), Some(add_player)) = (
             position(N::LevelEventGenericPacket),
             position(N::PlayerListPacket),
             position(N::UpdateAdventureSettingsPacket),
+            position(N::UpdateAbilitiesPacket),
             position(N::AddPlayerPacket),
         ) else {
             panic!("host did not hear of the guest: {names:?}");
         };
+        // `protocol/relay` host: list, adventure settings, the newcomer's
+        // abilities, then its AddPlayer.
         assert!(
-            count < list && list < settings && settings < add_player,
+            count < list && list < settings && settings < abilities && abilities < add_player,
             "{names:?}"
         );
+        assert!(matches!(
+            &announced[abilities],
+            McpePacketData::UpdateAbilitiesPacket(p) if p.data.target_player_raw_id == 2
+        ));
         assert_eq!(
             announced[list],
             McpePacketData::PlayerListPacket(super::super::add_packet([&guest_entry]))

@@ -1,0 +1,43 @@
+# The console changes permissions and game modes (CONSOLE) during this wait.
+!wait 42000
+!interact mouseover peer
+!interact mouseover peer 1.5 2.5 3.5
+!interact mouseover 0
+!interact stop-riding self
+!interact stop-riding peer
+!interact npc-open peer
+!pick-actor peer
+!pick-actor peer 9 data
+!pick-actor actor
+!pick-actor actor 9 data
+/gamemode creative @s
+!pick-actor peer
+!pick-actor actor
+!pick-actor actor 9 data
+/gamemode survival @s
+!emote 4c8ae710-df2e-47cd-814d-cc7bf21a3d67
+!emote 4c8ae710-df2e-47cd-814d-cc7bf21a3d67 2 40
+!emote-list 4c8ae710-df2e-47cd-814d-cc7bf21a3d67
+!animate swing
+!animate wake-up
+!animate critical-hit
+!animate magic-critical-hit
+/replaceitem entity @s slot.hotbar 0 writable_book
+!book 0 replace 0 first page
+!book 0 add 1 second page
+!book 0 replace 3 fourth page
+/replaceitem entity @s slot.hotbar 8 stone
+!book 0 swap 0 1
+!book 0 delete 1
+/replaceitem entity @s slot.hotbar 8 dirt
+!book 0 replace 0 last words
+!book 0 sign ProbeTitle ProbeAuthor
+/replaceitem entity @s slot.hotbar 8 stone
+!party-changed
+!party-changed probe-party true
+!packs-ready
+!ddui-closed 1 clientcanceled
+!data-store probe_store probe_property probe_path 1
+!cookie probe-cookie true
+!blob-status missing=1 found=2
+!wait 3000

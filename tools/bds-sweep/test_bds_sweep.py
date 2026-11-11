@@ -10,9 +10,13 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import base64  # noqa: E402
+
 import bds_runtime  # noqa: E402
 import capture  # noqa: E402
+import commit_protocol_fixtures  # noqa: E402
 import native  # noqa: E402
+import protocol_probe  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
 
@@ -143,6 +147,47 @@ class PairCaptureTest(unittest.TestCase):
         self.assertEqual(command[command.index('--name') + 1], 'G')
         self.assertEqual(command[command.index('--settle') + 1], '4')
         self.assertNotIn('--commands', command)
+
+
+class ProtocolProbeTest(unittest.TestCase):
+    def test_client_data_images_match_their_dimensions(self):
+        for data in [protocol_probe.client_data('classic'), protocol_probe.client_data('persona'),
+                     *(protocol_probe.variant(kind) for kind in ('all-pieces', 'floats', 'odd'))]:
+            width, height = data.get('SkinImageWidth', 64), data.get('SkinImageHeight', 64)
+            self.assertEqual(len(base64.b64decode(data['SkinData'])), width * height * 4)
+            self.assertEqual(len(base64.b64decode(data['CapeData'])), 64 * 32 * 4)
+
+    def test_skin_cases_cover_every_type_once_for_pieces_and_tints(self):
+        cases = protocol_probe.skin_cases()
+        types = len(protocol_probe.PIECE_TYPES) + 1  # and persona_bogus
+        self.assertEqual(sum(name.startswith('piece-') for name in cases), types)
+        self.assertEqual(sum(name.startswith('tint-') for name in cases), types + 1)  # and bogus_type
+        self.assertNotIn('persona_hands', protocol_probe.PIECE_TYPES)
+
+    def test_extractor_command_passes_skins_and_the_blob_cache(self):
+        command = capture.extractor_command(Path('x.exe'), Path('out'), client_data=Path('skin.json'),
+                                            blob_cache=True)
+        self.assertEqual(command[command.index('--client-data') + 1], 'skin.json')
+        self.assertIn('--blob-cache', command)
+
+    def test_fixture_timelines_start_after_the_join(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            session, target = Path(tmp) / 'guest', Path(tmp) / 'out'
+            session.mkdir()
+            (session / 'manifest.json').write_text(json.dumps({'phases': {'join_end': 2}}), encoding='utf-8')
+            records = [
+                {'seq': 0, 't_ms': 0, 'dir': 's2c', 'name': 'EmotePacket', 'hex': '8a01'},
+                {'seq': 2, 't_ms': 5, 'dir': 'c2s', 'name': 'EmotePacket', 'hex': '8a01'},
+                {'seq': 3, 't_ms': 6, 'dir': 's2c', 'name': 'MoveActorDeltaPacket', 'hex': '6f'},
+            ]
+            (session / 'packets.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in records),
+                                                   encoding='utf-8')
+            copied = commit_protocol_fixtures.copy_session(session, target, None, False)
+            self.assertEqual(copied, 2)
+            self.assertTrue((target / '00000-EmotePacket.bin').exists())
+            self.assertTrue((target / 'sent' / '00002-EmotePacket.bin').exists())
+            timeline = json.loads((target / 'timeline.json').read_text(encoding='utf-8'))
+            self.assertEqual([entry[0] for entry in timeline], [2, 3])
 
 
 if __name__ == '__main__':

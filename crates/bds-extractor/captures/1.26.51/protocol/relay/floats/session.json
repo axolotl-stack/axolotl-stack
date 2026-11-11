@@ -1,0 +1,83 @@
+{
+  "bds_version": "26.51",
+  "server": "bedrock_server.exe (no Endstone)",
+  "server_properties": {
+    "server-name": "bds-sweep bds-extractor-1.26.51",
+    "server-port": 19170,
+    "server-portv6": 19171,
+    "online-mode": "false",
+    "enable-lan-visibility": "false",
+    "allow-cheats": "true",
+    "level-name": "bds-extractor-1.26.51",
+    "max-players": 4,
+    "content-log-file-enabled": "false",
+    "default-player-permission-level": "operator",
+    "level-seed": 12345,
+    "gamemode": "survival",
+    "difficulty": "easy"
+  },
+  "extractor_command": [
+    "bds-extractor",
+    "--addr",
+    "127.0.0.1:19170",
+    "--name",
+    "BDSExtractor3",
+    "--timeout",
+    "120",
+    "--capture-dir",
+    "C:\\Users\\jvigu\\orca\\bds-slots\\slot3\\captures\\1.26.51\\protocol-relay2-20261111T171243Z\\floats",
+    "--log",
+    "info",
+    "--settle",
+    "3",
+    "--client-data",
+    "C:\\Users\\jvigu\\orca\\bds-slots\\slot3\\captures\\1.26.51\\protocol-relay2-20261111T171243Z\\floats-client-data.json"
+  ],
+  "started_unix": 1794417292.634,
+  "console": [
+    [
+      8,
+      "deop BDSExtractor2"
+    ],
+    [
+      11,
+      "op BDSExtractor2"
+    ],
+    [
+      14,
+      "gamemode creative BDSExtractor2"
+    ],
+    [
+      17,
+      "gamemode adventure BDSExtractor2"
+    ],
+    [
+      20,
+      "gamemode spectator BDSExtractor2"
+    ],
+    [
+      23,
+      "gamemode survival BDSExtractor2"
+    ],
+    [
+      26,
+      "gamemode creative BDSExtractor"
+    ],
+    [
+      29,
+      "gamemode survival BDSExtractor"
+    ],
+    [
+      32,
+      "deop BDSExtractor"
+    ],
+    [
+      35,
+      "op BDSExtractor"
+    ],
+    [
+      38,
+      "summon minecraft:cow 103 ~ -25"
+    ]
+  ]
+}

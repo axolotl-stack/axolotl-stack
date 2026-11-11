@@ -4,6 +4,7 @@
 //! (items, blocks, creative content, etc.) for code generation, or records a
 //! whole session as packet fixtures (`--capture-dir`).
 
+mod actions;
 mod capture;
 mod debug_json;
 mod output;
@@ -70,6 +71,15 @@ struct Args {
     #[arg(long, default_value = "1500", requires = "capture_dir")]
     command_wait: u64,
 
+    /// Capture mode: a JSON object of login ClientData fields (as the client
+    /// sends them, e.g. `SkinData`, `PersonaPieces`) replacing jolyne's defaults
+    #[arg(long, requires = "capture_dir")]
+    client_data: Option<PathBuf>,
+
+    /// Capture mode: claim a chunk blob cache in ClientCacheStatus
+    #[arg(long, requires = "capture_dir")]
+    blob_cache: bool,
+
     /// Log level filter
     #[arg(long, default_value = "info")]
     log: String,
@@ -125,6 +135,18 @@ async fn run(args: Args) -> Result<()> {
             .map(read_commands)
             .transpose()?
             .unwrap_or_default();
+        let client_data = args
+            .client_data
+            .as_deref()
+            .map(
+                |path| -> Result<serde_json::Map<String, serde_json::Value>> {
+                    let text = std::fs::read_to_string(path)
+                        .with_context(|| format!("reading {}", path.display()))?;
+                    serde_json::from_str(&text)
+                        .with_context(|| format!("{} is not a JSON object", path.display()))
+                },
+            )
+            .transpose()?;
         return capture::run(&capture::Options {
             addr,
             name: args.name,
@@ -135,6 +157,8 @@ async fn run(args: Args) -> Result<()> {
             summon_wait: Duration::from_secs(args.summon_wait),
             commands,
             command_wait: Duration::from_millis(args.command_wait),
+            client_data,
+            blob_cache: args.blob_cache,
         })
         .await;
     }
@@ -156,16 +180,16 @@ async fn run(args: Args) -> Result<()> {
     Ok(())
 }
 
-/// The commands of a `--commands` script, without their leading `/`.
-fn read_commands(path: &Path) -> Result<Vec<String>> {
+/// The steps of a `--commands` script: commands without their leading `/`,
+/// and `!` client actions ([`actions`]).
+fn read_commands(path: &Path) -> Result<Vec<actions::Step>> {
     let text = std::fs::read_to_string(path)
         .with_context(|| format!("reading commands from {}", path.display()))?;
-    Ok(text
-        .lines()
+    text.lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .map(|line| line.strip_prefix('/').unwrap_or(line).to_owned())
-        .collect())
+        .map(actions::parse_line)
+        .collect()
 }
 
 fn load_fixture(path: &Path) -> Result<output::ExtractedData> {

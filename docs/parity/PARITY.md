@@ -18,9 +18,9 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
-| [Protocol](#protocol) | 231 | 127 | 24 | 46 | 19 | 15 | 30.1% |
+| [Protocol](#protocol) | 231 | 118 | 26 | 44 | 28 | 15 | 33.3% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
-| [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
+| [Gameplay systems](#gameplay-systems) | 72 | 34 | 34 | 4 | 0 | 0 | 5.6% |
 
 ## Where to help
 
@@ -77,13 +77,12 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Commands | lane COMMANDS | 2026-10-29 | 65 |
 
-**Protocol**: 151 open rows free, 0 claimed.
+**Protocol**: 144 open rows free, 0 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
-| clientbound | 89 | 78 | 11 |
-| bidirectional | 57 | 44 | 13 |
-| serverbound | 5 | 5 | 0 |
+| clientbound | 89 | 77 | 12 |
+| bidirectional | 55 | 41 | 14 |
 
 Nothing in this domain is claimed.
 
@@ -101,7 +100,7 @@ Nothing in this domain is claimed.
 | player | 16 | 5 | 11 |
 | world (part claimed) | 14 | 6 | 8 |
 | mobs | 10 | 8 | 2 |
-| interface | 6 | 4 | 2 |
+| interface | 6 | 3 | 3 |
 | crafting (part claimed) | 4 | 2 | 2 |
 | platform | 3 | 0 | 3 |
 
@@ -627,35 +626,31 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| bidirectional | 80 | 44 | 13 | 16 | 1 | 6 | 23.0% |
-| clientbound | 146 | 78 | 11 | 30 | 18 | 9 | 35.0% |
-| serverbound | 5 | 5 | 0 | 0 | 0 | 0 | 0.0% |
+| bidirectional | 80 | 41 | 14 | 15 | 4 | 6 | 25.7% |
+| clientbound | 146 | 77 | 12 | 29 | 19 | 9 | 35.0% |
+| serverbound | 5 | 0 | 0 | 0 | 5 | 0 | 100.0% |
 
 ### Protocol gaps
 
 **bidirectional**
 
 - `ActorEventPacket`: sent for hurt, death, respawn and mob events; client-sent actor events (eating particles, feeding) are ignored
-- `AnimatePacket`: client swings are relayed to nearby players; the server never originates animations (critical hits, wake up, rowing)
+- `AnimatePacket`: client swings are relayed to nearby players (other client actions are not, as BDS); the server never originates animations (critical hits, wake up, rowing)
 - `BlockActorDataPacket`: sent for containers only (matches the BDS chest capture); client edits such as signs are not handled
-- `InteractPacket`: only open-inventory is handled; leave-vehicle, mouse-over and other actions are ignored
-- `InventoryTransactionPacket`: block clicks, use-on-actor and throwables handled; item use in the air (eating, bows) and release actions are ignored
-- 8 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `ActorPickRequestPacket`, `AnvilDamagePacket`, `AutomationClientConnectPacket`, `BookEditPacket`, `BossEventPacket`, `ClientCacheBlobStatusPacket`, `ClientCacheStatusPacket`, `ClientCameraAimAssistPacket`, `ClientMovementPredictionSyncPacket`, `CommandBlockUpdatePacket`, `DebugInfoPacket`, `EmoteListPacket` and 32 more
+- `ClientCacheBlobStatusPacket`: answered with a ClientCacheMissResponse like BDS, but unastar holds no blobs because it never sends cached chunks (ClientCacheStatusPacket)
+- `InteractPacket`: only open-inventory is handled; leaving a vehicle while riding and NPC dialogue are not; BDS answers mouse-over, leave-vehicle when not riding and NPC-open on a player with nothing either (protocol/relay)
+- 9 more partial rows with other gaps (see [protocol.toml](protocol.toml))
+- missing: `ActorPickRequestPacket`, `AnvilDamagePacket`, `AutomationClientConnectPacket`, `BookEditPacket`, `BossEventPacket`, `ClientCacheStatusPacket`, `ClientCameraAimAssistPacket`, `ClientMovementPredictionSyncPacket`, `CommandBlockUpdatePacket`, `DebugInfoPacket`, `LecternUpdatePacket`, `MapCreateLockedCopyPacket` and 29 more
 
 **clientbound**
 
-- `AddPlayerPacket`: sent to other players on join and chunk view, but untested and not preceded by a PlayerList entry (no skin)
+- `AddPlayerPacket`: sent to other players on join and chunk view with the player's abilities, but untested: actor metadata, device id, build platform and held item differ from BDS (protocol/relay captures)
 - `BlockEventPacket`: chest lid open/close only; note blocks, pistons, bells and other block events missing
+- `ClientCacheMissResponsePacket`: always empty: unastar never sends cached chunks, so it has no blobs to answer with
 - `CompletedUsingItemPacket`: sent when food is eaten, milk is drunk and a crossbow finishes loading; potions cannot be drunk, so no completion is sent for them
 - `ContainerSetDataPacket`: furnace-family progress only; brewing stands and other data-bearing containers missing
-- `LevelEventGenericPacket`: only the sleeping-player count (9801) on join and leave; no sleeping, so the sleeping count is always 0; BDS sends the joining player its count before StartGame, unastar right after it; music (/music), particle-line and other generic events are not sent
-- 6 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraShakePacket`, `ChangeDimensionPacket`, `ChangeMobPropertyPacket` and 66 more
-
-**serverbound**
-
-- missing: `PartyChangedPacket`, `PartyDestinationCookieResponsePacket`, `ResourcePacksReadyForValidationPacket`, `ServerboundDataDrivenScreenClosedPacket`, `ServerboundDataStorePacket`
+- 7 more partial rows with other gaps (see [protocol.toml](protocol.toml))
+- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraShakePacket`, `ChangeDimensionPacket`, `ChangeMobPropertyPacket` and 65 more
 
 ## World generation
 
@@ -796,7 +791,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | crafting | 12 | 8 | 4 | 0 | 0 | 0 | 0.0% |
-| interface | 6 | 4 | 2 | 0 | 0 | 0 | 0.0% |
+| interface | 6 | 3 | 3 | 0 | 0 | 0 | 0.0% |
 | mobs | 10 | 8 | 2 | 0 | 0 | 0 | 0.0% |
 | performance | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | platform | 6 | 0 | 3 | 3 | 0 | 0 | 50.0% |
@@ -816,8 +811,9 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **interface**
 
 - `interface.chat`: plain chat is relayed (cancellable by plugins) and /tell, /me, /say and /list answer like BDS; no /tellraw, and plain chat formatting is not checked against BDS
+- `interface.player_list`: the player list, classic and persona skins and emotes match BDS; in-game skin changes (PlayerSkinPacket) and the locator bar are not implemented
 - `interface.sounds_particles`: block break/place, cracking, container, door-break and some mob sounds and particles; no PlaySound/SpawnParticleEffect, client sounds are not relayed, most actions are silent
-- missing: `interface.camera`, `interface.player_list`, `interface.scoreboard`, `interface.titles_hud`
+- missing: `interface.camera`, `interface.scoreboard`, `interface.titles_hud`
 
 **mobs**
 

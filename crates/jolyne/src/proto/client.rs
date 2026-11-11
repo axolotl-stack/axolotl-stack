@@ -57,6 +57,7 @@ struct Shared {
     chunk_radius: i32,
     packs: ClientPackPolicy,
     require_encryption: bool,
+    blob_cache: bool,
 }
 
 fn decode(packet: RawPacket) -> Result<McpePacket, JolyneError> {
@@ -91,6 +92,7 @@ impl ClientSettings {
                 chunk_radius: config.chunk_radius,
                 packs: config.packs.clone(),
                 require_encryption: config.require_encryption,
+                blob_cache: config.blob_cache,
             },
         })
     }
@@ -276,12 +278,13 @@ impl Phase for ClientHandshake {
         match result {
             Ok(false) => Ok(Step::Wait(self)),
             Ok(true) => {
-                // Tell the server we have no blob cache, then expect packs.
+                // Tell the server whether we claim a blob cache (by default
+                // not), then expect packs.
                 let sent = self
                     .conn
                     .queue_packet(
                         &McpePacket::from(ClientCacheStatusPacket {
-                            iscachesupported: false,
+                            iscachesupported: self.shared.blob_cache,
                         }),
                         now,
                     )

@@ -1,0 +1,7 @@
+# Quiet the world: no spawns, no random ticks, fixed time and weather.
+/gamerule domobspawning false
+/gamerule randomtickspeed 0
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/kill @e[type=!player]
+!wait 240000

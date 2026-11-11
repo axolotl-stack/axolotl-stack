@@ -62,6 +62,19 @@ CommandRequest, exactly like the summons, waiting `--command-wait`
 milliseconds (default 1500) after each so every server packet is attributable
 to the command before it.
 
+Lines starting with `!` are client actions instead of commands: `!wait MS`,
+`!interact`, `!pick-actor`, `!emote`, `!emote-list`, `!animate`, `!book`,
+`!blob-status`, `!party-changed`, `!packs-ready`, `!ddui-closed`,
+`!data-store` and `!cookie` send the packet a client would (syntax in
+`src/actions.rs`; targets `self`, `peer` for the last `AddPlayer`, `actor`
+for the last `AddActor`, or a runtime id). They are attributed in
+`command-outputs.json` like commands. `--client-data FILE` logs in with the
+login ClientData fields of a JSON object (a custom or persona skin) over
+jolyne's defaults; `--blob-cache` claims a chunk blob cache in
+`ClientCacheStatus`. When the server ends the session during the scripted
+steps (a refused packet), the outputs up to that point are still written and
+the extractor exits with the error.
+
 From the recording it writes `join-sequence.json` (server packets of the join
 phase, in order), `join/<seq>-<Packet>.{bin,json}` (every non-chunk join
 packet), `commands/<permission>.{bin,json}` (each AvailableCommands, named by the
