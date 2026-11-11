@@ -525,9 +525,10 @@ const COW_FALLS: [&str; 3] = [
 /// `conditional_bandwidth_optimization` as the cow and that fall like it (the
 /// chicken glides, so its falls differ), with the cow falls each can replay:
 /// a zoglin farther than 54 blocks from every player despawns at once.
-const EMPTY_COMPONENT_MOBS: [(&str, &[&str]); 9] = [
+const EMPTY_COMPONENT_MOBS: [(&str, &[&str]); 10] = [
     ("minecraft:pig", &COW_FALLS),
     ("minecraft:sheep", &COW_FALLS),
+    ("minecraft:mooshroom", &COW_FALLS),
     ("minecraft:zombie", &COW_FALLS),
     ("minecraft:husk", &COW_FALLS),
     ("minecraft:zombie_villager_v2", &COW_FALLS),

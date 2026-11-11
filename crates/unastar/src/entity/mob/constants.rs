@@ -351,7 +351,8 @@ pub const POTION_SPLASH_LEVEL_EVENT: i32 = 2002;
 /// … with the default potion colour (ARGB `0xFF385DC6`) as its data: BDS
 /// 1.26.51 sends data -13083194 where an xp bottle breaks.
 pub const DEFAULT_POTION_COLOUR_ARGB: i32 = 0xFF38_5DC6_u32 as i32;
-/// Level event of one `particle_on_hit` particle (data = the particle id).
+/// Level event of one particle (data = the particle id): a projectile's
+/// `particle_on_hit`, an interaction's `particle_on_start`.
 pub const PROJECTILE_PARTICLE_LEVEL_EVENT: i32 = 2009;
 /// Particle id of `iconcrack`; its level event data also carries the item's
 /// network id shifted left by [`ICONCRACK_ITEM_SHIFT`].
@@ -495,6 +496,22 @@ pub const DYE_ITEMS: [&str; 16] = [
 /// `U(0, 1) × LIFT` upwards and `(U − U) × SPREAD` on x and z.
 pub const INTERACT_SPAWN_ITEM_LIFT: f64 = 0.05;
 pub const INTERACT_SPAWN_ITEM_SPREAD: f64 = 0.1;
+
+/// `particle_on_start` particle ids: BDS 1.26.51 sends
+/// `LevelEvent(2009, data 5)` when a brown mooshroom eats a flower
+/// (`smoke`) and data 16 when a mooshroom is sheared (`largeexplode`)
+/// (`sweep.py mooshroom`).
+pub const SMOKE_PARTICLE: i32 = 5;
+pub const LARGEEXPLODE_PARTICLE: i32 = 16;
+/// An interaction's particle appears at the middle of the mob's box raised
+/// by the row's `particle_y_offset`. With `particle_offset_towards_interactor`
+/// it moves this far towards the interacting player's eyes, along the
+/// direction from [`INTERACT_PARTICLE_AIM_LIFT`] above that point. Measured
+/// on BDS 1.26.51 mooshrooms (y offset 0.25) within 1e-5: an adult level
+/// with the player, an adult two blocks diagonally below a raised player
+/// and a baby.
+pub const INTERACT_PARTICLE_TOWARDS: f64 = 1.0;
+pub const INTERACT_PARTICLE_AIM_LIFT: f64 = 0.1;
 
 // --- Eating blocks (`minecraft:behavior.eat_block`) -----------------------------
 

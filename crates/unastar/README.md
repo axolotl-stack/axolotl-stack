@@ -490,6 +490,16 @@ and `src/entity/mob/tests/projectiles.rs` replay each fixture;
 check (physics, strolling, loot, targeting, gear, ...) for each spawnable mob
 that uses it.
 
+Mooshroom interactions (`sweep.py mooshroom --client-capture`, distilled by
+`tools/bds-sweep/mooshroom_fixture.py` into
+`src/entity/mob/interaction/testdata/bds-1.26.51-mooshroom.json`) are replayed
+by `src/entity/mob/interaction/bds_mooshroom.rs`: stew and suspicious stew
+into the hand (`add_items`, `has_mark_variant` loot), flowers eaten with
+`particle_on_start` smoke, shearing with largeexplode particles, five
+mushrooms and the cow it turns into (`minecraft:transformation`, which runs
+only when it names nothing but its target), the particle positions for an
+adult, a baby and a raised player, and the sounds at the middle of its box.
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the

@@ -90,6 +90,11 @@ pub enum LootCondition {
     ThisOnFire(bool),
     /// The THIS actor is a baby; an absent actor does not match.
     IsBaby,
+    /// The THIS actor's mark variant is `value`; an absent actor does not
+    /// match.
+    HasMarkVariant {
+        value: i32,
+    },
     /// The THIS actor rides an actor of this identifier (namespaced).
     PassengerOfEntity {
         entity_type: String,

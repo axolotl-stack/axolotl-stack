@@ -392,7 +392,7 @@ fn husk_and_wither_skeleton_hits_apply_their_attack_effects() {
     let fixture: serde_json::Value =
         serde_json::from_str(include_str!("../testdata/bds-1.26.51-attack-effects.json")).unwrap();
     let observations = fixture["observations"].as_array().unwrap();
-    assert_eq!(observations.len(), 5);
+    assert_eq!(observations.len(), 6);
     for row in observations {
         let identifier = row["mob"].as_str().unwrap();
         let difficulty = match row["difficulty"].as_str().unwrap() {

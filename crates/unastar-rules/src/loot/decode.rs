@@ -171,6 +171,9 @@ fn condition(v: &Value, path: &str) -> Result<LootCondition> {
             )
         }
         "is_baby" => LootCondition::IsBaby,
+        "has_mark_variant" if v.get("value").is_some() => LootCondition::HasMarkVariant {
+            value: int_or(v, "value", 0, path)?,
+        },
         "passenger_of_entity" => {
             let entity_type = text(&v["entity_type"], path)?;
             LootCondition::PassengerOfEntity {

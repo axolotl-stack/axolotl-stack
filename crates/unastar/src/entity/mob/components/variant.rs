@@ -71,6 +71,14 @@ fn set_int(entity: &mut EntityWorldMut<'_>, key: u32, value: i32) {
 /// The actor keeps the id when the component goes.
 fn keep(_: &mut EntityWorldMut<'_>) {}
 
+/// `entity`'s mark variant as its actor data carries it.
+pub fn mark_variant_of(
+    world: &bevy_ecs::world::World,
+    entity: bevy_ecs::entity::Entity,
+) -> Option<i32> {
+    appearance_id(world.get::<EntityMetadata>(entity)?, ids::MARK_VARIANT)
+}
+
 /// An integer appearance id of `entity` as its actor data carries it.
 pub fn appearance_id(metadata: &EntityMetadata, key: u32) -> Option<i32> {
     match metadata.get(key)? {

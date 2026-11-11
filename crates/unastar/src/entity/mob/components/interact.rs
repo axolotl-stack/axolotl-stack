@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use bevy_ecs::prelude::*;
 use thiserror::Error;
-use unastar_data::actor_components::body::{self, FilterSubject};
+use unastar_data::actor_components::body::{self, CopperEventType, FilterSubject, ParticleType};
 use unastar_rules::filter::Filter;
 
 use super::common::{
@@ -19,10 +19,12 @@ use crate::entity::mob::constants;
 #[derive(Debug, Error)]
 pub enum InteractError {
     #[error(
-        "interaction effects beyond item use/transform/wear, loot drops and events are not \
+        "interaction effects beyond item use/transform/wear, loot, particles and events are not \
          implemented"
     )]
     UnsupportedEffect,
+    #[error("particle_on_start particle {0:?} has no measured particle id")]
+    UnmeasuredParticle(ParticleType),
     #[error("negative hurt_item {0}")]
     NegativeHurtItem(i32),
     #[error("interaction event {event} targets {target:?}; only self is supported")]
@@ -51,6 +53,11 @@ pub struct Interaction {
     pub hurt_item: i32,
     /// Loot dropped at the mob.
     pub spawn_items: Option<SpawnItems>,
+    /// Loot handed to the interacting player (`add_items`): the table name
+    /// as the loot registry keys it.
+    pub add_items: Option<Arc<str>>,
+    /// `particle_on_start`: a particle where the interaction starts.
+    pub particle: Option<InteractParticle>,
     /// Fired on the mob once the interaction ran.
     pub on_interact: Option<SelfEvent>,
     /// Ticks the mob ignores rows with a cooldown after this row ran.
@@ -66,6 +73,17 @@ pub struct SpawnItems {
     pub table: Arc<str>,
     /// Height above the mob's feet the items appear at.
     pub y_offset: f32,
+}
+
+/// An interaction's `particle_on_start`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct InteractParticle {
+    /// The particle id (the level event's data).
+    pub particle: i32,
+    /// Height above the middle of the mob's box.
+    pub y_offset: f32,
+    /// Moved one block towards the interacting player.
+    pub towards_interactor: bool,
 }
 
 /// `minecraft:interact`.
@@ -115,11 +133,10 @@ fn compile_interaction(row: &body::InteractionData) -> Result<Interaction, Inter
         || row.barter
         || row.health_amount != 0
         || !row.spawn_entities.is_empty()
-        || !row.add_items.table.is_empty()
         || row.drop_item_slot.is_some()
         || row.equip_item_slot.is_some()
         || row.repair_entity_item.slot.is_some()
-        || row.particle_on_start.particle_type != body::ParticleType::None
+        || row.particle_on_start.copper_event != CopperEventType::None
         || row.cooldown_after_being_attacked != 0.0
     {
         return Err(InteractError::UnsupportedEffect);
@@ -153,6 +170,10 @@ fn compile_interaction(row: &body::InteractionData) -> Result<Interaction, Inter
                 })
             })
             .transpose()?,
+        add_items: (!row.add_items.table.is_empty())
+            .then(|| loot_table(&row.add_items.table))
+            .transpose()?,
+        particle: compile_particle(&row.particle_on_start)?,
         on_interact,
         cooldown_ticks: (row.cooldown.max(0.0) * constants::TICKS_PER_SECOND) as u32,
         play_sounds: row
@@ -162,4 +183,21 @@ fn compile_interaction(row: &body::InteractionData) -> Result<Interaction, Inter
             .collect(),
         interact_text: Arc::from(row.interact_text.as_str()),
     })
+}
+
+/// The measured particle ids; any other particle rejects the definition.
+fn compile_particle(
+    data: &body::InteractParticleData,
+) -> Result<Option<InteractParticle>, InteractError> {
+    let particle = match data.particle_type {
+        ParticleType::None => return Ok(None),
+        ParticleType::Smoke => constants::SMOKE_PARTICLE,
+        ParticleType::Largeexplode => constants::LARGEEXPLODE_PARTICLE,
+        other => return Err(InteractError::UnmeasuredParticle(other)),
+    };
+    Ok(Some(InteractParticle {
+        particle,
+        y_offset: data.particle_y_offset,
+        towards_interactor: data.particle_offset_towards_interactor,
+    }))
 }

@@ -584,30 +584,71 @@ def ranged_items(args) -> list[dict]:
     return items
 
 
+def melee_effect_items(args) -> list[dict]:
+    """`melee-effects`: a husk spawned two blocks east of the sweep player
+    (survival) walks up and hits it for 200 ticks; the player lives through
+    the hits on Health Boost X, a full heal and Regeneration V (no
+    Resistance, which would change the hits). Run once per `--difficulty`
+    with `--client-capture` for the hunger `MobEffect` each hit sends."""
+    target = f'"{PLAYER}"'
+    protect = [f'gamemode survival {target}', f'effect {target} health_boost 1000 9 true',
+               f'effect {target} regeneration 1000 4 true']
+    restore = [f'effect {target} clear', f'gamemode creative {target}']
+    return [{'key': 'husk|hits', 'mob': 'minecraft:husk', 'at': [2.5, -60, 0.5, 90],
+             'player': [0.5, -60, 0.5, -90], 'frozen': False, 'ticks': 200, 'setup': protect,
+             'cleanup': restore, 'actions': [{'t': 0, 'commands': [f'effect {target} instant_health 1 9 true']}]}]
+
+
 def mooshroom_items(args) -> list[dict]:
     """`mooshroom`: the sweep player (survival) interacts with a frozen
     mooshroom two blocks east of it holding a bowl (red mooshroom: stew into
     the hand), an allium (brown mooshroom: eats it, smoke particles) and
-    shears (red mooshroom: sheared into a cow, mushrooms dropped)."""
+    shears (red mooshroom: sheared into a cow, mushrooms dropped). The
+    `geometry` items (`--items geometry`) move the particles: the player on a
+    block north-west of the mooshroom, a baby mooshroom, and a brown
+    mooshroom milked with a bowl after its allium (suspicious stew). One
+    mooshroom in 20 spawns a baby, which has no interactions, so the
+    geometry items that need an adult grow theirs up first."""
     target = f'"{PLAYER}"'
     setup = [f'gamemode survival {target}']
     restore = [f'gamemode creative {target}', 'kill @e[type=minecraft:item]']
     brown = 'event entity @e[type=minecraft:mooshroom] minecraft:become_brown'
+    born = 'event entity @e[type=minecraft:mooshroom] minecraft:entity_born'
+    grown = 'event entity @e[type=minecraft:mooshroom] minecraft:ageable_grow_up'
+    bowl = f'replaceitem entity {target} slot.weapon.mainhand 0 minecraft:bowl'
 
     # The first use of an item the plugin put in the hand is refused (the
     # client still holds the old stack) and makes BDS resend the slot, so
     # every item interacts twice, 20 ticks apart.
-    def item(key, hold, actions):
+    def item(key, hold, actions, at=(2.5, -60, 0.5, 90), player=(0.5, -60, 0.5, -90), ticks=80,
+             extra_setup=(), extra_cleanup=()):
         uses = [{'t': 10, 'commands': [], 'order': 'interact'}, {'t': 30, 'commands': [], 'order': 'interact'}]
-        return {'key': f'mooshroom|{key}', 'mob': 'minecraft:mooshroom', 'at': [2.5, -60, 0.5, 90],
-                'player': [0.5, -60, 0.5, -90], 'frozen': True, 'ticks': 80, 'setup': setup,
-                'cleanup': restore, 'actions': actions + uses, 'hold': hold}
+        return {'key': f'mooshroom|{key}', 'mob': 'minecraft:mooshroom', 'at': list(at),
+                'player': list(player), 'frozen': True, 'ticks': ticks, 'setup': setup + list(extra_setup),
+                'cleanup': list(extra_cleanup) + restore, 'actions': actions + uses, 'hold': hold}
 
-    return [
+    allium = {'item': 'minecraft:allium'}
+    basic = [
         item('bowl', {'item': 'minecraft:bowl'}, []),
-        item('allium', {'item': 'minecraft:allium'}, [{'t': 5, 'commands': [brown]}]),
+        item('allium', allium, [{'t': 5, 'commands': [brown]}]),
         item('shears', {'item': 'minecraft:shears'}, []),
     ]
+    geometry = [
+        item('allium-raised', allium, [{'t': 3, 'commands': [grown]}, {'t': 5, 'commands': [brown]}],
+             at=(2.5, -60, 1.5, 90),
+             player=(0.5, -59, 3.5, -135), extra_setup=['setblock 0 -60 3 stone'],
+             extra_cleanup=['setblock 0 -60 3 air']),
+        item('allium-baby', allium, [{'t': 3, 'commands': [born]}, {'t': 5, 'commands': [brown]}]),
+        item('suspicious-stew', allium, [{'t': 3, 'commands': [grown]}, {'t': 5, 'commands': [brown]},
+                                         {'t': 40, 'commands': [bowl]},
+                                         {'t': 50, 'commands': [], 'order': 'interact'},
+                                         {'t': 60, 'commands': [], 'order': 'interact'}], ticks=90),
+    ]
+    sets = {'basic': basic, 'geometry': geometry, 'all': basic + geometry}
+    choice = 'basic' if args.items == 'slice' else args.items
+    if choice not in sets:
+        raise SystemExit(f'mooshroom --items must be one of {sorted(sets)}')
+    return sets[choice]
 
 
 def reload_items(args) -> list[dict]:
@@ -650,12 +691,13 @@ def build_job(args, out: Path) -> dict:
         # Zombies need a difficulty above peaceful and burn in daylight.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = effect_items(args)
-    elif args.kind in ('ranged', 'mooshroom'):
+    elif args.kind in ('ranged', 'mooshroom', 'melee-effects'):
         # The generic per-tick job of `effects`; hostile mobs need a
         # difficulty above peaceful and skeletons burn in daylight.
         job['kind'] = 'effects'
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
-        job['items'] = ranged_items(args) if args.kind == 'ranged' else mooshroom_items(args)
+        job['items'] = {'ranged': ranged_items, 'mooshroom': mooshroom_items,
+                        'melee-effects': melee_effect_items}[args.kind](args)
     elif args.kind == 'entity-loot':
         # Hostile mobs need a difficulty above peaceful.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
@@ -680,7 +722,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
                                          'knockback', 'knockback-reload', 'range', 'bonus', 'walk',
-                                         'effects', 'entity-loot', 'ranged', 'mooshroom'])
+                                         'effects', 'entity-loot', 'ranged', 'mooshroom', 'melee-effects'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])

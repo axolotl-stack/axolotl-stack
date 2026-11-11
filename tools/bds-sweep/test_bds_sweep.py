@@ -386,6 +386,29 @@ class EffectTrials(unittest.TestCase):
             orders = [action['t'] for action in item['actions'] if action.get('order') == 'interact']
             self.assertEqual(orders, [10, 30])
 
+    def test_melee_effect_items_keep_the_player_alive_without_resistance(self):
+        items = sweep.melee_effect_items(self.args())
+        self.assertEqual([item['key'] for item in items], ['husk|hits'])
+        husk = items[0]
+        self.assertFalse(husk['frozen'])
+        self.assertTrue(any('health_boost' in line for line in husk['setup']))
+        self.assertFalse(any('resistance' in line for line in husk['setup']))
+        self.assertIn('effect "BDSSweep" clear', husk['cleanup'])
+
+    def test_mooshroom_geometry_items_move_the_player_and_restore_the_block(self):
+        items = sweep.mooshroom_items(self.args('geometry'))
+        self.assertEqual([item['key'] for item in items],
+                         ['mooshroom|allium-raised', 'mooshroom|allium-baby', 'mooshroom|suspicious-stew'])
+        raised = items[0]
+        self.assertIn('setblock 0 -60 3 stone', raised['setup'])
+        self.assertIn('setblock 0 -60 3 air', raised['cleanup'])
+        self.assertEqual(raised['player'][:3], [0.5, -59, 3.5])
+        stew = items[2]
+        orders = sorted(action['t'] for action in stew['actions'] if action.get('order') == 'interact')
+        self.assertEqual(orders, [10, 30, 50, 60])
+        with self.assertRaises(SystemExit):
+            sweep.mooshroom_items(self.args('every'))
+
     def test_resist_set_hits_the_resistant_mobs_like_the_slice(self):
         items = sweep.knockback_items(type('Args', (), {'items': 'resist'})())
         self.assertEqual([item['mob'] for item in items],

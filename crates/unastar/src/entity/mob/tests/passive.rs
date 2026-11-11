@@ -522,3 +522,25 @@ fn a_dyed_sheep_keeps_its_colour_through_a_save() {
     assert_eq!(world.get::<ActorColor>(restored), Some(&ActorColor(5)));
     assert_eq!(color_index(world, restored), Some(5));
 }
+
+#[test]
+fn spawned_adult_mooshroom_add_actor_matches_native_summon() {
+    let mut h = harness(9);
+    let native = native(include_bytes!(
+        "../../../../../bds-extractor/captures/1.26.51/operator/summons/mooshroom.bin"
+    ));
+    let feet = DVec3::new(
+        f64::from(native.position.x),
+        f64::from(native.position.y),
+        f64::from(native.position.z),
+    );
+    let mooshroom = h.adult("minecraft:mooshroom", feet);
+    let world = h.world();
+    let ours = ours(world, "minecraft:mooshroom", mooshroom);
+    assert_eq!(ours.actor_type, native.actor_type);
+    assert_eq!(ours.velocity, native.velocity);
+    assert_eq!(ours.attributes_list, native.attributes_list);
+    assert_eq!(ours.actor_data, native.actor_data);
+    assert_eq!(ours.actor_links, native.actor_links);
+    assert_eq!(ours.synched_properties, native.synched_properties);
+}

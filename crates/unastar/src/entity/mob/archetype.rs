@@ -210,6 +210,8 @@ pub struct LifecycleEvents {
     pub spawned: Option<EventHandle>,
     /// Fired for babies produced by breeding.
     pub born: Option<EventHandle>,
+    /// Fired for the actor another mob's transformation creates.
+    pub transformed: Option<EventHandle>,
 }
 
 pub struct MobArchetype {
@@ -296,6 +298,7 @@ impl MobArchetype {
             lifecycle: LifecycleEvents {
                 spawned: events.event("minecraft:entity_spawned"),
                 born: events.event("minecraft:entity_born"),
+                transformed: events.event("minecraft:entity_transformed"),
             },
             definition,
             events,

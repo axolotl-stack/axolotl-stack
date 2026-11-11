@@ -604,6 +604,7 @@ impl GameServer {
             (
                 crate::entity::mob::life::spawn_entity::tick_spawn_entity,
                 crate::entity::mob::net::ambient::update_ambient_sound_names,
+                crate::entity::mob::life::transformation::tick_transformations,
             )
                 .chain()
                 .in_set(EntityLogicSet)

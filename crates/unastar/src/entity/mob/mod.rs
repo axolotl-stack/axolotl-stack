@@ -97,6 +97,9 @@ pub enum SpawnCause {
     Born,
     /// Restored from storage: no event; the saved groups are re-applied.
     Loaded,
+    /// Another mob's `minecraft:transformation`:
+    /// `minecraft:entity_transformed`.
+    Transformed,
 }
 
 /// Create a mob of `identifier` with its feet at `position`, fire its
@@ -140,6 +143,7 @@ pub fn spawn_mob(
     let event = match cause {
         SpawnCause::Spawned => archetype.lifecycle.spawned.as_ref(),
         SpawnCause::Born => archetype.lifecycle.born.as_ref(),
+        SpawnCause::Transformed => archetype.lifecycle.transformed.as_ref(),
         SpawnCause::Loaded => None,
     };
     if let Some(event) = event

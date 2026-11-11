@@ -1,5 +1,5 @@
 {
-  "description": "MobEffect packets a survival player (BDSExtractor, runtime id 1) receives while a husk or wither skeleton hits it, per world difficulty. Every hit re-sends the effect with the same amplifier and full duration; `packets` counts the MobEffect packets of the segment (the wither skeleton sends two per hit, the husk one). Hard husk hits were not observed (the player died first).",
+  "description": "MobEffect packets a survival player (BDSExtractor, runtime id 1) receives while a husk or wither skeleton hits it, per world difficulty. Every hit re-sends the effect with the same amplifier and full duration; `packets` counts the MobEffect packets of the segment (the wither skeleton sends two per hit, the husk one). Hard husk hits were not observed in the command captures (the player died first); that row comes from `tools/bds-sweep/sweep.py melee-effects --difficulty hard --client-capture` (Endstone sweep), whose player Health Boost X and Regeneration V kept alive through nine hits of 4.5 (no Resistance, which would change the hits); the same sweep on easy repeats the easy row.",
   "server": "BDS 1.26.51 (plain bedrock_server, no Endstone), seed 12345 harness world",
   "source": {
     "tool": "tools/bds-sweep/capture.py --commands, 2026-11-10, operator-commands/command-outputs.json",
@@ -15,6 +15,20 @@
       {
         "capture": "ent-anger2-20261110",
         "command_outputs_sha256": "6df9d97761557576271c7a390416a4f7117e81e0dbdf1fe6abdb40de6a04b158"
+      }
+    ],
+    "sweeps": [
+      {
+        "tool": "tools/bds-sweep/sweep.py melee-effects --client-capture",
+        "difficulty": "hard",
+        "item": "husk|hits",
+        "observed": "nine hits (t = 19 .. 182), one hunger MobEffect each: Add then Update, amplifier 0, 600 ticks"
+      },
+      {
+        "tool": "tools/bds-sweep/sweep.py melee-effects --client-capture",
+        "difficulty": "easy",
+        "item": "husk|hits",
+        "observed": "nine hits, the same MobEffects as the easy command capture"
       }
     ]
   },
@@ -36,6 +50,15 @@
       "amplifier": 0,
       "duration_ticks": 600,
       "packets": 2
+    },
+    {
+      "mob": "minecraft:husk",
+      "difficulty": "hard",
+      "effect": "hunger",
+      "effect_id": 17,
+      "amplifier": 0,
+      "duration_ticks": 600,
+      "packets": 9
     },
     {
       "mob": "minecraft:wither_skeleton",
