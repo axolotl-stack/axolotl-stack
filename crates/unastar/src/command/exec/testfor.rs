@@ -146,12 +146,20 @@ pub(super) fn compare_regions(
     masked: bool,
 ) -> Result<u64, Compare> {
     let (min, max) = (begin.min(end), begin.max(end));
-    let offset = destination - min;
-    // Measured: an area reaching out of the loaded world fails as such
-    // before its size is checked.
-    if !box_loaded(world, min, max) || !box_loaded(world, min + offset, max + offset) {
+    // Operator coordinates span the whole i32 range: an area whose copy
+    // would leave it is out of the world, not an overflow.
+    let dest_max = destination.as_i64vec3() + (max.as_i64vec3() - min.as_i64vec3());
+    if dest_max.max_element() > i64::from(i32::MAX) || dest_max.min_element() < i64::from(i32::MIN)
+    {
         return Err(Compare::OutOfWorld);
     }
+    // Measured: an area reaching out of the loaded world fails as such
+    // before its size is checked.
+    if !box_loaded(world, min, max) || !box_loaded(world, destination, dest_max.as_ivec3()) {
+        return Err(Compare::OutOfWorld);
+    }
+    // Both boxes are loaded, so they lie well inside the i32 range.
+    let offset = destination - min;
     let count = volume(min, max);
     if count > MAX_COMPARED {
         return Err(Compare::TooMany(count));
@@ -195,5 +203,25 @@ mod bds_capture {
     #[test]
     fn testforblocks_matches_the_bds_capture() {
         Replay::new().assert_segment("testforblocks", &[]);
+    }
+    /// Coordinates at the ends of the i32 range answer out of the world
+    /// instead of overflowing.
+    #[test]
+    fn extreme_coordinates_are_out_of_the_world() {
+        use crate::command::exec::test_support::Harness;
+        use crate::command::output::CommandOutput;
+        let mut h = Harness::new();
+        let op = h.player("Op", true);
+        for line in [
+            "/testforblocks 0 60 0 1 61 1 2147483647 60 0",
+            "/testforblocks 0 60 0 1 61 1 -2147483648 60 0",
+            "/testforblocks -2147483648 60 0 2147483647 60 0 0 60 0",
+        ] {
+            assert_eq!(
+                h.run(op, line),
+                CommandOutput::failure("commands.generic.outOfWorld", vec![]),
+                "{line}"
+            );
+        }
     }
 }
