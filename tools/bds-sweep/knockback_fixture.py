@@ -164,11 +164,11 @@ def main() -> int:
         'bds_version': '1.26.51',
         'protocol': sources[0]['protocol_version'],
         'sources': sources,
-        'method': 'tools/bds-sweep/sweep.py knockback --client-capture (--items slice / air); '
+        'method': 'tools/bds-sweep/sweep.py knockback --client-capture (--items slice / air / resist); '
                   'Endstone per-tick samples and ActorKnockbackEvent, player-side packet capture',
         'trials': trials,
     }
-    out.write_text(json.dumps(fixture, separators=(',', ':')) + '\n', encoding='utf-8')
+    out.write_text(json.dumps(fixture, separators=(',', ':')) + '\n', encoding='utf-8', newline='\n')
     print(f'{len(trials)} trials -> {out} ({out.stat().st_size} bytes)')
     return 0
 

@@ -15,6 +15,8 @@
 //! * `bds-sweep:attack RUNTIME_ID`: attack that actor with the held item
 //!   (`InventoryTransaction` use-item-on-actor, hotbar slot 0 as last sent
 //!   by the server).
+//! * `bds-sweep:interact RUNTIME_ID`: interact with that actor (shears on a
+//!   mooshroom, a bowl to milk it) with the held item, the same way.
 //! * `bds-sweep:drop hotbar SLOT COUNT`: closed-screen Q (`COUNT=1`) or
 //!   ctrl-Q (`COUNT=stack size`) from hotbar index 0..8;
 //! * `bds-sweep:drop inventory SLOT COUNT`: open the native inventory, wait
@@ -108,6 +110,8 @@ enum Order {
     Stop,
     /// Attack the actor with this runtime id with the held item.
     Attack(u64),
+    /// Interact with the actor with this runtime id using the held item.
+    Interact(u64),
     Drop(DropOrder),
     CloseInventory,
     Walk(Walk),
@@ -156,6 +160,7 @@ fn parse_order(text: &str) -> Option<Order> {
             }))
         }
         "attack" => Some(Order::Attack(u64::try_from(numbers(words, 1)?[0]).ok()?)),
+        "interact" => Some(Order::Interact(u64::try_from(numbers(words, 1)?[0]).ok()?)),
         "drop" => {
             let source = match words.next()? {
                 "hotbar" => DropSource::Hotbar,
@@ -255,7 +260,18 @@ impl Player {
                     ));
                 }
             }
-            Order::Attack(target) => return Ok(vec![self.attack(target)]),
+            Order::Attack(target) => {
+                return Ok(vec![self.use_on_actor(
+                    target,
+                    EnumsItemUseOnActorInventoryTransactionActionType::Attack,
+                )]);
+            }
+            Order::Interact(target) => {
+                return Ok(vec![self.use_on_actor(
+                    target,
+                    EnumsItemUseOnActorInventoryTransactionActionType::Interact,
+                )]);
+            }
             Order::Drop(drop) => return self.drop_order(drop),
             Order::Walk(walk) => self.walk = Some(walk),
             Order::CloseInventory => {
@@ -269,15 +285,20 @@ impl Player {
         Ok(Vec::new())
     }
 
-    /// `InventoryTransaction` use-item-on-actor `Attack` with the held slot.
-    fn attack(&self, target: u64) -> McpePacket {
+    /// `InventoryTransaction` use-item-on-actor (`Attack` or `Interact`)
+    /// with the held slot.
+    fn use_on_actor(
+        &self,
+        target: u64,
+        action_type: EnumsItemUseOnActorInventoryTransactionActionType,
+    ) -> McpePacket {
         McpePacket::from(InventoryTransactionPacket {
             transaction: InventoryTransactionPacketTransaction::ItemUseOnActorInventoryTransaction(
                 ItemUseOnActorInventoryTransaction {
                     runtime_id: ActorRuntimeId {
                         actor_runtime_id: target,
                     },
-                    action_type: EnumsItemUseOnActorInventoryTransactionActionType::Attack,
+                    action_type,
                     slot: 0,
                     item: self.inventory[0].clone().unwrap_or_default(),
                     from_position: self.position.clone(),
@@ -765,6 +786,10 @@ mod tests {
         assert_eq!(
             parse_order(r#"{ message: "bds-sweep:attack 4294967297" }"#),
             Some(Order::Attack(4294967297))
+        );
+        assert_eq!(
+            parse_order(r#"{ message: "bds-sweep:interact 12" }"#),
+            Some(Order::Interact(12))
         );
     }
     fn synchronize(player: &mut Player, slot: u32, count: u16, net_id: Option<i32>) {

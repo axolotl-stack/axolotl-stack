@@ -70,6 +70,17 @@ struct Args {
     #[arg(long, default_value = "1500", requires = "capture_dir")]
     command_wait: u64,
 
+    /// Decode a recorded `packets.jsonl` (from `--capture-dir` or
+    /// `bds-sweep-client --capture-dir`) instead of connecting: one JSON line
+    /// per record `{seq, t_ms, dir, name, packet}` to `--output`
+    #[arg(long, conflicts_with_all = ["fixture", "capture_dir"])]
+    decode: Option<PathBuf>,
+
+    /// Decode mode: only records whose packet name is in this comma-separated
+    /// list (`MobEffectPacket,SetActorDataPacket`); all records without it
+    #[arg(long, requires = "decode", value_delimiter = ',')]
+    only: Vec<String>,
+
     /// Log level filter
     #[arg(long, default_value = "info")]
     log: String,
@@ -111,6 +122,20 @@ async fn run(args: Args) -> Result<()> {
         info!("Loading extraction fixture from {}...", fixture.display());
         let data = load_fixture(fixture)?;
         write_extracted_data(&args.output, &data)?;
+        return Ok(());
+    }
+
+    if let Some(capture) = args.decode.as_ref() {
+        let lines = capture::decode_capture(capture, &args.only)?;
+        let mut text = lines.join("\n");
+        text.push('\n');
+        std::fs::write(&args.output, text)
+            .with_context(|| format!("writing {}", args.output.display()))?;
+        info!(
+            records = lines.len(),
+            "decoded to {}",
+            args.output.display()
+        );
         return Ok(());
     }
 

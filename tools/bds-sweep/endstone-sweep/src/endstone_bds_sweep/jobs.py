@@ -756,7 +756,128 @@ def walk(ctx: Context, job: dict):
         yield 10
 
 
+def living_state(actor) -> dict:
+    """`actor_state` plus the health Endstone reports (whole points)."""
+    state = actor_state(actor)
+    health = getattr(actor, 'health', None)
+    if health is not None:
+        state['health'] = health
+    return state
+
+
+def effects(ctx: Context, job: dict):
+    """What effects do to a mob or to the sweep player, tick by tick. Per
+    item: the `setup` commands run (a barrier cell, say); the sweep player
+    stands at `player` (x, y, z, yaw); unless `mob` is null a fresh `mob` is
+    spawned at `at` (x, y, z, yaw), with `frozen` given hidden Slowness 255;
+    then for `ticks` ticks the mob and the player are sampled every tick
+    (position, rotation, velocity, ground contact, health) and each
+    `actions` entry `{t, commands, order?}` runs its commands on tick `t`
+    (0 = the spawn tick) and then, with `order` (`interact`, `attack`),
+    sends the client that order on the mob; the player holds `hold` (an
+    item spec, or nothing). Every ActorDamageEvent of the item is kept with its tick,
+    actor type, damage and cause. The `cleanup` commands run last; run with
+    `--client-capture` for the packets the player got (its own `MobEffect`
+    and attributes, and the mob's actor data, attributes and events)."""
+    from endstone.level import Location
+    name = job['player']
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        ctx.begin(item)
+        for line in item.get('setup', []):
+            ctx.must(line)
+        spot = item['player']
+        ctx.must(f'tp "{name}" {spot[0]} {spot[1]} {spot[2]} {spot[3]} 0')
+        ctx.player.inventory.held_item_slot = 0
+        ctx.player.inventory.item_in_main_hand = ctx.stack(item.get('hold'))
+        yield 10
+        runtime_id = None
+        if item.get('mob'):
+            at = item['at']
+            mob = ctx.dimension.spawn_actor(Location(ctx.dimension, at[0], at[1], at[2], 0.0, at[3]), item['mob'])
+            runtime_id = mob.runtime_id
+            if item.get('frozen'):
+                ctx.must(f'effect @e[type={item["mob"]}] slowness 100000 255 true')
+        ctx.plugin.damage.clear()
+        actions = {int(action['t']): action for action in item.get('actions', [])}
+        first_tick = ctx.plugin.ticks
+        samples, failed = [], []
+        for t in range(int(item['ticks']) + 1):
+            # The mark lands in this tick's packet batch, so every packet of
+            # the capture can be put on a sample.
+            ctx.player.send_message(f'bds-sweep:mark {item["key"]} {t}')
+            sample = {'t': t, 'tick': ctx.plugin.ticks, 'player': living_state(ctx.player)}
+            if runtime_id is not None:
+                actor = find_actor(ctx, runtime_id)
+                sample['mob'] = living_state(actor) if actor is not None else None
+            samples.append(sample)
+            action = actions.get(t)
+            if action is not None:
+                for line in action['commands']:
+                    if not ctx.cmd(line):
+                        failed.append({'t': t, 'command': line})
+                if action.get('order') and runtime_id is not None:
+                    ctx.player.send_message(f'bds-sweep:{action["order"]} {runtime_id}')
+            yield 1
+        if runtime_id is not None:
+            actor = find_actor(ctx, runtime_id)
+            if actor is not None:
+                actor.remove()
+        for line in item.get('cleanup', []):
+            ctx.cmd(line)
+        ctx.player.inventory.item_in_main_hand = None
+        ctx.record({
+            'key': item['key'],
+            'mob': item.get('mob'),
+            'runtime_id': runtime_id,
+            'player_runtime_id': ctx.player.runtime_id,
+            'spec': {k: item[k] for k in ('at', 'player', 'frozen', 'setup', 'actions', 'ticks', 'cleanup',
+                                          'hold') if k in item},
+            'first_tick': first_tick,
+            'failed_commands': failed,
+            'damage': [list(d) for d in ctx.plugin.damage],
+            'samples': samples,
+        })
+        yield 10
+
+
+def entity_loot(ctx: Context, job: dict):
+    """`/loot spawn … kill <mob>` as the sweep player, `samples` times per
+    item: a frozen `mob` stands at `at` and every outcome (item type, data,
+    count of each dropped stack) is counted, like `drops` does for blocks."""
+    from endstone.level import Location
+    name = job['player']
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        ctx.begin(item)
+        at = item['at']
+        ctx.take_items()
+        mob = ctx.dimension.spawn_actor(Location(ctx.dimension, at[0], at[1], at[2], 0.0, 0.0), item['mob'])
+        ctx.must(f'effect @e[type={item["mob"]}] slowness 100000 255 true')
+        ctx.must(f'effect @e[type={item["mob"]}] resistance 100000 255 true')
+        yield 5
+        drop = item['drop']
+        loot = (f'execute as @a[name="{name}"] run loot spawn {drop[0]} {drop[1]} {drop[2]} '
+                f'kill @e[type={item["mob"]},c=1] mainhand')
+        outcomes: Counter[str] = Counter()
+        failures = 0
+        for _ in range(int(item['samples'])):
+            if not ctx.cmd(loot):
+                failures += 1
+            stacks = sorted(ctx.take_items())
+            outcomes[';'.join(f'{i}@{d}x{n}' for i, d, n in stacks)] += 1
+            yield None
+        if mob.is_valid:
+            mob.remove()
+        ctx.record({'key': item['key'], 'mob': item['mob'], 'samples': int(item['samples']),
+                    'command_failures': failures, 'outcomes': dict(sorted(outcomes.items()))})
+        yield 2
+
+
 JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'attack': attack,
         'fuel': fuel, 'mining': mining, 'knockback': knockback, 'knockback_reload': knockback_reload,
-        'send_range': send_range, 'spawn_bonus': spawn_bonus, 'walk': walk}
+        'send_range': send_range, 'spawn_bonus': spawn_bonus, 'walk': walk, 'effects': effects,
+        'entity_loot': entity_loot}
 

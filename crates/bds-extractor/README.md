@@ -78,6 +78,12 @@ and payload, the same format as
 `.json` is the packet's derived `Debug` form converted to JSON (`debug_json.rs`;
 NBT decoded with sorted keys, tag types dropped).
 
+`--decode FILE` reads a recorded `packets.jsonl` (from `--capture-dir` or
+`bds-sweep-client --capture-dir`) instead of connecting and writes one JSON line
+per record, `{seq, t_ms, dir, name, packet}` with `packet` in the same JSON form,
+to `--output`; `--only MobEffectPacket,SetActorDataPacket` keeps only those
+packets. The sweep distillers (`tools/bds-sweep/effects_fixture.py`) read it.
+
 `tools/bds-sweep/capture.py` runs the two reference sessions against the plain
 `bedrock_server.exe` of the shared runtime (no Endstone, whose own commands
 would appear in AvailableCommands), each on a fresh seed-12345 world with BDS
