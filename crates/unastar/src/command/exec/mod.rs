@@ -32,10 +32,14 @@ mod loot;
 mod mobevent;
 mod music;
 mod op;
+mod place;
+#[cfg(test)]
+pub(crate) mod probe;
 mod recipe;
 mod replaceitem;
 mod scoreboard;
 mod scriptevent;
+mod server_tools;
 mod setblock;
 mod sound;
 mod spawnpoint;
@@ -116,6 +120,12 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(music::run)
         .register(op::run_op)
         .register(op::run_permission)
+        .register(place::run_place)
+        .register(place::run_locate)
+        .register(server_tools::run_reloadconfig)
+        .register(server_tools::run_reloadpacketlimitconfig)
+        .register(server_tools::run_script)
+        .register(server_tools::run_wsserver)
         .register(function::run_reload)
         .register(visuals::run_particle)
         .register(visuals::run_playanimation)

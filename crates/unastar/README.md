@@ -602,11 +602,10 @@ Commands follow BDS 1.26.51 (`src/command/`):
   (`src/server/game/command_order_tests.rs`). A request that arrives after an
   input runs after all of the tick's inputs.
 
-Every command BDS advertises is implemented except `/locate`, `/packstack`,
-`/place`, `/reloadconfig`, `/reloadpacketlimitconfig`, `/ride`, `/script` and
-`/wsserver` (and the Editor's `/editor-allowlist`); these stay advertised
-exactly as BDS sends them and answer a literal "/<name> is not implemented in
-unastar yet" failure. Each command's status is in
+Every command BDS advertises is implemented except `/packstack` and `/ride`
+(and the Editor's `/editor-allowlist`); these stay advertised exactly as BDS
+sends them and answer a literal "/<name> is not implemented in unastar yet"
+failure. As on BDS, a line is parsed before its permission is checked. Each command's status is in
 [`docs/parity/commands.toml`](../../docs/parity/commands.toml); odd BDS answers
 copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 
@@ -626,6 +625,8 @@ copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 | `/replaceitem` | No armour equip sound; armour and offhand changes resend the whole inventory | No equip-sound table |
 | `/mobevent`, `/scriptevent` | Switches and events are kept or acknowledged but nothing acts on them | No mob events or behaviour-pack scripts |
 | `/aimassist` | `set` always answers that the camera type is unsupported | The client's camera type is not tracked |
+| `/place`, `/locate` | `/place` answers only an unknown structure name; `/locate` finds no structure in flat and void worlds; placing, structure search in generated terrain and biome search answer "not implemented" | No command-driven placement; BDS's search order is not measured |
+| `/script`, `/wsserver`, `/reloadconfig`, `/reloadpacketlimitconfig` | Answer as BDS without script packs; `script diagnostics stopcapture` answers "not implemented"; no websocket connection is made | No script runtime or websocket client |
 | `/dialogue`, `/gametest` | Answer as BDS does for a world without NPC dialogue or GameTests | No NPC dialogue; no behaviour-pack scripts |
 | `/loot` | An unquoted table path with a `/` is read whole; BDS answers a syntax error at the `/` | Shared string lexing |
 | `/tellraw`, `/titleraw` | A malformed JSON message's syntax error names another token | Unastar parses JSON in one piece |

@@ -123,14 +123,11 @@ fn dispatch(
     let Some(definition) = schema.command(name) else {
         return unknown();
     };
-    // Measured: an operator typing `/op` (admin level) gets
-    // `commands.generic.error.permissions` naming the command.
-    if definition.permission > source.permission {
-        return CommandOutput::failure(
-            "commands.generic.error.permissions",
-            vec![definition.name.clone()],
-        );
-    }
+    // Measured: the line is parsed before the permission is checked (an
+    // operator typing `/place feature` with a feature that does not exist
+    // gets `commands.generic.syntax`, with a valid line
+    // `commands.generic.error.permissions`, as for `/op`;
+    // `tools/bds-sweep/command_probe.py`).
     let args = match parser::parse(schema, line) {
         Ok(args) => args,
         Err(ParseError::Unknown(_)) => return unknown(),
@@ -138,6 +135,12 @@ fn dispatch(
             return CommandOutput::failure("commands.generic.syntax", error.params());
         }
     };
+    if definition.permission > source.permission {
+        return CommandOutput::failure(
+            "commands.generic.error.permissions",
+            vec![definition.name.clone()],
+        );
+    }
     let Some(handler) = registry.handler(&definition.name) else {
         return CommandOutput::not_implemented(&definition.name);
     };
