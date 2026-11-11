@@ -1,7 +1,7 @@
 ---
-status: accepted
+status: proposed
 date: 2026-11-10
-decision-makers: [project owner (delegated)]
+decision-makers: [project owner]
 ---
 
 # Run a command before the inputs its player sent after it
