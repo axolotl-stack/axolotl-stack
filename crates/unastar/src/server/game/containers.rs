@@ -863,7 +863,7 @@ pub(super) fn grant_experience(world: &mut World, player: Entity, points: i32) {
                 actor_runtime_id: runtime_id as u64,
             },
             attribute_list: vec![
-                attribute("minecraft:player.level", level as f32, i32::MAX as f32),
+                attribute("minecraft:player.level", level as f32, 24_791.0),
                 attribute("minecraft:player.experience", progress, 1.0),
             ],
             tick,

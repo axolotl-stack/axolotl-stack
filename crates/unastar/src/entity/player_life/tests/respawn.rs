@@ -65,7 +65,10 @@ fn assert_respawned(h: &mut Harness, packets: &[McpePacketData]) {
     assert_eq!(h.world().get::<Position>(player).unwrap().0, spawn);
     assert_eq!(
         teleports(packets),
-        [(spawn, EnumsPlayerPositionModeComponentPositionMode::Respawn)]
+        [(
+            reported(spawn),
+            EnumsPlayerPositionModeComponentPositionMode::Respawn
+        )]
     );
     assert!(actor_events(packets, SESSION).contains(&EnumsActorEvent::SpawnAlive));
     assert_eq!(health_updates(packets), [20.0]);
@@ -103,7 +106,10 @@ fn the_client_ready_respawn_restores_the_player_at_the_world_spawn() {
     let packets = h.drain();
     assert_eq!(
         respawns(&packets),
-        [(EnumsPlayerRespawnState::Readytospawn, world_spawn(&mut h))]
+        [(
+            EnumsPlayerRespawnState::Readytospawn,
+            reported(world_spawn(&mut h))
+        )]
     );
     assert_respawned(&mut h, &packets);
 
@@ -217,4 +223,26 @@ async fn a_dead_player_saved_and_reloaded_comes_back_alive_at_spawn() {
     assert_fresh_hunger(h.world().get::<Hunger>(player).unwrap());
     let position = h.world().get::<Position>(player).unwrap().0;
     assert!(position.distance(spawn) < 1.0e-9, "{position} vs {spawn}");
+}
+
+/// BDS's ready-to-spawn `Respawn` of the member join capture reports the
+/// feet (103.5, 136, -27.5) 1.62001 above them: unastar sends the same bytes.
+#[test]
+fn respawn_positions_are_reported_like_bds() {
+    use valentine::bedrock::codec::BedrockCodec;
+    let bytes = include_bytes!(
+        "../../../../../bds-extractor/captures/1.26.51/member/join/00070-RespawnPacket.bin"
+    );
+    let mut input = &bytes[1..];
+    let native = RespawnPacket::decode(&mut input, ()).unwrap();
+    assert!(input.is_empty());
+    assert_eq!(native.state, EnumsPlayerRespawnState::Readytospawn);
+    let feet = DVec3::new(103.5, 136.0, -27.5);
+    let ours =
+        super::super::respawn::respawn_packet(eyes(feet), EnumsPlayerRespawnState::Readytospawn);
+    let McpePacketData::RespawnPacket(ours) = ours.data else {
+        panic!("a Respawn packet");
+    };
+    let bits = |p: &Vec3| [p.x.to_bits(), p.y.to_bits(), p.z.to_bits()];
+    assert_eq!(bits(&ours.position), bits(&native.position));
 }

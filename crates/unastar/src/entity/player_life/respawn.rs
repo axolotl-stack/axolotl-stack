@@ -57,15 +57,18 @@ pub enum RespawnRequest {
 #[derive(Resource, Debug, Default)]
 pub struct RespawnQueue(pub Vec<(Entity, RespawnRequest)>);
 
+/// A player position (eyes 1.62 above the feet) as BDS reports it: 1.62001
+/// above the feet ([`crate::entity::item_drop::PLAYER_REPORTED_EYE_HEIGHT`]).
 fn wire(position: DVec3) -> Vec3 {
+    use crate::entity::item_drop::{PLAYER_EYE_HEIGHT, PLAYER_REPORTED_EYE_HEIGHT};
     Vec3 {
         x: position.x as f32,
-        y: position.y as f32,
+        y: (position.y - PLAYER_EYE_HEIGHT + PLAYER_REPORTED_EYE_HEIGHT) as f32,
         z: position.z as f32,
     }
 }
 
-fn respawn_packet(spawn: DVec3, state: EnumsPlayerRespawnState) -> McpePacket {
+pub(super) fn respawn_packet(spawn: DVec3, state: EnumsPlayerRespawnState) -> McpePacket {
     McpePacket::from(RespawnPacket {
         position: wire(spawn),
         state,

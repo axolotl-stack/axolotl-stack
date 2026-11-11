@@ -10,7 +10,7 @@
 use crate::command::prelude::*;
 use crate::entity::components::Experience;
 use crate::entity::player_life::attributes::send_attributes;
-use crate::entity::xp_orb::{add_experience, experience_attributes};
+use crate::entity::xp_orb::{add_experience, experience_changes};
 
 overloads! {
     pub enum XpArgs for "xp" {
@@ -39,11 +39,12 @@ pub fn run(ctx: &mut CommandContext<'_>, args: XpArgs) -> CommandResult {
             .get::<Experience>(player)
             .cloned()
             .unwrap_or_default();
+        let level = experience.level;
         change.apply(&mut experience);
         send_attributes(
             ctx.world,
             player,
-            experience_attributes(&experience).to_vec(),
+            experience_changes(&experience, experience.level != level),
         );
         ctx.world.entity_mut(player).insert(experience);
     }
@@ -178,11 +179,46 @@ mod tests {
 #[cfg(test)]
 mod bds_capture {
     use crate::command::exec::evidence::Replay;
+    use jolyne::valentine::McpePacketData;
 
-    /// `UpdateAttributes` is not compared: the shared experience attributes
-    /// differ from BDS's (see the parity row's gaps).
+    /// Every answer, and every experience `UpdateAttributes` lists the
+    /// attributes BDS listed: names, values (to the bit) and ranges, in order
+    /// (a level change: the level, then the progress twice).
     #[test]
     fn xp_matches_the_bds_capture() {
-        Replay::new().assert_segment("xp", &[]);
+        let steps = Replay::new().assert_segment("xp", &[]);
+        type Row = (String, u32, f32, f32, f32, f32, f32);
+        let lists = |packets: Vec<&McpePacketData>| -> Vec<Vec<Row>> {
+            packets
+                .into_iter()
+                .filter_map(|p| match p {
+                    McpePacketData::UpdateAttributesPacket(p) => Some(
+                        p.attribute_list
+                            .iter()
+                            .map(|a| {
+                                (
+                                    a.name.to_string(),
+                                    a.current_value.to_bits(),
+                                    a.min_value,
+                                    a.max_value,
+                                    a.default_min_value,
+                                    a.default_max_value,
+                                    a.default_value,
+                                )
+                            })
+                            .collect(),
+                    ),
+                    _ => None,
+                })
+                .collect()
+        };
+        for step in &steps {
+            assert_eq!(
+                lists(step.sent_named("UpdateAttributesPacket")),
+                lists(step.captured.named("UpdateAttributesPacket")),
+                "{}",
+                step.captured.command
+            );
+        }
     }
 }

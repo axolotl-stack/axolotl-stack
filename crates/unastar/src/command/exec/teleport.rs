@@ -25,12 +25,9 @@ use jolyne::valentine::{MovePlayerPacket, MovePlayerTeleportData};
 const TELEPORT_CAUSE_COMMAND: i32 = 3;
 /// `source_actor_type` BDS 1.26.51 sends in command teleports (measured).
 const SOURCE_ACTOR_TYPE: i32 = 1;
-/// Measured: BDS reports a player 1.62001 above its feet, one f32 step or so
-/// above the 1.62 eye height. Every captured teleport carries the f32 nearest
-/// feet + 1.62001 (feet y from -22 to 210, e.g. 201.62001 for 200), and so do
-/// the join captures' respawns. Only the packet uses it: the player's eyes
-/// stay 1.62 above the feet, as everywhere else in unastar.
-const REPORTED_EYE_HEIGHT: f64 = 1.620_01;
+/// Measured: BDS reports a player 1.62001 above its feet (feet y from -22
+/// to 210 in the captured teleports).
+const REPORTED_EYE_HEIGHT: f64 = crate::entity::item_drop::PLAYER_REPORTED_EYE_HEIGHT;
 
 overloads! {
     /// One variant per captured overload; `victim` absent means the source.

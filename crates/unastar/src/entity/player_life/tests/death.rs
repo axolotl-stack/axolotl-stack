@@ -63,7 +63,7 @@ fn a_player_killed_by_a_mob_dies_drops_everything_and_sees_the_respawn_screen() 
     );
     assert_eq!(death_infos(&packets), std::slice::from_ref(&message));
     assert_eq!(translations(&packets), std::slice::from_ref(&message));
-    let spawn = world_spawn(&mut h);
+    let spawn = reported(world_spawn(&mut h));
     assert_eq!(
         respawns(&packets),
         [
