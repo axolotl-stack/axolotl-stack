@@ -10,25 +10,17 @@
 //! clearing an effect the target lacks fails with
 //! `commands.effect.failure.notActive`.
 //!
-//! Effects live in the target's [`Effects`] component, which the effect
-//! systems tick. Instant effects act once when given (measured: `MobEffect`
-//! `Add` for 30 ticks, one second by default): instant health heals
+//! Effects are given, taken and cleared through the shared effect system
+//! (`entity::effects`), which sends the `MobEffect` packets and acts on the
+//! effects each tick. Instant effects act on the next effect step and stay
+//! listed for their duration (measured: `MobEffect` `Add` for 30 ticks when
+//! the seconds are left out, one second in the answer; for the given seconds
+//! as ticks otherwise, `instant_damage 1` one tick): instant health heals
 //! `4 << amplifier`, instant damage deals `6 << amplifier` magic damage,
 //! reversed for undead mobs.
 
 use crate::command::prelude::*;
-use crate::entity::components::{
-    ActiveEffect, ActorViewers, EffectType, Effects, Health, Living, Player, PlayerSession,
-    RuntimeId,
-};
-use crate::entity::definition::families::ActorFamilies;
-use crate::entity::mob::MobRegistry;
-use crate::entity::mob::combat::{Hit, hurt_mob};
-use crate::entity::mob::components::KnockbackPower;
-use crate::entity::player_life::{hurt_player, send_to_player_and_viewers};
-use jolyne::valentine::types::{ActorRuntimeId, EnumsMobEffectPacketPayloadEvent, PlayerInputTick};
-use jolyne::valentine::{McpePacket, MobEffectPacket};
-use unastar_data::actor_components::body::ActorDamageCause;
+use crate::entity::components::{ActiveEffect, EffectType, Living, Player};
 
 /// BDS's limits for `seconds` and `amplifier`.
 const MAX_SECONDS: i32 = 1_000_000;
@@ -173,6 +165,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: EffectArgs) -> CommandResult {
             amplifier,
             hide_particles,
         } => {
+            let given_seconds = seconds;
             let default = if effect.is_instant() {
                 INSTANT_DEFAULT_SECONDS
             } else {
@@ -187,11 +180,15 @@ pub fn run(ctx: &mut CommandContext<'_>, args: EffectArgs) -> CommandResult {
                 // takes the effect away.
                 return clear(ctx, &player, Some(effect));
             }
+            // Measured (BDS 1.26.51 effects capture): an instant effect lasts
+            // the given seconds as ticks, 30 when they are left out.
+            let instant_ticks = given_seconds.unwrap_or(INSTANT_TICKS);
             give(
                 ctx,
                 &player,
                 effect,
                 Some(seconds),
+                instant_ticks,
                 amplifier,
                 hide_particles.unwrap_or(false),
             )
@@ -210,6 +207,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: EffectArgs) -> CommandResult {
                 &player,
                 effect,
                 None,
+                INSTANT_TICKS,
                 amplifier,
                 hide_particles.unwrap_or(false),
             )
@@ -239,12 +237,14 @@ fn targets(ctx: &mut CommandContext<'_>, player: &Target) -> Result<Vec<Entity>,
     Ok(targets)
 }
 
-/// `seconds` is `None` for an infinite effect.
+/// `seconds` is `None` for an infinite effect; an instant effect lasts
+/// `instant_ticks`.
 fn give(
     ctx: &mut CommandContext<'_>,
     player: &Target,
     effect: EffectName,
     seconds: Option<i32>,
+    instant_ticks: i32,
     amplifier: i32,
     hide_particles: bool,
 ) -> CommandResult {
@@ -260,25 +260,19 @@ fn give(
     let mut output = CommandOutput::default();
     for target in targets {
         let name = ctx.name(target);
-        if effect.is_instant() {
-            // [INFERENCE] An infinite instant effect acts and shows like any
-            // other instant effect.
-            let shown = ActiveEffect {
-                duration_ticks: INSTANT_TICKS as u32,
+        // [INFERENCE] An infinite instant effect acts and shows like any
+        // other instant effect. A weaker effect leaves the active one in
+        // place (the effect add rule) and is still reported as given.
+        let given = if effect.is_instant() {
+            ActiveEffect {
+                duration_ticks: instant_ticks as u32,
                 infinite: false,
                 ..active.clone()
-            };
-            send_effect(
-                ctx.world,
-                target,
-                EnumsMobEffectPacketPayloadEvent::Add,
-                effect_type,
-                &shown,
-            );
-            apply_instant(ctx.world, target, effect, amplifier);
+            }
         } else {
-            give_lasting(ctx.world, target, effect_type, &active);
-        }
+            active.clone()
+        };
+        crate::entity::effects::give(ctx.world, target, effect_type, given);
         match seconds {
             Some(seconds) => output.add_success(
                 "commands.effect.success",
@@ -298,71 +292,6 @@ fn give(
     Ok(output)
 }
 
-/// Adds a lasting effect under the effect add rule and shows it.
-fn give_lasting(world: &mut World, target: Entity, effect_type: EffectType, active: &ActiveEffect) {
-    // [INFERENCE] A weaker effect leaves the active one in place (the effect
-    // add rule) and is still reported as given.
-    let applied = {
-        let mut entity = world.entity_mut(target);
-        let mut effects = entity.entry::<Effects>().or_default();
-        let existed = effects.get().has(effect_type);
-        effects
-            .get_mut()
-            .apply(effect_type, active.clone())
-            .then_some(existed)
-    };
-    if let Some(existed) = applied {
-        let event = if existed {
-            EnumsMobEffectPacketPayloadEvent::Update
-        } else {
-            EnumsMobEffectPacketPayloadEvent::Add
-        };
-        send_effect(world, target, event, effect_type, active);
-    }
-}
-
-/// Instant health heals `4 << amplifier`; instant damage deals
-/// `6 << amplifier` magic damage. Undead mobs swap the two.
-fn apply_instant(world: &mut World, target: Entity, effect: EffectName, amplifier: i32) {
-    let scale = 2f32.powi(amplifier.min(30));
-    let heals = (effect == EffectName::InstantHealth) != is_undead(world, target);
-    if heals {
-        if let Some(mut health) = world.get_mut::<Health>(target)
-            && !health.is_dead()
-        {
-            health.heal(4.0 * scale);
-        }
-        return;
-    }
-    let hit = Hit {
-        damage: 6.0 * scale,
-        cause: ActorDamageCause::Magic,
-        attacker: None,
-        by_player: false,
-        knockback_from: None,
-        knockback_power: KnockbackPower::DEFAULT,
-    };
-    if world.get::<Player>(target).is_some() {
-        hurt_player(world, target, &hit);
-    } else {
-        hurt_mob(world, target, hit);
-    }
-}
-
-/// Whether a mob is in the `undead` family.
-fn is_undead(world: &World, entity: Entity) -> bool {
-    let (Some(families), Some(registry)) = (
-        world.get::<ActorFamilies>(entity),
-        world.get_resource::<MobRegistry>(),
-    ) else {
-        return false;
-    };
-    registry
-        .families()
-        .resolve("undead")
-        .is_some_and(|id| families.contains(&id).unwrap_or(false))
-}
-
 /// Clears one effect, or every effect when `effect` is `None`.
 fn clear(
     ctx: &mut CommandContext<'_>,
@@ -373,30 +302,16 @@ fn clear(
     let mut output = CommandOutput::default();
     for target in targets {
         let name = ctx.name(target);
-        let removed: Vec<(EffectType, ActiveEffect)> = match ctx.world.get_mut::<Effects>(target) {
-            Some(mut effects) => match effect {
-                Some(effect) => {
-                    let effect_type = effect.info().0;
-                    effects
-                        .active
-                        .remove(&effect_type)
-                        .map(|active| (effect_type, active))
-                        .into_iter()
-                        .collect()
-                }
-                None => effects.active.drain().collect(),
-            },
-            None => Vec::new(),
+        let removed: Vec<(EffectType, ActiveEffect)> = match effect {
+            Some(effect) => {
+                let effect_type = effect.info().0;
+                crate::entity::effects::take(ctx.world, target, effect_type)
+                    .map(|active| (effect_type, active))
+                    .into_iter()
+                    .collect()
+            }
+            None => crate::entity::effects::clear(ctx.world, target),
         };
-        for (effect_type, active) in &removed {
-            send_effect(
-                ctx.world,
-                target,
-                EnumsMobEffectPacketPayloadEvent::Remove,
-                *effect_type,
-                active,
-            );
-        }
         match (effect, removed.is_empty()) {
             (Some(effect), true) => output.add_failure(
                 "commands.effect.failure.notActive",
@@ -423,63 +338,13 @@ fn clear(
     }
 }
 
-/// `MobEffect` for `target`, to itself (players) and the players that see it.
-fn send_effect(
-    world: &World,
-    target: Entity,
-    event: EnumsMobEffectPacketPayloadEvent,
-    effect: EffectType,
-    active: &ActiveEffect,
-) {
-    let player = world.get::<Player>(target).is_some();
-    let runtime_id = if player {
-        world
-            .get::<crate::entity::components::RuntimeEntityId>(target)
-            .map(|id| id.0)
-    } else {
-        world.get::<RuntimeId>(target).map(|id| id.0)
-    };
-    let Some(runtime_id) = runtime_id else {
-        return;
-    };
-    let packet = McpePacket::from(MobEffectPacket {
-        target_runtime_id: ActorRuntimeId {
-            actor_runtime_id: runtime_id as u64,
-        },
-        event_id: event,
-        effect_id: i32::from(effect.0),
-        effect_amplifier: i32::from(active.level),
-        show_particles: active.show_particles,
-        effect_duration_ticks: if active.infinite {
-            -1
-        } else {
-            active.duration_ticks as i32
-        },
-        // The player's input tick only for effects that change movement, as
-        // BDS 1.26.51 sends them; 0 for every other effect and for mobs.
-        tick: if effect.affects_movement() {
-            crate::entity::components::input_tick_of(world, target)
-        } else {
-            PlayerInputTick { inputtick: 0 }
-        },
-        ambient: active.ambient,
-    });
-    if player {
-        send_to_player_and_viewers(world, target, &packet);
-    } else if let Some(viewers) = world.get::<ActorViewers>(target) {
-        for viewer in &viewers.viewers {
-            if let Some(session) = world.get::<PlayerSession>(*viewer) {
-                let _ = session.send(packet.clone());
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::command::exec::test_support::Harness;
-    use jolyne::valentine::McpePacketData;
+    use crate::entity::components::{Effects, Health};
+    use jolyne::valentine::types::EnumsMobEffectPacketPayloadEvent;
+    use jolyne::valentine::{McpePacketData, MobEffectPacket};
 
     #[test]
     fn effect_enum_covers_the_captured_values() {
@@ -723,18 +588,22 @@ mod tests {
             ),
             (6, 0, 30, true)
         );
+        // It acts on the next effect step and stays listed for its ticks.
+        h.server.tick();
         assert_eq!(health(&mut h, alice), 14.0);
         assert!(
             h.world()
                 .get::<Effects>(alice)
-                .is_none_or(|e| !e.has(EffectType::INSTANT_HEALTH))
+                .is_some_and(|e| e.has(EffectType::INSTANT_HEALTH))
         );
 
         h.run(alice, "/effect @s instant_health 1 1");
+        h.server.tick();
         assert_eq!(health(&mut h, alice), 20.0);
         assert_eq!(effect_packets(&mut h, alice)[0].effect_amplifier, 1);
 
         let output = h.run(alice, "/effect @s instant_damage");
+        h.server.tick();
         assert_eq!(
             output.messages[0].params,
             ["%potion.harm", "0", "Alice", "1"]
@@ -760,15 +629,20 @@ mod tests {
         let cow = mob(&mut h, "minecraft:cow");
         let (zombie_before, cow_before) = (health(&mut h, zombie), health(&mut h, cow));
 
+        // Measured (BDS 1.26.51 effects capture): instant health hurts an
+        // undead mob by `4 << level`, instant damage hurts a living one by
+        // `6 << level`, on the next effect step.
         assert!(
             h.run(op, "/effect @e[type=zombie] instant_health")
                 .is_success()
         );
-        assert_eq!(health(&mut h, zombie), zombie_before - 6.0);
+        h.server.tick();
+        assert_eq!(health(&mut h, zombie), zombie_before - 4.0);
         assert!(
             h.run(op, "/effect @e[type=cow] instant_damage")
                 .is_success()
         );
+        h.server.tick();
         assert_eq!(health(&mut h, cow), cow_before - 6.0);
     }
 

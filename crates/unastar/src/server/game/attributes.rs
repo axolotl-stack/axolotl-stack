@@ -6,13 +6,19 @@
 //! absorption 0..16 default 0, health 0..max default max. After join only
 //! the attributes whose value changed are sent, one packet per player per
 //! tick, from [`sync_player_attributes`]. Experience is sent by the
-//! experience code itself (`entity::xp_orb`).
+//! experience code itself (`entity::xp_orb`). The modifiers effects put on
+//! health and movement (`entity::effects::EffectModifiers`) go with them, as
+//! BDS 1.26.51 sends them: health boost raises the maximum with a
+//! `HealthBoost` modifier while the defaults stay 20, speed and slowness
+//! modify the 0.1 movement (one entry per modifier added or removed).
 
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{ActorRuntimeId, AttributeData};
 use jolyne::valentine::{McpePacket, UpdateAttributesPacket};
 
 use crate::entity::components::{Health, Hunger, PlayerInput, PlayerSession, RuntimeEntityId};
+use crate::entity::definition::attributes::WireModifier;
+use crate::entity::effects::EffectModifiers;
 
 /// Maximum food level.
 pub const MAX_FOOD: f32 = 20.0;
@@ -24,6 +30,8 @@ pub const DEFAULT_SATURATION: f32 = 5.0;
 pub const MAX_EXHAUSTION: f32 = 20.0;
 /// Upper end of the absorption attribute.
 pub const MAX_ABSORPTION: f32 = 16.0;
+/// A player's movement speed attribute (BDS 1.26.51 join).
+pub const PLAYER_MOVEMENT: f32 = 0.1;
 
 fn attr(name: &str, current: f32, max: f32, default: f32) -> AttributeData {
     AttributeData {
@@ -40,6 +48,35 @@ fn attr(name: &str, current: f32, max: f32, default: f32) -> AttributeData {
 
 pub fn health(health: &Health) -> AttributeData {
     attr("minecraft:health", health.current, health.max, health.max)
+}
+
+/// Health under effect modifiers: health boost raises the maximum; the
+/// defaults stay the unboosted maximum.
+pub fn boosted_health(health: &Health, effects: &EffectModifiers) -> AttributeData {
+    let base = health.max - effects.health_boost;
+    AttributeData {
+        default_max_value: base,
+        default_value: base,
+        modifiers: wire_modifiers(&effects.health_modifiers()),
+        ..attr("minecraft:health", health.current, health.max, base)
+    }
+}
+
+/// The movement attribute under speed and slowness.
+pub fn movement(effects: &EffectModifiers) -> AttributeData {
+    AttributeData {
+        modifiers: wire_modifiers(&effects.movement),
+        ..attr(
+            "minecraft:movement",
+            effects.movement(PLAYER_MOVEMENT),
+            f32::MAX,
+            PLAYER_MOVEMENT,
+        )
+    }
+}
+
+fn wire_modifiers(modifiers: &[WireModifier]) -> Vec<jolyne::valentine::types::AttributeModifier> {
+    modifiers.iter().map(WireModifier::to_wire).collect()
 }
 
 pub fn absorption(amount: f32) -> AttributeData {
@@ -85,6 +122,8 @@ pub struct SentAttributes {
     food: Option<i32>,
     saturation: Option<f32>,
     exhaustion: Option<f32>,
+    /// The effect modifiers last sent (none at join).
+    modifiers: EffectModifiers,
 }
 
 impl SentAttributes {
@@ -96,6 +135,7 @@ impl SentAttributes {
             food: Some(hunger.food_level),
             saturation: Some(hunger.saturation),
             exhaustion: Some(hunger.exhaustion),
+            modifiers: EffectModifiers::default(),
         }
     }
 
@@ -110,12 +150,30 @@ impl SentAttributes {
     }
 
     /// The attributes that differ from what was sent; records them as sent.
-    pub fn diff(&mut self, health: &Health, hunger: &Hunger, absorb: f32) -> Vec<AttributeData> {
+    pub fn diff(
+        &mut self,
+        health: &Health,
+        hunger: &Hunger,
+        absorb: f32,
+        effects: &EffectModifiers,
+    ) -> Vec<AttributeData> {
         let mut out = Vec::new();
-        if self.health != Some((health.current, health.max)) {
+        if self.health != Some((health.current, health.max))
+            || self.modifiers.health_boost != effects.health_boost
+        {
             self.health = Some((health.current, health.max));
-            out.push(self::health(health));
+            out.push(boosted_health(health, effects));
         }
+        if self.modifiers.movement != effects.movement {
+            let entries = crate::entity::effects::modifier_changes(
+                &self.modifiers.movement,
+                &effects.movement,
+            );
+            for _ in 0..entries.max(1) {
+                out.push(movement(effects));
+            }
+        }
+        self.modifiers = effects.clone();
         if self.absorption != Some(absorb) {
             self.absorption = Some(absorb);
             out.push(absorption(absorb));
@@ -148,11 +206,18 @@ pub fn sync_player_attributes(
         &Health,
         &Hunger,
         Option<&Absorption>,
+        Option<&EffectModifiers>,
         &mut SentAttributes,
     )>,
 ) {
-    for (runtime_id, session, input, health, hunger, absorb, mut sent) in &mut players {
-        let changed = sent.diff(health, hunger, absorb.map_or(0.0, |a| a.0));
+    let none = EffectModifiers::default();
+    for (runtime_id, session, input, health, hunger, absorb, effects, mut sent) in &mut players {
+        let changed = sent.diff(
+            health,
+            hunger,
+            absorb.map_or(0.0, |a| a.0),
+            effects.unwrap_or(&none),
+        );
         if changed.is_empty() {
             continue;
         }
@@ -194,11 +259,12 @@ mod tests {
         let health = Health::new(20.0);
         let mut hunger = Hunger::default();
         let mut sent = SentAttributes::sent(&health, &hunger, 0.0);
-        assert!(sent.diff(&health, &hunger, 0.0).is_empty());
+        let none = EffectModifiers::default();
+        assert!(sent.diff(&health, &hunger, 0.0, &none).is_empty());
         hunger.food_level = 17;
         hunger.exhaustion = 0.5;
         let names: Vec<_> = sent
-            .diff(&health, &hunger, 0.0)
+            .diff(&health, &hunger, 0.0, &none)
             .into_iter()
             .map(|a| a.name.to_string())
             .collect();
@@ -206,6 +272,6 @@ mod tests {
             names,
             ["minecraft:player.hunger", "minecraft:player.exhaustion"]
         );
-        assert!(sent.diff(&health, &hunger, 0.0).is_empty());
+        assert!(sent.diff(&health, &hunger, 0.0, &none).is_empty());
     }
 }

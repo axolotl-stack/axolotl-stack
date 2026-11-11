@@ -1,23 +1,12 @@
-//! Status effects on players: adding and clearing them from item use, the
-//! per-tick effects that change player state, and the `MobEffect` packets.
-//!
-//! Effect durations tick in the shared `tick_effects` system (the
-//! [`Effects`] component, also used by mobs). This module only adds the
-//! player side that system does not cover: what regeneration, poison,
-//! wither, hunger, saturation, absorption and instant health/damage do to a
-//! player each tick, and telling the player's client about every effect
-//! change ([`sync_player_effects`]).
-
-use std::collections::HashMap;
+//! Status effect names and the player entry points of the shared effect
+//! system (`entity::effects`): food, milk and other item use give, take and
+//! clear effects through [`add_effect`], [`remove_effect`] and
+//! [`clear_effects`]. The effect step, what effects do to a player and the
+//! `MobEffect` packets are `entity::effects`, shared with mobs.
 
 use bevy_ecs::prelude::*;
-use jolyne::valentine::types::{ActorRuntimeId, EnumsMobEffectPacketPayloadEvent, PlayerInputTick};
-use jolyne::valentine::{McpePacket, MobEffectPacket};
 
-use super::attributes::{Absorption, MAX_ABSORPTION};
-use crate::entity::components::{
-    EffectType, Effects, GameMode, Health, Hunger, PlayerInput, PlayerSession, RuntimeEntityId,
-};
+use crate::entity::components::{ActiveEffect, EffectType, Health, Hunger};
 
 /// Bedrock effect identifiers and their protocol ids.
 const EFFECT_NAMES: [(&str, u8); 36] = [
@@ -69,8 +58,9 @@ pub fn effect_by_name(name: &str) -> Option<EffectType> {
         .map(|(_, id)| EffectType(*id))
 }
 
-/// Give `player` an effect (amplifier 0-based). Instant effects apply at
-/// once and are not stored.
+/// Give `player` an effect (amplifier 0-based) through the shared effect
+/// system. Instant health and an instant saturation from food act at once
+/// and are not stored.
 pub fn add_effect(
     world: &mut World,
     player: Entity,
@@ -89,38 +79,22 @@ pub fn add_effect(
         }
         _ => {}
     }
-    let mut entity = world.entity_mut(player);
-    if !entity.contains::<Effects>() {
-        entity.insert(Effects::default());
-    }
-    entity
-        .get_mut::<Effects>()
-        .expect("inserted above")
-        .add(effect, amplifier, duration_ticks);
-    // Absorption grants its extra health when it starts or is renewed.
-    if effect == EffectType::ABSORPTION {
-        let amount = (4.0 * (f32::from(amplifier) + 1.0)).min(MAX_ABSORPTION);
-        match entity.get_mut::<Absorption>() {
-            Some(mut absorption) => absorption.0 = absorption.0.max(amount),
-            None => {
-                entity.insert(Absorption(amount));
-            }
-        }
-    }
+    crate::entity::effects::give(
+        world,
+        player,
+        effect,
+        ActiveEffect::new(amplifier, duration_ticks),
+    );
 }
 
 /// Remove one effect from `player`.
 pub fn remove_effect(world: &mut World, player: Entity, effect: EffectType) {
-    if let Some(mut effects) = world.get_mut::<Effects>(player) {
-        effects.remove(effect);
-    }
+    crate::entity::effects::take(world, player, effect);
 }
 
 /// Remove every effect (milk).
 pub fn clear_effects(world: &mut World, player: Entity) {
-    if let Some(mut effects) = world.get_mut::<Effects>(player) {
-        effects.active.clear();
-    }
+    crate::entity::effects::clear(world, player);
 }
 
 fn heal(world: &mut World, player: Entity, amount: f32) {
@@ -133,153 +107,6 @@ fn heal(world: &mut World, player: Entity, amount: f32) {
 fn saturate(world: &mut World, player: Entity, amplifier: u8) {
     if let Some(mut hunger) = world.get_mut::<Hunger>(player) {
         hunger.eat(i32::from(amplifier) + 1, 1.0);
-    }
-}
-
-/// Whether an effect with `remaining` ticks left at `amplifier` acts this
-/// tick, for effects that act every `base >> amplifier` ticks.
-fn pulses(base: u32, amplifier: u8, remaining: u32) -> bool {
-    let interval = base >> amplifier.min(31);
-    interval == 0 || remaining.is_multiple_of(interval)
-}
-
-/// System: what the active effects do to each player this tick. Runs after
-/// `tick_effects` has counted the durations down.
-#[allow(clippy::type_complexity)]
-pub fn apply_player_effects(
-    mut commands: Commands,
-    mut players: Query<(
-        Entity,
-        &Effects,
-        &mut Health,
-        &mut Hunger,
-        &GameMode,
-        Option<&mut Absorption>,
-    )>,
-    mut absent: Query<&mut Absorption, Without<Effects>>,
-) {
-    for (player, effects, mut health, mut hunger, mode, absorption) in &mut players {
-        if health.is_dead() {
-            continue;
-        }
-        let survival = !matches!(mode, GameMode::Creative | GameMode::Spectator);
-        if let Some(e) = effects.get(EffectType::REGENERATION)
-            && pulses(50, e.level, e.duration_ticks)
-        {
-            health.heal(1.0);
-        }
-        if survival
-            && let Some(e) = effects.get(EffectType::POISON)
-            && pulses(25, e.level, e.duration_ticks)
-            && health.current > 1.0
-        {
-            health.current = (health.current - 1.0).max(1.0);
-        }
-        if survival
-            && let Some(e) = effects.get(EffectType::WITHER)
-            && pulses(40, e.level, e.duration_ticks)
-        {
-            // Wither can kill, so it takes the player damage path (hurt
-            // timer, death), applied when the commands run.
-            commands.queue(move |world: &mut World| {
-                crate::entity::player_life::hurt_player(
-                    world,
-                    player,
-                    &crate::entity::mob::combat::Hit {
-                        damage: 1.0,
-                        cause: unastar_data::actor_components::body::ActorDamageCause::Wither,
-                        attacker: None,
-                        by_player: false,
-                        knockback_from: None,
-                        knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
-                    },
-                );
-            });
-        }
-        if survival && let Some(e) = effects.get(EffectType::HUNGER) {
-            hunger.exhaust(0.005 * (f32::from(e.level) + 1.0));
-        }
-        if let Some(e) = effects.get(EffectType::SATURATION) {
-            hunger.eat(i32::from(e.level) + 1, 1.0);
-        }
-        // Absorption hearts last while the effect lasts; damage taken from
-        // them only lowers the amount.
-        let wanted = effects
-            .get(EffectType::ABSORPTION)
-            .map(|e| (4.0 * (f32::from(e.level) + 1.0)).min(MAX_ABSORPTION));
-        if let Some(mut absorption) = absorption {
-            match wanted {
-                Some(max) => absorption.0 = absorption.0.min(max),
-                None => absorption.0 = 0.0,
-            }
-        }
-    }
-    for mut absorption in &mut absent {
-        absorption.0 = 0.0;
-    }
-}
-
-/// The effects a player's client last heard of.
-#[derive(Component, Debug, Clone, Default, PartialEq)]
-pub struct SentEffects(HashMap<EffectType, (u8, u32)>);
-
-/// System: send each player `MobEffect` add, modify and remove packets for
-/// the changes since the last tick.
-#[allow(clippy::type_complexity)]
-pub fn sync_player_effects(
-    mut players: Query<(
-        &RuntimeEntityId,
-        &PlayerSession,
-        Option<&Effects>,
-        &mut SentEffects,
-        Option<&PlayerInput>,
-    )>,
-) {
-    for (runtime_id, session, effects, mut sent, input) in &mut players {
-        let tick = input.map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick);
-        let send = |event, effect: EffectType, amplifier: u8, duration: u32| {
-            let _ = session.send(McpePacket::from(MobEffectPacket {
-                target_runtime_id: ActorRuntimeId {
-                    actor_runtime_id: runtime_id.0 as u64,
-                },
-                event_id: event,
-                effect_id: i32::from(effect.0),
-                effect_amplifier: i32::from(amplifier),
-                show_particles: true,
-                effect_duration_ticks: duration as i32,
-                tick: if effect.affects_movement() {
-                    tick.clone()
-                } else {
-                    PlayerInputTick { inputtick: 0 }
-                },
-                ambient: false,
-            }));
-        };
-        let active = effects.map(|e| &e.active);
-        let removed: Vec<_> = sent
-            .0
-            .keys()
-            .filter(|effect| active.is_none_or(|a| !a.contains_key(effect)))
-            .copied()
-            .collect();
-        for effect in removed {
-            sent.0.remove(&effect);
-            send(EnumsMobEffectPacketPayloadEvent::Remove, effect, 0, 0);
-        }
-        for (effect, state) in active.into_iter().flatten() {
-            // A duration that only counted down is not a change.
-            let event = match sent.0.get(effect) {
-                None => Some(EnumsMobEffectPacketPayloadEvent::Add),
-                Some(&(level, last)) if level != state.level || state.duration_ticks > last => {
-                    Some(EnumsMobEffectPacketPayloadEvent::Update)
-                }
-                Some(_) => None,
-            };
-            sent.0.insert(*effect, (state.level, state.duration_ticks));
-            if let Some(event) = event {
-                send(event, *effect, state.level, state.duration_ticks);
-            }
-        }
     }
 }
 
@@ -299,16 +126,5 @@ mod tests {
         );
         assert_eq!(effect_by_name("fatal_poison"), Some(EffectType(25)));
         assert_eq!(effect_by_name("not_an_effect"), None);
-    }
-
-    #[test]
-    fn pulse_interval_halves_per_amplifier() {
-        // Regeneration II (amplifier 1) heals every 25 ticks.
-        let heals = (1..=100).filter(|r| pulses(50, 1, *r)).count();
-        assert_eq!(heals, 4);
-        assert!(
-            pulses(50, 6, 7),
-            "an interval below one tick acts every tick"
-        );
     }
 }

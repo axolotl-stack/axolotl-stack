@@ -208,27 +208,23 @@ fn compile_spell_effects(b: body::SpellEffects) -> Result<SpellEffectsConfig, St
     })
 }
 
-/// Give and take the configured effects (immune effects are not given).
+/// Give and take the configured effects through the shared effect system
+/// (`entity::effects`; immune effects are not given).
 fn apply_spell_effects(config: &SpellEffectsConfig, entity: &mut EntityWorldMut<'_>) {
-    let immune = entity
-        .get::<MobEffectImmunity>()
-        .map(|immunity| Arc::clone(&immunity.0));
-    let mut entry = entity
-        .entry::<crate::entity::components::Effects>()
-        .or_default();
-    let mut effects = entry.get_mut();
-    for effect in config.remove.iter() {
-        effects.remove(*effect);
-    }
-    for &(effect, amplifier, ticks) in config.add.iter() {
-        if immune
-            .as_ref()
-            .is_some_and(|immune| immune.contains(&effect))
-        {
-            continue;
+    let mob = entity.id();
+    entity.world_scope(|world| {
+        for effect in config.remove.iter() {
+            crate::entity::effects::take(world, mob, *effect);
         }
-        effects.add(effect, amplifier, ticks);
-    }
+        for &(effect, amplifier, ticks) in config.add.iter() {
+            crate::entity::effects::give(
+                world,
+                mob,
+                effect,
+                crate::entity::components::ActiveEffect::new(amplifier, ticks),
+            );
+        }
+    });
 }
 
 fn compile_hit_test(b: body::CustomHitTest) -> Result<CustomHitTest, StatsError> {

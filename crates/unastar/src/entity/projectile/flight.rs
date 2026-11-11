@@ -229,10 +229,11 @@ fn lerp_rotation(current: f32, target: f32) -> f32 {
     current + delta * PROJECTILE_ROTATION_SMOOTHING
 }
 
-/// Turn a projectile invisible or visible, as BDS does for any actor: when
-/// the state changes, `INVISIBLE` follows `on`, `CAN_SHOW_NAME` the
-/// opposite, and the actor plays the synchronised `disappeared` or
-/// `reappeared` sound at the centre of its box (data -1).
+/// Turn an actor (a projectile, or a mob under invisibility) invisible or
+/// visible, as BDS does for any actor: when the state changes, `INVISIBLE`
+/// follows `on`, `CAN_SHOW_NAME` the opposite, and the actor plays the
+/// synchronised `disappeared` or `reappeared` sound at the centre of its box
+/// (data -1).
 pub(crate) fn set_invisible(world: &mut World, projectile: Entity, on: bool) {
     let mut entity = world.entity_mut(projectile);
     let Some(mut flags) = entity.get_mut::<ActorFlags>() else {

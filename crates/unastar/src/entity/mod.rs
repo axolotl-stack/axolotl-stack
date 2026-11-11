@@ -3,6 +3,7 @@
 //! Provides ECS components, systems, and bundles for Minecraft entities.
 //! This includes players, mobs, items, projectiles, and other game entities.
 //!
+//! - [`effects`]: status effects on mobs and players.
 //! - [`definition`]: the generic behaviour-pack definition layer (component
 //!   kinds, the definition stack, bound events, families, flags, properties,
 //!   attributes and actor metadata).
@@ -15,6 +16,7 @@ mod bds_send_range;
 pub mod bundles;
 pub mod components;
 pub mod definition;
+pub mod effects;
 pub mod geometry;
 pub(crate) mod goal_selector;
 pub mod item_drop;

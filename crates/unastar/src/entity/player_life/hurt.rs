@@ -15,6 +15,9 @@
 //!    (override and self-destruct damage ignore the timer).
 //! 4. Armour: the summed defence and toughness of the worn pieces reduce
 //!    the damage of the causes armour stops (`unastar_data::armour`).
+//! 5. Effects (`entity::effects`): fire resistance ignores fire, fire tick,
+//!    lava and magma (BDS 1.26.51 refuses `/damage` with them); resistance
+//!    takes its share; absorption takes what it can before health.
 //!
 //! A full hit sends `ActorEvent` hurt to the player and its viewers and,
 //! when the hit has a source position, knocks the player back: the player
@@ -81,6 +84,15 @@ pub(super) fn apply_hit(
     if !allowed_by_rules(world.resource::<GameRules>(), hit.cause) {
         return 0.0;
     }
+    if crate::entity::mob::constants::FIRE_IMMUNE_CAUSES.contains(&hit.cause)
+        && world
+            .get::<crate::entity::components::Effects>(player)
+            .is_some_and(|effects| {
+                effects.has(crate::entity::components::EffectType::FIRE_RESISTANCE)
+            })
+    {
+        return 0.0;
+    }
     let damage = if hit.attacker.is_some() && !hit.by_player {
         let scaled = scale_for_difficulty(*world.resource::<Difficulty>(), hit.damage);
         if scaled <= 0.0 {
@@ -111,6 +123,8 @@ pub(super) fn apply_hit(
     } else {
         dealt
     };
+    let dealt = crate::entity::effects::resisted(world, player, dealt);
+    let dealt = crate::entity::effects::absorbed(world, player, dealt);
 
     let (applied, dead) = {
         let mut entity = world.entity_mut(player);
@@ -132,7 +146,7 @@ pub(super) fn apply_hit(
         (before - health.current, health.is_dead())
     };
     if full {
-        send_hurt_event(world, player);
+        send_hurt_event(world, player, hit.cause);
         if let Some(from) = hit.knockback_from {
             knock_back(world, player, from, hit.knockback_power);
         }
@@ -228,6 +242,10 @@ fn worn_armour(world: &World, player: Entity) -> (f32, f32) {
 
 /// Send `ActorEvent(event)` about `player` to it and its viewers.
 pub(super) fn send_player_event(world: &World, player: Entity, event: EnumsActorEvent) {
+    send_player_event_with(world, player, event, 0);
+}
+
+fn send_player_event_with(world: &World, player: Entity, event: EnumsActorEvent, data: i32) {
     let Some(runtime_id) = world.get::<RuntimeEntityId>(player) else {
         return;
     };
@@ -236,14 +254,21 @@ pub(super) fn send_player_event(world: &World, player: Entity, event: EnumsActor
             actor_runtime_id: runtime_id.0 as u64,
         },
         event_id: event,
-        data: 0,
+        data,
         fire_at_position: None,
     });
     send_to_player_and_viewers(world, player, &packet);
 }
 
-fn send_hurt_event(world: &World, player: Entity) {
-    send_player_event(world, player, EnumsActorEvent::Hurt);
+/// The hurt animation, its data the cause (BDS 1.26.51: magic 14, wither
+/// 15, none -1).
+fn send_hurt_event(world: &World, player: Entity, cause: ActorDamageCause) {
+    send_player_event_with(
+        world,
+        player,
+        EnumsActorEvent::Hurt,
+        crate::entity::effects::hurt_event_data(cause),
+    );
 }
 
 /// Push `player` away from `from` (horizontally) with the native knockback

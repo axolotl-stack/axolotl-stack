@@ -44,9 +44,12 @@ def payload_value(payload: dict):
 
 
 def attribute(row: dict) -> dict:
-    out = {'name': row['name'], 'current': row['current_value'], 'min': row['min_value'],
-           'max': row['max_value'], 'default': row['default_value'], 'default_min': row['default_min_value'],
-           'default_max': row['default_max_value']}
+    """An `UpdateAttributes` entry; the minimums are kept only when not 0."""
+    out = {'name': row['name'], 'current': row['current_value'], 'max': row['max_value'],
+           'default': row['default_value'], 'default_max': row['default_max_value']}
+    for key, field in (('min', 'min_value'), ('default_min', 'default_min_value')):
+        if row[field] != 0.0:
+            out[key] = row[field]
     if row['modifiers']:
         out['modifiers'] = [{'id': m['id'], 'name': m['name'], 'amount': m['amount'], 'operation': m['operation'],
                              'operand': m['operand'], 'serializable': m['is_serializable']}
@@ -110,12 +113,12 @@ def distil(result: dict, records: list[dict]) -> dict:
         damage.append({'t': tick - first, 'about': who, 'damage': round(amount, 6), 'cause': cause})
     samples = result['samples']
     out = {'mob': result['mob'], 'spec': result['spec'], 'failed_commands': result['failed_commands'],
-           'damage': damage, 'packets': packets,
-           'player_health': [s['player'].get('health') for s in samples]}
-    if result['mob']:
-        out['mob_health'] = [s['mob'].get('health') if s.get('mob') else None for s in samples]
-        out['mob_positions'] = [[round(v, 6) for v in s['mob']['pos']] + [int(s['mob']['ground'])]
-                                if s.get('mob') else None for s in samples]
+           'damage': damage, 'packets': packets}
+    # Positions only for a mob that moved (levitation, slow falling).
+    positions = [[round(v, 6) for v in s['mob']['pos']] + [int(s['mob']['ground'])]
+                 if s.get('mob') else None for s in samples]
+    if result['mob'] and len({tuple(row) for row in positions if row}) > 1:
+        out['mob_positions'] = positions
     return out
 
 

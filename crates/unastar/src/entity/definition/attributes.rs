@@ -3,15 +3,21 @@
 //! Callers supply both the ordered names and every initial numeric triple from
 //! their effective definition/native facts. A captured current value is sampled
 //! state, not an authored or universal default. This module does not clamp,
-//! validate ranges, apply modifiers, or implement native attribute handlers.
-//! AddActor's `SyncedAttribute` triples do not establish UpdateAttributes default
-//! or modifier semantics; those require independent measurements.
+//! validate ranges or implement native attribute handlers.
+//!
+//! `UpdateAttributes` ([`ActorAttributes::take_changes`]) carries what BDS
+//! 1.26.51 sends a mob's viewers (effects capture,
+//! `entity/effects/testdata/bds-1.26.51-effects.json`): only the attributes
+//! that changed, one entry per change in change order (an attribute changed
+//! twice in a tick is listed twice, with its final values), each with its
+//! defaults (the triple the actor spawned with: a health-boosted cow sends
+//! `health` 10 / 14, default 10 / 10) and the modifiers on it.
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use bevy_ecs::prelude::Component;
-use jolyne::valentine::types::SyncedAttribute;
+use jolyne::valentine::types::{AttributeData, AttributeModifier, SyncedAttribute};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum AttributeError {
@@ -99,12 +105,42 @@ impl PartialEq for AttributeValue {
     }
 }
 
+/// One modifier on an attribute, as `UpdateAttributes` carries it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WireModifier {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub amount: f32,
+    /// 0 addition, 1 multiply base, 2 multiply total.
+    pub operation: i32,
+    /// 0 minimum, 1 maximum, 2 current value.
+    pub operand: i32,
+}
+
+impl WireModifier {
+    pub fn to_wire(&self) -> AttributeModifier {
+        AttributeModifier {
+            id: self.id.into(),
+            name: self.name.into(),
+            amount: self.amount,
+            operation: self.operation,
+            operand: self.operand,
+            is_serializable: false,
+        }
+    }
+}
+
 /// Independent actor state backed by a shared frozen layout.
 /// Numeric access/update and snapshot refresh perform no allocation or name lookup.
 #[derive(Component, Debug)]
 pub struct ActorAttributes {
     layout: Arc<AttributeLayout>,
     values: Box<[AttributeValue]>,
+    /// The triples the actor spawned with: `UpdateAttributes` defaults.
+    defaults: Box<[AttributeValue]>,
+    modifiers: Box<[Vec<WireModifier>]>,
+    /// Attributes changed since the last [`Self::take_changes`], in order.
+    changes: Vec<usize>,
     revision: u64,
     clean_revision: u64,
 }
@@ -122,12 +158,122 @@ impl ActorAttributes {
                 actual: values.len(),
             });
         }
+        let defaults = values.clone();
+        let modifiers = vec![Vec::new(); values.len()].into_boxed_slice();
         Ok(Self {
             layout,
             values,
+            defaults,
+            modifiers,
+            changes: Vec::new(),
             revision: 0,
             clean_revision: 0,
         })
+    }
+
+    /// The current values become the defaults `UpdateAttributes` reports
+    /// (once the spawned actor's definition has applied).
+    pub fn reset_defaults(&mut self) {
+        self.defaults = self.values.clone();
+    }
+
+    /// The modifiers on `id`.
+    pub fn modifiers(&self, id: &AttributeId) -> Result<&[WireModifier], AttributeError> {
+        if !Arc::ptr_eq(&self.layout, &id.owner) {
+            return Err(AttributeError::ForeignHandle);
+        }
+        Ok(&self.modifiers[id.index])
+    }
+
+    /// Replace the modifiers on `id`; a change is reported like a value
+    /// change.
+    pub fn set_modifiers(
+        &mut self,
+        id: &AttributeId,
+        modifiers: &[WireModifier],
+    ) -> Result<bool, AttributeError> {
+        if !Arc::ptr_eq(&self.layout, &id.owner) {
+            return Err(AttributeError::ForeignHandle);
+        }
+        if self.modifiers[id.index] == modifiers {
+            return Ok(false);
+        }
+        self.modifiers[id.index] = modifiers.to_vec();
+        self.mark_changed(id.index);
+        Ok(true)
+    }
+
+    /// Report `id` as changed again although its values may not have
+    /// (BDS lists an attribute once per change, and sends a heal at full
+    /// health).
+    pub fn touch(&mut self, id: &AttributeId) -> Result<(), AttributeError> {
+        if !Arc::ptr_eq(&self.layout, &id.owner) {
+            return Err(AttributeError::ForeignHandle);
+        }
+        self.mark_changed(id.index);
+        Ok(())
+    }
+
+    /// Set `id`'s value and modifiers together, reported as `entries`
+    /// changes when anything changed (BDS lists an attribute once per
+    /// modifier added or removed).
+    pub fn set_modified(
+        &mut self,
+        id: &AttributeId,
+        value: AttributeValue,
+        modifiers: &[WireModifier],
+        entries: usize,
+    ) -> Result<bool, AttributeError> {
+        if !Arc::ptr_eq(&self.layout, &id.owner) {
+            return Err(AttributeError::ForeignHandle);
+        }
+        if self.values[id.index] == value && self.modifiers[id.index] == modifiers {
+            return Ok(false);
+        }
+        self.values[id.index] = value;
+        self.modifiers[id.index] = modifiers.to_vec();
+        for _ in 0..entries.max(1) {
+            self.mark_changed(id.index);
+        }
+        Ok(true)
+    }
+
+    /// Report every attribute as changed, in layout order.
+    pub fn mark_all_changed(&mut self) {
+        self.changes = (0..self.values.len()).collect();
+        self.revision = self.revision.wrapping_add(1);
+    }
+
+    fn mark_changed(&mut self, index: usize) {
+        self.changes.push(index);
+        self.revision = self.revision.wrapping_add(1);
+    }
+
+    /// The `UpdateAttributes` entries of the changes since the last call:
+    /// one per change, in change order, with the final values, defaults and
+    /// modifiers.
+    pub fn take_changes(&mut self) -> Vec<AttributeData> {
+        let changes = std::mem::take(&mut self.changes);
+        self.clean_revision = self.revision;
+        changes
+            .into_iter()
+            .map(|index| {
+                let (value, default) = (self.values[index], self.defaults[index]);
+                AttributeData {
+                    min_value: value.min,
+                    max_value: value.max,
+                    current_value: value.current,
+                    default_min_value: default.min,
+                    default_max_value: default.max,
+                    default_value: default.current,
+                    name: self.layout.names[index].as_ref().into(),
+                    modifiers: self.modifiers[index]
+                        .iter()
+                        .map(WireModifier::to_wire)
+                        .collect(),
+                }
+            })
+            .collect()
     }
 
     pub fn layout(&self) -> &Arc<AttributeLayout> {
@@ -155,7 +301,7 @@ impl ActorAttributes {
             return Ok(false);
         }
         self.values[id.index] = value;
-        self.revision = self.revision.wrapping_add(1);
+        self.mark_changed(id.index);
         Ok(true)
     }
 
@@ -171,6 +317,7 @@ impl ActorAttributes {
 
     pub fn mark_clean(&mut self) {
         self.clean_revision = self.revision;
+        self.changes.clear();
     }
 
     /// Allocate names and wire entries once, seeded only from explicit actor state.

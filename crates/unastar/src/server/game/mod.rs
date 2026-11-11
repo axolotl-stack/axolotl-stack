@@ -57,9 +57,9 @@ use crate::entity::components::{
     RuntimeEntityId, SpatialChunk,
 };
 use crate::entity::systems::{
-    apply_poison, apply_regeneration, apply_wither, despawn_dead, despawn_out_of_world,
-    merge_item_entities, tick_age, tick_air_supply, tick_damage_immunity, tick_effects, tick_fire,
-    tick_item_despawn, tick_item_pickup_delay, tick_physics, tick_projectile_lifetime,
+    despawn_dead, despawn_out_of_world, merge_item_entities, tick_age, tick_air_supply,
+    tick_damage_immunity, tick_fire, tick_item_despawn, tick_item_pickup_delay, tick_physics,
+    tick_projectile_lifetime,
 };
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
@@ -499,13 +499,9 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             (
                 tick_age,
-                apply_regeneration,
-                apply_poison,
-                apply_wither,
                 tick_air_supply,
                 tick_fire,
                 tick_damage_immunity,
-                tick_effects,
                 tick_item_pickup_delay,
                 tick_item_despawn,
                 merge_item_entities,
@@ -538,11 +534,12 @@ impl GameServer {
                 .after(falling::process_gravity_checks)
                 .before(tick_block_breaking),
         );
-        // Mob fall damage, condition damage, daylight burning and fire, death,
-        // then experience orbs. After the entity chain so deaths from
-        // fire/effects are caught the same tick.
+        // The mobs' effect step, mob fall damage, condition damage,
+        // daylight burning and fire, death, then experience orbs. After the
+        // entity chain so deaths from fire/effects are caught the same tick.
         ecs.schedule_mut().add_systems(
             (
+                crate::entity::effects::tick_mob_effects,
                 crate::entity::mob::combat::fall::apply_fall_damage,
                 crate::entity::mob::combat::hurt_on_condition,
                 crate::entity::mob::combat::fire::burn_in_daylight,
@@ -571,7 +568,6 @@ impl GameServer {
         // animation of players still using an item.
         ecs.schedule_mut().add_systems(
             (
-                effects::apply_player_effects,
                 hunger::tick_hunger,
                 item_use::tick_using,
                 crate::entity::projectile::pick_up_stuck_projectiles,
@@ -584,8 +580,10 @@ impl GameServer {
         // What changed for each player's client this tick.
         ecs.schedule_mut().add_systems(
             (
-                effects::sync_player_effects,
                 attributes::sync_player_attributes,
+                // After the attributes were sent: what a player's effect
+                // step changes reaches it the next tick, as BDS sends it.
+                crate::entity::effects::tick_player_effects,
             )
                 .chain()
                 .in_set(NetworkSendSet),
@@ -658,6 +656,7 @@ impl GameServer {
                 broadcast_block_updates,
                 sync_actor_viewers,
                 crate::entity::mob::net::sound::flush_synced_sounds,
+                crate::entity::mob::derive::sync_mob_health,
                 crate::entity::mob::net::network::sync_mob_viewers,
             )
                 .chain()
@@ -914,7 +913,6 @@ impl GameServer {
             // Join sends these values in its first UpdateAttributes.
             attributes::SentAttributes::sent(&health_sent, &hunger_sent, 0.0),
             crate::entity::components::Effects::default(),
-            effects::SentEffects::default(),
         ));
         if operator {
             self.ecs

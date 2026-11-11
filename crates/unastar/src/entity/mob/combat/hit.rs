@@ -151,6 +151,16 @@ fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
 /// A fire-immune mob ignores the [`constants::FIRE_IMMUNE_CAUSES`] before
 /// anything else looks at the hit.
 pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
+    hurt_mob_with(world, target, hit, true)
+}
+
+/// [`hurt_mob`] without the hurt animation: instant health on an undead
+/// mob (BDS 1.26.51 sends the zombie's lower health and no hurt event).
+pub fn hurt_mob_quietly(world: &mut World, target: Entity, hit: Hit) -> f32 {
+    hurt_mob_with(world, target, hit, false)
+}
+
+fn hurt_mob_with(world: &mut World, target: Entity, hit: Hit, animate: bool) -> f32 {
     if hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
         return 0.0;
     }
@@ -182,6 +192,9 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
         }
         _ => (hit.damage, now + u64::from(constants::HURT_TICKS), true),
     };
+    // Resistance takes its share, then absorption what it can.
+    let resisted = crate::entity::effects::resisted(world, target, applied);
+    let to_health = crate::entity::effects::absorbed(world, target, resisted);
     let dead = {
         let mut entity = world.entity_mut(target);
         entity.insert((
@@ -197,11 +210,16 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
             },
         ));
         let mut health = entity.get_mut::<Health>().expect("health checked above");
-        health.damage(applied);
+        health.damage(to_health);
         health.is_dead()
     };
-    if full {
-        send_actor_event(world, target, EnumsActorEvent::Hurt, 0);
+    if full && animate {
+        send_actor_event(
+            world,
+            target,
+            EnumsActorEvent::Hurt,
+            crate::entity::effects::hurt_event_data(hit.cause),
+        );
         if let Some(from) = hit.knockback_from {
             apply_knockback(world, target, from, hit.knockback_power);
         }

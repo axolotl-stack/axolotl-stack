@@ -150,6 +150,13 @@ pub fn spawn_mob(
     }
     apply_pending_definitions(world);
     derive_entity(world, entity);
+    // What the mob spawned with is what `UpdateAttributes` reports as the
+    // defaults; its viewers get every attribute once more after the
+    // `AddActor`, as BDS 1.26.51 sends them.
+    if let Some(mut attributes) = world.get_mut::<ActorAttributes>(entity) {
+        attributes.reset_defaults();
+        attributes.mark_all_changed();
+    }
     let falls = world
         .get::<PhysicsBody>(entity)
         .is_some_and(|body| body.model == PhysicsModel::Living && body.gravity > 0.0);

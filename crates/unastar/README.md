@@ -455,6 +455,20 @@ and decoded once at startup; see `../unastar-data/README.md` for prerequisites.
 Runtime rules/loot evaluation is in the bevy-free `unastar-rules` crate.
 These data/registry checks do not establish mob gameplay or crafted-pack parity.
 
+### Status effects
+
+`entity::effects` gives, takes and steps the effects of mobs and players
+alike (one implementation; `/effect`, food, milk, mob attacks and
+`spell_effects` all go through it). `sweep.py effects --client-capture`
+(`src/entity/effects/testdata/bds-1.26.51-effects.json`, 45 scenarios on a
+cow, a zombie and the sweep player) is replayed tick by tick by
+`src/entity/effects/tests.rs`: pulses of poison, regeneration and wither,
+instant effects, resistance, fire resistance, health boost, absorption,
+speed and slowness modifiers, invisibility, hidden particles, stacking,
+clearing, expiry, levitation and slow falling, with every `MobEffect`,
+visible-effects actor data, effect flag, `UpdateAttributes` entry and hurt
+event on BDS's tick (a player's within the tick its input moves it).
+
 ### Measured mob behaviour
 
 Mob AddActor packets are compared field by field with the retained native
@@ -649,7 +663,7 @@ Implemented: `/clear`, `/clone`, `/deop`, `/difficulty`, `/effect`, `/enchant`,
 | `/give`, `/clear`, `/setblock`, `/fill` | Legacy names and data values (`wool 14`, `wool ["color"="red"]`) fail with "not implemented"; current identifiers (`red_wool`) work | No legacy item/block upgrade table in the repository yet |
 | `/give` | No `UnlockedRecipes`; `PlayerHotbar` sent with `shouldselectslot=true` | No recipe-unlock system; shared inventory resync |
 | `/gamemode` | Also resends `UpdateAbilities` | Unastar's join abilities depend on the game mode |
-| `/effect` | Speed/slowness do not change movement; no visible-effects actor data | No attribute-modifier system yet |
+| `/effect` | A player's visible-effects actor data and effect flags are not sent | They come from the commands lane's `/effect` work (effects themselves act and show through `entity::effects`) |
 | `/weather` | State and client events only; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
 | `/spawnpoint`, `/setworldspawn` | Not persisted; new joiners still use the config spawn rules | No level-data store |
 | `/op`, `/deop` | Not written back to the config file | Runtime-only operator list |
@@ -802,7 +816,7 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Hunger tick: exhaustion steps, regeneration at 18 food, starvation floors, peaceful refill | done | survival research; hunger drain matched the capture (0.005 x 256 per tick) |
 | Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; per-metre accounting is a public reference |
 | Attribute sync (health, absorption, hunger, saturation, exhaustion) | done, changed values once | BDS join ranges; BDS also repeats some attributes, not copied |
-| Player effects (regeneration, poison, wither, hunger, saturation, absorption, instant health) and `MobEffect` packets | done | stew/golden apple captures; BDS sends a duplicate modify after a stew effect, not copied |
+| Player effects (regeneration, poison, wither, hunger, saturation, absorption, health boost, resistance, fire resistance, speed and slowness attributes, instant health/damage) and `MobEffect` packets | done | the shared `entity::effects` step, replayed against BDS effects captures (`entity/effects/testdata`); BDS sends a duplicate modify after a stew effect, not copied |
 | Tool wear: mining, melee (sword 1, other tools 2), bow and crossbow shots, Unbreaking, break sound | done | public reference |
 | Armour wear when hurt (`max(1, damage/4)` per piece) | done | public reference |
 | Grid repair (multi recipe `...0001`) | not done | BDS advertises it; result rule unmeasured |

@@ -428,7 +428,7 @@ class EffectFixture(unittest.TestCase):
             {'t': 10, 'about': 'mob', 'kind': 'event', 'event': 'Hurt', 'data': 14},
         ])
         self.assertEqual(item['damage'], [{'t': 30, 'about': 'mob', 'damage': 1.0, 'cause': 'magic'}])
-        self.assertEqual(item['mob_health'], [10])
+        self.assertNotIn('mob_positions', item)
 
 
 if __name__ == '__main__':
