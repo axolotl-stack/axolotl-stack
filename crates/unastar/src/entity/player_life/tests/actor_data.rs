@@ -852,6 +852,9 @@ fn respiration_spares_the_air() {
         };
         let mut h = harness(Difficulty::Easy);
         h.rules().natural_regeneration = false;
+        // A fixed seed keeps the drop count reproducible.
+        h.world()
+            .insert_resource(crate::entity::EntityRandom::seeded(u64::from(level)));
         let player = h.player;
         {
             let mut health = h.world().get_mut::<Health>(player).unwrap();
