@@ -72,7 +72,7 @@ const CRAWL_TOLERANCE: f64 = 1.0e-5;
 /// Width and height of a dead player's box.
 const DEAD_SIZE: f32 = 0.2;
 /// The air supply a player's actor data starts with (keys 7 and 42).
-const FULL_AIR: i16 = 300;
+pub(crate) const FULL_AIR: i16 = 300;
 
 /// Keys a joining player's own `SetActorData` leaves out of the
 /// [`full_actor_data`] that `AddPlayer` carries (BDS 1.26.51 join capture
