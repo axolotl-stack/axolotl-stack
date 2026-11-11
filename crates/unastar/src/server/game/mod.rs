@@ -34,6 +34,7 @@ mod placement;
 #[cfg(test)]
 mod placement_capture_tests;
 mod plugins;
+pub(crate) mod redstone;
 pub(crate) mod signs;
 pub mod types;
 
@@ -548,6 +549,14 @@ impl GameServer {
             block_use::tick_scheduled_blocks
                 .in_set(EntityLogicSet)
                 .after(containers::tick_block_containers)
+                .before(tick_block_breaking),
+        );
+        // Redstone, after this tick's other block changes (exclusive: edits
+        // chunks).
+        ecs.schedule_mut().add_systems(
+            redstone::tick_redstone
+                .in_set(EntityLogicSet)
+                .after(block_use::tick_scheduled_blocks)
                 .before(tick_block_breaking),
         );
         // Mob fall damage, condition damage, daylight burning and fire, death,

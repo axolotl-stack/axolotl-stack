@@ -6330,6 +6330,146 @@
      ]
     }
    ]
+  },
+  "redstone": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "redstone/blocks.json",
+     "rows": 1625,
+     "sha256": "bc08255f462f2ff8cda57d987ac59b0a407f4896b99a717f0efd045ec82945d3"
+    },
+    {
+     "path": "redstone/redstone_burnout.json",
+     "rows": 7,
+     "sha256": "23234511617e59cba6be13925f7b616037296995bb368afa2c23cc9de815d539"
+    },
+    {
+     "path": "redstone/redstone_comparators.json",
+     "rows": 160,
+     "sha256": "5371e8c4113005f8861009ea23789c1edac03f88addbed2af516d532d24857ae"
+    },
+    {
+     "path": "redstone/redstone_conductors.json",
+     "rows": 1448,
+     "sha256": "f45ae9e380596e71aebaa15d0f689a8ae51f0e6f3b8984c921d8700559cc80b6"
+    },
+    {
+     "path": "redstone/redstone_consumers.json",
+     "rows": 162,
+     "sha256": "236995ba2bfaeff7881ba41d26d05b8dd084e2638fbf6e045100ed632ab3ed9b"
+    },
+    {
+     "path": "redstone/redstone_dust.json",
+     "rows": 74,
+     "sha256": "dc3dd13b9eeba82a4de3196292b52dc199a4f6fe70de33c940c3fbfa085dbc7f"
+    },
+    {
+     "path": "redstone/redstone_dust_blocks.json",
+     "rows": 1625,
+     "sha256": "f16bb76f2456bf43f18544e97a39058286dbe6f86f2834928fba0b5bee188788"
+    },
+    {
+     "path": "redstone/redstone_dust_cut.json",
+     "rows": 1448,
+     "sha256": "b608cef44aa9bf577654bdfdd85578305f23c961a885c65ae6f61ba31c25a89f"
+    },
+    {
+     "path": "redstone/redstone_observer_timing.json",
+     "rows": 26,
+     "sha256": "28387b01180c92ae941ca96769b522549f558e2d8b1abf52f3930379dc718d3f"
+    },
+    {
+     "path": "redstone/redstone_observers.json",
+     "rows": 12,
+     "sha256": "7be416ff50b26480bc22fc378d4015539a15b74d5d579e0bc1ba54a047ae0b6b"
+    },
+    {
+     "path": "redstone/redstone_power.json",
+     "rows": 16,
+     "sha256": "646e6416d32e5c4dc00daefa3f1200b2f964da0eec3cccea1f56aec49e54fc90"
+    },
+    {
+     "path": "redstone/redstone_repeaters.json",
+     "rows": 46,
+     "sha256": "c921dde4a2456c4f6738b3725b28406f380bfbca92ecae841f03144b1dd987a4"
+    },
+    {
+     "path": "redstone/redstone_switches.json",
+     "rows": 16,
+     "sha256": "3cf57178578a59a72eb705e1e15c004b5762819af838278db84ec84598ea3be0"
+    },
+    {
+     "path": "redstone/redstone_torches.json",
+     "rows": 6,
+     "sha256": "51a20793340492ab666ed55c35c71864c52b2f76bbec848a7358a10e0091ff93"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 4e56e688749f6c155bcfe3de661d64950aa8376c",
+   "method": "redstone circuits replayed tick by tick: sweep.py scenarios --family <redstone family> (tools/bds-sweep/circuits.py): each circuit is built in a cell of its own with block updates (`build`), left `wait` ticks, then run for a `timeline` of N server ticks in which `events` ([tick, event]) are applied at their tick and every `watch` offset is read once per tick after them. `trace` lists [tick, watch index, block, states] for the first read and every change. `witness` is the tick (2 or 3) at which a dust beside a redstone block set at tick 0 outside the cells lit in the same wave: BDS works redstone every other tick, and an update shows at the reads whose tick has the parity of `witness`. Offsets are relative to the cell origin on the superflat grass (the floor is y=-1); `minecraft:` is left out of block names.",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "r3-redstone-a",
+     "items": 476,
+     "runs": [
+      {
+       "items": 476,
+       "seconds": 86.9,
+       "started": "20261111T014504Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-redstone-b2",
+     "items": 3073,
+     "runs": [
+      {
+       "items": 3073,
+       "seconds": 97.3,
+       "started": "20261111T015411Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-redstone-conductors2",
+     "items": 1448,
+     "runs": [
+      {
+       "items": 1448,
+       "seconds": 47.4,
+       "started": "20261111T015426Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-redstone-c",
+     "items": 33,
+     "runs": [
+      {
+       "items": 33,
+       "seconds": 34.3,
+       "started": "20261111T022720Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-redstone-d",
+     "items": 16,
+     "runs": [
+      {
+       "items": 16,
+       "seconds": 80.2,
+       "started": "20261111T030522Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
   }
  }
 }

@@ -30,6 +30,7 @@ pub mod melee;
 pub mod pack_manifest;
 pub mod pmmp;
 pub mod recipes;
+pub mod redstone;
 pub mod shapes;
 pub mod source;
 pub mod spawn_rules;

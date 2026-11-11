@@ -14,13 +14,13 @@ Each domain's first line is its headline: the rows its family table, gap list an
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
-| [Blocks](#blocks) | 1477 | 0 | 510 | 503 | 297 | 167 | 61.1% |
+| [Blocks](#blocks) | 1477 | 0 | 433 | 503 | 374 | 167 | 66.9% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
-| [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
+| [Gameplay systems](#gameplay-systems) | 72 | 34 | 34 | 4 | 0 | 0 | 5.6% |
 
 ## Where to help
 
@@ -45,7 +45,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 59 |
 
-**Blocks**: 287 open rows free, 223 claimed.
+**Blocks**: 287 open rows free, 146 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
@@ -61,7 +61,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Block behaviour families, gravity, fire and redstone | lane BLOCKS | 2026-10-29 | 206 |
+| Block behaviour families, gravity, fire and redstone | lane BLOCKS | 2026-10-29 | 129 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
@@ -211,16 +211,16 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 | banners | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | beds | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | building_blocks | 230 | 0 | 27 | 200 | 3 | 0 | 88.3% |
-| buttons | 15 | 0 | 15 | 0 | 0 | 0 | 0.0% |
+| buttons | 15 | 0 | 0 | 0 | 15 | 0 | 100.0% |
 | candles | 34 | 0 | 34 | 0 | 0 | 0 | 0.0% |
 | carpets | 18 | 0 | 1 | 0 | 17 | 0 | 94.4% |
 | copper_oxidising | 51 | 0 | 33 | 18 | 0 | 0 | 35.3% |
 | coral | 40 | 0 | 20 | 5 | 15 | 0 | 50.0% |
 | crops_growing | 32 | 0 | 32 | 0 | 0 | 0 | 0.0% |
-| doors | 22 | 0 | 22 | 0 | 0 | 0 | 0.0% |
+| doors | 22 | 0 | 8 | 0 | 14 | 0 | 63.6% |
 | education | 166 | 0 | 0 | 0 | 0 | 166 | n/a |
 | falling | 5 | 0 | 2 | 3 | 0 | 0 | 60.0% |
-| fence_gates | 13 | 0 | 13 | 0 | 0 | 0 | 0.0% |
+| fence_gates | 13 | 0 | 0 | 0 | 13 | 0 | 100.0% |
 | fences | 14 | 0 | 0 | 0 | 14 | 0 | 100.0% |
 | functional | 83 | 0 | 67 | 9 | 7 | 0 | 19.3% |
 | leaves | 14 | 0 | 14 | 0 | 0 | 0 | 0.0% |
@@ -231,14 +231,14 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 | plants | 54 | 0 | 17 | 19 | 18 | 0 | 68.5% |
 | pressure_plates | 17 | 0 | 17 | 0 | 0 | 0 | 0.0% |
 | rails | 4 | 0 | 3 | 0 | 1 | 0 | 25.0% |
-| redstone | 39 | 0 | 39 | 0 | 0 | 0 | 0.0% |
+| redstone | 39 | 0 | 22 | 0 | 17 | 0 | 43.6% |
 | saplings | 10 | 0 | 10 | 0 | 0 | 0 | 0.0% |
 | signs | 39 | 0 | 13 | 23 | 3 | 0 | 66.7% |
 | slabs | 202 | 0 | 8 | 128 | 66 | 0 | 96.0% |
 | stairs | 97 | 0 | 4 | 0 | 93 | 0 | 95.9% |
 | surface_dynamic | 62 | 0 | 51 | 10 | 1 | 0 | 17.7% |
 | technical | 31 | 0 | 8 | 22 | 0 | 1 | 73.3% |
-| trapdoors | 22 | 0 | 22 | 0 | 0 | 0 | 0.0% |
+| trapdoors | 22 | 0 | 4 | 0 | 18 | 0 | 81.8% |
 | walls | 32 | 0 | 0 | 0 | 32 | 0 | 100.0% |
 
 ### Blocks gaps
@@ -266,10 +266,6 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 - `minecraft:deprecated_purpur_block_1`, `minecraft:deprecated_purpur_block_2`: legacy block; drops and load upgrade not checked against BDS
 - `minecraft:exposed_lightning_rod`, `minecraft:weathered_lightning_rod`: no lightning attraction or redstone output; no oxidation over time; no axe scraping or honeycomb waxing
 - 10 more partial rows with other gaps (see [blocks.toml](blocks.toml))
-
-**buttons**
-
-- `minecraft:acacia_button`, `minecraft:bamboo_button`, `minecraft:birch_button`, `minecraft:cherry_button`, `minecraft:crimson_button`, `minecraft:dark_oak_button`, `minecraft:jungle_button`, `minecraft:mangrove_button`, `minecraft:pale_oak_button`, `minecraft:polished_blackstone_button`, `minecraft:poplar_button`, `minecraft:spruce_button` and 3 more: no redstone power
 
 **candles**
 
@@ -306,21 +302,15 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **doors**
 
-- `minecraft:acacia_door`, `minecraft:bamboo_door`, `minecraft:birch_door`, `minecraft:cherry_door`, `minecraft:crimson_door`, `minecraft:dark_oak_door`, `minecraft:jungle_door`, `minecraft:mangrove_door`, `minecraft:pale_oak_door`, `minecraft:poplar_door`, `minecraft:spruce_door`, `minecraft:warped_door` and 1 more: no redstone power
-- `minecraft:waxed_copper_door`, `minecraft:waxed_exposed_copper_door`, `minecraft:waxed_oxidized_copper_door`, `minecraft:waxed_weathered_copper_door`: no redstone power; axe wax removal changes only the clicked half
-- `minecraft:exposed_copper_door`, `minecraft:weathered_copper_door`: no redstone power; no oxidation over time; no honeycomb waxing; axe scraping changes only the clicked half
-- `minecraft:copper_door`: no redstone power; no oxidation over time; no honeycomb waxing
-- `minecraft:iron_door`: no redstone power (cannot be opened by hand, as in BDS)
-- 1 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- `minecraft:waxed_copper_door`, `minecraft:waxed_exposed_copper_door`, `minecraft:waxed_oxidized_copper_door`, `minecraft:waxed_weathered_copper_door`: axe wax removal changes only the clicked half
+- `minecraft:exposed_copper_door`, `minecraft:weathered_copper_door`: no oxidation over time; no honeycomb waxing; axe scraping changes only the clicked half
+- `minecraft:copper_door`: no oxidation over time; no honeycomb waxing
+- `minecraft:oxidized_copper_door`: no honeycomb waxing; axe scraping changes only the clicked half
 
 **falling**
 
 - `minecraft:deprecated_anvil`: legacy anvil: no anvil menu; landing does not damage entities or the anvil
 - `minecraft:sulfur_spike`: hanging and thickness states not set; drip and spike behaviour not modelled
-
-**fence_gates**
-
-- `minecraft:acacia_fence_gate`, `minecraft:bamboo_fence_gate`, `minecraft:birch_fence_gate`, `minecraft:cherry_fence_gate`, `minecraft:crimson_fence_gate`, `minecraft:dark_oak_fence_gate`, `minecraft:fence_gate`, `minecraft:jungle_fence_gate`, `minecraft:mangrove_fence_gate`, `minecraft:pale_oak_fence_gate`, `minecraft:poplar_fence_gate`, `minecraft:spruce_fence_gate` and 1 more: no redstone power
 
 **functional**
 
@@ -363,20 +353,22 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **pressure_plates**
 
-- `minecraft:acacia_pressure_plate`, `minecraft:bamboo_pressure_plate`, `minecraft:birch_pressure_plate`, `minecraft:cherry_pressure_plate`, `minecraft:crimson_pressure_plate`, `minecraft:dark_oak_pressure_plate`, `minecraft:heavy_weighted_pressure_plate`, `minecraft:jungle_pressure_plate`, `minecraft:light_weighted_pressure_plate`, `minecraft:mangrove_pressure_plate`, `minecraft:pale_oak_pressure_plate`, `minecraft:polished_blackstone_pressure_plate` and 5 more: not pressed by entities; no redstone power
+- `minecraft:acacia_pressure_plate`, `minecraft:bamboo_pressure_plate`, `minecraft:birch_pressure_plate`, `minecraft:cherry_pressure_plate`, `minecraft:crimson_pressure_plate`, `minecraft:dark_oak_pressure_plate`, `minecraft:heavy_weighted_pressure_plate`, `minecraft:jungle_pressure_plate`, `minecraft:light_weighted_pressure_plate`, `minecraft:mangrove_pressure_plate`, `minecraft:pale_oak_pressure_plate`, `minecraft:polished_blackstone_pressure_plate` and 5 more: not pressed by entities: a plate powers circuits only while its state says so
 
 **rails**
 
-- `minecraft:activator_rail`, `minecraft:detector_rail`, `minecraft:golden_rail`: no powered, detector or activator behaviour
+- `minecraft:activator_rail`: power runs along the rails (rail_data_bit) like BDS, but there are no minecarts to activate
+- `minecraft:detector_rail`: no powered, detector or activator behaviour
+- `minecraft:golden_rail`: power runs along the rails (rail_data_bit) like BDS, but there are no minecarts to speed up or stop
 
 **redstone**
 
-- `minecraft:waxed_copper_bulb`, `minecraft:waxed_exposed_copper_bulb`, `minecraft:waxed_oxidized_copper_bulb`, `minecraft:waxed_weathered_copper_bulb`: does not toggle on redstone pulses
-- `minecraft:copper_bulb`, `minecraft:exposed_copper_bulb`, `minecraft:weathered_copper_bulb`: does not toggle on redstone pulses; no oxidation over time; no honeycomb waxing
+- `minecraft:copper_bulb`, `minecraft:exposed_copper_bulb`, `minecraft:weathered_copper_bulb`: no oxidation over time; no honeycomb waxing
 - `minecraft:calibrated_sculk_sensor`, `minecraft:sculk_sensor`: does not detect vibrations or emit power
+- `minecraft:dispenser`, `minecraft:dropper`: not a container; does not dispense or drop (power sets triggered_bit only)
 - `minecraft:piston_arm_collision`, `minecraft:sticky_piston_arm_collision`: piston heads are never produced (pistons do not extend)
-- `minecraft:powered_comparator`, `minecraft:unpowered_comparator`: no compare or subtract output
-- 26 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- `minecraft:crafter`: not a container; no crafting; its partial block actor is not sent (power sets triggered_bit only)
+- 12 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **saplings**
 
@@ -416,10 +408,8 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **trapdoors**
 
-- `minecraft:acacia_trapdoor`, `minecraft:bamboo_trapdoor`, `minecraft:birch_trapdoor`, `minecraft:cherry_trapdoor`, `minecraft:crimson_trapdoor`, `minecraft:dark_oak_trapdoor`, `minecraft:jungle_trapdoor`, `minecraft:mangrove_trapdoor`, `minecraft:pale_oak_trapdoor`, `minecraft:poplar_trapdoor`, `minecraft:spruce_trapdoor`, `minecraft:trapdoor` and 5 more: no redstone power
-- `minecraft:copper_trapdoor`, `minecraft:exposed_copper_trapdoor`, `minecraft:weathered_copper_trapdoor`: no redstone power; no oxidation over time; no honeycomb waxing
-- `minecraft:iron_trapdoor`: no redstone power (cannot be opened by hand, as in BDS)
-- `minecraft:oxidized_copper_trapdoor`: no redstone power; no honeycomb waxing
+- `minecraft:copper_trapdoor`, `minecraft:exposed_copper_trapdoor`, `minecraft:weathered_copper_trapdoor`: no oxidation over time; no honeycomb waxing
+- `minecraft:oxidized_copper_trapdoor`: no honeycomb waxing
 
 ## Items
 
@@ -773,7 +763,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 | performance | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | platform | 6 | 0 | 3 | 3 | 0 | 0 | 50.0% |
 | player | 17 | 5 | 11 | 1 | 0 | 0 | 5.9% |
-| world | 19 | 10 | 9 | 0 | 0 | 0 | 0.0% |
+| world | 19 | 9 | 10 | 0 | 0 | 0 | 0.0% |
 
 ### Gameplay systems gaps
 
@@ -820,11 +810,11 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 
 **world**
 
-- `world.block_updates`: only gravity blocks react to a neighbour change; no general neighbour updates, survival checks or scheduled block ticks
+- `world.block_updates`: neighbour updates, survival checks and shapes follow BDS; scheduled block ticks exist only for buttons, coral blocks, redstone and gravity (no general scheduled-tick queue)
 - `world.chunk_ticking`: chunks load around players and entities tick in loaded chunks; no ticking areas and no random block ticks
 - `world.day_cycle`: clock, daylight cycle and moon phase work; no sleeping skip and time is not persisted
 - `world.difficulty`: mob damage scaling, peaceful monsters, regional difficulty and hard-only door breaking; no hunger effects (starvation floors, peaceful regeneration) and effects of unimplemented mobs
 - `world.falling_blocks`: gravity blocks fall, land and drop on non-full blocks; no falling anvil/dripstone damage, anvil wear or concrete powder hardening
-- 4 more partial rows with other gaps (see [systems.toml](systems.toml))
-- missing: `world.dimensions`, `world.explosions`, `world.fire`, `world.liquids`, `world.pistons`, `world.random_ticks`, `world.redstone`, `world.structure_blocks`, `world.structures_hardcoded`, `world.world_border`
+- 5 more partial rows with other gaps (see [systems.toml](systems.toml))
+- missing: `world.dimensions`, `world.explosions`, `world.fire`, `world.liquids`, `world.pistons`, `world.random_ticks`, `world.structure_blocks`, `world.structures_hardcoded`, `world.world_border`
 

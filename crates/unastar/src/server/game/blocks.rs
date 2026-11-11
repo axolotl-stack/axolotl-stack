@@ -1239,6 +1239,7 @@ pub(crate) fn write_block(world: &mut World, pos: IVec3, block_runtime_id: u32, 
         old_block: old_block_id,
         new_block: block_runtime_id,
     });
+    super::redstone::note_change(world, pos, old_block_id, block_runtime_id);
 
     world.write_message(BlockBroadcastEvent {
         chunk_entity,

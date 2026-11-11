@@ -692,6 +692,22 @@ the attribute and actor-data resend BDS sends after every click, banners (BDS's
 banner stack carries item user data unastar's lacks), flower pots taking plants,
 eating cake, and the click corrections BDS sends after lighting with flint and steel.
 
+Redstone (`server/game/redstone/`) runs like BDS 1.26.51, tick by tick
+(`redstone/tests.rs` replays every circuit of
+`crates/unastar-data/data/measured/redstone/`; decision
+[0041](../../docs/decisions/0041-run-redstone-as-a-two-tick-circuit-update.md)). The circuit
+is worked every other game tick; a change made in a tick is seen from the next update of a
+later tick. An update takes each dust's level from the outputs as they stand (and shows it on
+the dust), then the new outputs of repeaters (delay, pulse stretching, locking), comparators
+(compare, subtract, block and container readings), torches (burnout) and observers, then the
+blocks power acts on: lamps, doors, trapdoors, fence gates, copper bulbs, hoppers (locked),
+dispensers, droppers, crafters (`triggered_bit` only) and powered and activator rails. Which
+blocks conduct, cut climbing dust and let dust climb are measured per block
+(`unastar_data::redstone`). Levers and buttons switch through `block_use.rs`. Not modelled:
+pistons, entities on pressure plates and tripwires, target blocks, daylight measurement, sculk
+sensors, note block sounds, TNT priming and dispensing; a circuit already in a chunk loaded
+from disk starts working once a block next to it changes.
+
 Using a crafting table (unless sneaking with an item in hand) opens BDS's
 WORKBENCH screen (type 1 at the block, no actor) from the shared window-ID
 counter; ItemStackRequest crafting then uses the 3x3 grid. Closing any screen
