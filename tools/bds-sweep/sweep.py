@@ -31,12 +31,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import native  # noqa: E402
+import pvp_items  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-sweep-1.26.51'
 PLAYER = 'BDSSweep'
 # The second client of `--observer` (a second viewer of the job's actors).
 OBSERVER_NAME = 'BDSOther'
+# The lockstep clients of `pvp` after the sweep player (B, then C).
+PVP_OTHERS = ['BDSOther', 'BDSThird']
+PVP_SETUP = ['gamerule pvp true', 'gamerule keepinventory true', 'gamerule naturalregeneration false',
+             'gamerule doimmediaterespawn true', 'gamerule falldamage true']
 STOP_REQUEST = 'stop.request'
 # Superflat: grass top at y=-61, so the player stands at y=-60.
 # `miner` = x, y, z, yaw, pitch: facing east (yaw -90) at the west face (4) of
@@ -517,6 +522,9 @@ def build_job(args, out: Path) -> dict:
             raise SystemExit('range needs --observer')
         job['kind'] = 'send_range'
         job['items'] = range_items(args)
+    elif args.kind == 'pvp':
+        job.update(others=PVP_OTHERS, pvp_setup=PVP_SETUP,
+                   items=pvp_items.pvp_items(args.items, args.repeats, args.entity_interactions_strict))
     if args.observer:
         job['observer'] = OBSERVER_NAME
     return job
@@ -525,7 +533,7 @@ def build_job(args, out: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
-                                         'knockback', 'knockback-reload', 'range', 'bonus', 'walk'])
+                                         'knockback', 'knockback-reload', 'range', 'bonus', 'walk', 'pvp'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
@@ -543,6 +551,9 @@ def main() -> int:
     parser.add_argument('--tick-distance', type=int, default=4, help='server simulation distance in chunks (4-12)')
     parser.add_argument('--difficulty', default='easy', choices=['easy', 'normal', 'hard'],
                         help='knockback, knockback-reload, bonus: the difficulty set before the job')
+    parser.add_argument('--repeats', type=int, default=3, help='pvp: runs of each item')
+    parser.add_argument('--entity-interactions-strict', action='store_true',
+                        help='pvp: run BDS with server-authoritative-entity-interactions-strict=true')
     parser.add_argument('--keep-world', action='store_true',
                         help='copy the world to <out>/world after BDS stops (it is deleted otherwise)')
     parser.add_argument('--world-from', type=Path,
@@ -581,6 +592,11 @@ def main() -> int:
         LEVEL, level_type='FLAT', gamemode='creative', force_gamemode='true', difficulty=difficulty,
         default_player_permission_level='operator', view_distance=args.view_distance,
         tick_distance=args.tick_distance)
+    if args.kind == 'pvp':
+        # Three lockstep clients; strict entity interactions on request.
+        properties['max-players'] = 1 + len(PVP_OTHERS)
+        properties['server-authoritative-entity-interactions-strict'] = str(
+            args.entity_interactions_strict).lower()
     # The plugin's jobs come from this checkout, ahead of the editable
     # install in the shared venv (which may point at another worktree).
     env = {'BDS_SWEEP_JOB': str(job_path), 'CLIENT_DIFF_CAPTURE_DIR': str(out / 'client-diff-plugin'),
@@ -590,6 +606,10 @@ def main() -> int:
     client_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', PLAYER]
     if args.client_capture:
         client_command += ['--capture-dir', str(out / 'client')]
+    if args.kind == 'pvp':
+        # One process for all three, so the plugin orders their packets.
+        for other in PVP_OTHERS:
+            client_command += ['--also', other]
     observer_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', OBSERVER_NAME,
                         '--capture-dir', str(out / 'observer')]
     observer = None
