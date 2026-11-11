@@ -18,8 +18,9 @@
 //! - an unknown player answers `noTargetMatch` then
 //!   `commands.generic.player.notFound`.
 //!
-//! Every player starts with [`INITIAL_RECIPES`]; items reaching an inventory
-//! do not unlock recipes yet (BDS does, with the `recipesUnlock` rule).
+//! Every player starts with [`INITIAL_RECIPES`]; the list is saved with the
+//! player record. Items reaching an inventory do not unlock recipes yet (BDS
+//! does, with the `recipesUnlock` rule).
 
 use crate::command::prelude::*;
 use crate::entity::components::Player;

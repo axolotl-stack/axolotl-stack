@@ -8,7 +8,7 @@ use glam::DVec3;
 use zuri_nbt::err::{NBTError, ReadError};
 use zuri_nbt::{NBTTag, encoding::LittleEndian};
 
-use crate::entity::components::{Health, OnGround, Rotation, Velocity};
+use crate::entity::components::{Health, OnGround, Rotation, Tags, Velocity};
 use crate::entity::definition::properties::{ActorProperties, NamedPropertyValue, PropertyError};
 use crate::entity::definition::{GroupChange, apply_pending_definitions, queue_group_change};
 use crate::entity::mob::components::spawn_entity::SpawnEntityTimers;
@@ -270,6 +270,26 @@ fn restore_state(
         }
     };
     let persistent = fields.flag("Persistent")?;
+    let tags = match fields.0.get("Tags") {
+        None => Vec::new(),
+        Some(NBTTag::List(tags)) => tags
+            .0
+            .iter()
+            .map(|tag| match tag {
+                NBTTag::String(tag) => Ok(tag.0.clone()),
+                _ => Err(ActorDecodeError::WrongType {
+                    name: "Tags",
+                    kind: "a list of Strings",
+                }),
+            })
+            .collect::<Result<_, _>>()?,
+        Some(_) => {
+            return Err(ActorDecodeError::WrongType {
+                name: "Tags",
+                kind: "a list",
+            });
+        }
+    };
     let in_love = fields.int("InLove")?;
     let cooldown = fields.int("BreedCooldown")?;
     let age = fields.int("Age")?;
@@ -331,6 +351,9 @@ fn restore_state(
     }
     if persistent {
         entity.insert(Persistent);
+    }
+    if !tags.is_empty() {
+        entity.insert(Tags(tags));
     }
     if let Some(ticks) = in_love.filter(|&ticks| ticks > 0) {
         entity.insert(InLove {

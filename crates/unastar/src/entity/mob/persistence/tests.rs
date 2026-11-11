@@ -91,6 +91,7 @@ struct Saved {
     groups: Vec<(String, bool)>,
     properties: Vec<(String, String)>,
     persistent: bool,
+    tags: Vec<String>,
     growth: Option<BabyAge>,
     love: Option<u64>,
     cooldown: Option<u64>,
@@ -117,6 +118,10 @@ fn saved(world: &World, mob: Entity) -> Saved {
             .map(|(name, value)| (name.to_owned(), format!("{value:?}")))
             .collect(),
         persistent: world.get::<Persistent>(mob).is_some(),
+        tags: world
+            .get::<crate::entity::components::Tags>(mob)
+            .map(|tags| tags.0.clone())
+            .unwrap_or_default(),
         growth: world.get::<BabyAge>(mob).copied(),
         love: world.get::<InLove>(mob).map(|love| love.until_tick),
         cooldown: world.get::<BreedCooldown>(mob).map(|c| c.until_tick),
@@ -163,6 +168,8 @@ fn cows_round_trip_through_leveldb_across_a_restart() {
                 player: None,
             },
             BreedCooldown { until_tick: 900 },
+            // `/tag` tags, in the order they were added.
+            crate::entity::components::Tags(vec!["herd".into(), "a b".into()]),
         ));
         let saved = (saved(world, adult), saved(world, baby));
         assert_eq!(save_all_chunks(&mut server), 1);
@@ -174,6 +181,7 @@ fn cows_round_trip_through_leveldb_across_a_restart() {
             .contains(&("minecraft:cow_adult".to_owned(), true)),
         "{adult:?}"
     );
+    assert_eq!(adult.tags, ["herd", "a b"]);
     assert!(
         baby.groups
             .contains(&("minecraft:cow_baby".to_owned(), true)),

@@ -24,6 +24,7 @@
 //! | `Armor` | List of 4 item Compounds | head, chest, legs, feet |
 //! | `SlotDropChances` | List of Compound | authored drop chances: `Slot` (String: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) and `DropChance` (Float) |
 //! | `canPickupItems`, `hasSetCanPickupItems` | Byte | the `pickup_based_on_chance` roll, once made |
+//! | `Tags` | List of String | the `/tag` tags in the order they were added, when any |
 //!
 //! Restoring spawns the mob without its lifecycle event, replays the saved
 //! groups (so a baby stays a baby and an adult keeps its adult components)

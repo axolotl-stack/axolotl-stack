@@ -16,7 +16,7 @@
 //! - several targets answer `…add|remove.success.multiple [tag, count]` with
 //!   success count 1.
 //!
-//! Tags are not saved with the entity yet.
+//! Tags are saved with the player record and with mobs (actor NBT `Tags`).
 
 use crate::command::prelude::*;
 use crate::entity::components::Tags;

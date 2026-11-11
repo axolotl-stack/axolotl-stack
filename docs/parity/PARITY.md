@@ -17,7 +17,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
-| [Commands](#commands) | 82 | 8 | 21 | 3 | 49 | 1 | 64.2% |
+| [Commands](#commands) | 82 | 8 | 19 | 3 | 51 | 1 | 66.7% |
 | [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
@@ -71,11 +71,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Item use | lane ITEMS | 2026-10-29 | 1069 |
 
-**Commands**: 0 open rows free, 29 claimed.
+**Commands**: 0 open rows free, 27 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Commands | lane COMMANDS | 2026-10-29 | 29 |
+| Commands | lane COMMANDS | 2026-10-29 | 27 |
 
 **Protocol**: 158 open rows free, 0 claimed.
 
@@ -588,7 +588,7 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 |---|---:|---:|---:|---:|---:|---:|---:|
 | admin | 7 | 3 | 0 | 1 | 3 | 0 | 57.1% |
 | any | 4 | 1 | 0 | 0 | 3 | 0 | 75.0% |
-| gamedirectors | 60 | 2 | 21 | 1 | 36 | 0 | 61.7% |
+| gamedirectors | 60 | 2 | 19 | 1 | 38 | 0 | 65.0% |
 | host | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
 | owner | 10 | 2 | 0 | 1 | 6 | 1 | 77.8% |
 
@@ -609,7 +609,7 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 - `dialogue`: no actor has the NPC component and no dialogue scenes are loaded, so open and change always answer noNpcComponent (or noTargetMatch and npcNotFound without a target)
 - `execute`: unastar runs the overworld only: in nether and in the_end run testfor, setblock, testforblock, fill, clone, summon and if block as BDS answers where nothing is loaded (compared), and answer a not-implemented failure for every other command and for if blocks; @p and selectors without position arguments other than @s and @a are not measured there
 - `fill`: legacy block names with old block states map only for the colour families (other legacy names are refused); changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
-- 16 more partial rows with other gaps (see [commands.toml](commands.toml))
+- 14 more partial rows with other gaps (see [commands.toml](commands.toml))
 - missing: `locate`, `ride`
 
 **owner**

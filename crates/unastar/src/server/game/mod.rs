@@ -144,6 +144,16 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
             exhaustion: hunger.exhaustion,
             experience: experience.level,
             experience_progress: experience.progress,
+            spawn_point: world
+                .get::<crate::entity::player_life::respawn::PlayerSpawnPoint>(entity)
+                .map(|point| point.0.to_array()),
+            tags: world
+                .get::<crate::entity::components::Tags>(entity)
+                .map(|tags| tags.0.clone())
+                .unwrap_or_default(),
+            unlocked_recipes: world
+                .get::<crate::command::exec::UnlockedRecipes>(entity)
+                .map(|recipes| recipes.0.clone()),
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -842,6 +852,16 @@ impl GameServer {
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
         let mut experience = crate::entity::components::Experience::default();
+        let (spawn_point, tags, unlocked_recipes) = saved_data
+            .as_mut()
+            .map(|saved| {
+                (
+                    saved.spawn_point,
+                    std::mem::take(&mut saved.tags),
+                    saved.unlocked_recipes.take(),
+                )
+            })
+            .unwrap_or_default();
         if let Some(saved) = saved_data {
             rotation = Rotation::new(saved.rotation[0], saved.rotation[1]);
             game_mode = match saved.game_mode {
@@ -923,6 +943,19 @@ impl GameServer {
                 .world_mut()
                 .entity_mut(entity)
                 .insert(crate::command::Operator);
+        }
+        // The `/spawnpoint`, `/tag` and `/recipe` state saved with the player.
+        let mut player = self.ecs.world_mut().entity_mut(entity);
+        if let Some(point) = spawn_point {
+            player.insert(crate::entity::player_life::respawn::PlayerSpawnPoint(
+                glam::DVec3::from_array(point),
+            ));
+        }
+        if !tags.is_empty() {
+            player.insert(crate::entity::components::Tags(tags));
+        }
+        if let Some(recipes) = unlocked_recipes {
+            player.insert(crate::command::exec::UnlockedRecipes(recipes));
         }
 
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
@@ -1446,5 +1479,80 @@ mod saved_inventory_validation_tests {
             outbound_rx.try_recv().is_err(),
             "invalid saved state must not emit a successful join"
         );
+    }
+    /// `/spawnpoint`, `/tag` and `/recipe` state goes through the stored
+    /// record (JSON, as the player store writes it) into the next join.
+    #[test]
+    fn spawn_point_tags_and_recipes_round_trip_through_the_player_record() {
+        use crate::command::exec::UnlockedRecipes;
+        use crate::entity::components::Tags;
+        use crate::entity::player_life::respawn::PlayerSpawnPoint;
+
+        let uuid = uuid::Uuid::from_u128(43);
+        let join = |saved: Option<PlayerData>| {
+            let mut server = GameServer::with_config(ServerConfig {
+                world: crate::world::WorldConfig::void_spawn_platform(1),
+                ..ServerConfig::default()
+            });
+            let (outbound_tx, outbound_rx) = tokio::sync::mpsc::channel(1024);
+            let entity = server
+                .spawn_player(PlayerSpawnData {
+                    session_id: 43,
+                    display_name: "saved-state".into(),
+                    xuid: None,
+                    uuid: Some(uuid.to_string()),
+                    runtime_id: 8,
+                    position: glam::DVec3::new(0.5, 17.0, 0.5),
+                    outbound_tx,
+                    saved_data: saved,
+                    chunk_radius: 0,
+                })
+                .expect("valid player spawn");
+            (server, entity, outbound_rx)
+        };
+
+        let (mut server, entity, _rx) = join(None);
+        let world = server.ecs.world_mut();
+        let recipes = vec!["minecraft:crafting_table".to_owned()];
+        world.entity_mut(entity).insert((
+            PlayerSpawnPoint(glam::DVec3::new(3.5, 71.62, -2.5)),
+            Tags(vec!["second".into(), "first".into()]),
+            UnlockedRecipes(recipes.clone()),
+        ));
+        let (saved_uuid, record) = player_record(world, entity).expect("a player record");
+        assert_eq!(saved_uuid, uuid);
+        let stored = serde_json::to_vec(&record).unwrap();
+        let loaded: PlayerData = serde_json::from_slice(&stored).unwrap();
+
+        let (server, entity, _rx) = join(Some(loaded));
+        let world = server.ecs.world();
+        assert_eq!(
+            world.get::<PlayerSpawnPoint>(entity),
+            Some(&PlayerSpawnPoint(glam::DVec3::new(3.5, 71.62, -2.5)))
+        );
+        assert_eq!(
+            world.get::<Tags>(entity).map(|t| t.0.clone()),
+            Some(vec!["second".to_owned(), "first".to_owned()])
+        );
+        assert_eq!(
+            world.get::<UnlockedRecipes>(entity).map(|r| r.0.clone()),
+            Some(recipes)
+        );
+
+        // A record from before these fields joins with none of them.
+        let mut old: serde_json::Value = serde_json::from_slice(&stored).unwrap();
+        for field in ["spawn_point", "tags", "unlocked_recipes"] {
+            old.as_object_mut().unwrap().remove(field);
+        }
+        let (server, entity, _rx) = join(Some(serde_json::from_value(old).unwrap()));
+        let world = server.ecs.world();
+        assert!(world.get::<PlayerSpawnPoint>(entity).is_none());
+        assert!(world.get::<Tags>(entity).is_none());
+        assert!(world.get::<UnlockedRecipes>(entity).is_none());
+
+        // A spawn point that is not a position is refused like the rest.
+        let mut bad = record.clone();
+        bad.spawn_point = Some([f64::NAN, 70.0, 0.0]);
+        assert!(bad.validate(uuid).is_err());
     }
 }

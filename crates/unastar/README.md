@@ -619,7 +619,7 @@ copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 | `/effect` | Speed/slowness do not change movement; no visible-effects actor data | No attribute-modifier system yet |
 | `/xp` | `UpdateAttributes` lists each attribute once with a level maximum of 2^31; BDS uses 24791 and lists the experience twice when the level changes | Shared experience attributes |
 | `/weather`, `/toggledownfall` | State, client events and the fading levels `/weather query` reports; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
-| `/spawnpoint`, `/setworldspawn`, `/scoreboard`, `/tag`, `/tickingarea`, `/structure` | Spawn points, the world spawn, objectives and scores, tags, ticking areas and structures are not saved with the world | No store for them yet |
+| `/setworldspawn`, `/scoreboard`, `/tickingarea`, `/structure`, `/mobevent` | The world spawn, objectives and scores, ticking areas, structures and mob event switches are not saved with the world (players' spawn points, tags and recipes, and mobs' tags, are) | No level-data store yet |
 | `/scoreboard` | `belowname` sends no score actor data | Not built |
 | `/tickingarea` | Areas do not keep their chunks loaded or ticking | Chunk loading follows players only |
 | `/fill`, `/clone`, `/structure` | One `UpdateBlock` per block instead of `UpdateSubChunkBlocks`; `/clone` copies no block-entity data; `/structure` neither turns block states with the box nor saves block entities or entities | Block update path |
