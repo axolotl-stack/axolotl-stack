@@ -113,7 +113,6 @@ class ToolSets(unittest.TestCase):
                          'minecraft:oak_log[a=1,b=false,pillar_axis="y"]')
 
 
-
 class RuntimeSlotTest(unittest.TestCase):
     def test_only_processes_from_this_server_folder_belong_to_the_runtime(self):
         server = Path(tempfile.gettempdir()) / 'slot1' / 'server'
