@@ -29,12 +29,16 @@ counting non-air blocks of a sub-chunk (`SubChunk::recount` in
   no runtime-form storage, no y byte differing from the key and no trailing bytes.
 - **How BDS writes sub-chunks.** Measured by decoding every record independently of
   unastar (`tools/bds-sweep/leveldb_read.py`, `subchunk_fixture.py`):
-  - BDS never compacts a palette. `air` stays entry 0 after a fill, so a solid stone
-    sub-chunk is saved as 1-bit `[air, stone]`.
+  - The records of these worlds were written by BDS's periodic save, which never compacts
+    a palette. `air` stays entry 0 after a fill, so a solid stone sub-chunk is saved as
+    1-bit `[air, stone]`. When a chunk unloads, BDS does compact a changed section if that
+    narrows its width, down to 0 bits; see
+    `bds-compacts-palettes-only-when-a-chunk-unloads.md` (the writer, task 1.2).
   - The bit width is the smallest of 1, 2, 3, 4, 5, 6, 8 and 16 that holds the palette
     length, unused entries included (66 entries → 8 bits).
-  - 0 bits appears only for sections generated uniform, such as end stone inside the End
-    island. It has no length field: the NBT entry follows the header byte.
+  - 0 bits appears for sections generated uniform, such as end stone inside the End
+    island, and for a changed section compacted to one entry on unload. It has no length
+    field: the NBT entry follows the header byte.
   - A sub-chunk cleared back to air has no record.
   - Blocks set into water keep the water as a second storage `[air, water]`. Natural
     water also shows `[air, water, flowing_water]`.
@@ -72,9 +76,10 @@ counting non-air blocks of a sub-chunk (`SubChunk::recount` in
   world-storage spec's rule for corrupt records, and the fail-fast rule of change
   `persist-block-states-by-name`. Runtime-form palette ids must be canonical states too;
   otherwise a corrupt unastar save loads and panics later, when the section is sent.
-- **Saving is still the gap.** A column is saved again after any edit and whenever it
-  holds or held actors, and saving writes runtime ids, which BDS reads as air. Until the
-  writer lands, serve BDS worlds from a copy.
+- **Saving was the gap, until the writer landed.** A column is saved again after any edit
+  and whenever it holds or held actors. unastar now saves sub-chunks in BDS's form (task
+  1.2, `bds-compacts-palettes-only-when-a-chunk-unloads.md`); before that it wrote runtime
+  ids, which BDS reads as air.
 - `/testforblock` sees only the first layer; for a waterlogged slab it answers "Oak Slab".
   Check the liquid layer against the placement plan and an independent decode.
 

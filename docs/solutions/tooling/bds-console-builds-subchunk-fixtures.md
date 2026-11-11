@@ -29,7 +29,15 @@ console of a plain `bedrock_server` started by `bds_runtime.Bds(..., endstone=Fa
   mismatch answers "did not match the expected block state" without saying which state.
 - In a default world, generated overworld and nether chunks were saved on `stop`, but End
   chunks around the island were not until a block in each was changed (one glass block
-  high up is enough). Uniform zero-bit storages only showed up there.
+  high up is enough). Uniform zero-bit storages only showed up there. In a flat world no
+  chunk without a changed block was saved, in any dimension, so set one block in every
+  column a later step reads.
+- BDS writes an edited chunk either through its periodic save (while the chunk stays
+  loaded) or when the chunk unloads, and the two write different palettes; at `stop` they
+  race. For deterministic records, run `tickingarea remove_all` in each dimension after
+  the edits and wait about 90 s before `stop` (see
+  `docs/solutions/storage/bds-compacts-palettes-only-when-a-chunk-unloads.md`). Ticking
+  areas are stored in the world, so a copy of a world reloads them.
 - Read worlds from a copy with a reader that does not open LevelDB for writing
   (`tools/bds-sweep/leveldb_read.py` reads tables and logs directly); to edit records for
   edge cases, write them into a copy before BDS starts, and check afterwards that BDS
@@ -38,4 +46,5 @@ console of a plain `bedrock_server` started by `bds_runtime.Bds(..., endstone=Fa
 ## Where it lives
 
 `tools/bds-sweep/subchunk_fixture.py` (build, probe, natural, natural-probe, fixture
-steps), `tools/bds-sweep/leveldb_read.py`, `tools/bds-sweep/bds_runtime.py`.
+steps), `tools/bds-sweep/subchunk_roundtrip.py`, `tools/bds-sweep/leveldb_read.py`,
+`tools/bds-sweep/bds_runtime.py`.

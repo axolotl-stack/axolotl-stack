@@ -46,5 +46,6 @@ documents and still appear in code comments and research docs; the table maps th
 | [0033](0033-persist-block-states-by-name.md) | Save block states on disk by name and states | 2026-11-04 | accepted | |
 | [0034](0034-bound-the-java-native-session.md) | Bound the Java-style native session without changing its output | 2026-11-05 | proposed | |
 | [0035](0035-disable-a-plugin-after-it-traps.md) | Disable a plugin after it traps | 2026-11-05 | accepted | |
+| [0039](0039-fail-the-column-on-damaged-sub-chunks.md) | Fail the column load on damaged sub-chunk data | 2026-11-10 | accepted | |
 
 Proposed records await the owner's approval; their work is an open OpenSpec change anyone can pick up.

@@ -17,16 +17,27 @@ block-registry plan (removed 2026-11-04; see git history).
 ## What Changes
 
 - Write subchunk palettes in the Bedrock on-disk form: one `{name, states, version}` NBT compound
-  per palette entry.
-- Read both that form and the current runtime-id form (existing worlds keep loading).
-- Add a round-trip test and a fixture taken from a BDS 1.26.51 world.
+  per palette entry, and the rest of the record as BDS 1.26.51 writes it when a chunk unloads
+  (palette growth and compaction, the liquid storage, no record for a section of air, which the
+  LevelDB provider deletes).
+- Read both that form and the current runtime-id form (existing worlds keep loading); a column
+  saved in the runtime-id form is rewritten in the new form by its next save.
+- Fail the column load on damaged palette data instead of loading BDS's substitutes.
+- Write Data3D biome repeat markers only above the last stored section (found by the round
+  trip: BDS stops on a marker below a stored section).
+- Add round-trip tests, a fixture taken from a BDS 1.26.51 world and one of BDS's records after
+  edits; a harness that edits a BDS world through BDS and through unastar and reopens unastar's
+  worlds in BDS (`tools/bds-sweep/subchunk_roundtrip.py`).
 - Update the `world.persistence` parity row.
 
-Out of scope: upgrading block names across Bedrock versions (an upgrade schema), entity storage.
+Out of scope: upgrading block names across Bedrock versions (an upgrade schema), entity storage,
+level data, and the Data3D heights and section counts per dimension.
 
-**Decision:** proposed as [record 0033](../../../docs/decisions/0033-persist-block-states-by-name.md) (option A, name + states).
-Open for anyone to pick up: claim `world.persistence` with `change = "persist-block-states-by-name"`
-when you start; the owner approves 0033 in that pull request.
+**Decisions:** [record 0033](../../../docs/decisions/0033-persist-block-states-by-name.md)
+(option A, name + states; accepted by the owner on 2026-11-10) and
+[record 0039](../../../docs/decisions/0039-fail-the-column-on-damaged-sub-chunks.md) (damaged
+sub-chunks fail the column). Claim: `world.persistence` with
+`change = "persist-block-states-by-name"`.
 
 ## Capabilities
 
@@ -36,14 +47,18 @@ None.
 
 ### Modified Capabilities
 
-- `world-storage`: subchunk palettes change from runtime ids to name + states; unknown entries become load errors.
+- `world-storage`: subchunk palettes change from runtime ids to name + states, written as BDS
+  writes them on unload; unknown entries become load errors; LevelDB column writes delete the
+  records of air subchunks; Data3D repeat markers only above the last stored section.
 
 ## Impact
 
-- Crates: `unastar` (`world/chunk.rs`, `storage/leveldb_world.rs`), possibly `unastar-data` for
-  name/state lookups.
+- Crates: `unastar` (`world/chunk.rs`, `world/chunk/persistent.rs`, `storage/leveldb_world.rs`,
+  `storage/blazedb.rs`, `registry/block.rs` for the name + states lookup); tools
+  (`tools/bds-sweep/subchunk_roundtrip.py`, `crates/unastar/examples/subchunk_roundtrip.rs`).
+
 ### Parity rows
 
 | Domain | Row | Target |
 |---|---|---|
-| systems | `world.persistence` | stays `partial`; the disk-format gap is added to `gaps` now and removed when this lands |
+| systems | `world.persistence` | stays `partial` (no level data is saved); the disk-format gap is removed |
