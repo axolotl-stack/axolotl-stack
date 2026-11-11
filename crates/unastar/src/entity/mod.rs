@@ -10,6 +10,8 @@
 //! - [`player_life`]: player damage, death and respawn.
 //! - [`projectile`]: thrown projectile actors (the egg).
 
+#[cfg(test)]
+mod bds_send_range;
 pub mod bundles;
 pub mod components;
 pub mod definition;

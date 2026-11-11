@@ -568,6 +568,40 @@ of the complete timing/motion matrix.
 
 
 
+### Mob movement replication
+
+**Who sees what.** Every actor, players included, is sent to the players in its
+send range (`src/entity/send_range.rs`): the viewer's chunk within Δx² + Δz² ≤ 17
+chunks of the actor's, whatever the view or simulation distance. An actor is
+added in the tick a viewer comes into range and removed one tick after it
+leaves. `src/entity/bds_send_range.rs` replays BDS's add and remove steps for
+the sweep player, a cow, an item, an arrow and an orb along every walk of
+`tools/bds-sweep/sweep.py range` (three view / simulation distances).
+
+**Mobs, projectiles and experience orbs** replicate like BDS 1.26.51
+(`src/entity/mob/net/network.rs`): a `MoveActorDelta` is measured against one
+shared "last sent" movement state, and each viewer gets it only as often as the
+actor's `minecraft:conditional_bandwidth_optimization` allows for that viewer's
+distance (every ⌊min(d, D) / D × M⌋ ticks, `ticks` set to that number; the empty
+component is 10 ticks over 80 blocks, so every tick within 8 blocks). Conditional
+values apply while their filter holds: the vehicles' `is_moving` (0 / 0) is
+answered by whether the actor moved in the tick before. A viewer's first update
+and a change of ground contact go at once with `ticks` 0, and the shared state
+moves on only when some viewer got the update, so far viewers can keep a stale
+axis, as on BDS. A newly spawned actor's `AddActor` shows it as it spawned, its
+rotation cut to whole rotation bytes; actors that are not living have head and
+body yaw 0. A projectile that sticks in a block stops where its flight entered
+it. `src/entity/mob/net/bds_replication.rs` replays two-client BDS captures
+(`testdata/bds-1.26.51-replication.json`, from `tools/bds-sweep/sweep.py knockback
+--items cadence|cadence2|cadence3 --observer`) packet for packet; `docs/quirks/bds.md`
+lists the copied oddities.
+
+**Other players** (`src/server/player_view.rs`): every input a player sends is
+relayed to its viewers as one `MovePlayer` with the position, ground contact and
+head yaw after the input, the input's tick, and the pitch and yaw before it, as
+BDS does; `src/server/bds_player_relay.rs` replays 411 inputs of
+`tools/bds-sweep/sweep.py walk`.
+
 ## Commands
 
 Commands follow BDS 1.26.51 (`src/command/`):
@@ -816,6 +850,12 @@ left in storage rather than deleted. When `players.save_previous_position` is
 enabled, saves also update the per-player TOML position used by spawn rules.
 Spawn rules retain their ordering and only use saved positions in the current
 dimension.
+
+Mobs are saved as Bedrock actor records with their chunk (`src/entity/mob/persistence`); the zombie
+classes' random spawn bonuses (a knockback resistance, and for about a third of them a raised follow
+range) are saved the way BDS saves them (`RandomSpawnBonus` modifiers of
+`minecraft:knockback_resistance` and `minecraft:follow_range`) and restored on load instead of being
+rolled again.
 
 Regression coverage: `cargo test -p unastar --test persistence` exercises both
 world providers, stored-column preservation through asynchronous loading and

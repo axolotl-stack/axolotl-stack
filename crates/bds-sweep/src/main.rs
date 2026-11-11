@@ -36,6 +36,12 @@
 //! * `bds-sweep:equip-head SLOT` / `bds-sweep:equip-feet SLOT`: open the
 //!   inventory (as an inventory drop does) and move one item from hotbar
 //!   index SLOT to the head or feet armour slot (`ItemStackRequest` place).
+//! * `bds-sweep:walk DX DY DZ DYAW TICKS FLAGS [DPITCH]`: for the next
+//!   `TICKS` inputs, move the reported position by (`DX`, `DY`, `DZ`)
+//!   thousandths of a block and turn the yaw (and head yaw) by `DYAW` and the
+//!   pitch by `DPITCH` thousandths of a degree each input; `FLAGS` bit 0 also
+//!   reports forward movement (`Up`, move vector (0, 1)), bit 1 reports
+//!   `VerticalCollision` (standing on the ground).
 //!
 //! Drop orders require server-synchronized nonempty slots with stack net IDs.
 //! Inventory drops leave the screen open; hotbar drops close it first.
@@ -165,6 +171,20 @@ enum Order {
     Jump(u32),
     /// Open the elytra (start gliding) while in the air.
     Glide,
+    /// Report scripted positions for a while ([`Walk`]).
+    Walk(Walk),
+}
+
+/// A scripted walk: per-input position and yaw steps, in thousandths of a
+/// block and of a degree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Walk {
+    step: [i64; 3],
+    turn: i64,
+    tilt: i64,
+    remaining: u32,
+    forward: bool,
+    grounded: bool,
 }
 
 /// The input flags the `press`, `hold` and `release` orders can name.
@@ -338,6 +358,22 @@ fn parse_order(text: &str) -> Option<Order> {
             slot: u8::try_from(numbers(words, 1)?[0]).ok()?,
             armour: if first == "equip-head" { 0 } else { 3 },
         }),
+        "walk" => {
+            let values = numbers(words.by_ref(), 6)?;
+            // The optional pitch step; whatever follows the order otherwise.
+            let tilt = words
+                .next()
+                .and_then(|word| numbers(std::iter::once(word), 1))
+                .map_or(0, |tilt| tilt[0]);
+            Some(Order::Walk(Walk {
+                step: [values[0], values[1], values[2]],
+                turn: values[3],
+                tilt,
+                remaining: u32::try_from(values[4]).ok()?,
+                forward: values[5] & 1 != 0,
+                grounded: values[5] & 2 != 0,
+            }))
+        }
         _ => None,
     }
 }
@@ -347,6 +383,8 @@ fn parse_order(text: &str) -> Option<Order> {
 struct Frame {
     tick: u64,
     controls: Controls,
+    /// A `walk` input: the feet moved by this step instead of the physics.
+    step: Option<[f32; 3]>,
     /// The body after this tick's move.
     after: Body,
 }
@@ -394,6 +432,8 @@ struct Player {
     pending_equip: Option<(u8, u8)>,
     /// `CorrectPlayerMovePrediction` packets received.
     corrections: u32,
+    /// A `walk` order in progress.
+    walk: Option<Walk>,
 }
 
 /// The input flags a vanilla client sets for this tick's keys and move.
@@ -490,6 +530,7 @@ impl Player {
             quit: false,
             pending_equip: None,
             corrections: 0,
+            walk: None,
         }
     }
 
@@ -543,6 +584,7 @@ impl Player {
             }
             Order::Attack(target) => return Ok(vec![self.attack(target)]),
             Order::Drop(drop) => return self.drop_order(drop),
+            Order::Walk(walk) => self.walk = Some(walk),
             Order::CloseInventory => {
                 ensure!(
                     self.pending_drop.is_none(),
@@ -832,10 +874,28 @@ impl Player {
         controls
     }
 
+    /// The next input of a `walk` order: the order as it was, and the step
+    /// it moves the feet by. Turns the controls by its yaw and pitch steps.
+    fn walk_input(&mut self) -> Option<(Walk, [f32; 3])> {
+        let walk = self.walk.as_mut()?;
+        let thousandths = |value: i64| value as f32 / 1000.0;
+        let step = walk.step.map(thousandths);
+        self.controls.yaw += thousandths(walk.turn);
+        self.controls.pitch += thousandths(walk.tilt);
+        let current = *walk;
+        walk.remaining = walk.remaining.saturating_sub(1);
+        if walk.remaining == 0 {
+            self.walk = None;
+        }
+        Some((current, step))
+    }
+
     /// One tick: move the body, then the `PlayerAuthInput` that reports it
     /// and the sub-chunk requests the new position makes due.
     fn auth_input(&mut self) -> Result<Vec<McpePacket>> {
+        use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
         self.tick += 1;
+        let walk = self.walk_input();
         let controls = self.tick_controls();
         let started_gliding = std::mem::take(&mut self.glide)
             && !self.body.on_ground
@@ -845,7 +905,13 @@ impl Player {
             self.body.gliding = true;
         }
         let was_in_water = self.body.in_water;
-        let changes = if std::mem::take(&mut self.rest) {
+        let changes = if let Some((_, step)) = walk {
+            for (feet, step) in self.body.feet.iter_mut().zip(step) {
+                *feet += step;
+            }
+            self.rest = false;
+            physics::Changes::default()
+        } else if std::mem::take(&mut self.rest) {
             physics::Changes::default()
         } else {
             physics::step(&mut self.body, &controls, &self.world)?
@@ -856,6 +922,7 @@ impl Player {
         self.history.push_back(Frame {
             tick: self.tick,
             controls,
+            step: walk.map(|(_, step)| step),
             after: self.body,
         });
         while self.history.len() > HISTORY {
@@ -863,14 +930,26 @@ impl Player {
         }
         let actions = self.block_actions();
         let mut input_data = self.held.clone();
-        let derived = movement_flags(
-            &controls,
-            &self.body,
-            &changes,
-            self.jump_was_held,
-            started_gliding,
-            std::mem::take(&mut self.teleported),
-        );
+        let teleported = std::mem::take(&mut self.teleported);
+        let derived = match walk {
+            // A walk reports its own keys and ground contact.
+            Some((walk, _)) => [
+                (walk.forward, Flag::Up),
+                (walk.grounded, Flag::Verticalcollision),
+                (teleported, Flag::Handledteleport),
+            ]
+            .into_iter()
+            .filter_map(|(on, flag)| on.then_some(flag))
+            .collect(),
+            None => movement_flags(
+                &controls,
+                &self.body,
+                &changes,
+                self.jump_was_held,
+                started_gliding,
+                teleported,
+            ),
+        };
         for flag in self.pressed.drain(..).chain(derived) {
             if !input_data.contains(&flag) {
                 input_data.push(flag);
@@ -888,10 +967,17 @@ impl Player {
             y: controls.yaw,
         };
         // The keys as pressed: BDS applies the sneak's 0.3 itself (a vector
-        // already scaled is slowed again on its diagonals).
-        let move_vector = Vec2 {
-            x: controls.strafe,
-            y: controls.forward,
+        // already scaled is slowed again on its diagonals). A walk presses
+        // forward or nothing.
+        let move_vector = match walk {
+            Some((walk, _)) => Vec2 {
+                x: 0.0,
+                y: if walk.forward { 1.0 } else { 0.0 },
+            },
+            None => Vec2 {
+                x: controls.strafe,
+                y: controls.forward,
+            },
         };
         let [vx, vy, vz] = self.body.velocity;
         let (yaw, pitch) = (controls.yaw.to_radians(), controls.pitch.to_radians());
@@ -949,7 +1035,16 @@ impl Player {
         apply(&mut body);
         self.history[index].after = body;
         for frame in self.history.iter_mut().skip(index + 1) {
-            physics::step(&mut body, &frame.controls, &self.world)?;
+            match frame.step {
+                Some(step) => {
+                    for (feet, step) in body.feet.iter_mut().zip(step) {
+                        *feet += step;
+                    }
+                }
+                None => {
+                    physics::step(&mut body, &frame.controls, &self.world)?;
+                }
+            }
             frame.after = body;
         }
         self.body = body;
@@ -1366,6 +1461,34 @@ mod tests {
 
     fn player() -> Player {
         Player::new(1, Vec3::default(), Vec2::default())
+    }
+
+    #[test]
+    fn walk_orders_step_position_and_yaw_each_input() {
+        let order = parse_order(r#"{ message: "bds-sweep:walk 200 0 -100 10000 2 3" }"#).unwrap();
+        let mut player = player();
+        player.order(order).unwrap();
+        let first = player.auth_input().unwrap();
+        let McpePacketData::PlayerAuthInputPacket(input) = &first[0].data else {
+            panic!("an input first: {first:?}");
+        };
+        use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+        assert_eq!(input.input_data, vec![Flag::Up, Flag::Verticalcollision]);
+        assert_eq!(input.move_vector, Vec2 { x: 0.0, y: 1.0 });
+        // The walk's two inputs, then one with the body at rest (the
+        // world around it is not loaded).
+        for _ in 0..2 {
+            player.auth_input().unwrap();
+        }
+        assert!((player.position().x - 0.4).abs() < 1e-6);
+        assert!((player.position().z + 0.2).abs() < 1e-6);
+        assert!((player.controls.yaw - 20.0).abs() < 1e-4);
+        assert!(player.walk.is_none(), "the walk ends after its inputs");
+        let tilted = parse_order("bds-sweep:walk 0 0 0 0 2 2 -1500").unwrap();
+        player.order(tilted).unwrap();
+        player.auth_input().unwrap();
+        player.auth_input().unwrap();
+        assert!((player.controls.pitch + 3.0).abs() < 1e-4);
     }
 
     #[test]
