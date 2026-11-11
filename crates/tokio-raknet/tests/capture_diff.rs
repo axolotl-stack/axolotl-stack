@@ -39,7 +39,7 @@ use tokio_raknet::{RaknetListener, RaknetStream};
 
 use analysis::{Side, Stats, analyze, intervals};
 use relay::{Faults, Relay};
-use wire::{Dir, Record};
+use wire::{Action, Body, Dir, Frame, Record};
 
 /// Timing tolerance: relay forwarding plus a Windows timer quantum and
 /// scheduling noise under a parallel test run.
@@ -53,6 +53,19 @@ fn bds(scenario: &str) -> Vec<Record> {
     let path = captures().join(format!("bds-1.26.51/{scenario}.jsonl"));
     let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path:?}: {e}"));
     wire::read_capture(&text).unwrap().1
+}
+
+/// The real Minecraft client captures, by name.
+fn real_client_captures() -> Vec<PathBuf> {
+    let directory = captures().join("real-client");
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(&directory)
+        .unwrap_or_else(|e| panic!("{directory:?}: {e}"))
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "jsonl"))
+        .collect();
+    paths.sort();
+    assert!(!paths.is_empty(), "no captures in {directory:?}");
+    paths
 }
 
 /// A Vanilla listener. tokio's per-IP ping/Request1 rate limiter (a local
@@ -358,8 +371,11 @@ async fn baseline_session_matches_bds() {
             );
         }
     }
-    // ACK-1: once the server has an RTT sample, ACKs wait at least the
-    // 10 ms SYN and leave within an update period of it.
+    // ACK-1: once the server has an RTT sample, an ACK waits at least 10 ms
+    // after the oldest datagram it names and leaves within an update period
+    // of that. Timed per ACK from its oldest datagram: a datagram arriving
+    // when that one is due leaves in the same ACK at once, as with BDS
+    // (`ack_delay_counts_from_the_oldest_datagram_like_mojang`).
     let reference_acks = Stats::of(&bds_server.ack_delays_after_rtt);
     let acks = Stats::of(&server.ack_delays_after_rtt);
     assert!(
@@ -378,6 +394,76 @@ async fn baseline_session_matches_bds() {
         assert_eq!(side.data_after_peer_disconnect, 0);
     }
     assert_eq!(ours.client.disconnects.first().map(|d| d.1), Some(3));
+}
+
+/// ACK-1's measure. Mojang RakNet ACKs everything pending once the oldest
+/// unacknowledged datagram is 10 ms old, so a datagram arriving just then is
+/// ACKed at once with it: in the real-client captures BDS and the client
+/// ACK some datagrams within 0.5 ms of their arrival (`rc baseline`: BDS
+/// ACKs the client's ping of 99798.7 ms at 99799.0, together with a datagram
+/// of 99788.2), yet once they have an RTT sample no ACK leaves less than
+/// 10 ms after the oldest datagram it names (ACKs of split fragments aside).
+/// The analysis times each ACK from that datagram, so an early ACK still
+/// shows.
+#[test]
+fn ack_delay_counts_from_the_oldest_datagram_like_mojang() {
+    for path in real_client_captures() {
+        let text = std::fs::read_to_string(&path).unwrap();
+        let analysis = analyze(&wire::read_capture(&text).unwrap().1);
+        for (name, side) in [("BDS", &analysis.server), ("client", &analysis.client)] {
+            let acks = Stats::of(&side.ack_delays_after_rtt);
+            assert!(acks.n > 0 && acks.min >= 9.0, "{path:?} {name}: {acks}");
+        }
+    }
+
+    let record = |t_us: u64, dir: Dir, body: Body| Record {
+        t_us,
+        dir,
+        len: 0,
+        action: Action::Fwd,
+        body,
+    };
+    let data = |seq: u32, split: bool| Body::Data {
+        flags: 0x84,
+        seq,
+        frames: vec![Frame {
+            rel: 3,
+            mi: Some(seq),
+            si: None,
+            oi: None,
+            oc: None,
+            split: split.then_some((2, 0, 1)),
+            len: 1,
+            head: "fe".into(),
+        }],
+    };
+    let ack = |range: (u32, u32)| Body::Ack {
+        records: vec![range],
+    };
+    let (c2s, s2c) = (Dir::C2s, Dir::S2c);
+    let records = [
+        // Before the server has an RTT sample: ACKed at once, left out.
+        record(0, c2s, data(0, false)),
+        record(200, s2c, ack((0, 0))),
+        record(1_000, s2c, data(0, false)),
+        record(2_000, c2s, ack((0, 0))),
+        // #2 arrives as #1's ACK falls due: one sample of 10.3 ms.
+        record(10_000, c2s, data(1, false)),
+        record(19_800, c2s, data(2, false)),
+        record(20_300, s2c, ack((1, 2))),
+        // An ACK 5 ms after its oldest datagram: early.
+        record(30_000, c2s, data(3, false)),
+        record(34_000, c2s, data(4, false)),
+        record(35_000, s2c, ack((3, 4))),
+        // A completed split is ACKed at once: left out.
+        record(40_000, c2s, data(5, true)),
+        record(40_200, s2c, ack((5, 5))),
+    ];
+    let delays = analyze(&records).server.ack_delays_after_rtt;
+    assert!(
+        delays.len() == 2 && (delays[0] - 10.3).abs() < 1e-9 && (delays[1] - 5.0).abs() < 1e-9,
+        "{delays:?}"
+    );
 }
 
 /// ACK-3/ACK-6 (5% loss capture): NAKs leave as soon as the datagram that
@@ -473,15 +559,7 @@ async fn silent_client_is_dropped_after_ten_seconds_like_bds() {
 /// `tools/client-diff/real-client/capture.ps1`.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn real_client_captures_match_vanilla_client() {
-    let directory = captures().join("real-client");
-    let mut paths: Vec<PathBuf> = std::fs::read_dir(&directory)
-        .unwrap_or_else(|e| panic!("{directory:?}: {e}"))
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().is_some_and(|ext| ext == "jsonl"))
-        .collect();
-    paths.sort();
-    assert!(!paths.is_empty(), "no captures in {directory:?}");
-    for path in paths {
+    for path in real_client_captures() {
         let text = std::fs::read_to_string(&path).unwrap();
         let (meta, records) = wire::read_capture(&text).unwrap();
         let reference = analyze(&records);
@@ -541,7 +619,8 @@ async fn real_client_captures_match_vanilla_client() {
             real.reliability.get(&0x13),
             "{name}: NewIncomingConnection"
         );
-        // ACK-1: the client's ACK delay once it has an RTT sample.
+        // ACK-1: the client's ACK delay once it has an RTT sample (per ACK,
+        // from the oldest datagram it names).
         let (ours_acks, real_acks) = (
             Stats::of(&client.ack_delays_after_rtt),
             Stats::of(&real.ack_delays_after_rtt),
