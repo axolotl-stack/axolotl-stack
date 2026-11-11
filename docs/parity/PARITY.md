@@ -252,7 +252,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 **banners**
 
 - `minecraft:standing_banner`: not placed by the banner item; no banner block actor (colour, patterns)
-- `minecraft:wall_banner`: not placed on walls by the banner item; no banner block actor (colour, patterns); no support check (stays when the block holding it is removed)
+- `minecraft:wall_banner`: not placed on walls by the banner item; no banner block actor (colour, patterns); its support check (the measured wall-banner holders) is not replayed against the support sweep
 
 **beds**
 
