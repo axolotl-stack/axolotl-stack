@@ -541,6 +541,35 @@ SCENARIO_HEADERS = {
                   'water (source, flowing, depth 3) and lava set in the floor; `soils` lists [soil_block, '
                   'soil_states, stays] read 2 ticks later (rows whose soil did not stay are left out)',
     },
+    'coral_death': {
+        'family': 'coral_death',
+        'row': '[kind, cell, repeat, dead_by, last]',
+        'method': 'cells 16 blocks apart (`tools/bds-sweep/coral.py` LAYOUT, so water a cell brings reaches no '
+                  'other): a live coral block, plant, floor fan or wall fan (on a stone east of it) set with a '
+                  'block update in air, or over a water source set in the floor (`*_over_water`), read every 10 '
+                  'ticks for 300 ticks; `dead_by` is the first read (ticks) that found it dead (null: alive at '
+                  'tick 300), `last` the block read at tick 300',
+    },
+    'coral_water': {
+        'family': 'coral_water',
+        'row': '[kind, cell, repeat, before, dead_by, last]',
+        'method': 'as `coral_death`: a coral block set with a block update (`block_set`) or by `/setblock` '
+                  '(`block_setblock`), set and then a stone set east of it 40 ticks later '
+                  '(`block_then_neighbour`), set beside a walled-in water source that is removed 40 ticks later '
+                  '(`block_water_goes`) or kept while a stone is set (`block_water_stays`); a coral plant and a '
+                  'floor fan set by `/setblock`, alone or with a stone set beside them 40 ticks later; `before` '
+                  'is the block read just before that second change, `dead_by` the first read after it (or after '
+                  'the set) that found it dead',
+    },
+    'coral_timing': {
+        'family': 'coral_timing',
+        'row': '[kind, cell, repeat, trace]',
+        'method': 'one read per tick (`timeline`): a coral block set with a block update or by `/setblock` at '
+                  'tick 0, placed by a click of the scripted player at tick 0 (one click per wave), a coral block '
+                  'whose walled-in water source is removed at tick 0 (the block set 20 ticks before), and a coral '
+                  'plant set by `/setblock` with a stone set beside it at tick 0; `trace` is [tick, block] for the '
+                  'first read and each change (a read at tick t sees the world after t server ticks)',
+    },
     'support': {
         'family': 'support',
         'row': '[block, states, placed_states, forward, backward]',
@@ -910,6 +939,25 @@ def summarize_scenarios(sweeps: list[Path]) -> None:
                 centre, sides, order = scenario_parts(row)
                 out.append([centre, sides, order, row['reads']['after']])
             out.sort(key=lambda r: json.dumps(r[:3]))
+        elif family in ('coral_death', 'coral_water'):
+            for row in found:
+                kind, cell, repeat = scenario_parts(row)
+                reads = row['reads']
+                dead_by = next((tick for tick in range(10, 310, 10)
+                                if reads[f't{tick}'][0][0].startswith('minecraft:dead_')), None)
+                last = reads['t300'][0][0]
+                if family == 'coral_death':
+                    out.append([kind, cell, repeat, dead_by, last])
+                else:
+                    before = reads['before'][0][0] if 'before' in reads else None
+                    out.append([kind, cell, repeat, before, dead_by, last])
+            out.sort(key=lambda r: json.dumps(r[:3]))
+        elif family == 'coral_timing':
+            for row in found:
+                kind, cell, repeat = scenario_parts(row)
+                trace = [[tick, block] for tick, _, block, _ in row['traces']['trace']]
+                out.append([kind, cell, repeat, trace])
+            out.sort(key=lambda r: json.dumps(r[:3]))
         elif family == 'soils_more':
             grouped = {}
             for row in found:
@@ -1062,19 +1110,24 @@ PLACEMENT_NOISE = {'PlayerAuthInputPacket', 'LevelChunkPacket', 'NetworkStackLat
 PLACEMENT_DECODED = {'InventoryTransactionPacket', 'UpdateBlockPacket', 'UpdateSubChunkBlocksPacket',
                      'LevelSoundEventPacket', 'BlockActorDataPacket', 'OpenSignPacket', 'PlayerHotbarPacket',
                      'LevelEventPacket', 'BlockEventPacket', 'AnimatePacket'}
+# Groups whose cases also keep the player's attributes (hunger after eating).
+PLACEMENT_ATTRIBUTE_GROUPS = {'leftovers'}
 
 
-def placement_decoded(record: dict) -> bool:
+def placement_decoded(record: dict, attributes: bool = False) -> bool:
+    if attributes and record['name'] == 'UpdateAttributesPacket':
+        return True
     if record['name'] == 'InventoryContentPacket':
         # Packet id 0x31, then the container id: 0 is the main inventory.
         return record['hex'][2:4] == '00'
     return record['name'] in PLACEMENT_DECODED
 
 
-def capture_by_marker(path: Path) -> dict[str, list]:
+def capture_by_marker(path: Path, attributes: frozenset = frozenset()) -> dict[str, list]:
     """A client capture cut at the `bds-sweep:mark <key>` / `bds-sweep:mark
     end` chat markers: key -> the packets in between (noise left out, hex
-    kept for the packets the test decodes)."""
+    kept for the packets the test decodes, and for `UpdateAttributes` in the
+    cases whose key is in `attributes`)."""
     packets: dict[str, list] = {}
     current = None
     if not path.exists():
@@ -1092,14 +1145,14 @@ def capture_by_marker(path: Path) -> dict[str, list]:
                 continue
         if current and record['name'] not in PLACEMENT_NOISE:
             packet = {'dir': record['dir'], 'name': record['name']}
-            if placement_decoded(record):
+            if placement_decoded(record, current in attributes):
                 packet['hex'] = record['hex']
             packets[current].append(packet)
     return packets
 
 
 # Case fields copied from the job item into the fixture.
-PLACEMENT_FIELDS = ('key', 'setup', 'hand', 'player', 'click', 'read', 'after', 'read_later', 'watcher',
+PLACEMENT_FIELDS = ('key', 'setup', 'hand', 'player', 'click', 'read', 'before', 'after', 'read_later', 'watcher',
                     'watcher_hand')
 # What the plugin recorded per case.
 PLACEMENT_RESULTS = ('reads', 'held', 'items', 'timeline', 'read_tick', 'reads_later', 'read_later_tick',
@@ -1114,7 +1167,9 @@ def summarize_placements(sweep: Path) -> None:
     when the sweep had one, the watching player."""
     rows = {row['key']: row for row in results(sweep)}
     job = json.loads((sweep / 'job.json').read_text(encoding='utf-8'))
-    clicker = capture_by_marker(sweep / 'client-capture' / 'packets.jsonl')
+    attributes = frozenset(item['key'] for item in job['items']
+                           if item.get('group') in PLACEMENT_ATTRIBUTE_GROUPS)
+    clicker = capture_by_marker(sweep / 'client-capture' / 'packets.jsonl', attributes)
     watcher = capture_by_marker(sweep / 'watcher-capture' / 'packets.jsonl')
     arena = job['arena']['placements']
     groups: dict[str, list] = defaultdict(list)

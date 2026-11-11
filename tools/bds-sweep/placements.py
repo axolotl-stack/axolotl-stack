@@ -762,3 +762,83 @@ def followup() -> list[dict]:
 
 
 GROUPS['followup'] = followup
+
+
+# Plants and other items tried in an empty flower pot (round 3).
+POT_ITEMS = ('dandelion', 'poppy', 'blue_orchid', 'allium', 'azure_bluet', 'red_tulip', 'orange_tulip',
+             'white_tulip', 'pink_tulip', 'oxeye_daisy', 'cornflower', 'lily_of_the_valley', 'wither_rose',
+             'torchflower', 'open_eyeblossom', 'closed_eyeblossom', 'cactus_flower', 'oak_sapling', 'spruce_sapling',
+             'birch_sapling', 'jungle_sapling', 'acacia_sapling', 'dark_oak_sapling', 'cherry_sapling',
+             'pale_oak_sapling', 'mangrove_propagule', 'azalea', 'flowering_azalea', 'brown_mushroom', 'red_mushroom',
+             'crimson_fungus', 'warped_fungus', 'crimson_roots', 'warped_roots', 'fern', 'short_grass', 'deadbush',
+             'cactus', 'bamboo', 'bush', 'firefly_bush', 'short_dry_grass', 'tall_dry_grass', 'large_fern',
+             'tall_grass', 'sunflower', 'lilac', 'rose_bush', 'peony', 'pitcher_plant', 'pink_petals', 'wildflowers',
+             'leaf_litter', 'sweet_berries', 'glow_berries', 'sugar_cane', 'kelp', 'seagrass', 'sea_pickle',
+             'nether_sprouts', 'nether_wart', 'hanging_roots', 'spore_blossom', 'moss_carpet', 'pale_moss_carpet',
+             'pale_hanging_moss', 'big_dripleaf', 'small_dripleaf_block', 'twisting_vines', 'weeping_vines', 'vine',
+             'glow_lichen', 'waterlily', 'chorus_flower', 'wheat_seeds', 'torchflower_seeds', 'pitcher_pod',
+             'oak_leaves', 'dirt', 'stone')
+
+
+def leftovers() -> list[dict]:
+    """Round 3 follow-up: which items go into an empty flower pot (and the
+    actor a potted plant gets), a second click on a potted plant, a placed
+    cave vine's age over many placements, cake eaten slice by slice, string
+    on other floors and beside a tripwire, and last a player eating cake on
+    normal difficulty, full and hungry (these cases keep the player's
+    attribute packets)."""
+    stone = [block(0, 0, 0, *STONE)]
+    pot = stone + [block(0, 1, 0, 'minecraft:flower_pot', {'update_bit': False})]
+    pot_click = [0, 1, 0, 1, 500, 500, 500]
+    out = [case(f'pot_{item}', pot, hand(f'minecraft:{item}'), NORTH_OF, pot_click, [[0, 1, 0], [0, 2, 0]])
+           for item in POT_ITEMS]
+    for second in ('poppy', 'stone', 'dandelion'):
+        out.append(case(f'pot_dandelion_then_{second}', pot, hand('minecraft:dandelion'), NORTH_OF, pot_click,
+                        [[0, 1, 0], [0, 2, 0]],
+                        after=[['hand', 'player', f'minecraft:{second}', 16], ['use', 'player', pot_click]]))
+    for repeat in range(100):
+        out.append(case(f'cave_vines_age_{repeat}', [block(0, 2, 0, *STONE)], hand('minecraft:glow_berries'),
+                        UNDER_PLAYER, UNDER, [[0, 1, 0]]))
+    vine = [block(0, 3, 0, *STONE), block(0, 2, 0, 'minecraft:cave_vines', {'growing_plant_age': 10})]
+    for repeat in range(10):
+        out.append(case(f'cave_vines_under_vine_{repeat}', vine, hand('minecraft:glow_berries'), UNDER_PLAYER,
+                        [0, 2, 0, 0, 500, 0, 500], [[0, 1, 0], [0, 2, 0]]))
+    on_top = [0, 1, 0, 1, 500, 500, 500]
+    at = [[0, 1, 0], [0, 2, 0]]
+    cake = lambda bites=0: block(0, 1, 0, 'minecraft:cake', {'bite_counter': bites})  # noqa: E731
+    for bites in range(1, 7):
+        out.append(case(f'cake_bite_{bites}_empty_hand', stone + [cake(bites)], AIR_HAND, NORTH_OF, on_top, at))
+    out += [
+        case('cake_eaten_twice', stone + [cake()], AIR_HAND, NORTH_OF, on_top, at,
+             after=[['use', 'player', on_top]]),
+        case('stone_onto_cake', stone + [cake()], hand('minecraft:stone'), NORTH_OF, on_top, at),
+        case('lit_candle_cake_with_candle', stone + [block(0, 1, 0, 'minecraft:candle_cake', {'lit': True})],
+             hand('minecraft:candle'), NORTH_OF, on_top, at),
+    ]
+    string = hand('minecraft:string')
+    out += [
+        case('string_on_glass', [block(0, 0, 0, 'minecraft:glass')], string, NORTH_OF, TOP, [[0, 1, 0]]),
+        case('string_on_bottom_slab', [block(0, 0, 0, 'minecraft:oak_slab', {'minecraft:vertical_half': 'bottom'})],
+             string, NORTH_OF, [0, 0, 0, 1, 500, 500, 500], [[0, 1, 0]]),
+        case('string_on_grass', [], string, NORTH_OF, [0, -1, 0, 1, 500, 1000, 500], [[0, 0, 0]]),
+        case('string_on_east_face', PILLAR, string, SIDE_FACES['east'][1], [0, 1, 0, 5, 1000, 500, 500],
+             [[1, 1, 0], [1, 0, 0]]),
+        case('string_next_to_tripwire', stone + [block(1, 0, 0, *STONE), block(1, 1, 0, 'minecraft:trip_wire')],
+             string, NORTH_OF, TOP, [[0, 1, 0], [1, 1, 0]]),
+        case('string_between_tripwires', stone + [block(1, 0, 0, *STONE), block(-1, 0, 0, *STONE),
+                                                  block(1, 1, 0, 'minecraft:trip_wire'),
+                                                  block(-1, 1, 0, 'minecraft:trip_wire')],
+             string, NORTH_OF, TOP, [[-1, 1, 0], [0, 1, 0], [1, 1, 0]]),
+    ]
+    # Last: the world stays on normal difficulty afterwards.
+    normal = [['cmd', 'difficulty normal']]
+    hungry = normal + [['cmd', 'effect {player} hunger 3 255 true'], ['wait', 100]]
+    out += [
+        case('cake_full_normal', stone + [cake()], AIR_HAND, NORTH_OF, on_top, at, before=normal),
+        case('cake_hungry_normal', stone + [cake()], AIR_HAND, NORTH_OF, on_top, at, before=hungry,
+             after=[['use', 'player', on_top]]),
+    ]
+    return out
+
+
+GROUPS['leftovers'] = leftovers

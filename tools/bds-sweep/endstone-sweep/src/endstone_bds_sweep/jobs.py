@@ -683,7 +683,8 @@ def placements(ctx: Context, job: dict):
     `watcher` spot (default `arena.placements.watcher`) and records what
     another player is sent; it gets the same markers.
 
-    `after` steps follow the first click: `['wait', n]`, `['hand', who,
+    `before` steps (`['cmd', text]`, `['wait', n]`) run before the first
+    click. `after` steps follow the first click: `['wait', n]`, `['hand', who,
     item, count]` (`/replaceitem`; `item` null empties the hand), `['use',
     who, click]` and `['sign', who, offset, front, text]` (a sign text edit
     sent by that client). `timeline` records the tick (relative to the
@@ -743,6 +744,16 @@ def placements(ctx: Context, job: dict):
             give('watcher', item.get('watcher_hand'))
             wx, wy, wz, wyaw, wpitch = item.get('watcher') or arena['watcher']
             ctx.must(f'tp "{watcher_name}" {origin[0] + wx} {origin[1] + wy} {origin[2] + wz} {wyaw} {wpitch}')
+        # `before` steps run after the setup, before the first click:
+        # `['cmd', text]` (a console command; `{player}` is the quoted
+        # player name) and `['wait', ticks]`.
+        for step in item.get('before', []):
+            if step[0] == 'cmd':
+                ctx.must(step[1].format(player=f'"{name}"'))
+            elif step[0] == 'wait':
+                yield int(step[1])
+            else:
+                raise RuntimeError(f'unknown placement before-step {step!r}')
         # The new hand stack and the teleport reach the client over the next
         # ticks; the click must carry the stack the server holds.
         yield 20

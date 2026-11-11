@@ -713,13 +713,21 @@ def _random_tick_families() -> dict:
     return random_ticks.FAMILIES
 
 
+def _coral_families() -> dict:
+    import coral
+    return coral.FAMILIES
+
+
 ROUND_THREE = _circuit_families()
 RANDOM_TICKS = _random_tick_families()
+CORAL = _coral_families()
 FAMILIES.update(ROUND_THREE)
 FAMILIES.update(RANDOM_TICKS)
+FAMILIES.update(CORAL)
 # Families that need their own cell layout (name in sweep.ARENAS) and server
 # properties; every family in one run must share a layout.
-LAYOUTS = {name: 'circuits' for name in ROUND_THREE} | {name: 'fields' for name in RANDOM_TICKS}
+LAYOUTS = ({name: 'circuits' for name in ROUND_THREE} | {name: 'fields' for name in RANDOM_TICKS}
+           | {name: 'coral' for name in CORAL} | {'coral_death': 'coral'})
 
 
 def layout(families: str) -> str:

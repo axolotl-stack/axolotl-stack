@@ -199,6 +199,25 @@ class RoundThree(unittest.TestCase):
         with self.assertRaises(SystemExit):
             scenarios.layout('redstone_dust,random_crops')
 
+    def test_coral_families_share_the_spaced_layout(self):
+        import coral
+        for family in list(coral.FAMILIES) + ['coral_death']:
+            keys = [item['key'] for item in scenarios.FAMILIES[family]()]
+            self.assertEqual(len(keys), len(set(keys)), family)
+        self.assertEqual(scenarios.layout('coral_death,coral_water,coral_timing'), 'coral')
+        spacing = coral.LAYOUT['spacing']
+        (low_x, _, low_z), (high_x, _, high_z) = coral.LAYOUT['clear_box']
+        # Water flows 7 blocks: two cells' boxes never overlap.
+        self.assertGreater(min(spacing), max(high_x - low_x, high_z - low_z))
+
+    def test_leftover_clicks_end_with_the_normal_difficulty_cases(self):
+        import placements
+        items = placements.items('leftovers')
+        keys = [item['key'] for item in items]
+        self.assertEqual(len(keys), len(set(keys)))
+        changes = [i for i, item in enumerate(items) if item.get('before')]
+        self.assertEqual(changes, [len(items) - 2, len(items) - 1])
+
     def test_signature_splits_clicks_and_commands_into_their_own_waves(self):
         sys.path.insert(0, str(Path(__file__).resolve().parent / 'endstone-sweep' / 'src'))
         from endstone_bds_sweep import jobs

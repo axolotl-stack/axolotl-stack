@@ -34,6 +34,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import circuits  # noqa: E402
+import coral  # noqa: E402
 import native  # noqa: E402
 import placements  # noqa: E402
 import random_ticks  # noqa: E402
@@ -63,7 +64,7 @@ ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 
 # long redstone circuit cells of `circuits.py`, with the server properties
 # each needs (circuits reach farther from the player than tick distance 4).
 ARENAS = {'cells': (ARENA['scenarios'], {}), 'circuits': (circuits.LAYOUT, circuits.PROPERTIES),
-          'fields': (random_ticks.LAYOUT, random_ticks.PROPERTIES)}
+          'fields': (random_ticks.LAYOUT, random_ticks.PROPERTIES), 'coral': (coral.LAYOUT, coral.PROPERTIES)}
 SETUP = [
     'gamerule domobspawning false',
     'gamerule dodaylightcycle false',
