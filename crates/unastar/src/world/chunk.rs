@@ -689,6 +689,13 @@ impl Chunk {
         self.bounds.clone()
     }
 
+    /// Y indices of the subchunks inside [`Self::block_bounds`]: the sections
+    /// a provider stores for this chunk's dimension.
+    pub fn section_y_indices(&self) -> impl Iterator<Item = i8> + use<> {
+        ((self.bounds.start >> 4)..(self.bounds.end >> 4))
+            .map(|y| i8::try_from(y).expect("bounds are asserted inside physical storage"))
+    }
+
     fn assert_bounds(bounds: &Range<i32>) {
         assert!(
             bounds.start >= MIN_Y

@@ -173,11 +173,6 @@ impl PlayerProvider for MemoryPlayers {
         Ok(())
     }
 
-    async fn delete(&self, uuid: uuid::Uuid) -> StorageResult<()> {
-        self.0.lock().remove(&uuid);
-        Ok(())
-    }
-
     async fn close(&self) -> StorageResult<()> {
         Ok(())
     }
@@ -196,7 +191,8 @@ async fn a_dead_player_saved_and_reloaded_comes_back_alive_at_spawn() {
     let saved =
         crate::server::connect::load_player_data(Some(players.as_ref()), Some(&uuid(SESSION)))
             .await
-            .expect("the saved record is valid");
+            .expect("the saved record is valid")
+            .expect("a record was saved");
     assert_eq!(
         players.0.lock().get(&id).map(|data| data.health),
         Some(20.0)
