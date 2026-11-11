@@ -18,13 +18,21 @@
 //!   after the other (success count: the sum); a run that fails adds
 //!   `commands.execute.failed [command, executor]` after its own messages.
 //!
-//! Only the overworld exists in unastar: `in nether` and `in the_end`
-//! answer a literal "not implemented" failure.
+//! Only the overworld exists in unastar. `in nether` and `in the_end` run
+//! the chain in a dimension where nothing is loaded and no actor lives, as
+//! the BDS capture (segment `execute_in`) answers there: `@s` and plain `@a`
+//! still find the player, a selector that looks at positions finds nothing,
+//! `setblock`, `testforblock` and `fill` answer their `outOfWorld`, `clone`
+//! `commands.generic.outOfWorld`, `summon` `commands.summon.failed`, and
+//! `if block` `commands.execute.outRangedDetectPosition [x, y, z]` before its
+//! false condition. Every other command run there, and `if blocks`, answer
+//! a literal "not implemented" failure rather than act on the overworld.
+//! `at` moves the context back to the overworld with its actor.
 
 use super::setblock::BlockSpec;
 use super::testfor::compare_regions;
 use crate::command::args::{Comparison, Overloads};
-use crate::command::context::{CommandSource, SourceKind, entity_name};
+use crate::command::context::{CommandSource, Dimension, SourceKind, entity_name};
 use crate::command::parser::parse_overloads;
 use crate::command::prelude::*;
 use crate::entity::components::Player;
@@ -189,6 +197,8 @@ fn step(
             let next = expand(ctx, &contexts, &origin, |world, context, entity| {
                 let mut context = context.clone();
                 move_to(world, &mut context, entity);
+                // Every actor lives in the overworld.
+                context.dimension = Dimension::Overworld;
                 let rotation = world
                     .get::<crate::entity::components::transform::Rotation>(entity)
                     .copied()
@@ -202,13 +212,19 @@ fn step(
         E::In {
             dimension, chained, ..
         } => {
-            if dimension != DimensionName::Overworld {
-                return Err(CommandOutput::failure(
-                    "/execute in another dimension is not implemented in unastar yet",
-                    vec![],
-                ));
-            }
-            chain(ctx, contexts, &chained)
+            let dimension = match dimension {
+                DimensionName::Overworld => Dimension::Overworld,
+                DimensionName::Nether => Dimension::Nether,
+                DimensionName::TheEnd => Dimension::TheEnd,
+            };
+            let next = contexts
+                .into_iter()
+                .map(|mut context| {
+                    context.dimension = dimension;
+                    context
+                })
+                .collect();
+            chain(ctx, next, &chained)
         }
         E::Positioned {
             position, chained, ..
@@ -357,10 +373,7 @@ fn step(
                 chained,
                 |ctx, context| {
                     let pos = resolve(ctx, context, position.0).floor().as_ivec3();
-                    Check::holds(
-                        block_at(ctx.world, (pos.x, pos.y, pos.z))
-                            .is_some_and(|state| spec.matches(state)),
-                    )
+                    detect_block(ctx, context, pos, |state| spec.matches(state))
                 },
             )
         }
@@ -381,12 +394,12 @@ fn step(
                 chained,
                 |ctx, context| {
                     let pos = resolve(ctx, context, position.0).floor().as_ivec3();
-                    Check::holds(
-                        block_at(ctx.world, (pos.x, pos.y, pos.z))
-                            .is_some_and(|state| spec.matches(state)),
-                    )
+                    detect_block(ctx, context, pos, |state| spec.matches(state))
                 },
             )
+        }
+        E::IfBlocks { .. } if contexts.iter().any(|c| c.dimension != Dimension::Overworld) => {
+            Err(other_dimension())
         }
         E::IfBlocks {
             condition,
@@ -497,7 +510,13 @@ fn step(
             let mut output = CommandOutput::default();
             for context in contexts {
                 let executor = context.name.clone();
-                let result = ctx.run(context, &command);
+                let result = if context.dimension == Dimension::Overworld
+                    || RUN_IN_EMPTY_DIMENSIONS.contains(&name.as_str())
+                {
+                    ctx.run(context, &command)
+                } else {
+                    other_dimension()
+                };
                 let failed = result.success_count == 0 && !result.messages.is_empty();
                 output.success_count += result.success_count;
                 output.messages.extend(result.messages);
@@ -526,6 +545,57 @@ fn chain(
     let args = parse_overloads(&ctx.schema, definition, chained, 0)
         .expect("the parser validated the chain with the whole line");
     step(ctx, contexts, ExecuteArgs::from_args(&args))
+}
+
+/// Commands whose answers in a dimension where nothing is loaded are
+/// measured and come out of the usual checks ([`Dimension`]).
+const RUN_IN_EMPTY_DIMENSIONS: [&str; 6] = [
+    "testfor",
+    "setblock",
+    "testforblock",
+    "fill",
+    "clone",
+    "summon",
+];
+
+/// What unastar answers for anything else in the nether or the end.
+fn other_dimension() -> CommandOutput {
+    CommandOutput::failure(
+        "/execute in another dimension is not implemented in unastar yet",
+        vec![],
+    )
+}
+
+/// `if block`: the block at `pos` in the context's dimension. Measured in
+/// the nether: where nothing is loaded the test cannot be judged
+/// (`commands.execute.outRangedDetectPosition [x, y, z]`, then the false
+/// condition); [INFERENCE] an unloaded overworld chunk answers the same.
+/// Outside the world's height the block is air, as `testforblock` measured.
+fn detect_block(
+    ctx: &CommandContext<'_>,
+    context: &CommandSource,
+    pos: IVec3,
+    matches: impl Fn(u32) -> bool,
+) -> Check {
+    if !super::setblock::in_height(pos.y) {
+        return Check::holds(matches(*crate::world::chunk::blocks::AIR));
+    }
+    let found = if context.dimension == Dimension::Overworld {
+        block_at(ctx.world, (pos.x, pos.y, pos.z))
+    } else {
+        None
+    };
+    match found {
+        Some(state) => Check::holds(matches(state)),
+        None => Check {
+            holds: false,
+            count: None,
+            error: Some((
+                "commands.execute.outRangedDetectPosition".into(),
+                vec![pos.x.to_string(), pos.y.to_string(), pos.z.to_string()],
+            )),
+        },
+    }
 }
 
 /// What a condition found in one context.
@@ -719,6 +789,57 @@ mod bds_capture {
         "/execute facing entity @e[type=cow,r=16,c=1] feet run tp @s ~ ~ ~ ~ ~",
         "/execute as @s at @s run tp @s ~ ~1 ~",
     ];
+
+    /// The nether and the end, where nothing is loaded: every answer of the
+    /// segment, and no block or actor changed in the overworld.
+    #[test]
+    fn execute_in_matches_the_bds_capture() {
+        let mut replay = Replay::new();
+        let cows = |replay: &mut Replay| {
+            let world = replay.h.world();
+            world
+                .query_filtered::<(), bevy_ecs::prelude::With<MobKind>>()
+                .iter(world)
+                .count()
+        };
+        let before = cows(&mut replay);
+        let steps = replay.assert_segment("execute_in", &[]);
+        assert_eq!(steps.len(), 13);
+        assert_eq!(
+            cows(&mut replay),
+            before,
+            "no cow summoned in the overworld"
+        );
+        let stone = crate::registry::BlockRegistry::vanilla()
+            .default_state_id_by_name("minecraft:stone")
+            .unwrap();
+        for pos in [(8, 100, 8), (9, 100, 9)] {
+            assert_ne!(
+                crate::server::game::blocks::block_at(replay.h.world(), pos),
+                Some(stone),
+                "{pos:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn other_commands_in_another_dimension_are_not_implemented() {
+        let mut replay = Replay::new();
+        for line in [
+            "/execute in nether run tp @s 8 100 8",
+            "/execute in the_end if blocks 0 0 0 0 0 0 1 1 1 all",
+        ] {
+            let (output, _) = replay.run(line);
+            assert!(!output.is_success(), "{line}");
+            assert!(
+                output.messages[0].key.contains("not implemented"),
+                "{line}: {output:?}"
+            );
+        }
+        // `at` brings the context back to the overworld.
+        let (output, _) = replay.run("/execute in nether at @s run testfor @e[r=1]");
+        assert!(output.is_success(), "{output:?}");
+    }
 
     #[test]
     fn execute_matches_the_bds_capture() {

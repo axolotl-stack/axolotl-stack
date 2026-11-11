@@ -623,7 +623,7 @@ copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 | `/scoreboard` | `belowname` sends no score actor data | Not built |
 | `/tickingarea` | Areas do not keep their chunks loaded or ticking | Chunk loading follows players only |
 | `/fill`, `/clone`, `/structure` | One `UpdateBlock` per block instead of `UpdateSubChunkBlocks`; `/clone` copies no block-entity data; `/structure` neither turns block states with the box nor saves block entities or entities | Block update path |
-| `/execute` | `in nether` and `in the_end` fail with "not implemented" | One dimension per world |
+| `/execute` | `in nether` and `in the_end` answer as BDS does where nothing is loaded for `testfor`, `setblock`, `testforblock`, `fill`, `clone`, `summon` and `if block`; any other command there (and `if blocks`) fails with "not implemented" | One dimension per world |
 | `/damage` | The hurt `ActorEvent` carries no damage cause | Shared hurt path |
 | `/replaceitem` | No armour equip sound; armour and offhand changes resend the whole inventory | No equip-sound table |
 | `/mobevent`, `/scriptevent` | Switches and events are kept or acknowledged but nothing acts on them | No mob events or behaviour-pack scripts |

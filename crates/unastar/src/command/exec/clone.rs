@@ -16,7 +16,7 @@
 //! Block entity data (container contents, sign text) is not cloned: only
 //! block states are.
 
-use super::setblock::{BlockSpec, box_loaded, volume};
+use super::setblock::{BlockSpec, volume};
 use crate::command::prelude::*;
 use crate::server::game::blocks::{block_at, set_block};
 use crate::world::chunk::blocks::AIR;
@@ -115,7 +115,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: CloneArgs) -> CommandResult {
     if count > MAX_BLOCKS {
         return failure!("commands.clone.tooManyBlocks", count, MAX_BLOCKS);
     }
-    if !box_loaded(ctx.world, min, max) || !box_loaded(ctx.world, dest_min, dest_max) {
+    if !ctx.box_loaded(min, max) || !ctx.box_loaded(dest_min, dest_max) {
         return failure!("commands.generic.outOfWorld");
     }
     let overlap = min.cmple(dest_max).all() && dest_min.cmple(max).all();

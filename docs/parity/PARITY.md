@@ -607,7 +607,7 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 - `aimassist`: set never applies aim assist: BDS checks the camera type the client reports and unastar learns none, so it always answers unsupportedCameraType (as BDS did for the capture's client); the join does not send BDS's aim assist definitions
 - `clone`: block entity data (container contents, sign text) is not cloned; legacy block names with old block states are refused; changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
 - `dialogue`: no actor has the NPC component and no dialogue scenes are loaded, so open and change always answer noNpcComponent (or noTargetMatch and npcNotFound without a target)
-- `execute`: in nether and in the_end answer a not-implemented failure (unastar runs one dimension per world)
+- `execute`: unastar runs the overworld only: in nether and in the_end run testfor, setblock, testforblock, fill, clone, summon and if block as BDS answers where nothing is loaded (compared), and answer a not-implemented failure for every other command and for if blocks; @p and selectors without position arguments other than @s and @a are not measured there
 - `fill`: legacy block names with old block states map only for the colour families (other legacy names are refused); changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
 - 16 more partial rows with other gaps (see [commands.toml](commands.toml))
 - missing: `locate`, `ride`

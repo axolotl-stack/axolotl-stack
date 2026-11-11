@@ -14,7 +14,7 @@
 //! [INFERENCE] A replace filter without states matches every state of its
 //! block.
 
-use super::setblock::{BlockSpec, box_loaded, volume};
+use super::setblock::{BlockSpec, volume};
 use crate::command::prelude::*;
 use crate::server::game::blocks::{block_at, destroy_block, set_block};
 use crate::world::chunk::blocks::AIR;
@@ -149,7 +149,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: FillArgs) -> CommandResult {
     if count > MAX_BLOCKS {
         return failure!("commands.fill.tooManyBlocks", count, MAX_BLOCKS);
     }
-    if !box_loaded(ctx.world, min, max) {
+    if !ctx.box_loaded(min, max) {
         return failure!("commands.fill.outOfWorld");
     }
 

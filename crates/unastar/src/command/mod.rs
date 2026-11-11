@@ -42,7 +42,7 @@ pub mod schema;
 pub mod selector;
 
 pub use args::{ArgEnum, Args, FromArg, Overloads, RelativeFloat};
-pub use context::{CommandContext, CommandSource, Operator, SourceKind};
+pub use context::{CommandContext, CommandSource, Dimension, Operator, SourceKind};
 pub use output::{CommandMessage, CommandOutput, CommandResult, ConsoleNote, ConsoleNotes};
 pub use registry::{CommandHandler, CommandRegistry};
 pub use schema::CommandSchema;

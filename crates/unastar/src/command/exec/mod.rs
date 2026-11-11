@@ -65,6 +65,7 @@ pub use gamemode::set_game_mode;
 pub use kick::Kicked;
 pub use op::OperatorList;
 pub use recipe::{UnlockedRecipes, join_packet as recipes_join_packet};
+pub(crate) use setblock::box_loaded;
 pub use stop::StopRequested;
 pub use structure::{StructureTemplate, Structures};
 pub use teleport::move_entity;

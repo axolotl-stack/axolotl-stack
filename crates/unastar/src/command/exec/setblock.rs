@@ -60,12 +60,13 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SetBlockArgs) -> CommandResult {
     };
     let block = BlockSpec::resolve(&tile_name, states.as_ref())?.state();
     let pos = ctx.block_position(Some(position));
-    // Measured: a position below the world answers `noChange`; [INFERENCE]
-    // above it too, and an unloaded chunk is out of the world.
+    // Measured: a position below the world answers `noChange` ([INFERENCE]
+    // above it too); where nothing is loaded (`/execute in nether`) it is
+    // out of the world.
     if !in_height(pos.y) {
         return failure!("commands.setblock.noChange");
     }
-    let Some(old) = block_at(ctx.world, (pos.x, pos.y, pos.z)) else {
+    let Some(old) = ctx.block_at(pos) else {
         return failure!("commands.setblock.outOfWorld");
     };
     let mode = mode.unwrap_or(SetBlockMode::Replace);
@@ -212,7 +213,7 @@ pub(super) fn in_height(y: i32) -> bool {
 
 /// Whether every block of the box `min..=max` is inside the world height and
 /// in a loaded chunk.
-pub(super) fn box_loaded(world: &World, min: IVec3, max: IVec3) -> bool {
+pub(crate) fn box_loaded(world: &World, min: IVec3, max: IVec3) -> bool {
     use crate::world::ecs::{ChunkManager, world_to_chunk_coords};
     let bottom = crate::world::chunk::MIN_Y;
     let top = bottom + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16;
