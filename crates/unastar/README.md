@@ -615,7 +615,6 @@ copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 | `/give`, `/clear`, `/setblock`, `/fill`, `/clone` | Legacy names with old block states map only for the colour families (and `/give`'s data values also for log, log2 and planks); other legacy names fail with "not implemented" | No full legacy item/block upgrade table yet |
 | `/give`, `/recipe` | Items reaching an inventory unlock no recipes (BDS follows a give with `UnlockedRecipes`); unlocked recipes are not saved; `PlayerHotbar` sent with `shouldselectslot=true` | No recipe-unlock system; shared inventory resync |
 | `/gamemode` | Also resends `UpdateAbilities`; `default` puts the player in the configured mode instead of keeping it on `default` | Unastar's join abilities depend on the game mode; no `default` player mode |
-| `/time set` | A negative time answers `commands.generic.num.tooSmall`; BDS accepts it | The world clock starts at 0 |
 | `/effect` | Speed/slowness do not change movement; no visible-effects actor data | No attribute-modifier system yet |
 | `/weather`, `/toggledownfall` | State, client events and the fading levels `/weather query` reports; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
 | `/setworldspawn`, `/scoreboard`, `/tickingarea`, `/structure`, `/mobevent` | The world spawn, objectives and scores, ticking areas, structures and mob event switches are not saved with the world (players' spawn points, tags and recipes, and mobs' tags, are) | No level-data store yet |
