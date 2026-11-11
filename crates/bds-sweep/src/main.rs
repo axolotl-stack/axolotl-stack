@@ -1,12 +1,16 @@
 //! Scripted player for the BDS sweep harness (`tools/bds-sweep`).
 //!
-//! Joins an offline BDS over loopback and behaves like an idle vanilla
-//! client so the server simulates it: `PlayerAuthInput` every 50 ms at the
-//! position and rotation the server last set, latency probes answered,
-//! respawns and dimension changes acknowledged. The Endstone sweep plugin
-//! drives experiments server-side through this player (held items, armour
-//! slots, `/execute as`) and sends it orders as chat messages:
+//! Joins an offline BDS over loopback and plays like a vanilla client so the
+//! server simulates it: `PlayerAuthInput` every 50 ms reporting a movement
+//! the client simulates itself ([`physics`], against the blocks BDS sends,
+//! [`world`]), latency probes answered, teleports, respawns and dimension
+//! changes acknowledged, BDS's corrections replayed. The Endstone sweep
+//! plugin and plain-BDS scripts (`tools/bds-sweep/player_script.py`) drive
+//! it with chat orders:
 //!
+//! * `bds-sweep:move F S`, `look YAW PITCH`, `sprint on|off`,
+//!   `sneak on|off`, `jump [TICKS]`, `glide`: hold movement keys, turn,
+//!   press sprint or sneak, jump, open the elytra;
 //! * `bds-sweep:mine X Y Z FACE PREDICT`: start destroying the block (block
 //!   action `StartDestroyBlock`), then `ContinueDestroyBlock` every tick; when
 //!   `PREDICT` > 0, send `PredictDestroyBlock` that many ticks after the start
@@ -29,9 +33,9 @@
 //!   and resends the whole inventory, which refreshes stack net IDs;
 //! * `bds-sweep:quit`: close the connection and exit (BDS keeps the player
 //!   until the connection times out, about 10 s later);
-//! * `bds-sweep:equip-head SLOT`: open the inventory (as an inventory drop
-//!   does) and move one item from hotbar index SLOT to the head armour slot
-//!   (`ItemStackRequest` place).
+//! * `bds-sweep:equip-head SLOT` / `bds-sweep:equip-feet SLOT`: open the
+//!   inventory (as an inventory drop does) and move one item from hotbar
+//!   index SLOT to the head or feet armour slot (`ItemStackRequest` place).
 //!
 //! Drop orders require server-synchronized nonempty slots with stack net IDs.
 //! Inventory drops leave the screen open; hotbar drops close it first.
@@ -40,6 +44,9 @@
 //! Packets are flushed as recorded and again on session completion/error.
 //!
 //! Exits successfully when the server closes the session.
+
+mod physics;
+mod world;
 
 use anyhow::{Context, Result, ensure};
 use clap::Parser;
@@ -50,29 +57,31 @@ use jolyne::{
     stream::{Handshake, transport::Transport},
     valentine::{
         ActorRuntimeId, BlockPos, CerealizerNetworkItemStackDescriptorSerializedData,
-        ContainerClosePacket, EnumsClientPlayMode, EnumsContainerEnumName, EnumsInputMode,
-        EnumsInteractPacketPayloadAction, EnumsItemStackRequestActionType,
+        ContainerClosePacket, DataItemEntryPayload, EnumsClientPlayMode, EnumsContainerEnumName,
+        EnumsInputMode, EnumsInteractPacketPayloadAction, EnumsItemStackRequestActionType,
         EnumsItemUseInventoryTransactionActionType,
         EnumsItemUseInventoryTransactionPredictedResult,
         EnumsItemUseInventoryTransactionTriggerType,
-        EnumsItemUseOnActorInventoryTransactionActionType, EnumsNewInteractionModel,
-        EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData, EnumsPlayerRespawnState,
-        FullContainerName, InteractPacket, InventoryTransactionPacket,
-        InventoryTransactionPacketTransaction, ItemStackRequestCerealDropActionData,
-        ItemStackRequestCerealPlaceActionData, ItemStackRequestCerealSlotInfoData,
-        ItemStackRequestPacket, ItemStackRequestPacketDataRequestData,
-        ItemStackRequestPacketDataRequestDataActionsItem, ItemUseInventoryTransaction,
-        ItemUseOnActorInventoryTransaction, McpePacket, McpePacketData, McpePacketName,
-        MobEquipmentPacket, PlayerActionPacket, PlayerAuthInputPacket, PlayerBlockActionData,
-        PlayerInputTick, RespawnPacket, TypedClientNetIdstructItemStackRequestIdTagint32T0, Vec2,
-        Vec3,
+        EnumsItemUseOnActorInventoryTransactionActionType, EnumsMobEffectPacketPayloadEvent,
+        EnumsNewInteractionModel, EnumsPlayerActionType,
+        EnumsPlayerAuthInputPacketPayloadInputData, EnumsPlayerRespawnState, FullContainerName,
+        InteractPacket, InventoryTransactionPacket, InventoryTransactionPacketTransaction,
+        ItemStackRequestCerealDropActionData, ItemStackRequestCerealPlaceActionData,
+        ItemStackRequestCerealSlotInfoData, ItemStackRequestPacket,
+        ItemStackRequestPacketDataRequestData, ItemStackRequestPacketDataRequestDataActionsItem,
+        ItemUseInventoryTransaction, ItemUseOnActorInventoryTransaction, McpePacket,
+        McpePacketData, McpePacketName, MobEquipmentPacket, PlayerActionPacket,
+        PlayerAuthInputPacket, PlayerBlockActionData, PlayerInputTick, RespawnPacket,
+        TypedClientNetIdstructItemStackRequestIdTagint32T0, Vec2, Vec3, actor_flags,
     },
 };
+use physics::{Body, Changes, Controls};
+use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tracing::info;
+use tracing::{info, warn};
 
 #[derive(Parser, Debug)]
 #[command(about = "Idle scripted player for BDS sweeps")]
@@ -116,7 +125,7 @@ struct DropOrder {
     count: u8,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 enum Order {
     Mine(Mining),
     Stop,
@@ -133,8 +142,29 @@ enum Order {
     UseItem,
     /// Leave the server.
     Quit,
-    /// Move the item in this hotbar slot to the head armour slot.
-    EquipHead(u8),
+    /// Move one item of this hotbar slot to an armour slot (0 head, 3 feet).
+    Equip {
+        slot: u8,
+        armour: u8,
+    },
+    /// Hold the movement keys: forward (W +) and strafe (A +), each -1..=1.
+    Move {
+        forward: f32,
+        strafe: f32,
+    },
+    /// Turn to this yaw and pitch (degrees).
+    Look {
+        yaw: f32,
+        pitch: f32,
+    },
+    /// Hold or release the sprint key.
+    Sprint(bool),
+    /// Hold or release the sneak key.
+    Sneak(bool),
+    /// Hold the jump key for this many ticks.
+    Jump(u32),
+    /// Open the elytra (start gliding) while in the air.
+    Glide,
 }
 
 /// The input flags the `press`, `hold` and `release` orders can name.
@@ -195,11 +225,78 @@ fn numbers<'a>(words: impl Iterator<Item = &'a str>, n: usize) -> Option<Vec<i64
     (numbers.len() == n).then_some(numbers)
 }
 
+/// The first `n` decimal numbers of an order (signs and fractions allowed;
+/// trailing quotes or escapes after the last are ignored).
+fn decimals<'a>(words: impl Iterator<Item = &'a str>, n: usize) -> Option<Vec<f32>> {
+    let values: Vec<f32> = words
+        .take(n)
+        .map(|word| {
+            word.trim_end_matches(|c: char| !c.is_ascii_digit())
+                .parse::<f32>()
+                .ok()
+                .filter(|v| v.is_finite())
+        })
+        .collect::<Option<_>>()?;
+    (values.len() == n).then_some(values)
+}
+
+/// `on` or `off` (leading letters of the word).
+fn switch(word: Option<&str>) -> Option<bool> {
+    let word: String = word?
+        .chars()
+        .take_while(char::is_ascii_alphabetic)
+        .collect();
+    match word.as_str() {
+        "on" => Some(true),
+        "off" => Some(false),
+        _ => None,
+    }
+}
+
+/// The order word itself: its leading letters and dashes.
+fn order_word(word: &str) -> &str {
+    let end = word
+        .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-'))
+        .unwrap_or(word.len());
+    &word[..end]
+}
+
 /// Parses a plugin order from a chat message (anywhere in the text).
 fn parse_order(text: &str) -> Option<Order> {
     let rest = &text[text.find("bds-sweep:")? + "bds-sweep:".len()..];
     let mut words = rest.split_whitespace();
-    match words.next()? {
+    let first = words.next()?;
+    match order_word(first) {
+        "move" => {
+            let values = decimals(words, 2)?;
+            let in_range = |v: f32| (-1.0..=1.0).contains(&v);
+            return (in_range(values[0]) && in_range(values[1])).then_some(Order::Move {
+                forward: values[0],
+                strafe: values[1],
+            });
+        }
+        "look" => {
+            let values = decimals(words, 2)?;
+            return (-90.0..=90.0).contains(&values[1]).then_some(Order::Look {
+                yaw: values[0],
+                pitch: values[1],
+            });
+        }
+        "sprint" => return Some(Order::Sprint(switch(words.next())?)),
+        "sneak" => return Some(Order::Sneak(switch(words.next())?)),
+        "jump" => {
+            let ticks = match words.next() {
+                Some(word) if word.starts_with(|c: char| c.is_ascii_digit()) => {
+                    u32::try_from(numbers(std::iter::once(word), 1)?[0]).ok()?
+                }
+                _ => 1,
+            };
+            return (ticks > 0).then_some(Order::Jump(ticks));
+        }
+        "glide" => return Some(Order::Glide),
+        _ => {}
+    }
+    match first {
         "stop" | "stop\"" => Some(Order::Stop),
         "mine" => {
             let numbers = numbers(words, 5)?;
@@ -237,17 +334,45 @@ fn parse_order(text: &str) -> Option<Order> {
         word if word.starts_with("quit") && !word[4..].starts_with(char::is_alphanumeric) => {
             Some(Order::Quit)
         }
-        "equip-head" => Some(Order::EquipHead(u8::try_from(numbers(words, 1)?[0]).ok()?)),
+        "equip-head" | "equip-feet" => Some(Order::Equip {
+            slot: u8::try_from(numbers(words, 1)?[0]).ok()?,
+            armour: if first == "equip-head" { 0 } else { 3 },
+        }),
         _ => None,
     }
 }
 
+/// One input tick as simulated, kept for rewinds.
+#[derive(Debug, Clone, Copy)]
+struct Frame {
+    tick: u64,
+    controls: Controls,
+    /// The body after this tick's move.
+    after: Body,
+}
+
+/// Input ticks kept for `CorrectPlayerMovePrediction` rewinds (BDS's
+/// default rewind history is 40 ticks).
+const HISTORY: usize = 200;
+
 /// The own player's state needed to tick like a vanilla client.
 struct Player {
     runtime_id: u64,
-    position: Vec3,
-    /// Pitch (x) and yaw (y), as the server last set them.
-    rotation: Vec2,
+    /// The simulated body and the keys held for it.
+    body: Body,
+    controls: Controls,
+    /// Ticks the jump key stays held (`jump` order).
+    jump_ticks: u32,
+    /// The jump key was held on the last input.
+    jump_was_held: bool,
+    /// A `glide` order waits for the next input.
+    glide: bool,
+    /// A teleport arrived: the next input says `HandledTeleport`.
+    teleported: bool,
+    /// The next input does not move the body (the first after a teleport).
+    rest: bool,
+    world: world::World,
+    history: VecDeque<Frame>,
     tick: u64,
     mining: Option<Mining>,
     /// A block action to send with the next input (abort).
@@ -266,7 +391,59 @@ struct Player {
     /// A `quit` order arrived: close the session.
     quit: bool,
     /// Hotbar slot to equip on the head once the inventory opens.
-    pending_equip: Option<u8>,
+    pending_equip: Option<(u8, u8)>,
+    /// `CorrectPlayerMovePrediction` packets received.
+    corrections: u32,
+}
+
+/// The input flags a vanilla client sets for this tick's keys and move.
+fn movement_flags(
+    controls: &Controls,
+    body: &Body,
+    changes: &Changes,
+    jump_was_held: bool,
+    started_gliding: bool,
+    teleported: bool,
+) -> Vec<EnumsPlayerAuthInputPacketPayloadInputData> {
+    use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+    let (forward, strafe) = (controls.forward, controls.strafe);
+    [
+        (forward > 0.0, Flag::Up),
+        (forward < 0.0, Flag::Down),
+        (strafe > 0.0, Flag::Left),
+        (strafe < 0.0, Flag::Right),
+        (forward > 0.0 && strafe > 0.0, Flag::Upleft),
+        (forward > 0.0 && strafe < 0.0, Flag::Upright),
+        (forward < 0.0 && strafe > 0.0, Flag::Downleft),
+        (forward < 0.0 && strafe < 0.0, Flag::Downright),
+        (controls.sprint, Flag::Sprintdown),
+        (body.sprinting, Flag::Sprinting),
+        (changes.started_sprinting, Flag::Startsprinting),
+        (changes.stopped_sprinting, Flag::Stopsprinting),
+        (controls.sneak, Flag::Sneakdown),
+        (controls.sneak, Flag::Sneakcurrentraw),
+        (body.sneaking, Flag::Sneaking),
+        (changes.started_sneaking, Flag::Startsneaking),
+        (changes.started_sneaking, Flag::Sneakpressedraw),
+        (changes.stopped_sneaking, Flag::Stopsneaking),
+        (changes.stopped_sneaking, Flag::Sneakreleasedraw),
+        (changes.started_swimming, Flag::Startswimming),
+        (changes.stopped_swimming, Flag::Stopswimming),
+        (started_gliding, Flag::Startgliding),
+        (changes.stopped_gliding, Flag::Stopgliding),
+        (controls.jump, Flag::Jumpdown),
+        (controls.jump, Flag::Jumping),
+        (controls.jump, Flag::Jumpcurrentraw),
+        (controls.jump && !jump_was_held, Flag::Jumppressedraw),
+        (!controls.jump && jump_was_held, Flag::Jumpreleasedraw),
+        (changes.jumped, Flag::Startjumping),
+        (body.vertical_collision, Flag::Verticalcollision),
+        (body.horizontal_collision, Flag::Horizontalcollision),
+        (teleported, Flag::Handledteleport),
+    ]
+    .into_iter()
+    .filter_map(|(on, flag)| on.then_some(flag))
+    .collect()
 }
 
 fn block_action(action: EnumsPlayerActionType, mining: &Mining) -> PlayerBlockActionData {
@@ -282,6 +459,56 @@ fn block_action(action: EnumsPlayerActionType, mining: &Mining) -> PlayerBlockAc
 }
 
 impl Player {
+    fn new(runtime_id: u64, position: Vec3, rotation: Vec2) -> Self {
+        let mut body = Body::at([0.0; 3]);
+        body.feet = body.feet_from_network([position.x, position.y, position.z]);
+        Self {
+            runtime_id,
+            body,
+            controls: Controls {
+                pitch: rotation.x,
+                yaw: rotation.y,
+                ..Default::default()
+            },
+            jump_ticks: 0,
+            jump_was_held: false,
+            glide: false,
+            teleported: false,
+            rest: false,
+            world: world::World::default(),
+            history: VecDeque::new(),
+            tick: 0,
+            mining: None,
+            pending: None,
+            inventory: std::array::from_fn(|_| None),
+            selected_slot: 0,
+            inventory_window: None,
+            pending_drop: None,
+            next_request_id: -1,
+            held: Vec::new(),
+            pressed: Vec::new(),
+            quit: false,
+            pending_equip: None,
+            corrections: 0,
+        }
+    }
+
+    /// The wire position (the eyes of a standing player).
+    fn position(&self) -> Vec3 {
+        let [x, y, z] = self.body.network_position();
+        Vec3 { x, y, z }
+    }
+
+    /// Put the body where the server says, at rest.
+    fn place(&mut self, position: &Vec3, on_ground: bool) {
+        self.body.feet = self
+            .body
+            .feet_from_network([position.x, position.y, position.z]);
+        self.body.velocity = [0.0; 3];
+        self.body.on_ground = on_ground;
+        self.history.clear();
+    }
+
     /// The block actions of this tick's input, advancing the mining order.
     fn block_actions(&mut self) -> Vec<PlayerBlockActionData> {
         let mut actions: Vec<_> = self.pending.take().into_iter().collect();
@@ -332,13 +559,29 @@ impl Player {
                 }
             }
             Order::Release(flags) => self.held.retain(|flag| !flags.contains(flag)),
+            Order::Move { forward, strafe } => {
+                self.controls.forward = forward;
+                self.controls.strafe = strafe;
+            }
+            Order::Look { yaw, pitch } => {
+                self.controls.yaw = yaw;
+                self.controls.pitch = pitch;
+            }
+            Order::Sprint(on) => self.controls.sprint = on,
+            Order::Sneak(on) => self.controls.sneak = on,
+            Order::Jump(ticks) => self.jump_ticks = ticks,
+            Order::Glide => {
+                // A vanilla client opens the elytra on a jump press in the air.
+                self.glide = true;
+                self.jump_ticks = self.jump_ticks.max(1);
+            }
             Order::UseItem => return Ok(vec![self.use_item()]),
             Order::Quit => self.quit = true,
-            Order::EquipHead(slot) => {
+            Order::Equip { slot, armour } => {
                 if self.inventory_window.is_some() {
-                    return Ok(vec![self.equip_request(slot)?]);
+                    return Ok(vec![self.equip_request(slot, armour)?]);
                 }
-                self.pending_equip = Some(slot);
+                self.pending_equip = Some((slot, armour));
                 return Ok(vec![McpePacket::from(InteractPacket {
                     action: EnumsInteractPacketPayloadAction::Openinventory,
                     target_runtime_id: ActorRuntimeId {
@@ -363,7 +606,7 @@ impl Player {
                     item: self.inventory[usize::from(self.selected_slot)]
                         .clone()
                         .unwrap_or_default(),
-                    from_position: self.position.clone(),
+                    from_position: self.position(),
                     client_interact_prediction:
                         EnumsItemUseInventoryTransactionPredictedResult::Success,
                     ..Default::default()
@@ -384,7 +627,7 @@ impl Player {
                     action_type: EnumsItemUseOnActorInventoryTransactionActionType::Attack,
                     slot: 0,
                     item: self.inventory[0].clone().unwrap_or_default(),
-                    from_position: self.position.clone(),
+                    from_position: self.position(),
                     ..Default::default()
                 },
             ),
@@ -529,9 +772,9 @@ impl Player {
         }))
     }
 
-    /// `ItemStackRequest`: place one item of hotbar `slot` in the head
-    /// armour slot.
-    fn equip_request(&mut self, slot: u8) -> Result<McpePacket> {
+    /// `ItemStackRequest`: place one item of hotbar `slot` in armour slot
+    /// `armour` (0 head, 3 feet).
+    fn equip_request(&mut self, slot: u8, armour: u8) -> Result<McpePacket> {
         let net_id_variant = self
             .inventory
             .get(usize::from(slot))
@@ -542,7 +785,10 @@ impl Player {
         self.next_request_id = request_id
             .checked_sub(2)
             .context("stack request ID exhausted")?;
-        info!(slot, request_id, net_id_variant, "equipping the head slot");
+        info!(
+            slot,
+            armour, request_id, net_id_variant, "equipping an armour slot"
+        );
         Ok(McpePacket::from(ItemStackRequestPacket {
             requests: vec![ItemStackRequestPacketDataRequestData {
                 client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 {
@@ -566,7 +812,7 @@ impl Player {
                                     container_name: EnumsContainerEnumName::Armorcontainer,
                                     dynamic_id: None,
                                 },
-                                slot: 0,
+                                slot: armour,
                                 net_id_variant: 0,
                             },
                         },
@@ -577,26 +823,96 @@ impl Player {
         }))
     }
 
-    fn auth_input(&mut self) -> McpePacket {
+    /// This tick's controls: the held keys, and the jump key while a `jump`
+    /// order lasts.
+    fn tick_controls(&mut self) -> Controls {
+        let mut controls = self.controls;
+        controls.jump = self.jump_ticks > 0;
+        self.jump_ticks = self.jump_ticks.saturating_sub(1);
+        controls
+    }
+
+    /// One tick: move the body, then the `PlayerAuthInput` that reports it
+    /// and the sub-chunk requests the new position makes due.
+    fn auth_input(&mut self) -> Result<Vec<McpePacket>> {
         self.tick += 1;
+        let controls = self.tick_controls();
+        let started_gliding = std::mem::take(&mut self.glide)
+            && !self.body.on_ground
+            && !self.body.gliding
+            && !self.body.in_water;
+        if started_gliding {
+            self.body.gliding = true;
+        }
+        let was_in_water = self.body.in_water;
+        let changes = if std::mem::take(&mut self.rest) {
+            physics::Changes::default()
+        } else {
+            physics::step(&mut self.body, &controls, &self.world)?
+        };
+        if self.body.in_water != was_in_water {
+            info!(tick = self.tick, in_water = self.body.in_water, feet = ?self.body.feet, "water");
+        }
+        self.history.push_back(Frame {
+            tick: self.tick,
+            controls,
+            after: self.body,
+        });
+        while self.history.len() > HISTORY {
+            self.history.pop_front();
+        }
         let actions = self.block_actions();
         let mut input_data = self.held.clone();
-        for flag in self.pressed.drain(..) {
+        let derived = movement_flags(
+            &controls,
+            &self.body,
+            &changes,
+            self.jump_was_held,
+            started_gliding,
+            std::mem::take(&mut self.teleported),
+        );
+        for flag in self.pressed.drain(..).chain(derived) {
             if !input_data.contains(&flag) {
                 input_data.push(flag);
             }
         }
+        self.jump_was_held = controls.jump;
         let player_block_actions = if actions.is_empty() {
             None
         } else {
             input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Performblockactions);
             Some(actions)
         };
-        McpePacket::from(PlayerAuthInputPacket {
-            player_rotation: self.rotation.clone(),
-            player_head_rotation: self.rotation.y,
-            interact_rotation: self.rotation.clone(),
-            position: self.position.clone(),
+        let rotation = Vec2 {
+            x: controls.pitch,
+            y: controls.yaw,
+        };
+        // The keys as pressed: BDS applies the sneak's 0.3 itself (a vector
+        // already scaled is slowed again on its diagonals).
+        let move_vector = Vec2 {
+            x: controls.strafe,
+            y: controls.forward,
+        };
+        let [vx, vy, vz] = self.body.velocity;
+        let (yaw, pitch) = (controls.yaw.to_radians(), controls.pitch.to_radians());
+        let mut packets = vec![McpePacket::from(PlayerAuthInputPacket {
+            player_rotation: rotation.clone(),
+            player_head_rotation: controls.yaw,
+            interact_rotation: rotation,
+            position: self.position(),
+            move_vector: move_vector.clone(),
+            analog_move_vector: move_vector.clone(),
+            raw_move_vector: move_vector,
+            pos_delta: Vec3 {
+                x: vx,
+                y: vy,
+                z: vz,
+            },
+            camera_orientation: Vec3 {
+                x: -yaw.sin() * pitch.cos(),
+                y: -pitch.sin(),
+                z: yaw.cos() * pitch.cos(),
+            },
             input_data,
             input_mode: EnumsInputMode::Mouse,
             play_mode: EnumsClientPlayMode::Normal,
@@ -606,7 +922,100 @@ impl Player {
             },
             player_block_actions,
             ..Default::default()
-        })
+        })];
+        packets.extend(
+            self.world
+                .request_near(self.body.feet)
+                .into_iter()
+                .map(McpePacket::from),
+        );
+        Ok(packets)
+    }
+
+    /// Set the body's state after input `tick` to what the server says and
+    /// replay the inputs sent since, as the client's rewind does. Returns
+    /// the state the client had predicted for that tick.
+    fn rewind(&mut self, tick: u64, apply: impl FnOnce(&mut Body)) -> Result<Body> {
+        let index = self.history.iter().position(|frame| frame.tick == tick);
+        let Some(index) = index else {
+            // Older than the history, or not sent yet: it is the state now.
+            let predicted = self.body;
+            apply(&mut self.body);
+            self.history.clear();
+            return Ok(predicted);
+        };
+        let predicted = self.history[index].after;
+        let mut body = predicted;
+        apply(&mut body);
+        self.history[index].after = body;
+        for frame in self.history.iter_mut().skip(index + 1) {
+            physics::step(&mut body, &frame.controls, &self.world)?;
+            frame.after = body;
+        }
+        self.body = body;
+        Ok(predicted)
+    }
+
+    /// A teleport after input `tick`: BDS does not move the player for the
+    /// next input (it answers an input already on its way with a correction
+    /// to the teleport, and simulates nothing for one that handles it), so
+    /// the body rests at the destination through input `tick + 1` and the
+    /// inputs after it run from there.
+    fn teleport(&mut self, tick: u64, position: [f32; 3], on_ground: bool) -> Result<()> {
+        let place = |body: &mut Body| {
+            body.feet = body.feet_from_network(position);
+            body.velocity = [0.0; 3];
+            body.on_ground = on_ground;
+        };
+        if self.history.iter().any(|frame| frame.tick == tick + 1) {
+            self.rewind(tick + 1, place)?;
+        } else {
+            place(&mut self.body);
+            self.history.clear();
+            self.rest = true;
+        }
+        Ok(())
+    }
+
+    /// `CorrectPlayerMovePrediction`: BDS's state after that input.
+    fn correct(
+        &mut self,
+        packet: &jolyne::valentine::CorrectPlayerMovePredictionPacket,
+    ) -> Result<()> {
+        use jolyne::valentine::EnumsRewindType;
+        if packet.prediction_type != EnumsRewindType::Player {
+            warn!(?packet, "vehicle correction ignored");
+            return Ok(());
+        }
+        let tick = packet.tick.inputtick;
+        let position = [packet.pos.x, packet.pos.y, packet.pos.z];
+        let velocity = [packet.pos_delta.x, packet.pos_delta.y, packet.pos_delta.z];
+        let predicted = self.rewind(tick, |body| {
+            body.feet = body.feet_from_network(position);
+            body.velocity = velocity;
+            body.on_ground = packet.on_ground;
+        })?;
+        let feet = predicted.feet_from_network(position);
+        let agreed = (0..3).all(|axis| {
+            (feet[axis] - predicted.feet[axis]).abs() < 1.0e-4
+                && (velocity[axis] - predicted.velocity[axis]).abs() < 1.0e-4
+        });
+        if agreed {
+            // The answer to an input sent before a teleport arrived.
+            info!(tick, "BDS confirmed the predicted state");
+            return Ok(());
+        }
+        self.corrections += 1;
+        warn!(
+            tick,
+            predicted_feet = ?predicted.feet,
+            corrected_feet = ?feet,
+            predicted_velocity = ?predicted.velocity,
+            corrected_velocity = ?velocity,
+            on_ground = packet.on_ground,
+            "BDS corrected the movement"
+        );
+        Ok(())
     }
 
     fn action(&self, action: EnumsPlayerActionType) -> McpePacket {
@@ -627,8 +1036,103 @@ impl Player {
             McpePacketData::MovePlayerPacket(packet)
                 if packet.player_runtime_id.actor_runtime_id == self.runtime_id =>
             {
-                self.position = packet.position;
-                self.rotation = packet.rotation;
+                self.teleport(
+                    packet.tick.inputtick,
+                    [packet.position.x, packet.position.y, packet.position.z],
+                    packet.on_ground,
+                )?;
+                self.controls.pitch = packet.rotation.x;
+                self.controls.yaw = packet.rotation.y;
+                self.teleported = true;
+            }
+            McpePacketData::SetActorMotionPacket(packet)
+                if packet.target_runtime_id.actor_runtime_id == self.runtime_id =>
+            {
+                self.body.velocity = [packet.motion.x, packet.motion.y, packet.motion.z];
+            }
+            McpePacketData::UpdateAttributesPacket(packet)
+                if packet.target_runtime_id.actor_runtime_id == self.runtime_id =>
+            {
+                if let Some(movement) = packet
+                    .attribute_list
+                    .iter()
+                    .find(|attribute| attribute.name == "minecraft:movement")
+                {
+                    info!(
+                        speed = movement.current_value,
+                        tick = packet.tick.inputtick,
+                        "movement speed"
+                    );
+                    self.body.movement_speed = movement.current_value;
+                }
+            }
+            McpePacketData::SetActorDataPacket(packet)
+                if packet.target_runtime_id.actor_runtime_id == self.runtime_id =>
+            {
+                for row in &packet.actor_data.data {
+                    if let (0, DataItemEntryPayload::DataItemInt64Payload(flags)) =
+                        (row.id, &row.payload)
+                    {
+                        let bit = |flag: u32| flags.value as u64 & (1u64 << flag) != 0;
+                        info!(
+                            tick = packet.tick.inputtick,
+                            sneaking = bit(actor_flags::SNEAKING),
+                            sprinting = bit(actor_flags::SPRINTING),
+                            swimming = bit(actor_flags::SWIMMING),
+                            gliding = bit(actor_flags::GLIDING),
+                            "server flags"
+                        );
+                    }
+                }
+            }
+            McpePacketData::MobEffectPacket(packet)
+                if packet.target_runtime_id.actor_runtime_id == self.runtime_id =>
+            {
+                let on = packet.event_id != EnumsMobEffectPacketPayloadEvent::Remove;
+                // Effect ids 8 (jump boost) and 27 (slow falling).
+                match packet.effect_id {
+                    8 => {
+                        self.body.jump_boost = if on {
+                            u8::try_from(packet.effect_amplifier + 1)?
+                        } else {
+                            0
+                        }
+                    }
+                    27 => self.body.slow_falling = on,
+                    _ => {}
+                }
+            }
+            McpePacketData::LevelChunkPacket(packet) => {
+                return Ok(self
+                    .world
+                    .level_chunk(&packet, self.body.feet)?
+                    .into_iter()
+                    .map(McpePacket::from)
+                    .collect());
+            }
+            McpePacketData::SubChunkPacket(packet) => self.world.sub_chunk(&packet)?,
+            McpePacketData::UpdateBlockPacket(packet) => {
+                let pos = &packet.block_position;
+                self.world.set_block(
+                    [pos.x, pos.y, pos.z],
+                    packet.block_runtime_id,
+                    packet.layer as usize,
+                )?;
+            }
+            McpePacketData::UpdateSubChunkBlocksPacket(packet) => {
+                for (layer, entries) in [
+                    packet.blocks_changed.blocks_changed_standards,
+                    packet.blocks_changed.blocks_changed_extras,
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    for entry in entries {
+                        let pos = &entry.pos;
+                        self.world
+                            .set_block([pos.x, pos.y, pos.z], entry.runtime_id, layer)?;
+                    }
+                }
             }
             McpePacketData::TextPacket(text) => {
                 if let Some(order) = parse_order(&format!("{:?}", text.body)) {
@@ -652,8 +1156,8 @@ impl Player {
                 if let Some(drop) = self.pending_drop.take() {
                     return Ok(vec![self.drop_request(drop)?]);
                 }
-                if let Some(slot) = self.pending_equip.take() {
-                    return Ok(vec![self.equip_request(slot)?]);
+                if let Some((slot, armour)) = self.pending_equip.take() {
+                    return Ok(vec![self.equip_request(slot, armour)?]);
                 }
             }
             McpePacketData::ContainerClosePacket(close)
@@ -669,11 +1173,9 @@ impl Player {
                     })]);
                 }
             }
-            McpePacketData::CorrectPlayerMovePredictionPacket(packet) => {
-                self.position = packet.pos;
-            }
+            McpePacketData::CorrectPlayerMovePredictionPacket(packet) => self.correct(&packet)?,
             McpePacketData::ChangeDimensionPacket(packet) => {
-                self.position = packet.position;
+                self.place(&packet.position, false);
                 return Ok(vec![self.action(EnumsPlayerActionType::Changedimensionack)]);
             }
             McpePacketData::RespawnPacket(packet) => match packet.state {
@@ -689,7 +1191,7 @@ impl Player {
                         self.action(EnumsPlayerActionType::Respawn),
                     ]);
                 }
-                EnumsPlayerRespawnState::Readytospawn => self.position = packet.position,
+                EnumsPlayerRespawnState::Readytospawn => self.place(&packet.position, false),
                 _ => {}
             },
             McpePacketData::NetworkStackLatencyPacket(mut latency) if latency.is_from_server => {
@@ -792,32 +1294,28 @@ async fn run_session<T: Transport>(
     mut play: BedrockStream<Play, Client, T>,
     game: GameData,
 ) -> Result<()> {
-    let mut player = Player {
-        runtime_id: game.start_game.runtime_id.actor_runtime_id,
-        position: game.start_game.position.clone(),
-        rotation: game.start_game.rotation.clone(),
-        tick: 0,
-        mining: None,
-        pending: None,
-        inventory: std::array::from_fn(|_| None),
-        selected_slot: 0,
-        inventory_window: None,
-        pending_drop: None,
-        next_request_id: -1,
-        held: Vec::new(),
-        pressed: Vec::new(),
-        quit: false,
-        pending_equip: None,
-    };
+    let mut player = Player::new(
+        game.start_game.runtime_id.actor_runtime_id,
+        game.start_game.position.clone(),
+        game.start_game.rotation.clone(),
+    );
     let mut ticker = tokio::time::interval(Duration::from_millis(50));
     loop {
         tokio::select! {
-            _ = ticker.tick() => play.send_packet(player.auth_input()).await?,
+            _ = ticker.tick() => {
+                for packet in player.auth_input()? {
+                    play.send_packet(packet).await?;
+                }
+            }
             packet = play.recv_packet_raw() => {
                 let packet = match packet {
                     Ok(packet) => packet,
                     Err(JolyneError::Disconnected(disconnect)) => {
-                        info!("server closed the session: {:?}", disconnect.packet.body());
+                        info!(
+                            corrections = player.corrections,
+                            "server closed the session: {:?}",
+                            disconnect.packet.body()
+                        );
                         return Ok(());
                     }
                     Err(error) => return Err(error.into()),
@@ -835,13 +1333,21 @@ async fn run_session<T: Transport>(
                             | McpePacketName::InventorySlotPacket
                             | McpePacketName::ContainerOpenPacket
                             | McpePacketName::ContainerClosePacket
+                            | McpePacketName::SetActorMotionPacket
+                            | McpePacketName::UpdateAttributesPacket
+                            | McpePacketName::SetActorDataPacket
+                            | McpePacketName::MobEffectPacket
+                            | McpePacketName::LevelChunkPacket
+                            | McpePacketName::SubChunkPacket
+                            | McpePacketName::UpdateBlockPacket
+                            | McpePacketName::UpdateSubChunkBlocksPacket
                     )
                 ) {
                     for reply in player.handle(packet.decode()?.data)? {
                         play.send_packet(reply).await?;
                     }
                     if player.quit {
-                        info!("quitting");
+                        info!(corrections = player.corrections, "quitting");
                         play.close().await?;
                         return Ok(());
                     }
@@ -859,23 +1365,7 @@ mod tests {
     };
 
     fn player() -> Player {
-        Player {
-            runtime_id: 1,
-            position: Vec3::default(),
-            rotation: Vec2::default(),
-            tick: 0,
-            mining: None,
-            pending: None,
-            inventory: std::array::from_fn(|_| None),
-            selected_slot: 0,
-            inventory_window: None,
-            pending_drop: None,
-            next_request_id: -1,
-            held: Vec::new(),
-            pressed: Vec::new(),
-            quit: false,
-            pending_equip: None,
-        }
+        Player::new(1, Vec3::default(), Vec2::default())
     }
 
     #[test]
@@ -995,7 +1485,7 @@ mod tests {
         assert_eq!(parse_order(&tellraw("quit")), Some(Order::Quit));
         assert_eq!(
             parse_order(&tellraw("equip-head 3")),
-            Some(Order::EquipHead(3))
+            Some(Order::Equip { slot: 3, armour: 0 })
         );
         assert_eq!(parse_order(&tellraw("press nothing")), None);
         assert_eq!(parse_order(&tellraw("user")), None);
@@ -1005,8 +1495,8 @@ mod tests {
     fn held_flags_repeat_until_released_and_pressed_flags_go_once() {
         use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
         let mut player = player();
-        let flags = |player: &mut Player| match player.auth_input().data {
-            McpePacketData::PlayerAuthInputPacket(input) => input.input_data,
+        let flags = |player: &mut Player| match &player.auth_input().unwrap()[0].data {
+            McpePacketData::PlayerAuthInputPacket(input) => input.input_data.clone(),
             other => panic!("expected input, got {other:?}"),
         };
         player.order(Order::Hold(vec![Flag::Sneaking])).unwrap();
@@ -1381,5 +1871,173 @@ mod tests {
             EnumsPlayerActionType::Abortdestroyblock
         );
         assert!(player.block_actions().is_empty());
+    }
+
+    /// A player standing on a stone floor at y -61 (feet at -60), with the
+    /// sub-chunks around it known.
+    fn standing_player() -> Player {
+        let mut player = player();
+        player.world = world::tests_support::flat_stone_world();
+        player.body.feet = [0.5, -60.0, 0.5];
+        player.body.on_ground = true;
+        player
+    }
+
+    fn input(player: &mut Player) -> PlayerAuthInputPacket {
+        match player.auth_input().unwrap().remove(0).data {
+            McpePacketData::PlayerAuthInputPacket(input) => *input,
+            other => panic!("expected input, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn movement_orders_parse_from_tellraw_text() {
+        let tellraw = |order: &str| {
+            format!(
+                "{:?}",
+                format!("{{\"rawtext\":[{{\"text\":\"bds-sweep:{order}\"}}]}}\n")
+            )
+        };
+        assert_eq!(
+            parse_order(&tellraw("move 1 -0.5")),
+            Some(Order::Move {
+                forward: 1.0,
+                strafe: -0.5
+            })
+        );
+        assert_eq!(parse_order(&tellraw("move 2 0")), None);
+        assert_eq!(
+            parse_order(&tellraw("look -90 30.5")),
+            Some(Order::Look {
+                yaw: -90.0,
+                pitch: 30.5
+            })
+        );
+        assert_eq!(parse_order(&tellraw("look 0 91")), None);
+        assert_eq!(
+            parse_order(&tellraw("sprint on")),
+            Some(Order::Sprint(true))
+        );
+        assert_eq!(
+            parse_order(&tellraw("sneak off")),
+            Some(Order::Sneak(false))
+        );
+        assert_eq!(parse_order(&tellraw("jump")), Some(Order::Jump(1)));
+        assert_eq!(parse_order(&tellraw("jump 40")), Some(Order::Jump(40)));
+        assert_eq!(parse_order(&tellraw("glide")), Some(Order::Glide));
+        assert_eq!(
+            parse_order(&tellraw("equip-feet 2")),
+            Some(Order::Equip { slot: 2, armour: 3 })
+        );
+    }
+
+    #[test]
+    fn walking_reports_keys_position_and_velocity_like_a_vanilla_client() {
+        use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+        let mut player = standing_player();
+        // At rest on the floor: the eyes 1.62001 up, gravity's -0.0784.
+        input(&mut player);
+        let still = input(&mut player);
+        assert_eq!(still.position.y, -60.0 + 1.620_01);
+        assert_eq!(still.pos_delta.y, -0.0784);
+        assert_eq!(still.input_data, [Flag::Verticalcollision]);
+        player
+            .order(Order::Move {
+                forward: 1.0,
+                strafe: 0.0,
+            })
+            .unwrap();
+        player.order(Order::Sneak(true)).unwrap();
+        let first = input(&mut player);
+        assert_eq!(
+            first.input_data,
+            [
+                Flag::Up,
+                Flag::Sneakdown,
+                Flag::Sneakcurrentraw,
+                Flag::Sneaking,
+                Flag::Startsneaking,
+                Flag::Sneakpressedraw,
+                Flag::Verticalcollision
+            ]
+        );
+        // The keys as pressed: BDS applies the sneak's 0.3 itself.
+        assert_eq!(first.move_vector.y, 1.0);
+        assert_eq!(first.raw_move_vector.y, 1.0);
+        assert!((first.position.z - (0.5 + 0.1 * 0.98 * 0.3)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_teleport_rests_the_next_input_and_acknowledges_it() {
+        use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+        let mut player = standing_player();
+        input(&mut player);
+        let last = player.tick;
+        player
+            .handle(McpePacketData::MovePlayerPacket(
+                jolyne::valentine::MovePlayerPacket {
+                    player_runtime_id: ActorRuntimeId {
+                        actor_runtime_id: player.runtime_id,
+                    },
+                    position: Vec3 {
+                        x: 0.5,
+                        y: -40.0 + 1.620_01,
+                        z: 0.5,
+                    },
+                    on_ground: true,
+                    tick: PlayerInputTick { inputtick: last },
+                    ..Default::default()
+                },
+            ))
+            .unwrap();
+        // The first input after it stays at the destination at rest.
+        let rest = input(&mut player);
+        assert_eq!(rest.position.y, -40.0 + 1.620_01);
+        assert_eq!(rest.pos_delta.y, 0.0);
+        assert!(rest.input_data.contains(&Flag::Handledteleport));
+        // Then it falls.
+        let next = input(&mut player);
+        assert_eq!(next.position.y, -40.0 + 1.620_01);
+        assert_eq!(next.pos_delta.y, -0.0784);
+        let falling = input(&mut player);
+        assert!(falling.position.y < -40.0 + 1.620_01);
+        assert!(!falling.input_data.contains(&Flag::Handledteleport));
+    }
+
+    #[test]
+    fn a_correction_rewinds_to_its_tick_and_replays_the_later_inputs() {
+        let mut player = standing_player();
+        player
+            .order(Order::Move {
+                forward: 1.0,
+                strafe: 0.0,
+            })
+            .unwrap();
+        for _ in 0..5 {
+            input(&mut player);
+        }
+        let corrected_tick = player.tick - 2;
+        let before = player.body;
+        player
+            .handle(McpePacketData::CorrectPlayerMovePredictionPacket(
+                jolyne::valentine::CorrectPlayerMovePredictionPacket {
+                    pos: Vec3 {
+                        x: 0.5,
+                        y: -60.0 + 1.620_01,
+                        z: 0.0,
+                    },
+                    pos_delta: Vec3::default(),
+                    on_ground: true,
+                    tick: PlayerInputTick {
+                        inputtick: corrected_tick,
+                    },
+                    ..Default::default()
+                },
+            ))
+            .unwrap();
+        assert_eq!(player.corrections, 1);
+        // Two inputs replayed from rest at z 0: well short of where it was.
+        assert!(player.body.feet[2] > 0.0 && player.body.feet[2] < before.feet[2] - 0.5);
+        assert_eq!(player.history.len(), 5);
     }
 }

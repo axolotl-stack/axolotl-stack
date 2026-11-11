@@ -13,6 +13,7 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `command-script.txt` | The vanilla command feedback script for `capture.py --commands` |
 | `command_digest.py` | `command-outputs.json` to a readable per-command `digest.md` (CommandOutput fields, key fields of every other packet) |
 | `commit_fixtures.py` | Copies the committed subset of a capture into `crates/bds-extractor/captures/1.26.51/` (see the crate README) |
+| `player_script.py` | Plain-BDS scripted player captures: a timed script of console commands and client orders with every client's packets recorded (see [Movement](#movement)) |
 | `sweep.py` | T2: one sweep job under Endstone with `bds-sweep-client` as the player; output in `<runtime>/sweeps/1.26.51/<kind>-<UTC>/` |
 | `endstone-sweep/` | The Endstone Python plugin that runs jobs server-side (inert unless `BDS_SWEEP_JOB` is set) |
 | `summarize.py` | Raw sweep results to `crates/unastar-data/data/measured/` + `manifest.json` |
@@ -73,8 +74,58 @@ send the same text with `tellraw <player> {"rawtext":[{"text":"bds-sweep:..."}]}
 | `bds-sweep:press FLAG...` | Add these `PlayerAuthInput` input flags (lower-case names: `startsneaking`, `sneaking`, `startsprinting`, `startswimming`, `startcrawling`, ...) to the next input only |
 | `bds-sweep:hold FLAG...` / `bds-sweep:release FLAG...` | Add the flags to every input from the next one on, until released (`sneaking sneakdown` while a sneak lasts) |
 | `bds-sweep:use` | Use the held item in the air (`InventoryTransaction` item use); BDS rejects it for armour and resends the whole inventory, which refreshes stack net IDs |
-| `bds-sweep:equip-head SLOT` | Open the inventory and move one item from hotbar index SLOT to the head armour slot (`ItemStackRequest` place) |
+| `bds-sweep:equip-head SLOT` / `bds-sweep:equip-feet SLOT` | Open the inventory and move one item from hotbar index SLOT to the head or feet armour slot (`ItemStackRequest` place) |
 | `bds-sweep:quit` | Close the connection and exit (BDS still keeps the player about 10 s, until its connection times out) |
+| `bds-sweep:move F S` | Hold the movement keys: forward `F` (W positive) and strafe `S` (A positive), each -1..1, until the next `move` (`move 0 0` lets go) |
+| `bds-sweep:look YAW PITCH` | Turn to this yaw and pitch (degrees; pitch -90..90) |
+| `bds-sweep:sprint on\|off` | Press or release the sprint key; a sprint starts while moving forward and lasts until forward movement stops or a sneak starts, as in vanilla |
+| `bds-sweep:sneak on\|off` | Press or release the sneak key |
+| `bds-sweep:jump [TICKS]` | Hold the jump key for TICKS ticks (default 1); held, the player jumps again on landing |
+| `bds-sweep:glide` | Open the elytra: a jump press in the air (needs an elytra in the chest slot) |
+
+### Movement
+
+The client simulates its own movement like a vanilla client and reports it in
+every `PlayerAuthInput`, so BDS's server-authoritative movement accepts it:
+gravity and drag, ground friction and acceleration (sprint speed 0.13,
+air speed 0.02/0.026), jumps (0.42, sprint-jump push 0.2, 10-tick delay),
+sneaking (BDS applies the 0.3 itself, so the move vector is sent unscaled)
+and its edge stop, collisions with step-up, slime and bed bounces, cobwebs and
+powder snow, water (drag 0.8 or 0.9 sprinting, sink 0.005 unless sprinting,
+swimming toward the look pitch, the climb-out lift) and elytra gliding. The
+blocks come from the world BDS sends: the client asks for the sub-chunks of
+the chunks around it (`SubChunkRequest`, BDS's request mode) and follows
+`UpdateBlock`/`UpdateSubChunkBlocks`; block states, collision boxes and
+friction come from `unastar-data`. Until the blocks around it have arrived the
+player stays put.
+
+Input flags follow the keys like a vanilla client's (`Up`, `Sprintdown`,
+`Sprinting` with `StartSprinting`/`StopSprinting`, the sneak and jump flags
+with their raw-key companions, `StartSwimming`, `StartGliding`, the collision
+flags, `HandledTeleport`). The wire position is the feet plus 1.62001 in
+every pose, `pos_delta` the velocity after the move. Server packets set the
+state: a teleport (`MovePlayer`) leaves the player resting at its destination
+through the next input, as BDS does, `SetActorMotion` sets the velocity,
+`UpdateAttributes` the movement speed, `MobEffect` jump boost and slow
+falling. A `CorrectPlayerMovePrediction` rewinds to BDS's state at its tick
+and replays the inputs sent since; the client logs each one that disagrees
+with its own prediction (`BDS corrected the movement`) and the total on exit.
+With these rules, walking, strafing, sprinting, sneaking, jumps, falls,
+swimming and gliding run without a correction (2026-11-11); lava, knockback
+landings and powder snow still get corrected.
+
+Tooling for such runs:
+
+- `player_script.py SCRIPT` runs a timed script on plain BDS (`launch`,
+  `wait`, `cmd`, `order`, `mark`, `expect`, `quit` steps; see its docstring)
+  with each client's capture, `bds.log` and `phases.json` in
+  `<runtime>/captures/<label>-<UTC>/`.
+- `cargo run -p bds-sweep --bin bds-sweep-dump -- CAPTURE/packets.jsonl
+  --name PlayerAuthInput --from MS --to MS` prints decoded packets.
+- A second client standing near the first receives BDS's own simulation of it
+  (`MovePlayer` every tick); while the first client disagrees, BDS moves its
+  copy towards the client's position by up to about 0.005 blocks a tick, so
+  calibrate against runs without corrections.
 
 Drop references come only from server `InventoryContent`/`InventorySlot`
 updates; missing/empty/idless slots and invalid counts fail rather than invent
