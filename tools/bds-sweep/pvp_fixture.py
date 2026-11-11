@@ -501,7 +501,7 @@ def main() -> int:
         'source': 'BDS 1.26.51 under Endstone, three lockstep bds-sweep-client players (sweep.py pvp)',
         'roles': 'A = BDSSweep (attacker), B = BDSOther (victim), C = BDSThird',
         'trials': trials,
-    }, separators=(',', ':')) + '\n', encoding='utf-8')
+    }, separators=(',', ':')) + '\n', encoding='utf-8', newline='\n')
     print(f'{len(trials)} trials -> {args.paths[0]}')
     return 0
 
