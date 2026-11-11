@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import native  # noqa: E402
+import player_fixture  # noqa: E402
 import player_script  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
@@ -160,6 +161,31 @@ class PlayerScript(unittest.TestCase):
     def test_orders_are_tellraw_to_one_player(self):
         self.assertEqual(player_script.tellraw('Mover', 'jump 3'),
                          'tellraw Mover {"rawtext": [{"text": "bds-sweep:jump 3"}]}')
+
+
+
+class PlayerFixture(unittest.TestCase):
+    SPEC = {'client': 'Subject', 'subject': 'Subject'}
+
+    def test_only_packets_about_the_subject_carry_its_ticks(self):
+        about = player_fixture.about_subject
+        mine = 'MovePlayerPacket { player_runtime_id: ActorRuntimeId { actor_runtime_id: 1 }, tick: 5 }'
+        other = 'MovePlayerPacket { player_runtime_id: ActorRuntimeId { actor_runtime_id: 2 }, tick: 5 }'
+        correction = 'CorrectPlayerMovePredictionPacket { tick: PlayerInputTick { inputtick: 5 } }'
+        self.assertTrue(about(mine, 1, self.SPEC))
+        self.assertFalse(about(other, 1, self.SPEC))
+        self.assertTrue(about(correction, 1, self.SPEC))
+        self.assertFalse(about(correction, 1, {'client': 'Viewer', 'subject': 'Subject'}))
+
+    def test_attribute_values_are_read_by_name(self):
+        body = ('attribute_list: [AttributeData { min_value: 0.0, max_value: 20.0, current_value: 19.0, '
+                'default_min_value: 0.0, default_max_value: 20.0, default_value: 20.0, '
+                'name: "minecraft:health", modifiers: [] }, AttributeData { min_value: 0.0, '
+                'max_value: 20.0, current_value: 1.3973968, default_min_value: 0.0, '
+                'default_max_value: 20.0, default_value: 0.0, name: "minecraft:player.exhaustion", '
+                'modifiers: [] }]')
+        self.assertEqual(player_fixture.ATTRIBUTE.findall(body), [
+            ('19.0', 'minecraft:health'), ('1.3973968', 'minecraft:player.exhaustion')])
 
 
 if __name__ == '__main__':

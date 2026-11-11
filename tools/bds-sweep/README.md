@@ -14,6 +14,7 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `command_digest.py` | `command-outputs.json` to a readable per-command `digest.md` (CommandOutput fields, key fields of every other packet) |
 | `commit_fixtures.py` | Copies the committed subset of a capture into `crates/bds-extractor/captures/1.26.51/` (see the crate README) |
 | `player_script.py` | Plain-BDS scripted player captures: a timed script of console commands and client orders with every client's packets recorded (see [Movement](#movement)) |
+| `player_fixture.py` | Distils `player_script.py` captures into a value-only test fixture: per phase the subject's inputs, the packets one client got about the subject, and the subject's attributes before the phase |
 | `sweep.py` | T2: one sweep job under Endstone with `bds-sweep-client` as the player; output in `<runtime>/sweeps/1.26.51/<kind>-<UTC>/` |
 | `endstone-sweep/` | The Endstone Python plugin that runs jobs server-side (inert unless `BDS_SWEEP_JOB` is set) |
 | `summarize.py` | Raw sweep results to `crates/unastar-data/data/measured/` + `manifest.json` |
@@ -111,8 +112,11 @@ falling. A `CorrectPlayerMovePrediction` rewinds to BDS's state at its tick
 and replays the inputs sent since; the client logs each one that disagrees
 with its own prediction (`BDS corrected the movement`) and the total on exit.
 With these rules, walking, strafing, sprinting, sneaking, jumps, falls,
-swimming and gliding run without a correction (2026-11-11); lava, knockback
-landings and powder snow still get corrected.
+swimming and gliding run without a correction (2026-11-11). Still corrected:
+knockback landings (the client applies `SetActorMotion` when it arrives, a tick
+after BDS's copy takes it) and the entry into powder snow; after a sprint-swim
+stop the client keeps the sprint's water drag a tick too long (inside the
+threshold, uncorrected); lava is not simulated.
 
 Tooling for such runs:
 
@@ -122,6 +126,12 @@ Tooling for such runs:
   `<runtime>/captures/<label>-<UTC>/`.
 - `cargo run -p bds-sweep --bin bds-sweep-dump -- CAPTURE/packets.jsonl
   --name PlayerAuthInput --from MS --to MS` prints decoded packets.
+- `player_fixture.py SPEC.json OUT.json --captures DIR` writes a fixture from
+  such captures (needs `bds-sweep-dump` built): each phase names a capture, the
+  recording client, the subject and its client tick range; the packets kept are
+  those between the first and last packet about the subject stamped in that
+  range. `unastar`'s movement tests replay these
+  (`crates/unastar/src/entity/player_life/testdata/bds-1.26.51-movement.json`).
 - A second client standing near the first receives BDS's own simulation of it
   (`MovePlayer` every tick); while the first client disagrees, BDS moves its
   copy towards the client's position by up to about 0.005 blocks a tick, so

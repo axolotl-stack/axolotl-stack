@@ -41,8 +41,18 @@ simulation, so the client has to simulate the same physics in `f32`.
   (`SneakPressedRaw`, `SneakCurrentRaw`) makes BDS resend the flag words with key 139 and apply the
   sneak a tick late. Send the flags a vanilla client sends together.
 - With these rules, walking, strafing, sprinting, sneaking, jumps, falls, swimming and gliding run
-  on BDS without one correction; lava, knockback landings and powder snow are still simulated
-  differently.
+  on BDS without one correction. Known misses, each visible in the movement capture:
+  - a knockback is applied when `SetActorMotion` arrives, a tick after BDS's own copy takes it
+    (with the next input), so BDS corrects the landing (`push` phase, ticks 1301 and 1341);
+    applying it at the packet's tick would fix that;
+  - falling into powder snow, BDS stops the player at the snow's top on the entering tick; the
+    client fell through and was corrected (`powder_snow_10`, tick 903), then sank at 0.1176 a
+    tick without corrections;
+  - after a sprint-swim stop BDS moves with drag 0.8 from the next tick while the client keeps
+    0.9 one tick longer: up to 0.016 blocks apart for about 12 ticks, inside the threshold, so
+    never corrected, but BDS's exhaustion (charged on its own move) differs
+    (`swim_exhaustion`, ticks 608 to 619);
+  - lava is not simulated.
 
 ## Where it lives
 
