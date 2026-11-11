@@ -289,9 +289,10 @@ fn a_killed_cow_dies_drops_loot_and_after_twenty_ticks_leaves_experience() {
         let runtime_id = h.world().get::<RuntimeId>(cow).unwrap().0;
         kill(&mut h, cow);
         assert!(h.world().get::<Dead>(cow).is_some());
+        // A killing hit shows only the death (BDS spear capture).
         assert_eq!(
             actor_events(&h.drain(), runtime_id),
-            [EnumsActorEvent::Hurt, EnumsActorEvent::Death]
+            [EnumsActorEvent::Death]
         );
         // Loot appears at the moment of death.
         let drops = h.drops();

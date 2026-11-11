@@ -177,7 +177,7 @@
 "PlayerHotbarPacket" = { status = "done", owner = "items", tests = ["crates/unastar/src/server/game/inventory/pick.rs::creative_places_new_items_in_an_empty_hotbar_slot_or_moves_the_held_item_aside"] }  # id 48
 "PlayerListPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not; players appear without skins" }  # id 63
 "PlayerLocationPacket" = { status = "missing" }  # id 326
-"PlayerStartItemCooldownPacket" = { status = "missing" }  # id 176
+"PlayerStartItemCooldownPacket" = { status = "partial", owner = "items", tests = ["crates/unastar/src/entity/mob/combat/hit/spear_tests.rs::spear_hits_jabs_and_swings_answer_like_bds"], gaps = "sent only when an item cooldown of type attack starts (the spears); the use cooldowns of other items are not sent", notes = "category and duration match the BDS 1.26.51 spear capture" }  # id 176
 "PlayerUpdateEntityOverridesPacket" = { status = "missing" }  # id 325
 "PlayerVideoCapturePacket" = { status = "missing" }  # id 324
 "PositionTrackingDBServerBroadcastPacket" = { status = "missing" }  # id 153

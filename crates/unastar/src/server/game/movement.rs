@@ -45,6 +45,7 @@ pub fn apply_movement(
     mut block_queue: ResMut<BlockPacketQueue>,
     mut events: ResMut<MovementEvents>,
     exhaustion: Res<super::hunger::ExhaustionValues>,
+    mut item_use: Option<ResMut<super::item_use::ItemUseQueue>>,
     mut players: MovingPlayers,
     mut hungry: Query<(&mut Hunger, &GameMode)>,
 ) {
@@ -62,6 +63,14 @@ pub fn apply_movement(
                     hunger.exhaust(moved.exhaustion(&exhaustion));
                 }
 
+                // A missed swing plays its sound; a jab packed into the
+                // input is the same as one sent on its own.
+                if let Some(queue) = item_use.as_mut() {
+                    queue
+                        .0
+                        .extend(item_requests(&pk).map(|request| (entity, request)));
+                }
+
                 // Every accepted input goes to the block system, with or
                 // without block actions: a break advances once per input.
                 block_queue.0.push((
@@ -74,6 +83,29 @@ pub fn apply_movement(
             }
         }
     }
+}
+
+/// The item-use requests an accepted input carries: the `MissedSwing` flag
+/// and an item use `UseAsAttack` packed into the input
+/// (`PerformItemInteraction`), which BDS 1.26.51 answers like the
+/// standalone transaction (spear capture).
+fn item_requests(
+    pk: &jolyne::valentine::PlayerAuthInputPacket,
+) -> impl Iterator<Item = super::item_use::UseRequest> {
+    use super::item_use::UseRequest;
+    use jolyne::valentine::types::EnumsItemUseInventoryTransactionActionType as ItemUse;
+    let swing = pk
+        .input_data
+        .contains(&EnumsPlayerAuthInputPacketPayloadInputData::Missedswing)
+        .then_some(UseRequest::MissedSwing);
+    let jab = pk
+        .input_data
+        .contains(&EnumsPlayerAuthInputPacketPayloadInputData::Performiteminteraction)
+        .then_some(pk.item_use_transaction.as_ref())
+        .flatten()
+        .filter(|packed| packed.item_use_transaction.action_type == ItemUse::Useasattack)
+        .map(|_| UseRequest::AttackAir);
+    jab.into_iter().chain(swing)
 }
 
 /// Process a PlayerAuthInput packet: position, rotation, input flags, state toggles.

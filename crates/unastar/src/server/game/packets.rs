@@ -242,6 +242,11 @@ fn air_use(
         T::ItemUseInventoryTransaction(use_item) if use_item.action_type == ItemUse::Use => {
             Some(UseRequest::UseAir)
         }
+        T::ItemUseInventoryTransaction(use_item)
+            if use_item.action_type == ItemUse::Useasattack =>
+        {
+            Some(UseRequest::AttackAir)
+        }
         T::ItemReleaseInventoryTransaction(release) => match release.action_type {
             Release::Release => Some(UseRequest::Release),
             Release::Use => Some(UseRequest::Consume),

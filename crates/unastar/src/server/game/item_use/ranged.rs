@@ -15,12 +15,11 @@
 //! is missing from the retained summon capture.
 
 use bevy_ecs::prelude::*;
-use glam::DVec3;
 use unastar_data::actor_identifiers::ActorType;
 use zuri_nbt::{NBTTag, tag};
 
 use super::{ItemUsing, held, set_slot, start_using, stop_using, used_ticks};
-use crate::entity::components::{GameMode, MainInventory, OffhandSlot, Position};
+use crate::entity::components::{GameMode, MainInventory, OffhandSlot};
 use crate::entity::projectile::{LaunchSpec, launch_with};
 use crate::item::ItemStack;
 use crate::item::enchant::{Enchantment, enchantment_level, item_tag, with_item_tag};
@@ -115,15 +114,8 @@ fn take_arrow(world: &mut World, player: Entity, ammo: Ammo) {
     }
 }
 
-/// Feet + 0.9: where BDS plays shooting sounds.
-fn shoot_sound_at(world: &World, player: Entity) -> Option<DVec3> {
-    world
-        .get::<Position>(player)
-        .map(|p| p.0 - DVec3::new(0.0, crate::entity::item_drop::PLAYER_EYE_HEIGHT - 0.9, 0.0))
-}
-
 fn sound(world: &World, player: Entity, name: &str) {
-    if let Some(at) = shoot_sound_at(world, player) {
+    if let Some(at) = super::swing_sound_at(world, player) {
         crate::entity::mob::net::sound::play_level_sound(world, Some(player), at, name, -1);
     }
 }
@@ -317,7 +309,7 @@ mod tests {
 
     use super::*;
     use crate::entity::components::{
-        Health, HeldSlot, Player, PlayerInput, PlayerSession, PlayerState, Rotation,
+        Health, HeldSlot, Player, PlayerInput, PlayerSession, PlayerState, Position, Rotation,
         RuntimeEntityId,
     };
     use crate::entity::mob::{SpawnCause, spawn_mob};

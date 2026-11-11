@@ -763,6 +763,11 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Tool wear: mining (swords, mace, trident 2; other tools and shears 1; non-tools 0), melee (swords, mace, trident, spears 1; other tools 2), bow and crossbow shots, Unbreaking, break sound | done | BDS mining and attack sweeps (`unastar-data/data/measured/`) for mining and melee wear; Unbreaking and sounds are public references |
 | Break time: tier speed, Efficiency (not on a sword's cobweb speed), Haste `(1 + 0.2L) × 1.2^L`, Mining Fatigue `0.21^L`, harvestability divisor | done | BDS mining sweep, every measured cell within ±1 tick (`server/game/mining/measured_tests.rs`); airborne, riding and underwater divisors are public references |
 | Melee damage: measured per item, Sharpness +1.25 per level truncated to whole points | done | BDS attack sweep (`entity/mob/combat/hit/measured_tests.rs`); critical hits not done |
+| Melee reach (6 blocks from the eye to the mob's box) and a killing hit showing only the death | done | BDS spear capture (`entity/mob/combat/hit/spear_tests.rs`): a sword hit 5.55 blocks away lands, 6.55 does not |
+| Item cooldowns (`minecraft:cooldown`): a spear's attack cooldown starts on a hit and on a jab that hits nothing, `PlayerStartItemCooldown` with the category, every hit and jab of that category refused while it runs | done | BDS spear capture (`entity/mob/combat/hit/spear_tests.rs`); use cooldowns (wind charge) are not wired |
+| Spear jab (`UseAsAttack`, also packed into the input): the tier's miss sound and the cooldown, no damage; holding a spear sets the using flag | done | BDS spear capture; the charge (kinetic damage) and a jab that pierces several entities are not done |
+| Missed swing (`MissedSwing` input): the item's `swing_sounds` miss sound or `attack.nodamage` | done | BDS spear capture |
+| `/enchant` on spears | done | BDS command capture (`item/spear_enchant_tests.rs`) |
 | Armour wear when hurt (`max(1, floor(damage/4))` per piece with armour points; the elytra never) | done | BDS armour-wear sweep (`entity/player_life/tests/hurt.rs`) |
 | Grid repair (multi recipe `...0001`) | not done | BDS advertises it; result rule unmeasured |
 | Hoe, shovel, axe (strip, wax off, scrape), shears on pumpkins, flint and steel, fire charges | done | public reference; sound names unmeasured |

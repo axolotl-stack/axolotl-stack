@@ -40,6 +40,11 @@ pub enum UseRequest {
     Release,
     /// `ItemRelease` action `Use` (consume).
     Consume,
+    /// `ItemUse` action `UseAsAttack`: the held item attacks by itself and
+    /// hits nothing (a spear's jab).
+    AttackAir,
+    /// The `MissedSwing` input flag: an arm swing that hit nothing.
+    MissedSwing,
 }
 
 /// Air-use packets waiting for [`apply_item_use`].
@@ -64,6 +69,10 @@ pub enum UseKind {
     Consume(food::Consumable),
     Draw(ranged::Drawn),
     Throw,
+    /// Held while the button is down (`minecraft:use_modifiers` on an item
+    /// that is not eaten: the spears). BDS 1.26.51 sets the using flag at
+    /// the use and clears it at the release (spear capture).
+    Hold,
 }
 
 /// How an item is used in the air, from its data.
@@ -75,7 +84,14 @@ pub fn use_kind(stack: &ItemStack) -> Option<UseKind> {
     if let Some(drawn) = ranged::drawn(entry.identifier()) {
         return Some(UseKind::Draw(drawn));
     }
-    ranged::thrown(entry.identifier()).map(|_| UseKind::Throw)
+    if ranged::thrown(entry.identifier()).is_some() {
+        return Some(UseKind::Throw);
+    }
+    entry
+        .components()
+        .use_modifiers
+        .is_some()
+        .then_some(UseKind::Hold)
 }
 
 /// The selected hotbar slot and its stack.
@@ -282,7 +298,15 @@ pub fn apply_item_use(world: &mut World) {
 }
 
 fn handle(world: &mut World, player: Entity, request: UseRequest) {
-    let Some((slot, stack)) = held(world, player) else {
+    let held = held(world, player);
+    match request {
+        UseRequest::AttackAir => return attack_air(world, player, held.map(|(_, stack)| stack)),
+        UseRequest::MissedSwing => {
+            return missed_swing(world, player, held.map(|(_, stack)| stack));
+        }
+        _ => {}
+    }
+    let Some((slot, stack)) = held else {
         stop_using(world, player);
         return;
     };
@@ -314,8 +338,66 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
             ranged::release_drawn(world, player, slot, &stack, drawn, using)
         }
         (Some(UseKind::Throw), UseRequest::UseAir, _) => ranged::throw(world, player),
+        (Some(UseKind::Hold), UseRequest::UseAir, None) => {
+            if let Some(entry) = stack.item() {
+                start_using(world, player, slot, entry.id);
+            }
+        }
+        (Some(UseKind::Hold), UseRequest::UseAir, Some(_)) => {}
         (_, UseRequest::Release | UseRequest::Consume, _) => stop_using(world, player),
         (None, UseRequest::UseAir, _) => {}
+        (_, UseRequest::AttackAir | UseRequest::MissedSwing, _) => {}
+    }
+}
+
+/// Feet + 0.9: where BDS plays a player's swing and shooting sounds.
+pub fn swing_sound_at(world: &World, player: Entity) -> Option<glam::DVec3> {
+    world.get::<Position>(player).map(|p| {
+        p.0 - glam::DVec3::new(0.0, crate::entity::item_drop::PLAYER_EYE_HEIGHT - 0.9, 0.0)
+    })
+}
+
+/// The `swing_sounds` miss sound of an item, if its document has one.
+fn miss_sound(stack: Option<&ItemStack>) -> Option<String> {
+    stack?
+        .item()?
+        .components()
+        .swing_sounds
+        .as_ref()?
+        .attack_miss
+        .clone()
+}
+
+/// A jab that hit nothing (`UseAsAttack`). Measured on BDS 1.26.51 (spear
+/// capture): an item with an attack cooldown starts it and plays its miss
+/// sound, unless the cooldown runs, when nothing happens; any other item
+/// (a sword, the empty hand) does nothing.
+fn attack_air(world: &mut World, player: Entity, stack: Option<ItemStack>) {
+    let Some(cooldown) = stack
+        .as_ref()
+        .and_then(ItemStack::item)
+        .and_then(crate::item::cooldown::cooldown)
+        .filter(|cooldown| cooldown.attack)
+    else {
+        return;
+    };
+    if crate::item::cooldown::cooling(world, player, &cooldown.category) {
+        return;
+    }
+    crate::item::cooldown::start(world, player, &cooldown);
+    if let (Some(sound), Some(at)) = (miss_sound(stack.as_ref()), swing_sound_at(world, player)) {
+        crate::entity::mob::net::sound::play_level_sound(world, Some(player), at, &sound, -1);
+    }
+}
+
+/// A missed swing. Measured on BDS 1.26.51 (spear capture): the `MissedSwing`
+/// input flag, not the `Animate` swing, plays the held item's `swing_sounds`
+/// miss sound, or `attack.nodamage` for an item without one and for the empty
+/// hand, at the player's feet + 0.9; it starts no cooldown.
+fn missed_swing(world: &mut World, player: Entity, stack: Option<ItemStack>) {
+    let sound = miss_sound(stack.as_ref()).unwrap_or_else(|| "attack.nodamage".to_owned());
+    if let Some(at) = swing_sound_at(world, player) {
+        crate::entity::mob::net::sound::play_level_sound(world, Some(player), at, &sound, -1);
     }
 }
 

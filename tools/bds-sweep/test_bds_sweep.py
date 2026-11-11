@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
+import combat_fixture  # noqa: E402
 import native  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
@@ -203,6 +204,48 @@ class Wear(unittest.TestCase):
                   {'held_after': None}]
         self.assertEqual(summarize.wear_per_trial({'item': 'minecraft:golden_sword', 'damage': 0}, trials),
                          [1, 2, None])
+
+
+def record(direction, packet_id, name, payload, seq=0):
+    return {'seq': seq, 't_ms': seq, 'dir': direction, 'id': packet_id, 'name': name, 'hex': payload.hex()}
+
+
+def auth_input(tick):
+    """A PlayerAuthInput laid out as `combat_fixture.input_tick` reads it."""
+    return bytes([144, 1]) + bytes(32) + bytes([0, 0, 0, 0]) + bytes(8) + bytes([tick])
+
+
+class CombatFixture(unittest.TestCase):
+    def test_windows_keep_inputs_actions_and_answers_but_not_ambient_sounds(self):
+        sound = lambda name: bytes([123, len(name)]) + name  # noqa: E731
+        rows = [
+            record('c2s', 144, 'PlayerAuthInputPacket', auth_input(5)),
+            record('c2s', 30, 'InventoryTransactionPacket', bytes([30])),
+            record('c2s', 144, 'PlayerAuthInputPacket', auth_input(10)),
+            record('c2s', 30, 'InventoryTransactionPacket', bytes([30])),
+            record('s2c', 123, 'LevelSoundEventPacket', sound(b'item.iron_spear.attack_miss')),
+            record('s2c', 123, 'LevelSoundEventPacket', sound(b'ambient')),
+            record('s2c', 29, 'UpdateAttributesPacket', bytes([29, 1])),
+            record('s2c', 29, 'UpdateAttributesPacket', bytes([29, 4])),
+            record('s2c', 39, 'SetActorDataPacket', bytes([39, 1])),
+            record('s2c', 13, 'AddActorPacket', bytes([13, 8])),
+        ]
+        kept = combat_fixture.cut(rows, windows=[(8, 20)])
+        self.assertEqual([(r['name'], r['input']) for r in kept], [
+            ('PlayerAuthInputPacket', 10), ('InventoryTransactionPacket', 10), ('LevelSoundEventPacket', 10),
+            ('UpdateAttributesPacket', 10), ('SetActorDataPacket', 10), ('AddActorPacket', 10)])
+        self.assertEqual(kept[3]['hex'], '1d04', "only other actors' attributes")
+
+    def test_commands_keep_one_command_and_the_output_answering_each(self):
+        request = lambda text: bytes([77, len(text)]) + text  # noqa: E731
+        rows = [
+            record('c2s', 77, 'CommandRequestPacket', request(b'/replaceitem entity @s slot.weapon.mainhand 0 iron_spear')),
+            record('c2s', 77, 'CommandRequestPacket', request(b'/enchant @s sharpness 1')),
+            record('s2c', 79, 'CommandOutputPacket', bytes([79, 1])),
+            record('s2c', 79, 'CommandOutputPacket', bytes([79, 2])),
+        ]
+        kept = combat_fixture.cut(rows, commands='enchant')
+        self.assertEqual([r['hex'] for r in kept], [request(b'/enchant @s sharpness 1').hex(), '4f02'])
 
 
 class RuntimeSlotTest(unittest.TestCase):

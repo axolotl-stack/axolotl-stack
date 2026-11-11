@@ -19,6 +19,9 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `script.py` | Plays a `bds-sweep-client --script` scenario against plain BDS (no Endstone) and records the client's packets; the same script runs against unastar with `bds-sweep-client --addr <unastar> --script ...` |
 | `scripts/breaking.txt` | Survival block breaking scenarios: by hand, tools, instant, abort, a frozen client, Haste, a block above, client predictions on time and early, `StopDestroyBlock`, blocks put back where a break goes on, a burst of inputs |
 | `breaking_fixture.py` | Cuts the committed breaking fixture (`crates/unastar/src/server/game/blocks/testdata/bds-breaking.jsonl`) out of a `script.py` capture of `scripts/breaking.txt` |
+| `scripts/spears.txt` | Spear scenarios with named pigs: plain hits and the attack cooldown (its last input, its category, three hits in one input), jabs without a target for every tier (also packed into the input), missed swings, holding a spear, a sword's reach |
+| `scripts/enchant-spears.txt` | `/enchant` with every enchantment (and Lunge III/IV) on a fresh spear of every tier |
+| `combat_fixture.py` | Cuts replay fixtures out of a `script.py` capture: the client's inputs and actions with BDS's hurt, health, cooldown, sound and flag packets inside scenario windows (`crates/unastar/src/entity/mob/combat/hit/testdata/bds-spears.jsonl`), or the requests of one command and their outputs (`--commands enchant`, `crates/unastar/src/item/testdata/bds-enchant-spears.jsonl`) |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
 
@@ -75,10 +78,24 @@ The plugin sends these chat orders to `bds-sweep-client`:
 | `bds-sweep:drop hotbar SLOT COUNT` | Closed-screen Drop from hotbar index 0..8; count 1 is Q, a full stack is ctrl-Q |
 | `bds-sweep:drop inventory SLOT COUNT` | Open the inventory, wait for its server-allocated window ID, then Drop from native inventory index 0..35 |
 | `bds-sweep:close-inventory` | Close the tracked native inventory window |
+| `bds-sweep:attack-named NAME` | Attack the actor whose `AddActor` carried the name tag `NAME` (`/summon ... <nameTag>`) |
+| `bds-sweep:jab` / `jab-input` | Item use `UseAsAttack` with the held item, on its own or packed into the next `PlayerAuthInput` (`PerformItemInteraction`) |
+| `bds-sweep:swing` / `animate` / `missed-swing` | An arm swing that hits nothing: `Animate` plus the `MissedSwing` input flag, or one of the two |
+| `bds-sweep:use` / `use-on X Y Z FACE` | Item use `Use` (click air; the next input flagged `StartUsingItem`) or `Place` on a block face (with the block's runtime id as last sent) |
+| `bds-sweep:release-item` / `consume` | Item release `Release` / `Use` |
+| `bds-sweep:select SLOT` | `MobEquipment` selecting hotbar index 0..8 |
+| `bds-sweep:glide` / `unglide`, `sprint` / `unsprint` | The input flags that start or stop gliding or sprinting (`Sprinting` on every input while sprinting) |
+| `bds-sweep:look YAW PITCH` | The rotation of the next inputs |
+| `bds-sweep:move DX DY DZ TICKS` | Move by `(DX, DY, DZ)` on each of the next `TICKS` inputs, forward held |
 
 `bds-sweep-client --script FILE` plays timed orders without the plugin: one `TICK ORDER` line per
 step at that client input tick, an order above without its `bds-sweep:` prefix, a slash command
-(sent as `CommandRequest`; the player must be an operator) or `exit`.
+(sent as `CommandRequest`; the player must be an operator) or `exit`. Every input carries the
+camera orientation of its rotation, as a vanilla client sends it.
+
+`bds-sweep-client --decode DIR/packets.jsonl [--only ActorEvent,LevelSoundEvent]` prints a
+recording decoded, one packet per line with the client tick of the latest input, without
+connecting.
 
 Drop references come only from server `InventoryContent`/`InventorySlot`
 updates; missing/empty/idless slots and invalid counts fail rather than invent
@@ -111,6 +128,8 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 & $py tools/bds-sweep/sweep.py attack --items spears --gap 20 --gamemode survival --client-capture
 & $py tools/bds-sweep/sweep.py mining --variants capture --client-capture   # breaking packet flow
 python tools/bds-sweep/script.py tools/bds-sweep/scripts/breaking.txt --out <dir>   # plain BDS, no plugin
+python tools/bds-sweep/script.py tools/bds-sweep/scripts/spears.txt --out <dir>
+python tools/bds-sweep/combat_fixture.py <dir>/client-capture/packets.jsonl <fixture> --windows 40-160,170-275,280-520,528-588,588-628,628-670
 & $py tools/bds-sweep/sweep.py armor-slots --items all
 & $py tools/bds-sweep/sweep.py armor-wear
 & $py tools/bds-sweep/sweep.py fuel --items all

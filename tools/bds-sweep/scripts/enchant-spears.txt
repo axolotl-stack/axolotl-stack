@@ -1,0 +1,634 @@
+# Which enchantments `/enchant` puts on each spear: a fresh spear in the
+# main hand, then one `/enchant` at level 1 (and Lunge at levels 3 and 4).
+# Played by `bds-sweep-client --script` (an operator); BDS answers each
+# command with a CommandOutput the capture records.
+20 /gamerule sendcommandfeedback true
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /time set 6000
+24 /gamemode survival @s
+25 /clear @s
+# wooden spear
+40 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+41 /enchant @s protection 1
+42 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+43 /enchant @s fire_protection 1
+44 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+45 /enchant @s feather_falling 1
+46 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+47 /enchant @s blast_protection 1
+48 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+49 /enchant @s projectile_protection 1
+50 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+51 /enchant @s thorns 1
+52 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+53 /enchant @s respiration 1
+54 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+55 /enchant @s depth_strider 1
+56 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+57 /enchant @s aqua_affinity 1
+58 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+59 /enchant @s sharpness 1
+60 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+61 /enchant @s smite 1
+62 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+63 /enchant @s bane_of_arthropods 1
+64 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+65 /enchant @s knockback 1
+66 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+67 /enchant @s fire_aspect 1
+68 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+69 /enchant @s looting 1
+70 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+71 /enchant @s efficiency 1
+72 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+73 /enchant @s silk_touch 1
+74 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+75 /enchant @s unbreaking 1
+76 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+77 /enchant @s fortune 1
+78 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+79 /enchant @s power 1
+80 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+81 /enchant @s punch 1
+82 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+83 /enchant @s flame 1
+84 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+85 /enchant @s infinity 1
+86 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+87 /enchant @s luck_of_the_sea 1
+88 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+89 /enchant @s lure 1
+90 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+91 /enchant @s frost_walker 1
+92 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+93 /enchant @s mending 1
+94 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+95 /enchant @s binding 1
+96 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+97 /enchant @s vanishing 1
+98 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+99 /enchant @s impaling 1
+100 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+101 /enchant @s riptide 1
+102 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+103 /enchant @s loyalty 1
+104 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+105 /enchant @s channeling 1
+106 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+107 /enchant @s multishot 1
+108 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+109 /enchant @s piercing 1
+110 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+111 /enchant @s quick_charge 1
+112 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+113 /enchant @s soul_speed 1
+114 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+115 /enchant @s swift_sneak 1
+116 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+117 /enchant @s wind_burst 1
+118 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+119 /enchant @s density 1
+120 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+121 /enchant @s breach 1
+122 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+123 /enchant @s lunge 1
+124 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+125 /enchant @s lunge 3
+126 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+127 /enchant @s lunge 4
+# stone spear
+128 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+129 /enchant @s protection 1
+130 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+131 /enchant @s fire_protection 1
+132 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+133 /enchant @s feather_falling 1
+134 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+135 /enchant @s blast_protection 1
+136 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+137 /enchant @s projectile_protection 1
+138 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+139 /enchant @s thorns 1
+140 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+141 /enchant @s respiration 1
+142 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+143 /enchant @s depth_strider 1
+144 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+145 /enchant @s aqua_affinity 1
+146 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+147 /enchant @s sharpness 1
+148 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+149 /enchant @s smite 1
+150 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+151 /enchant @s bane_of_arthropods 1
+152 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+153 /enchant @s knockback 1
+154 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+155 /enchant @s fire_aspect 1
+156 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+157 /enchant @s looting 1
+158 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+159 /enchant @s efficiency 1
+160 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+161 /enchant @s silk_touch 1
+162 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+163 /enchant @s unbreaking 1
+164 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+165 /enchant @s fortune 1
+166 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+167 /enchant @s power 1
+168 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+169 /enchant @s punch 1
+170 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+171 /enchant @s flame 1
+172 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+173 /enchant @s infinity 1
+174 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+175 /enchant @s luck_of_the_sea 1
+176 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+177 /enchant @s lure 1
+178 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+179 /enchant @s frost_walker 1
+180 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+181 /enchant @s mending 1
+182 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+183 /enchant @s binding 1
+184 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+185 /enchant @s vanishing 1
+186 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+187 /enchant @s impaling 1
+188 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+189 /enchant @s riptide 1
+190 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+191 /enchant @s loyalty 1
+192 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+193 /enchant @s channeling 1
+194 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+195 /enchant @s multishot 1
+196 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+197 /enchant @s piercing 1
+198 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+199 /enchant @s quick_charge 1
+200 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+201 /enchant @s soul_speed 1
+202 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+203 /enchant @s swift_sneak 1
+204 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+205 /enchant @s wind_burst 1
+206 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+207 /enchant @s density 1
+208 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+209 /enchant @s breach 1
+210 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+211 /enchant @s lunge 1
+212 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+213 /enchant @s lunge 3
+214 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+215 /enchant @s lunge 4
+# copper spear
+216 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+217 /enchant @s protection 1
+218 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+219 /enchant @s fire_protection 1
+220 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+221 /enchant @s feather_falling 1
+222 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+223 /enchant @s blast_protection 1
+224 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+225 /enchant @s projectile_protection 1
+226 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+227 /enchant @s thorns 1
+228 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+229 /enchant @s respiration 1
+230 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+231 /enchant @s depth_strider 1
+232 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+233 /enchant @s aqua_affinity 1
+234 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+235 /enchant @s sharpness 1
+236 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+237 /enchant @s smite 1
+238 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+239 /enchant @s bane_of_arthropods 1
+240 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+241 /enchant @s knockback 1
+242 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+243 /enchant @s fire_aspect 1
+244 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+245 /enchant @s looting 1
+246 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+247 /enchant @s efficiency 1
+248 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+249 /enchant @s silk_touch 1
+250 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+251 /enchant @s unbreaking 1
+252 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+253 /enchant @s fortune 1
+254 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+255 /enchant @s power 1
+256 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+257 /enchant @s punch 1
+258 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+259 /enchant @s flame 1
+260 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+261 /enchant @s infinity 1
+262 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+263 /enchant @s luck_of_the_sea 1
+264 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+265 /enchant @s lure 1
+266 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+267 /enchant @s frost_walker 1
+268 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+269 /enchant @s mending 1
+270 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+271 /enchant @s binding 1
+272 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+273 /enchant @s vanishing 1
+274 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+275 /enchant @s impaling 1
+276 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+277 /enchant @s riptide 1
+278 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+279 /enchant @s loyalty 1
+280 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+281 /enchant @s channeling 1
+282 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+283 /enchant @s multishot 1
+284 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+285 /enchant @s piercing 1
+286 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+287 /enchant @s quick_charge 1
+288 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+289 /enchant @s soul_speed 1
+290 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+291 /enchant @s swift_sneak 1
+292 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+293 /enchant @s wind_burst 1
+294 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+295 /enchant @s density 1
+296 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+297 /enchant @s breach 1
+298 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+299 /enchant @s lunge 1
+300 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+301 /enchant @s lunge 3
+302 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+303 /enchant @s lunge 4
+# iron spear
+304 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+305 /enchant @s protection 1
+306 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+307 /enchant @s fire_protection 1
+308 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+309 /enchant @s feather_falling 1
+310 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+311 /enchant @s blast_protection 1
+312 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+313 /enchant @s projectile_protection 1
+314 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+315 /enchant @s thorns 1
+316 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+317 /enchant @s respiration 1
+318 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+319 /enchant @s depth_strider 1
+320 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+321 /enchant @s aqua_affinity 1
+322 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+323 /enchant @s sharpness 1
+324 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+325 /enchant @s smite 1
+326 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+327 /enchant @s bane_of_arthropods 1
+328 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+329 /enchant @s knockback 1
+330 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+331 /enchant @s fire_aspect 1
+332 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+333 /enchant @s looting 1
+334 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+335 /enchant @s efficiency 1
+336 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+337 /enchant @s silk_touch 1
+338 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+339 /enchant @s unbreaking 1
+340 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+341 /enchant @s fortune 1
+342 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+343 /enchant @s power 1
+344 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+345 /enchant @s punch 1
+346 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+347 /enchant @s flame 1
+348 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+349 /enchant @s infinity 1
+350 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+351 /enchant @s luck_of_the_sea 1
+352 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+353 /enchant @s lure 1
+354 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+355 /enchant @s frost_walker 1
+356 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+357 /enchant @s mending 1
+358 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+359 /enchant @s binding 1
+360 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+361 /enchant @s vanishing 1
+362 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+363 /enchant @s impaling 1
+364 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+365 /enchant @s riptide 1
+366 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+367 /enchant @s loyalty 1
+368 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+369 /enchant @s channeling 1
+370 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+371 /enchant @s multishot 1
+372 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+373 /enchant @s piercing 1
+374 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+375 /enchant @s quick_charge 1
+376 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+377 /enchant @s soul_speed 1
+378 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+379 /enchant @s swift_sneak 1
+380 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+381 /enchant @s wind_burst 1
+382 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+383 /enchant @s density 1
+384 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+385 /enchant @s breach 1
+386 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+387 /enchant @s lunge 1
+388 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+389 /enchant @s lunge 3
+390 /replaceitem entity @s slot.weapon.mainhand 0 iron_spear
+391 /enchant @s lunge 4
+# golden spear
+392 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+393 /enchant @s protection 1
+394 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+395 /enchant @s fire_protection 1
+396 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+397 /enchant @s feather_falling 1
+398 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+399 /enchant @s blast_protection 1
+400 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+401 /enchant @s projectile_protection 1
+402 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+403 /enchant @s thorns 1
+404 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+405 /enchant @s respiration 1
+406 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+407 /enchant @s depth_strider 1
+408 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+409 /enchant @s aqua_affinity 1
+410 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+411 /enchant @s sharpness 1
+412 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+413 /enchant @s smite 1
+414 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+415 /enchant @s bane_of_arthropods 1
+416 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+417 /enchant @s knockback 1
+418 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+419 /enchant @s fire_aspect 1
+420 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+421 /enchant @s looting 1
+422 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+423 /enchant @s efficiency 1
+424 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+425 /enchant @s silk_touch 1
+426 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+427 /enchant @s unbreaking 1
+428 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+429 /enchant @s fortune 1
+430 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+431 /enchant @s power 1
+432 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+433 /enchant @s punch 1
+434 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+435 /enchant @s flame 1
+436 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+437 /enchant @s infinity 1
+438 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+439 /enchant @s luck_of_the_sea 1
+440 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+441 /enchant @s lure 1
+442 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+443 /enchant @s frost_walker 1
+444 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+445 /enchant @s mending 1
+446 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+447 /enchant @s binding 1
+448 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+449 /enchant @s vanishing 1
+450 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+451 /enchant @s impaling 1
+452 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+453 /enchant @s riptide 1
+454 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+455 /enchant @s loyalty 1
+456 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+457 /enchant @s channeling 1
+458 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+459 /enchant @s multishot 1
+460 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+461 /enchant @s piercing 1
+462 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+463 /enchant @s quick_charge 1
+464 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+465 /enchant @s soul_speed 1
+466 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+467 /enchant @s swift_sneak 1
+468 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+469 /enchant @s wind_burst 1
+470 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+471 /enchant @s density 1
+472 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+473 /enchant @s breach 1
+474 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+475 /enchant @s lunge 1
+476 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+477 /enchant @s lunge 3
+478 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+479 /enchant @s lunge 4
+# diamond spear
+480 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+481 /enchant @s protection 1
+482 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+483 /enchant @s fire_protection 1
+484 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+485 /enchant @s feather_falling 1
+486 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+487 /enchant @s blast_protection 1
+488 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+489 /enchant @s projectile_protection 1
+490 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+491 /enchant @s thorns 1
+492 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+493 /enchant @s respiration 1
+494 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+495 /enchant @s depth_strider 1
+496 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+497 /enchant @s aqua_affinity 1
+498 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+499 /enchant @s sharpness 1
+500 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+501 /enchant @s smite 1
+502 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+503 /enchant @s bane_of_arthropods 1
+504 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+505 /enchant @s knockback 1
+506 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+507 /enchant @s fire_aspect 1
+508 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+509 /enchant @s looting 1
+510 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+511 /enchant @s efficiency 1
+512 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+513 /enchant @s silk_touch 1
+514 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+515 /enchant @s unbreaking 1
+516 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+517 /enchant @s fortune 1
+518 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+519 /enchant @s power 1
+520 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+521 /enchant @s punch 1
+522 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+523 /enchant @s flame 1
+524 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+525 /enchant @s infinity 1
+526 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+527 /enchant @s luck_of_the_sea 1
+528 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+529 /enchant @s lure 1
+530 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+531 /enchant @s frost_walker 1
+532 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+533 /enchant @s mending 1
+534 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+535 /enchant @s binding 1
+536 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+537 /enchant @s vanishing 1
+538 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+539 /enchant @s impaling 1
+540 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+541 /enchant @s riptide 1
+542 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+543 /enchant @s loyalty 1
+544 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+545 /enchant @s channeling 1
+546 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+547 /enchant @s multishot 1
+548 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+549 /enchant @s piercing 1
+550 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+551 /enchant @s quick_charge 1
+552 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+553 /enchant @s soul_speed 1
+554 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+555 /enchant @s swift_sneak 1
+556 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+557 /enchant @s wind_burst 1
+558 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+559 /enchant @s density 1
+560 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+561 /enchant @s breach 1
+562 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+563 /enchant @s lunge 1
+564 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+565 /enchant @s lunge 3
+566 /replaceitem entity @s slot.weapon.mainhand 0 diamond_spear
+567 /enchant @s lunge 4
+# netherite spear
+568 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+569 /enchant @s protection 1
+570 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+571 /enchant @s fire_protection 1
+572 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+573 /enchant @s feather_falling 1
+574 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+575 /enchant @s blast_protection 1
+576 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+577 /enchant @s projectile_protection 1
+578 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+579 /enchant @s thorns 1
+580 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+581 /enchant @s respiration 1
+582 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+583 /enchant @s depth_strider 1
+584 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+585 /enchant @s aqua_affinity 1
+586 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+587 /enchant @s sharpness 1
+588 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+589 /enchant @s smite 1
+590 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+591 /enchant @s bane_of_arthropods 1
+592 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+593 /enchant @s knockback 1
+594 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+595 /enchant @s fire_aspect 1
+596 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+597 /enchant @s looting 1
+598 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+599 /enchant @s efficiency 1
+600 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+601 /enchant @s silk_touch 1
+602 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+603 /enchant @s unbreaking 1
+604 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+605 /enchant @s fortune 1
+606 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+607 /enchant @s power 1
+608 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+609 /enchant @s punch 1
+610 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+611 /enchant @s flame 1
+612 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+613 /enchant @s infinity 1
+614 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+615 /enchant @s luck_of_the_sea 1
+616 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+617 /enchant @s lure 1
+618 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+619 /enchant @s frost_walker 1
+620 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+621 /enchant @s mending 1
+622 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+623 /enchant @s binding 1
+624 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+625 /enchant @s vanishing 1
+626 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+627 /enchant @s impaling 1
+628 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+629 /enchant @s riptide 1
+630 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+631 /enchant @s loyalty 1
+632 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+633 /enchant @s channeling 1
+634 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+635 /enchant @s multishot 1
+636 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+637 /enchant @s piercing 1
+638 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+639 /enchant @s quick_charge 1
+640 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+641 /enchant @s soul_speed 1
+642 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+643 /enchant @s swift_sneak 1
+644 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+645 /enchant @s wind_burst 1
+646 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+647 /enchant @s density 1
+648 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+649 /enchant @s breach 1
+650 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+651 /enchant @s lunge 1
+652 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+653 /enchant @s lunge 3
+654 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+655 /enchant @s lunge 4
+676 exit

@@ -250,9 +250,10 @@ pub const XP_ORB_SIZES: [u32; 11] = [2477, 1237, 617, 307, 149, 73, 37, 17, 7, 3
 /// (before the cap), so a grounded mob leaves at the 0.4 cap.
 pub const KNOCKBACK_VERTICAL_SCALE: f64 = 1.2;
 /// Farthest a player's eye may be from the nearest point of a mob's box to
-/// land a melee hit (provisional: the client reaches 3 blocks in survival
-/// and 5 in creative per the Minecraft Wiki "Reach" page; this bound adds
-/// latency tolerance on top).
+/// land a melee hit. BDS 1.26.51 landed a survival sword hit on a pig whose
+/// box was 5.55 blocks from the eye and refused one at 6.55 (spear capture,
+/// `docs/quirks/bds.md` Entities / melee); the exact limit between the two
+/// is not measured.
 pub const MELEE_REACH: f64 = 6.0;
 /// A mob counts as "last hit by a player" (loot `killed_by_player`,
 /// `query.last_hit_by_player`) for this many ticks after a player's hit

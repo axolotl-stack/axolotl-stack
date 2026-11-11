@@ -15,10 +15,10 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 128 | 808 | 667 | 567 | 177 | 56.9% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
-| [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
+| [Protocol](#protocol) | 231 | 136 | 22 | 46 | 12 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
 
@@ -65,11 +65,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
-**Items**: 0 open rows free, 950 claimed.
+**Items**: 0 open rows free, 936 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Item use | lane ITEMS | 2026-10-29 | 950 |
+| Item use | lane ITEMS | 2026-10-29 | 936 |
 
 **Commands**: 0 open rows free, 65 claimed.
 
@@ -81,7 +81,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
-| clientbound | 96 | 88 | 8 |
+| clientbound | 96 | 87 | 9 |
 | bidirectional | 57 | 44 | 13 |
 | serverbound | 5 | 5 | 0 |
 
@@ -471,7 +471,7 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 | ranged_weapons | 8 | 0 | 2 | 2 | 4 | 0 | 75.0% |
 | spawn_eggs | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
 | throwables | 16 | 8 | 2 | 2 | 4 | 0 | 37.5% |
-| tools | 280 | 81 | 19 | 1 | 175 | 4 | 63.8% |
+| tools | 280 | 53 | 33 | 1 | 189 | 4 | 68.8% |
 
 Sub-rows by facet, most incomplete first (25 of 25):
 
@@ -483,10 +483,8 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | record | 22 | 22 | 0 | 0 | 0 | 0 | 0.0% |
 | bundle | 17 | 17 | 0 | 0 | 0 | 0 | 0.0% |
 | durability | 83 | 4 | 8 | 3 | 66 | 2 | 85.2% |
-| cooldown | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
-| enchantable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
-| kinetic_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
-| piercing_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
+| kinetic_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
+| piercing_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
 | repairable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
 | bucket | 8 | 3 | 3 | 2 | 0 | 0 | 25.0% |
 | throwable | 8 | 5 | 1 | 2 | 0 | 0 | 25.0% |
@@ -495,11 +493,13 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | shooter | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | wearable | 30 | 0 | 2 | 0 | 28 | 0 | 93.3% |
 | brush | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
+| cooldown | 8 | 1 | 0 | 0 | 7 | 0 | 87.5% |
 | instrument | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | shield | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | spyglass | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | weapon | 44 | 0 | 1 | 0 | 43 | 0 | 97.7% |
 | digger | 141 | 0 | 0 | 0 | 139 | 2 | 100.0% |
+| enchantable | 7 | 0 | 0 | 0 | 7 | 0 | 100.0% |
 | food | 40 | 0 | 0 | 40 | 0 | 0 | 100.0% |
 | fuel | 277 | 0 | 0 | 0 | 277 | 0 | 100.0% |
 
@@ -571,9 +571,11 @@ Sub-rows by facet, most incomplete first (25 of 25):
 **tools**
 
 - `minecraft:brewing_stand/block_placer`, `minecraft:cake/block_placer`, `minecraft:campfire/block_placer`, `minecraft:cauldron/block_placer`, `minecraft:flower_pot/block_placer`, `minecraft:kelp/block_placer`, `minecraft:nether_sprouts/block_placer`, `minecraft:red_shrub/block_placer`, `minecraft:shelf_mushroom/block_placer`, `minecraft:soul_campfire/block_placer`: non-cube block: support and attachment rules are not checked and its placement has no test
-- `minecraft:copper_spear/durability`, `minecraft:diamond_spear/durability`, `minecraft:golden_spear/durability`, `minecraft:iron_spear/durability`, `minecraft:netherite_spear/durability`, `minecraft:stone_spear/durability`, `minecraft:wooden_spear/durability`: the jab reach and the charge attack are not implemented, so only plain hits wear it
+- `minecraft:copper_spear/durability`, `minecraft:diamond_spear/durability`, `minecraft:golden_spear/durability`, `minecraft:iron_spear/durability`, `minecraft:netherite_spear/durability`, `minecraft:stone_spear/durability`, `minecraft:wooden_spear/durability`: the charge attack is not implemented; whether a jab that hits nothing wears the spear is not measured
+- `minecraft:copper_spear/kinetic_weapon`, `minecraft:diamond_spear/kinetic_weapon`, `minecraft:golden_spear/kinetic_weapon`, `minecraft:iron_spear/kinetic_weapon`, `minecraft:netherite_spear/kinetic_weapon`, `minecraft:stone_spear/kinetic_weapon`, `minecraft:wooden_spear/kinetic_weapon`: the charge is not implemented: no kinetic damage, knockback or dismount from the relative speed while the spear is held
+- `minecraft:copper_spear/piercing_weapon`, `minecraft:diamond_spear/piercing_weapon`, `minecraft:golden_spear/piercing_weapon`, `minecraft:iron_spear/piercing_weapon`, `minecraft:netherite_spear/piercing_weapon`, `minecraft:stone_spear/piercing_weapon`, `minecraft:wooden_spear/piercing_weapon`: a jab that hits several entities in a line is not implemented: BDS damaged only the hit target, never the entities behind it, in every form the scripted client sent a jab (UseAsAttack alone or packed into the input, a hit with the camera orientation, three hits in one input); what the vanilla client sends for a piercing jab is not captured
 - `minecraft:frame/block_placer`, `minecraft:glow_frame/block_placer`: facing_direction is not set from the click or look
-- missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/cooldown`, `minecraft:copper_spear/enchantable`, `minecraft:copper_spear/kinetic_weapon`, `minecraft:copper_spear/piercing_weapon`, `minecraft:copper_spear/repairable` and 69 more
+- missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/repairable`, `minecraft:cyan_bundle/bundle`, `minecraft:diamond_spear/repairable`, `minecraft:golden_spear/repairable`, `minecraft:gray_bundle/bundle` and 41 more
 
 ## Commands
 
@@ -623,7 +625,7 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | bidirectional | 80 | 44 | 13 | 16 | 1 | 6 | 23.0% |
-| clientbound | 146 | 88 | 8 | 30 | 11 | 9 | 29.9% |
+| clientbound | 146 | 87 | 9 | 30 | 11 | 9 | 29.9% |
 | serverbound | 5 | 5 | 0 | 0 | 0 | 0 | 0.0% |
 
 ### Protocol gaps
@@ -645,8 +647,8 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 - `CompletedUsingItemPacket`: sent when food is eaten, milk is drunk and a crossbow finishes loading; potions cannot be drunk, so no completion is sent for them
 - `ContainerSetDataPacket`: furnace-family progress only; brewing stands and other data-bearing containers missing
 - `LevelEventPacket`: block cracking/destroy, door breaking, egg and grazing particles only; most vanilla level events (weather, sleeping, redstone, portals, ...) never sent
-- 3 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraAimAssistPresetsPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraPresetsPacket`, `CameraShakePacket` and 76 more
+- 4 more partial rows with other gaps (see [protocol.toml](protocol.toml))
+- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraAimAssistPresetsPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraPresetsPacket`, `CameraShakePacket` and 75 more
 
 **serverbound**
 
