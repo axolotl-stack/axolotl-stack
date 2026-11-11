@@ -880,4 +880,3 @@ JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values
         'fuel': fuel, 'mining': mining, 'knockback': knockback, 'knockback_reload': knockback_reload,
         'send_range': send_range, 'spawn_bonus': spawn_bonus, 'walk': walk, 'effects': effects,
         'entity_loot': entity_loot}
-
