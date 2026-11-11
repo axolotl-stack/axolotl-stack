@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import native  # noqa: E402
+import scenarios  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
 
@@ -181,3 +182,55 @@ class RoundTwoScenarios(unittest.TestCase):
         self.assertEqual(len(rails), 4 * 81 * 2)
         self.assertEqual(len({item['key'] for item in rails}), len(rails))
 
+
+class RoundThree(unittest.TestCase):
+    """Circuit and random tick families and the wave signature."""
+
+    def test_measured_families_have_unique_keys_and_one_layout(self):
+        import circuits
+        import random_ticks
+        for family in list(circuits.MEASURED) + list(random_ticks.FAMILIES):
+            items = scenarios.FAMILIES[family]()
+            keys = [item['key'] for item in items]
+            self.assertEqual(len(keys), len(set(keys)), family)
+            self.assertTrue(all(key.startswith(family + '|') for key in keys), family)
+        self.assertEqual(scenarios.layout(','.join(circuits.MEASURED)), 'circuits')
+        self.assertEqual(scenarios.layout(','.join(random_ticks.FAMILIES)), 'fields')
+        with self.assertRaises(SystemExit):
+            scenarios.layout('redstone_dust,random_crops')
+
+    def test_signature_splits_clicks_and_commands_into_their_own_waves(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parent / 'endstone-sweep' / 'src'))
+        from endstone_bds_sweep import jobs
+        click = {'key': 'f|a', 'steps': [['build', []], ['timeline', 10, 't', [[1, ['use', [0, 0, 0], 1,
+                                                                                     [0, 0, 0]]]], []]]}
+        plain = {'key': 'f|b', 'steps': [['build', []], ['timeline', 10, 't', [[1, ['set', [0, 0, 0],
+                                                                                     'minecraft:air', {}, True]]],
+                                                         []]]}
+        fast = {'key': 'f|c', 'steps': [['cmd', 'gamerule randomtickspeed 8', [0, 0, 0]]]}
+        slow = {'key': 'f|d', 'steps': [['cmd', 'gamerule randomtickspeed 128', [0, 0, 0]]]}
+        for item in (click, plain, fast, slow):
+            self.assertEqual(list(jobs.step_signature(item)), scenarios.signature(item))
+        self.assertIn('f|a', jobs.step_signature(click)[1])
+        self.assertEqual(jobs.step_signature(plain)[1], 'timeline10')
+        self.assertNotEqual(jobs.step_signature(fast), jobs.step_signature(slow))
+
+    def test_circuit_rows_derive_conductors_cuts_and_climbing(self):
+        trace_lit = [[0, 1, 'unpowered_repeater', {}], [0, 2, 'stone', {}], [0, 3, 'redstone_lamp', {}],
+                     [4, 1, 'powered_repeater', {}], [4, 3, 'lit_redstone_lamp', {}]]
+        trace_late = [[0, 1, 'unpowered_repeater', {}], [0, 2, 'bell', {}], [0, 3, 'redstone_lamp', {}],
+                      [4, 1, 'powered_repeater', {}], [8, 3, 'lit_redstone_lamp', {}]]
+        cut = [[0, 2, 'redstone_wire', {'redstone_signal': 0}], [0, 3, 'stone', {}],
+               [5, 1, 'redstone_wire', {'redstone_signal': 15}]]
+        climb = [[0, 3, 'redstone_wire', {'redstone_signal': 0}], [4, 3, 'redstone_wire', {'redstone_signal': 14}],
+                 [6, 3, 'air', {}]]
+        derived = summarize.circuit_blocks({
+            'redstone_conductors': [[['block', 'stone', {}], 2, [], trace_lit],
+                                    [['block', 'bell', {}], 2, [], trace_late]],
+            'redstone_dust_cut': [[['cut', 'stone', {}], 2, [], cut]],
+            'redstone_dust_blocks': [[['climb', 'acacia_trapdoor', {'open_bit': False}], 2, [], climb]],
+        })
+        self.assertEqual(derived['conductors'], ['minecraft:stone'])
+        self.assertEqual(derived['cuts'], ['minecraft:stone'])
+        # Ever lit: the dust on top popped later.
+        self.assertEqual(derived['rows'], [['minecraft:acacia_trapdoor', {'open_bit': False}, True, False]])

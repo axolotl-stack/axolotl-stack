@@ -429,8 +429,66 @@ def command_states(states: dict) -> str:
 
 def step_signature(item: dict) -> tuple:
     """Items of one wave run step by step together, so their step kinds and
-    waits must line up."""
-    return tuple(f'wait{step[1]}' if step[0] == 'wait' else step[0] for step in item['steps'])
+    waits (and timeline lengths) must line up. The scripted player clicks
+    for one cell at a time: an item with a `use` event runs alone."""
+    out = []
+    for step in item['steps']:
+        if step[0] == 'timeline' and any(event[0] == 'use' for _, event in step[3]):
+            out.append(f'timeline{step[1]}:{item["key"]}')
+        elif step[0] in ('wait', 'timeline'):
+            out.append(f'{step[0]}{step[1]}')
+        elif step[0] == 'cmd':
+            # A command (a game rule) applies to the whole wave.
+            out.append(f'cmd:{step[1]}')
+        else:
+            out.append(step[0])
+    return tuple(out)
+
+
+def run_event(ctx: Context, at, event: list, touched: set, failures: list) -> None:
+    """One scenario action at a cell: `['set', offset, block, states,
+    physics]`, `['build', [[offset, block, states, physics], ...]]` (several
+    sets in order), `['setblock', offset, block, states, mode]` or `['cmd',
+    text, offset]` (`{x} {y} {z}` in `text` become the absolute coordinates
+    of `offset`; a failed command is recorded, not raised)."""
+    kind = event[0]
+    if kind == 'set':
+        pos = at(event[1])
+        touched.add(pos)
+        ctx.block(pos).set_data(ctx.server.create_block_data(event[2], event[3]), bool(event[4]))
+    elif kind == 'build':
+        # `['build', [[offset, block, states, physics], ...]]`: sets in order.
+        for offset, block, states, physics in event[1]:
+            run_event(ctx, at, ['set', offset, block, states, physics], touched, failures)
+    elif kind == 'setblock':
+        pos = at(event[1])
+        touched.add(pos)
+        line = f'setblock {pos[0]} {pos[1]} {pos[2]} {event[2]} {command_states(event[3])} {event[4]}'
+        if not ctx.cmd(line):
+            failures.append(line)
+    elif kind == 'cmd':
+        pos = at(event[2])
+        line = event[1].format(x=pos[0], y=pos[1], z=pos[2], cx=pos[0] + 0.5, cz=pos[2] + 0.5,
+                               player=f'"{ctx.player.name}"')
+        if not ctx.cmd(line):
+            failures.append(line)
+    elif kind == 'drop':
+        # `['drop', offset, item, count]`: an item actor at rest in the
+        # middle of the block's floor.
+        from endstone.level import Location
+        pos = at(event[1])
+        ctx.dimension.drop_item(Location(ctx.dimension, pos[0] + 0.5, pos[1] + 0.1, pos[2] + 0.5),
+                                ctx.stack({'item': event[2], 'count': event[3]}))
+    elif kind == 'use':
+        # `['use', offset, face, [ux, uy, uz]]`: the scripted player clicks
+        # that face (click position in thousandths inside the block) with
+        # what it holds; it must stand within reach (a `cmd` tp step).
+        pos = at(event[1])
+        target = ctx.block(pos).data.runtime_id
+        ux, uy, uz = event[3]
+        ctx.player.send_message(f'bds-sweep:use {pos[0]} {pos[1]} {pos[2]} {event[2]} {ux} {uy} {uz} {target}')
+    else:
+        raise RuntimeError(f'unknown scenario event {event!r}')
 
 
 def scenarios(ctx: Context, job: dict):
@@ -445,22 +503,30 @@ def scenarios(ctx: Context, job: dict):
     * `['setblock', [dx, dy, dz], block, states, mode]`: the `/setblock`
       command (`replace`, `destroy` or `keep`);
     * `['wait', ticks]`;
-    * `['read', label, [[dx, dy, dz], ...]]`: block type and states.
+    * `['read', label, [[dx, dy, dz], ...]]`: block type and states;
+    * `['cmd', text, [dx, dy, dz]]`: a console command (`run_event`);
+    * `['timeline', ticks, label, events, [[dx, dy, dz], ...]]`: `ticks`
+      server ticks in which `events` (`[[tick, event], ...]`, events as in
+      `run_event`) are applied at their tick (0 = the first) and every
+      listed position is read once per tick after them; the trace records
+      `[tick, index, type, states]` for the first read and each change.
 
-    Records every read, the item actors that appeared in the cell (popped
-    blocks drop items) and failed commands. Afterwards each touched position
-    is cleared without a block update (the superflat layers are restored
-    under the cell) and every item and falling block actor is removed."""
+    Records every read and trace, the item actors that appeared in the cell
+    (popped blocks drop items) and failed commands. Afterwards each touched
+    position is cleared without a block update (the superflat layers are
+    restored under the cell) and every item and falling block actor is
+    removed. `spacing` is one distance for both axes or `[x, z]`."""
     arena = job['arena']['scenarios']
     origin = arena['origin']
-    spacing = int(arena['spacing'])
+    spacing = arena['spacing']
+    space_x, space_z = (int(spacing), int(spacing)) if isinstance(spacing, (int, float)) else map(int, spacing)
     columns = int(arena['columns'])
-    wave_size = int(job.get('wave_size', columns * columns))
+    wave_size = int(job.get('wave_size', arena.get('wave_size', columns * columns)))
     pending = [item for item in job['items'] if item['key'] not in ctx.done]
 
     def cell(index: int) -> tuple[int, int, int]:
-        return (origin[0] + (index % columns) * spacing, origin[1],
-                origin[2] + (index // columns) * spacing)
+        return (origin[0] + (index % columns) * space_x, origin[1],
+                origin[2] + (index // columns) * space_z)
 
     def absolute(base, offset) -> tuple[int, int, int]:
         return (base[0] + offset[0], base[1] + offset[1], base[2] + offset[2])
@@ -470,20 +536,26 @@ def scenarios(ctx: Context, job: dict):
             layer = FLAT_LAYERS.get(pos[1], 'minecraft:air')
             ctx.set_state(pos, layer, {})
 
-    def sweep_actors(kinds: tuple[str, ...]) -> list[tuple[str, tuple[float, float, float], tuple]]:
+    # Every actor but the players is cleared after a wave; items and falling
+    # blocks are recorded for the cell they landed in, other actors (mobs and
+    # primed TNT of circuit scenarios) for cells with a timeline.
+    def sweep_all() -> list[tuple[str, tuple[float, float, float], tuple]]:
         found = []
         for actor in ctx.dimension.actors:
-            if actor.type in kinds:
-                loc = actor.location
-                stack = None
-                if actor.type == 'minecraft:item':
-                    item = actor.item_stack
-                    stack = (item.type.id, item.data, item.amount)
-                found.append((actor.type, (loc.x, loc.y, loc.z), stack))
-                actor.remove()
+            if actor.type == 'minecraft:player':
+                continue
+            loc = actor.location
+            stack = None
+            if actor.type == 'minecraft:item':
+                item = actor.item_stack
+                stack = (item.type.id, item.data, item.amount)
+            found.append((actor.type, (loc.x, loc.y, loc.z), stack))
+            actor.remove()
         return found
 
-    sweep_actors(('minecraft:item', 'minecraft:falling_block'))
+    # Cells own the box from `center` - half a spacing to + half a spacing.
+    center = arena.get('center', [0, 0])
+    sweep_all()
     while pending:
         wave = [pending.pop(0)]
         signature = step_signature(wave[0])
@@ -492,24 +564,68 @@ def scenarios(ctx: Context, job: dict):
         bases = [cell(i) for i in range(len(wave))]
         touched: list[set] = [set() for _ in wave]
         reads: list[dict] = [{} for _ in wave]
+        traces: list[dict] = [{} for _ in wave]
+        timings: list[dict] = [{} for _ in wave]
         failures: list[list] = [[] for _ in wave]
         for index, step in enumerate(wave[0]['steps']):
             if step[0] == 'wait':
                 yield int(step[1])
                 continue
+            if step[0] == 'timeline':
+                # Every tick: the events due, then one read of every listed
+                # position in every cell; one server tick between reads.
+                last: list[list] = [[None] * len(item['steps'][index][4]) for item in wave]
+                for i in range(len(wave)):
+                    traces[i][wave[i]['steps'][index][2]] = []
+                # The witness: a redstone block set at tick 0 next to a dust
+                # outside the cells. BDS works redstone every other tick, so
+                # the tick its dust lights (2 or 3) gives the wave's phase.
+                witness = arena.get('witness')
+                witness_tick = None
+                if witness:
+                    dust_at = (witness[0] + 1, witness[1], witness[2])
+                    ctx.block(dust_at).set_data(ctx.server.create_block_data('minecraft:redstone_wire',
+                                                                             {'redstone_signal': 0}), True)
+                start_tick = ctx.plugin.ticks
+                for tick in range(int(step[1])):
+                    if witness and tick == 0:
+                        ctx.block(tuple(witness)).set_data(
+                            ctx.server.create_block_data('minecraft:redstone_block', {}), True)
+                    if witness and witness_tick is None:
+                        if ctx.block(dust_at).data.block_states.get('redstone_signal', 0) > 0:
+                            witness_tick = tick
+                    for i, item in enumerate(wave):
+                        own = item['steps'][index]
+                        for at_tick, event in own[3]:
+                            if at_tick == tick:
+                                run_event(ctx, lambda off, b=bases[i]: absolute(b, off), event, touched[i],
+                                          failures[i])
+                    for i, item in enumerate(wave):
+                        own = item['steps'][index]
+                        trace = traces[i][own[2]]
+                        for k, offset in enumerate(own[4]):
+                            pos = absolute(bases[i], offset)
+                            touched[i].add(pos)
+                            data = ctx.block(pos).data
+                            value = [data.type, data.block_states]
+                            if value != last[i][k]:
+                                trace.append([tick, k, data.type, data.block_states])
+                                last[i][k] = value
+                    yield 1
+                for i in range(len(wave)):
+                    timings[i] = {'start_tick': start_tick, 'witness_tick': witness_tick}
+                if witness:
+                    for pos in (tuple(witness), dust_at):
+                        ctx.set_state(pos, 'minecraft:air', {})
+                # Clicks moved the scripted player next to the cell.
+                if any(event[0] == 'use' for item in wave for _, event in item['steps'][index][3]):
+                    player = job['arena']['player']
+                    ctx.must(f'tp "{ctx.player.name}" {player[0]} {player[1]} {player[2]}')
+                continue
             for i, item in enumerate(wave):
                 own = item['steps'][index]
-                if own[0] == 'set':
-                    pos = absolute(bases[i], own[1])
-                    touched[i].add(pos)
-                    data = ctx.server.create_block_data(own[2], own[3])
-                    ctx.block(pos).set_data(data, bool(own[4]))
-                elif own[0] == 'setblock':
-                    pos = absolute(bases[i], own[1])
-                    touched[i].add(pos)
-                    line = f'setblock {pos[0]} {pos[1]} {pos[2]} {own[2]} {command_states(own[3])} {own[4]}'
-                    if not ctx.cmd(line):
-                        failures[i].append(line)
+                if own[0] in ('set', 'build', 'setblock', 'cmd'):
+                    run_event(ctx, lambda off, b=bases[i]: absolute(b, off), own, touched[i], failures[i])
                 elif own[0] == 'read':
                     values = []
                     for offset in own[2]:
@@ -521,20 +637,37 @@ def scenarios(ctx: Context, job: dict):
                 else:
                     raise RuntimeError(f'unknown scenario step {own!r}')
             yield None
-        actors = sweep_actors(('minecraft:item', 'minecraft:falling_block'))
+        actors = sweep_all()
         for i, item in enumerate(wave):
-            half = spacing / 2
             base = bases[i]
             mine = [(kind, stack) for kind, (x, y, z), stack in actors
-                    if abs(x - (base[0] + 0.5)) < half and abs(z - (base[2] + 0.5)) < half]
-            ctx.record({'key': item['key'], 'reads': reads[i],
-                        'items': sorted(stack for kind, stack in mine if kind == 'minecraft:item'),
-                        'falling_blocks': sum(1 for kind, _ in mine if kind == 'minecraft:falling_block'),
-                        'command_failures': failures[i]})
+                    if abs(x - (base[0] + center[0] + 0.5)) < space_x / 2
+                    and abs(z - (base[2] + center[1] + 0.5)) < space_z / 2]
+            row = {'key': item['key'], 'reads': reads[i],
+                   'items': sorted(stack for kind, stack in mine if kind == 'minecraft:item'),
+                   'falling_blocks': sum(1 for kind, _ in mine if kind == 'minecraft:falling_block'),
+                   'command_failures': failures[i]}
+            if traces[i]:
+                row['traces'] = traces[i]
+                row['timing'] = timings[i]
+                row['actors'] = sorted(kind for kind, _ in mine
+                                       if kind not in ('minecraft:item', 'minecraft:falling_block'))
+            ctx.record(row)
         for positions in touched:
             clear(sorted(positions))
+        # Layouts with a `clear_box` ([low, high] offsets) also refill the
+        # whole box of every cell: blocks a circuit moved or placed on its
+        # own (door halves, pushed blocks) are not in `touched`.
+        box = arena.get('clear_box')
+        if box:
+            (lx, ly, lz), (hx, hy, hz) = box
+            for base in bases:
+                x0, z0, x1, z1 = base[0] + lx, base[2] + lz, base[0] + hx, base[2] + hz
+                for y in range(base[1] + ly, base[1] + hy + 1):
+                    layer = FLAT_LAYERS.get(y, 'minecraft:air')
+                    ctx.cmd(f'fill {x0} {y} {z0} {x1} {y} {z1} {layer}')
         yield 1
-        sweep_actors(('minecraft:item', 'minecraft:falling_block'))
+        sweep_all()
 
 
 def placements(ctx: Context, job: dict):

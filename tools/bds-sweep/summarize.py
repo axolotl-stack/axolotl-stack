@@ -6,6 +6,7 @@
     python tools/bds-sweep/summarize.py compare-drops SWEEP_DIR_A SWEEP_DIR_B
     python tools/bds-sweep/summarize.py scenarios SWEEP_DIR [SWEEP_DIR ...]
     python tools/bds-sweep/summarize.py placements SWEEP_DIR
+    python tools/bds-sweep/summarize.py circuits SWEEP_DIR [SWEEP_DIR ...]
 
 Writes into `crates/unastar-data/data/measured/` and records every artefact
 (SHA-256, sweep parameters, sample counts, run times) in `manifest.json`
@@ -1141,6 +1142,128 @@ def summarize_placements(sweep: Path) -> None:
         print(f'{len(cases)} cases -> {path}')
 
 
+# ---------------------------------------------------------------- circuits
+
+CIRCUIT_METHOD = (
+    'sweep.py scenarios --family <redstone family> (tools/bds-sweep/circuits.py): each circuit is built in a '
+    'cell of its own with block updates (`build`), left `wait` ticks, then run for a `timeline` of N server '
+    'ticks in which `events` ([tick, event]) are applied at their tick and every `watch` offset is read once '
+    'per tick after them. `trace` lists [tick, watch index, block, states] for the first read and every '
+    'change. `witness` is the tick (2 or 3) at which a dust beside a redstone block set at tick 0 outside '
+    'the cells lit in the same wave: BDS works redstone every other tick, and an update shows at the reads '
+    'whose tick has the parity of `witness`. Offsets are relative to the cell origin on the superflat grass '
+    '(the floor is y=-1); `minecraft:` is left out of block names.'
+)
+CIRCUIT_ROW = '[name, witness, steps, trace]'
+
+
+def short(name: str) -> str:
+    return name.removeprefix('minecraft:')
+
+
+def short_steps(steps: list) -> list:
+    """The job's steps with `minecraft:` left out of block names."""
+    def event(e: list) -> list:
+        if e[0] == 'set':
+            return ['set', e[1], short(e[2]), e[3], e[4]]
+        if e[0] == 'build':
+            return ['build', [[o, short(b), st, ph] for o, b, st, ph in e[1]]]
+        if e[0] == 'setblock':
+            return ['setblock', e[1], short(e[2]), e[3], e[4]]
+        if e[0] == 'drop':
+            return ['drop', e[1], short(e[2]), e[3]]
+        return e
+    out = []
+    for step in steps:
+        if step[0] == 'timeline':
+            out.append(['timeline', step[1], [[t, event(e)] for t, e in step[3]], step[4]])
+        elif step[0] == 'wait':
+            out.append(step)
+        else:
+            out.append(event(step))
+    return out
+
+
+def circuit_blocks(rows_by_family: dict[str, list]) -> dict:
+    """Facts the server reads at runtime, derived from the per-block
+    families: blocks a repeater powers through (`conductors`), blocks that
+    cut dust climbing past them (`cuts`) and, per measured block state,
+    whether power climbs onto dust on top of it and comes down its far side
+    (`climb`)."""
+    conductors, cuts, climb = set(), set(), []
+    for name, witness, steps, trace in rows_by_family.get('redstone_conductors', []):
+        block = 'minecraft:' + name[1]
+        first = {k: b for t, k, b, st in trace if t == 0}
+        lit = [t for t, k, b, st in trace if k == 3 and t > 0 and b == 'lit_redstone_lamp']
+        powered = [t for t, k, b, st in trace if k == 1 and b == 'powered_repeater']
+        # The block must still be there, the lamp dark before the repeater
+        # powered it and lit in the same update (a block that reacts to the
+        # power on its own, such as a sculk sensor, lights it later).
+        if lit and powered and lit[0] == powered[0] and first.get(3) == 'redstone_lamp' \
+                and first.get(2) == short(block) and block != 'minecraft:redstone_wire':
+            conductors.add(block)
+    for name, witness, steps, trace in rows_by_family.get('redstone_dust_cut', []):
+        block = 'minecraft:' + name[1]
+        first = {k: b for t, k, b, st in trace if t == 0}
+        # Cut: the dust on the stone stays dark in the update the dust below
+        # lights (a door or plate set there may pop off later and let the
+        # power climb).
+        lit = [t for t, k, b, st in trace if k == 1 and st.get('redstone_signal', 0) > 0]
+        top_lit = [t for t, k, b, st in trace if k == 2 and st.get('redstone_signal', 0) > 0]
+        if first.get(3) == short(block) and lit and not (top_lit and top_lit[0] <= lit[0]):
+            cuts.add(block)
+    for name, witness, steps, trace in rows_by_family.get('redstone_dust_blocks', []):
+        block, states = 'minecraft:' + name[1], name[2]
+
+        # Ever lit: the dust on top may pop later, when the power it
+        # carries changes the block under it (a trapdoor opening).
+        def lit(k):
+            return any(kk == k and b == 'redstone_wire' and st.get('redstone_signal', 0) > 0
+                       for t, kk, b, st in trace)
+        climb.append([block, states, lit(3), lit(4)])
+    climb.sort(key=lambda r: (r[0], json.dumps(r[1], sort_keys=True)))
+    return {'method': 'derived from redstone_conductors.json, redstone_dust_cut.json and '
+                      'redstone_dust_blocks.json by summarize.py circuits',
+            'conductors': sorted(conductors), 'cuts': sorted(cuts),
+            'row': '[block, states, power climbs onto dust on top, power comes down the far side]',
+            'rows': climb}
+
+
+def summarize_circuits(sweeps: list[Path]) -> None:
+    """Redstone circuit families to `redstone/<family>.json` (one row per
+    line) and the derived `redstone/blocks.json`."""
+    by_family: dict[str, list] = defaultdict(list)
+    for sweep in sweeps:
+        job = json.loads((sweep / 'job.json').read_text(encoding='utf-8'))
+        items = {item['key']: item for item in job['items']}
+        for row in results(sweep):
+            family, rest = row['key'].split('|', 1)
+            if not family.startswith('redstone_'):
+                continue
+            witness = row['timing']['witness_tick']
+            if witness not in (2, 3):
+                raise SystemExit(f'{sweep}: {row["key"]}: no witness tick ({witness})')
+            trace = [[t, k, short(b), st] for t, k, b, st in row['traces']['trace']]
+            name = json.loads(rest)
+            # Block names inside a row name are shortened like the steps.
+            name = [short(p) if isinstance(p, str) else p for p in name]
+            by_family[family].append([name, witness, short_steps(items[row['key']]['steps']), trace])
+    files = []
+    for family, rows in sorted(by_family.items()):
+        rows.sort(key=lambda r: json.dumps(r[0], sort_keys=True))
+        files.append(write_rows(f'redstone/{family}.json',
+                                {'family': family, 'method': CIRCUIT_METHOD, 'row': CIRCUIT_ROW}, rows))
+    derived = circuit_blocks(by_family)
+    if derived['conductors'] or derived['rows']:
+        rows = derived.pop('rows')
+        files.append(write_rows('redstone/blocks.json', derived, rows))
+    entry = {**provenance('scenarios', sweeps), 'files': files,
+             'method': 'redstone circuits replayed tick by tick: ' + CIRCUIT_METHOD}
+    update_manifest('redstone', merge_manifest_files('redstone', entry))
+    for f in files:
+        print(f['path'], f.get('rows', ''), f['sha256'][:12])
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         print(__doc__)
@@ -1164,6 +1287,8 @@ def main() -> int:
         summarize_attack(dirs[0])
     elif kind == 'scenarios':
         summarize_scenarios(dirs)
+    elif kind == 'circuits':
+        summarize_circuits(dirs)
     elif kind == 'item-blocks':
         summarize_item_blocks(dirs[0])
     elif kind == 'placements':

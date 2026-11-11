@@ -18,6 +18,8 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `summarize.py` | Raw sweep results to `crates/unastar-data/data/measured/` + `manifest.json` |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
 | `scenarios.py` | Block scenario families for the `scenarios` job (stairs, connections, wall_above, gate_in_wall, support, surfaces, soils, junctions, halves; round 2: stairs_blocks, connections_blocks, wall_heights_blocks, multiface_support, rails, soils_more, coral_death) |
+| `circuits.py` | Round 3: redstone circuit families for the `scenarios` job (`redstone_*`, `MEASURED`; the `circuits_pilot*` families are the pilots): a circuit built in a 22 x 6 cell, a timeline of inputs at known ticks and a read of every position every tick |
+| `random_ticks.py` | Round 3: random tick families (`random_*`): 16 x 16 fields of crops, sugar cane, cacti, copper, leaves and farmland at a set `randomtickspeed`, read every 100 ticks |
 | `placements.py` | The survival clicks of the `placements` job in case groups (`GROUPS`: round 1's `blocks`, then signs, door hinges, uses, coral, skulls, directions, mushrooms, bells, multi-face blocks, candles, crops, plants and stacks, block actors, follow-up): blocks set around the click, the stack in hand, the player's feet and look, the click, follow-up steps, the positions read back |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
 
@@ -95,6 +97,7 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `attack` | melee damage per held item, warm-up + 3 trials | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value |
 | `fuel` | furnace burn ticks per item | pool of 32 furnaces, 1 cobblestone input + the item as fuel |
 | `scenarios` | block states BDS stores after a scripted sequence of block sets (with or without the block update a placement triggers), waits and reads | items from `scenarios.py` families run in waves of up to 64 cells (6 blocks apart, east of the player); one wait covers a wave; touched cells are cleared without updates and the superflat layers restored after each wave |
+| `scenarios` (round 3) | step kinds `build` (several sets in order), `cmd` (a console command; `{x} {y} {z}`, `{cx} {cz}` and `{player}` are filled in), `timeline` (events at given ticks, every listed position read once per tick; the trace keeps the first read and each change) with events `set`, `setblock`, `cmd`, `drop` (an item actor) and `use` (a click by the scripted player, standing where a `cmd` tp put it; such an item runs alone) | layouts per family (`scenarios.LAYOUTS`): the 8 x 8 cells above, `circuits` (22 x 6 cells, tick distance 8, a whole-cell refill after each wave, and a witness: a redstone block and dust west of the cells whose lighting tick gives each wave's redstone parity) and `fields` (16 x 16 fields, 20 apart); a `cmd` step is part of the wave signature, so waves with different game rules run apart |
 | `placements` | what BDS stores and sends when the survival player clicks a block face with a stack (blocks read back, the held stack, every packet both ways), and what a second scripted player watching sees | per item: the arena box around (4,-60,4) is cleared, its blocks set with block updates, the stack put in hotbar slot 0 with `/replaceitem` (the inventory API does not reach the client), the player teleported with its look; chat markers `bds-sweep:mark <key>` / `bds-sweep:mark end` cut the client capture (`--capture-dir`, on automatically) per item |
 | `item-blocks` | the block state BDS describes a stack of each item with | `/replaceitem` of every registry item into hotbar slot 0, one per two ticks behind a chat marker; slot 0 of the next main-inventory `InventoryContent` in the client capture |
 
@@ -110,6 +113,10 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 & $py tools/bds-sweep/sweep.py item-blocks     # ~4 min for 2076 items
 & $py tools/bds-sweep/summarize.py drops <dir> [<repeat dir> ...]
 & $py tools/bds-sweep/summarize.py scenarios <dir>
+& $py tools/bds-sweep/sweep.py scenarios --family redstone_dust,redstone_repeaters   # circuits.MEASURED, ~1-2 min per 500 circuits
+& $py tools/bds-sweep/sweep.py scenarios --family random_crops,random_copper          # random_ticks.FAMILIES, ~3 min per wave
+& $py tools/bds-sweep/summarize.py circuits <dir> [<dir> ...]   # -> data/measured/redstone/ and redstone/blocks.json
+& $py tools/bds-sweep/summarize.py random-ticks <dir>           # -> data/measured/random_ticks/
 & $py tools/bds-sweep/summarize.py placements <dir>   # -> crates/unastar/src/server/game/testdata/bds-placements.json
 & $py tools/bds-sweep/summarize.py item-blocks <dir>  # -> data/measured/item_blocks.json
 ```
