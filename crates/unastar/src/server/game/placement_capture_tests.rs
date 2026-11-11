@@ -367,7 +367,7 @@ fn compare_case(case: &Value) -> Option<String> {
         if ours.sounds != bds.sounds {
             problems.push(format!("sounds {:?} want {:?}", ours.sounds, bds.sounds));
         }
-        if bds.hand.is_some() && ours.hand != bds.hand {
+        if ours.hand != bds.hand {
             problems.push(format!("hand resync {:?} want {:?}", ours.hand, bds.hand));
         }
         (!problems.is_empty()).then(|| format!("{key}:\n    {}", problems.join("\n    ")))
