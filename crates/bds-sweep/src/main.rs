@@ -20,6 +20,12 @@
 //! * `bds-sweep:drop inventory SLOT COUNT`: open the native inventory, wait
 //!   for `ContainerOpen`, then drop from main-inventory index 0..35;
 //! * `bds-sweep:close-inventory`: close the inventory opened by this client.
+//! * `bds-sweep:walk DX DY DZ DYAW TICKS FLAGS [DPITCH]`: for the next
+//!   `TICKS` inputs, move the reported position by (`DX`, `DY`, `DZ`)
+//!   thousandths of a block and turn the yaw (and head yaw) by `DYAW` and the
+//!   pitch by `DPITCH` thousandths of a degree each input; `FLAGS` bit 0 also
+//!   reports forward movement (`Up`, move vector (0, 1)), bit 1 reports
+//!   `VerticalCollision` (standing on the ground).
 //!
 //! Drop orders require server-synchronized nonempty slots with stack net IDs.
 //! Inventory drops leave the screen open; hotbar drops close it first.
@@ -104,6 +110,19 @@ enum Order {
     Attack(u64),
     Drop(DropOrder),
     CloseInventory,
+    Walk(Walk),
+}
+
+/// A scripted walk: per-input position and yaw steps, in thousandths of a
+/// block and of a degree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Walk {
+    step: [i64; 3],
+    turn: i64,
+    tilt: i64,
+    remaining: u32,
+    forward: bool,
+    grounded: bool,
 }
 
 /// The first `n` numbers of an order. The order arrives inside the Debug
@@ -151,6 +170,22 @@ fn parse_order(text: &str) -> Option<Order> {
             }))
         }
         "close-inventory" | "close-inventory\"" => Some(Order::CloseInventory),
+        "walk" => {
+            let values = numbers(words.by_ref(), 6)?;
+            // The optional pitch step; whatever follows the order otherwise.
+            let tilt = words
+                .next()
+                .and_then(|word| numbers(std::iter::once(word), 1))
+                .map_or(0, |tilt| tilt[0]);
+            Some(Order::Walk(Walk {
+                step: [values[0], values[1], values[2]],
+                turn: values[3],
+                tilt,
+                remaining: u32::try_from(values[4]).ok()?,
+                forward: values[5] & 1 != 0,
+                grounded: values[5] & 2 != 0,
+            }))
+        }
         _ => None,
     }
 }
@@ -172,6 +207,7 @@ struct Player {
     inventory_window: Option<(u8, u8)>,
     pending_drop: Option<DropOrder>,
     next_request_id: i32,
+    walk: Option<Walk>,
 }
 
 fn block_action(action: EnumsPlayerActionType, mining: &Mining) -> PlayerBlockActionData {
@@ -221,6 +257,7 @@ impl Player {
             }
             Order::Attack(target) => return Ok(vec![self.attack(target)]),
             Order::Drop(drop) => return self.drop_order(drop),
+            Order::Walk(walk) => self.walk = Some(walk),
             Order::CloseInventory => {
                 ensure!(
                     self.pending_drop.is_none(),
@@ -392,6 +429,26 @@ impl Player {
         self.tick += 1;
         let actions = self.block_actions();
         let mut input_data = Vec::new();
+        let mut move_vector = Vec2::default();
+        if let Some(walk) = &mut self.walk {
+            let thousandths = |value: i64| value as f32 / 1000.0;
+            self.position.x += thousandths(walk.step[0]);
+            self.position.y += thousandths(walk.step[1]);
+            self.position.z += thousandths(walk.step[2]);
+            self.rotation.y += thousandths(walk.turn);
+            self.rotation.x += thousandths(walk.tilt);
+            if walk.forward {
+                input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Up);
+                move_vector = Vec2 { x: 0.0, y: 1.0 };
+            }
+            if walk.grounded {
+                input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision);
+            }
+            walk.remaining = walk.remaining.saturating_sub(1);
+            if walk.remaining == 0 {
+                self.walk = None;
+            }
+        }
         let player_block_actions = if actions.is_empty() {
             None
         } else {
@@ -411,6 +468,9 @@ impl Player {
                 inputtick: self.tick,
             },
             player_block_actions,
+            move_vector: move_vector.clone(),
+            analog_move_vector: move_vector.clone(),
+            raw_move_vector: move_vector,
             ..Default::default()
         })
     }
@@ -604,6 +664,7 @@ async fn run_session<T: Transport>(
         inventory_window: None,
         pending_drop: None,
         next_request_id: -1,
+        walk: None,
     };
     let mut ticker = tokio::time::interval(Duration::from_millis(50));
     loop {
@@ -662,7 +723,27 @@ mod tests {
             inventory_window: None,
             pending_drop: None,
             next_request_id: -1,
+            walk: None,
         }
+    }
+
+    #[test]
+    fn walk_orders_step_position_and_yaw_each_input() {
+        let order = parse_order(r#"{ message: "bds-sweep:walk 200 0 -100 10000 2 3" }"#).unwrap();
+        let mut player = player();
+        player.order(order).unwrap();
+        for _ in 0..3 {
+            player.auth_input();
+        }
+        assert!((player.position.x - 0.4).abs() < 1e-6);
+        assert!((player.position.z + 0.2).abs() < 1e-6);
+        assert!((player.rotation.y - 20.0).abs() < 1e-4);
+        assert!(player.walk.is_none(), "the walk ends after its inputs");
+        let tilted = parse_order("bds-sweep:walk 0 0 0 0 2 2 -1500").unwrap();
+        player.order(tilted).unwrap();
+        player.auth_input();
+        player.auth_input();
+        assert!((player.rotation.x + 3.0).abs() < 1e-4);
     }
 
     #[test]

@@ -271,7 +271,7 @@ def knockback_items(args) -> list[dict]:
             'frozen': True, 'tool': None, 'player': [0.5, -60, 0.5, -90], 'settle': 0, 'tail': 45, 'hits': []}
            for distance in (4, 6, 7, 10, 16, 24, 32, 48)]
     sets = {'slice': hits, 'air': air, 'far': far, 'cadence': cadence_items(), 'cadence2': cadence2_items(),
-            'all': hits + air + far}
+            'cadence3': cadence3_items(), 'all': hits + air + far}
     if args.items not in sets:
         raise SystemExit(f"knockback --items must be one of {sorted(sets)}")
     return sets[args.items]
@@ -351,6 +351,127 @@ def cadence2_items() -> list[dict]:
     return items
 
 
+def cadence3_items() -> list[dict]:
+    """Follow-ups to `cadence2` (same flags): vehicles whose
+    `conditional_bandwidth_optimization` switches to 0 / 0 while `is_moving`
+    (a minecart and a boat resting on a pillar that is removed in two steps,
+    so each falls, rests and falls again), and arrows and a snowball shot by
+    a dispenser (`spawn_commands`) into a wall and onto the floor, for where a
+    projectile stops."""
+    player = [0.5, -60, 0.5, -90]
+    items = []
+    # Pillar top at y -54; the upper part goes at t 40, the rest at t 80.
+    pillar = 'fill 32 -60 0 32 -55 0 {}'
+    upper = 'fill 32 -56 0 32 -55 0 air'
+    for mob in ('minecart', 'boat'):
+        items.append({'key': f'{mob}|rest-fall|natural', 'mob': f'minecraft:{mob}', 'at': [32.5, -54, 0.5, 90],
+                      'frozen': False, 'tool': None, 'player': player, 'observer': OBSERVER,
+                      'setup': [pillar.format('stone')], 'cleanup': [pillar.format('air')],
+                      'actions': [{'t': 40, 'commands': [upper]}, {'t': 80, 'commands': [pillar.format('air')]}],
+                      'settle': 0, 'tail': 40, 'hits': []})
+
+    def shot(key, mob, item, y, wall):
+        """A dispenser facing east (+x) at (20, y, 0), powered from above."""
+        dispenser = f'setblock 20 {y} 0 dispenser ["facing_direction"=5]'
+        setup = [dispenser, f'replaceitem block 20 {y} 0 slot.container 0 {item} 1']
+        cleanup = [f'setblock 20 {y + 1} 0 air', f'setblock 20 {y} 0 air']
+        if y > -60:
+            setup.insert(0, f'fill 20 -60 0 20 {y - 1} 0 stone')
+            cleanup.append(f'fill 20 -60 0 20 {y - 1} 0 air')
+        if wall:
+            setup.append('fill 26 -60 -3 26 -54 3 stone')
+            cleanup.append('fill 26 -60 -3 26 -54 3 air')
+        return {'key': key, 'mob': f'minecraft:{mob}', 'at': [20.5, y, 0.5, 0], 'frozen': False, 'tool': None,
+                'player': player, 'observer': OBSERVER, 'setup': setup, 'cleanup': cleanup,
+                'spawn_commands': [f'setblock 20 {y + 1} 0 redstone_block'], 'settle': 0, 'tail': 40,
+                'hits': []}
+
+    items.append(shot('arrow|wall|natural', 'arrow', 'arrow', -60, True))
+    items.append(shot('arrow|floor|natural', 'arrow', 'arrow', -55, False))
+    items.append(shot('arrow|floor-2|natural', 'arrow', 'arrow', -57, False))
+    items.append(shot('snowball|wall|natural', 'snowball', 'snowball', -60, True))
+    return items
+
+
+# `range`: where BDS stops sending actors. The sweep player stands at the
+# middle of chunk (0, 0) among still markers of each kind; the observer walks
+# away from it and back in one-block steps.
+RANGE_CENTER = [8.5, 8.5]
+RANGE_MARKERS = [
+    {'type': 'minecraft:cow', 'at': [2.5, -60, 8.5, 90]},
+    {'type': 'minecraft:cow', 'at': [14.5, -60, 8.5, 90]},
+    {'type': 'minecraft:cow', 'at': [17.5, -60, 8.5, 90]},
+    {'type': 'minecraft:armor_stand', 'at': [8.5, -60, 2.5, 0]},
+    {'type': 'minecraft:item', 'at': [8.5, -60, 14.5]},
+    {'type': 'minecraft:arrow', 'at': [5.5, -58, 5.5, 0]},
+    {'type': 'minecraft:minecart', 'at': [11.5, -60, 2.5, 0]},
+    {'type': 'minecraft:xp_orb', 'at': [8.5, -60, -3.5, 0]},
+]
+
+
+def range_items(args) -> list[dict]:
+    """`--items all` (default): the observer walks away from the markers
+    along +x, along the +x+z diagonal and along -x (negative chunk
+    coordinates), 40 to 112 blocks from the sweep player in one-block steps,
+    and back, ten ticks per step; then jumps between 40 and 112 blocks east
+    three times, sixty ticks each, for how long an add or a remove takes.
+    `--items pilot`: a short east leg."""
+    cx, cz = RANGE_CENTER
+
+    def leg(key, direction, near=40, far=112):
+        dx, dz = direction
+        path = [[round(cx + d * dx, 4), round(cz + d * dz, 4)] for d in range(near, far + 1)]
+        return [{'key': f'{key}-out', 'center': RANGE_CENTER, 'markers': RANGE_MARKERS, 'path': path, 'ticks': 10},
+                {'key': f'{key}-in', 'center': RANGE_CENTER, 'markers': RANGE_MARKERS, 'path': path[::-1],
+                 'ticks': 10}]
+
+    diagonal = 0.5 ** 0.5
+    if args.items == 'pilot':
+        return leg('pilot', (1, 0), 60, 70)[:1]
+    if args.items not in ('all', 'slice'):
+        raise SystemExit("range --items must be 'all' or 'pilot'")
+    jump = [[cx + 40, cz], [cx + 112, cz]] * 3
+    return (leg('east', (1, 0)) + leg('diagonal', (diagonal, diagonal)) + leg('west', (-1, 0))
+            + [{'key': 'jump', 'center': RANGE_CENTER, 'markers': RANGE_MARKERS, 'path': jump, 'ticks': 60}])
+
+
+def bonus_items(args) -> list[dict]:
+    """`bonus`: many of each mob on a grid around the sweep player, left in
+    the world (`--keep-world`), for the random spawn bonuses BDS saves in
+    their attributes."""
+    # No villagers, golems, wolves or illagers: they fight the others, and
+    # only survivors are saved.
+    counts = {'zombie': 300, 'husk': 60, 'drowned': 60, 'zombie_villager_v2': 60, 'zombie_pigman': 60,
+              'skeleton': 40, 'stray': 30, 'creeper': 30, 'spider': 30, 'witch': 20, 'cow': 30, 'pig': 30,
+              'chicken': 20}
+    items = [{'key': mob, 'mob': f'minecraft:{mob}', 'count': count} for mob, count in counts.items()]
+    items.append({'key': 'zombie-summon', 'mob': 'minecraft:zombie', 'count': 100, 'via': 'summon'})
+    return items
+
+
+def walk_items(args) -> list[dict]:
+    """`walk`: the sweep player moves by scripted inputs (`bds-sweep:walk`
+    DX DY DZ DYAW TICKS FLAGS, thousandths of a block / degree per input;
+    FLAGS 1 = forward input, 2 = vertical collision) while the observer
+    stands 8 blocks south; a frozen cow with yaw 33.3 is spawned each item
+    for the rotation its `AddActor` carries."""
+    start = [0.5, -60, 0.5, 0]
+    observer = [0.5, -60, 8.5, 180]
+    cow = [3.5, -60, -3.5, 33.3]
+    orders = [
+        ('still', '0 0 0 0 40 2', 40),
+        ('turn', '0 0 0 9000 40 2', 50),
+        ('walk-plain', '200 0 0 0 30 0', 45),
+        ('walk-forward', '216 0 0 0 30 3', 45),
+        ('walk-turn', '150 0 150 -7000 30 3', 45),
+        ('step-up', '0 420 0 0 1 0', 20),
+        ('tilt', '0 0 0 0 30 2 3000', 40),
+        ('tilt-turn', '0 0 0 5000 30 2 -2000', 40),
+    ]
+    return [{'key': key, 'order': order, 'ticks': ticks, 'start': start, 'observer': observer, 'cow': cow}
+            for key, order, ticks in orders]
+
+
 def reload_items(args) -> list[dict]:
     """`knockback-reload --items spawn` (three zombies, each hit once and left
     in the world) or `--items reload` (the same zombies, loaded from the first
@@ -380,10 +501,22 @@ def build_job(args, out: Path) -> dict:
         job.update(furnace='furnace', lit_furnace='minecraft:lit_furnace', input='cobblestone',
                    max_ticks=args.max_ticks,
                    items=[{'key': name, 'item': name} for name in item_names(args.items, SLICE_FUELS)])
-    elif args.kind in ('knockback', 'knockback-reload'):
+    elif args.kind in ('knockback', 'knockback-reload', 'bonus'):
         # Zombies need a difficulty above peaceful and burn in daylight.
-        job['setup_commands'] = SETUP + ['difficulty easy', 'time set 18000']
-        job['items'] = knockback_items(args) if args.kind == 'knockback' else reload_items(args)
+        job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
+        job['items'] = {'knockback': knockback_items, 'knockback-reload': reload_items,
+                        'bonus': bonus_items}[args.kind](args)
+        if args.kind == 'bonus':
+            job['kind'] = 'spawn_bonus'
+    elif args.kind == 'walk':
+        if not args.observer:
+            raise SystemExit('walk needs --observer')
+        job['items'] = walk_items(args)
+    elif args.kind == 'range':
+        if not args.observer:
+            raise SystemExit('range needs --observer')
+        job['kind'] = 'send_range'
+        job['items'] = range_items(args)
     if args.observer:
         job['observer'] = OBSERVER_NAME
     return job
@@ -392,7 +525,7 @@ def build_job(args, out: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
-                                         'knockback', 'knockback-reload'])
+                                         'knockback', 'knockback-reload', 'range', 'bonus', 'walk'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
@@ -408,6 +541,8 @@ def main() -> int:
                         help=f'add a second client, {OBSERVER_NAME}, recording to <out>/observer/packets.jsonl')
     parser.add_argument('--view-distance', type=int, default=6, help='server view distance in chunks')
     parser.add_argument('--tick-distance', type=int, default=4, help='server simulation distance in chunks (4-12)')
+    parser.add_argument('--difficulty', default='easy', choices=['easy', 'normal', 'hard'],
+                        help='knockback, knockback-reload, bonus: the difficulty set before the job')
     parser.add_argument('--keep-world', action='store_true',
                         help='copy the world to <out>/world after BDS stops (it is deleted otherwise)')
     parser.add_argument('--world-from', type=Path,
@@ -441,7 +576,7 @@ def main() -> int:
     if args.world_from:
         shutil.copytree(args.world_from, world)
     # A world with zombies in it must load above peaceful, which removes them.
-    difficulty = 'easy' if args.kind == 'knockback-reload' else 'peaceful'
+    difficulty = args.difficulty if args.kind in ('knockback-reload', 'bonus') else 'peaceful'
     properties = bds_runtime.base_properties(
         LEVEL, level_type='FLAT', gamemode='creative', force_gamemode='true', difficulty=difficulty,
         default_player_permission_level='operator', view_distance=args.view_distance,
