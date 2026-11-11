@@ -4,6 +4,7 @@
 """
 
 import json
+import struct
 import sys
 import tempfile
 import unittest
@@ -11,7 +12,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
+import leveldb_read  # noqa: E402
 import native  # noqa: E402
+import subchunk_fixture  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
 
@@ -124,6 +127,68 @@ class RuntimeSlotTest(unittest.TestCase):
         self.assertEqual(properties['server-portv6'], bds_runtime.PORT + 1)
         self.assertEqual(properties['enable-lan-visibility'], 'false')
         self.assertEqual(bds_runtime.ADDR, f'127.0.0.1:{bds_runtime.PORT}')
+
+
+def nbt_string(text: str) -> bytes:
+    return struct.pack('<H', len(text)) + text.encode()
+
+
+def palette_entry(name: str, states: bytes = b'') -> bytes:
+    """`{name, states, version}` as BDS 1.26.51 saves a palette entry."""
+    return (b'\x0a' + nbt_string('') + b'\x08' + nbt_string('name') + nbt_string(name)
+            + b'\x0a' + nbt_string('states') + states + b'\x00'
+            + b'\x03' + nbt_string('version') + struct.pack('<i', 18168865) + b'\x00')
+
+
+class SubchunkRecords(unittest.TestCase):
+    def test_two_bit_persistent_storage_decodes_in_xzy_order(self):
+        words = b''.join(struct.pack('<I', sum(((w * 16 + i) % 3) << (2 * i) for i in range(16)))
+                         for w in range(256))
+        axis = b'\x08' + nbt_string('pillar_axis') + nbt_string('x')
+        value = (bytes([9, 1, 0xFC, 2 << 1]) + words + struct.pack('<i', 3) + palette_entry('minecraft:air')
+                 + palette_entry('minecraft:stone') + palette_entry('minecraft:oak_log', axis))
+        (layer,) = subchunk_fixture.subchunk(value)
+        self.assertEqual(layer['bits'], 2)
+        cells = subchunk_fixture.layer_states(layer)
+        self.assertEqual(cells[0], ('minecraft:air', ()))
+        self.assertEqual(cells[4095], ('minecraft:air', ()))  # 4095 % 3 == 0
+        self.assertEqual(subchunk_fixture.cell(cells[2]), 'minecraft:oak_log|pillar_axis=sx')
+        with self.assertRaises(ValueError):
+            subchunk_fixture.subchunk(value + b'\x00')  # bytes after the last storage
+
+    def test_zero_bit_storage_has_no_palette_length(self):
+        (layer,) = subchunk_fixture.subchunk(bytes([9, 1, 1, 0]) + palette_entry('minecraft:end_stone'))
+        self.assertEqual(layer['palette'], [('minecraft:end_stone', ())])
+        self.assertEqual(set(layer['indices']), {0})
+
+    def test_runtime_form_and_out_of_palette_indices_are_rejected(self):
+        with self.assertRaises(ValueError):
+            subchunk_fixture.subchunk(bytes([9, 1, 0, 1, 2]))
+        words = struct.pack('<I', 1) + bytes(4 * 127)
+        with self.assertRaises(ValueError):
+            subchunk_fixture.subchunk(bytes([9, 1, 0, 2]) + words + struct.pack('<i', 1)
+                                      + palette_entry('minecraft:air'))
+
+    def test_keys_name_dimension_chunk_and_y(self):
+        key = subchunk_fixture.chunk_key(1, -2, 3, -4)
+        self.assertEqual(len(key), 14)
+        self.assertEqual(subchunk_fixture.parse_key(key), (1, -2, 3, -4))
+        self.assertEqual(subchunk_fixture.parse_key(subchunk_fixture.chunk_key(0, 5, 6, 7)), (0, 5, 6, 7))
+
+
+class LevelDbLog(unittest.TestCase):
+    def test_newest_write_and_deletions_win(self):
+        def batch(sequence: int, writes: list) -> bytes:
+            body = struct.pack('<QI', sequence, len(writes))
+            for key, value in writes:
+                body += bytes([0 if value is None else 1, len(key)]) + key
+                if value is not None:
+                    body += bytes([len(value)]) + value
+            return struct.pack('<IHB', 0, len(body), 1) + body  # one FULL record
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / '000003.log'
+            log.write_bytes(batch(1, [(b'a', b'old'), (b'b', b'gone')]) + batch(3, [(b'a', b'new'), (b'b', None)]))
+            self.assertEqual(leveldb_read.read_db(tmp), {b'a': b'new'})
 
 
 if __name__ == '__main__':
