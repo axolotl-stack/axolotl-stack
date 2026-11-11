@@ -385,7 +385,7 @@
 "minecraft:bogged/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
 "minecraft:bogged/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
 "minecraft:bogged/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.flee_sun" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:bogged/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager, but bogged cannot spawn yet" }
 "minecraft:bogged/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
 "minecraft:bogged/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
 "minecraft:bogged/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
@@ -577,7 +577,7 @@
 "minecraft:drowned/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/behavior.find_mount" = { status = "missing", gaps = "riding is not implemented; baby zombie jockeys never mount" }
-"minecraft:drowned/behavior.flee_sun" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:drowned/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager, but drowned cannot spawn yet" }
 "minecraft:drowned/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
 "minecraft:drowned/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but drowned cannot spawn yet" }
@@ -908,7 +908,7 @@
 "minecraft:parched/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
 "minecraft:parched/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.flee_sun" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:parched/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager, but parched cannot spawn yet" }
 "minecraft:parched/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
 "minecraft:parched/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
@@ -1229,7 +1229,7 @@
 "minecraft:skeleton/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
 "minecraft:skeleton/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
 "minecraft:skeleton/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.flee_sun" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:skeleton/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager, but skeleton cannot spawn yet" }
 "minecraft:skeleton/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
 "minecraft:skeleton/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
 "minecraft:skeleton/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
@@ -1345,7 +1345,7 @@
 "minecraft:stray/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
 "minecraft:stray/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
 "minecraft:stray/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.flee_sun" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
+"minecraft:stray/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager, but stray cannot spawn yet" }
 "minecraft:stray/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
 "minecraft:stray/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
 "minecraft:stray/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
@@ -1749,101 +1749,101 @@
 "minecraft:zombie_pigman/spawn_egg_interaction" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_spawn_a_baby_from_their_own_spawn_egg"] }
 "minecraft:zombie_pigman/spawn_rules" = { status = "partial", owner = "entities", gaps = "the native spawn check of the zombie pigman's class is not modelled, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:zombie_pigman/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_belong_to_their_authored_families"] }
-"minecraft:zombie_villager" = { status = "missing", gaps = "not spawnable: needs behavior.flee_sun, spell_effects" }
-"minecraft:zombie_villager/annotation.break_door" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/behavior.find_mount" = { status = "missing", gaps = "riding is not implemented; baby zombie jockeys never mount" }
-"minecraft:zombie_villager/behavior.flee_sun" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
-"minecraft:zombie_villager/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/behavior.mount_pathing" = { status = "missing", gaps = "only runs while ridden; riding is not implemented" }
-"minecraft:zombie_villager/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/behavior.stomp_turtle_egg" = { status = "missing", gaps = "turtle eggs are not implemented, so there is nothing to stomp" }
-"minecraft:zombie_villager/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
-"minecraft:zombie_villager/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:zombie_villager/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/interact" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/is_baby" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/is_shaking" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
-"minecraft:zombie_villager/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/spell_effects" = { status = "missing", gaps = "not implemented: needs mob effects" }
-"minecraft:zombie_villager/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)", notes = "Drowned conversion still needs swim navigation, the trident ranged attack, target_nearby_sensor, flee_sun and the conversion itself (entity backlog)." }
-"minecraft:zombie_villager/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager cannot spawn yet" }
-"minecraft:zombie_villager_v2" = { status = "missing", gaps = "not spawnable: needs behavior.flee_sun, spell_effects" }
-"minecraft:zombie_villager_v2/annotation.break_door" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
+"minecraft:zombie_villager" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin", notes = "BDS answers /summon minecraft:zombie_villager with a zombie_villager_v2 (native AddActor), and so does this server; the zombie_villager_v2 rows track that actor. This definition is never instantiated." }
+"minecraft:zombie_villager/annotation.break_door" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/annotation.break_door" }
+"minecraft:zombie_villager/attack" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/attack" }
+"minecraft:zombie_villager/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.equip_item" }
+"minecraft:zombie_villager/behavior.find_mount" = { status = "missing", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.find_mount" }
+"minecraft:zombie_villager/behavior.flee_sun" = { status = "missing", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.flee_sun" }
+"minecraft:zombie_villager/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.hurt_by_target" }
+"minecraft:zombie_villager/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.look_at_player" }
+"minecraft:zombie_villager/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.melee_box_attack" }
+"minecraft:zombie_villager/behavior.mount_pathing" = { status = "missing", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.mount_pathing" }
+"minecraft:zombie_villager/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.nearest_attackable_target" }
+"minecraft:zombie_villager/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.pickup_items" }
+"minecraft:zombie_villager/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.random_look_around" }
+"minecraft:zombie_villager/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.random_stroll" }
+"minecraft:zombie_villager/behavior.stomp_turtle_egg" = { status = "missing", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/behavior.stomp_turtle_egg" }
+"minecraft:zombie_villager/breathable" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/breathable" }
+"minecraft:zombie_villager/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/burns_in_daylight" }
+"minecraft:zombie_villager/can_climb" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/can_climb" }
+"minecraft:zombie_villager/collision_box" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/collision_box" }
+"minecraft:zombie_villager/conditional_bandwidth_optimization" = { status = "missing", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/conditional_bandwidth_optimization" }
+"minecraft:zombie_villager/despawn" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/despawn" }
+"minecraft:zombie_villager/equip_item" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/equip_item" }
+"minecraft:zombie_villager/experience_reward" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/experience_reward" }
+"minecraft:zombie_villager/health" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/health" }
+"minecraft:zombie_villager/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/hurt_on_condition" }
+"minecraft:zombie_villager/interact" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/interact" }
+"minecraft:zombie_villager/is_baby" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/is_baby" }
+"minecraft:zombie_villager/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/is_hidden_when_invisible" }
+"minecraft:zombie_villager/is_shaking" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/is_shaking" }
+"minecraft:zombie_villager/jump.static" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/jump.static" }
+"minecraft:zombie_villager/loot" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/loot" }
+"minecraft:zombie_villager/movement" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/movement" }
+"minecraft:zombie_villager/movement.basic" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/movement.basic" }
+"minecraft:zombie_villager/nameable" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/nameable" }
+"minecraft:zombie_villager/navigation.walk" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/navigation.walk" }
+"minecraft:zombie_villager/physics" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/physics" }
+"minecraft:zombie_villager/pushable_by_block" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/pushable_by_block" }
+"minecraft:zombie_villager/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/pushable_by_entity" }
+"minecraft:zombie_villager/rideable" = { status = "missing", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/rideable" }
+"minecraft:zombie_villager/scale" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/scale" }
+"minecraft:zombie_villager/shareables" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/shareables" }
+"minecraft:zombie_villager/spell_effects" = { status = "missing", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/spell_effects" }
+"minecraft:zombie_villager/transformation" = { status = "missing", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/transformation" }
+"minecraft:zombie_villager/type_family" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/type_family" }
+"minecraft:zombie_villager/variant" = { status = "partial", owner = "entities", gaps = "the zombie_villager identifier creates a zombie_villager_v2, as in BDS, so this definition never runs; see minecraft:zombie_villager_v2/variant" }
+"minecraft:zombie_villager_v2" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/facets.rs::listed_hostile_mobs_target_and_hit_a_survival_player"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin", notes = "BDS creates this actor for /summon minecraft:zombie_villager, and so does this server (the native summon's AddActor is a zombie_villager_v2); the zombie spawn rule's permutations spawn it naturally. Sub-row gaps: riding, turtle eggs, spears and the conversion into a villager (villager_v2 cannot spawn yet) are not implemented. It counts in the monster census as a permutation of the zombie spawn rule (its own definition names the monster category too; which one BDS reads is unmeasured)." }
+"minecraft:zombie_villager_v2/annotation.break_door" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/doors.rs::breaker_breaks_a_closed_oak_door_after_the_native_time_on_hard"] }
+"minecraft:zombie_villager_v2/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_hostile_mobs_target_and_hit_a_survival_player"] }
+"minecraft:zombie_villager_v2/behavior.equip_item" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_pick_up_a_better_sword_and_drop_their_old_one"] }
 "minecraft:zombie_villager_v2/behavior.find_mount" = { status = "missing", gaps = "riding is not implemented; baby zombie jockeys never mount" }
-"minecraft:zombie_villager_v2/behavior.flee_sun" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
-"minecraft:zombie_villager_v2/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
+"minecraft:zombie_villager_v2/behavior.flee_sun" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::a_burning_zombie_villager_flees_the_sun_under_cover"], gaps = "the goal follows the native rule, but brightness reads sky light without sideways spread or block light, so blocks under a solid roof are dark here and never chosen (BDS lights them from the open sides)" }
+"minecraft:zombie_villager_v2/behavior.hurt_by_target" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::hurt_mobs_target_the_mob_that_hurt_them"] }
+"minecraft:zombie_villager_v2/behavior.look_at_player" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_turn_their_heads_toward_a_nearby_player"] }
+"minecraft:zombie_villager_v2/behavior.melee_box_attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_hostile_mobs_target_and_hit_a_survival_player"] }
 "minecraft:zombie_villager_v2/behavior.mount_pathing" = { status = "missing", gaps = "only runs while ridden; riding is not implemented" }
-"minecraft:zombie_villager_v2/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
+"minecraft:zombie_villager_v2/behavior.nearest_attackable_target" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_hostile_mobs_target_and_hit_a_survival_player", "crates/unastar/src/entity/mob/tests/facets.rs::listed_hostile_mobs_ignore_creative_players"] }
+"minecraft:zombie_villager_v2/behavior.pickup_items" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_pick_up_a_better_sword_and_drop_their_old_one"] }
+"minecraft:zombie_villager_v2/behavior.random_look_around" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::idle_listed_mobs_look_around_within_the_angle_range"] }
+"minecraft:zombie_villager_v2/behavior.random_stroll" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
 "minecraft:zombie_villager_v2/behavior.stomp_turtle_egg" = { status = "missing", gaps = "turtle eggs are not implemented, so there is nothing to stomp" }
 "minecraft:zombie_villager_v2/behavior.use_kinetic_weapon" = { status = "missing", gaps = "kinetic (spear) weapons and charge attacks are not implemented; a mob holding a spear uses its melee attack" }
-"minecraft:zombie_villager_v2/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
-"minecraft:zombie_villager_v2/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:zombie_villager_v2/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/interact" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/is_baby" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/is_shaking" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/mark_variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/offspring" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
+"minecraft:zombie_villager_v2/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
+"minecraft:zombie_villager_v2/burns_in_daylight" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::a_burning_zombie_villager_flees_the_sun_under_cover"] }
+"minecraft:zombie_villager_v2/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
+"minecraft:zombie_villager_v2/collision_box" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin" }
+"minecraft:zombie_villager_v2/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: network send-rate tuning is not modelled; every significant change is replicated" }
+"minecraft:zombie_villager_v2/despawn" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_despawn_far_from_players_and_stay_near_them"] }
+"minecraft:zombie_villager_v2/equip_item" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_pick_up_a_better_sword_and_drop_their_old_one"] }
+"minecraft:zombie_villager_v2/experience_reward" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player"] }
+"minecraft:zombie_villager_v2/health" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin" }
+"minecraft:zombie_villager_v2/hurt_on_condition" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_standing_in_lava_are_hurt_by_it"] }
+"minecraft:zombie_villager_v2/interact" = { status = "partial", owner = "entities", gaps = "the golden-apple cure is compiled but untested: it needs weakness, which nothing implemented gives a mob (no splash potions)" }
+"minecraft:zombie_villager_v2/is_baby" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_babies_are_flagged_half_scale_and_small"] }
+"minecraft:zombie_villager_v2/is_hidden_when_invisible" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin" }
+"minecraft:zombie_villager_v2/is_shaking" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::a_cured_zombie_villager_loses_weakness_and_gains_strength_without_healing"] }
+"minecraft:zombie_villager_v2/jump.static" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_jump_a_block_to_reach_a_stroll_target"] }
+"minecraft:zombie_villager_v2/loot" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player"] }
+"minecraft:zombie_villager_v2/mark_variant" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin", notes = "Only the default (0) biome mark is compared with the native summon; the other biomes' marks are untested." }
+"minecraft:zombie_villager_v2/movement" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin" }
+"minecraft:zombie_villager_v2/movement.basic" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:zombie_villager_v2/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
+"minecraft:zombie_villager_v2/navigation.walk" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles", "crates/unastar/src/entity/mob/tests/facets.rs::a_burning_zombie_villager_flees_the_sun_under_cover"] }
+"minecraft:zombie_villager_v2/offspring" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_spawn_a_baby_from_their_own_spawn_egg"] }
+"minecraft:zombie_villager_v2/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_fall_and_stay_on_the_ground"] }
+"minecraft:zombie_villager_v2/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:zombie_villager_v2/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::overlapping_listed_mobs_push_each_other_apart"] }
 "minecraft:zombie_villager_v2/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
-"minecraft:zombie_villager_v2/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/skin_id" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/spell_effects" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:zombie_villager_v2/scale" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/facets.rs::listed_babies_are_flagged_half_scale_and_small"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin" }
+"minecraft:zombie_villager_v2/shareables" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_pick_up_a_better_sword_and_drop_their_old_one"] }
+"minecraft:zombie_villager_v2/skin_id" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin", notes = "The native summon's skin (0) is compared; the skin draw's distribution is not." }
+"minecraft:zombie_villager_v2/spawn_egg_interaction" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_spawn_a_baby_from_their_own_spawn_egg"] }
+"minecraft:zombie_villager_v2/spell_effects" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::a_cured_zombie_villager_loses_weakness_and_gains_strength_without_healing"], gaps = "effects are given and taken as BDS does, but mob effects do not tick, expire or reach the client on mobs" }
 "minecraft:zombie_villager_v2/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)", notes = "Drowned conversion still needs swim navigation, the trident ranged attack, target_nearby_sensor, flee_sun and the conversion itself (entity backlog)." }
-"minecraft:zombie_villager_v2/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
-"minecraft:zombie_villager_v2/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but zombie_villager_v2 cannot spawn yet" }
+"minecraft:zombie_villager_v2/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_belong_to_their_authored_families"] }
+"minecraft:zombie_villager_v2/variant" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin", notes = "The native summon's profession (0) is compared; the profession draw's distribution is not." }
 
 # object (170)
 "minecraft:area_effect_cloud" = { status = "missing", gaps = "not spawnable: no native AddActor attribute observation is retained for it" }
@@ -2226,7 +2226,7 @@
 "minecraft:bee/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:bee/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:bee/spawn_rules" = { status = "partial", gaps = "bee cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
-"minecraft:bee/spell_effects" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:bee/spell_effects" = { status = "partial", owner = "entities", gaps = "implemented (mob effects do not tick or replicate) and tested on the zombie villager, but bee cannot spawn yet" }
 "minecraft:bee/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:bee/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:camel" = { status = "missing", gaps = "not spawnable: needs behavior.player_ride_tamed, behavior.random_look_around_and_sit, dash_action, equippable, healable, input_ground_controlled (+3 more)" }
@@ -3891,7 +3891,7 @@
 "minecraft:player/pushable_by_block" = { status = "missing", gaps = "nothing pushes actors (no piston actor pushing)" }
 "minecraft:player/raid_trigger" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:player/rideable" = { status = "missing", gaps = "riding is not implemented (parrots never perch on players)" }
-"minecraft:player/spell_effects" = { status = "missing", gaps = "not implemented: needs mob effects driven by definition events" }
+"minecraft:player/spell_effects" = { status = "partial", owner = "entities", gaps = "implemented (mob effects do not tick or replicate) and tested on the zombie villager, but player cannot spawn yet" }
 "minecraft:player/timer" = { status = "missing", gaps = "raid omen timer needs villages and raids" }
 "minecraft:player/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"], notes = "Players answer is_family player natively (entity/mob/events.rs); other families of the definition are not read." }
 

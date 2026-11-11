@@ -555,6 +555,7 @@ fn hurt_mobs_target_the_mob_that_hurt_them() {
         ("minecraft:zombie", 3.5),
         ("minecraft:husk", 3.5),
         ("minecraft:zoglin", 20.5),
+        ("minecraft:zombie_villager_v2", 3.5),
     ] {
         let mut h = harness(11, Difficulty::Normal);
         let player = h.player;
@@ -754,4 +755,59 @@ fn a_zombie_pigman_drawing_the_undeclared_jockey_branch_spawns_without_groups() 
         );
     }
     assert!(none > 0, "the undeclared branch never drawn");
+}
+
+/// `/summon minecraft:zombie_villager` creates the actor BDS emits for it,
+/// a `zombie_villager_v2`, whose AddActor equals the native summon's once
+/// the spawn draws the profession (`VARIANT` 0) and skin (`SKIN_ID` 0) the
+/// native one drew.
+#[test]
+fn summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon() {
+    let mut h = harness(19, Difficulty::Easy);
+    let native = native(include_bytes!(
+        "../../../../../bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin"
+    ));
+    assert_eq!(&*native.actor_type, "minecraft:zombie_villager_v2");
+    let feet = DVec3::new(
+        f64::from(native.position.x),
+        f64::from(native.position.y),
+        f64::from(native.position.z),
+    );
+    let world = h.world();
+    let drawn = |world: &World, mob: Entity, id: u32| match world
+        .get::<EntityMetadata>(mob)
+        .and_then(|metadata| metadata.get(id))
+    {
+        Some(jolyne::valentine::types::DataItemEntryPayload::DataItemIntPayload(item)) => {
+            Some(item.value)
+        }
+        _ => None,
+    };
+    let mob = (0..4000)
+        .find_map(|_| {
+            let mob = spawn_mob(
+                world,
+                "minecraft:zombie_villager",
+                feet,
+                0.0,
+                SpawnCause::Spawned,
+            )
+            .unwrap();
+            apply_pending_definitions(world);
+            assert_eq!(
+                &*world.get::<MobKind>(mob).unwrap().0.identifier,
+                "minecraft:zombie_villager_v2"
+            );
+            let native_like = !flag(world, mob, actor_flags::BABY)
+                && drawn(world, mob, jolyne::valentine::actor_data_i_ds::VARIANT) == Some(0)
+                && drawn(world, mob, jolyne::valentine::actor_data_i_ds::SKIN_ID) == Some(0);
+            if native_like {
+                Some(mob)
+            } else {
+                world.despawn(mob);
+                None
+            }
+        })
+        .expect("an adult unskilled zombie villager with skin 0");
+    assert_add_actor_matches(h.world(), "minecraft:zombie_villager_v2", mob, &native);
 }

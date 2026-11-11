@@ -44,6 +44,9 @@ const WITHER_SKELETON: &str = "minecraft:wither_skeleton";
 const ENDERMITE: &str = "minecraft:endermite";
 const ZOMBIE_PIGMAN: &str = "minecraft:zombie_pigman";
 const ZOGLIN: &str = "minecraft:zoglin";
+/// `/summon minecraft:zombie_villager` creates this actor (see
+/// `hostile::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon`).
+const ZOMBIE_VILLAGER: &str = "minecraft:zombie_villager_v2";
 
 fn block(name: &str) -> u32 {
     BlockRegistry::vanilla()
@@ -262,7 +265,14 @@ fn horizontal(a: DVec3, b: DVec3) -> f64 {
 /// stays on it.
 #[test]
 fn listed_mobs_fall_and_stay_on_the_ground() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN, ZOGLIN] {
+    for identifier in [
+        HUSK,
+        WITHER_SKELETON,
+        ENDERMITE,
+        ZOMBIE_PIGMAN,
+        ZOGLIN,
+        ZOMBIE_VILLAGER,
+    ] {
         let mut a = floor(1, Difficulty::Normal, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, 70.0, 0.5));
         a.without::<RandomStrollGoal>(mob);
@@ -287,7 +297,14 @@ fn listed_mobs_fall_and_stay_on_the_ground() {
 #[test]
 fn listed_mobs_stroll_within_their_range_around_obstacles() {
     let stone = block("minecraft:stone");
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN, ZOGLIN] {
+    for identifier in [
+        HUSK,
+        WITHER_SKELETON,
+        ENDERMITE,
+        ZOMBIE_PIGMAN,
+        ZOGLIN,
+        ZOMBIE_VILLAGER,
+    ] {
         let mut a = arena(3, Difficulty::Normal, GameMode::Creative, move |pos| {
             let pillar = matches!((pos.x, pos.z), (3, 1) | (-2, 4) | (1, -3));
             (pillar && (64..=66).contains(&pos.y)).then_some(stone)
@@ -329,7 +346,13 @@ fn listed_mobs_stroll_within_their_range_around_obstacles() {
 #[test]
 fn listed_mobs_jump_a_block_to_reach_a_stroll_target() {
     let grass = block("minecraft:grass_block");
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN] {
+    for identifier in [
+        HUSK,
+        WITHER_SKELETON,
+        ENDERMITE,
+        ZOMBIE_PIGMAN,
+        ZOMBIE_VILLAGER,
+    ] {
         let mut a = arena(5, Difficulty::Normal, GameMode::Creative, move |pos| {
             let pit = (-1..=1).contains(&pos.x) && (-1..=1).contains(&pos.z);
             (pos.y == 64 && !pit).then_some(grass)
@@ -353,7 +376,14 @@ fn listed_mobs_jump_a_block_to_reach_a_stroll_target() {
 /// other until their boxes no longer overlap.
 #[test]
 fn overlapping_listed_mobs_push_each_other_apart() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN, ZOGLIN] {
+    for identifier in [
+        HUSK,
+        WITHER_SKELETON,
+        ENDERMITE,
+        ZOMBIE_PIGMAN,
+        ZOGLIN,
+        ZOMBIE_VILLAGER,
+    ] {
         let mut a = floor(7, Difficulty::Normal, GameMode::Creative);
         let first = a.adult(identifier, DVec3::new(0.4, SURFACE, 0.5));
         let second = a.adult(identifier, DVec3::new(0.6, SURFACE, 0.5));
@@ -401,7 +431,13 @@ fn listed_mobs_float_up_in_water() {
 /// turns its head (not its body) toward a creative player four blocks east.
 #[test]
 fn listed_mobs_turn_their_heads_toward_a_nearby_player() {
-    for identifier in [HUSK, WITHER_SKELETON, ZOMBIE_PIGMAN, ZOGLIN] {
+    for identifier in [
+        HUSK,
+        WITHER_SKELETON,
+        ZOMBIE_PIGMAN,
+        ZOGLIN,
+        ZOMBIE_VILLAGER,
+    ] {
         let mut a = floor(11, Difficulty::Normal, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         a.without::<RandomStrollGoal>(mob);
@@ -426,7 +462,13 @@ fn listed_mobs_turn_their_heads_toward_a_nearby_player() {
 /// goal's angle range of its body without moving.
 #[test]
 fn idle_listed_mobs_look_around_within_the_angle_range() {
-    for identifier in [HUSK, WITHER_SKELETON, ZOMBIE_PIGMAN, ZOGLIN] {
+    for identifier in [
+        HUSK,
+        WITHER_SKELETON,
+        ZOMBIE_PIGMAN,
+        ZOGLIN,
+        ZOMBIE_VILLAGER,
+    ] {
         let mut a = floor(13, Difficulty::Normal, GameMode::Creative);
         a.move_player(DVec3::new(-14.5, SURFACE, -14.5));
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
@@ -460,7 +502,14 @@ fn idle_listed_mobs_look_around_within_the_angle_range() {
 /// 32 blocks.
 #[test]
 fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOMBIE_PIGMAN, ZOGLIN] {
+    for identifier in [
+        HUSK,
+        WITHER_SKELETON,
+        ENDERMITE,
+        ZOMBIE_PIGMAN,
+        ZOGLIN,
+        ZOMBIE_VILLAGER,
+    ] {
         let mut a = floor(15, Difficulty::Normal, GameMode::Creative);
         let near = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         a.without::<RandomStrollGoal>(near);
@@ -477,7 +526,12 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
 /// definition gives it, and not for a family it lacks.
 #[test]
 fn listed_mobs_belong_to_their_authored_families() {
-    let cases: [(&str, &[&str], &str); 5] = [
+    let cases: [(&str, &[&str], &str); 6] = [
+        (
+            ZOMBIE_VILLAGER,
+            &["zombie", "zombie_villager", "undead", "monster", "mob"],
+            "baby_undead",
+        ),
         (
             ZOGLIN,
             &["zoglin", "zoglin_adult", "undead", "monster", "mob"],
@@ -528,7 +582,18 @@ fn listed_mobs_belong_to_their_authored_families() {
 /// kill without equipment.
 #[test]
 fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
-    let cases: [(&str, &[&str], Option<&str>, u32); 5] = [
+    let cases: [(&str, &[&str], Option<&str>, u32); 6] = [
+        (
+            ZOMBIE_VILLAGER,
+            &[
+                "minecraft:rotten_flesh",
+                "minecraft:iron_ingot",
+                "minecraft:carrot",
+                "minecraft:potato",
+            ],
+            Some("minecraft:rotten_flesh"),
+            5,
+        ),
         (
             ZOGLIN,
             &["minecraft:rotten_flesh"],
@@ -600,7 +665,7 @@ fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
 /// by the lava cause and burns to death.
 #[test]
 fn listed_mobs_standing_in_lava_are_hurt_by_it() {
-    for identifier in [HUSK, ENDERMITE] {
+    for identifier in [HUSK, ENDERMITE, ZOMBIE_VILLAGER] {
         let mut a = floor(21, Difficulty::Normal, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         a.without::<RandomStrollGoal>(mob);
@@ -669,7 +734,7 @@ fn tough_player(a: &mut Arena) {
 /// cooldown.
 #[test]
 fn listed_hostile_mobs_target_and_hit_a_survival_player() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOGLIN] {
+    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOGLIN, ZOMBIE_VILLAGER] {
         let mut a = floor(23, Difficulty::Normal, GameMode::Survival);
         tough_player(&mut a);
         a.move_player(DVec3::new(6.5, SURFACE, 0.5));
@@ -694,7 +759,7 @@ fn listed_hostile_mobs_target_and_hit_a_survival_player() {
 /// targeted.
 #[test]
 fn listed_hostile_mobs_ignore_creative_players() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOGLIN] {
+    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOGLIN, ZOMBIE_VILLAGER] {
         let mut a = floor(25, Difficulty::Hard, GameMode::Creative);
         a.move_player(DVec3::new(4.5, SURFACE, 0.5));
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
@@ -738,7 +803,7 @@ fn a_provoked_zombie_pigman_hits_the_player_that_hurt_it() {
 /// held.
 #[test]
 fn listed_mobs_pick_up_a_better_sword_and_drop_their_old_one() {
-    for identifier in [HUSK, WITHER_SKELETON, ZOMBIE_PIGMAN] {
+    for identifier in [HUSK, WITHER_SKELETON, ZOMBIE_PIGMAN, ZOMBIE_VILLAGER] {
         let mut a = floor(29, Difficulty::Easy, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         a.without::<RandomStrollGoal>(mob);
@@ -866,7 +931,7 @@ fn listed_babies_are_flagged_half_scale_and_small() {
     use crate::entity::definition::metadata::EntityMetadata;
     use jolyne::valentine::actor_data_i_ds as ids;
     use jolyne::valentine::types::DataItemEntryPayload;
-    for identifier in [HUSK, ZOMBIE_PIGMAN, ZOGLIN] {
+    for identifier in [HUSK, ZOMBIE_PIGMAN, ZOGLIN, ZOMBIE_VILLAGER] {
         let mut a = floor(33, Difficulty::Normal, GameMode::Creative);
         let adult = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         let baby = a.spawn(identifier, DVec3::new(-3.5, SURFACE, 0.5), true);
@@ -903,11 +968,12 @@ fn listed_mobs_spawn_a_baby_from_their_own_spawn_egg() {
         ActorRuntimeId, EnumsItemUseOnActorInventoryTransactionActionType as ActionType,
         ItemUseOnActorInventoryTransaction,
     };
-    for identifier in [HUSK, ZOMBIE_PIGMAN, ZOGLIN] {
+    for identifier in [HUSK, ZOMBIE_PIGMAN, ZOGLIN, ZOMBIE_VILLAGER] {
         let mut a = floor(35, Difficulty::Normal, GameMode::Survival);
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         a.without::<RandomStrollGoal>(mob);
-        let egg = format!("{identifier}_spawn_egg");
+        // The zombie villager's egg is named for the summon identifier.
+        let egg = format!("{}_spawn_egg", identifier.trim_end_matches("_v2"));
         let stack = world_stack(a.world(), &egg, 2).unwrap();
         let player = a.player;
         a.world()
@@ -1074,4 +1140,102 @@ fn a_zoglin_is_hit_on_its_hit_box_beyond_its_collision_box() {
         let hit = world.get::<Health>(mob).unwrap().current < max;
         assert_eq!(hit, lands, "{identifier}");
     }
+}
+
+/// A zombie villager in the open at noon, a one-layer oak-leaf canopy over
+/// x 4..=8, z -2..=2 (sky light 14 under it), with its idle goals removed;
+/// `from_village` gives it `behavior.flee_sun` when `flee`.
+fn sunlit_zombie_villager(seed: u64, flee: bool, time: u64) -> (Arena, Entity) {
+    let leaves = block("minecraft:oak_leaves");
+    let mut a = arena(seed, Difficulty::Normal, GameMode::Creative, move |pos| {
+        ((4..=8).contains(&pos.x) && (-2..=2).contains(&pos.z) && pos.y == 66).then_some(leaves)
+    });
+    crate::world::clock::set_time(a.world(), time);
+    let mob = a.adult(ZOMBIE_VILLAGER, DVec3::new(0.5, SURFACE, 0.5));
+    if flee {
+        let event = a
+            .world()
+            .get::<MobKind>(mob)
+            .unwrap()
+            .0
+            .events
+            .event("from_village")
+            .unwrap();
+        crate::entity::mob::events::fire_event(a.world(), mob, &event, None).unwrap();
+        apply_pending_definitions(a.world());
+    }
+    a.without::<RandomStrollGoal>(mob);
+    a.without::<RandomLookAroundGoal>(mob);
+    a.move_player(DVec3::new(-14.5, SURFACE, -14.5));
+    (a, mob)
+}
+
+fn under_canopy(feet: DVec3) -> bool {
+    (4.0..9.0).contains(&feet.x) && (-2.0..3.0).contains(&feet.z)
+}
+
+/// `behavior.flee_sun` (the abandoned-village group): a zombie villager
+/// set alight by the sun walks under the leaf canopy; without the goal, or
+/// at night when it never burns, it stays in the open.
+#[test]
+fn a_burning_zombie_villager_flees_the_sun_under_cover() {
+    use crate::entity::mob::combat::fire::is_burning;
+    const NOON: u64 = 6_000;
+    for (flee, time, takes_cover) in [
+        (true, NOON, true),
+        (false, NOON, false),
+        (true, MIDNIGHT, false),
+    ] {
+        let (mut a, mob) = sunlit_zombie_villager(45, flee, time);
+        let mut burned = false;
+        let mut covered = false;
+        for _ in 0..400 {
+            a.ticks(1);
+            let world = a.world();
+            if world.get_entity(mob).is_err() {
+                break;
+            }
+            burned |= is_burning(world, mob);
+            if under_canopy(world.get::<Position>(mob).unwrap().0) {
+                covered = true;
+                break;
+            }
+        }
+        assert_eq!(burned, time == NOON, "flee {flee} at {time}");
+        assert_eq!(covered, takes_cover, "flee {flee} at {time}");
+    }
+}
+
+/// `spell_effects` (the cure's `to_villager` group): weakness is removed and
+/// strength is given for 300 s; the group's `heal` is no effect name, so
+/// the hurt zombie villager is not healed.
+#[test]
+fn a_cured_zombie_villager_loses_weakness_and_gains_strength_without_healing() {
+    use crate::entity::components::{EffectType, Effects};
+    let mut a = floor(46, Difficulty::Normal, GameMode::Creative);
+    let mob = a.adult(ZOMBIE_VILLAGER, DVec3::new(0.5, SURFACE, 0.5));
+    let world = a.world();
+    world.get_mut::<Health>(mob).unwrap().current = 7.0;
+    world
+        .entity_mut(mob)
+        .insert(Effects::default())
+        .get_mut::<Effects>()
+        .unwrap()
+        .add(EffectType::WEAKNESS, 0, 1200);
+    let event = world
+        .get::<MobKind>(mob)
+        .unwrap()
+        .0
+        .events
+        .event("villager_converted")
+        .unwrap();
+    crate::entity::mob::events::fire_event(world, mob, &event, None).unwrap();
+    apply_pending_definitions(world);
+    let effects = world.get::<Effects>(mob).unwrap();
+    assert!(!effects.has(EffectType::WEAKNESS));
+    let strength = effects.get(EffectType::STRENGTH).expect("strength");
+    assert_eq!((strength.level, strength.duration_ticks), (0, 6000));
+    assert_eq!(effects.active.len(), 1);
+    assert_eq!(world.get::<Health>(mob).unwrap().current, 7.0);
+    assert!(flag(world, mob, actor_flags::SHAKING), "is_shaking");
 }

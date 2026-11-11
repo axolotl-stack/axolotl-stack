@@ -181,12 +181,11 @@ impl Harness {
             })
             .unwrap_or_else(|| panic!("a plain adult {identifier} in 400 spawns"));
         if breaker {
-            let group = world
-                .get::<MobKind>(zombie)
-                .unwrap()
-                .0
-                .definition
+            // The zombie villager's group has no `minecraft:` prefix.
+            let definition = &world.get::<MobKind>(zombie).unwrap().0.definition;
+            let group = definition
                 .group("minecraft:can_break_doors")
+                .or_else(|| definition.group("can_break_doors"))
                 .unwrap();
             queue_group_change(world, zombie, GroupChange::Add(group)).unwrap();
             apply_pending_definitions(world);
@@ -270,8 +269,13 @@ impl Harness {
 
 #[test]
 fn breaker_breaks_a_closed_oak_door_after_the_native_time_on_hard() {
-    // The husk shares the zombie's `minecraft:can_break_doors` group.
-    for identifier in ["minecraft:zombie", "minecraft:husk"] {
+    // The husk and the zombie villager share the zombie's
+    // `minecraft:can_break_doors` group.
+    for identifier in [
+        "minecraft:zombie",
+        "minecraft:husk",
+        "minecraft:zombie_villager_v2",
+    ] {
         breaks_a_closed_oak_door_on_hard(identifier);
     }
 }

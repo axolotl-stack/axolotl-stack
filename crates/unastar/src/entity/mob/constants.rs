@@ -578,6 +578,14 @@ pub const MATERIAL_ICE: u8 = 13;
 /// Material ordinal of leaves: a spawn column whose top spawn block is
 /// leaves keeps its next spawn block below on the surface.
 pub const MATERIAL_LEAVES: u8 = 7;
+// --- Flee sun (`behavior.flee_sun`, confirmed) --------------------------------
+
+/// Candidate cover blocks drawn per attempt to start …
+pub const FLEE_SUN_ATTEMPTS: u32 = 10;
+/// … each `random(2 × range) - range` from the feet block on x/z and y.
+pub const FLEE_SUN_RANGE_XZ: i32 = 10;
+pub const FLEE_SUN_RANGE_Y: i32 = 3;
+
 /// The overworld brightness ramp: the brightness each raw light level
 /// `0..=15` stands for, `(1 - f) / (3f + 1)` with `f = 1 - level / 15`, as
 /// the f32 values the game stores (confirmed).
@@ -610,6 +618,10 @@ pub const ANIMAL_GRASS_WALK_TARGET: f32 = 10.0;
 /// An animal's walk-target value elsewhere is the brightness ramp at the
 /// block plus this (confirmed).
 pub const ANIMAL_WALK_TARGET_OFFSET: f32 = -0.5;
+/// An animal's or monster's walk-target value above a magma block, unless
+/// it is fire immune (a grass block below an animal wins; confirmed).
+pub const MAGMA_WALK_TARGET: f32 = -0.5;
+pub const MAGMA_BLOCK: &str = "minecraft:magma";
 /// A naturally spawned monster needs raw brightness below this at its feet
 /// (confirmed).
 pub const MONSTER_SPAWN_BRIGHTNESS_LIMIT: u8 = 8;

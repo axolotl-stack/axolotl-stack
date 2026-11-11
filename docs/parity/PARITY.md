@@ -12,8 +12,8 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 115 | 0 | 3 | 15 | 4 | 13.5% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1014 | 2697 | 281 | 44 | 46 | 8.1% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 113 | 0 | 3 | 17 | 4 | 15.0% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1004 | 2672 | 308 | 52 | 46 | 8.9% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
@@ -30,7 +30,7 @@ Open rows are missing or partial headline rows (the first summary line of each d
 
 Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for the area: `area`, `owner` (your `@github-handle`), `since` (the date), `domain`, and the `families`, `ids` or id `prefixes` you are taking, and `change` (the OpenSpec change doing the work, if any); remove it when you stop or when the change is archived. `parity check` rejects unknown families or ids and claims that overlap, so talk to the owner of a claimed area before working inside it. The rest of the workflow is in [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-**Entities**: 61 open rows free, 54 claimed.
+**Entities**: 61 open rows free, 52 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
@@ -43,7 +43,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 54 |
+| Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 52 |
 
 **Blocks**: 381 open rows free, 487 claimed.
 
@@ -122,7 +122,7 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | aquatic | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
 | boss | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
 | built_in | 9 | 4 | 0 | 0 | 2 | 3 | 33.3% |
-| hostile | 38 | 32 | 0 | 0 | 6 | 0 | 15.8% |
+| hostile | 38 | 30 | 0 | 0 | 8 | 0 | 21.1% |
 | object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
@@ -134,35 +134,35 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | pushable_by_block | 117 | 2 | 115 | 0 | 0 | 0 | 0.0% |
-| conditional_bandwidth_optimization | 116 | 99 | 16 | 0 | 0 | 1 | 0.0% |
-| physics | 125 | 0 | 109 | 14 | 1 | 1 | 12.1% |
-| type_family | 124 | 1 | 107 | 15 | 0 | 1 | 12.2% |
-| collision_box | 124 | 0 | 107 | 10 | 6 | 1 | 13.0% |
-| pushable_by_entity | 109 | 0 | 99 | 10 | 0 | 0 | 9.2% |
+| conditional_bandwidth_optimization | 116 | 98 | 17 | 0 | 0 | 1 | 0.0% |
+| physics | 125 | 0 | 108 | 15 | 1 | 1 | 12.9% |
+| type_family | 124 | 1 | 106 | 16 | 0 | 1 | 13.0% |
+| collision_box | 124 | 0 | 106 | 10 | 7 | 1 | 13.8% |
+| pushable_by_entity | 109 | 0 | 98 | 11 | 0 | 0 | 10.1% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
 | breathable | 84 | 1 | 83 | 0 | 0 | 0 | 0.0% |
-| health | 94 | 1 | 82 | 5 | 5 | 1 | 10.8% |
-| is_hidden_when_invisible | 92 | 1 | 81 | 0 | 10 | 0 | 10.9% |
-| movement | 92 | 0 | 82 | 5 | 5 | 0 | 10.9% |
-| hurt_on_condition | 87 | 0 | 78 | 8 | 0 | 1 | 9.3% |
-| jump.static | 79 | 0 | 70 | 9 | 0 | 0 | 11.4% |
-| experience_reward | 80 | 0 | 69 | 11 | 0 | 0 | 13.8% |
-| loot | 78 | 0 | 67 | 10 | 0 | 1 | 13.0% |
-| despawn | 76 | 0 | 66 | 10 | 0 | 0 | 13.2% |
-| behavior.look_at_player | 69 | 0 | 60 | 9 | 0 | 0 | 13.0% |
+| health | 94 | 1 | 81 | 5 | 6 | 1 | 11.8% |
+| is_hidden_when_invisible | 92 | 1 | 80 | 0 | 11 | 0 | 12.0% |
+| movement | 92 | 0 | 81 | 5 | 6 | 0 | 12.0% |
+| hurt_on_condition | 87 | 0 | 77 | 9 | 0 | 1 | 10.5% |
+| jump.static | 79 | 0 | 69 | 10 | 0 | 0 | 12.7% |
+| experience_reward | 80 | 0 | 68 | 12 | 0 | 0 | 15.0% |
+| loot | 78 | 0 | 66 | 11 | 0 | 1 | 14.3% |
+| despawn | 76 | 0 | 65 | 11 | 0 | 0 | 14.5% |
+| behavior.look_at_player | 69 | 0 | 59 | 10 | 0 | 0 | 14.5% |
 | can_climb | 57 | 0 | 57 | 0 | 0 | 0 | 0.0% |
-| navigation.walk | 66 | 0 | 56 | 10 | 0 | 0 | 15.2% |
-| movement.basic | 65 | 0 | 55 | 10 | 0 | 0 | 15.4% |
+| navigation.walk | 66 | 0 | 55 | 11 | 0 | 0 | 16.7% |
 | spawn_rules | 59 | 5 | 50 | 4 | 0 | 0 | 6.8% |
-| behavior.random_stroll | 64 | 0 | 54 | 10 | 0 | 0 | 15.6% |
-| behavior.random_look_around | 55 | 0 | 46 | 9 | 0 | 0 | 16.4% |
+| movement.basic | 65 | 0 | 54 | 11 | 0 | 0 | 16.9% |
+| behavior.random_stroll | 64 | 0 | 53 | 11 | 0 | 0 | 17.2% |
+| behavior.random_look_around | 55 | 0 | 45 | 10 | 0 | 0 | 18.2% |
 | behavior.float | 49 | 0 | 44 | 5 | 0 | 0 | 10.2% |
-| behavior.nearest_attackable_target | 49 | 0 | 44 | 5 | 0 | 0 | 10.2% |
+| behavior.nearest_attackable_target | 49 | 0 | 43 | 6 | 0 | 0 | 12.2% |
 | leashable | 43 | 39 | 4 | 0 | 0 | 0 | 0.0% |
-| attack | 48 | 0 | 42 | 6 | 0 | 0 | 12.5% |
 | leashable_to | 42 | 38 | 4 | 0 | 0 | 0 | 0.0% |
+| attack | 48 | 0 | 41 | 7 | 0 | 0 | 14.6% |
 | damage_sensor | 39 | 0 | 38 | 1 | 0 | 0 | 2.6% |
-| scale | 47 | 0 | 38 | 5 | 4 | 0 | 19.1% |
+| scale | 47 | 0 | 37 | 5 | 5 | 0 | 21.3% |
 
 ### Entities gaps
 
@@ -182,7 +182,7 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **hostile**
 
-- missing: `minecraft:blaze`, `minecraft:bogged`, `minecraft:breeze`, `minecraft:cave_spider`, `minecraft:creaking`, `minecraft:creeper`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:enderman`, `minecraft:evocation_illager`, `minecraft:ghast`, `minecraft:guardian` and 20 more
+- missing: `minecraft:blaze`, `minecraft:bogged`, `minecraft:breeze`, `minecraft:cave_spider`, `minecraft:creaking`, `minecraft:creeper`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:enderman`, `minecraft:evocation_illager`, `minecraft:ghast`, `minecraft:guardian` and 18 more
 
 **object**
 

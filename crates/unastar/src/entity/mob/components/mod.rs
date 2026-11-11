@@ -51,8 +51,8 @@ pub use equipment::{
     EquipItemConfig, EquipItemGoal, EquipmentConfig, PickupItemsGoal, ShareablesConfig,
 };
 pub use goals::{
-    BreedGoal, EatBlockGoal, EatBlockPair, FloatGoal, FollowParentGoal, GoalBase, LookAtPlayerGoal,
-    PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal,
+    BreedGoal, EatBlockGoal, EatBlockPair, FleeSunGoal, FloatGoal, FollowParentGoal, GoalBase,
+    LookAtPlayerGoal, PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal,
 };
 pub use hostile::{
     AttackConfig, BurnsInDaylightConfig, HurtByTargetGoal, MeleeBoxAttackGoal,

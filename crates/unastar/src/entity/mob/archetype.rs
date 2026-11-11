@@ -320,6 +320,7 @@ fn attribute_seed(
     identifier: &str,
 ) -> Result<(AttributeLayout, Box<[AttributeValue]>), ArchetypeError> {
     let observed = unastar_data::actor_wire::get(identifier)
+        .or_else(|| unastar_data::actor_wire::get_emitted(identifier))
         .ok_or_else(|| ArchetypeError::NoAttributeObservation(identifier.to_owned()))?;
     let layout = AttributeLayout::new(
         observed
@@ -399,6 +400,25 @@ impl MobRegistry {
         for (id, reason) in broken {
             archetypes.remove(&id);
             unsupported.insert(id, Arc::new(reason));
+        }
+        // A summon alias spawns the actor BDS emits for it (`/summon
+        // minecraft:zombie_villager` creates a `zombie_villager_v2`), or
+        // fails for that actor's reason.
+        for (alias, emitted) in unastar_data::actor_wire::summon_aliases() {
+            if !definitions
+                .iter()
+                .any(|source| source.identifier() == alias)
+            {
+                continue;
+            }
+            let alias: Arc<str> = Arc::from(alias);
+            if let Some(archetype) = archetypes.get(emitted).map(Arc::clone) {
+                unsupported.remove(&alias);
+                archetypes.insert(alias, archetype);
+            } else if let Some(reason) = unsupported.get(emitted).map(Arc::clone) {
+                archetypes.remove(&alias);
+                unsupported.insert(alias, reason);
+            }
         }
         Ok(Self {
             archetypes: Arc::new(archetypes),

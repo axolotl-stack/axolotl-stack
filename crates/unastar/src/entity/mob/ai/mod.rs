@@ -12,6 +12,7 @@
 mod break_door;
 mod control;
 mod eat_block;
+mod flee_sun;
 mod goals;
 mod melee;
 mod nearby;
