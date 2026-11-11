@@ -13,7 +13,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2643 | 170 | 9 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
@@ -134,10 +134,10 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | pushable_by_block | 117 | 2 | 115 | 0 | 0 | 0 | 0.0% |
-| conditional_bandwidth_optimization | 116 | 105 | 10 | 0 | 0 | 1 | 0.0% |
 | physics | 125 | 0 | 115 | 9 | 0 | 1 | 7.3% |
 | type_family | 124 | 1 | 113 | 9 | 0 | 1 | 7.3% |
 | collision_box | 124 | 0 | 113 | 10 | 0 | 1 | 8.1% |
+| conditional_bandwidth_optimization | 116 | 105 | 8 | 0 | 2 | 1 | 1.7% |
 | pushable_by_entity | 109 | 0 | 104 | 5 | 0 | 0 | 4.6% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
 | health | 94 | 1 | 87 | 5 | 0 | 1 | 5.4% |

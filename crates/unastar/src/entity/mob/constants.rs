@@ -23,7 +23,8 @@ pub const MOVE_ARRIVAL_FLOOR: f32 = 0.5;
 pub const MOVE_DESCEND_CAP: f32 = 0.25;
 /// The travel step's forward input is the move control's speed × this
 /// (BDS 1.26.51: a walking cow at speed `s` gains `0.98 s²` per tick on
-/// grass, through every step of its 10 %/tick speed ramp).
+/// grass, through every step of its 10 %/tick speed ramp). Measured on
+/// land and in the air only; it is applied in liquids too, unmeasured.
 pub const MOVE_INPUT_DECAY: f32 = 0.98;
 /// Vertical velocity of a living mob with gravity when it spawns or is born
 /// (80 of the 112 BDS 1.26.51 summon captures: every living actor with
