@@ -20,7 +20,7 @@ The server SHALL advance each survival break's progress by its own per-input bre
 - **WHEN** a breaking player sends no `PlayerAuthInput` for ten server ticks
 - **THEN** the break does not advance during those ticks and still completes on its 15th input
 
-Evidence: crates/unastar/src/server/game/blocks.rs (`MAX_BLOCK_ACTIONS`, `process_auth_input_block_actions`, `advance_breaking`, `refuse_prediction`, `break_block`, tests `survival_breaks_advance_per_input_and_refuse_early_predictions`, `break_time_uses_tool_and_ground_state`), crates/unastar/src/server/game/blocks/breaking_tests.rs (`survival_breaking_answers_every_input_like_bds`, replaying `testdata/bds-breaking.jsonl`), crates/unastar/src/entity/components/player.rs (`BreakingState`), crates/unastar/src/server/game/movement.rs (`apply_movement`), [docs/parity/systems.toml](../../../docs/parity/systems.toml) (`player.block_breaking`), [docs/quirks/bds.md](../../../docs/quirks/bds.md) (Blocks / mining: the packets that answer each input, and when a break ends)
+Evidence: crates/unastar/src/server/game/blocks.rs (`MAX_BLOCK_ACTIONS`, `process_auth_input_block_actions`, `advance_breaking`, `refuse_prediction`, `break_block`, tests `survival_breaks_advance_per_input_and_refuse_early_predictions`, `break_time_uses_tool_and_ground_state`), crates/unastar/src/server/game/blocks/breaking_tests.rs (`survival_breaking_answers_every_input_like_bds`, replaying `testdata/bds-breaking.jsonl`), crates/unastar/src/entity/components/player.rs (`BreakingState`), crates/unastar/src/server/game/movement.rs (`apply_movement`), [docs/parity/systems.toml](../../../../../../docs/parity/systems.toml) (`player.block_breaking`), [docs/quirks/bds.md](../../../../../../docs/quirks/bds.md) (Blocks / mining: the packets that answer each input, and when a break ends)
 
 ## ADDED Requirements
 
@@ -52,4 +52,4 @@ A player's `PlayerAuthInput`s that arrive in the same tick SHALL each advance th
 - **WHEN** a survival player breaking dirt by hand sends its 2nd to 16th inputs at once
 - **THEN** the block breaks on the 15th input without waiting for further ticks, and the 16th input finds air
 
-Evidence: crates/unastar/src/server/game/blocks.rs (`apply_block_actions`, `MAX_WAITING_BLOCK_ACTIONS`), crates/unastar/src/server/game/blocks/breaking_tests.rs (`survival_breaking_answers_every_input_like_bds`: the burst scenario), [docs/quirks/bds.md](../../../docs/quirks/bds.md) (Blocks / mining: inputs are not held to server time)
+Evidence: crates/unastar/src/server/game/blocks.rs (`apply_block_actions`, `MAX_WAITING_BLOCK_ACTIONS`), crates/unastar/src/server/game/blocks/breaking_tests.rs (`survival_breaking_answers_every_input_like_bds`: the burst scenario), [docs/quirks/bds.md](../../../../../../docs/quirks/bds.md) (Blocks / mining: inputs are not held to server time)
