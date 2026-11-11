@@ -23,7 +23,7 @@ Each group may become its own OpenSpec change when work starts. Every group ends
 
 - [ ] D.1 Random-tick sweep, then scheduler, then crop/leaf/grass behaviour (`world.random_ticks`)
 - [ ] D.2 Autosave cadence capture, then periodic save of dirty chunks
-- [ ] D.3 `SetHealthPacket`; test for `SetCommandsEnabledPacket`
+- [x] D.3 `SetHealthPacket`; test for `SetCommandsEnabledPacket` (done in the archived change `protocol-join-roster`)
 - [ ] D.4 `UnlockedRecipes` and recipe-book auto-craft (`CraftRecipeAuto` layout from a captured client packet, via `valentine_gen` overrides if the layout is wrong)
 
 ## E. Engineering follow-ups

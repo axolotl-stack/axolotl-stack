@@ -37,6 +37,7 @@ thiserror.workspace = true
 toml_edit = { workspace = true, features = ["serde"] }
 glam.workspace = true
 uuid.workspace = true
+base64.workspace = true
 bevy_ecs.workspace = true
 bevy_tasks.workspace = true
 async-trait.workspace = true

@@ -11,6 +11,9 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `bds_runtime.py` | Starts/stops the BDS of one runtime, `BDS_RUNTIME` on `BDS_PORT` (plain or under Endstone): refuses when a `bedrock_server` from that runtime's `server/` runs or the port is bound, backs up and restores `server.properties`, harness-owned world names only, graceful `stop` |
 | `capture.py` | T1: two `bds-extractor --capture-dir` sessions on plain BDS (member join; operator join + `/summon` of every summonable identifier) into `<runtime>/captures/1.26.51/<UTC>/`; `--commands FILE` runs one operator session of scripted commands instead (`operator-commands/command-outputs.json`) |
 | `command-script.txt` | The vanilla command feedback script for `capture.py --commands` |
+| `capture.py --pair FILE` | Two or more overlapping operator sessions on one fresh world: `host/` runs FILE, guests join and leave during it (`--guests N`, one after the other or `--guest-gap S` seconds apart and online together); for what BDS sends online players when others join and leave |
+| `roster_probe.py` | Player-colour reuse probe: a guest leaves before the next one joins (schedule in its docstring) |
+| `commit_roster_fixtures.py` | Copies the roster packets of `--pair`/probe runs into `crates/bds-extractor/captures/1.26.51/roster/` |
 | `command_digest.py` | `command-outputs.json` to a readable per-command `digest.md` (CommandOutput fields, key fields of every other packet) |
 | `commit_fixtures.py` | Copies the committed subset of a capture into `crates/bds-extractor/captures/1.26.51/` (see the crate README) |
 | `sweep.py` | T2: one sweep job under Endstone with `bds-sweep-client` as the player; output in `<runtime>/sweeps/1.26.51/<kind>-<UTC>/` |
@@ -56,6 +59,10 @@ To create a slot, copy `bds-runtime/server` without `worlds/`, `logs/` and
 `captures/` and `sweeps/`, and link the venv:
 `mklink /J <slot>\venv C:\Users\jvigu\orca\bds-runtime\venv`. Slots hold the
 same BDS 1.26.51 build; the launcher checks `version.txt` either way.
+
+Each `bds-extractor` debug process needs a few hundred MB: about 20 guests at
+once ran this machine out of memory (2026-11-11), so keep `--guests` with
+`--guest-gap` around 12 or fewer.
 
 ## Scripted client controls
 

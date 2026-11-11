@@ -99,14 +99,31 @@ pub struct AwaitingSpawnStatus;
 /// System: Send `PlayStatus(PlayerSpawn)` once, after this tick's publisher
 /// update and chunks. The client then loads the terrain still streaming in
 /// and sends `SetLocalPlayerAsInitialized` when it is ready.
+///
+/// BDS 1.26.51 sends `SetHealth` with the player's health right before it
+/// (member join capture `00202-SetHealthPacket.bin`); it is the only time
+/// BDS sends that packet, health changes travel in `UpdateAttributes`.
 pub fn send_spawn_status(
     mut commands: Commands,
-    players: Query<(Entity, &PlayerSession, &LastPublisherState), With<AwaitingSpawnStatus>>,
+    players: Query<
+        (
+            Entity,
+            &PlayerSession,
+            &LastPublisherState,
+            Option<&crate::entity::components::Health>,
+        ),
+        With<AwaitingSpawnStatus>,
+    >,
 ) {
-    for (player_entity, session, publisher_state) in players.iter() {
+    for (player_entity, session, publisher_state, health) in players.iter() {
         if !publisher_state.published() {
             continue; // the view comes first
         }
+        let health = health.cloned().unwrap_or_default();
+        // [INFERENCE] Fractional health is truncated; BDS was measured at 20.
+        session.send(McpePacket::from(jolyne::valentine::SetHealthPacket {
+            health: health.current as i32,
+        }));
         let spawned = session.send(McpePacket::from(PlayStatusPacket {
             status: PlayStatusPacketStatus::Playerspawn,
         }));

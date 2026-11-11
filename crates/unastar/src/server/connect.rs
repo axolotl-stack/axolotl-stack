@@ -3,7 +3,7 @@
 //! Contains the handshake logic for new player connections.
 
 use glam::DVec3;
-use jolyne::auth::ValidatedIdentity;
+use jolyne::auth::{ClientData, ValidatedIdentity};
 use jolyne::stream::raknet_types::{ServerHandshakeStream, ServerPlayStream};
 use jolyne::stream::{Failed, RakNetTransport};
 use jolyne::valentine::types::{BlockPos, Vec2, Vec3};
@@ -47,6 +47,7 @@ pub async fn accept_join_sequence(
         ValidatedIdentity,
         Vec3,
         Option<PlayerData>,
+        ClientData,
     ),
     JolyneError,
 > {
@@ -70,6 +71,8 @@ pub async fn accept_join_sequence(
     // proved it holds the login's key.
     let packs = reasoned(secure.finish_handshake(server_key)).await?;
     let identity = packs.login().identity.clone();
+    // The validated login client data: the skin and platform the player list shows.
+    let client_data = packs.login().client_data.clone();
 
     // 4. Resource packs (from the listener config)
     let start_game_state = reasoned(packs.negotiate_packs()).await?;
@@ -103,6 +106,10 @@ pub async fn accept_join_sequence(
     // The clock, difficulty and game rules as they are now, not as the
     // template was built at startup.
     world.state.apply(&mut join_params.start_game);
+    // The player's game mode travels in StartGame only: BDS sends no
+    // SetPlayerGameType during the join.
+    join_params.start_game.game_type =
+        crate::server::game::join::game_type(config.server.default_gamemode);
     if let Some(saved) = &saved_data {
         join_params.start_game.game_type = match saved.game_mode {
             0 => jolyne::valentine::EnumsGameType::Survival,
@@ -127,7 +134,7 @@ pub async fn accept_join_sequence(
     // `PlayStatus(PlayerSpawn)`, and keep streaming while the client loads (BDS
     // order). The play receive path enforces `SetLocalPlayerAsInitialized`.
     let play = reasoned(start_game_state.start_game_streamed(join_params)).await?;
-    Ok((play, identity, initial_position, saved_data))
+    Ok((play, identity, initial_position, saved_data, client_data))
 }
 
 /// Load validated player state once, before StartGame and ECS spawning.
