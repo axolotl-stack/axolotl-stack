@@ -60,7 +60,11 @@ Evidence: crates/unastar-rules/src/filter.rs (`Filter::parse`, `Filter::to_json`
 - **WHEN** `{"test": "made_up", "value": 3}` is parsed and evaluated with a context that answers every question with a match
 - **THEN** there is one diagnostic, `to_json` keeps `made_up`, and the filter is `false`
 
-Evidence: crates/unastar-rules/src/filter.rs (`FilterRegistry::vanilla`, `FilterRegistry::register`, `FilterRegistry::lookup`, `TestId`; tests `builtin_table_matches_enum_order`, `unknown_test_is_kept_logged_and_false`), crates/unastar-packs/tests/vanilla.rs (`every_vanilla_filter_test_is_implemented`)
+#### Scenario: Taken name
+- **WHEN** `addon_glowing` is registered twice with different value kinds, or a built-in name is registered
+- **THEN** the second call fails with "filter test addon_glowing is already registered" and the first definition stays
+
+Evidence: crates/unastar-rules/src/filter.rs (`FilterRegistry::vanilla`, `FilterRegistry::register`, `FilterRegistry::lookup`, `TestId`; tests `builtin_table_matches_enum_order`, `unknown_test_is_kept_logged_and_false`, `registering_a_taken_test_name_fails_and_keeps_the_first`), crates/unastar-packs/tests/vanilla.rs (`every_vanilla_filter_test_is_implemented`)
 
 ### Requirement: Filter evaluation over caller facts
 `Filter::evaluate` SHALL be pure: it asks the caller's `FilterContext::fact` for each test and applies groups, subjects and operators. A `None` fact (subject absent) MUST make the test `false` whatever the operator. Matching tests MUST support only `==` and `!=`. An empty `all_of` MUST pass and an empty `any_of` MUST fail.
@@ -144,7 +148,16 @@ Query names SHALL be resolved by `Expr::bind` against a `QueryRegistry` before e
 - **WHEN** `query.is_baby` is evaluated without binding
 - **THEN** evaluation returns `EvalError::Unbound`
 
-Evidence: crates/unastar-rules/src/molang/mod.rs (`Expr::bind`, `QueryRegistry::register`, `QueryContext`), crates/unastar-rules/src/molang/eval.rs (`evaluate`, `EvalError`, `MolangContext`; tests `query_context_separates_saved_property_defaults_from_live_actor_queries`, `unbound_query_is_an_error`, `variables_temps_programs_and_loops`), crates/unastar-packs/tests/vanilla.rs (`every_vanilla_molang_string_parses_and_binds`)
+#### Scenario: Loop limit
+- **WHEN** `loop(1024, ...)` and `loop(1025, ...)` are evaluated
+- **THEN** the first runs 1024 times and the second returns `EvalError::LoopLimit(1025)` before any iteration runs
+- **AND** zero or negative counts run nothing and fractional counts truncate, so `loop(1024.9, ...)` is allowed
+
+#### Scenario: Taken query name
+- **WHEN** `addon_mood` is registered and then `Addon_Mood` or the built-in `is_baby` is registered
+- **THEN** both later calls fail and `addon_mood` keeps its first id
+
+Evidence: crates/unastar-rules/src/molang/mod.rs (`Expr::bind`, `QueryRegistry::register`, `QueryContext`; test `registering_a_taken_query_name_fails_whatever_its_case`), crates/unastar-rules/src/molang/eval.rs (`evaluate`, `EvalError`, `MolangContext`, `LOOP_LIMIT`; tests `query_context_separates_saved_property_defaults_from_live_actor_queries`, `unbound_query_is_an_error`, `variables_temps_programs_and_loops`, `loops_run_at_most_1024_times`), crates/unastar-packs/tests/vanilla.rs (`every_vanilla_molang_string_parses_and_binds`)
 
 ### Requirement: Loot decoding keeps everything
 `loot::decode_table` SHALL decode a Bedrock loot table into typed pools, entries, conditions and functions while keeping the full source JSON in `LootTable::canonical`. A condition or function it does not model MUST become an explicit `Other { name, json }` value, never be dropped. A non-object table, non-object pool or unknown entry type MUST be a `ParseError`. `LootTables` MUST accept rows by name before it is shared.
@@ -170,7 +183,15 @@ Evidence: crates/unastar-rules/src/loot/decode.rs (`decode_table`), crates/unast
 - **WHEN** a later `set_count` has a condition that fails
 - **THEN** the count set by the earlier function stays
 
-Evidence: crates/unastar-rules/src/loot/evaluate.rs (`roll`, `LootContext`, `LootDrop`, `LootError`, `MAX_TABLE_DEPTH`), crates/unastar-rules/src/loot/tests.rs (`additional_entity_predicates_are_not_silently_discarded`, `missing_furnace_context_is_distinct_from_a_recipe_miss`, `false_function_guard_does_not_overwrite_an_earlier_count`, `no_this_actor_is_not_an_actor_whose_fire_state_is_false`, `tiers_pick_by_index_and_bonus_and_ignore_entry_conditions`, `nested_pools_roll_only_after_their_entry_created_an_item`), crates/unastar/src/server/game/loot/tests.rs (`block_tables_only_use_supported_features`)
+#### Scenario: Unknown or too-deep references
+- **WHEN** an entry references an absent table, a chain of table references 17 deep, a table that references itself, or 17 levels of nested `pools`
+- **THEN** the first returns `UnknownTable("entities/absent")` (never an empty drop) and the others return `TooDeep`, while a chain 16 deep still drops its item
+
+#### Scenario: Tiered and nested pools
+- **WHEN** a tiered pool and a pool whose entry carries nested `pools` are rolled
+- **THEN** the tier is picked by index and bonus, ignoring entry conditions, and nested pools roll only after their entry created an item
+
+Evidence: crates/unastar-rules/src/loot/evaluate.rs (`roll`, `LootContext`, `LootDrop`, `LootError`, `MAX_TABLE_DEPTH`), crates/unastar-rules/src/loot/tests.rs (`additional_entity_predicates_are_not_silently_discarded`, `missing_furnace_context_is_distinct_from_a_recipe_miss`, `false_function_guard_does_not_overwrite_an_earlier_count`, `no_this_actor_is_not_an_actor_whose_fire_state_is_false`, `tiers_pick_by_index_and_bonus_and_ignore_entry_conditions`, `nested_pools_roll_only_after_their_entry_created_an_item`, `a_reference_to_an_absent_table_is_an_error_not_an_empty_drop`, `table_references_resolve_up_to_sixteen_levels_deep`, `nested_pools_fail_past_the_depth_limit`), crates/unastar/src/server/game/loot/tests.rs (`block_tables_only_use_supported_features`)
 Verified by: parity row `crafting.loot_tables` in [systems.toml](../../../docs/parity/systems.toml)
 
 ### Requirement: Random enchanting without an item registry
@@ -186,3 +207,16 @@ Verified by: parity row `crafting.loot_tables` in [systems.toml](../../../docs/p
 
 Evidence: crates/unastar-rules/src/enchanting.rs (`select_enchantments`, `add_enchantment`, `max_level`, `ItemEnchanting`; tests `selected_enchantments_fit_the_item_and_never_conflict`, `levels_follow_the_minimum_costs`, `unenchantable_items_stay_plain`, `adding_respects_slots_lists_and_exclusive_groups`)
 Verified by: parity row `crafting.enchantments` in [systems.toml](../../../docs/parity/systems.toml)
+
+### Requirement: Comments name no engine internals
+Comments in `unastar-rules` sources SHALL describe behaviour, never engine symbol names (decision 0016). A test MUST scan every comment in `src/` and fail on a backticked `Upper::Upper` or `Upper::lowerCamel` name, or on a backticked lowerCamelCase identifier. Intra-doc links, snake_case Rust items such as `Outer::new`, and namespaced data ids MUST pass. The test's own examples MUST be made-up names.
+
+#### Scenario: Engine-shaped name in a doc comment
+- **WHEN** a comment contains a backticked `Outer::Inner`, `Outer::doThing` or `doThing(50)`
+- **THEN** `comments_name_no_engine_internals` fails naming the file and line
+
+#### Scenario: Rust and data names pass
+- **WHEN** a comment contains `Outer::do_thing`, `crate::loot`, `minecraft:muttonRaw` or the link [`ValueKind::Bool`]
+- **THEN** none is flagged
+
+Evidence: crates/unastar-rules/tests/provenance.rs (`comments_name_no_engine_internals`, `the_scanner_flags_both_shapes_and_spares_links_and_snake_case`), crates/unastar-rules/src/enchanting.rs, docs/decisions/0016-describe-behaviour-never-engine-internals.md

@@ -170,14 +170,14 @@ async fn rotated_bedrock_chest_and_spawner_survive_region_replay_and_provider_re
     assert_eq!(metadata(&chunk), expected);
     let directory = tempfile::tempdir().unwrap();
     {
-        let provider = LevelDBWorldProvider::open(directory.path(), 0).unwrap();
+        let provider = LevelDBWorldProvider::open(directory.path()).unwrap();
         provider
             .save_column(origin, 0, &ChunkColumn::new(chunk))
             .await
             .unwrap();
         provider.close().await.unwrap();
     }
-    let provider = LevelDBWorldProvider::open(directory.path(), 0).unwrap();
+    let provider = LevelDBWorldProvider::open(directory.path()).unwrap();
     let restored = provider.load_column(origin, 0).await.unwrap().unwrap();
     assert_eq!(metadata(&restored.chunk), expected);
     provider.close().await.unwrap();
@@ -187,7 +187,7 @@ fn layer_provider(path: &Path, blaze: bool) -> Arc<dyn WorldProvider> {
     if blaze {
         BlazeDBProvider::open(path, None).unwrap()
     } else {
-        Arc::new(LevelDBWorldProvider::open(path, 0).unwrap())
+        Arc::new(LevelDBWorldProvider::open(path).unwrap())
     }
 }
 
