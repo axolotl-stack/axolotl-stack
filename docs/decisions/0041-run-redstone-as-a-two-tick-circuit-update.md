@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-10
 decision-makers: [lane BLOCKS]
 ---
@@ -26,6 +26,8 @@ traces exactly ([0013](0013-copy-bds-behaviour-exactly.md)).
   from the update.
 
 ## Decision Outcome
+
+Accepted by the owner on 2026-11-11.
 
 Chosen option: the phased circuit update every other tick (`server/game/redstone/`), because the
 measured traces are reproducible with it and not with the other option: a lamp behind a repeater
