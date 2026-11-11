@@ -148,7 +148,8 @@ fn process_auth_input_block_actions(
                     event_buffer.push(ServerEvent::PlayerStartBreak {
                         entity: player_entity,
                         position,
-                        face: 0,
+                        // Checked to be 0..=5 above.
+                        face: face as u8,
                     });
                 }
                 if !creative {
