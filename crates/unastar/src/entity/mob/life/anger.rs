@@ -191,6 +191,9 @@ fn spread_anger(
         kin.iter(world)
             .filter(|(other, other_kind, position)| {
                 *other != mob
+                    // A mob of the same kind that is the target (one pigman
+                    // hit by another) is never provoked against itself.
+                    && *other != target
                     && std::sync::Arc::ptr_eq(&other_kind.0, &kind)
                     && position.0.distance_squared(origin) <= range_sq
             })
