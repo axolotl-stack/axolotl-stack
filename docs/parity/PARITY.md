@@ -15,7 +15,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 101 | 807 | 668 | 594 | 177 | 58.2% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 101 | 807 | 628 | 634 | 177 | 58.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 136 | 22 | 46 | 12 | 15 | 26.9% |
@@ -463,7 +463,7 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 | buckets | 9 | 3 | 3 | 2 | 1 | 0 | 33.3% |
 | education | 121 | 0 | 0 | 0 | 0 | 121 | n/a |
 | entity_placers | 57 | 31 | 0 | 0 | 24 | 2 | 43.6% |
-| food | 46 | 4 | 0 | 40 | 1 | 1 | 91.1% |
+| food | 46 | 4 | 0 | 0 | 41 | 1 | 91.1% |
 | materials_misc | 40 | 0 | 0 | 0 | 40 | 0 | 100.0% |
 | melee_weapons | 17 | 0 | 1 | 0 | 16 | 0 | 94.1% |
 | other_tools | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
@@ -497,7 +497,7 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | wearable | 30 | 0 | 1 | 1 | 28 | 0 | 96.7% |
 | digger | 141 | 0 | 0 | 0 | 139 | 2 | 100.0% |
 | enchantable | 7 | 0 | 0 | 0 | 7 | 0 | 100.0% |
-| food | 40 | 0 | 0 | 40 | 0 | 0 | 100.0% |
+| food | 40 | 0 | 0 | 0 | 40 | 0 | 100.0% |
 | fuel | 277 | 0 | 0 | 0 | 277 | 0 | 100.0% |
 | instrument | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
 | record | 22 | 0 | 0 | 0 | 22 | 0 | 100.0% |

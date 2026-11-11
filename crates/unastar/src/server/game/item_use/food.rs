@@ -336,7 +336,8 @@ pub fn potion_effects(data: i16) -> &'static [(crate::entity::components::Effect
 
 /// The effect (and its duration in ticks) of a suspicious stew with aux
 /// `data`, measured from BDS 1.26.51 (capture `item-use-20261029`, stew
-/// data 0-9). Every stew effect has amplifier 0.
+/// data 0-9; the food capture, `item_use/food_tests.rs`, data 0-13: 13 gives
+/// none). Every stew effect has amplifier 0.
 pub fn stew_effect(data: i16) -> Option<(crate::entity::components::EffectType, u32)> {
     use crate::entity::components::EffectType as E;
     Some(match data {
@@ -349,17 +350,24 @@ pub fn stew_effect(data: i16) -> Option<(crate::entity::components::EffectType, 
         7 => (E::FIRE_RESISTANCE, 60),
         8 => (E::REGENERATION, 140),
         9 => (E::WITHER, 140),
+        10 => (E::NIGHT_VISION, 100),
+        11 => (E::BLINDNESS, 140),
+        12 => (E::NAUSEA, 140),
         _ => return None,
     })
 }
 
-/// Chorus fruit: up to 16 tries to teleport to a random spot within
-/// `range` blocks (x/y/z) that has ground below and room for the player.
+/// Chorus fruit: up to 16 tries at a random spot within `range` blocks of
+/// the feet. The spot keeps its x and z and drops onto the ground below it
+/// (up to 16 blocks); it is taken where the player's box fits there. The
+/// player and those near hear `teleport` where it stood, then where it lands
+/// (BDS 1.26.51 food capture: from feet (0.5, -60, 0.5) to (6.88, -60, -1.03)).
 pub fn chorus_teleport(world: &mut World, player: Entity, range: [f32; 3]) {
     let Some(eye) = world.get::<Position>(player).map(|p| p.0) else {
         return;
     };
-    let feet = eye - DVec3::new(0.0, crate::entity::item_drop::PLAYER_EYE_HEIGHT, 0.0);
+    let eye_height = DVec3::new(0.0, crate::entity::item_drop::PLAYER_EYE_HEIGHT, 0.0);
+    let feet = eye - eye_height;
     for _ in 0..16 {
         let offset = {
             let rng = &mut world.get_resource_or_init::<EntityRandom>().0;
@@ -369,17 +377,21 @@ pub fn chorus_teleport(world: &mut World, player: Entity, range: [f32; 3]) {
                 (rng.r#gen::<f64>() - 0.5) * 2.0 * f64::from(range[2]),
             )
         };
-        let target = feet + offset;
-        if let Some(landing) = landing(world, target) {
+        if let Some(landing) = landing(world, feet + offset) {
+            use crate::entity::mob::net::sound::play_level_sound;
+            play_level_sound(world, Some(player), eye, "teleport", -1);
             super::teleport(world, player, landing, super::TeleportCause::ChorusFruit);
+            play_level_sound(world, Some(player), landing + eye_height, "teleport", -1);
             return;
         }
     }
 }
 
-/// The highest standable feet position at or below `target` (in the same
-/// column, down to 16 blocks), if the player fits there.
+/// `target`'s x and z on the ground at or below its y (down to 16 blocks),
+/// if the player's box fits there.
 fn landing(world: &World, target: DVec3) -> Option<DVec3> {
+    use crate::entity::systems::collides_with_blocks;
+    use crate::registry::collision::Aabb;
     let registry = &world
         .get_resource::<crate::server::game::types::BlockRegistryResource>()?
         .0;
@@ -391,8 +403,12 @@ fn landing(world: &World, target: DVec3) -> Option<DVec3> {
     let mut y = target.y.floor() as i32;
     for _ in 0..16 {
         if solid(x, y - 1, z)? {
-            let room = !solid(x, y, z)? && !solid(x, y + 1, z)?;
-            return room.then(|| DVec3::new(f64::from(x) + 0.5, f64::from(y), f64::from(z) + 0.5));
+            let feet = DVec3::new(target.x, f64::from(y), target.z);
+            let body = Aabb::new(
+                feet + DVec3::new(-0.3, 0.0, -0.3),
+                feet + DVec3::new(0.3, 1.8, 0.3),
+            );
+            return (!collides_with_blocks(world, body)).then_some(feet);
         }
         y -= 1;
     }

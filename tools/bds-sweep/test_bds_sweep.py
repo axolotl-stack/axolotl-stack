@@ -15,6 +15,7 @@ import bds_runtime  # noqa: E402
 import breaking_fixture  # noqa: E402
 import combat_fixture  # noqa: E402
 import experience_table  # noqa: E402
+import food_table  # noqa: E402
 import native  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
@@ -303,6 +304,27 @@ class BreakingFixture(unittest.TestCase):
 
     def test_windows_parse(self):
         self.assertEqual(breaking_fixture.parse_windows('80-110,120-130'), [(80, 110), (120, 130)])
+
+
+class FoodTable(unittest.TestCase):
+    def test_each_use_runs_to_the_clear_after_it(self):
+        script = '\n'.join([
+            '# comment',
+            '50 /effect @s hunger 6 63 true',
+            '175 /effect @s clear',
+            '177 /give @s apple 1 0',
+            '180 use',
+            '220 /effect @s clear',
+            '225 /effect @s clear',
+            '230 /give @s suspicious_stew 1 5',
+            '235 use',
+            '275 /effect @s clear',
+        ])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'script.txt'
+            path.write_text(script, encoding='utf-8')
+            foods = food_table.schedule(path)
+        self.assertEqual(foods, [(180, 220, 'apple', 0), (235, 275, 'suspicious_stew', 5)])
 
 
 class RuntimeSlotTest(unittest.TestCase):

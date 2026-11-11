@@ -364,11 +364,10 @@ fn chorus_fruit_teleports_onto_standable_ground_within_its_range() {
             continue;
         }
         moved += 1;
-        // Only the floor's top is standable: block centres at y = 64, at most
-        // 8 blocks away on each axis.
+        // Only the floor's top is standable: y = 64, the random x and z kept
+        // (BDS lands off block centres), at most 8 blocks away on each axis.
         assert_eq!(feet.y, 64.0, "seed {seed}: {feet}");
-        assert_eq!((feet.x.fract(), feet.z.fract()), (0.5, 0.5), "seed {seed}");
-        assert!((feet.x - start.x).abs() <= 8.5 && (feet.z - start.z).abs() <= 8.5);
+        assert!((feet.x - start.x).abs() <= 8.0 && (feet.z - start.z).abs() <= 8.0);
         assert_eq!(teleports.len(), 1, "seed {seed}");
         assert_eq!(teleports[0].position_mode, Mode::Teleport);
         assert_eq!(teleports[0].position.y, (feet + eye).y as f32);

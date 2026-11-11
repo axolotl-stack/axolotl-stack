@@ -77,9 +77,16 @@ pub struct Replay {
 
 impl Replay {
     pub fn new() -> Self {
+        Self::with_difficulty(ServerConfig::default().difficulty)
+    }
+
+    /// [`Replay::new`] at `difficulty` (the scripts' worlds are peaceful
+    /// unless they set it).
+    pub fn with_difficulty(difficulty: crate::world::rules::Difficulty) -> Self {
         let mut server = GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             operators: vec!["BDSSweep".into()],
+            difficulty,
             ..ServerConfig::default()
         });
         server

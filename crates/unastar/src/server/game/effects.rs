@@ -202,8 +202,16 @@ fn heal(world: &mut World, player: Entity, amount: f32) {
 /// Saturation: `amplifier + 1` food points and twice that saturation.
 fn saturate(world: &mut World, player: Entity, amplifier: u8) {
     if let Some(mut hunger) = world.get_mut::<Hunger>(player) {
-        hunger.eat(i32::from(amplifier) + 1, 1.0);
+        saturation_pulse(&mut hunger, amplifier);
     }
+}
+
+/// One pulse of Saturation: the food level rises by the amplifier + 1 and
+/// saturation stays as it is (BDS 1.26.51 food capture: amplifier 0 took
+/// food 11 to 12 and amplifier 1 took 0 to 2 with saturation 0 both times;
+/// a suspicious stew's 6 ticks took food 18 to 20 with saturation 7.2 kept).
+fn saturation_pulse(hunger: &mut Hunger, amplifier: u8) {
+    hunger.food_level = (hunger.food_level + i32::from(amplifier) + 1).clamp(0, Hunger::MAX_FOOD);
 }
 
 /// Whether an effect with `remaining` ticks left at `amplifier` acts this
@@ -296,7 +304,7 @@ pub fn apply_player_effects(
             hunger.exhaust(0.005 * (f32::from(e.level) + 1.0));
         }
         if let Some(e) = effects.get(EffectType::SATURATION) {
-            hunger.eat(i32::from(e.level) + 1, 1.0);
+            saturation_pulse(&mut hunger, e.level);
         }
         // Absorption hearts last while the effect lasts; damage taken from
         // them only lowers the amount.
@@ -388,8 +396,16 @@ pub fn sync_player_effects(
                 }
             }
         }
+        // Added in the order they were applied: BDS lists a food's effects
+        // as its document does (food capture: the enchanted golden apple's
+        // regeneration, absorption, resistance, fire resistance).
         let mut active: Vec<_> = active.into_iter().flatten().collect();
-        active.sort_by_key(|(effect, _)| effect.0);
+        active.sort_by_key(|(effect, _)| {
+            (
+                effects.map_or(0, |effects| effects.applied_order(**effect)),
+                effect.0,
+            )
+        });
         for (effect, state) in active {
             // A duration that only counted down is not a change.
             let event = match sent.0.get(effect) {

@@ -758,8 +758,8 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Behaviour | Status | Evidence |
 |---|---|---|
 | Eat/drink: start on air use, server finishes after the use duration, early consume finishes at once, release or slot switch cancels | done | BDS capture (timing, `CompletedUsingItem` 1 / -1, burp at eye - 0.1, using flag word to the user too) |
-| Food values, effects, removed effects, bowls/bottles, milk clears effects | done | pack data; golden apple, rotten flesh, honey, milk compared with the capture |
-| Suspicious stew effects (data 0-9) | done | BDS capture table |
+| Food values, effects (in document order), removed effects, bowls/bottles, the burp, milk clears effects | done | every vanilla food eaten against the BDS food captures (`server/game/item_use/food_tests.rs`) |
+| Suspicious stew effects (data 0-13), the Saturation effect (food level only), chorus fruit teleport (random x/z kept, teleport sounds) | done | BDS food captures |
 | Chorus fruit teleport | done | `on_use_range` from pack data; 16 tries and the landing search are public references |
 | Hunger tick: exhaustion steps, regeneration at 18 food, starvation floors, peaceful refill | done | survival research; hunger drain matched the capture (0.005 x 256 per tick) |
 | Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; per-metre accounting is a public reference |
