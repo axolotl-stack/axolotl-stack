@@ -15,7 +15,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 101 | 807 | 628 | 634 | 177 | 58.2% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 101 | 807 | 627 | 635 | 177 | 58.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 136 | 22 | 46 | 12 | 15 | 26.9% |
@@ -466,7 +466,7 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 | food | 46 | 4 | 0 | 0 | 41 | 1 | 91.1% |
 | materials_misc | 40 | 0 | 0 | 0 | 40 | 0 | 100.0% |
 | melee_weapons | 17 | 0 | 1 | 0 | 16 | 0 | 94.1% |
-| other_tools | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
+| other_tools | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
 | potions_drinks | 3 | 0 | 0 | 0 | 2 | 1 | 100.0% |
 | ranged_weapons | 8 | 0 | 2 | 2 | 4 | 0 | 75.0% |
 | spawn_eggs | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
@@ -481,7 +481,7 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | spawn_egg | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
 | entity_placer | 33 | 31 | 0 | 0 | 0 | 2 | 0.0% |
 | bundle | 17 | 17 | 0 | 0 | 0 | 0 | 0.0% |
-| durability | 83 | 3 | 8 | 3 | 67 | 2 | 86.4% |
+| durability | 83 | 3 | 8 | 2 | 68 | 2 | 86.4% |
 | kinetic_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
 | piercing_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
 | repairable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |

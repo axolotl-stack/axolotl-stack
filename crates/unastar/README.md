@@ -775,7 +775,9 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | `/enchant` on spears | done | BDS command capture (`item/spear_enchant_tests.rs`) |
 | Armour wear when hurt (`max(1, floor(damage/4))` per piece with armour points; the elytra never) | done | BDS armour-wear sweep (`entity/player_life/tests/hurt.rs`) |
 | Grid repair (multi recipe `...0001`) | not done | BDS advertises it; result rule unmeasured |
-| Hoe, shovel, axe (strip, wax off, scrape), shears on pumpkins, flint and steel, fire charges | done | public reference; sound names unmeasured |
+| Hoe, shovel, axe (strip, wax off, scrape), shears on pumpkins, fire charges | done | public reference; sound names unmeasured |
+| Flint and steel: the click corrections, update, `ignite` position, relit campfire actor data and wear (no slot update) | done | BDS capture (`server/game/item_use/flint_tests.rs`) |
+| Placed containers announced with actor data: chests, ender chests and barrels, not furnaces or hoppers | done | BDS capture (`server/game/containers/tests.rs`) |
 | Bone meal on crops, stems, berry bushes and grass | done | public reference; saplings (tree features) and flowers not done |
 | Buckets: take and place water, lava, powder snow | done | public reference; liquids do not flow, fish/axolotl buckets not done |
 | Bow, crossbow, snowball, egg | done | capture (speeds 3.0/3.15/1.5, sounds); draw curve and spread are public references |

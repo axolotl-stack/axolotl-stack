@@ -870,13 +870,28 @@ pub(super) fn placed(world: &mut World, pos: IVec3) {
     if load(world, pos).is_none() {
         return;
     }
-    // BDS announces a new container actor with its client-side state
-    // (`{BlockEntityVersion, id, x, y, z}` after `/setblock chest`).
-    send_client_state(world, pos);
+    // BDS announces a new chest, trapped chest, ender chest or barrel with
+    // its client-side state (`{BlockEntityVersion, id, x, y, z}`), not a
+    // furnace, blast furnace, smoker or hopper (placement capture,
+    // `tools/bds-sweep/scripts/containers-flint.txt`).
+    if announced_on_placement(kind) {
+        send_client_state(world, pos);
+    }
     if kind.pairs() {
         try_pair(world, pos, kind);
     }
     save(world, pos);
+}
+
+/// Whether BDS sends a placed container's actor data right away.
+pub(super) fn announced_on_placement(kind: ContainerKind) -> bool {
+    matches!(
+        kind,
+        ContainerKind::Chest
+            | ContainerKind::TrappedChest
+            | ContainerKind::EnderChest
+            | ContainerKind::Barrel
+    )
 }
 
 fn try_pair(world: &mut World, pos: IVec3, kind: ContainerKind) {

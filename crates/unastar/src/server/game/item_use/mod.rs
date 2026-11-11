@@ -568,6 +568,8 @@ fn feed(world: &World, player: Entity, stack: &ItemStack) {
 #[cfg(test)]
 mod drink_tests;
 #[cfg(test)]
+mod flint_tests;
+#[cfg(test)]
 mod food_tests;
 #[cfg(test)]
 mod tests;

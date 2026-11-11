@@ -595,7 +595,7 @@ fn held_block(world: &World, entity: Entity) -> Option<(u32, &crate::item::ItemS
     Some((block.default_state_id, stack, item.network_id()))
 }
 
-fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
+pub(crate) fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
     let Some(block_runtime_id) = block_at(world, position) else {
         return;
     };
@@ -1179,6 +1179,23 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 /// viewers (with the place sound when `place_sound`) and schedule gravity
 /// checks for the block and the one above it.
 pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    set_block_sending(world, pos, block_runtime_id, place_sound, true);
+}
+
+/// [`set_block`] whose update reaches the viewers only with the tick's
+/// batched block updates, after what the server sends meanwhile (BDS answers
+/// a flint and steel click with its corrections first).
+pub(crate) fn set_block_batched(world: &mut World, pos: IVec3, block_runtime_id: u32) {
+    set_block_sending(world, pos, block_runtime_id, false, false);
+}
+
+fn set_block_sending(
+    world: &mut World,
+    pos: IVec3,
+    block_runtime_id: u32,
+    place_sound: bool,
+    send_now: bool,
+) {
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
@@ -1230,6 +1247,9 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
     super::falling::schedule_gravity_checks(world, pos);
 
     // Broadcast to viewers
+    if !send_now {
+        return;
+    }
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
         use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
