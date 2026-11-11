@@ -12,6 +12,12 @@
 //! destroy events in order, and the block updates, drops and tool wear in
 //! order. BDS sometimes repeats the block and block-above update pair of a
 //! break in the same tick; the repeat is not compared.
+//!
+//! Every scenario rolls from its own seed. A drop that is random on BDS
+//! (short grass's wheat seeds) is not compared with the one roll the capture
+//! happened to make: on both sides it must be an outcome the BDS drop sweep
+//! measured for that block and held item
+//! (`unastar-data/data/measured/block_drops/`).
 
 use bytes::BytesMut;
 use glam::{DVec3, IVec3};
@@ -26,6 +32,11 @@ use crate::registry::BlockRegistry;
 use crate::server::game::{GameServer, PlayerSpawnData, ServerConfig};
 
 const BDS: &str = include_str!("testdata/bds-breaking.jsonl");
+/// The BDS drop sweep's outcomes for short grass, per held item.
+const SHORT_GRASS_DROPS: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../unastar-data/data/measured/block_drops/short_grass.json"
+));
 const SESSION: u64 = 7;
 /// The sweep arena: the player's feet, facing east at the west face of the
 /// mined block.
@@ -324,6 +335,54 @@ fn set_up(h: &mut Harness, index: usize) {
     }
     h.tick();
     h.drain();
+    // Each scenario's rolls, whatever the scenarios before it rolled.
+    h.world()
+        .insert_resource(crate::entity::EntityRandom::seeded(index as u64));
+}
+
+/// The drops BDS's drop sweep saw from the block scenario `index` breaks,
+/// one list per outcome, if that drop is random: short grass by hand gives
+/// nothing or one wheat seeds. The sweep's outcomes are `;`-separated
+/// `name@data` + `x` + count stacks, `""` for nothing.
+fn random_drop_outcomes(index: usize) -> Option<Vec<Vec<Event>>> {
+    let (table, held) = match index {
+        2 => (SHORT_GRASS_DROPS, "hand"),
+        _ => return None,
+    };
+    let table: serde_json::Value = serde_json::from_str(table).unwrap();
+    let case = table["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| {
+            case["tools"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|tool| tool == held)
+        })
+        .unwrap_or_else(|| panic!("no measured drops with {held}"));
+    let outcomes = case["observed"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(|outcome| {
+            outcome
+                .split(';')
+                .filter(|stack| !stack.is_empty())
+                .map(|stack| {
+                    let (name, data_count) = stack.rsplit_once('@').unwrap();
+                    let (_, count) = data_count.split_once('x').unwrap();
+                    let id = crate::item::test_support::stack(name, 1)
+                        .item()
+                        .unwrap()
+                        .network_id() as i16;
+                    Event::Drop(id, count.parse().unwrap())
+                })
+                .collect()
+        })
+        .collect();
+    Some(outcomes)
 }
 
 fn in_window_step(h: &mut Harness, index: usize, input: u64) {
@@ -396,8 +455,25 @@ fn survival_breaking_answers_every_input_like_bds() {
                     .filter_map(|packet| event(packet, Some(tool))),
             );
         }
-        let (bds_levels, bds_rest) = split(bds);
-        let (our_levels, our_rest) = split(ours);
+        let (bds_levels, mut bds_rest) = split(bds);
+        let (our_levels, mut our_rest) = split(ours);
+        if let Some(outcomes) = random_drop_outcomes(index) {
+            for (who, rest) in [("BDS", &mut bds_rest), ("ours", &mut our_rest)] {
+                let drops: Vec<Event> = rest
+                    .iter()
+                    .filter(|event| matches!(event, Event::Drop(..)))
+                    .cloned()
+                    .collect();
+                rest.retain(|event| !matches!(event, Event::Drop(..)));
+                if !outcomes.contains(&drops) {
+                    failures.push(format!(
+                        "{}: {who} dropped {drops:?}, which the BDS drop sweep never did \
+                         ({outcomes:?})",
+                        scenario.name
+                    ));
+                }
+            }
+        }
         if bds_levels != our_levels {
             failures.push(format!(
                 "{}: crack and destroy events\n  BDS  {bds_levels:?}\n  ours {our_levels:?}",
