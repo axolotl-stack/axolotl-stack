@@ -238,6 +238,11 @@ struct Replay {
 }
 
 fn replay(key: &str) -> Replay {
+    replay_as(key, None)
+}
+
+/// [`replay`] with `actor` spawned in place of the trial's actor.
+fn replay_as(key: &str, actor: Option<&str>) -> Replay {
     let trial = &fixture()["trials"][key];
     let mut server = GameServer::with_config(ServerConfig {
         world: crate::world::WorldConfig::void_spawn_platform(1),
@@ -313,7 +318,7 @@ fn replay(key: &str) -> Replay {
     let at = &trial["spec"]["at"];
     let spawn = vec3(at);
     let yaw = at[3].as_f64().unwrap() as f32;
-    let identifier = trial["actor"].as_str().unwrap();
+    let identifier = actor.unwrap_or_else(|| trial["actor"].as_str().unwrap());
     // What the first viewer's `AddActor` showed.
     let added = &trial["viewers"]["player"]["wire"][0]["add"];
     let actor = if identifier == "minecraft:xp_orb" {
@@ -507,6 +512,78 @@ fn every_viewer_gets_the_bds_position_updates_at_its_own_cadence() {
             }
         }
     }
+}
+
+/// The frozen-cow falls 40, 56 and 72 blocks from the viewers.
+const COW_FALLS: [&str; 3] = [
+    "cow|fall-40|frozen",
+    "cow|fall-56|frozen",
+    "cow|fall-72|frozen",
+];
+
+/// The spawnable mobs whose definitions carry the same empty
+/// `conditional_bandwidth_optimization` as the cow and that fall like it (the
+/// chicken glides, so its falls differ), with the cow falls each can replay:
+/// a zoglin farther than 54 blocks from every player despawns at once.
+const EMPTY_COMPONENT_MOBS: [(&str, &[&str]); 9] = [
+    ("minecraft:pig", &COW_FALLS),
+    ("minecraft:sheep", &COW_FALLS),
+    ("minecraft:zombie", &COW_FALLS),
+    ("minecraft:husk", &COW_FALLS),
+    ("minecraft:zombie_villager_v2", &COW_FALLS),
+    ("minecraft:zombie_pigman", &COW_FALLS),
+    ("minecraft:wither_skeleton", &COW_FALLS),
+    ("minecraft:endermite", &COW_FALLS),
+    ("minecraft:zoglin", &["cow|fall-40|frozen"]),
+];
+
+/// Each of those mobs, frozen in the BDS frozen-cow falls, sends every
+/// viewer exactly the packets BDS sent about the cow: the band comes from
+/// the definition's component, and theirs is the cow's.
+#[test]
+fn mobs_with_the_cows_empty_component_replay_its_bds_cadence() {
+    let cow = bandwidth_of("minecraft:cow").unwrap();
+    for (identifier, falls) in EMPTY_COMPONENT_MOBS {
+        assert_eq!(
+            bandwidth_of(identifier).as_ref(),
+            Some(&cow),
+            "{identifier}: not the cow's component"
+        );
+        for key in falls {
+            let trial = &fixture()["trials"][key];
+            let replay = replay_as(key, Some(identifier));
+            for (viewer, ours) in &replay.wire {
+                let bds = expected(trial, viewer, false, usize::MAX);
+                let ours: Vec<&Wire> = ours
+                    .iter()
+                    .filter(|event| compared(event, false, usize::MAX))
+                    .collect();
+                assert_eq!(ours.len(), bds.len(), "{identifier} {key} {viewer}");
+                for (ours, bds) in ours.iter().zip(&bds) {
+                    assert!(
+                        ours.matches(bds, false),
+                        "{identifier} {key} {viewer}: {ours:?}, BDS {bds:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// The spawnable actors no BDS trial replays compile the values their
+/// definitions author: the chicken has the cow's empty component (it glides,
+/// so the cow's falls do not replay it), the bottle o' enchanting 5 / 80.
+#[test]
+fn spawnable_actors_without_a_trial_compile_their_bandwidth_values() {
+    assert_eq!(
+        bandwidth_of("minecraft:chicken"),
+        bandwidth_of("minecraft:cow")
+    );
+    let bottle = bandwidth_of("minecraft:xp_bottle").unwrap();
+    assert!(bottle.conditional.is_empty());
+    assert_eq!(bottle.default.max_dropped_ticks, 5);
+    assert_eq!(bottle.default.max_optimized_distance, 80.0);
+    assert_eq!(bottle.default.dropped_ticks(48.0), 3);
 }
 
 /// A vanilla actor's `conditional_bandwidth_optimization` (`None` without

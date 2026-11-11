@@ -12,8 +12,8 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 113 | 0 | 3 | 17 | 4 | 15.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1004 | 2672 | 308 | 52 | 46 | 8.9% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 113 | 0 | 1 | 19 | 4 | 15.0% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 907 | 2751 | 306 | 72 | 46 | 9.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
@@ -126,7 +126,7 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| projectile | 18 | 14 | 0 | 2 | 2 | 0 | 22.2% |
+| projectile | 18 | 14 | 0 | 0 | 4 | 0 | 22.2% |
 | village | 4 | 4 | 0 | 0 | 0 | 0 | 0.0% |
 
 Sub-rows by facet, most incomplete first (30 of 371):
@@ -134,10 +134,10 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | pushable_by_block | 117 | 2 | 115 | 0 | 0 | 0 | 0.0% |
-| conditional_bandwidth_optimization | 116 | 98 | 17 | 0 | 0 | 1 | 0.0% |
-| physics | 125 | 0 | 108 | 15 | 1 | 1 | 12.9% |
+| physics | 125 | 0 | 108 | 12 | 4 | 1 | 12.9% |
 | type_family | 124 | 1 | 106 | 16 | 0 | 1 | 13.0% |
 | collision_box | 124 | 0 | 106 | 10 | 7 | 1 | 13.8% |
+| conditional_bandwidth_optimization | 116 | 1 | 97 | 2 | 15 | 1 | 14.8% |
 | pushable_by_entity | 109 | 0 | 98 | 11 | 0 | 0 | 10.1% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
 | breathable | 84 | 1 | 83 | 0 | 0 | 0 | 0.0% |
@@ -153,7 +153,7 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | can_climb | 57 | 0 | 57 | 0 | 0 | 0 | 0.0% |
 | navigation.walk | 66 | 0 | 55 | 11 | 0 | 0 | 16.7% |
 | spawn_rules | 59 | 5 | 50 | 4 | 0 | 0 | 6.8% |
-| movement.basic | 65 | 0 | 54 | 11 | 0 | 0 | 16.9% |
+| movement.basic | 65 | 0 | 54 | 10 | 1 | 0 | 16.9% |
 | behavior.random_stroll | 64 | 0 | 53 | 11 | 0 | 0 | 17.2% |
 | behavior.random_look_around | 55 | 0 | 45 | 10 | 0 | 0 | 18.2% |
 | behavior.float | 49 | 0 | 44 | 5 | 0 | 0 | 10.2% |

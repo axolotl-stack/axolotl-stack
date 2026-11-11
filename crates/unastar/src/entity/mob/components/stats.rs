@@ -1,9 +1,7 @@
-//! Server-side mob attributes, hit shapes and effects:
-//! `minecraft:follow_range`, `minecraft:knockback_resistance`,
-//! `minecraft:custom_hit_test`, `minecraft:mob_effect_immunity` and
-//! `minecraft:spell_effects`. Only the hit boxes reach the client: the
-//! native AddActor attribute list has no follow range or knockback
-//! resistance row.
+//! Hit shapes and effects: `minecraft:custom_hit_test`,
+//! `minecraft:mob_effect_immunity` and `minecraft:spell_effects`, plus the
+//! registration of `minecraft:follow_range` and
+//! `minecraft:knockback_resistance` (`mob::attributes`).
 
 use std::sync::Arc;
 
@@ -32,18 +30,6 @@ pub enum StatsError {
 }
 
 impl ComponentError for StatsError {}
-
-/// `minecraft:follow_range`: how far the mob keeps its target when no
-/// nearest-attackable-target goal sets a `within_radius` (the native follow
-/// range attribute; 16 without the component).
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-pub struct FollowRangeConfig(pub f64);
-
-/// `minecraft:knockback_resistance`: the share of a knockback push the mob
-/// resists. The value is kept; pushes do not read it yet (see the parity
-/// gaps).
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-pub struct KnockbackResistanceConfig(pub f32);
 
 /// One `minecraft:custom_hit_test` box: `width` × `height` centred on the
 /// actor's position plus `pivot`.
@@ -160,16 +146,7 @@ fn vec3(v: &Vec3) -> DVec3 {
 pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
 ) -> Result<(), DefinitionError> {
-    insert(builder, |b: body::FollowRange| {
-        let value = match b {
-            body::FollowRange::Value(value) => value,
-            body::FollowRange::Attribute(attribute) => attribute.value,
-        };
-        Ok::<_, StatsError>(FollowRangeConfig(f64::from(value)))
-    })?;
-    insert(builder, |b: body::KnockbackResistance| {
-        Ok::<_, StatsError>(KnockbackResistanceConfig(b.value))
-    })?;
+    crate::entity::mob::attributes::register_component_kinds(builder)?;
     builder.register(
         |b: body::CustomHitTest| compile_hit_test(b).map_err(Into::into),
         |config: &CustomHitTest, entity| {

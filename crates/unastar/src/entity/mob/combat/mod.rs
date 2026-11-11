@@ -11,7 +11,6 @@ pub mod death;
 pub mod fall;
 pub mod fire;
 pub mod hit;
-pub mod knockback;
 pub mod melee;
 
 #[cfg(test)]

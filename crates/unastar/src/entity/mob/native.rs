@@ -37,10 +37,10 @@ pub struct NativeTraits {
     /// declare no `minecraft:variant`.
     pub variant: Option<i32>,
     /// The class spawns with a random knockback resistance below this
-    /// (`mob::combat::knockback`); `None` for no resistance.
+    /// (`mob::attributes::KnockbackResistance`); `None` for no bonus.
     pub knockback_resistance_bonus: Option<f64>,
     /// The class rolls a follow-range bonus at spawn and saves its
-    /// `minecraft:follow_range` (`mob::spawn_bonus`).
+    /// `minecraft:follow_range` (`mob::attributes::FollowRange`).
     pub follow_range_bonus: bool,
 }
 

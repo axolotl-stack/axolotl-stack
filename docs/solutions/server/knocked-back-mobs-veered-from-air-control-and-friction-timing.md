@@ -53,7 +53,8 @@ them turned out to match BDS 1.26.51 already.
 
 - `crates/unastar/src/entity/systems/physics.rs` (`step_body_sensed`, `apply_living_drag`)
 - `crates/unastar/src/entity/mob/ai/control.rs` (`travel`, `MoveControl::tick`)
-- `crates/unastar/src/entity/mob/combat/knockback.rs`, `combat/hit.rs` (`apply_knockback`)
+- `crates/unastar/src/entity/mob/attributes.rs` (`KnockbackResistance`, since entities round 3),
+  `combat/hit.rs` (`apply_knockback`)
 - Evidence and tests: `crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-knockback.json`,
   `combat/bds_knockback.rs`, built by `tools/bds-sweep/knockback_fixture.py`
 - Quirk rows: `docs/quirks/bds.md` (living friction, zombie knockback, mob air control, movement

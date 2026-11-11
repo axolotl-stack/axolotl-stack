@@ -277,7 +277,7 @@ pub const ZOMBIE_KNOCKBACK_RESISTANCE_BONUS: f64 = 0.05;
 /// The zombie classes' follow-range bonus draw: uniform below this, kept
 /// only above [`FOLLOW_RANGE_BONUS_THRESHOLD`] (BDS 1.26.51 spawn-bonus
 /// sweep: 403 of 1,160 saved one, amounts 1.0014 to 1.4997;
-/// `mob::spawn_bonus`).
+/// `mob::attributes`).
 pub const FOLLOW_RANGE_BONUS_DRAW_MAX: f32 = 1.5;
 /// See [`FOLLOW_RANGE_BONUS_DRAW_MAX`].
 pub const FOLLOW_RANGE_BONUS_THRESHOLD: f32 = 1.0;
