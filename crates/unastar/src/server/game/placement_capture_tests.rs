@@ -122,11 +122,14 @@ fn answer<'a>(packets: impl IntoIterator<Item = &'a McpePacketData>) -> Answer {
                         .insert((block.pos.x, block.pos.y, block.pos.z), block.runtime_id);
                 }
             }
+            // BDS and unastar number actors differently (BDS's clicking
+            // player is -4294967295): only whether a sound comes from an
+            // actor (a player's burp) is compared.
             McpePacketData::LevelSoundEventPacket(sound) => answer.sounds.push((
                 sound.sound_event.to_string(),
                 [sound.position.x, sound.position.y, sound.position.z].map(|v| (v * 2.0) as i32),
                 sound.data,
-                sound.actor_unique_id,
+                if sound.actor_unique_id == -1 { -1 } else { 0 },
             )),
             McpePacketData::LevelEventPacket(event) => answer.events.push((
                 event.event_id,
@@ -272,9 +275,22 @@ impl Arena {
         let origin = ivec(&case["origin"]);
         let player = &case["player"];
         let feet = origin.as_dvec3() + dvec(player);
+        // The sweep world was peaceful (`tools/bds-sweep/sweep.py`) unless a
+        // case's `before` steps change the difficulty.
+        let normal = case["before"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .any(|step| step[1] == "difficulty normal");
+        let difficulty = if normal {
+            crate::world::rules::Difficulty::Normal
+        } else {
+            crate::world::rules::Difficulty::Peaceful
+        };
         let mut server = GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             default_gamemode: GameMode::Survival,
+            difficulty,
             ..ServerConfig::default()
         });
         let (entity, rx) = spawn(&mut server, SESSION, "BDSSweep", feet);
@@ -492,14 +508,10 @@ struct Skip {
 fn skipped(key: &str) -> Skip {
     let none = Skip::default();
     match key {
-        // Timing samples: a placed coral block dies at a random tick
+        // Two coral timing samples died to the check the case before them
+        // left pending on the same spot; the replay starts each case afresh
         // (`placed_coral_blocks_die_within_the_measured_ticks`).
-        _ if key.starts_with("coral_block_dies_") => Skip { case: true, ..none },
-        // A live coral block may already be dead at the first read.
-        _ if key.ends_with("_coral_block_on_top") && !key.starts_with("dead_") => Skip {
-            first_read: true,
-            ..none
-        },
+        "coral_block_dies_20_1" | "coral_block_dies_40_0" => Skip { case: true, ..none },
         // Cave vines get a random age; a campfire crackles at random.
         _ if key.starts_with("look_campfire_") => Skip {
             sounds: true,
@@ -515,20 +527,19 @@ fn skipped(key: &str) -> Skip {
         // The banner stack BDS gives carries item user data unastar's stack
         // lacks, so the click does not name the held stack.
         _ if key.starts_with("banner_") => Skip { case: true, ..none },
-        // Eating cake (and a candle cake) is not modelled.
-        "candle_onto_bitten_cake"
-        | "candle_onto_candle_cake"
-        | "candle_cake_empty_hand"
-        | "cake_empty_hand" => Skip { case: true, ..none },
         // Lighting with flint and steel answers without the block corrections
         // (item use on blocks, lane ITEMS).
         _ if key.starts_with("flint_and_steel_on_") => Skip { case: true, ..none },
-        // Cave vines get a random age, so the corrections differ too.
+        // Cave vines get a random age, so the corrections differ too; the
+        // ages are compared by distribution
+        // (`placed_cave_vines_get_the_measured_ages`).
         "glow_berries_under_stone" => Skip { case: true, ..none },
-        // Tripwire states are not modelled.
-        "string_on_stone" => Skip { case: true, ..none },
-        // Flower pots do not take plants yet.
-        _ if key.starts_with("flower_pot_with_") => Skip { case: true, ..none },
+        _ if key.starts_with("cave_vines_age_") || key.starts_with("cave_vines_under_vine_") => {
+            Skip { case: true, ..none }
+        }
+        // The hungry player's food before the click is not in the capture
+        // (`cake_slices_feed_as_measured`).
+        "cake_hungry_normal" => Skip { case: true, ..none },
         // BDS plays no sound for a lily pad on ice.
         "waterlily_on_ice" => Skip {
             sounds: true,
@@ -698,8 +709,12 @@ fn compare_case(case: &Value) -> Option<String> {
     (!problems.is_empty()).then(|| format!("{key}:\n    {}", problems.join("\n    ")))
 }
 
-/// The timing samples of placed coral blocks: BDS had each dead by tick 60
-/// and some by tick 10, which unastar's random 1..=60 tick death covers.
+/// Round 2's player-placed coral blocks (`coral_block_dies_*`, read at tick
+/// 10 and again later, cases run back to back on one spot): each was dead by
+/// tick 60, as the 45-tick check gives. The two found dead by tick 10 were
+/// placed about 45 ticks after the case before them, whose block's check
+/// was still pending on the same spot; every other one was alive at its
+/// first read.
 #[test]
 fn placed_coral_blocks_die_within_the_measured_ticks() {
     let mut deaths = Vec::new();
@@ -724,8 +739,242 @@ fn placed_coral_blocks_die_within_the_measured_ticks() {
         });
     }
     assert_eq!(deaths.len(), 12);
+    let check = super::block_use::CORAL_PLACED_TICKS;
     assert!(deaths.iter().all(|&(after, _)| after <= 60), "{deaths:?}");
-    assert!(deaths.iter().any(|&(_, by)| by <= 10), "{deaths:?}");
+    // Alive at a read before the check, dead at a read after it.
+    let early = deaths.iter().filter(|&&(_, by)| by <= 10).count();
+    assert_eq!(early, 2, "{deaths:?}");
+    assert!(
+        deaths
+            .iter()
+            .filter(|&&(_, by)| by > 10)
+            .all(|&(after, by)| after < check + 4 && by >= check),
+        "{deaths:?}"
+    );
+}
+
+/// A synthetic case for [`Arena::new`]: the superflat floor at the round 2
+/// origin, the player north of it with an empty hand.
+fn bare_case() -> Value {
+    serde_json::json!({
+        "origin": [4, -60, 4],
+        "player": [0.5, 0, -1.5, 0, 35],
+        "setup": [],
+        "hand": null,
+    })
+}
+
+/// The coral rows BDS 1.26.51 read every tick (`block_updates/coral_timing.json`):
+/// [kind, cell, repeat, trace of [tick, block]].
+fn coral_timing() -> Vec<Value> {
+    let text = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../unastar-data/data/measured/block_updates/coral_timing.json"
+    ))
+    .unwrap();
+    let file: Value = serde_json::from_str(&text).unwrap();
+    file["rows"].as_array().unwrap().clone()
+}
+
+/// Ticks from the first read of a trace showing `block` (or tick 0) to the
+/// first read showing it dead.
+fn death_delay(trace: &[Value]) -> Option<u64> {
+    let tick = |entry: &Value| entry[0].as_u64().unwrap();
+    let placed = trace
+        .iter()
+        .find(|entry| {
+            let name = entry[1].as_str().unwrap();
+            name.contains("coral") && !name.contains("dead_")
+        })
+        .map(&tick)?;
+    let dead = trace
+        .iter()
+        .find(|entry| entry[1].as_str().unwrap().contains("dead_"))
+        .map(&tick)?;
+    Some(dead - placed)
+}
+
+/// A live coral block placed out of water (set with a block update,
+/// `/setblock` or a click) dies at BDS's tick, and one whose water is removed
+/// dies within BDS's spread.
+#[test]
+fn coral_blocks_die_at_the_measured_ticks() {
+    let rows = coral_timing();
+    let delays = |cell: &str| -> Vec<u64> {
+        rows.iter()
+            .filter(|row| row[1] == cell)
+            .map(|row| death_delay(row[3].as_array().unwrap()).expect("died"))
+            .collect()
+    };
+    for cell in ["block_set", "block_setblock", "block_player"] {
+        let found = delays(cell);
+        assert!(!found.is_empty(), "{cell}");
+        assert!(
+            found
+                .iter()
+                .all(|&delay| delay == super::block_use::CORAL_PLACED_TICKS),
+            "{cell}: {found:?}"
+        );
+    }
+    let dry = delays("block_water_goes");
+    assert_eq!(dry.len(), 15);
+    let range = super::block_use::CORAL_DRY_TICKS;
+    assert_eq!(
+        (dry.iter().min().copied(), dry.iter().max().copied()),
+        (Some(*range.start()), Some(*range.end()))
+    );
+
+    // unastar (the plugin host needs a runtime, the codecs a large stack).
+    std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(replay_coral_deaths)
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+fn replay_coral_deaths() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let _guard = runtime.enter();
+    // A coral block set in air dies 45 ticks later.
+    let registry = BlockRegistry::vanilla();
+    let coral = registry
+        .default_state_id_by_name("minecraft:brain_coral_block")
+        .unwrap();
+    let dead = registry
+        .default_state_id_by_name("minecraft:dead_brain_coral_block")
+        .unwrap();
+    let mut arena = Arena::new(&bare_case());
+    let at = IVec3::new(4, -60, 4);
+    super::blocks::set_block(arena.world(), at, coral, false);
+    let mut ticks = 0;
+    while arena.world().block_at(at) == Some(coral) && ticks < 400 {
+        arena.tick();
+        ticks += 1;
+    }
+    assert_eq!(arena.world().block_at(at), Some(dead));
+    assert_eq!(ticks, super::block_use::CORAL_PLACED_TICKS);
+
+    // Beside walled-in water it lives; with the water gone it dies within
+    // the measured spread.
+    let mut arena = Arena::new(&bare_case());
+    let stone = registry
+        .default_state_id_by_name("minecraft:stone")
+        .unwrap();
+    let water = registry
+        .default_state_id_by_name("minecraft:water")
+        .unwrap();
+    let air = registry.default_state_id_by_name("minecraft:air").unwrap();
+    let west = at - IVec3::X;
+    for wall in [west - IVec3::Z, west + IVec3::Z, west - IVec3::X] {
+        super::blocks::write_block(arena.world(), wall, stone, false);
+    }
+    super::blocks::write_block(arena.world(), west, water, false);
+    super::blocks::set_block(arena.world(), at, coral, false);
+    for _ in 0..100 {
+        arena.tick();
+    }
+    assert_eq!(arena.world().block_at(at), Some(coral));
+    super::blocks::set_block(arena.world(), west, air, false);
+    let mut ticks = 0;
+    while arena.world().block_at(at) == Some(coral) && ticks < 400 {
+        arena.tick();
+        ticks += 1;
+    }
+    assert_eq!(arena.world().block_at(at), Some(dead));
+    assert!(
+        super::block_use::CORAL_DRY_TICKS.contains(&ticks),
+        "{ticks}"
+    );
+}
+
+/// BDS's ages of placed cave vines (100 placements under stone, 10 under a
+/// vine and round 2's one) against [`super::placement::cave_vine_age`]:
+/// none below 1 or above 25, and the counts in the quarters 1-8, 9-16,
+/// 17-24 and 25 (a quarter each under the rule) pass a chi-square test at
+/// p = 0.001 (3 degrees of freedom: 16.27).
+#[test]
+fn placed_cave_vines_get_the_measured_ages() {
+    use rand::SeedableRng;
+    let mut ages = Vec::new();
+    for case in cases() {
+        let key = case["key"].as_str().unwrap();
+        if key.starts_with("cave_vines_age_")
+            || key.starts_with("cave_vines_under_vine_")
+            || key == "glow_berries_under_stone"
+        {
+            let read = &case["bds"]["reads"][0];
+            assert_eq!(read[1], "minecraft:cave_vines", "{key}");
+            ages.push(read[2]["growing_plant_age"].as_i64().unwrap() as i32);
+        }
+    }
+    assert_eq!(ages.len(), 111);
+    assert!(ages.iter().all(|age| (1..=25).contains(age)), "{ages:?}");
+    let quarter = |age: i32| ((age - 1) / 8).min(3) as usize;
+    let mut bds = [0.0f64; 4];
+    for age in &ages {
+        bds[quarter(*age)] += 1.0;
+    }
+    let expected = ages.len() as f64 / 4.0;
+    let chi: f64 = bds.iter().map(|o| (o - expected).powi(2) / expected).sum();
+    assert!(chi < 16.27, "BDS quarters {bds:?}, chi-square {chi}");
+    // unastar's draw gives the same quarters.
+    let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+    let mut ours = [0.0f64; 4];
+    for _ in 0..32_000 {
+        let age = super::placement::cave_vine_age(&mut rng);
+        assert!((1..=25).contains(&age));
+        ours[quarter(age)] += 1.0;
+    }
+    assert!(
+        ours.iter().all(|n| (n / 8_000.0 - 1.0).abs() < 0.05),
+        "{ours:?}"
+    );
+}
+
+/// One cake slice takes a player from BDS's food and saturation after the
+/// first slice to BDS's after the second (`cake_hungry_normal`: hunger 12
+/// and saturation 0.4, then 14 and 0.8).
+#[test]
+fn cake_slices_feed_as_measured() {
+    let case = cases()
+        .into_iter()
+        .find(|case| case["key"] == "cake_hungry_normal")
+        .unwrap();
+    let mut seen = Vec::new();
+    for packet in decoded(&case["packets"], "s2c") {
+        if let McpePacketData::UpdateAttributesPacket(update) = packet {
+            let value = |name: &str| {
+                update
+                    .attribute_list
+                    .iter()
+                    .find(|attribute| attribute.name == name)
+                    .map(|attribute| attribute.current_value)
+            };
+            if let (Some(food), Some(saturation)) = (
+                value("minecraft:player.hunger"),
+                value("minecraft:player.saturation"),
+            ) {
+                seen.push((food, saturation));
+            }
+        }
+    }
+    assert_eq!(seen.len(), 2, "{seen:?}");
+    let mut hunger = crate::entity::components::Hunger {
+        food_level: seen[0].0 as i32,
+        saturation: seen[0].1,
+        exhaustion: 0.0,
+    };
+    let (food, modifier) = super::block_use::CAKE_SLICE_FOOD;
+    hunger.eat(food, modifier);
+    assert_eq!(hunger.food_level, seen[1].0 as i32);
+    assert!(
+        (hunger.saturation - seen[1].1).abs() < 1e-4,
+        "{hunger:?} {seen:?}"
+    );
 }
 
 /// One case group at a time (`PLACEMENT_GROUP`, a fixture's group name, or
@@ -842,6 +1091,7 @@ fn measured_block_actor_defaults() -> BTreeMap<String, String> {
             || block.ends_with("_sign")
             || case.get("after").is_some()
             || key.starts_with("flower_pot_with_")
+            || key.starts_with("pot_")
         {
             continue;
         }

@@ -476,7 +476,6 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             if let Some((other, _)) = upper {
                 super::block_actors::placed(world, *entity, other);
             }
-            super::block_use::placed(world, pos);
             if world.get::<crate::entity::components::GameMode>(*entity)
                 == Some(&crate::entity::components::GameMode::Survival)
             {
@@ -508,7 +507,7 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
 /// click, placed or refused: the clicked block and the block on the clicked
 /// face, each followed by the blocks above and below it
 /// (`testdata/bds-placements.json`).
-fn click_corrections(world: &World, entity: Entity, clicked: IVec3, face: u8) {
+pub(crate) fn click_corrections(world: &World, entity: Entity, clicked: IVec3, face: u8) {
     let target = clicked + super::placement::face_offset(face).unwrap_or(IVec3::ZERO);
     for pos in [
         clicked,
@@ -975,7 +974,7 @@ fn handle_block_click(
         None => {}
     }
     // Signs (and the other blocks a click acts on) answer before placement.
-    if let Some(changed) = interact_with_block(world, entity, clicked_pos) {
+    if let Some(changed) = interact_with_block(world, entity, clicked_pos, data.face) {
         // BDS answers a use with the player's inventory, and a use that
         // changed something also with the click corrections.
         super::inventory::resync_inventory(world, entity);
@@ -1060,6 +1059,7 @@ fn handle_block_click(
         }
         return;
     };
+    let placement = super::placement::with_random_state(world, placement);
     let target = (
         placement.position.x,
         placement.position.y,
@@ -1089,10 +1089,16 @@ fn handle_block_click(
 /// `testdata/bds-placements-*.json`): `None` when the block does not react
 /// to this click, else whether the click changed something (BDS then sends
 /// the click corrections).
-fn interact_with_block(world: &mut World, entity: Entity, clicked: IVec3) -> Option<bool> {
+fn interact_with_block(
+    world: &mut World,
+    entity: Entity,
+    clicked: IVec3,
+    face: u8,
+) -> Option<bool> {
     let held = held_item(world, entity).filter(|stack| !stack.is_empty());
     let held_id = held.as_ref().map(|stack| stack.item_id().to_owned());
     super::signs::used(world, entity, clicked, held_id.as_deref())
+        .or_else(|| super::flower_pots::used(world, entity, clicked, face))
         .or_else(|| super::block_use::used(world, entity, clicked))
 }
 

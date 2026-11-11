@@ -673,12 +673,17 @@ per-item sounds of `server/game/place_sounds.rs`), the inventory resync, and wha
 other player is sent (blocks, sounds, level events, block actors). Stacks describe
 the block BDS describes them with (`unastar_data::item_blocks`, measured for every
 item). Covered since round 2: door hinges from neighbouring doors and blocks; coral
-fans on floors and walls (placed dead out of water) and coral blocks dying after a
-placement; skulls; beehives, bee nests, looms, chiseled bookshelves, decorated pots,
+fans on floors and walls (placed dead out of water) and coral blocks dying 45 ticks
+after any placement out of water (or 54 to 184 ticks after their water goes,
+`block_use.rs`, `crates/unastar-data/data/measured/block_updates/coral_timing.json`); skulls; beehives, bee nests, looms, chiseled bookshelves, decorated pots,
 crafters, grindstones, shelf mushrooms; bells under blocks and on walls; vines, glow
 lichen, sculk veins and resin clumps on every face; stacking candles, snow layers, sea
-pickles, turtle eggs and petals; candles on cakes; seeds and other planting items;
-player-placed leaves. Placed blocks BDS announces with a block actor get the measured
+pickles, turtle eggs and petals; candles on cakes; seeds and other planting items (a
+cave vine with BDS's random age); player-placed leaves; string, linked to the
+tripwire beside it. Since round 3 (`testdata/bds-placements-leftovers.json`): cake
+eaten slice by slice (a candle cake drops its candle; a full player eats only on
+peaceful) and flower pots taking the 37 plants BDS takes and giving them back
+(`server/game/flower_pots.rs`). Placed blocks BDS announces with a block actor get the measured
 default (`unastar_data::block_updates::block_actor_default`, `block_actors.rs`).
 
 Signs (`server/game/signs.rs`) work like BDS: placing one opens its editor for the
@@ -689,8 +694,8 @@ change it, and the text is kept in the chunk's block actor (saved and sent with 
 chunk). Doors, trapdoors, fence gates, buttons and levers open, close and press on
 use (`server/game/block_use.rs`); buttons pop back after 20 or 30 ticks. Not copied:
 the attribute and actor-data resend BDS sends after every click, banners (BDS's
-banner stack carries item user data unastar's lacks), flower pots taking plants,
-eating cake, and the click corrections BDS sends after lighting with flint and steel.
+banner stack carries item user data unastar's lacks), the plant a broken flower pot
+holds, and the click corrections BDS sends after lighting with flint and steel.
 
 Redstone (`server/game/redstone/`) runs like BDS 1.26.51, tick by tick
 (`redstone/tests.rs` replays every circuit of

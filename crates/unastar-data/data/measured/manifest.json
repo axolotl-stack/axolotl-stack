@@ -6090,6 +6090,21 @@
      "sha256": "7855a3081bd97be595d2293b676c725cb43de2c1c7a74df8610de9b2acd97cad"
     },
     {
+     "path": "block_updates/coral_death.json",
+     "rows": 80,
+     "sha256": "91777e0e8aa818fca73ccc65768cb823e290611f3ad41d4ed92d4869489a1656"
+    },
+    {
+     "path": "block_updates/coral_timing.json",
+     "rows": 43,
+     "sha256": "f368f081e2a41898e4ec35b59a3ffb2c3463551ff99564fad0d13e4ba78a1953"
+    },
+    {
+     "path": "block_updates/coral_water.json",
+     "rows": 65,
+     "sha256": "deb8b320859aaa90a809bfb9aad7d49057379cbcba5e9b0900eb2423beddc212"
+    },
+    {
      "path": "block_updates/gate_in_wall.json",
      "rows": 192,
      "sha256": "d16dbaf55b65988ff467c267ef03084fc02d285f4c5268967067b165ed3bbb45"
@@ -6163,7 +6178,7 @@
      "sha256": "21aaf072a371c26edb231ac5dbb4392232450f7d8d6e0f78b7e3a11271b48fb3"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e19a52c8685d1c2e414471576ab960f421669362",
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e19a52c8685d1c2e414471576ab960f421669362; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 9521761a1a33fb0503921cd310efb2d217484102",
    "method": "block scenarios (tools/bds-sweep/scenarios.py) run by the endstone-sweep `scenarios` job on a superflat world with random ticks off: blocks set through the Endstone block API with or without the block update a placement triggers, read back after the stated wait; see each file's `method`",
    "source": "bds_sweep",
    "sweeps": [
@@ -6235,6 +6250,30 @@
        "items": 25683,
        "seconds": 124.8,
        "started": "20261110T224734Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-coral",
+     "items": 145,
+     "runs": [
+      {
+       "items": 145,
+       "seconds": 569.7,
+       "started": "20261111T162037Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-coral-timing",
+     "items": 43,
+     "runs": [
+      {
+       "items": 43,
+       "seconds": 70.0,
+       "started": "20261111T163851Z",
        "status": "done"
       }
      ]

@@ -17,6 +17,7 @@ mod containers;
 pub mod durability;
 pub mod effects;
 mod falling;
+mod flower_pots;
 pub mod hunger;
 mod inventory;
 pub mod item_use;

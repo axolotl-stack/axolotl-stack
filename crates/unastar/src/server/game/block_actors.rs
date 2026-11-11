@@ -150,19 +150,9 @@ pub(crate) fn placed(world: &mut World, player: Entity, pos: IVec3) {
     if crate::block_entity::ContainerKind::from_block(&entry.string_id).is_some() {
         return;
     }
-    let Some(template) = unastar_data::block_updates::block_actor_default(&entry.string_id) else {
+    let Some(mut compound) = default_compound(&entry.string_id, pos) else {
         return;
     };
-    let template = jolyne::valentine::bedrock::codec::Nbt(template.to_vec().into());
-    let Some(Ok(mut compound)) = BlockEntity::from_network_nbt(template)
-        .ok()
-        .and_then(|actor| actor.bedrock_compound())
-    else {
-        return;
-    };
-    for (key, value) in [("x", pos.x), ("y", pos.y), ("z", pos.z)] {
-        compound.0.insert(key.into(), int(value));
-    }
     if compound.0.contains_key("SkullType") {
         compound.0.insert(
             "Rotation".into(),
@@ -172,6 +162,23 @@ pub(crate) fn placed(world: &mut World, player: Entity, pos: IVec3) {
     if let Some(stored) = write(world, pos, compound) {
         broadcast(world, pos, &data_packet(pos, &stored), None);
     }
+}
+
+/// The actor BDS gives `block` when a player places it
+/// (`block_actor_defaults.json`), at `pos`.
+pub(crate) fn default_compound(block: &str, pos: IVec3) -> Option<tag::Compound> {
+    let template = unastar_data::block_updates::block_actor_default(block)?;
+    let template = jolyne::valentine::bedrock::codec::Nbt(template.to_vec().into());
+    let Ok(mut compound) = BlockEntity::from_network_nbt(template)
+        .ok()?
+        .bedrock_compound()?
+    else {
+        return None;
+    };
+    for (key, value) in [("x", pos.x), ("y", pos.y), ("z", pos.z)] {
+        compound.0.insert(key.into(), int(value));
+    }
+    Some(compound)
 }
 
 /// The rotation a standing skull keeps: the placer's yaw to the nearest

@@ -109,6 +109,9 @@ pub(crate) fn changed<T: UpdateTarget>(target: &mut T, pos: IVec3, placed: bool)
                 queue.extend(NEIGHBOURS.map(|offset| (moved + offset, Update::Shape)));
             }
         }
+        if let Some(state) = shape::placed_tripwire(target, pos) {
+            target.write(pos, state);
+        }
         queue.push_back((pos, Update::Placed));
     }
     queue.extend(NEIGHBOURS.map(|offset| {
@@ -214,4 +217,5 @@ pub(crate) fn world_changed(world: &mut World, pos: IVec3, placed: bool) {
         return;
     }
     changed(&mut Live(world), pos, placed);
+    super::block_use::coral_changed(world, pos, placed);
 }

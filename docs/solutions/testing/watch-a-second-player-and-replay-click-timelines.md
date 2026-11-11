@@ -40,9 +40,11 @@ clicking player and the others different things.
 - Some outcomes are random (a placed coral block's death tick, a cave vine's
   age, a campfire's crackle): skip those comparisons with a reason
   (`skipped()` in the test) and check the measured distribution separately.
-- `set_data` with physics and a player placement differ beyond block updates:
-  coral blocks set by the scenario job never die, player-placed ones die within
-  60 ticks. Measure player behaviour with the `placements` job.
+- Cases run back to back on one spot share the block ticks still pending: round 2 read
+  "coral blocks set by the scenario job never die, player-placed ones die within 60
+  ticks", but the set ones were kept alive by water leaking from neighbouring cells and
+  two early player deaths were the previous case's pending check (see
+  [the coral note](space-cells-apart-and-mind-pending-ticks-between-cases.md)).
 - Endstone `set_data` fills water plants (coral fans, kelp, seagrass, sea
   pickles) with water: a lily pad stays on them in the `soils_more` scenarios.
 - Placement sounds are per item (seeds at the clicked block, candles

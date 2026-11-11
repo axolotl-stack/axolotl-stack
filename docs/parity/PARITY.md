@@ -14,7 +14,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
-| [Blocks](#blocks) | 1477 | 0 | 422 | 511 | 377 | 167 | 67.8% |
+| [Blocks](#blocks) | 1477 | 0 | 408 | 511 | 391 | 167 | 68.9% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
@@ -45,12 +45,12 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 59 |
 
-**Blocks**: 238 open rows free, 184 claimed.
+**Blocks**: 237 open rows free, 171 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | functional (part claimed) | 57 | 0 | 57 |
-| surface_dynamic (part claimed) | 45 | 0 | 45 |
+| surface_dynamic (part claimed) | 44 | 0 | 44 |
 | candles | 34 | 0 | 34 |
 | building_blocks | 27 | 0 | 27 |
 | coral | 20 | 0 | 20 |
@@ -61,7 +61,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Block behaviour families, gravity, fire, redstone and random ticks | lane BLOCKS | 2026-10-29 | 167 |
+| Block behaviour families, gravity, fire, redstone and random ticks | lane BLOCKS | 2026-10-29 | 154 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
@@ -233,10 +233,10 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 | rails | 4 | 0 | 3 | 0 | 1 | 0 | 25.0% |
 | redstone | 39 | 0 | 22 | 0 | 17 | 0 | 43.6% |
 | saplings | 10 | 0 | 10 | 0 | 0 | 0 | 0.0% |
-| signs | 39 | 0 | 13 | 23 | 3 | 0 | 66.7% |
+| signs | 39 | 0 | 0 | 23 | 16 | 0 | 100.0% |
 | slabs | 202 | 0 | 8 | 128 | 66 | 0 | 96.0% |
 | stairs | 97 | 0 | 4 | 0 | 93 | 0 | 95.9% |
-| surface_dynamic | 62 | 0 | 51 | 10 | 1 | 0 | 17.7% |
+| surface_dynamic | 62 | 0 | 50 | 10 | 2 | 0 | 19.4% |
 | technical | 31 | 0 | 8 | 22 | 0 | 1 | 73.3% |
 | trapdoors | 22 | 0 | 4 | 0 | 18 | 0 | 81.8% |
 | walls | 32 | 0 | 0 | 0 | 32 | 0 | 100.0% |
@@ -268,8 +268,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **candles**
 
-- `minecraft:black_candle`, `minecraft:blue_candle`, `minecraft:brown_candle`, `minecraft:candle`, `minecraft:cyan_candle`, `minecraft:gray_candle`, `minecraft:green_candle`, `minecraft:light_blue_candle`, `minecraft:light_gray_candle`, `minecraft:lime_candle`, `minecraft:magenta_candle`, `minecraft:orange_candle` and 5 more: lighting with flint and steel answers without the click corrections BDS sends
-- `minecraft:black_candle_cake`, `minecraft:blue_candle_cake`, `minecraft:brown_candle_cake`, `minecraft:candle_cake`, `minecraft:cyan_candle_cake`, `minecraft:gray_candle_cake`, `minecraft:green_candle_cake`, `minecraft:light_blue_candle_cake`, `minecraft:light_gray_candle_cake`, `minecraft:lime_candle_cake`, `minecraft:magenta_candle_cake`, `minecraft:orange_candle_cake` and 5 more: cannot be eaten; lighting with flint and steel answers without the click corrections BDS sends
+- `minecraft:black_candle`, `minecraft:black_candle_cake`, `minecraft:blue_candle`, `minecraft:blue_candle_cake`, `minecraft:brown_candle`, `minecraft:brown_candle_cake`, `minecraft:candle`, `minecraft:candle_cake`, `minecraft:cyan_candle`, `minecraft:cyan_candle_cake`, `minecraft:gray_candle`, `minecraft:gray_candle_cake` and 22 more: lighting with flint and steel answers without the click corrections BDS sends
 
 **carpets**
 
@@ -287,8 +286,8 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 **coral**
 
 - `minecraft:brain_coral_fan`, `minecraft:brain_coral_wall_fan`, `minecraft:bubble_coral_fan`, `minecraft:bubble_coral_wall_fan`, `minecraft:fire_coral_fan`, `minecraft:fire_coral_wall_fan`, `minecraft:horn_coral_fan`, `minecraft:horn_coral_wall_fan`, `minecraft:tube_coral_fan`, `minecraft:tube_coral_wall_fan`: placed dead out of water, but losing its water later does not kill it; no support check (stays when the block holding it is removed)
-- `minecraft:brain_coral`, `minecraft:bubble_coral`, `minecraft:fire_coral`, `minecraft:horn_coral`, `minecraft:tube_coral`: death out of water not measured (BDS keeps a placed one alive for at least 130 ticks); no support check (stays when the block holding it is removed)
-- `minecraft:brain_coral_block`, `minecraft:bubble_coral_block`, `minecraft:fire_coral_block`, `minecraft:horn_coral_block`, `minecraft:tube_coral_block`: dies only after a player places it (within 60 ticks without water); losing its water later does not kill it
+- `minecraft:brain_coral`, `minecraft:bubble_coral`, `minecraft:fire_coral`, `minecraft:horn_coral`, `minecraft:tube_coral`: BDS kills a live plant out of water 5 ticks after a neighbour changes (crates/unastar-data/data/measured/block_updates/coral_timing.json); unastar does not (game logic cannot see the water inside a block); no support check (stays when the block holding it is removed)
+- `minecraft:brain_coral_block`, `minecraft:bubble_coral_block`, `minecraft:fire_coral_block`, `minecraft:horn_coral_block`, `minecraft:tube_coral_block`: the delay after losing its water is drawn uniformly over the 54 to 184 ticks BDS showed (its own distribution is not pinned down); water inside a neighbouring block does not count
 
 **crops_growing**
 
@@ -371,10 +370,6 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 - `minecraft:acacia_sapling`, `minecraft:birch_sapling`, `minecraft:cherry_sapling`, `minecraft:dark_oak_sapling`, `minecraft:jungle_sapling`, `minecraft:oak_sapling`, `minecraft:pale_oak_sapling`, `minecraft:poplar_sapling`, `minecraft:spruce_sapling`: no growth into trees (random ticks or bone meal)
 - `minecraft:mangrove_propagule`: hanging propagules not placed under leaves; no growth into trees (random ticks or bone meal); a hanging propagule does not need the leaves above it
 
-**signs**
-
-- `minecraft:acacia_hanging_sign`, `minecraft:bamboo_hanging_sign`, `minecraft:birch_hanging_sign`, `minecraft:cherry_hanging_sign`, `minecraft:crimson_hanging_sign`, `minecraft:dark_oak_hanging_sign`, `minecraft:jungle_hanging_sign`, `minecraft:mangrove_hanging_sign`, `minecraft:oak_hanging_sign`, `minecraft:pale_oak_hanging_sign`, `minecraft:poplar_hanging_sign`, `minecraft:spruce_hanging_sign` and 1 more: support is not compared with BDS (the support replay leaves hanging signs out)
-
 **slabs**
 
 - `minecraft:cut_copper_slab`, `minecraft:double_cut_copper_slab`, `minecraft:exposed_cut_copper_slab`, `minecraft:exposed_double_cut_copper_slab`, `minecraft:oxidized_cut_copper_slab`, `minecraft:oxidized_double_cut_copper_slab`, `minecraft:weathered_cut_copper_slab`, `minecraft:weathered_double_cut_copper_slab`: no honeycomb waxing
@@ -387,10 +382,10 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 - `minecraft:black_concrete_powder`, `minecraft:blue_concrete_powder`, `minecraft:brown_concrete_powder`, `minecraft:cyan_concrete_powder`, `minecraft:gray_concrete_powder`, `minecraft:green_concrete_powder`, `minecraft:light_blue_concrete_powder`, `minecraft:light_gray_concrete_powder`, `minecraft:lime_concrete_powder`, `minecraft:magenta_concrete_powder`, `minecraft:orange_concrete_powder`, `minecraft:pink_concrete_powder` and 4 more: does not harden into concrete next to water
 - `minecraft:crimson_nylium`, `minecraft:warped_nylium`: bone meal does not grow nether vegetation; does not turn to netherrack under blocks
-- `minecraft:cake`: cannot be eaten; candles cannot be placed on it
 - `minecraft:coarse_dirt`: hoe turning it into dirt is not covered by a test
 - `minecraft:dragon_egg`: does not teleport when used or attacked
-- 30 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- `minecraft:end_gateway`: no gateway teleporting; no block actor
+- 29 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **technical**
 

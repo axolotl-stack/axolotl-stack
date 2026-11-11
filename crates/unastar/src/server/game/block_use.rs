@@ -32,7 +32,7 @@ use crate::entity::components::Rotation;
 use crate::registry::block::{BlockEntry, StateValue};
 
 /// Block changes waiting for their tick (of [`ScheduledBlocks::now`]):
-/// buttons popping back up, placed coral blocks checking for water.
+/// buttons popping back up, coral blocks checking for water.
 #[derive(Resource, Debug, Default)]
 pub(crate) struct ScheduledBlocks {
     now: u64,
@@ -45,21 +45,55 @@ fn schedule(world: &mut World, pos: IVec3, ticks: u64) {
     scheduled.due.entry(due).or_default().push(pos);
 }
 
-/// A live coral block placed by a player dies at a random tick within 60
-/// unless water touches it (BDS 1.26.51: 12 placements out of water were
-/// dead by tick 60, two of them by tick 10; a coral block set without a
-/// player stays alive).
-pub(crate) fn placed(world: &mut World, pos: IVec3) {
-    let Some((entry, _)) = entry_at(world, pos) else {
-        return;
+/// Ticks after a live coral block is placed out of water (by a player, set
+/// with a block update or by `/setblock`) until BDS 1.26.51 checks it: 45 in
+/// all 23 tick-by-tick cells (`block_updates/coral_timing.json`).
+pub(crate) const CORAL_PLACED_TICKS: u64 = 45;
+
+/// Ticks after a neighbour of a live coral block changes, leaving it with no
+/// water, until it is checked: BDS 1.26.51 killed a coral block whose water
+/// was removed 54 to 184 ticks later (15 tick-by-tick cells,
+/// `block_updates/coral_timing.json`; 10 more read every 10 ticks,
+/// `coral_water.json`). The draw is uniform over that range: the cells do
+/// not pin down BDS's own distribution.
+pub(crate) const CORAL_DRY_TICKS: std::ops::RangeInclusive<u64> = 54..=184;
+
+/// Whether a live coral block is at `pos` (runs on every block change: no
+/// entry clones).
+fn live_coral_block(world: &World, pos: IVec3) -> bool {
+    let Some(state) = super::blocks::block_at(world, (pos.x, pos.y, pos.z)) else {
+        return false;
     };
-    let name = entry.string_id.as_str();
-    if name.ends_with("_coral_block") && !name.starts_with("minecraft:dead_") {
-        use rand::Rng;
-        let ticks = world
-            .get_resource_mut::<crate::entity::EntityRandom>()
-            .map_or(30, |mut random| random.0.gen_range(1..=60));
-        schedule(world, pos, ticks);
+    world
+        .get_resource::<BlockRegistryResource>()
+        .and_then(|registry| registry.0.get_by_runtime_id(state))
+        .is_some_and(|entry| {
+            entry.string_id.ends_with("_coral_block")
+                && !entry.string_id.starts_with("minecraft:dead_")
+        })
+}
+
+/// A block at `pos` changed (`placed`: a block was set there). A live coral
+/// block placed there with no water touching it is checked
+/// [`CORAL_PLACED_TICKS`] later; a live coral block beside the change with no
+/// water touching it is checked after a draw from [`CORAL_DRY_TICKS`]. A
+/// check finding no water kills it (`tick_scheduled_blocks`). A coral block
+/// placed beside water is not checked until a neighbour changes (BDS 1.26.51,
+/// `block_updates/coral_water.json`).
+pub(crate) fn coral_changed(world: &mut World, pos: IVec3, placed: bool) {
+    if placed && live_coral_block(world, pos) && !touches_water(world, pos) {
+        schedule(world, pos, CORAL_PLACED_TICKS);
+    }
+    for offset in super::block_update::NEIGHBOURS {
+        let at = pos + offset;
+        if live_coral_block(world, at) && !touches_water(world, at) {
+            use rand::Rng;
+            let ticks = world
+                .get_resource_or_init::<crate::entity::EntityRandom>()
+                .0
+                .gen_range(CORAL_DRY_TICKS);
+            schedule(world, at, ticks);
+        }
     }
 }
 
@@ -129,6 +163,87 @@ fn held_empty(world: &World, player: Entity) -> bool {
         .get::<MainInventory>(player)
         .and_then(|inventory| inventory.hotbar(slot))
         .is_none_or(|stack| stack.is_empty())
+}
+
+/// The identifier of what `player` holds, if anything.
+fn held_id(world: &World, player: Entity) -> Option<String> {
+    use crate::entity::components::{HeldSlot, MainInventory};
+    let slot = world.get::<HeldSlot>(player)?.0;
+    let stack = world.get::<MainInventory>(player)?.hotbar(slot)?;
+    (!stack.is_empty()).then(|| stack.item_id().to_owned())
+}
+
+/// Bites a cake has before it is gone.
+const CAKE_SLICES: i32 = 7;
+
+/// `player` eats a slice of the cake (or candle cake) at `pos` (BDS 1.26.51,
+/// `testdata/bds-placements-candles.json` and `-leftovers.json`): the cake
+/// takes one more bite or, after its last slice, is gone; a candle cake
+/// drops its candle and keeps one bite; the player gains the slice's food
+/// and burps. A player with a full hunger bar eats too.
+fn eat_cake(world: &mut World, player: Entity, pos: IVec3, entry: &BlockEntry, state: u32) {
+    use crate::entity::components::{Hunger, Position};
+    let bites = match entry.state_value(state, "bite_counter") {
+        Some(StateValue::Int(bites)) => bites,
+        _ => 0,
+    };
+    let Some(registry) = world
+        .get_resource::<BlockRegistryResource>()
+        .map(|registry| registry.0.clone())
+    else {
+        return;
+    };
+    let next = if bites + 1 >= CAKE_SLICES {
+        registry.default_state_id_by_name("minecraft:air")
+    } else {
+        registry.get_by_name("minecraft:cake").and_then(|cake| {
+            cake.with_state_value(
+                cake.default_state_id,
+                "bite_counter",
+                StateValue::Int(bites + 1),
+            )
+        })
+    };
+    let Some(next) = next else {
+        return;
+    };
+    super::blocks::set_block(world, pos, next, false);
+    if let Some(candle) = entry.string_id.strip_suffix("_cake")
+        && entry.string_id != "minecraft:cake"
+        && let Some(stack) = world
+            .get_resource::<super::types::ItemRegistryResource>()
+            .and_then(|items| items.0.stack(candle, 1))
+    {
+        super::block_drops::pop_resource(world, pos, stack);
+    }
+    if let Some(mut hunger) = world.get_mut::<Hunger>(player) {
+        hunger.eat(CAKE_SLICE_FOOD.0, CAKE_SLICE_FOOD.1);
+    }
+    if let Some(eye) = world.get::<Position>(player).map(|position| position.0) {
+        crate::entity::mob::net::sound::play_level_sound(
+            world,
+            Some(player),
+            eye - glam::DVec3::new(0.0, 0.1, 0.0),
+            "burp",
+            -1,
+        );
+    }
+}
+
+/// Food points and saturation modifier of one cake slice (BDS 1.26.51: a
+/// hungry player went from 12 food and 0.4 saturation to 14 and 0.8,
+/// `cake_hungry_normal` in `testdata/bds-placements-leftovers.json`).
+pub(crate) const CAKE_SLICE_FOOD: (i32, f32) = (2, 0.1);
+
+/// Whether `player` may eat cake: below full food, or on peaceful, where
+/// BDS 1.26.51 lets a full player eat (`cake_empty_hand` on peaceful and
+/// `cake_full_normal` on normal difficulty). Unmeasured in creative.
+fn can_eat_cake(world: &World, player: Entity) -> bool {
+    use crate::entity::components::Hunger;
+    super::hunger::FoodRules::of(world).difficulty == super::hunger::Difficulty::Peaceful
+        || world
+            .get::<Hunger>(player)
+            .is_none_or(|hunger| hunger.food_level < Hunger::MAX_FOOD)
 }
 
 fn is_iron(entry: &BlockEntry) -> bool {
@@ -268,6 +383,18 @@ pub(crate) fn used(world: &mut World, player: Entity, pos: IVec3) -> Option<bool
         );
         return Some(false);
     }
+    // A cake loses a slice to any click but a candle onto a whole cake
+    // (which the placement turns into a candle cake), if the player may eat.
+    if id == "minecraft:cake" || id.ends_with("candle_cake") {
+        let whole = entry.state_value(state, "bite_counter") == Some(StateValue::Int(0));
+        if whole && held_id(world, player).is_some_and(|held| held.ends_with("candle")) {
+            return None;
+        }
+        if can_eat_cake(world, player) {
+            eat_cake(world, player, pos, &entry, state);
+        }
+        return Some(false);
+    }
     if id == "minecraft:lever" {
         let on = byte(&entry, state, "open_bit") == Some(true);
         let next = with_byte(&entry, state, "open_bit", !on);
@@ -287,8 +414,9 @@ pub(crate) fn used(world: &mut World, player: Entity, pos: IVec3) -> Option<bool
     None
 }
 
-/// Pops pressed buttons back up when their time is up (exclusive: edits
-/// chunks). Runs once per server tick.
+/// Pops pressed buttons back up when their time is up and kills the coral
+/// blocks whose check finds no water (exclusive: edits chunks). Runs once
+/// per server tick.
 pub(crate) fn tick_scheduled_blocks(world: &mut World) {
     let due = {
         let mut scheduled = world.get_resource_or_insert_with(ScheduledBlocks::default);

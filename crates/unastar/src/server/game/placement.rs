@@ -163,6 +163,39 @@ pub struct Placement {
     pub upper: Option<(IVec3, u32)>,
 }
 
+/// The age of a cave vine a player places: uniform over 1 to 32, capped at
+/// 25 (BDS 1.26.51: 110 placements, 100 under stone and 10 under a vine,
+/// `testdata/bds-placements-leftovers.json`, gave ages 1 to 25, a quarter of
+/// them 25 and none 0; a vine placed under another does not take its age).
+pub fn cave_vine_age(rng: &mut impl rand::Rng) -> i32 {
+    rng.gen_range(1..=32).min(25)
+}
+
+/// `placement` with the random state BDS gives some placed blocks (a cave
+/// vine's age, [`cave_vine_age`]).
+pub fn with_random_state(world: &mut World, mut placement: Placement) -> Placement {
+    let Some(entry) = world
+        .get_resource::<crate::server::game::types::BlockRegistryResource>()
+        .and_then(|registry| registry.0.get_by_runtime_id(placement.state).cloned())
+    else {
+        return placement;
+    };
+    if entry.string_id == "minecraft:cave_vines" {
+        let age = cave_vine_age(
+            &mut world
+                .get_resource_or_init::<crate::entity::EntityRandom>()
+                .0,
+        );
+        placement.state = set(
+            &entry,
+            placement.state,
+            "growing_plant_age",
+            StateValue::Int(age),
+        );
+    }
+    placement
+}
+
 /// The standing sign a sign item places: `oak_sign` -> `standing_sign`,
 /// `dark_oak_sign` -> `darkoak_standing_sign`, `spruce_sign` ->
 /// `spruce_standing_sign`. Clicked on a side face it places the matching wall
@@ -1097,6 +1130,13 @@ pub fn resolve_placement(
     // BDS refuses a block that could not stay where it would go.
     if !crate::server::game::block_update::support::can_place(blocks, position, held, state) {
         return None;
+    }
+    // A tripwire is placed linked to the tripwire beside it (the place sound
+    // carries these links; the placed-block update then sets `suspended_bit`,
+    // `block_update::shape::placed_tripwire`).
+    if held.string_id == "minecraft:trip_wire" {
+        state =
+            crate::server::game::block_update::shape::tripwire_links(blocks, position, held, state);
     }
     let upper = second_block(blocks, held, position, state)?;
     Some(Placement {
