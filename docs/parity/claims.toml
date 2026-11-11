@@ -47,7 +47,7 @@ ids = [
 ]
 
 [[claim]]
-area = "Block behaviour families, gravity, fire and redstone"
+area = "Block behaviour families, gravity, fire, redstone and random ticks"
 owner = "lane BLOCKS"
 since = 2026-10-29
 domain = "blocks"
@@ -55,11 +55,13 @@ families = [
     "attached_lights",
     "beds",
     "buttons",
+    "copper_oxidising",
     "crops_growing",
     "doors",
     "falling",
     "fence_gates",
     "fences",
+    "leaves",
     "panes_bars",
     "pressure_plates",
     "redstone",
@@ -69,14 +71,14 @@ families = [
     "trapdoors",
     "walls",
 ]
-ids = ["minecraft:fire", "minecraft:soul_fire"]
+ids = ["minecraft:farmland", "minecraft:fire", "minecraft:grass_block", "minecraft:soul_fire"]
 
 [[claim]]
-area = "Gravity, fire and redstone"
+area = "Gravity, fire, redstone, block updates and random ticks"
 owner = "lane BLOCKS"
 since = 2026-10-29
 domain = "systems"
-ids = ["world.falling_blocks", "world.fire", "world.pistons", "world.redstone"]
+ids = ["world.block_updates", "world.falling_blocks", "world.fire", "world.pistons", "world.random_ticks", "world.redstone"]
 
 [[claim]]
 area = "Liquids: water and lava flow, waterlogging, sponges"

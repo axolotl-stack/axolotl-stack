@@ -7,6 +7,7 @@
     python tools/bds-sweep/summarize.py scenarios SWEEP_DIR [SWEEP_DIR ...]
     python tools/bds-sweep/summarize.py placements SWEEP_DIR
     python tools/bds-sweep/summarize.py circuits SWEEP_DIR [SWEEP_DIR ...]
+    python tools/bds-sweep/summarize.py random-ticks SWEEP_DIR [SWEEP_DIR ...]
 
 Writes into `crates/unastar-data/data/measured/` and records every artefact
 (SHA-256, sweep parameters, sample counts, run times) in `manifest.json`
@@ -1264,6 +1265,54 @@ def summarize_circuits(sweeps: list[Path]) -> None:
         print(f['path'], f.get('rows', ''), f['sha256'][:12])
 
 
+# ---------------------------------------------------------------- random ticks
+
+RANDOM_METHOD = (
+    'sweep.py scenarios --family <random family> (tools/bds-sweep/random_ticks.py): a 16 x 16 field of '
+    'identical cells is laid out on the superflat floor without block updates (`build`, offsets from the '
+    'field origin, the floor at y=-1), `randomtickspeed` is set to `speed`, and every `watch` position is '
+    'read every `read_every` ticks; `reads` holds, per read, how many watched positions held each '
+    '[block, states] (`minecraft:` left out). The replay test lays out the same field in unastar with a '
+    'seeded random source and compares the histograms with a chi-square test.'
+)
+RANDOM_ROW = '[name, speed, read_every, build, watch, reads]'
+
+
+def summarize_random_ticks(sweeps: list[Path]) -> None:
+    """Random tick fields to `random_ticks/<family>.json` (one row per
+    line)."""
+    by_family: dict[str, list] = defaultdict(list)
+    for sweep in sweeps:
+        job = json.loads((sweep / 'job.json').read_text(encoding='utf-8'))
+        items = {item['key']: item for item in job['items']}
+        for row in results(sweep):
+            family, rest = row['key'].split('|', 1)
+            if not family.startswith('random_'):
+                continue
+            steps = items[row['key']]['steps']
+            build = [[o, short(b), st] for o, b, st, physics in steps[0][1]]
+            speed = int(steps[1][1].split()[-1])
+            waits = [s[1] for s in steps if s[0] == 'wait']
+            watch = next(s[2] for s in steps if s[0] == 'read')
+            reads = []
+            for index in range(1, len(waits) + 1):
+                counts = Counter(json.dumps([short(b), st], sort_keys=True)
+                                 for b, st in row['reads'][f'r{index}'])
+                reads.append([[json.loads(label), n] for label, n in sorted(counts.items())])
+            name = [short(p) if isinstance(p, str) else p for p in json.loads(rest)]
+            by_family[family].append([name, speed, waits[0], build, watch, reads])
+    files = []
+    for family, rows in sorted(by_family.items()):
+        rows.sort(key=lambda r: json.dumps(r[0], sort_keys=True))
+        files.append(write_rows(f'random_ticks/{family}.json',
+                                {'family': family, 'method': RANDOM_METHOD, 'row': RANDOM_ROW}, rows))
+    entry = {**provenance('scenarios', sweeps), 'files': files,
+             'method': 'random tick fields compared by distribution: ' + RANDOM_METHOD}
+    update_manifest('random_ticks', merge_manifest_files('random_ticks', entry))
+    for f in files:
+        print(f['path'], f.get('rows', ''), f['sha256'][:12])
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         print(__doc__)
@@ -1289,6 +1338,8 @@ def main() -> int:
         summarize_scenarios(dirs)
     elif kind == 'circuits':
         summarize_circuits(dirs)
+    elif kind == 'random-ticks':
+        summarize_random_ticks(dirs)
     elif kind == 'item-blocks':
         summarize_item_blocks(dirs[0])
     elif kind == 'placements':

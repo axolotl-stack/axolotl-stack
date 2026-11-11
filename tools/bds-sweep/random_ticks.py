@@ -157,3 +157,92 @@ def random_farmland() -> list[dict]:
 
 FAMILIES = {'random_crops': random_crops, 'random_cane': random_cane, 'random_copper': random_copper,
             'random_leaves': random_leaves, 'random_farmland': random_farmland}
+
+
+def random_leaves_logs() -> list[dict]:
+    """Which leaves near a log decay, at tick speed 8: an oak log in the
+    middle of the field (a 3-high trunk) with leaves (natural, waiting for
+    their update) along lines from it, touching each other (`line`) or one
+    alone at each distance (`apart`, air between)."""
+    fam = 'random_leaves_logs'
+    items = []
+    for shape in ('line', 'apart'):
+        build, watch = [], []
+        for y in range(3):
+            build.append([at(8, y, 8), 'minecraft:oak_log', {'pillar_axis': 'y'}])
+        leaf = {'persistent_bit': False, 'update_bit': True}
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            for d in range(1, 8):
+                if shape == 'apart' and (dx, dz) != (1, 0):
+                    continue
+                pos = at(8 + dx * d, 1, 8 + dz * d)
+                if shape == 'apart':
+                    pos = at(8 + d, 1 + (d % 2), 8 + 2 * (d % 3) - 2)
+                build.append([pos, 'minecraft:oak_leaves', leaf])
+                watch.append(pos)
+        items.append(field(fam, ['oak', shape], 8, build, watch))
+    return items
+
+
+def random_grass() -> list[dict]:
+    """Grass spreading onto dirt at tick speed 32: a 15 x 15 dirt square
+    (on stone, the floor grass replaced) with one grass block in the
+    middle."""
+    fam = 'random_grass'
+    build, watch = [], []
+    for x in range(15):
+        for z in range(15):
+            build.append([at(x, -2, z), 'minecraft:stone', {}])
+            block = 'minecraft:grass_block' if (x, z) == (7, 7) else 'minecraft:dirt'
+            states = {} if block == 'minecraft:grass_block' else {'dirt_type': 'normal'}
+            build.append([at(x, -1, z), block, states])
+            watch.append(at(x, -1, z))
+    # A stone ring keeps the floor's grass from reaching the square.
+    for i in range(-1, 16):
+        for x, z in ((i, -1), (i, 15), (-1, i), (15, i)):
+            build.append([at(x, -1, z), 'minecraft:stone', {}])
+    return [field(fam, ['dirt_square'], 32, build, watch)]
+
+
+FAMILIES.update({'random_leaves_logs': random_leaves_logs, 'random_grass': random_grass})
+
+
+COPPER_MORE = [
+    ('cut_copper_slab', {'minecraft:vertical_half': 'bottom'}),
+    ('double_cut_copper_slab', {'minecraft:vertical_half': 'bottom'}),
+    ('cut_copper_stairs', {'minecraft:corner': 'none', 'upside_down_bit': False, 'weirdo_direction': 0}),
+    ('copper_trapdoor', {'direction': 0, 'open_bit': False, 'upside_down_bit': False}),
+    ('copper_bars', {'minecraft:connection_east': False, 'minecraft:connection_north': False,
+                     'minecraft:connection_south': False, 'minecraft:connection_west': False}),
+    ('copper_chain', {'pillar_axis': 'y'}),
+    ('copper_lantern', {'hanging': False}),
+    ('copper_chest', {'minecraft:cardinal_direction': 'south'}),
+    ('copper_golem_statue', {'minecraft:cardinal_direction': 'south'}),
+    ('lightning_rod', {'facing_direction': 1, 'powered_bit': False}),
+]
+
+
+def random_copper_more() -> list[dict]:
+    """The other copper blocks, 16 isolated per field at tick speed 256,
+    and copper doors (both halves)."""
+    fam = 'random_copper_more'
+    items = []
+    for block, states in COPPER_MORE:
+        build, watch = [], []
+        for x in range(0, 16, 5):
+            for z in range(0, 16, 5):
+                build.append([at(x, 0, z), f'minecraft:{block}', states])
+                watch.append(at(x, 0, z))
+        items.append(field(fam, ['isolated', block], 256, build, watch))
+    build, watch = [], []
+    door = {'door_hinge_bit': False, 'minecraft:cardinal_direction': 'south', 'open_bit': False}
+    for x in range(0, 16, 5):
+        for z in range(0, 16, 5):
+            build.append([at(x, 0, z), 'minecraft:copper_door', {**door, 'upper_block_bit': False}])
+            build.append([at(x, 1, z), 'minecraft:copper_door', {**door, 'upper_block_bit': True}])
+            watch += [at(x, 0, z), at(x, 1, z)]
+    items.append(field(fam, ['isolated', 'copper_door'], 256, build, watch))
+    return items
+
+
+FAMILIES['random_copper_more'] = random_copper_more

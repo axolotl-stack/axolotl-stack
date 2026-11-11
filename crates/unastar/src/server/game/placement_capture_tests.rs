@@ -300,6 +300,16 @@ impl Arena {
             arena.world().block_at(origin).is_some(),
             "arena chunk loads"
         );
+        // The sweep world ran with random ticks off (`tools/bds-sweep/sweep.py`):
+        // grass under a case's blocks would otherwise turn to dirt.
+        arena
+            .world()
+            .resource_mut::<crate::world::rules::GameRules>()
+            .set_value(
+                "randomtickspeed",
+                unastar_data::game_rules::GameRuleValue::Int(0),
+            )
+            .expect("randomtickspeed is a game rule");
         // The superflat world BDS ran in, over the swept box.
         let registry = BlockRegistry::vanilla();
         let layer = |y: i32| {

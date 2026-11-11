@@ -708,6 +708,17 @@ pistons, entities on pressure plates and tripwires, target blocks, daylight meas
 sensors, note block sounds, TNT priming and dispensing; a circuit already in a chunk loaded
 from disk starts working once a block next to it changes.
 
+Random block ticks (`server/game/random_ticks.rs`) follow BDS 1.26.51 by distribution
+(`random_ticks/tests.rs` compares measured fields of
+`crates/unastar-data/data/measured/random_ticks/` by chi-square): each sub-chunk of a ticking
+chunk gets `2 x randomtickspeed` random positions per game tick (a block is ticked
+`randomtickspeed / 2048` times per tick on average). Crops grow by the growth factor of the
+farmland around them, sugar cane ages and grows to three blocks, farmland dries away from
+water and turns to dirt, grass spreads to dirt, leaves with no log within four steps through
+leaves decay, and copper oxidises (a door's halves together), held back by younger copper
+near it. Not modelled: light levels, cactus flowers, saplings, bamboo, kelp, vines, ice and
+snow, fire and the other random-tick blocks.
+
 Using a crafting table (unless sneaking with an item in hand) opens BDS's
 WORKBENCH screen (type 1 at the block, no actor) from the shared window-ID
 counter; ItemStackRequest crafting then uses the 3x3 grid. Closing any screen

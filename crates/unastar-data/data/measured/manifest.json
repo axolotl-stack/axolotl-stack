@@ -6331,6 +6331,92 @@
     }
    ]
   },
+  "random_ticks": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "random_ticks/random_cane.json",
+     "rows": 2,
+     "sha256": "66924708895a0c6148369f155506cd0a79fd79ab950e738193956642786c0c34"
+    },
+    {
+     "path": "random_ticks/random_copper.json",
+     "rows": 8,
+     "sha256": "5098454a816e8af18f36f80fbb68a7f18d0fbe136925d1dcdcd2c0657b3aed1d"
+    },
+    {
+     "path": "random_ticks/random_copper_more.json",
+     "rows": 11,
+     "sha256": "a0f7e980ba9f13f52645ec805340ae36ad8817906b7207dd8e56fe05ec94fbc3"
+    },
+    {
+     "path": "random_ticks/random_crops.json",
+     "rows": 8,
+     "sha256": "493b593b11799fa7d208cb517fdd2baea6f981d3bc36cde79e47cf86adff747b"
+    },
+    {
+     "path": "random_ticks/random_farmland.json",
+     "rows": 2,
+     "sha256": "f7533bde095a54c546c0c4c005aba49170e0f53b2882abad99a44c9a01ff7c35"
+    },
+    {
+     "path": "random_ticks/random_grass.json",
+     "rows": 1,
+     "sha256": "7c8fc2739c6f8a9148aa8f3389f799b7733c417111c50f2b7e5e7f8d3c441aef"
+    },
+    {
+     "path": "random_ticks/random_leaves.json",
+     "rows": 6,
+     "sha256": "b107e2b8cdaffa68259b19333835914af375b8e383231db7c75263a46b43a195"
+    },
+    {
+     "path": "random_ticks/random_leaves_logs.json",
+     "rows": 2,
+     "sha256": "14f0754420f32a5c57c0e5ceb488b87591569eecae63395b6ea9e4e1cac7d362"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at c96f3d80e89c8d6a9211657e0b0aa97fc8378282",
+   "method": "random tick fields compared by distribution: sweep.py scenarios --family <random family> (tools/bds-sweep/random_ticks.py): a 16 x 16 field of identical cells is laid out on the superflat floor without block updates (`build`, offsets from the field origin, the floor at y=-1), `randomtickspeed` is set to `speed`, and every `watch` position is read every `read_every` ticks; `reads` holds, per read, how many watched positions held each [block, states] (`minecraft:` left out). The replay test lays out the same field in unastar with a seeded random source and compares the histograms with a chi-square test.",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "r3-random-a",
+     "items": 26,
+     "runs": [
+      {
+       "items": 26,
+       "seconds": 774.6,
+       "started": "20261111T023728Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-random-b",
+     "items": 3,
+     "runs": [
+      {
+       "items": 3,
+       "seconds": 316.7,
+       "started": "20261111T032009Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-random-c",
+     "items": 11,
+     "runs": [
+      {
+       "items": 11,
+       "seconds": 162.6,
+       "started": "20261111T032109Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "redstone": {
    "bds_version": "1.26.51",
    "files": [

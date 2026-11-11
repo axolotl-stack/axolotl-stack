@@ -14,13 +14,13 @@ Each domain's first line is its headline: the rows its family table, gap list an
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
-| [Blocks](#blocks) | 1477 | 0 | 433 | 503 | 374 | 167 | 66.9% |
+| [Blocks](#blocks) | 1477 | 0 | 422 | 511 | 377 | 167 | 67.8% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
-| [Gameplay systems](#gameplay-systems) | 72 | 34 | 34 | 4 | 0 | 0 | 5.6% |
+| [Gameplay systems](#gameplay-systems) | 72 | 33 | 35 | 4 | 0 | 0 | 5.6% |
 
 ## Where to help
 
@@ -45,23 +45,23 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 59 |
 
-**Blocks**: 287 open rows free, 146 claimed.
+**Blocks**: 238 open rows free, 184 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | functional (part claimed) | 57 | 0 | 57 |
-| surface_dynamic (part claimed) | 47 | 0 | 47 |
+| surface_dynamic (part claimed) | 45 | 0 | 45 |
 | candles | 34 | 0 | 34 |
-| copper_oxidising | 33 | 0 | 33 |
 | building_blocks | 27 | 0 | 27 |
 | coral | 20 | 0 | 20 |
 | plants | 17 | 0 | 17 |
-| leaves | 14 | 0 | 14 |
-| 6 more families | 38 | 0 | 38 |
+| ores | 14 | 0 | 14 |
+| saplings | 10 | 0 | 10 |
+| 4 more families | 14 | 0 | 14 |
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Block behaviour families, gravity, fire and redstone | lane BLOCKS | 2026-10-29 | 129 |
+| Block behaviour families, gravity, fire, redstone and random ticks | lane BLOCKS | 2026-10-29 | 167 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
@@ -94,12 +94,12 @@ Nothing in this domain is claimed.
 | Bedrock world generation | lane BED | 2026-10-29 | 491 |
 | Java world generation | lane JAVA | 2026-10-29 | 47 |
 
-**Gameplay systems**: 53 open rows free, 15 claimed.
+**Gameplay systems**: 51 open rows free, 17 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | player | 16 | 5 | 11 |
-| world (part claimed) | 14 | 6 | 8 |
+| world (part claimed) | 12 | 5 | 7 |
 | mobs | 10 | 8 | 2 |
 | interface | 6 | 4 | 2 |
 | crafting (part claimed) | 4 | 2 | 2 |
@@ -107,7 +107,7 @@ Nothing in this domain is claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Gravity, fire and redstone | lane BLOCKS | 2026-10-29 | 4 |
+| Gravity, fire, redstone, block updates and random ticks | lane BLOCKS | 2026-10-29 | 6 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 1 |
 | Workstations: crafting, smelting, anvil, grindstone, smithing, brewing, enchanting | lane ITEMS | 2026-10-29 | 8 |
 | Generation speed | lane PERF | 2026-10-29 | 1 |
@@ -223,7 +223,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 | fence_gates | 13 | 0 | 0 | 0 | 13 | 0 | 100.0% |
 | fences | 14 | 0 | 0 | 0 | 14 | 0 | 100.0% |
 | functional | 83 | 0 | 67 | 9 | 7 | 0 | 19.3% |
-| leaves | 14 | 0 | 14 | 0 | 0 | 0 | 0.0% |
+| leaves | 14 | 0 | 3 | 8 | 3 | 0 | 78.6% |
 | liquids | 5 | 0 | 5 | 0 | 0 | 0 | 0.0% |
 | logs_stems | 51 | 0 | 0 | 49 | 2 | 0 | 100.0% |
 | ores | 19 | 0 | 14 | 5 | 0 | 0 | 26.3% |
@@ -245,9 +245,8 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **attached_lights**
 
-- `minecraft:copper_chain`, `minecraft:copper_lantern`, `minecraft:exposed_copper_chain`, `minecraft:exposed_copper_lantern`, `minecraft:weathered_copper_chain`, `minecraft:weathered_copper_lantern`: no oxidation over time; no honeycomb waxing
+- `minecraft:copper_chain`, `minecraft:copper_lantern`, `minecraft:exposed_copper_chain`, `minecraft:exposed_copper_lantern`, `minecraft:oxidized_copper_chain`, `minecraft:oxidized_copper_lantern`, `minecraft:weathered_copper_chain`, `minecraft:weathered_copper_lantern`: no honeycomb waxing
 - `minecraft:copper_torch`, `minecraft:soul_torch`, `minecraft:torch`: placement refusal and fallback-face rules only partly match BDS
-- `minecraft:oxidized_copper_chain`, `minecraft:oxidized_copper_lantern`: no honeycomb waxing
 
 **banners**
 
@@ -262,10 +261,10 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 - `minecraft:infested_chiseled_stone_bricks`, `minecraft:infested_cobblestone`, `minecraft:infested_cracked_stone_bricks`, `minecraft:infested_deepslate`, `minecraft:infested_mossy_stone_bricks`, `minecraft:infested_stone`, `minecraft:infested_stone_bricks`: breaking does not release a silverfish
 - `minecraft:waxed_exposed_lightning_rod`, `minecraft:waxed_lightning_rod`, `minecraft:waxed_oxidized_lightning_rod`, `minecraft:waxed_weathered_lightning_rod`: no lightning attraction or redstone output; no axe wax removal
+- `minecraft:exposed_lightning_rod`, `minecraft:oxidized_lightning_rod`, `minecraft:weathered_lightning_rod`: no lightning attraction or redstone output; no axe scraping or honeycomb waxing
 - `minecraft:carved_pumpkin`, `minecraft:lit_pumpkin`: placing it does not build snow or iron golems
 - `minecraft:deprecated_purpur_block_1`, `minecraft:deprecated_purpur_block_2`: legacy block; drops and load upgrade not checked against BDS
-- `minecraft:exposed_lightning_rod`, `minecraft:weathered_lightning_rod`: no lightning attraction or redstone output; no oxidation over time; no axe scraping or honeycomb waxing
-- 10 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- 9 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **candles**
 
@@ -278,12 +277,12 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **copper_oxidising**
 
-- `minecraft:chiseled_copper`, `minecraft:copper_block`, `minecraft:copper_grate`, `minecraft:cut_copper`, `minecraft:exposed_chiseled_copper`, `minecraft:exposed_copper`, `minecraft:exposed_copper_grate`, `minecraft:exposed_cut_copper`, `minecraft:weathered_chiseled_copper`, `minecraft:weathered_copper`, `minecraft:weathered_copper_grate`, `minecraft:weathered_cut_copper`: no oxidation over time; no honeycomb waxing
-- `minecraft:oxidized_chiseled_copper`, `minecraft:oxidized_copper`, `minecraft:oxidized_copper_grate`, `minecraft:oxidized_cut_copper`: no honeycomb waxing
+- `minecraft:chiseled_copper`, `minecraft:copper_block`, `minecraft:copper_grate`, `minecraft:cut_copper`, `minecraft:exposed_chiseled_copper`, `minecraft:exposed_copper`, `minecraft:exposed_copper_grate`, `minecraft:exposed_cut_copper`, `minecraft:oxidized_chiseled_copper`, `minecraft:oxidized_copper`, `minecraft:oxidized_copper_grate`, `minecraft:oxidized_cut_copper` and 4 more: no honeycomb waxing
+- `minecraft:copper_chest`, `minecraft:exposed_copper_chest`, `minecraft:oxidized_copper_chest`, `minecraft:weathered_copper_chest`: not a container (no inventory, lid or pairing); no honeycomb waxing
+- `minecraft:copper_golem_statue`, `minecraft:exposed_copper_golem_statue`, `minecraft:oxidized_copper_golem_statue`, `minecraft:weathered_copper_golem_statue`: no statue poses or copper golem revival; no honeycomb waxing
 - `minecraft:waxed_copper_chest`, `minecraft:waxed_exposed_copper_chest`, `minecraft:waxed_oxidized_copper_chest`, `minecraft:waxed_weathered_copper_chest`: not a container (no inventory, lid or pairing)
 - `minecraft:waxed_copper_golem_statue`, `minecraft:waxed_exposed_copper_golem_statue`, `minecraft:waxed_oxidized_copper_golem_statue`, `minecraft:waxed_weathered_copper_golem_statue`: no statue poses or copper golem revival
-- `minecraft:copper_chest`, `minecraft:exposed_copper_chest`, `minecraft:weathered_copper_chest`: not a container (no inventory, lid or pairing); no oxidation over time; no honeycomb waxing
-- 6 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- 1 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **coral**
 
@@ -294,7 +293,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 **crops_growing**
 
 - `minecraft:amethyst_cluster`, `minecraft:large_amethyst_bud`, `minecraft:medium_amethyst_bud`, `minecraft:small_amethyst_bud`: no growth from budding amethyst
-- `minecraft:beetroot`, `minecraft:carrots`, `minecraft:potatoes`, `minecraft:wheat`: no random-tick growth or bone meal
+- `minecraft:beetroot`, `minecraft:carrots`, `minecraft:potatoes`, `minecraft:wheat`: growth ignores light (unastar has no block light); bone meal follows public references, not a BDS measurement
 - `minecraft:bamboo`, `minecraft:nether_wart`, `minecraft:weeping_vines`: no growth
 - `minecraft:cave_vines_body_with_berries`, `minecraft:cave_vines_head_with_berries`: glow berries cannot be picked; no growth
 - `minecraft:chorus_flower`, `minecraft:twisting_vines`: no growth; no support check (stays when the block holding it is removed)
@@ -303,9 +302,8 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 **doors**
 
 - `minecraft:waxed_copper_door`, `minecraft:waxed_exposed_copper_door`, `minecraft:waxed_oxidized_copper_door`, `minecraft:waxed_weathered_copper_door`: axe wax removal changes only the clicked half
-- `minecraft:exposed_copper_door`, `minecraft:weathered_copper_door`: no oxidation over time; no honeycomb waxing; axe scraping changes only the clicked half
-- `minecraft:copper_door`: no oxidation over time; no honeycomb waxing
-- `minecraft:oxidized_copper_door`: no honeycomb waxing; axe scraping changes only the clicked half
+- `minecraft:exposed_copper_door`, `minecraft:oxidized_copper_door`, `minecraft:weathered_copper_door`: no honeycomb waxing; axe scraping changes only the clicked half
+- `minecraft:copper_door`: no honeycomb waxing
 
 **falling**
 
@@ -323,8 +321,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **leaves**
 
-- `minecraft:acacia_leaves`, `minecraft:azalea_leaves`, `minecraft:azalea_leaves_flowered`, `minecraft:birch_leaves`, `minecraft:cherry_leaves`, `minecraft:dark_oak_leaves`, `minecraft:jungle_leaves`, `minecraft:mangrove_leaves`, `minecraft:oak_leaves`, `minecraft:pale_oak_leaves`, `minecraft:spruce_leaves`: no decay
-- `minecraft:orange_poplar_leaves`, `minecraft:red_poplar_leaves`, `minecraft:yellow_poplar_leaves`: no decay; drops itself (vanilla drops saplings and sticks)
+- `minecraft:orange_poplar_leaves`, `minecraft:red_poplar_leaves`, `minecraft:yellow_poplar_leaves`: drops itself (vanilla drops saplings and sticks)
 
 **liquids**
 
@@ -339,8 +336,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **panes_bars**
 
-- `minecraft:copper_bars`, `minecraft:exposed_copper_bars`, `minecraft:weathered_copper_bars`: no oxidation over time; no honeycomb waxing
-- `minecraft:oxidized_copper_bars`: no honeycomb waxing
+- `minecraft:copper_bars`, `minecraft:exposed_copper_bars`, `minecraft:oxidized_copper_bars`, `minecraft:weathered_copper_bars`: no honeycomb waxing
 
 **plants**
 
@@ -363,12 +359,12 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **redstone**
 
-- `minecraft:copper_bulb`, `minecraft:exposed_copper_bulb`, `minecraft:weathered_copper_bulb`: no oxidation over time; no honeycomb waxing
+- `minecraft:copper_bulb`, `minecraft:exposed_copper_bulb`, `minecraft:oxidized_copper_bulb`, `minecraft:weathered_copper_bulb`: no honeycomb waxing
 - `minecraft:calibrated_sculk_sensor`, `minecraft:sculk_sensor`: does not detect vibrations or emit power
 - `minecraft:dispenser`, `minecraft:dropper`: not a container; does not dispense or drop (power sets triggered_bit only)
 - `minecraft:piston_arm_collision`, `minecraft:sticky_piston_arm_collision`: piston heads are never produced (pistons do not extend)
 - `minecraft:crafter`: not a container; no crafting; its partial block actor is not sent (power sets triggered_bit only)
-- 12 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- 11 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **saplings**
 
@@ -381,13 +377,11 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **slabs**
 
-- `minecraft:cut_copper_slab`, `minecraft:double_cut_copper_slab`, `minecraft:exposed_cut_copper_slab`, `minecraft:exposed_double_cut_copper_slab`, `minecraft:weathered_cut_copper_slab`, `minecraft:weathered_double_cut_copper_slab`: no oxidation over time; no honeycomb waxing
-- `minecraft:oxidized_cut_copper_slab`, `minecraft:oxidized_double_cut_copper_slab`: no honeycomb waxing
+- `minecraft:cut_copper_slab`, `minecraft:double_cut_copper_slab`, `minecraft:exposed_cut_copper_slab`, `minecraft:exposed_double_cut_copper_slab`, `minecraft:oxidized_cut_copper_slab`, `minecraft:oxidized_double_cut_copper_slab`, `minecraft:weathered_cut_copper_slab`, `minecraft:weathered_double_cut_copper_slab`: no honeycomb waxing
 
 **stairs**
 
-- `minecraft:cut_copper_stairs`, `minecraft:exposed_cut_copper_stairs`, `minecraft:weathered_cut_copper_stairs`: no oxidation over time; no honeycomb waxing
-- `minecraft:oxidized_cut_copper_stairs`: no honeycomb waxing
+- `minecraft:cut_copper_stairs`, `minecraft:exposed_cut_copper_stairs`, `minecraft:oxidized_cut_copper_stairs`, `minecraft:weathered_cut_copper_stairs`: no honeycomb waxing
 
 **surface_dynamic**
 
@@ -408,8 +402,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **trapdoors**
 
-- `minecraft:copper_trapdoor`, `minecraft:exposed_copper_trapdoor`, `minecraft:weathered_copper_trapdoor`: no oxidation over time; no honeycomb waxing
-- `minecraft:oxidized_copper_trapdoor`: no honeycomb waxing
+- `minecraft:copper_trapdoor`, `minecraft:exposed_copper_trapdoor`, `minecraft:oxidized_copper_trapdoor`, `minecraft:weathered_copper_trapdoor`: no honeycomb waxing
 
 ## Items
 
@@ -763,7 +756,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 | performance | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | platform | 6 | 0 | 3 | 3 | 0 | 0 | 50.0% |
 | player | 17 | 5 | 11 | 1 | 0 | 0 | 5.9% |
-| world | 19 | 9 | 10 | 0 | 0 | 0 | 0.0% |
+| world | 19 | 8 | 11 | 0 | 0 | 0 | 0.0% |
 
 ### Gameplay systems gaps
 
@@ -815,6 +808,6 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 - `world.day_cycle`: clock, daylight cycle and moon phase work; no sleeping skip and time is not persisted
 - `world.difficulty`: mob damage scaling, peaceful monsters, regional difficulty and hard-only door breaking; no hunger effects (starvation floors, peaceful regeneration) and effects of unimplemented mobs
 - `world.falling_blocks`: gravity blocks fall, land and drop on non-full blocks; no falling anvil/dripstone damage, anvil wear or concrete powder hardening
-- 5 more partial rows with other gaps (see [systems.toml](systems.toml))
-- missing: `world.dimensions`, `world.explosions`, `world.fire`, `world.liquids`, `world.pistons`, `world.random_ticks`, `world.structure_blocks`, `world.structures_hardcoded`, `world.world_border`
+- 6 more partial rows with other gaps (see [systems.toml](systems.toml))
+- missing: `world.dimensions`, `world.explosions`, `world.fire`, `world.liquids`, `world.pistons`, `world.structure_blocks`, `world.structures_hardcoded`, `world.world_border`
 
