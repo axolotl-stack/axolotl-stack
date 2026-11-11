@@ -17,7 +17,7 @@
 //! need only some block on that side.
 
 use glam::IVec3;
-use unastar_data::block_updates::{HolderRule, plant_soils, support_holders};
+use unastar_data::block_updates::{HolderRule, plant_soil_states, plant_soils, support_holders};
 
 use crate::entity::systems::BlockSource;
 use crate::registry::block::{BlockEntry, StateValue};
@@ -110,6 +110,10 @@ pub(crate) enum Needs {
     /// The other half of a two-block structure on `other`; the lower half
     /// also needs `floor` below.
     Half { other: Face, floor: Option<Floor> },
+    /// A rail: a holder below and, sloped, one on the side it rises toward
+    /// (BDS 1.26.51 pops a rail rising east when the block east of it goes;
+    /// `support.json`).
+    Rail { slope: Option<Face> },
 }
 
 fn int(entry: &BlockEntry, state: u32, property: &str) -> Option<i32> {
@@ -149,6 +153,72 @@ fn class_on(
     Needs::Holder { face, class }
 }
 
+/// The faces of a multi-face block and its bit for each (BDS 1.26.51,
+/// `multiface_support.json`): vines name only the four sides
+/// (`vine_direction_bits`), glow lichen, sculk veins and resin clumps all six
+/// (`multi_face_direction_bits`).
+pub(crate) fn multiface_bits(entry: &BlockEntry) -> Option<(&'static str, &'static [(Face, i32)])> {
+    const VINE: [(Face, i32); 4] = [
+        (Face::South, 1),
+        (Face::West, 2),
+        (Face::North, 4),
+        (Face::East, 8),
+    ];
+    const MULTI: [(Face, i32); 6] = [
+        (Face::Down, 1),
+        (Face::Up, 2),
+        (Face::South, 4),
+        (Face::West, 8),
+        (Face::North, 16),
+        (Face::East, 32),
+    ];
+    match entry.string_id.as_str() {
+        "minecraft:vine" => Some(("vine_direction_bits", &VINE)),
+        "minecraft:glow_lichen" | "minecraft:sculk_vein" | "minecraft:resin_clump" => {
+            Some(("multi_face_direction_bits", &MULTI))
+        }
+        _ => None,
+    }
+}
+
+/// What a multi-face block does when the block on `from` changes: a face
+/// on that side whose holder is gone comes off (`Some(Some(state))`), and
+/// the block pops (`Some(None)`) when no face is left, a block without faces
+/// at its first neighbour change. `None` when nothing happens.
+pub(crate) fn multiface_after(
+    blocks: &impl BlockSource,
+    pos: IVec3,
+    entry: &BlockEntry,
+    state: u32,
+    from: Face,
+) -> Option<Option<u32>> {
+    let (property, faces) = multiface_bits(entry)?;
+    let bits = int(entry, state, property)?;
+    if bits == 0 {
+        return Some(None);
+    }
+    let &(face, bit) = faces.iter().find(|(face, _)| *face == from)?;
+    if bits & bit == 0 {
+        return None;
+    }
+    let held = blocks
+        .block_at(pos + face.offset())
+        .is_none_or(|holder| holds(blocks, holder, face.opposite(), None));
+    if held {
+        return None;
+    }
+    let rest = bits & !bit;
+    Some((rest != 0).then(|| {
+        entry
+            .with_state_value(state, property, StateValue::Int(rest))
+            .unwrap_or(state)
+    }))
+}
+
+/// The measured holders of a rail (the floor under it; a sloped rail's
+/// rising side is held the same way).
+const RAIL_HOLDER: &str = "minecraft:rail/down";
+
 /// The plant whose measured soils a plant uses.
 fn soil_plant(id: &str) -> Option<&'static str> {
     let name = id.strip_prefix("minecraft:")?;
@@ -176,6 +246,11 @@ fn soil_plant(id: &str) -> Option<&'static str> {
         "bamboo" | "bamboo_sapling" => "minecraft:bamboo",
         "pink_petals" | "wildflowers" => "minecraft:pink_petals",
         "mangrove_propagule" => "minecraft:mangrove_propagule",
+        "waterlily" => "minecraft:waterlily",
+        "wither_rose" => "minecraft:wither_rose",
+        "red_shrub" => "minecraft:red_shrub",
+        "cactus_flower" => "minecraft:cactus_flower",
+        "frog_spawn" => "minecraft:frog_spawn",
         _ if name.ends_with("_sapling") => "minecraft:oak_sapling",
         _ => return None,
     })
@@ -337,12 +412,12 @@ pub(crate) fn needs(entry: &BlockEntry, state: u32) -> Needs {
         "minecraft:flower_pot" => Some("minecraft:flower_pot/down"),
         "minecraft:sea_pickle" => Some("minecraft:sea_pickle/down"),
         "minecraft:leaf_litter" => Some("minecraft:leaf_litter/down"),
-        "minecraft:rail" => Some("minecraft:rail/down"),
+
         _ if id.ends_with("_carpet") && id != "minecraft:pale_moss_carpet" => {
             Some("minecraft:white_carpet/down")
         }
         _ if id.ends_with("_pressure_plate") => Some("minecraft:stone_pressure_plate/down"),
-        _ if id.ends_with("_rail") => Some("minecraft:rail/down"),
+
         _ if id.ends_with("standing_sign") => Some("minecraft:standing_sign/down"),
         _ if id.ends_with("candle_cake") => Some("minecraft:cake/down"),
         _ if id.starts_with("minecraft:dead_") && id.ends_with("_coral_fan") => {
@@ -350,6 +425,16 @@ pub(crate) fn needs(entry: &BlockEntry, state: u32) -> Needs {
         }
         _ => None,
     };
+    if let Some(entry_kind) = super::rails::rail_kind(entry).map(|_| entry) {
+        let slope = int(entry_kind, state, "rail_direction")
+            .and_then(super::rails::slope)
+            .and_then(|offset| {
+                [Face::East, Face::West, Face::North, Face::South]
+                    .into_iter()
+                    .find(|face| face.offset() == offset)
+            });
+        return Needs::Rail { slope };
+    }
     if let Some(class) = floor_class {
         return class_on(Face::Down, Some(class), None, None);
     }
@@ -365,7 +450,6 @@ pub(crate) fn needs(entry: &BlockEntry, state: u32) -> Needs {
         | "minecraft:cave_vines_head_with_berries"
         | "minecraft:weeping_vines"
         | "minecraft:pale_hanging_moss" => return class_on(Face::Up, None, None, None),
-        "minecraft:cactus_flower" => return class_on(Face::Down, None, None, None),
         _ if id.starts_with("minecraft:dead_") && id.ends_with("_coral") => {
             return class_on(Face::Down, None, None, None);
         }
@@ -395,15 +479,9 @@ pub(crate) fn can_place(
             Floor::Present => blocks
                 .block_at(pos + IVec3::NEG_Y)
                 .is_none_or(|below| !is_air(blocks, below)),
-            Floor::Soil(plant) => blocks.block_at(pos + IVec3::NEG_Y).is_none_or(|below| {
-                let name = blocks
-                    .registry()
-                    .get_by_runtime_id(below)
-                    .map_or("", |e| e.string_id.as_str());
-                plant_soils()
-                    .get(plant)
-                    .is_some_and(|soils| soils.contains(name))
-            }),
+            Floor::Soil(plant) => blocks
+                .block_at(pos + IVec3::NEG_Y)
+                .is_none_or(|below| soil_holds(blocks, plant, below)),
         },
         Needs::Half { .. } => true,
         _ => stays(blocks, pos, entry, state),
@@ -436,7 +514,10 @@ pub(crate) fn stays_after(
     let needs = needs(entry, state);
     let checked = match (check, needs) {
         (Check::None, _) | (_, Needs::Nothing) => false,
-        (Check::Placed, Needs::Holder { .. }) => true,
+        (Check::Placed, Needs::Holder { .. } | Needs::Rail { .. }) => true,
+        (Check::Neighbour(from), Needs::Rail { slope }) => {
+            from == Face::Down || Some(from) == slope
+        }
         (Check::Placed, _) => false,
         (Check::Neighbour(from), Needs::Holder { face, .. }) => from == face,
         // A tall plant half checks itself only when the block above or below
@@ -462,15 +543,9 @@ pub(crate) fn stays(blocks: &impl BlockSource, pos: IVec3, entry: &BlockEntry, s
             .is_none_or(|holder| !is_air(blocks, holder))
     };
     let soil = |plant: &str| {
-        blocks.block_at(pos + IVec3::NEG_Y).is_none_or(|below| {
-            let name = blocks
-                .registry()
-                .get_by_runtime_id(below)
-                .map_or("", |e| e.string_id.as_str());
-            plant_soils()
-                .get(plant)
-                .is_some_and(|soils| soils.contains(name))
-        })
+        blocks
+            .block_at(pos + IVec3::NEG_Y)
+            .is_none_or(|below| soil_holds(blocks, plant, below))
     };
     match needs(entry, state) {
         Needs::Nothing => true,
@@ -478,6 +553,11 @@ pub(crate) fn stays(blocks: &impl BlockSource, pos: IVec3, entry: &BlockEntry, s
             .block_at(pos + face.offset())
             .is_none_or(|holder| holds(blocks, holder, face.opposite(), class)),
         Needs::Soil { plant } => soil(plant),
+        Needs::Rail { slope } => [Some(Face::Down), slope].into_iter().flatten().all(|face| {
+            blocks
+                .block_at(pos + face.offset())
+                .is_none_or(|holder| holds(blocks, holder, Face::Up, Some(RAIL_HOLDER)))
+        }),
         Needs::Half { other, floor } => {
             let upper = byte(entry, state, "upper_block_bit");
             let partner = blocks.block_at(pos + other.offset()).is_none_or(|partner| {
@@ -492,6 +572,24 @@ pub(crate) fn stays(blocks: &impl BlockSource, pos: IVec3, entry: &BlockEntry, s
                 }
         }
     }
+}
+
+/// Whether `plant` stays on the block `below`: a soil all of whose measured
+/// states hold it, or one of the measured states that do (a lily pad on a
+/// water source).
+fn soil_holds(blocks: &impl BlockSource, plant: &str, below: u32) -> bool {
+    let Some(entry) = blocks.registry().get_by_runtime_id(below) else {
+        return false;
+    };
+    let name = entry.string_id.as_str();
+    plant_soils()
+        .get(plant)
+        .is_some_and(|soils| soils.contains(name))
+        || plant_soil_states().get(plant).is_some_and(|states| {
+            states
+                .iter()
+                .any(|(block, values)| block == name && matches_states(entry, below, values))
+        })
 }
 
 fn is_air(blocks: &impl BlockSource, state: u32) -> bool {

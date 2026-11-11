@@ -6076,9 +6076,8 @@
    "bds_version": "1.26.51",
    "files": [
     {
-     "path": "block_updates/stairs.json",
-     "rows": 3840,
-     "sha256": "18d9d5754c00f5ae2ddcc7d4c214cdab861069b854f786c275421eaec028870a"
+     "path": "block_updates/connection_faces.json",
+     "sha256": "887fae7a58d862c101dc622fa0e51e1fda44511e71ef17c0d48ca82e9e37a5fd"
     },
     {
      "path": "block_updates/connections.json",
@@ -6086,13 +6085,9 @@
      "sha256": "8ea8689d93e0b8474f5807843e96ed8c73f4c6dcba5a54e60c3cbf4c2eaf1c7c"
     },
     {
-     "path": "block_updates/connection_faces.json",
-     "sha256": "f75c51726fa374b557b75278938f618307127754806e7bff4bbb46b2a2b2be96"
-    },
-    {
-     "path": "block_updates/wall_above.json",
-     "rows": 1396,
-     "sha256": "fd2778cfd60318369c6870ebc1a938ada27a378f6c76fdc18ed10f16719e3063"
+     "path": "block_updates/connections_blocks.json",
+     "rows": 233,
+     "sha256": "7855a3081bd97be595d2293b676c725cb43de2c1c7a74df8610de9b2acd97cad"
     },
     {
      "path": "block_updates/gate_in_wall.json",
@@ -6100,22 +6095,9 @@
      "sha256": "d16dbaf55b65988ff467c267ef03084fc02d285f4c5268967067b165ed3bbb45"
     },
     {
-     "path": "block_updates/surfaces.json",
-     "rows": 34,
-     "sha256": "c54ef972d29c5ff052519d8b274d65de98d0ef7108786fc4beffc488c7b2348c"
-    },
-    {
-     "path": "block_updates/support_holders.json",
-     "sha256": "301602d80aeb91fd202cdc059f0bb83de8e64423f7cebe93bb855294327e1d71"
-    },
-    {
-     "path": "block_updates/soils.json",
-     "rows": 21,
-     "sha256": "fc37dfe3cb00b1317ae3f9e914cb456b5d1505398a558efc8424709b2a79e0e8"
-    },
-    {
-     "path": "block_updates/plant_soils.json",
-     "sha256": "be26c547d93233044f0d512c47b9c7dbb36b2ec4c7f4c61bcccd3ea343bbc975"
+     "path": "block_updates/halves.json",
+     "rows": 30,
+     "sha256": "a1e9cbaf4afe43bf56236219304ae28d78fae503805a3570f1290adf86f6b278"
     },
     {
      "path": "block_updates/junctions.json",
@@ -6123,17 +6105,65 @@
      "sha256": "299127d3d4d6bb13ae8b512b29f397756e5d66bbf07907c4c29940775165510d"
     },
     {
-     "path": "block_updates/halves.json",
-     "rows": 30,
-     "sha256": "a1e9cbaf4afe43bf56236219304ae28d78fae503805a3570f1290adf86f6b278"
+     "path": "block_updates/multiface_support.json",
+     "rows": 416,
+     "sha256": "82de612fe9bda5a89eef4551b2f9e62c58f5d8f979c6c6342f3739b71c3972f6"
+    },
+    {
+     "path": "block_updates/plant_soils.json",
+     "sha256": "8f1d141d94d0336bc52a66c6466165a7a2953b66ab095d9c2a8c3e8c35557ad0"
+    },
+    {
+     "path": "block_updates/rails.json",
+     "rows": 648,
+     "sha256": "ef0a8f4c9faa604c6cbcb01005936ee2802ac879dda58d2429b85526c4957595"
+    },
+    {
+     "path": "block_updates/soils.json",
+     "rows": 21,
+     "sha256": "fc37dfe3cb00b1317ae3f9e914cb456b5d1505398a558efc8424709b2a79e0e8"
+    },
+    {
+     "path": "block_updates/soils_more.json",
+     "rows": 7,
+     "sha256": "0831abbf784a9dc11ab8d9033a6fbdff1e9116054a0205ba8c9cfeab3453bb12"
+    },
+    {
+     "path": "block_updates/stairs.json",
+     "rows": 3840,
+     "sha256": "18d9d5754c00f5ae2ddcc7d4c214cdab861069b854f786c275421eaec028870a"
+    },
+    {
+     "path": "block_updates/stairs_blocks.json",
+     "rows": 24576,
+     "sha256": "5d378c729526ba01ec79606035f86c708b8b2fe3f4c456cc68cc260a22981675"
     },
     {
      "path": "block_updates/support.json",
      "rows": 6047,
      "sha256": "635cc634e9a068dd3f6f10b30fb1f451ad73091116ff0266f090b4201f986016"
+    },
+    {
+     "path": "block_updates/support_holders.json",
+     "sha256": "301602d80aeb91fd202cdc059f0bb83de8e64423f7cebe93bb855294327e1d71"
+    },
+    {
+     "path": "block_updates/surfaces.json",
+     "rows": 34,
+     "sha256": "c54ef972d29c5ff052519d8b274d65de98d0ef7108786fc4beffc488c7b2348c"
+    },
+    {
+     "path": "block_updates/wall_above.json",
+     "rows": 1396,
+     "sha256": "fd2778cfd60318369c6870ebc1a938ada27a378f6c76fdc18ed10f16719e3063"
+    },
+    {
+     "path": "block_updates/wall_heights_blocks.json",
+     "rows": 544,
+     "sha256": "21aaf072a371c26edb231ac5dbb4392232450f7d8d6e0f78b7e3a11271b48fb3"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e19a52c8685d1c2e414471576ab960f421669362",
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e19a52c8685d1c2e414471576ab960f421669362",
    "method": "block scenarios (tools/bds-sweep/scenarios.py) run by the endstone-sweep `scenarios` job on a superflat world with random ticks off: blocks set through the Endstone block API with or without the block update a placement triggers, read back after the stated wait; see each file's `method`",
    "source": "bds_sweep",
    "sweeps": [
@@ -6181,6 +6211,30 @@
        "items": 34035,
        "seconds": 99.0,
        "started": "20261110T195019Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "scenarios-r2-a",
+     "items": 24576,
+     "runs": [
+      {
+       "items": 24576,
+       "seconds": 59.8,
+       "started": "20261110T224631Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "scenarios-r2-b",
+     "items": 25683,
+     "runs": [
+      {
+       "items": 25683,
+       "seconds": 124.8,
+       "started": "20261110T224734Z",
        "status": "done"
       }
      ]

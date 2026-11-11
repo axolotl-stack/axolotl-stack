@@ -217,6 +217,14 @@ impl GameServer {
             McpePacketData::AnimatePacket(pk) => {
                 crate::server::broadcast::relay_player_swing(world, entity, &pk);
             }
+            McpePacketData::BlockActorDataPacket(pk) => {
+                let pos = glam::IVec3::new(
+                    pk.block_position.x,
+                    pk.block_position.y,
+                    pk.block_position.z,
+                );
+                super::signs::client_edit(world, entity, pos, &pk.actor_data_tags);
+            }
             McpePacketData::SetLocalPlayerAsInitializedPacket(_) => {
                 // Ends the streamed spawn; jolyne's receive path checked its runtime ID.
             }

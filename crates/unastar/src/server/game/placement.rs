@@ -23,6 +23,14 @@
 //!   side the torch is fixed to); lanterns and hanging signs hang under a
 //!   block; signs stand on a top face in sixteenths of a turn or hang on a
 //!   wall; doors and beds take two blocks.
+//! - Round 2 (`testdata/bds-placements-*.json`): door hinges from the
+//!   neighbouring doors and solid blocks (on the upper half); coral fans on
+//!   floors and walls, dead out of water; skulls, bells, grindstones, shelf
+//!   mushrooms, beehives, bee nests, looms, chiseled bookshelves, decorated
+//!   pots, crafters and calibrated sculk sensors oriented as measured; the
+//!   faces of vines, glow lichen, sculk veins and resin clumps; candles,
+//!   snow layers, sea pickles, turtle eggs and petals growing when placed
+//!   into again, candles onto cakes; planting items; persistent leaves.
 //! - A block that could not stay where it would go is refused (support and
 //!   soil, see `block_update::support`), as is a bed whose halves would not
 //!   both stand on a block.
@@ -83,7 +91,7 @@ impl Horizontal {
         }
     }
 
-    fn cardinal(self) -> &'static str {
+    pub(crate) fn cardinal(self) -> &'static str {
         match self {
             Self::South => "south",
             Self::West => "west",
@@ -142,6 +150,8 @@ pub struct PlacementInput {
     pub click: DVec3,
     pub yaw: f32,
     pub pitch: f32,
+    /// The placer's eye position.
+    pub eye: DVec3,
 }
 
 /// Where and what to place.
@@ -172,11 +182,38 @@ pub fn sign_block<'a>(registry: &'a BlockRegistry, item: &str) -> Option<&'a Blo
 /// repeaters and comparators their unpowered blocks, sign items their
 /// standing sign ([`sign_block`]).
 pub fn item_placed_block<'a>(registry: &'a BlockRegistry, item: &str) -> Option<&'a BlockEntry> {
+    let block = match item {
+        "minecraft:redstone" => "minecraft:redstone_wire",
+        "minecraft:repeater" => "minecraft:unpowered_repeater",
+        "minecraft:comparator" => "minecraft:unpowered_comparator",
+        // Measured in round 2 (`testdata/bds-placements-crops.json`,
+        // `-actors.json`): the item plants or places this block.
+        "minecraft:wheat_seeds" => "minecraft:wheat",
+        "minecraft:carrot" => "minecraft:carrots",
+        "minecraft:potato" => "minecraft:potatoes",
+        "minecraft:beetroot_seeds" => "minecraft:beetroot",
+        "minecraft:melon_seeds" => "minecraft:melon_stem",
+        "minecraft:pumpkin_seeds" => "minecraft:pumpkin_stem",
+        "minecraft:torchflower_seeds" => "minecraft:torchflower_crop",
+        "minecraft:pitcher_pod" => "minecraft:pitcher_crop",
+        "minecraft:sweet_berries" => "minecraft:sweet_berry_bush",
+        "minecraft:glow_berries" => "minecraft:cave_vines",
+        "minecraft:sugar_cane" => "minecraft:reeds",
+        "minecraft:string" => "minecraft:trip_wire",
+        "minecraft:cocoa_beans" => "minecraft:cocoa",
+        "minecraft:banner" => "minecraft:standing_banner",
+        _ => return sign_block(registry, item),
+    };
+    registry.get_by_name(block)
+}
+
+/// The block an item places where a block of the item's name exists but the
+/// item places another (BDS 1.26.51: the bamboo item plants a bamboo
+/// sapling).
+pub fn item_block_override(item: &str) -> Option<&'static str> {
     match item {
-        "minecraft:redstone" => registry.get_by_name("minecraft:redstone_wire"),
-        "minecraft:repeater" => registry.get_by_name("minecraft:unpowered_repeater"),
-        "minecraft:comparator" => registry.get_by_name("minecraft:unpowered_comparator"),
-        _ => sign_block(registry, item),
+        "minecraft:bamboo" => Some("minecraft:bamboo_sapling"),
+        _ => None,
     }
 }
 
@@ -187,13 +224,49 @@ pub fn wall_sign<'a>(registry: &'a BlockRegistry, standing: &BlockEntry) -> Opti
 }
 
 /// Whether `placed` is a block the item placing `held` may put down: the
-/// held block itself or, for a standing sign, its wall sign.
+/// held block itself, its wall variant (signs, banners, coral fans), a coral
+/// fan's dead form, or the candle cake of a candle.
 pub fn places_as(held: &BlockEntry, placed: &BlockEntry) -> bool {
-    placed.string_id == held.string_id
+    let (held, placed) = (held.string_id.as_str(), placed.string_id.as_str());
+    let alive = |id: &str| {
+        id.strip_prefix("minecraft:dead_")
+            .map(|rest| format!("minecraft:{rest}"))
+    };
+    let fan_floor = |id: &str| id.replace("_coral_wall_fan", "_coral_fan");
+    placed == held
         || held
-            .string_id
             .strip_suffix("standing_sign")
-            .is_some_and(|prefix| placed.string_id.strip_suffix("wall_sign") == Some(prefix))
+            .is_some_and(|prefix| placed.strip_suffix("wall_sign") == Some(prefix))
+        || (held == "minecraft:standing_banner" && placed == "minecraft:wall_banner")
+        || (held.ends_with("_coral_fan")
+            && [placed.to_owned(), alive(placed).unwrap_or_default()]
+                .iter()
+                .any(|id| {
+                    fan_floor(id) == held || fan_floor(id) == alive(held).unwrap_or_default()
+                }))
+        || (held.ends_with("candle") && placed == format!("{held}_cake"))
+}
+
+/// The wall variant of a block placed on a side face: wall signs, wall
+/// banners and coral wall fans.
+fn wall_variant<'a>(registry: &'a BlockRegistry, held: &BlockEntry) -> Option<&'a BlockEntry> {
+    if held.string_id == "minecraft:standing_banner" {
+        return registry.get_by_name("minecraft:wall_banner");
+    }
+    if let Some(prefix) = held.string_id.strip_suffix("_coral_fan") {
+        return registry.get_by_name(&format!("{prefix}_coral_wall_fan"));
+    }
+    wall_sign(registry, held)
+}
+
+/// The dead form of a live coral fan (BDS 1.26.51 places a live fan out of
+/// water already dead; `testdata/bds-placements-coral.json`).
+fn dead_coral<'a>(registry: &'a BlockRegistry, block: &BlockEntry) -> Option<&'a BlockEntry> {
+    let name = block.string_id.strip_prefix("minecraft:")?;
+    if name.starts_with("dead_") || !name.contains("_coral_") || !name.contains("fan") {
+        return None;
+    }
+    registry.get_by_name(&format!("minecraft:dead_{name}"))
 }
 
 /// Whether placing a block may replace `state` (the block is "built over").
@@ -323,7 +396,10 @@ fn placed_state(block: &BlockEntry, input: &PlacementInput) -> Option<u32> {
             looking.clockwise()
         } else if id.ends_with("anvil") {
             looking.clockwise().opposite()
-        } else if id.ends_with("campfire") || block.state_value(state, "head_piece_bit").is_some() {
+        } else if id.ends_with("campfire")
+            || id == "minecraft:calibrated_sculk_sensor"
+            || block.state_value(state, "head_piece_bit").is_some()
+        {
             looking
         } else {
             looking.opposite()
@@ -414,13 +490,146 @@ fn placed_state(block: &BlockEntry, input: &PlacementInput) -> Option<u32> {
         };
         state = set(block, state, "minecraft:block_face", StateValue::Str(face));
     }
-    if block.string_id == "minecraft:bell" {
+    // Bells and grindstones hang under a block, stand on one or hang on a
+    // wall (a bell with a block behind it too: `multiple`, set in
+    // [`resolve_placement`]); on a wall they face out of it, otherwise the
+    // player.
+    if matches!(
+        block.string_id.as_str(),
+        "minecraft:bell" | "minecraft:grindstone"
+    ) {
+        let (attachment, direction) = match input.face {
+            0 => ("hanging", looking.opposite().legacy()),
+            1 => ("standing", looking.opposite().legacy()),
+            face => ("side", horizontal_of_face(face)?.legacy()),
+        };
+        state = set(block, state, "attachment", StateValue::Str(attachment));
+        state = set(block, state, "direction", StateValue::Int(direction));
+    }
+    // Measured (round 2, `testdata/bds-placements-directions.json`): these
+    // face the player (legacy `direction`).
+    if matches!(
+        block.string_id.as_str(),
+        "minecraft:bee_nest"
+            | "minecraft:beehive"
+            | "minecraft:loom"
+            | "minecraft:chiseled_bookshelf"
+            | "minecraft:decorated_pot"
+    ) {
         state = set(
             block,
             state,
             "direction",
             StateValue::Int(looking.opposite().legacy()),
         );
+    }
+    // A crafter faces the player with its top up, whatever the pitch.
+    if block.string_id == "minecraft:crafter" {
+        let orientation = format!("{}_up", looking.opposite().cardinal());
+        state = block
+            .with_state_value(
+                state,
+                "orientation",
+                StateValue::Str(Box::leak(orientation.into_boxed_str())),
+            )
+            .unwrap_or(state);
+    }
+    // A shelf mushroom only goes on a side face and faces out of it.
+    if block.string_id == "minecraft:shelf_mushroom" {
+        let side = horizontal_of_face(input.face)?;
+        state = set(
+            block,
+            state,
+            "minecraft:cardinal_direction",
+            StateValue::Str(side.cardinal()),
+        );
+    }
+    // Skulls stand on a top face (their actor keeps the rotation) and hang
+    // on side faces; not under a block.
+    if block.string_id.ends_with("_skull") || block.string_id.ends_with("_head") {
+        if input.face == 0 {
+            return None;
+        }
+        state = set(
+            block,
+            state,
+            "facing_direction",
+            StateValue::Int(i32::from(input.face)),
+        );
+    }
+    // Floor coral fans: 0 looking south, 1 every other way (BDS 1.26.51,
+    // four looks measured); wall fans name the side they hang from; coral
+    // plants and fans do not go under a block, plants not on walls.
+    if block.string_id.ends_with("_coral_fan") {
+        if input.face != 1 {
+            return None;
+        }
+        // 0 for a placer north of the block, 1 east, south or west of it,
+        // whatever the look (BDS 1.26.51: 18 looks from the north all gave 0).
+        let to_player = input.eye - (input.clicked + IVec3::Y).as_dvec3() - DVec3::splat(0.5);
+        let north = to_player.z < 0.0 && to_player.z.abs() >= to_player.x.abs();
+        state = set(
+            block,
+            state,
+            "coral_fan_direction",
+            StateValue::Int(i32::from(!north)),
+        );
+    }
+    if block.string_id.ends_with("_coral_wall_fan") {
+        let direction = match input.face {
+            4 => 0,
+            5 => 1,
+            2 => 2,
+            3 => 3,
+            _ => return None,
+        };
+        state = set(block, state, "coral_direction", StateValue::Int(direction));
+    }
+    if block.string_id.ends_with("_coral") && input.face != 1 {
+        return None;
+    }
+    // A mushroom stem is placed with its item's faces (all stem).
+    if block.string_id == "minecraft:mushroom_stem" {
+        state = set(block, state, "huge_mushroom_bits", StateValue::Int(15));
+    }
+    // Leaves placed by a player never decay.
+    if block.state_value(state, "persistent_bit").is_some() && block.string_id.contains("leaves") {
+        state = set(block, state, "persistent_bit", StateValue::Byte(1));
+    }
+    // A standing banner faces the player in sixteenths of a turn like a sign,
+    // a wall banner out of its wall; neither goes under a block.
+    if block.string_id == "minecraft:standing_banner" {
+        if input.face == 0 {
+            return None;
+        }
+        state = set(
+            block,
+            state,
+            "ground_sign_direction",
+            StateValue::Int(sign_direction(input.yaw)),
+        );
+    }
+    if block.string_id == "minecraft:wall_banner" {
+        state = set(
+            block,
+            state,
+            "facing_direction",
+            StateValue::Int(i32::from(input.face)),
+        );
+    }
+    // Vines, glow lichen, sculk veins and resin clumps cover the face they
+    // were placed against (vines only walls).
+    if let Some((property, faces)) =
+        crate::server::game::block_update::support::multiface_bits(block)
+    {
+        let side = attach_face(input.face)?;
+        let &(_, bit) = faces.iter().find(|(face, _)| *face == side)?;
+        state = set(block, state, property, StateValue::Int(bit));
+    }
+    // Cocoa only goes on a side face; `direction` points at the log.
+    if block.string_id == "minecraft:cocoa" {
+        let toward = horizontal_of_face(input.face)?.opposite();
+        state = set(block, state, "direction", StateValue::Int(toward.legacy()));
     }
     if block.string_id == "minecraft:observer" {
         let facing = match look_facing(input.yaw, input.pitch) {
@@ -551,6 +760,30 @@ fn placed_state(block: &BlockEntry, input: &PlacementInput) -> Option<u32> {
     Some(state)
 }
 
+/// The direction a side face points (`None` for the top and bottom faces).
+fn horizontal_of_face(face: u8) -> Option<Horizontal> {
+    Some(match face {
+        2 => Horizontal::North,
+        3 => Horizontal::South,
+        4 => Horizontal::West,
+        5 => Horizontal::East,
+        _ => return None,
+    })
+}
+
+/// The side of a placed block that touches the clicked face's block.
+fn attach_face(face: u8) -> Option<Face> {
+    Some(match face {
+        0 => Face::Up,
+        1 => Face::Down,
+        2 => Face::South,
+        3 => Face::North,
+        4 => Face::East,
+        5 => Face::West,
+        _ => return None,
+    })
+}
+
 /// `facing_direction` of a hanging sign on side `face` of a block: along the
 /// wall, away from the way the player looks along it; east (on a north or
 /// south face) or south (on a west or east face) when the look has no part
@@ -573,6 +806,171 @@ fn wall_hanging_facing(face: u8, yaw: f32) -> i32 {
 /// gives 8).
 fn sign_direction(yaw: f32) -> i32 {
     (((f64::from(yaw) + 180.0) / 22.5).round() as i32).rem_euclid(16)
+}
+
+/// Where-it-may-go rules measured in round 2
+/// (`testdata/bds-placements-crops.json`, `-plants_and_stacks.json`): kelp
+/// only into water; cocoa only on the side of a jungle log; sugar cane only
+/// next to water.
+fn placeable_here(
+    blocks: &impl BlockSource,
+    held: &BlockEntry,
+    position: IVec3,
+    target: &BlockEntry,
+    target_state: u32,
+    input: &PlacementInput,
+) -> bool {
+    let registry = blocks.registry();
+    let name_at = |pos: IVec3| {
+        blocks
+            .block_at(pos)
+            .and_then(|id| registry.get_by_runtime_id(id))
+            .map_or("", |entry| entry.string_id.as_str())
+    };
+    match held.string_id.as_str() {
+        "minecraft:kelp" => is_water(registry, target, target_state),
+        "minecraft:cocoa" => matches!(
+            name_at(input.clicked),
+            "minecraft:jungle_log" | "minecraft:jungle_wood"
+        ),
+        "minecraft:reeds" => {
+            let below = position - IVec3::Y;
+            name_at(below) == "minecraft:reeds"
+                || [IVec3::X, IVec3::NEG_X, IVec3::Z, IVec3::NEG_Z]
+                    .into_iter()
+                    .any(|side| {
+                        matches!(
+                            name_at(below + side),
+                            "minecraft:water" | "minecraft:flowing_water"
+                        )
+                    })
+        }
+        _ => true,
+    }
+}
+
+fn is_water(registry: &BlockRegistry, entry: &BlockEntry, _state: u32) -> bool {
+    let _ = registry;
+    matches!(
+        entry.string_id.as_str(),
+        "minecraft:water" | "minecraft:flowing_water"
+    )
+}
+
+/// Whether `block` grows when its item is placed into it again (candles,
+/// snow layers, sea pickles, turtle eggs, petals, multi-face blocks).
+pub fn stacks(block: &BlockEntry) -> bool {
+    crate::server::game::block_update::support::multiface_bits(block).is_some()
+        || block.string_id.ends_with("candle")
+        || matches!(
+            block.string_id.as_str(),
+            "minecraft:snow_layer"
+                | "minecraft:sea_pickle"
+                | "minecraft:turtle_egg"
+                | "minecraft:pink_petals"
+                | "minecraft:wildflowers"
+                | "minecraft:leaf_litter"
+        )
+}
+
+/// The next state of a block that grows by one when its item is placed into
+/// it again (BDS 1.26.51, `testdata/bds-placements-candles.json` and
+/// `-plants_and_stacks.json`): candles of the same colour up to four, snow
+/// layers, sea pickles, turtle eggs, pink petals, wildflowers and leaf
+/// litter; a multi-face block gains the clicked face. `Some(None)` when the
+/// block is full or the face already covered.
+fn grown(
+    held: &BlockEntry,
+    current: &BlockEntry,
+    state: u32,
+    face: Option<Face>,
+) -> Option<Option<u32>> {
+    if held.string_id != current.string_id {
+        return None;
+    }
+    let int = |name: &str| match current.state_value(state, name) {
+        Some(StateValue::Int(value)) => Some(value),
+        _ => None,
+    };
+    let bump = |name: &str, max: i32| {
+        let value = int(name)?;
+        Some((value < max).then(|| set(current, state, name, StateValue::Int(value + 1))))
+    };
+    if let Some((property, faces)) =
+        crate::server::game::block_update::support::multiface_bits(current)
+    {
+        let face = face?;
+        let bits = int(property)?;
+        let &(_, bit) = faces.iter().find(|(f, _)| *f == face)?;
+        return Some(
+            (bits & bit == 0).then(|| set(current, state, property, StateValue::Int(bits | bit))),
+        );
+    }
+    match current.string_id.as_str() {
+        id if id.ends_with("candle") => bump("candles", 3),
+        "minecraft:snow_layer" => bump("height", 7),
+        "minecraft:sea_pickle" => bump("cluster_count", 3),
+        "minecraft:pink_petals" | "minecraft:wildflowers" | "minecraft:leaf_litter" => {
+            bump("growth", 3)
+        }
+        "minecraft:turtle_egg" => {
+            let next = match current.state_value(state, "turtle_egg_count") {
+                Some(StateValue::Str("one_egg")) => "two_egg",
+                Some(StateValue::Str("two_egg")) => "three_egg",
+                Some(StateValue::Str("three_egg")) => "four_egg",
+                _ => return Some(None),
+            };
+            Some(Some(set(
+                current,
+                state,
+                "turtle_egg_count",
+                StateValue::Str(next),
+            )))
+        }
+        _ => None,
+    }
+}
+
+/// A placement into an existing block: the clicked block grows (stacking
+/// blocks), the block on the clicked face gains a face (multi-face blocks),
+/// or a candle goes onto an uneaten cake. `None` when this is not such a
+/// click; `Some(None)` when it is but BDS refuses it.
+fn stack(
+    blocks: &impl BlockSource,
+    held: &BlockEntry,
+    input: &PlacementInput,
+    target: IVec3,
+) -> Option<Option<Placement>> {
+    let registry = blocks.registry();
+    let clicked_state = blocks.block_at(input.clicked)?;
+    let clicked = registry.get_by_runtime_id(clicked_state)?;
+    let one = |position: IVec3, state: u32| {
+        Some(Placement {
+            position,
+            state,
+            upper: None,
+        })
+    };
+    // A candle onto a cake nobody has eaten from.
+    if held.string_id.ends_with("candle") && clicked.string_id == "minecraft:cake" {
+        if !matches!(
+            clicked.state_value(clicked_state, "bite_counter"),
+            Some(StateValue::Int(0))
+        ) {
+            return None;
+        }
+        let cake = registry.get_by_name(&format!("{}_cake", held.string_id))?;
+        return Some(one(input.clicked, cake.default_state_id));
+    }
+    let multiface = crate::server::game::block_update::support::multiface_bits(held).is_some();
+    if multiface {
+        let target_state = blocks.block_at(target)?;
+        let current = registry.get_by_runtime_id(target_state)?;
+        let grown = grown(held, current, target_state, attach_face(input.face))?;
+        return Some(grown.and_then(|state| one(target, state)));
+    }
+    let grown = grown(held, clicked, clicked_state, None)?;
+    Some(grown.and_then(|state| one(input.clicked, state)))
 }
 
 /// Resolve where `held` goes for `input`. `None` when nothing can be placed.
@@ -609,12 +1007,58 @@ pub fn resolve_placement(
     };
     let target_state = blocks.block_at(position)?;
     let target = registry.get_by_runtime_id(target_state)?;
-    // A sign clicked onto a side face goes up as a wall sign.
-    let held = match wall_sign(registry, held) {
+    // Blocks that stack when placed again into the clicked block (or the
+    // block on the clicked face).
+    if let Some(stacked) = stack(blocks, held, input, position) {
+        return stacked;
+    }
+    // A candle clicked onto a candle of another colour is refused.
+    if held.string_id.ends_with("candle") && clicked.string_id.ends_with("candle") {
+        return None;
+    }
+    // A lily pad or frog spawn clicked onto water goes on top of it.
+    let (position, target_state, target) = if matches!(
+        held.string_id.as_str(),
+        "minecraft:waterlily" | "minecraft:frog_spawn"
+    ) && is_water(registry, clicked, clicked_state)
+    {
+        let above = input.clicked + face_offset(input.face)?;
+        let state = blocks.block_at(above)?;
+        (above, state, registry.get_by_runtime_id(state)?)
+    } else {
+        (position, target_state, target)
+    };
+    if !placeable_here(blocks, held, position, target, target_state, input) {
+        return None;
+    }
+    // A sign, banner or coral fan clicked onto a side face goes up as its
+    // wall variant.
+    let held = match wall_variant(registry, held) {
         Some(wall) if input.face >= 2 => wall,
         _ => held,
     };
+    // A live coral fan out of water is placed dead.
+    let held = match dead_coral(registry, held) {
+        Some(dead) if !is_water(registry, target, target_state) => dead,
+        _ => held,
+    };
     let mut state = placed_state(held, input)?;
+    // A sea pickle out of water is placed dead.
+    if held.string_id == "minecraft:sea_pickle" && !is_water(registry, target, target_state) {
+        state = set(held, state, "dead_bit", StateValue::Byte(1));
+    }
+    // A bell on a wall with a block on its other side hangs between them.
+    if held.string_id == "minecraft:bell" && input.face >= 2 {
+        let beyond = position + face_offset(input.face)?;
+        let solid = blocks.block_at(beyond).is_some_and(|id| {
+            registry
+                .get_by_runtime_id(id)
+                .is_some_and(|block| !is_replaceable(block, id))
+        });
+        if solid {
+            state = set(held, state, "attachment", StateValue::Str("multiple"));
+        }
+    }
     // A hanging sign under a block whose bottom face is not full (a fence)
     // hangs on chains: `attached_bit`, turned in sixteenths like a standing
     // sign, `facing_direction` left at 0 (BDS 1.26.51).
@@ -686,14 +1130,21 @@ pub fn second_block(
         entry.state_value(state, "upper_block_bit"),
         entry.state_value(state, "head_piece_bit"),
     ) {
+        // A pitcher pod plants only the lower half (BDS 1.26.51).
+        (Some(StateValue::Byte(0)), _) if entry.string_id == "minecraft:pitcher_crop" => Some(None),
         (Some(StateValue::Byte(0)), _) => {
             let above = position + IVec3::Y;
-            replaceable(above).then(|| {
-                Some((
-                    above,
-                    set(entry, state, "upper_block_bit", StateValue::Byte(1)),
-                ))
-            })
+            let mut upper = set(entry, state, "upper_block_bit", StateValue::Byte(1));
+            if entry.state_value(state, "door_hinge_bit").is_some() {
+                let hinge = door_hinge(blocks, entry, state, position);
+                upper = set(
+                    entry,
+                    upper,
+                    "door_hinge_bit",
+                    StateValue::Byte(u8::from(hinge)),
+                );
+            }
+            replaceable(above).then_some(Some((above, upper)))
         }
         (_, Some(StateValue::Byte(0))) => {
             let toward = match (
@@ -719,6 +1170,56 @@ pub fn second_block(
         (None, None) => Some(None),
     }
 }
+
+/// The hinge of a door placed at `position` (BDS 1.26.51 stores it on the
+/// upper half only; `testdata/bds-placements-door_hinges.json` and
+/// `-followup.json`): with doors beside it, set when a door of any kind
+/// stands on the placer's left (the side the door faces away from) and none
+/// on the right; otherwise set when a solid block stands on the right (the
+/// side it faces, lower or upper half) and none on the left. The click
+/// position does not matter.
+fn door_hinge(blocks: &impl BlockSource, entry: &BlockEntry, state: u32, position: IVec3) -> bool {
+    let facing = match entry.state_value(state, "minecraft:cardinal_direction") {
+        Some(StateValue::Str("north")) => Face::North,
+        Some(StateValue::Str("east")) => Face::East,
+        Some(StateValue::Str("west")) => Face::West,
+        _ => Face::South,
+    };
+    let registry = blocks.registry();
+    let left = position + facing.opposite().offset();
+    let right = position + facing.offset();
+    let door_at = |pos: IVec3| {
+        blocks.block_at(pos).is_some_and(|id| {
+            registry
+                .get_by_runtime_id(id)
+                .is_some_and(|block| block.state_value(id, "door_hinge_bit").is_some())
+        })
+    };
+    let (left_door, right_door) = (
+        door_at(left) || door_at(left + IVec3::Y),
+        door_at(right) || door_at(right + IVec3::Y),
+    );
+    if left_door || right_door {
+        return left_door && !right_door;
+    }
+    // An opaque full block that is not glass-like (stone counts; glowstone,
+    // ice, glass, leaves, chests, slabs, stairs, fences, walls, trapdoors and
+    // scaffolding do not).
+    let solid = |pos: IVec3| {
+        [pos, pos + IVec3::Y].into_iter().any(|at| {
+            blocks
+                .block_at(at)
+                .and_then(|id| registry.get_by_runtime_id(id))
+                .is_some_and(|block| {
+                    !block.data.is_transparent && block.data.material != GLASS_MATERIAL
+                })
+        })
+    };
+    solid(right) && !solid(left)
+}
+
+/// Native material type of glass-like blocks (glass, glowstone).
+const GLASS_MATERIAL: u8 = 11;
 
 /// Whether a bed half may stand on the block at `pos`: its collision covers
 /// the centre of its top face (BDS 1.26.51 keeps a bed's head over stone,
@@ -785,6 +1286,7 @@ mod tests {
             click: DVec3::new(0.5, click_y, 0.5),
             yaw,
             pitch: 0.0,
+            eye: DVec3::new(0.5, 66.0, -2.0),
         }
     }
 

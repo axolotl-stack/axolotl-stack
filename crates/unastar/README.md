@@ -664,16 +664,33 @@ replace occupied blocks. Item-specific replacement, adventure CanPlaceOn/CanDest
 rules, and unsupported inventory operations are not implemented.
 
 Survival block clicks answer like BDS 1.26.51 click by click
-(`server/game/placement_capture_tests.rs` replays the 205 captured clicks of
-`server/game/testdata/bds-placements.json`): the placed state (orientation rules in
+(`server/game/placement_capture_tests.rs` replays the 780 captured clicks of
+`server/game/testdata/bds-placements*.json`, one file per case group, for the clicking
+player and for a second player watching): the placed state (orientation rules in
 `server/game/placement.rs`), refusals where the block could not stay, the six
-`UpdateBlock` corrections after every click, the `place` sound (data, position, actor
-id -1) and the inventory resync (after a placement, a click out of reach or a click
-claiming a stack the player does not hold; a refused click in reach gets only the
-corrections). Stacks describe the block BDS describes them with
-(`unastar_data::item_blocks`, measured for every item). Not copied: the attribute and
-actor-data resend BDS sends after every click, and the sign editor BDS opens after a
-sign is placed (sign text is not implemented).
+`UpdateBlock` corrections after every click, the placement sound (`place` and the
+per-item sounds of `server/game/place_sounds.rs`), the inventory resync, and what the
+other player is sent (blocks, sounds, level events, block actors). Stacks describe
+the block BDS describes them with (`unastar_data::item_blocks`, measured for every
+item). Covered since round 2: door hinges from neighbouring doors and blocks; coral
+fans on floors and walls (placed dead out of water) and coral blocks dying after a
+placement; skulls; beehives, bee nests, looms, chiseled bookshelves, decorated pots,
+crafters, grindstones, shelf mushrooms; bells under blocks and on walls; vines, glow
+lichen, sculk veins and resin clumps on every face; stacking candles, snow layers, sea
+pickles, turtle eggs and petals; candles on cakes; seeds and other planting items;
+player-placed leaves. Placed blocks BDS announces with a block actor get the measured
+default (`unastar_data::block_updates::block_actor_default`, `block_actors.rs`).
+
+Signs (`server/game/signs.rs`) work like BDS: placing one opens its editor for the
+placer (the actor is locked for them), using one opens the side the player faces,
+the client's edit (`BlockActorData`) is applied for a player with the sign open (both
+sides' text, up to 512 characters each), dyes, glow ink sacs, ink sacs and honeycomb
+change it, and the text is kept in the chunk's block actor (saved and sent with the
+chunk). Doors, trapdoors, fence gates, buttons and levers open, close and press on
+use (`server/game/block_use.rs`); buttons pop back after 20 or 30 ticks. Not copied:
+the attribute and actor-data resend BDS sends after every click, banners (BDS's
+banner stack carries item user data unastar's lacks), flower pots taking plants,
+eating cake, and the click corrections BDS sends after lighting with flint and steel.
 
 Using a crafting table (unless sneaking with an item in hand) opens BDS's
 WORKBENCH screen (type 1 at the block, no actor) from the shared window-ID
