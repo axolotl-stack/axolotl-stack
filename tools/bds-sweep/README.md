@@ -20,6 +20,8 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `scripts/breaking.txt` | Survival block breaking scenarios: by hand, tools, instant, abort, a frozen client, Haste, a block above, client predictions on time and early, `StopDestroyBlock`, blocks put back where a break goes on, a burst of inputs |
 | `breaking_fixture.py` | Cuts the committed breaking fixture (`crates/unastar/src/server/game/blocks/testdata/bds-breaking.jsonl`) out of a `script.py` capture of `scripts/breaking.txt` |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
+| `scenarios.py` | Block scenario families for the `scenarios` job (stairs, connections, wall_above, gate_in_wall, support, surfaces, soils, junctions, halves) |
+| `placements.py` | The survival clicks of the `placements` job (blocks set around the click, the stack in hand, the player's feet and look, the click, the positions read back) |
 | `subchunk_fixture.py` | Sub-chunk records BDS saves: builds every palette shape in a flat world (and generates a seed-12345 world), reloads each and checks cells with `/testforblock`, then writes `crates/unastar/tests/fixtures/bds_1_26_51_subchunks.json` (steps `build`, `probe`, `natural`, `natural-probe`, `fixture`) |
 | `leveldb_read.py` | Read-only LevelDB reader (tables and logs, raw-deflate blocks) for BDS world copies, independent of unastar |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
@@ -77,6 +79,7 @@ The plugin sends these chat orders to `bds-sweep-client`:
 | `bds-sweep:drop hotbar SLOT COUNT` | Closed-screen Drop from hotbar index 0..8; count 1 is Q, a full stack is ctrl-Q |
 | `bds-sweep:drop inventory SLOT COUNT` | Open the inventory, wait for its server-allocated window ID, then Drop from native inventory index 0..35 |
 | `bds-sweep:close-inventory` | Close the tracked native inventory window |
+| `bds-sweep:use X Y Z FACE CX CY CZ TARGET` | Click block face `FACE` of `X Y Z` with the selected hotbar stack (an `ItemUse` place transaction; click position `C*`/1000 inside the block; `TARGET` the clicked block's runtime id), as a survival player's right click |
 
 `bds-sweep-client --script FILE` plays timed orders without the plugin: one `TICK ORDER` line per
 step at that client input tick, an order above without its `bds-sweep:` prefix, a slash command
@@ -103,6 +106,9 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `armor-wear` | durability one `/damage <player> D entity_attack` hit costs a worn piece, per D (1, 3, 4, 5, 7, 8, 12, 16, 40) | one breakable piece in its `armor_slots.json` slot, read back through Endstone before and after every hit |
 | `attack` | melee damage per held item, warm-up + 3 trials, and the held stack's durability damage after every trial | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value. `--gamemode survival` lets hits wear the item; `--items spears` adds every spear tier, `--gap` ticks apart |
 | `fuel` | furnace burn ticks per item | pool of 32 furnaces, 1 cobblestone input + the item as fuel |
+| `scenarios` | block states BDS stores after a scripted sequence of block sets (with or without the block update a placement triggers), waits and reads | items from `scenarios.py` families run in waves of up to 64 cells (6 blocks apart, east of the player); one wait covers a wave; touched cells are cleared without updates and the superflat layers restored after each wave |
+| `placements` | what BDS stores and sends when the survival player clicks a block face with a stack (blocks read back, the held stack, every packet both ways) | per item: the arena box around (4,-60,4) is cleared, its blocks set with block updates, the stack put in hotbar slot 0 with `/replaceitem` (the inventory API does not reach the client), the player teleported with its look; chat markers `bds-sweep:mark <key>` / `bds-sweep:mark end` cut the client capture (`--capture-dir`, on automatically) per item |
+| `item-blocks` | the block state BDS describes a stack of each item with | `/replaceitem` of every registry item into hotbar slot 0, one per two ticks behind a chat marker; slot 0 of the next main-inventory `InventoryContent` in the client capture |
 
 ```powershell
 & $py tools/bds-sweep/sweep.py drops --blocks all --samples 400   # first palette state of every block
@@ -116,8 +122,14 @@ python tools/bds-sweep/script.py tools/bds-sweep/scripts/breaking.txt --out <dir
 & $py tools/bds-sweep/sweep.py armor-slots --items all
 & $py tools/bds-sweep/sweep.py armor-wear
 & $py tools/bds-sweep/sweep.py fuel --items all
+& $py tools/bds-sweep/sweep.py scenarios --family stairs,connections,wall_above,gate_in_wall,support
+& $py tools/bds-sweep/sweep.py placements      # ~6 min for 205 clicks
+& $py tools/bds-sweep/sweep.py item-blocks     # ~4 min for 2076 items
 & $py tools/bds-sweep/summarize.py drops <dir> [<repeat dir> ...]
 & $py tools/bds-sweep/summarize.py mining <slice dir> <held dir> <effects dir>   # merged, first wins
+& $py tools/bds-sweep/summarize.py scenarios <dir>
+& $py tools/bds-sweep/summarize.py placements <dir>   # -> crates/unastar/src/server/game/testdata/bds-placements.json
+& $py tools/bds-sweep/summarize.py item-blocks <dir>  # -> data/measured/item_blocks.json
 ```
 
 `--client-capture` records the scripted client's packets (both directions) to

@@ -4,6 +4,8 @@
     python tools/bds-sweep/sweep.py drops --blocks all --states all --out DIR
     python tools/bds-sweep/sweep.py armor-slots --out DIR
     python tools/bds-sweep/sweep.py fuel --out DIR
+    python tools/bds-sweep/sweep.py scenarios --family pilot --out DIR
+    python tools/bds-sweep/sweep.py placements --out DIR
 
 Starts BDS 1.26.51 under Endstone on a fresh superflat creative world
 (`bds-sweep-1.26.51`, peaceful, operators by default), launches
@@ -22,6 +24,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -31,6 +34,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import native  # noqa: E402
+import placements  # noqa: E402
+import scenarios  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-sweep-1.26.51'
@@ -41,7 +46,12 @@ STOP_REQUEST = 'stop.request'
 # `mine_block`, which is at eye level (eyes at y + 1.62).
 ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 6],
          'miner': [0.5, -60, 0.5, -90, 0], 'mine_block': [1, -59, 0], 'mine_face': 4,
-         'target': [2.0, -60, 0.5]}
+         'target': [2.0, -60, 0.5],
+         # Block scenarios: 8 x 8 cells, 6 blocks apart, east of the player and
+         # inside its ticking range.
+         'scenarios': {'origin': [8, -60, -24], 'spacing': 6, 'columns': 8},
+         # Survival block clicks: cleared box (offsets) around the origin.
+         'placements': {'origin': [4, -60, 4], 'clear': [[-3, -1, -4], [5, 4, 13]]}}
 SETUP = [
     'gamerule domobspawning false',
     'gamerule dodaylightcycle false',
@@ -349,6 +359,13 @@ def build_job(args, out: Path) -> dict:
         job.update(target='minecraft:pig', items=attack_items(args))
         if args.gamemode:
             job['gamemode'] = args.gamemode
+    elif args.kind == 'scenarios':
+        job['items'] = scenarios.items(args.family)
+    elif args.kind == 'placements':
+        job['items'] = placements.items()
+    elif args.kind == 'item-blocks':
+        job['items'] = [{'key': name.removeprefix('minecraft:'), 'item': name}
+                        for name in item_names(args.items, native.items())]
     elif args.kind == 'fuel':
         job.update(furnace='furnace', lit_furnace='minecraft:lit_furnace', input='cobblestone',
                    max_ticks=args.max_ticks,
@@ -359,12 +376,13 @@ def build_job(args, out: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'armor-wear', 'attack',
-                                         'fuel'])
+                                         'fuel', 'scenarios', 'placements', 'item-blocks'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
     parser.add_argument('--items', default='slice', help="'slice' or comma-separated identifiers")
     parser.add_argument('--samples', type=int, default=200)
+    parser.add_argument('--family', default='pilot', help="scenarios: 'all' or comma-separated families")
     parser.add_argument('--max-ticks', type=int, default=24000, help='fuel: longest burn to wait for')
     parser.add_argument('--mine-ticks', type=int, default=600, help='mining: longest break to wait for')
     parser.add_argument('--variants', default='tools', choices=['tools', 'held', 'effects', 'capture'],
@@ -409,11 +427,17 @@ def main() -> int:
     properties = bds_runtime.base_properties(
         LEVEL, level_type='FLAT', gamemode='creative', force_gamemode='true', difficulty='peaceful',
         default_player_permission_level='operator', view_distance=6, tick_distance=4)
-    env = {'BDS_SWEEP_JOB': str(job_path), 'CLIENT_DIFF_CAPTURE_DIR': str(out / 'client-diff-plugin')}
+    env = {'BDS_SWEEP_JOB': str(job_path), 'CLIENT_DIFF_CAPTURE_DIR': str(out / 'client-diff-plugin'),
+           # This checkout's plugin source wins over the shared venv's editable
+           # install, so a worktree runs its own jobs without reinstalling it.
+           'PYTHONPATH': os.pathsep.join(filter(None, [
+               str(REPO / 'tools' / 'bds-sweep' / 'endstone-sweep' / 'src'), os.environ.get('PYTHONPATH')]))}
     started = time.monotonic()
     status = 'timeout'
     client_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', PLAYER]
-    if args.client_capture:
+    if args.client_capture or args.kind in ('placements', 'item-blocks'):
+        # The client records both directions: BDS's answer to every click,
+        # the stack descriptors BDS sends.
         client_command += ['--capture-dir', str(out / 'client-capture')]
     try:
         with bds_runtime.Bds(properties, out / 'bds.log', endstone=True, env=env):
