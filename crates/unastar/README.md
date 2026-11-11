@@ -628,7 +628,6 @@ copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 | `/place`, `/locate` | `/place` answers only an unknown structure name; `/locate` finds no structure in flat and void worlds; placing, structure search in generated terrain and biome search answer "not implemented" | No command-driven placement; BDS's search order is not measured |
 | `/script`, `/wsserver`, `/reloadconfig`, `/reloadpacketlimitconfig` | Answer as BDS without script packs; `script diagnostics stopcapture` answers "not implemented"; no websocket connection is made | No script runtime or websocket client |
 | `/dialogue`, `/gametest` | Answer as BDS does for a world without NPC dialogue or GameTests | No NPC dialogue; no behaviour-pack scripts |
-| `/loot` | An unquoted table path with a `/` is read whole; BDS answers a syntax error at the `/` | Shared string lexing |
 | `/tellraw`, `/titleraw` | A malformed JSON message's syntax error names another token | Unastar parses JSON in one piece |
 | `/help` | Lists the operator listing for the console too | Owner-only usage lines were not captured |
 | Item names in feedback | Flattened block items without their own language key use the title-cased identifier ("Red Wool") | Block names are measured as translation keys only |

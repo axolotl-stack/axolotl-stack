@@ -286,7 +286,13 @@ pub struct SyntaxError {
 impl SyntaxError {
     fn at(line: &str, at: usize) -> Self {
         let rest = &line[at..];
-        let end = rest.find(char::is_whitespace).unwrap_or(rest.len());
+        // Measured: `/` is a token of its own (`loot entities/wither_boss`
+        // is wrong at "/", followed by "wither_boss").
+        let end = if rest.starts_with('/') {
+            1
+        } else {
+            rest.find(char::is_whitespace).unwrap_or(rest.len())
+        };
         // Measured: BDS shows at most the last ten characters before the token
         // (`/scoreboard objectives add bad deathCount` → "s add bad ").
         let before = format!("/{}", &line[..at]);
@@ -294,7 +300,9 @@ impl SyntaxError {
         Self {
             before: before.chars().skip(skip).collect(),
             token: rest[..end].to_owned(),
-            after: rest[end..].to_owned(),
+            // Measured: and at most ten after it (`packstack behavior
+            // verbose exclude-vanilla` → " verbose e").
+            after: rest[end..].chars().take(SYNTAX_CONTEXT).collect(),
         }
     }
 
@@ -413,7 +421,7 @@ fn parse_param(
             let value = if cursor.peek() == Some('"') {
                 cursor.quoted()?
             } else {
-                cursor.token()?.1.to_owned()
+                unquoted_word(cursor)?
             };
             Ok(ArgValue::SoftEnum(value))
         }
@@ -460,8 +468,20 @@ fn string_value(cursor: &mut Cursor<'_>) -> Result<String, ErrorAt> {
     if cursor.peek() == Some('"') {
         cursor.quoted()
     } else {
-        Ok(cursor.token()?.1.to_owned())
+        unquoted_word(cursor)
     }
+}
+
+/// An unquoted `string` or soft-enum word, which ends at `/` (measured: BDS
+/// reads `loot entities/wither_boss` as the table `entities` and stops at
+/// the `/`). File paths (`/function a/b`) keep their slashes.
+fn unquoted_word(cursor: &mut Cursor<'_>) -> Result<String, ErrorAt> {
+    let start = cursor.pos;
+    let word = cursor.word(&['/']);
+    if word.is_empty() {
+        return Err(start);
+    }
+    Ok(word.to_owned())
 }
 
 /// The rest of the line (must not be empty).
@@ -532,7 +552,11 @@ fn parse_basic(basic: BasicType, cursor: &mut Cursor<'_>) -> Result<ArgValue, Er
                 ArgValue::WildcardTarget(Some(parse_target(cursor)?))
             }
         }
-        BasicType::FilePath => ArgValue::FilePath(string_value(cursor)?),
+        BasicType::FilePath => ArgValue::FilePath(if cursor.peek() == Some('"') {
+            cursor.quoted()?
+        } else {
+            cursor.token()?.1.to_owned()
+        }),
         BasicType::IntegerRange => ArgValue::IntRange(parse_range(cursor.token()?.1).ok_or(start)?),
         BasicType::String => ArgValue::String(string_value(cursor)?),
         BasicType::BlockPosition => ArgValue::BlockPosition(parse_position(cursor)?),
