@@ -17,6 +17,8 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `endstone-sweep/` | The Endstone Python plugin that runs jobs server-side (inert unless `BDS_SWEEP_JOB` is set) |
 | `summarize.py` | Raw sweep results to `crates/unastar-data/data/measured/` + `manifest.json` |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
+| `subchunk_fixture.py` | Sub-chunk records BDS saves: builds every palette shape in a flat world (and generates a seed-12345 world), reloads each and checks cells with `/testforblock`, then writes `crates/unastar/tests/fixtures/bds_1_26_51_subchunks.json` (steps `build`, `probe`, `natural`, `natural-probe`, `fixture`) |
+| `leveldb_read.py` | Read-only LevelDB reader (tables and logs, raw-deflate blocks) for BDS world copies, independent of unastar |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
 
 ## Setup (once)
