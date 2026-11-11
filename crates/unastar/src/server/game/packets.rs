@@ -39,18 +39,11 @@ impl GameServer {
             }
         };
 
-        // A client `Disconnect` only records the quit. The session's network task ends
-        // with it, and the tick loop's normal leave path saves, then despawns, the
-        // player; despawning here left that save with no player to save.
+        // A client `Disconnect` ends the session's network task. The tick loop's normal
+        // leave path then saves and despawns the player, and `despawn_player` queues the
+        // plugin `PlayerQuit`; despawning here would leave that save with no player.
         if packet.packet_id() == McpePacketName::DisconnectPacket {
             info!(session_id, "Client sent disconnect packet");
-            if let Some(mut event_buffer) = self
-                .ecs
-                .world_mut()
-                .get_resource_mut::<crate::ecs::events::EventBuffer>()
-            {
-                event_buffer.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
-            }
             return;
         }
 

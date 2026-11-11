@@ -19,12 +19,11 @@ use crate::world::{Chunk, ChunkPos};
 
 /// LevelDB-based world provider.
 ///
-/// Each world should have its own instance pointing to `<world>/db`.
+/// Each world should have its own instance pointing to `<world>/db`. Every
+/// dimension shares the database; keys carry the dimension passed to each call.
 pub struct LevelDBWorldProvider {
     /// Thread-safe database handle.
     db: Arc<DB>,
-    /// Dimension ID for key encoding.
-    dimension: i32,
 }
 
 impl LevelDBWorldProvider {
@@ -32,8 +31,7 @@ impl LevelDBWorldProvider {
     ///
     /// # Arguments
     /// * `path` - Path to the `db` directory (e.g., `worlds/main/db`)
-    /// * `dimension` - Dimension ID (0=overworld, 1=nether, 2=end)
-    pub fn open<P: AsRef<Path>>(path: P, dimension: i32) -> StorageResult<Self> {
+    pub fn open<P: AsRef<Path>>(path: P) -> StorageResult<Self> {
         // Ensure parent directories exist
         std::fs::create_dir_all(path.as_ref())
             .map_err(|e| StorageError::Database(format!("Failed to create directory: {e}")))?;
@@ -46,15 +44,7 @@ impl LevelDBWorldProvider {
         let db =
             DB::open(path.as_ref(), &options).map_err(|e| StorageError::Database(e.to_string()))?;
 
-        Ok(Self {
-            db: Arc::new(db),
-            dimension,
-        })
-    }
-
-    /// Get the dimension ID.
-    pub fn dimension(&self) -> i32 {
-        self.dimension
+        Ok(Self { db: Arc::new(db) })
     }
 }
 
@@ -73,21 +63,25 @@ impl WorldProvider for LevelDBWorldProvider {
                     // Chunk exists - load subchunk data
                     let mut chunk = Chunk::new(pos.x, pos.z);
 
-                    // Load subchunks for standard overworld range (-4 to 19, corresponding to Y -64 to 319)
-                    for y_index in -4i8..20i8 {
+                    // A fresh chunk spans all physical storage, so this reads
+                    // every section any dimension can have stored. A missing
+                    // subchunk is air. One that can't be read or
+                    // decoded fails the whole load (as BlazeDB does): loading
+                    // it as air would let the next save of the column write
+                    // air over the stored blocks.
+                    for y_index in chunk.section_y_indices() {
                         let subchunk_key = keys::subchunk_key(pos, dim, y_index);
-                        if let Ok(Some(data)) = db.get(&subchunk_key, &read_opts) {
-                            // Decode subchunk data into the chunk
-                            if let Err(e) = chunk.decode_subchunk(y_index as i32, &data) {
-                                tracing::warn!(
-                                    chunk = ?(pos.x, pos.z),
-                                    y = y_index,
-                                    error = %e,
-                                    "Failed to decode subchunk, using empty"
-                                );
-                            }
+                        if let Some(data) = db
+                            .get(&subchunk_key, &read_opts)
+                            .map_err(StorageError::Database)?
+                        {
+                            chunk.decode_subchunk(y_index as i32, &data).map_err(|e| {
+                                StorageError::Deserialization(format!(
+                                    "chunk ({}, {}) subchunk y={y_index}: {e}",
+                                    pos.x, pos.z
+                                ))
+                            })?;
                         }
-                        // Missing subchunks are fine - they're just empty (air)
                     }
 
                     // Missing Data3D keeps the default biomes; an unreadable or
@@ -223,8 +217,7 @@ impl WorldProvider for LevelDBWorldProvider {
 
         // Collect subchunk data
         let mut subchunk_entries: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
-        for y_index in -4..20i8 {
-            // Standard overworld range
+        for y_index in col.chunk.section_y_indices() {
             if let Some(data) = col.chunk.encode_subchunk_disk(y_index as i32) {
                 let key = keys::subchunk_key(pos, dim, y_index);
                 subchunk_entries.push((key, data));
@@ -304,7 +297,7 @@ mod tests {
     /// Save an empty column, replace its Data3D value with `data3d` and load it back.
     async fn load_with_data3d(data3d: &[u8]) -> StorageResult<Option<ChunkColumn>> {
         let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
-        let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
         let pos = ChunkPos::new(1, 2);
         provider
             .save_column(pos, 0, &ChunkColumn::new(Chunk::new(pos.x, pos.z)))
@@ -358,7 +351,7 @@ mod tests {
     #[tokio::test]
     async fn actors_are_stored_under_a_chunk_digest_and_removed_records_are_deleted() {
         let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
-        let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
         let pos = ChunkPos::new(-3, 4);
         let actor = |unique_id: i64| StoredActor {
             unique_id,
@@ -401,6 +394,46 @@ mod tests {
                 .get(&keys::entity_ids_key(pos, 0), &ReadOptions::new())
                 .unwrap()
                 .is_none()
+        );
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A stored subchunk the loader can't decode fails the column load, so the
+    /// chunk is never created with that section as air (and then saved over it).
+    #[tokio::test]
+    async fn undecodable_subchunk_fails_the_column_load() {
+        let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
+        let pos = ChunkPos::new(5, -6);
+        let mut chunk = Chunk::new(pos.x, pos.z);
+        chunk.fill_subchunk_solid(4, *crate::world::chunk::blocks::STONE);
+        provider
+            .save_column(pos, 0, &ChunkColumn::new(chunk))
+            .await
+            .expect("save column");
+        // Subchunk version 1 is not a layout the loader accepts.
+        let original = provider
+            .db
+            .get(&keys::subchunk_key(pos, 0, 0), &ReadOptions::new())
+            .unwrap()
+            .expect("stone subchunk stored");
+        let mut unsupported = original.clone();
+        unsupported[0] = 1;
+        provider
+            .db
+            .put(
+                &keys::subchunk_key(pos, 0, 0),
+                &unsupported,
+                &WriteOptions::new(),
+            )
+            .expect("overwrite subchunk");
+
+        let loaded = provider.load_column(pos, 0).await;
+        assert!(
+            matches!(loaded, Err(StorageError::Deserialization(_))),
+            "undecodable subchunk must fail the load, got {:?}",
+            loaded.map(|column| column.is_some())
         );
         drop(provider);
         let _ = std::fs::remove_dir_all(&dir);
