@@ -55,70 +55,42 @@ impl UnastarServer {
             );
         }
 
-        // Initialize LevelDB player provider (if enabled)
+        // A configured player database that won't open (e.g. locked by
+        // another instance) stops startup, like the world database: running
+        // without it would let everyone join with first-join state while their
+        // saved data sits on disk.
         if config.players.leveldb_enabled {
             let player_db_path = config.players.data_dir.join("db");
-            match LevelDBPlayerProvider::open(&player_db_path) {
-                Ok(provider) => {
-                    info!(path = %player_db_path.display(), "Opened player LevelDB");
-                    server.ecs.world_mut().insert_resource(
-                        crate::server::game::types::PlayerProviderResource(Arc::new(provider)),
-                    );
-                }
-                Err(e) => {
-                    warn!(error = %e, "Failed to open player LevelDB, persistence disabled");
-                }
-            }
+            let provider = LevelDBPlayerProvider::open(&player_db_path).map_err(|e| {
+                format!(
+                    "Failed to open player storage at {}: {e}",
+                    player_db_path.display()
+                )
+            })?;
+            info!(path = %player_db_path.display(), "Opened player LevelDB");
+            server.ecs.world_mut().insert_resource(
+                crate::server::game::types::PlayerProviderResource(Arc::new(provider)),
+            );
         }
 
-        // Initialize world provider based on config
+        // Without its world database the server can't load or save terrain,
+        // so a database that won't open (e.g. locked by another instance)
+        // stops startup instead of running with persistence off.
         let world_db_path = std::path::PathBuf::from("worlds")
             .join("default")
             .join("db");
-        let dimension = config.server_config().world.dimension;
-        let storage_provider = config.server_config().world.storage_provider;
-
-        let provider: Option<Arc<dyn crate::storage::WorldProvider>> = match storage_provider {
-            crate::world::StorageProvider::LevelDb => {
-                match crate::storage::LevelDBWorldProvider::open(&world_db_path, dimension) {
-                    Ok(provider) => {
-                        info!(path = %world_db_path.display(), "Opened world LevelDB");
-                        Some(Arc::new(provider))
-                    }
-                    Err(e) => {
-                        warn!(error = %e, "Failed to open world LevelDB, chunk persistence disabled");
-                        None
-                    }
-                }
-            }
-            crate::world::StorageProvider::BlazeDb => {
-                let cache_capacity = config.server_config().world.blazedb_cache_chunks;
-                let blaze_config = crate::storage::blazedb::BlazeConfig {
-                    cache_capacity,
-                    ..Default::default()
-                };
-                match crate::storage::BlazeDBProvider::open(&world_db_path, Some(blaze_config)) {
-                    Ok(provider) => {
-                        info!(path = %world_db_path.display(), cache_capacity, "Opened world BlazeDB");
-                        Some(provider as Arc<dyn crate::storage::WorldProvider>)
-                    }
-                    Err(e) => {
-                        warn!(error = %e, "Failed to open world BlazeDB, chunk persistence disabled");
-                        None
-                    }
-                }
-            }
-        };
-
-        if let Some(provider) = provider {
-            // Set provider on ChunkManager resource for load-before-generate
-            let world = server.ecs.world_mut();
-            if let Some(mut chunk_manager) =
-                world.get_resource_mut::<crate::world::ecs::ChunkManager>()
-            {
-                chunk_manager.set_provider(provider);
-            }
-        }
+        let provider =
+            open_world_provider(&world_db_path, &config.server_config().world).map_err(|e| {
+                format!(
+                    "Failed to open world storage at {}: {e}",
+                    world_db_path.display()
+                )
+            })?;
+        server
+            .ecs
+            .world_mut()
+            .resource_mut::<crate::world::ecs::ChunkManager>()
+            .set_provider(provider);
 
         // Server key for encryption
         let server_key = SecretKey::random(&mut thread_rng());
@@ -373,14 +345,60 @@ impl UnastarServer {
         }
     }
 
-    /// Saves players and chunks before the process exits.
+    /// Unloads plugins, then saves players and chunks and flushes and closes
+    /// storage, before the process exits.
     async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let players_saved = self.server.save_all_players().await;
-        info!(players = players_saved, "Player data saved");
-        let chunks_saved = self.server.save_all_chunks().await;
-        info!(chunks = chunks_saved, "Chunk data saved");
+        // Plugins see every online player quit, then unload, before saving, so
+        // `on-player-quit` and `on-unload` still see the live world, and storage is
+        // still open while they run.
+        let online = self.server.queue_quit_for_online_players();
+        self.plugin_manager.shutdown(self.server.ecs.world_mut());
+        info!(players = online, "Plugins unloaded");
+        let result = self.server.save_and_close_storage().await;
+        info!(
+            players = result.players_saved,
+            chunks = result.chunks_saved,
+            "Player and chunk data saved"
+        );
+        if !result.is_clean() {
+            return Err(format!(
+                "shutdown lost data: {} player saves and {} chunk saves failed{}",
+                result.players_failed,
+                result.chunks_failed,
+                if result.closed {
+                    ""
+                } else {
+                    ", and storage did not close cleanly"
+                }
+            )
+            .into());
+        }
         info!("Server shutdown complete");
         Ok(())
+    }
+}
+
+/// Open the world provider `world.storage_provider` selects at `path`.
+fn open_world_provider(
+    path: &std::path::Path,
+    world: &crate::world::WorldConfig,
+) -> crate::storage::StorageResult<Arc<dyn crate::storage::WorldProvider>> {
+    match world.storage_provider {
+        crate::world::StorageProvider::LevelDb => {
+            let provider = crate::storage::LevelDBWorldProvider::open(path)?;
+            info!(path = %path.display(), "Opened world LevelDB");
+            Ok(Arc::new(provider))
+        }
+        crate::world::StorageProvider::BlazeDb => {
+            let cache_capacity = world.blazedb_cache_chunks;
+            let blaze_config = crate::storage::blazedb::BlazeConfig {
+                cache_capacity,
+                ..Default::default()
+            };
+            let provider = crate::storage::BlazeDBProvider::open(path, Some(blaze_config))?;
+            info!(path = %path.display(), cache_capacity, "Opened world BlazeDB");
+            Ok(provider)
+        }
     }
 }
 
@@ -627,6 +645,40 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::world::{StorageProvider, WorldConfig};
+
+    fn temp_path(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("unastar-{name}-{}", uuid::Uuid::new_v4()))
+    }
+
+    /// A held world database is an error, not a server running with
+    /// persistence off. This holds it from the same process at the same path,
+    /// which LevelDB's in-process lock table refuses on every platform (a
+    /// different spelling of the path would get past it on Linux).
+    /// `tests/startup_storage.rs` covers the failure through `UnastarServer::new`.
+    #[test]
+    fn a_locked_world_leveldb_fails_to_open() {
+        let path = temp_path("locked-world");
+        let world = WorldConfig::default();
+        let first = open_world_provider(&path, &world).expect("first open");
+        assert!(open_world_provider(&path, &world).is_err());
+        drop(first);
+        let _ = std::fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn an_unopenable_world_blazedb_fails_to_open() {
+        // A regular file where the database directory should be.
+        let path = temp_path("file-not-dir");
+        std::fs::write(&path, b"not a database").unwrap();
+        let world = WorldConfig {
+            storage_provider: StorageProvider::BlazeDb,
+            ..WorldConfig::default()
+        };
+        assert!(open_world_provider(&path, &world).is_err());
+        let _ = std::fs::remove_file(&path);
+    }
+
     use crate::storage::{PlayerData, StoredItemStack};
     use jolyne::valentine::{DisconnectPacketMessagesUnion, McpePacketData};
 
@@ -733,10 +785,6 @@ mod network_tick_tests {
         }
         async fn save(&self, uuid: uuid::Uuid, data: &PlayerData) -> StorageResult<()> {
             self.0.lock().insert(uuid, data.clone());
-            Ok(())
-        }
-        async fn delete(&self, uuid: uuid::Uuid) -> StorageResult<()> {
-            self.0.lock().remove(&uuid);
             Ok(())
         }
         async fn close(&self) -> StorageResult<()> {

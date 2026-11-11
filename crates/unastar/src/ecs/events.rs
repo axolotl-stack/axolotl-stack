@@ -78,8 +78,10 @@ pub enum ServerEvent {
         position: (i32, i32, i32),
         block_id: u32,
     },
+    /// A plugin timer fired. Delivered only to `plugin_id`, the plugin that set it.
     Timer {
         id: u64,
+        plugin_id: crate::plugin::PluginId,
     },
     PlayerMove {
         entity: Entity,
