@@ -22,7 +22,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 use unastar_data::blocks::{self, BlockData};
 
-use crate::physics::{Aabb, Ground, GroundKind, Terrain};
+use crate::physics::{Aabb, Block as Motion, BlockKind, Terrain};
 
 /// Lowest sub-chunk index of the overworld (y -64).
 const MIN_INDEX: i32 = -4;
@@ -377,63 +377,33 @@ impl World {
 }
 
 impl Terrain for World {
-    fn collisions(&self, area: &Aabb) -> Result<Vec<Aabb>> {
-        World::collisions(self, area)
+    fn collisions(&self, area: &Aabb, out: &mut Vec<Aabb>) {
+        // A state without a collision shape is a data gap the movement
+        // cannot guess around.
+        out.extend(World::collisions(self, area).expect("collision shapes of BDS's blocks"));
     }
 
     fn loaded(&self, area: &Aabb) -> bool {
         World::loaded(self, area)
     }
 
-    fn ground(&self, pos: [i32; 3]) -> Ground {
+    fn block(&self, pos: [i32; 3]) -> Motion {
         let Some(block) = self.block(pos) else {
-            return Ground {
-                friction: 0.6,
-                kind: GroundKind::Air,
-            };
+            return Motion::AIR;
         };
         let kind = match block.identifier() {
-            "minecraft:slime" => GroundKind::Slime,
-            "minecraft:bed" => GroundKind::Bed,
-            "minecraft:air" => GroundKind::Air,
-            _ => GroundKind::Plain,
+            "minecraft:slime" => BlockKind::Slime,
+            "minecraft:bed" => BlockKind::Bed,
+            "minecraft:air" => BlockKind::Air,
+            "minecraft:web" => BlockKind::Cobweb,
+            "minecraft:powder_snow" => BlockKind::PowderSnow,
+            _ => BlockKind::Plain,
         };
-        Ground {
+        Motion {
             friction: block.data.friction,
             kind,
+            water: self.water_at(pos).unwrap_or(false),
         }
-    }
-
-    fn stuck(&self, body: &Aabb) -> Option<[f32; 3]> {
-        let feet = [
-            ((body.min[0] + body.max[0]) * 0.5).floor() as i32,
-            body.min[1].floor() as i32,
-            ((body.min[2] + body.max[2]) * 0.5).floor() as i32,
-        ];
-        if self
-            .block(feet)
-            .is_some_and(|block| block.identifier() == "minecraft:powder_snow")
-        {
-            return Some([0.9, 1.5, 0.9]);
-        }
-        let (min, max) = body.block_range();
-        let web = (min[0]..=max[0]).any(|x| {
-            (min[1]..=max[1]).any(|y| {
-                (min[2]..=max[2]).any(|z| {
-                    self.block([x, y, z])
-                        .is_some_and(|block| block.identifier() == "minecraft:web")
-                })
-            })
-        });
-        web.then_some([0.25, 0.05, 0.25])
-    }
-
-    fn water(&self, area: &Aabb) -> bool {
-        let (min, max) = area.block_range();
-        (min[0]..=max[0]).any(|x| {
-            (min[1]..=max[1])
-                .any(|y| (min[2]..=max[2]).any(|z| self.water_at([x, y, z]).unwrap_or(false)))
-        })
     }
 }
 
