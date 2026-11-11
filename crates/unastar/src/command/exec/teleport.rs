@@ -258,7 +258,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: TeleportArgs) -> CommandResult {
         Facing::Position(p) => Some(ctx.position(Some(*p))),
         Facing::Entity(target) => {
             let entity = ctx.entities(Some(target))?[0];
-            ctx.eye(entity)
+            ctx.feet(entity)
         }
         Facing::Unchanged | Facing::Rotation(..) => None,
     };
@@ -279,14 +279,10 @@ pub fn run(ctx: &mut CommandContext<'_>, args: TeleportArgs) -> CommandResult {
             .unwrap_or_default();
         let (yaw, pitch) = match (&plan.facing, look_target) {
             // Measured: a facing position is turned to from the destination's
-            // feet (`/tp @s 8 200 8 facing 8 200 0` keeps pitch 0).
-            (Facing::Position(_), Some(at)) => look_at(position, at),
-            // [INFERENCE] not captured: eyes toward the entity's eyes.
-            (_, Some(at)) => {
-                let eye =
-                    position + DVec3::Y * crate::entity::geometry::eye_height(ctx.world, victim);
-                look_at(eye, at)
-            }
+            // feet (`/tp @s 8 200 8 facing 8 200 0` keeps pitch 0), and a
+            // facing entity too, toward its feet (segment `teleport_facing`:
+            // a cow at 4 200 4 gives yaw 135, pitch 0).
+            (_, Some(at)) => look_at(position, at),
             (Facing::Rotation(yaw, pitch), _) => ctx.rotation(*yaw, *pitch),
             _ => to_entity
                 .and_then(|e| ctx.world.get::<Rotation>(e))
@@ -460,10 +456,36 @@ mod tests {
 #[cfg(test)]
 mod bds_capture {
     use crate::command::exec::evidence::{Replay, assert_same_packets};
+    use jolyne::valentine::McpePacketData;
 
     #[test]
     fn teleport_matches_the_bds_capture() {
         let steps = Replay::new().assert_segment("teleport", &[]);
         assert_same_packets(&steps, &["TextPacket", "MovePlayerPacket"], &[]);
+    }
+
+    /// Facing an entity, a position above the destination and a rotation.
+    /// BDS's pitch toward `4 210 4` is -60.503784, two f32 steps from the
+    /// correctly rounded -60.50379 unastar computes (BDS's trigonometry
+    /// rounds differently); that line is compared to 1e-5 degrees.
+    #[test]
+    fn teleport_facing_matches_the_bds_capture() {
+        const STEEP: &str = "/tp @s 8 200 8 facing 4 210 4";
+        let steps = Replay::new().assert_segment("teleport_facing", &[]);
+        assert_same_packets(&steps, &["MovePlayerPacket"], &[STEEP]);
+        let step = steps
+            .iter()
+            .find(|s| s.captured.command == STEEP)
+            .expect("the steep facing line");
+        let rotation = |packets: Vec<&McpePacketData>| match packets[..] {
+            [McpePacketData::MovePlayerPacket(m)] => (m.rotation.x, m.rotation.y),
+            _ => panic!("one MovePlayer: {packets:?}"),
+        };
+        let (ours, theirs) = (
+            rotation(step.sent_named("MovePlayerPacket")),
+            rotation(step.captured.named("MovePlayerPacket")),
+        );
+        assert_eq!(ours.1, theirs.1);
+        assert!((ours.0 - theirs.0).abs() < 1e-5, "{ours:?} vs {theirs:?}");
     }
 }
