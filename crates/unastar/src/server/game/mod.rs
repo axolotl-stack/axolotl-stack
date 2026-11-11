@@ -15,6 +15,7 @@ mod commands;
 mod containers;
 pub mod durability;
 pub mod effects;
+pub mod elytra;
 mod falling;
 pub mod hunger;
 mod inventory;
@@ -414,6 +415,13 @@ impl GameServer {
                 commands::apply_chat_and_commands,
             )
                 .in_set(PacketApplySet),
+        );
+        // Gliding needs a usable elytra and wears it, right after the input
+        // that started or continued the glide.
+        ecs.schedule_mut().add_systems(
+            elytra::tick_gliding
+                .in_set(PacketApplySet)
+                .after(movement::apply_movement),
         );
         // Exclusive block system runs after movement (which forwards block actions)
         ecs.schedule_mut().add_systems(

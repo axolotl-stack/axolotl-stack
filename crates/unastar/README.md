@@ -781,6 +781,8 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Effect pulses (poison, wither, regeneration on the duration before the tick), poison as a hurt, invisibility sounds, effect packet order | done | BDS item-use capture |
 | Goat horns (`horn_call<data>`, 140-tick cooldown, using flag) and the spyglass (using flag) | done | BDS item-use capture |
 | Jukeboxes: music discs in and out, popup, actor data, drops, breaking a playing jukebox | done | BDS jukebox capture (`server/game/jukebox/tests.rs`); no redstone signal |
+| Elytra: a glide needs one with more than 1 durability left, wears it every 20 ticks, ends at 1 left | done | BDS elytra captures (`server/game/elytra/tests.rs`); the glide's movement is the client's |
+| Experience from breaking ores, sculk blocks and the spawner (ranges, orb sizes, Silk Touch, harvesting tool, hoe for sculk) | done | BDS ore captures (`server/game/block_drops/experience_tests.rs`) |
 | Player death from starvation or arrows | not done | entity lane (player death and respawn) |
 
 The loopback test `tests/item_use_loopback.rs` eats an apple, mines stone

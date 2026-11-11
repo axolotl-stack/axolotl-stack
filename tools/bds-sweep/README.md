@@ -23,7 +23,9 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `scripts/enchant-spears.txt` | `/enchant` with every enchantment (and Lunge III/IV) on a fresh spear of every tier |
 | `scripts/use-items.txt` | The spyglass, goat horns 0-7, potions 0-46 and ominous bottles 0-4 drunk to the end, and an elytra (see `scripts/elytra.txt`) |
 | `scripts/records.txt` | All 22 music discs into a jukebox and out, a disc on a playing jukebox, creative, breaking a playing jukebox, disc 11 to its end |
-| `scripts/elytra.txt`, `scripts/elytra-2.txt` | Gliding with and without an elytra and its wear; potions drunk facing south, north and down (where the drink sound plays); which jump inputs start a glide |
+| `scripts/elytra.txt`, `scripts/elytra-2.txt`, `scripts/elytra-3.txt` | Gliding with and without an elytra; potions drunk facing south, north and down (where the drink sound plays); which jump inputs start a glide; seven glides with the elytra's damage read back (an item use makes BDS resend the inventory, armour included) |
+| `scripts/ore-xp.txt`, `scripts/ore-xp-2.txt` | Experience from breaking ores, sculk blocks and the spawner: 30 breaks each with an Efficiency V netherite pickaxe, Silk Touch, then the hoe, a wooden pickaxe and the hand |
+| `experience_table.py` | Experience orbs per break of an `ore-xp` capture (`bds-sweep-client --decode ... --only AddActor` piped in) as the committed table `crates/unastar/src/server/game/block_drops/testdata/bds-block-experience*.json` |
 | `combat_fixture.py` | Cuts replay fixtures out of a `script.py` capture: the client's inputs and actions with BDS's hurt, health, cooldown, sound and flag packets inside scenario windows (`crates/unastar/src/entity/mob/combat/hit/testdata/bds-spears.jsonl`), or the requests of one command and their outputs (`--commands enchant`, `crates/unastar/src/item/testdata/bds-enchant-spears.jsonl`) |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |

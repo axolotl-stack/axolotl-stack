@@ -718,6 +718,12 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
             original_block_id,
             tool.as_ref(),
         );
+        super::block_drops::drop_block_experience(
+            world,
+            IVec3::new(x, y, z),
+            original_block_id,
+            tool.as_ref(),
+        );
         wear_held_tool(world, breaking_player, original_block_id);
         super::hunger::exhaust_player(world, breaking_player, |values| values.mine);
     }

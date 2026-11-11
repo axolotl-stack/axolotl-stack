@@ -1,0 +1,102 @@
+# The elytra, third part: how fast gliding wears it, and that it stops at
+# one durability. The client starts a glide as elytra-2.txt found BDS takes
+# it (the jump pressed, then held, while falling with an elytra) and follows
+# the server's corrections. After landing it starts eating an apple: BDS
+# answers every item use with the whole inventory, armour included, which
+# shows the elytra's damage. Ticks are the client's inputs.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /gamerule falldamage false
+25 /time set 6000
+26 /fill -4 -61 -4 4 -61 4 stone
+27 /fill -4 -60 -4 4 -55 4 air
+28 /gamemode survival @s
+29 /clear @s
+30 /tp @s 0.5 -60 0.5 -90 0
+
+# 1. An elytra with damage 0, landing 16 inputs after the jump.
+40 /replaceitem entity @s slot.armor.chest 0 elytra 1 0
+45 /tp @s 0.5 40 0.5 -90 0
+50 flags Jumpdown,Jumppressedraw,Jumpcurrentraw
+55 held-flags Jumping,Jumpcurrentraw
+65 held-flags none
+66 /tp @s 0.5 -60 0.5 -90 0
+76 /give @s apple
+81 use
+86 release-item
+88 /clear @s
+
+# 2. An elytra with damage 0, landing 25 inputs after the jump.
+96 /replaceitem entity @s slot.armor.chest 0 elytra 1 0
+101 /tp @s 0.5 40 0.5 -90 0
+106 flags Jumpdown,Jumppressedraw,Jumpcurrentraw
+111 held-flags Jumping,Jumpcurrentraw
+121 held-flags none
+131 /tp @s 0.5 -60 0.5 -90 0
+141 /give @s apple
+146 use
+151 release-item
+153 /clear @s
+
+# 3. An elytra with damage 0, landing 27 inputs after the jump.
+161 /replaceitem entity @s slot.armor.chest 0 elytra 1 0
+166 /tp @s 0.5 40 0.5 -90 0
+171 flags Jumpdown,Jumppressedraw,Jumpcurrentraw
+176 held-flags Jumping,Jumpcurrentraw
+186 held-flags none
+198 /tp @s 0.5 -60 0.5 -90 0
+208 /give @s apple
+213 use
+218 release-item
+220 /clear @s
+
+# 4. An elytra with damage 0, landing 45 inputs after the jump.
+228 /replaceitem entity @s slot.armor.chest 0 elytra 1 0
+233 /tp @s 0.5 40 0.5 -90 0
+238 flags Jumpdown,Jumppressedraw,Jumpcurrentraw
+243 held-flags Jumping,Jumpcurrentraw
+253 held-flags none
+283 /tp @s 0.5 -60 0.5 -90 0
+293 /give @s apple
+298 use
+303 release-item
+305 /clear @s
+
+# 5. An elytra with damage 0, landing 47 inputs after the jump.
+313 /replaceitem entity @s slot.armor.chest 0 elytra 1 0
+318 /tp @s 0.5 40 0.5 -90 0
+323 flags Jumpdown,Jumppressedraw,Jumpcurrentraw
+328 held-flags Jumping,Jumpcurrentraw
+338 held-flags none
+370 /tp @s 0.5 -60 0.5 -90 0
+380 /give @s apple
+385 use
+390 release-item
+392 /clear @s
+
+# 6. An elytra with damage 0, landing 106 inputs after the jump.
+400 /replaceitem entity @s slot.armor.chest 0 elytra 1 0
+405 /tp @s 0.5 40 0.5 -90 0
+410 flags Jumpdown,Jumppressedraw,Jumpcurrentraw
+415 held-flags Jumping,Jumpcurrentraw
+425 held-flags none
+516 /tp @s 0.5 -60 0.5 -90 0
+526 /give @s apple
+531 use
+536 release-item
+538 /clear @s
+
+# 7. An elytra with damage 420, landing 400 inputs after the jump.
+546 /replaceitem entity @s slot.armor.chest 0 elytra 1 420
+551 /tp @s 0.5 40 0.5 -90 0
+556 flags Jumpdown,Jumppressedraw,Jumpcurrentraw
+561 held-flags Jumping,Jumpcurrentraw
+571 held-flags none
+956 /tp @s 0.5 -60 0.5 -90 0
+966 /give @s apple
+971 use
+976 release-item
+978 /clear @s
+996 exit

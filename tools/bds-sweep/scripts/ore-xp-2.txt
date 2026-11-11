@@ -1,0 +1,260 @@
+# Experience from breaking blocks, second part: which tools let ores and
+# sculk blocks drop experience. Same arena as ore-xp.txt.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /time set 6000
+25 /fill -4 -61 -4 4 -61 4 stone
+26 /fill -4 -60 -4 4 -55 4 air
+27 /gamemode survival @s
+28 /clear @s
+29 /tp @s 0.5 -60 0.5 -90 0
+40 /clear @s
+41 /give @s wooden_pickaxe
+42 /enchant @s efficiency 5
+# diamond_ore
+50 /setblock 1 -59 0 diamond_ore
+52 mine 1 -59 0 4 0
+90 stop
+91 /kill @e[type=xp_orb]
+92 /kill @e[type=item]
+94 /setblock 1 -59 0 diamond_ore
+96 mine 1 -59 0 4 0
+134 stop
+135 /kill @e[type=xp_orb]
+136 /kill @e[type=item]
+138 /setblock 1 -59 0 diamond_ore
+140 mine 1 -59 0 4 0
+178 stop
+179 /kill @e[type=xp_orb]
+180 /kill @e[type=item]
+182 /setblock 1 -59 0 diamond_ore
+184 mine 1 -59 0 4 0
+222 stop
+223 /kill @e[type=xp_orb]
+224 /kill @e[type=item]
+226 /setblock 1 -59 0 diamond_ore
+228 mine 1 -59 0 4 0
+266 stop
+267 /kill @e[type=xp_orb]
+268 /kill @e[type=item]
+270 /setblock 1 -59 0 diamond_ore
+272 mine 1 -59 0 4 0
+310 stop
+311 /kill @e[type=xp_orb]
+312 /kill @e[type=item]
+314 /clear @s
+324 /effect @s haste 600 4 true
+# coal_ore
+329 /setblock 1 -59 0 coal_ore
+331 mine 1 -59 0 4 0
+409 stop
+410 /kill @e[type=xp_orb]
+411 /kill @e[type=item]
+413 /setblock 1 -59 0 coal_ore
+415 mine 1 -59 0 4 0
+493 stop
+494 /kill @e[type=xp_orb]
+495 /kill @e[type=item]
+497 /setblock 1 -59 0 coal_ore
+499 mine 1 -59 0 4 0
+577 stop
+578 /kill @e[type=xp_orb]
+579 /kill @e[type=item]
+581 /setblock 1 -59 0 coal_ore
+583 mine 1 -59 0 4 0
+661 stop
+662 /kill @e[type=xp_orb]
+663 /kill @e[type=item]
+665 /setblock 1 -59 0 coal_ore
+667 mine 1 -59 0 4 0
+745 stop
+746 /kill @e[type=xp_orb]
+747 /kill @e[type=item]
+749 /setblock 1 -59 0 coal_ore
+751 mine 1 -59 0 4 0
+829 stop
+830 /kill @e[type=xp_orb]
+831 /kill @e[type=item]
+833 /effect @s clear
+# mob_spawner
+838 /setblock 1 -59 0 mob_spawner
+840 mine 1 -59 0 4 0
+958 stop
+959 /kill @e[type=xp_orb]
+960 /kill @e[type=item]
+962 /setblock 1 -59 0 mob_spawner
+964 mine 1 -59 0 4 0
+1082 stop
+1083 /kill @e[type=xp_orb]
+1084 /kill @e[type=item]
+1086 /setblock 1 -59 0 mob_spawner
+1088 mine 1 -59 0 4 0
+1206 stop
+1207 /kill @e[type=xp_orb]
+1208 /kill @e[type=item]
+1210 /setblock 1 -59 0 mob_spawner
+1212 mine 1 -59 0 4 0
+1330 stop
+1331 /kill @e[type=xp_orb]
+1332 /kill @e[type=item]
+1334 /clear @s
+1335 /give @s netherite_hoe
+1336 /enchant @s efficiency 5
+# sculk_catalyst
+1344 /setblock 1 -59 0 sculk_catalyst
+1346 mine 1 -59 0 4 0
+1358 stop
+1359 /kill @e[type=xp_orb]
+1360 /kill @e[type=item]
+1362 /setblock 1 -59 0 sculk_catalyst
+1364 mine 1 -59 0 4 0
+1376 stop
+1377 /kill @e[type=xp_orb]
+1378 /kill @e[type=item]
+1380 /setblock 1 -59 0 sculk_catalyst
+1382 mine 1 -59 0 4 0
+1394 stop
+1395 /kill @e[type=xp_orb]
+1396 /kill @e[type=item]
+1398 /setblock 1 -59 0 sculk_catalyst
+1400 mine 1 -59 0 4 0
+1412 stop
+1413 /kill @e[type=xp_orb]
+1414 /kill @e[type=item]
+1416 /setblock 1 -59 0 sculk_catalyst
+1418 mine 1 -59 0 4 0
+1430 stop
+1431 /kill @e[type=xp_orb]
+1432 /kill @e[type=item]
+1434 /setblock 1 -59 0 sculk_catalyst
+1436 mine 1 -59 0 4 0
+1448 stop
+1449 /kill @e[type=xp_orb]
+1450 /kill @e[type=item]
+# sculk_shrieker
+1452 /setblock 1 -59 0 sculk_shrieker
+1454 mine 1 -59 0 4 0
+1466 stop
+1467 /kill @e[type=xp_orb]
+1468 /kill @e[type=item]
+1470 /setblock 1 -59 0 sculk_shrieker
+1472 mine 1 -59 0 4 0
+1484 stop
+1485 /kill @e[type=xp_orb]
+1486 /kill @e[type=item]
+1488 /setblock 1 -59 0 sculk_shrieker
+1490 mine 1 -59 0 4 0
+1502 stop
+1503 /kill @e[type=xp_orb]
+1504 /kill @e[type=item]
+1506 /setblock 1 -59 0 sculk_shrieker
+1508 mine 1 -59 0 4 0
+1520 stop
+1521 /kill @e[type=xp_orb]
+1522 /kill @e[type=item]
+1524 /setblock 1 -59 0 sculk_shrieker
+1526 mine 1 -59 0 4 0
+1538 stop
+1539 /kill @e[type=xp_orb]
+1540 /kill @e[type=item]
+1542 /setblock 1 -59 0 sculk_shrieker
+1544 mine 1 -59 0 4 0
+1556 stop
+1557 /kill @e[type=xp_orb]
+1558 /kill @e[type=item]
+# sculk_sensor
+1560 /setblock 1 -59 0 sculk_sensor
+1562 mine 1 -59 0 4 0
+1574 stop
+1575 /kill @e[type=xp_orb]
+1576 /kill @e[type=item]
+1578 /setblock 1 -59 0 sculk_sensor
+1580 mine 1 -59 0 4 0
+1592 stop
+1593 /kill @e[type=xp_orb]
+1594 /kill @e[type=item]
+1596 /setblock 1 -59 0 sculk_sensor
+1598 mine 1 -59 0 4 0
+1610 stop
+1611 /kill @e[type=xp_orb]
+1612 /kill @e[type=item]
+1614 /setblock 1 -59 0 sculk_sensor
+1616 mine 1 -59 0 4 0
+1628 stop
+1629 /kill @e[type=xp_orb]
+1630 /kill @e[type=item]
+1632 /setblock 1 -59 0 sculk_sensor
+1634 mine 1 -59 0 4 0
+1646 stop
+1647 /kill @e[type=xp_orb]
+1648 /kill @e[type=item]
+1650 /setblock 1 -59 0 sculk_sensor
+1652 mine 1 -59 0 4 0
+1664 stop
+1665 /kill @e[type=xp_orb]
+1666 /kill @e[type=item]
+# calibrated_sculk_sensor
+1668 /setblock 1 -59 0 calibrated_sculk_sensor
+1670 mine 1 -59 0 4 0
+1682 stop
+1683 /kill @e[type=xp_orb]
+1684 /kill @e[type=item]
+1686 /setblock 1 -59 0 calibrated_sculk_sensor
+1688 mine 1 -59 0 4 0
+1700 stop
+1701 /kill @e[type=xp_orb]
+1702 /kill @e[type=item]
+1704 /setblock 1 -59 0 calibrated_sculk_sensor
+1706 mine 1 -59 0 4 0
+1718 stop
+1719 /kill @e[type=xp_orb]
+1720 /kill @e[type=item]
+1722 /setblock 1 -59 0 calibrated_sculk_sensor
+1724 mine 1 -59 0 4 0
+1736 stop
+1737 /kill @e[type=xp_orb]
+1738 /kill @e[type=item]
+1740 /setblock 1 -59 0 calibrated_sculk_sensor
+1742 mine 1 -59 0 4 0
+1754 stop
+1755 /kill @e[type=xp_orb]
+1756 /kill @e[type=item]
+1758 /setblock 1 -59 0 calibrated_sculk_sensor
+1760 mine 1 -59 0 4 0
+1772 stop
+1773 /kill @e[type=xp_orb]
+1774 /kill @e[type=item]
+# sculk
+1776 /setblock 1 -59 0 sculk
+1778 mine 1 -59 0 4 0
+1790 stop
+1791 /kill @e[type=xp_orb]
+1792 /kill @e[type=item]
+1794 /setblock 1 -59 0 sculk
+1796 mine 1 -59 0 4 0
+1808 stop
+1809 /kill @e[type=xp_orb]
+1810 /kill @e[type=item]
+1812 /setblock 1 -59 0 sculk
+1814 mine 1 -59 0 4 0
+1826 stop
+1827 /kill @e[type=xp_orb]
+1828 /kill @e[type=item]
+1830 /setblock 1 -59 0 sculk
+1832 mine 1 -59 0 4 0
+1844 stop
+1845 /kill @e[type=xp_orb]
+1846 /kill @e[type=item]
+1848 /setblock 1 -59 0 sculk
+1850 mine 1 -59 0 4 0
+1862 stop
+1863 /kill @e[type=xp_orb]
+1864 /kill @e[type=item]
+1866 /setblock 1 -59 0 sculk
+1868 mine 1 -59 0 4 0
+1880 stop
+1881 /kill @e[type=xp_orb]
+1882 /kill @e[type=item]
+1894 exit

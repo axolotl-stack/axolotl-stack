@@ -15,7 +15,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 102 | 808 | 667 | 593 | 177 | 58.1% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 101 | 807 | 668 | 594 | 177 | 58.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 136 | 22 | 46 | 12 | 15 | 26.9% |
@@ -65,11 +65,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
-**Items**: 0 open rows free, 910 claimed.
+**Items**: 0 open rows free, 908 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Item use | lane ITEMS | 2026-10-29 | 910 |
+| Item use | lane ITEMS | 2026-10-29 | 908 |
 
 **Commands**: 0 open rows free, 65 claimed.
 
@@ -458,7 +458,7 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| armour_wearables | 90 | 1 | 2 | 0 | 87 | 0 | 96.7% |
+| armour_wearables | 90 | 0 | 1 | 1 | 88 | 0 | 98.9% |
 | block_items | 1568 | 24 | 680 | 614 | 203 | 47 | 53.7% |
 | buckets | 9 | 3 | 3 | 2 | 1 | 0 | 33.3% |
 | education | 121 | 0 | 0 | 0 | 0 | 121 | n/a |
@@ -481,7 +481,7 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | spawn_egg | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
 | entity_placer | 33 | 31 | 0 | 0 | 0 | 2 | 0.0% |
 | bundle | 17 | 17 | 0 | 0 | 0 | 0 | 0.0% |
-| durability | 83 | 4 | 8 | 3 | 66 | 2 | 85.2% |
+| durability | 83 | 3 | 8 | 3 | 67 | 2 | 86.4% |
 | kinetic_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
 | piercing_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
 | repairable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
@@ -490,11 +490,11 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | compostable | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
 | drink | 5 | 2 | 0 | 0 | 2 | 1 | 50.0% |
 | shooter | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
-| wearable | 30 | 0 | 2 | 0 | 28 | 0 | 93.3% |
 | brush | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | cooldown | 8 | 1 | 0 | 0 | 7 | 0 | 87.5% |
 | shield | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | weapon | 44 | 0 | 1 | 0 | 43 | 0 | 97.7% |
+| wearable | 30 | 0 | 1 | 1 | 28 | 0 | 96.7% |
 | digger | 141 | 0 | 0 | 0 | 139 | 2 | 100.0% |
 | enchantable | 7 | 0 | 0 | 0 | 7 | 0 | 100.0% |
 | food | 40 | 0 | 0 | 40 | 0 | 0 | 100.0% |
@@ -507,9 +507,7 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **armour_wearables**
 
-- `minecraft:elytra/wearable`: equips to the chest slot; gliding is not implemented
 - `minecraft:turtle_helmet/wearable`: protection only: Water Breathing from the helmet is not applied
-- missing: `minecraft:elytra/durability`
 
 **block_items**
 
@@ -828,7 +826,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **player**
 
 - `player.abilities_permissions`: abilities follow the game mode; configured operators get operator commands, member/operator command levels answer like BDS and /op, /deop change them until restart (not saved); no visitor or custom permission levels, RequestAbility/RequestPermissions or UpdateAdventureSettings
-- `player.block_breaking`: breaking runs no neighbour updates (attached blocks and door halves stay); no ore experience; what other players see of a break and creative breaking are not compared against BDS yet
+- `player.block_breaking`: breaking runs no neighbour updates (attached blocks and door halves stay); what other players see of a break and creative breaking are not compared against BDS yet
 - `player.block_placing`: logs, stairs, slabs, facing blocks, doors, hoppers and torches place with orientation, and hoes, shovels, axes, shears, flint and steel, fire charges, bone meal and buckets act on blocks; no crops/seeds, beds, signs, buttons, fence/wall/pane connections or support checks
 - `player.combat`: melee against mobs and mob attacks on players with hurt timer, armour and knockback; bows, crossbows and snowballs; hits wear the weapon; no player-versus-player damage, melee critical hits, shields or thrown tridents
 - `player.damage_sources`: fall, lava, fire blocks, burning, void and mob attacks; no drowning, suffocation, freezing, cactus, starvation, magic, lightning or explosion damage; block identities resolved by name string for fall damage

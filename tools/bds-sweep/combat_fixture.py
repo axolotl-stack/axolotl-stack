@@ -86,7 +86,7 @@ def windows(spec):
     return out
 
 
-def cut(rows, windows=(), commands=None, player=1, inputs=True):
+def cut(rows, windows=(), commands=None, player=1, inputs=True, also=()):
     """The kept records of a capture's rows (see the module docs)."""
     latest = None
     out = []
@@ -112,7 +112,8 @@ def cut(rows, windows=(), commands=None, player=1, inputs=True):
         elif row['id'] == ADD_ACTOR:
             keep = True
         else:
-            keep = inside and row['id'] in KEEP_S2C and keep_s2c(row['id'], b, player)
+            keep = inside and ((row['id'] in KEEP_S2C and keep_s2c(row['id'], b, player))
+                               or row['name'] in also)
         if keep:
             out.append({'seq': row['seq'], 't_ms': round(row['t_ms']), 'dir': row['dir'], 'input': latest,
                         'name': row['name'], 'hex': row['hex']})
@@ -127,12 +128,15 @@ def main():
     parser.add_argument('--commands', default=None,
                         help='keep only the commands starting with this text and their outputs')
     parser.add_argument('--player', type=int, default=1, help='runtime id BDS gave the scripted player')
+    parser.add_argument('--also', type=lambda spec: {name + 'Packet' for name in spec.split(',')}, default=set(),
+                        help='server packets to keep as well inside the windows (names without the Packet '
+                             'suffix), e.g. InventoryContent')
     parser.add_argument('--no-inputs', action='store_true',
                         help='drop the PlayerAuthInputs themselves (records keep their input tick); for '
                              'replays that only need the server to tick')
     args = parser.parse_args()
     rows = [json.loads(line) for line in open(args.source, encoding='utf-8') if line.strip()]
-    out = cut(rows, args.windows, args.commands, args.player, not args.no_inputs)
+    out = cut(rows, args.windows, args.commands, args.player, not args.no_inputs, args.also)
     with open(args.target, 'w', encoding='utf-8', newline='\n') as f:
         for record in out:
             f.write(json.dumps(record, separators=(',', ':')) + '\n')

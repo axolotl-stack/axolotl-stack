@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import combat_fixture  # noqa: E402
+import experience_table  # noqa: E402
 import native  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
@@ -246,6 +247,25 @@ class CombatFixture(unittest.TestCase):
         ]
         kept = combat_fixture.cut(rows, commands='enchant')
         self.assertEqual([r['hex'] for r in kept], [request(b'/enchant @s sharpness 1').hex(), '4f02'])
+
+
+class ExperienceTable(unittest.TestCase):
+    def test_breaks_take_the_tool_the_script_gave_last(self):
+        script = '\n'.join([
+            '# comment',
+            '30 /give @s netherite_pickaxe',
+            '32 /enchant @s efficiency 5',
+            '40 /setblock 1 -59 0 coal_ore',
+            '50 /clear @s',
+            '60 /setblock 1 -59 0 coal_ore',
+            '61 /setblock 9 9 9 stone',
+        ])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'script.txt'
+            path.write_text(script, encoding='utf-8')
+            breaks = experience_table.schedule(path)
+        self.assertEqual(breaks, [(40, 'minecraft:coal_ore', 'netherite_pickaxe+efficiency5'),
+                                  (60, 'minecraft:coal_ore', 'hand')])
 
 
 class RuntimeSlotTest(unittest.TestCase):
