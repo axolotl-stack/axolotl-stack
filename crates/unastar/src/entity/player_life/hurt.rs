@@ -284,9 +284,10 @@ fn cause_id(cause: ActorDamageCause) -> i32 {
 }
 
 /// Push `player` away from `from` (horizontally) with the native knockback
-/// ([`knockback_velocity`]). The server does not track a player's own
-/// motion, so the push starts from rest; it is sent to the player's client
-/// and counts as the player's next move (`super::motion`).
+/// ([`knockback_velocity`]), from rest as BDS sends it. It is sent to the
+/// player's client, counts as the player's next move (`super::motion`) and
+/// is the velocity of the server's copy from the next input on
+/// (`super::authority`).
 fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPower) {
     let Some(position) = world.get::<Position>(player).map(|p| p.0) else {
         return;
@@ -302,6 +303,9 @@ fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPo
     let velocity = knockback_velocity(DVec3::ZERO, away.normalize(), power);
     if let Some(mut moves) = world.get_mut::<super::motion::PlayerMoves>(player) {
         moves.push(velocity);
+    }
+    if let Some(mut motion) = world.get_mut::<super::authority::PlayerMotion>(player) {
+        motion.pushed(velocity);
     }
     let (Some(session), Some(runtime_id)) = (
         world.get::<PlayerSession>(player),

@@ -141,6 +141,92 @@ fn the_respawn_action_restores_the_player_at_the_world_spawn() {
     assert_respawned(&mut h, &packets);
 }
 
+/// The server's copy of the player respawns with it (`tests/authority.rs`
+/// replays BDS's respawns): a client that moved to the spawn point is
+/// taken there, and one still reporting where it died is corrected to the
+/// copy, simulated from the spawn point through that input.
+#[test]
+fn the_copy_of_the_player_respawns_with_it() {
+    use crate::entity::player_life::authority::{MotionTable, PlayerMotion, WorldTerrain};
+    for follows in [true, false] {
+        let mut h = harness(Difficulty::Normal);
+        let died_at = h.feet();
+        die(&mut h);
+        h.route(PlayerActionPacket {
+            player_runtime_id: ActorRuntimeId {
+                actor_runtime_id: SESSION,
+            },
+            action: EnumsPlayerActionType::Respawn,
+            block_position: BlockPos { x: 0, y: 0, z: 0 },
+            result_pos: BlockPos { x: 0, y: 0, z: 0 },
+            face: -1,
+        });
+        h.tick();
+        h.drain();
+        let spawn = world_spawn(&mut h) - DVec3::Y * PLAYER_EYE_HEIGHT;
+        let player = h.player;
+        // The copy after one input without keys from the spawn point.
+        let simulated = {
+            let world = h.world();
+            let mut body = world.get::<PlayerMotion>(player).unwrap().body;
+            let terrain = WorldTerrain {
+                blocks: &*world,
+                table: world.resource::<MotionTable>(),
+            };
+            unastar_rules::movement::step(
+                &mut body,
+                &unastar_rules::movement::Controls::default(),
+                &terrain,
+            );
+            body
+        };
+        let position = reported(if follows { spawn } else { died_at });
+        h.route(PlayerAuthInputPacket {
+            position: Vec3 {
+                x: position.x as f32,
+                y: position.y as f32,
+                z: position.z as f32,
+            },
+            input_data: vec![EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision],
+            ..Default::default()
+        });
+        h.tick();
+        let corrections: Vec<_> = h
+            .drain()
+            .into_iter()
+            .filter_map(|packet| match packet {
+                McpePacketData::CorrectPlayerMovePredictionPacket(c) => Some(c),
+                _ => None,
+            })
+            .collect();
+        if follows {
+            assert!(corrections.is_empty(), "{corrections:?}");
+            assert!(h.feet().distance(spawn) < 1.0e-4, "{}", h.feet());
+            continue;
+        }
+        let [x, y, z] = simulated.network_position();
+        let [vx, vy, vz] = simulated.velocity;
+        assert_eq!(
+            corrections
+                .iter()
+                .map(|c| (
+                    c.pos.x,
+                    c.pos.y,
+                    c.pos.z,
+                    c.pos_delta.x,
+                    c.pos_delta.y,
+                    c.pos_delta.z
+                ))
+                .collect::<Vec<_>>(),
+            [(x, y, z, vx, vy, vz)],
+            "corrected to the copy, simulated from the spawn point"
+        );
+        let [x, y, z] = simulated.feet;
+        let feet = DVec3::new(f64::from(x), f64::from(y), f64::from(z));
+        assert!(h.feet().distance(feet) < 1.0e-4, "{}", h.feet());
+    }
+}
+
 #[test]
 fn immediate_respawn_skips_the_death_screen() {
     let mut h = harness(Difficulty::Normal);

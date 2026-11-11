@@ -8,6 +8,9 @@
 //!   (tracked from `PlayerAuthInput`), lava, fire, burning and the void.
 //! - [`breath`] keeps the air supply and the `BREATHING` flag: drowning
 //!   under water, refilling above it and in bubble columns.
+//! - [`authority`] keeps the server's own copy of the player's movement:
+//!   every input simulated as BDS simulates it, the client's position
+//!   taken, pulled towards or corrected, teleports enforced.
 //! - [`motion`] settles what the movement inputs ask for: the sprint, swim
 //!   and glide toggles BDS accepts or refuses, `MOVING` and the food
 //!   exhaustion of each move.
@@ -27,6 +30,7 @@
 
 pub mod actor_data;
 pub mod attributes;
+pub mod authority;
 pub mod breath;
 pub mod constants;
 pub mod death;

@@ -41,6 +41,7 @@ pub fn process_plugin_actions(
         &mut crate::entity::components::MainInventory,
     )>,
     inputs: Query<&crate::entity::components::PlayerInput>,
+    mut motions: Query<&mut crate::entity::player_life::authority::PlayerMotion>,
 ) {
     let actions = action_queue.drain();
     let _span = tracing::info_span!("process_plugin_actions", count = actions.len()).entered();
@@ -60,6 +61,9 @@ pub fn process_plugin_actions(
                 if let Ok((mut player_pos, rot, rid, session, _)) = players.get_mut(entity) {
                     let new_pos = DVec3::new(pos.0, pos.1, pos.2);
                     player_pos.0 = new_pos;
+                    if let Ok(mut motion) = motions.get_mut(entity) {
+                        motion.teleported(new_pos);
+                    }
 
                     let packet = MovePlayerPacket {
                         player_runtime_id: ActorRuntimeId {

@@ -367,3 +367,68 @@ fn kill_command_kills_the_named_player_once() {
         [output("commands.generic.noTargetMatch", &[])]
     );
 }
+
+/// A `/tp` is enforced on the player's next input: an input the client sent
+/// before it saw the teleport is not simulated but corrected to the
+/// destination at rest, and the player stays there
+/// (`docs/quirks/bds.md`, Entities / player teleport).
+#[test]
+fn a_teleport_cannot_be_undone_by_the_input_already_on_its_way() {
+    use crate::entity::components::Position;
+    use crate::server::game::packet_queues::{MovementInput, MovementPacketQueue};
+    use jolyne::valentine::PlayerAuthInputPacket;
+    use jolyne::valentine::types::{EnumsPlayerAuthInputPacketPayloadInputData, Vec3};
+
+    let mut server = server(Difficulty::Easy);
+    let mut op = join(&mut server, 1, "Op");
+    command(&mut server, &op, "/tp @s 8.5 16 0.5");
+    let destination = server.ecs.world().get::<Position>(op.entity).unwrap().0;
+    assert_eq!(destination, DVec3::new(8.5, 17.62, 0.5));
+    drain(&mut op);
+
+    // The input already on its way still reports the spawn point.
+    server
+        .ecs
+        .world_mut()
+        .resource_mut::<MovementPacketQueue>()
+        .0
+        .push((
+            op.entity,
+            MovementInput::AuthInput(Box::new(PlayerAuthInputPacket {
+                position: Vec3 {
+                    x: 0.5,
+                    y: 17.0,
+                    z: 0.5,
+                },
+                input_data: vec![EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision],
+                ..Default::default()
+            })),
+        ));
+    server.tick();
+    let corrections: Vec<_> = drain(&mut op)
+        .into_iter()
+        .filter_map(|packet| match packet {
+            McpePacketData::CorrectPlayerMovePredictionPacket(c) => Some(c),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(corrections.len(), 1, "{corrections:?}");
+    let correction = &corrections[0];
+    assert_eq!(
+        (correction.pos.x, correction.pos.y, correction.pos.z),
+        (8.5, 16.0 + unastar_rules::movement::NETWORK_OFFSET, 0.5)
+    );
+    assert_eq!(
+        (
+            correction.pos_delta.x,
+            correction.pos_delta.y,
+            correction.pos_delta.z
+        ),
+        (0.0, 0.0, 0.0)
+    );
+    assert!(correction.on_ground);
+    assert_eq!(
+        server.ecs.world().get::<Position>(op.entity).unwrap().0,
+        destination
+    );
+}

@@ -131,6 +131,9 @@ pub fn respawn(world: &mut World, player: Entity) {
         if let Some(mut position) = entity.get_mut::<Position>() {
             position.0 = spawn;
         }
+        if let Some(mut motion) = entity.get_mut::<super::authority::PlayerMotion>() {
+            motion.respawned(spawn);
+        }
     }
     super::breath::refill(world, player);
     let (Some(session), Some(runtime_id)) = (

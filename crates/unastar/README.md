@@ -80,8 +80,47 @@ still had queued beyond that tick's budget is dropped (the count is logged at de
 since the client has gone and there is no prediction left to keep in step.
 
 `PlayerAuthInput` is rejected whole (the player stays where it was) when its
-position, rotation, head yaw or move vector is not finite, or when the position is
-more than 64 blocks from the server-tracked one.
+position, rotation, head yaw or move vector is not finite.
+
+### Movement authority
+
+Player movement is server-authoritative, as in BDS 1.26.51
+(`entity/player_life/authority.rs`). The server keeps its own copy of each
+player and simulates every `PlayerAuthInput` on it with `unastar_rules::movement`,
+the `f32` simulation the sweep client runs on BDS. It then judges the reported
+position with BDS's rules (`unastar_rules::movement::authority`; the measured
+rules are in `docs/quirks/bds.md`, Entities / player movement authority, pull,
+teleport):
+
+- positions within a tenth of a block are taken;
+- other positions pull the copy towards the client;
+- positions out of reach, or ones the copy could not reach (too fast, through a
+  wall, hovering, claiming the ground while falling), are answered with
+  `CorrectPlayerMovePrediction` carrying the copy's state.
+
+The copy is what the player's viewers see, and what its falls, `MOVING` and
+exhaustion follow. A teleport (command, plugin, ender pearl, chorus fruit) leaves
+the copy at rest at the destination for the next input, so no input sent before
+the client saw it can undo it. A respawn places the copy at the spawn point, and
+a knockback becomes its velocity. Every other server-side move of a player must
+update the copy too (`PlayerMotion::teleported`), or the client's next input is
+corrected back.
+
+The simulation does not reproduce everything yet. These inputs are trusted (the
+copy takes the client's position and velocity, if it is within 64 blocks of the
+tracked one):
+
+- inputs near blocks with movement rules of their own (climbing, honey, soul
+  sand, sweet berries, lava, bubble columns, slime, beds, powder snow, cobwebs;
+  `MotionTable`);
+- inputs under speed, slowness or levitation;
+- inputs while flying or in spectator mode;
+- the first input after joining or respawning, when it is within 2 blocks of the
+  spawn point.
+
+Moving a block out of the trusted list needs a BDS run of the sweep client
+without corrections. The movement replays in `entity/player_life/tests/` assert
+that the server sends exactly BDS's corrections and none that BDS did not send.
 
 ## Joining
 

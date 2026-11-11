@@ -694,6 +694,10 @@ impl GameServer {
         ecs.world_mut()
             .insert_resource(crate::entity::mob::ai::PathBlockTable::new(&blocks));
         ecs.world_mut()
+            .insert_resource(crate::entity::player_life::authority::MotionTable::new(
+                &blocks,
+            ));
+        ecs.world_mut()
             .insert_resource(types::BlockRegistryResource(Arc::new(blocks)));
         crate::entity::spawning::install(ecs.world_mut());
 
@@ -951,6 +955,7 @@ impl GameServer {
             actor_data,
             crate::entity::player_life::environment::PlayerFall::default(),
             crate::entity::player_life::motion::PlayerMoves::default(),
+            crate::entity::player_life::authority::PlayerMotion::spawned(data.position),
         ));
         if explicit_game_mode {
             self.ecs

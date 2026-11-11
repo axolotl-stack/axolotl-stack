@@ -36,7 +36,8 @@ simulation, so the client has to simulate the same physics in `f32`.
   acceptance threshold it moves its own copy towards the client's position by up to about
   0.005 blocks a tick. Physics fitted from such a run is wrong by that amount; fit only runs
   without corrections. A second client near the first sees BDS's own copy in a `MovePlayer`
-  every tick, the cleanest way to watch BDS simulate.
+  every tick, the cleanest way to watch BDS simulate (the exact rules:
+  `docs/solutions/server/bds-judges-reported-positions-against-its-own-copy.md`).
 - Inconsistent input flags draw a resync: `StartSneaking` without the raw sneak flags
   (`SneakPressedRaw`, `SneakCurrentRaw`) makes BDS resend the flag words with key 139 and apply the
   sneak a tick late. Send the flags a vanilla client sends together.
@@ -56,6 +57,7 @@ simulation, so the client has to simulate the same physics in `f32`.
 
 ## Where it lives
 
-`crates/bds-sweep/src/physics.rs`, `crates/bds-sweep/src/world.rs`,
-`crates/bds-sweep/src/main.rs`, `tools/bds-sweep/player_script.py`, `tools/bds-sweep/README.md`
-(section "Movement").
+`crates/unastar-rules/src/movement/mod.rs` (the simulation, shared with the server since the
+`server-authoritative-movement` change; `crates/bds-sweep/src/physics.rs` re-exports it),
+`crates/bds-sweep/src/world.rs`, `crates/bds-sweep/src/main.rs`, `tools/bds-sweep/player_script.py`,
+`tools/bds-sweep/README.md` (section "Movement").
