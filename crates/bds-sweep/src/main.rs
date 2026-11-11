@@ -25,6 +25,11 @@
 //!   click a vanilla client sends to place a block), clicking face FACE at
 //!   (CX, CY, CZ)/1000 within the block; TARGET is the clicked block's
 //!   network id.
+//! * `bds-sweep:sign X Y Z FRONT HEX`: edit the text of the sign at X Y Z
+//!   (front side when FRONT is 1, back when 0) to the UTF-8 text HEX (`-`
+//!   for empty) the way a client submits an edit: the sign's block-actor
+//!   data as the server last sent it, with that side's `Text` replaced, in a
+//!   `BlockActorData` packet.
 //!
 //! Drop orders require server-synchronized nonempty slots with stack net IDs.
 //! Inventory drops leave the screen open; hotbar drops close it first.
@@ -42,8 +47,9 @@ use jolyne::{
     BedrockStream, Client, ClientConfig, GameData, JolyneError, Play,
     stream::{Handshake, transport::Transport},
     valentine::{
-        ActorRuntimeId, BlockPos, CerealizerNetworkItemStackDescriptorSerializedData,
-        ContainerClosePacket, EnumsClientPlayMode, EnumsContainerEnumName, EnumsInputMode,
+        ActorRuntimeId, BlockActorDataPacket, BlockPos,
+        CerealizerNetworkItemStackDescriptorSerializedData, ContainerClosePacket,
+        EnumsClientPlayMode, EnumsContainerEnumName, EnumsInputMode,
         EnumsInteractPacketPayloadAction, EnumsItemStackRequestActionType,
         EnumsItemUseInventoryTransactionActionType,
         EnumsItemUseInventoryTransactionClientCooldownState,
@@ -61,11 +67,14 @@ use jolyne::{
         TypedClientNetIdstructItemStackRequestIdTagint32T0, Vec2, Vec3,
     },
 };
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tracing::info;
+use tracing::{info, warn};
+
+mod nbt;
 
 #[derive(Parser, Debug)]
 #[command(about = "Idle scripted player for BDS sweeps")]
@@ -116,6 +125,14 @@ struct UseOrder {
     target: u32,
 }
 
+/// A sign text edit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SignOrder {
+    pos: [i32; 3],
+    front: bool,
+    text: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Order {
     Mine(Mining),
@@ -125,6 +142,7 @@ enum Order {
     Drop(DropOrder),
     CloseInventory,
     Use(UseOrder),
+    Sign(SignOrder),
 }
 
 /// The first `n` numbers of an order. The order arrives inside the Debug
@@ -184,6 +202,29 @@ fn parse_order(text: &str) -> Option<Order> {
                 target: u32::try_from(target).ok()?,
             }))
         }
+        "sign" => {
+            let numbers = numbers(words.by_ref(), 4)?;
+            let [x, y, z, front] = numbers[..] else {
+                return None;
+            };
+            let hex = words
+                .next()?
+                .trim_end_matches(|c: char| !c.is_ascii_hexdigit() && c != '-');
+            let text = if hex == "-" {
+                String::new()
+            } else {
+                let bytes = (0..hex.len())
+                    .step_by(2)
+                    .map(|i| u8::from_str_radix(hex.get(i..i + 2)?, 16).ok())
+                    .collect::<Option<Vec<u8>>>()?;
+                String::from_utf8(bytes).ok()?
+            };
+            Some(Order::Sign(SignOrder {
+                pos: [x as i32, y as i32, z as i32],
+                front: front != 0,
+                text,
+            }))
+        }
         _ => None,
     }
 }
@@ -205,6 +246,8 @@ struct Player {
     inventory_window: Option<(u8, u8)>,
     pending_drop: Option<DropOrder>,
     next_request_id: i32,
+    /// The block-actor data the server last sent per position.
+    actors: HashMap<[i32; 3], Vec<u8>>,
 }
 
 fn block_action(action: EnumsPlayerActionType, mining: &Mining) -> PlayerBlockActionData {
@@ -254,6 +297,7 @@ impl Player {
             }
             Order::Attack(target) => return Ok(vec![self.attack(target)]),
             Order::Use(order) => return Ok(vec![self.use_on_block(order)]),
+            Order::Sign(order) => return Ok(self.edit_sign(&order).into_iter().collect()),
             Order::Drop(drop) => return self.drop_order(drop),
             Order::CloseInventory => {
                 ensure!(
@@ -320,6 +364,37 @@ impl Player {
             ),
             ..Default::default()
         })
+    }
+
+    /// The sign's block-actor data as the server last sent it, with the
+    /// `Text` of the edited side replaced. `None` (logged) when the server
+    /// never sent data for that position.
+    fn edit_sign(&self, order: &SignOrder) -> Option<McpePacket> {
+        let Some(data) = self.actors.get(&order.pos) else {
+            warn!("no block-actor data for the sign at {:?}", order.pos);
+            return None;
+        };
+        let (name, mut tag) = match nbt::read(data) {
+            Ok(read) => read,
+            Err(error) => {
+                warn!("unreadable sign data at {:?}: {error}", order.pos);
+                return None;
+            }
+        };
+        let side = if order.front { "FrontText" } else { "BackText" };
+        let Some(text) = tag.get_mut(side).and_then(|side| side.get_mut("Text")) else {
+            warn!("sign data at {:?} has no {side}.Text", order.pos);
+            return None;
+        };
+        *text = nbt::Tag::String(order.text.clone());
+        Some(McpePacket::from(BlockActorDataPacket {
+            block_position: BlockPos {
+                x: order.pos[0],
+                y: order.pos[1],
+                z: order.pos[2],
+            },
+            actor_data_tags: jolyne::valentine::bedrock::codec::Nbt(nbt::write(&name, &tag).into()),
+        }))
     }
 
     fn drop_stack(
@@ -546,6 +621,11 @@ impl Player {
             McpePacketData::CorrectPlayerMovePredictionPacket(packet) => {
                 self.position = packet.pos;
             }
+            McpePacketData::BlockActorDataPacket(data) => {
+                let pos = data.block_position;
+                self.actors
+                    .insert([pos.x, pos.y, pos.z], data.actor_data_tags.0.to_vec());
+            }
             McpePacketData::ChangeDimensionPacket(packet) => {
                 self.position = packet.position;
                 return Ok(vec![self.action(EnumsPlayerActionType::Changedimensionack)]);
@@ -675,6 +755,7 @@ async fn run_session<T: Transport>(
         inventory_window: None,
         pending_drop: None,
         next_request_id: -1,
+        actors: HashMap::new(),
     };
     let mut ticker = tokio::time::interval(Duration::from_millis(50));
     loop {
@@ -702,6 +783,7 @@ async fn run_session<T: Transport>(
                             | McpePacketName::InventorySlotPacket
                             | McpePacketName::ContainerOpenPacket
                             | McpePacketName::ContainerClosePacket
+                            | McpePacketName::BlockActorDataPacket
                     )
                 ) {
                     for reply in player.handle(packet.decode()?.data)? {
@@ -733,7 +815,60 @@ mod tests {
             inventory_window: None,
             pending_drop: None,
             next_request_id: -1,
+            actors: HashMap::new(),
         }
+    }
+
+    #[test]
+    fn sign_orders_edit_one_side_of_the_last_sent_actor() {
+        let order =
+            parse_order(r#"{ message: "bds-sweep:sign 4 -59 4 1 48690a7468657265" }"#).unwrap();
+        assert_eq!(
+            order,
+            Order::Sign(SignOrder {
+                pos: [4, -59, 4],
+                front: true,
+                text: "Hi
+there"
+                    .into(),
+            })
+        );
+        let mut player = player();
+        assert!(
+            player.order(order.clone()).unwrap().is_empty(),
+            "no data yet"
+        );
+        let mut sign = nbt::Tag::Compound(vec![
+            (
+                "FrontText".into(),
+                nbt::Tag::Compound(vec![("Text".into(), nbt::Tag::String(String::new()))]),
+            ),
+            (
+                "BackText".into(),
+                nbt::Tag::Compound(vec![("Text".into(), nbt::Tag::String("back".into()))]),
+            ),
+            ("LockedForEditingBy".into(), nbt::Tag::Long(-4_294_967_295)),
+        ]);
+        player.actors.insert([4, -59, 4], nbt::write("", &sign));
+        let sent = player.order(order).unwrap();
+        let McpePacketData::BlockActorDataPacket(packet) = &sent[0].data else {
+            panic!("{sent:?}");
+        };
+        let (_, edited) = nbt::read(&packet.actor_data_tags.0).unwrap();
+        *sign.get_mut("FrontText").unwrap().get_mut("Text").unwrap() = nbt::Tag::String(
+            "Hi
+there"
+                .into(),
+        );
+        assert_eq!(edited, sign);
+        assert_eq!(
+            parse_order("bds-sweep:sign 1 2 3 0 -"),
+            Some(Order::Sign(SignOrder {
+                pos: [1, 2, 3],
+                front: false,
+                text: String::new(),
+            }))
+        );
     }
 
     #[test]

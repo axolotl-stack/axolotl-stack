@@ -62,7 +62,12 @@ class BdsSweep(Plugin):
 
     @event_handler
     def on_player_join(self, event: PlayerJoinEvent) -> None:
-        if event.player.name != self.job['player'] or self.task is not None:
+        # The job starts once its player (and its watcher, if it has one)
+        # is online.
+        wanted = [self.job['player']] + ([self.job['watcher']] if self.job.get('watcher') else [])
+        if event.player.name not in wanted or self.task is not None:
+            return
+        if any(self.server.get_player(name) is None for name in wanted):
             return
         self.task = self.server.scheduler.run_task(
             self, self.tick, delay=int(self.job.get('start_delay_ticks', 60)), period=1)
