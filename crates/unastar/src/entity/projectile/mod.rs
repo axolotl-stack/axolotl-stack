@@ -39,6 +39,7 @@ pub mod flight;
 pub mod hit;
 pub mod launch;
 pub mod pickup;
+pub mod potion;
 
 use bevy_ecs::prelude::*;
 
@@ -78,6 +79,16 @@ pub struct Stuck {
 /// (arrows shot and tridents thrown in survival).
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct ProjectileItem(pub crate::item::ItemStack);
+
+/// A thrown projectile that has not shown yet: it plays `reappeared` when
+/// it does (see `flight::reappear`).
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct ThrownUnseen;
+
+/// The data value of the potion a thrown potion carries.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProjectilePotion(pub i16);
 
 /// Players that used a throwable item this tick (queued by the inventory
 /// system, thrown by [`apply_throws`]).

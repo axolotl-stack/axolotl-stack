@@ -121,7 +121,13 @@ fn step(
         return;
     }
     let now = world.resource::<TickCounter>().current;
-    let ticks = now.saturating_sub(flight.launched_tick) + 1;
+    // A projectile first moves in the tick after the one that threw it: BDS
+    // 1.26.51 announces it with its launch position and velocity
+    // (throwables capture).
+    if now <= flight.launched_tick {
+        return;
+    }
+    let ticks = now - flight.launched_tick;
     if ticks == PROJECTILE_VISIBLE_TICK {
         set_invisible(world, projectile, false);
     }
@@ -168,13 +174,21 @@ fn step(
     hits.sort_by(|a, b| a.0.total_cmp(&b.0));
 
     let mut removed = false;
-    for &(_, target) in hits.iter() {
-        removed |= on_hit(world, projectile, flight.owner, rules, from, target);
+    for &(t, target) in hits.iter() {
+        // Effects happen where the segment meets what it hit (BDS 1.26.51
+        // throwables capture: particles, spawns and splashes on the floor's
+        // surface).
+        let at = from + velocity * t;
+        removed |= on_hit(world, projectile, flight.owner, rules, at, target);
         if removed || !rules.multiple_targets {
             break;
         }
     }
     if removed {
+        if ticks <= PROJECTILE_VISIBLE_TICK {
+            let at = hits.first().map_or(from, |&(t, _)| from + velocity * t);
+            reappear(world, projectile, at);
+        }
         world.despawn(projectile);
         return;
     }
@@ -192,6 +206,9 @@ fn step(
         };
     next.y -= rules.gravity;
     let (yaw, pitch) = heading(velocity);
+    if ticks == PROJECTILE_VISIBLE_TICK {
+        reappear(world, projectile, to);
+    }
     let mut entity = world.entity_mut(projectile);
     entity.insert((Position(to), Velocity(next)));
     if let Some(mut rotation) = entity.get_mut::<Rotation>() {
@@ -209,6 +226,29 @@ fn lerp_rotation(current: f32, target: f32) -> f32 {
         delta -= 360.0;
     }
     current + delta * PROJECTILE_ROTATION_SMOOTHING
+}
+
+/// A thrown projectile shows again (its second flight tick, or its hit if
+/// sooner): `reappeared` at the middle of its box at `feet`, as BDS 1.26.51
+/// plays it (throwables capture).
+fn reappear(world: &mut World, projectile: Entity, feet: DVec3) {
+    if world
+        .entity_mut(projectile)
+        .take::<super::ThrownUnseen>()
+        .is_none()
+    {
+        return;
+    }
+    let half = world
+        .get::<RawCollisionBox>(projectile)
+        .map_or(0.0, |b| f64::from(b.height) / 2.0);
+    crate::entity::mob::net::sound::play_level_sound(
+        world,
+        Some(projectile),
+        feet + DVec3::Y * half,
+        "reappeared",
+        -1,
+    );
 }
 
 fn set_invisible(world: &mut World, projectile: Entity, on: bool) {

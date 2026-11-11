@@ -127,18 +127,66 @@ pub fn use_spawn_egg_on_block(world: &mut World, player: Entity, adjacent: IVec3
         f64::from(adjacent.y),
         f64::from(adjacent.z) + 0.5,
     );
+    // BDS 1.26.51 (capture of tools/bds-sweep/scripts/buckets-eggs.txt): on a
+    // peaceful world a monster's egg is used up and nothing spawns.
+    let monster = world
+        .get_resource::<crate::entity::mob::MobRegistry>()
+        .and_then(|registry| registry.get(&actor))
+        .is_some_and(|archetype| {
+            archetype.source.description.spawn_category.as_deref() == Some("monster")
+        });
+    if monster
+        && world.get_resource::<crate::world::rules::Difficulty>()
+            == Some(&crate::world::rules::Difficulty::Peaceful)
+    {
+        use_held_item(world, player, None);
+        return true;
+    }
     let yaw = world
         .resource_mut::<EntityRandom>()
         .0
         .gen_range(0.0f32..360.0);
     match spawn_mob(world, &actor, feet, yaw, SpawnCause::Spawned) {
-        Ok(_) => use_held_item(world, player, None),
+        Ok(_) => {
+            spawned_mob_event(world, player, &actor);
+            use_held_item(world, player, None);
+        }
         Err(error) => {
             warn!(%actor, %error, "spawn egg could not spawn its actor");
             resend_held(world, player);
         }
     }
     true
+}
+
+/// `ActorEvent` PlayerSpawnedMob to the player who spawned a mob from an
+/// egg, its data the actor's numeric id shifted left 16 bits, plus 1 (BDS
+/// 1.26.51 sent 720897 for a cow, 786433 for a pig and 655361 for a
+/// chicken, in survival and creative).
+fn spawned_mob_event(world: &World, player: Entity, actor: &str) {
+    let Some(rid) = unastar_data::actor_identifiers::vanilla()
+        .iter()
+        .find(|row| row.id == actor)
+        .map(|row| row.rid)
+    else {
+        return;
+    };
+    let (Some(runtime_id), Some(session)) = (
+        world.get::<crate::entity::components::RuntimeEntityId>(player),
+        world.get::<crate::entity::components::PlayerSession>(player),
+    ) else {
+        return;
+    };
+    let _ = session.send(jolyne::valentine::McpePacket::from(
+        jolyne::valentine::ActorEventPacket {
+            target_runtime_id: jolyne::valentine::types::ActorRuntimeId {
+                actor_runtime_id: runtime_id.0 as u64,
+            },
+            event_id: jolyne::valentine::types::EnumsActorEvent::PlayerSpawnedMob,
+            data: ((rid << 16) | 1) as i32,
+            fire_at_position: None,
+        },
+    ));
 }
 
 /// `minecraft:spawn_egg_interaction`: the mob's own spawn egg spawns a baby

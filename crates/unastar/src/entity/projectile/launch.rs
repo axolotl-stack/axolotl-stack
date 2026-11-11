@@ -18,7 +18,8 @@ use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::definition::properties::{ActorProperties, NamedPropertyValue, PropertyError};
 use crate::entity::mob::constants::{
-    CLIMATE_VARIANT_PROPERTY, THROW_SOUND, THROW_SOUND_EYE_DROP, THROWN_EGG_ITEMS,
+    CLIMATE_VARIANT_PROPERTY, THROW_SOUND, THROW_SOUND_AHEAD, THROW_SOUND_EYE_DROP,
+    THROWN_EGG_ITEMS,
 };
 use crate::entity::mob::events::held_item;
 use crate::entity::mob::net::sound::play_level_sound;
@@ -43,8 +44,17 @@ pub enum LaunchError {
 /// The projectile actor and its climate variant label an item throws when
 /// used, if it is a throwable item.
 pub fn thrown_by(item: &str) -> Option<(ActorType, Option<&'static str>)> {
-    if item == "minecraft:snowball" {
-        return Some((ActorType::Snowball, None));
+    let actor = match item {
+        "minecraft:snowball" => Some(ActorType::Snowball),
+        "minecraft:ender_pearl" => Some(ActorType::EnderPearl),
+        "minecraft:experience_bottle" => Some(ActorType::XpBottle),
+        "minecraft:splash_potion" => Some(ActorType::SplashPotion),
+        "minecraft:lingering_potion" => Some(ActorType::LingeringPotion),
+        "minecraft:wind_charge" => Some(ActorType::WindChargeProjectile),
+        _ => None,
+    };
+    if let Some(actor) = actor {
+        return Some((actor, None));
     }
     THROWN_EGG_ITEMS
         .iter()
@@ -99,14 +109,43 @@ pub fn apply_throws(world: &mut World) {
     }
 }
 
+/// Throw the held item. Measured on BDS 1.26.51 (capture of
+/// `tools/bds-sweep/scripts/throwables.txt`): an item with a use cooldown
+/// (`minecraft:cooldown`: the ender pearl 20 ticks, the wind charge 10)
+/// starts it and is not thrown while it runs; the projectile carries a
+/// potion's data value as its aux value.
 fn throw_held(world: &mut World, player: Entity) {
-    let Some((actor, climate)) = held_item(world, player).and_then(|s| thrown_by(s.item_id()))
-    else {
+    let Some(stack) = held_item(world, player).cloned() else {
+        return;
+    };
+    let Some((actor, climate)) = thrown_by(stack.item_id()) else {
         return;
     };
     let mode = world.get::<GameMode>(player).copied().unwrap_or_default();
     if mode == GameMode::Spectator || world.get::<Health>(player).is_some_and(Health::is_dead) {
         return;
+    }
+    // An actor this server cannot spawn yet is not thrown, and the item is
+    // kept.
+    if world
+        .get_resource::<crate::entity::mob::MobRegistry>()
+        .is_some_and(|registry| registry.get(actor.name()).is_none())
+    {
+        warn!(
+            actor = actor.name(),
+            "Throwing an actor that cannot spawn yet"
+        );
+        return;
+    }
+    let cooldown = stack
+        .item()
+        .and_then(crate::item::cooldown::cooldown)
+        .filter(|cooldown| !cooldown.attack);
+    if let Some(cooldown) = &cooldown {
+        if crate::item::cooldown::cooling(world, player, &cooldown.category) {
+            return;
+        }
+        crate::item::cooldown::start(world, player, cooldown);
     }
     if mode != GameMode::Creative
         && let Some(slot) = world.get::<HeldSlot>(player).map(|s| usize::from(s.0))
@@ -122,8 +161,24 @@ fn throw_held(world: &mut World, player: Entity) {
             send_slot(world, player, slot, &stack);
         }
     }
-    if let Err(error) = launch(world, player, actor, climate) {
-        warn!(%error, actor = actor.name(), "Throwing a projectile failed");
+    let potion = matches!(actor, ActorType::SplashPotion | ActorType::LingeringPotion)
+        .then_some(stack.damage);
+    match launch(world, player, actor, climate) {
+        Ok(projectile) => {
+            if let Some(potion) = potion {
+                set_potion(world, projectile, potion);
+            }
+        }
+        Err(error) => warn!(%error, actor = actor.name(), "Throwing a projectile failed"),
+    }
+}
+
+/// The potion a thrown potion carries: its aux value actor data.
+fn set_potion(world: &mut World, projectile: Entity, potion: i16) {
+    let mut entity = world.entity_mut(projectile);
+    entity.insert(super::ProjectilePotion(potion));
+    if let Some(mut metadata) = entity.get_mut::<EntityMetadata>() {
+        metadata.set_short(ids::AUX_VALUE_DATA, potion);
     }
 }
 
@@ -282,11 +337,26 @@ pub fn launch_with(
         }
     }
     if spec.throw_sound {
+        let (sin, cos) = f64::from(look.yaw).to_radians().sin_cos();
+        let ahead = DVec3::new(-sin, 0.0, cos) * THROW_SOUND_AHEAD;
         play_level_sound(
             world,
             Some(thrower),
-            eye - DVec3::Y * THROW_SOUND_EYE_DROP,
+            eye - DVec3::Y * THROW_SOUND_EYE_DROP + ahead,
             THROW_SOUND,
+            -1,
+        );
+        // A thrown projectile starts unseen: BDS 1.26.51 plays `disappeared`
+        // at the middle of its box, and `reappeared` when it shows.
+        let half = world
+            .get::<RawCollisionBox>(projectile)
+            .map_or(0.0, |b| f64::from(b.height) / 2.0);
+        world.entity_mut(projectile).insert(super::ThrownUnseen);
+        play_level_sound(
+            world,
+            Some(projectile),
+            feet + DVec3::Y * half,
+            "disappeared",
             -1,
         );
     }

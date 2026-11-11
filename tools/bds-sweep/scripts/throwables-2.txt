@@ -1,0 +1,200 @@
+# Splash potions against BDS: `python tools/bds-sweep/script.py
+# tools/bds-sweep/scripts/throwables-2.txt --observer
+# tools/bds-sweep/scripts/throwables-2-observer.txt --out DIR`. Every throw
+# is an item use in the air looking straight down, so the potion breaks at
+# the thrower's feet, (0.5,-60,0.5). Ticks are the client's inputs.
+#
+# 1. Poison (25) with the second player, BDSObserver, standing 1, 2, 3, 3.9
+#    and 4.5 blocks east of the impact (its effects tell how the duration
+#    falls off).
+# 2. Water (0) next to fire on netherrack 1 and 2 blocks from the impact.
+# 3. Every potion data value 0-46 (the particle colour and the thrower's
+#    effects at distance 0).
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /gamerule dofiretick false
+25 /time set 6000
+26 /fill -4 -61 -4 8 -61 4 stone
+27 /fill -4 -60 -4 8 -55 4 air
+28 /gamemode survival @s
+29 /clear @s
+30 /tp @s 0.5 -60 0.5 -90 90
+31 /effect @s clear
+32 /gamemode survival BDSObserver
+33 look -90 90
+40 /tp BDSObserver 1.5 -60 0.5 90 0
+42 /effect @a clear
+45 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 25
+50 use
+80 /tp BDSObserver 2.5 -60 0.5 90 0
+82 /effect @a clear
+85 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 25
+90 use
+120 /tp BDSObserver 3.5 -60 0.5 90 0
+122 /effect @a clear
+125 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 25
+130 use
+160 /tp BDSObserver 4.4 -60 0.5 90 0
+162 /effect @a clear
+165 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 25
+170 use
+200 /tp BDSObserver 5 -60 0.5 90 0
+202 /effect @a clear
+205 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 25
+210 use
+240 /tp BDSObserver 0.5 -60 4.5 90 0
+242 /effect @a clear
+250 /fill 1 -61 0 2 -61 0 netherrack
+251 /setblock 0 -61 1 netherrack
+252 /setblock 1 -60 0 fire
+253 /setblock 2 -60 0 fire
+254 /setblock 0 -60 1 fire
+260 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 0
+265 use
+300 /fill 0 -60 0 2 -60 1 air
+301 /fill 0 -61 0 2 -61 1 stone
+310 /effect @a clear
+312 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 0
+315 use
+340 /effect @a clear
+342 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 1
+345 use
+370 /effect @a clear
+372 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 2
+375 use
+400 /effect @a clear
+402 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 3
+405 use
+430 /effect @a clear
+432 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 4
+435 use
+460 /effect @a clear
+462 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 5
+465 use
+490 /effect @a clear
+492 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 6
+495 use
+520 /effect @a clear
+522 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 7
+525 use
+550 /effect @a clear
+552 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 8
+555 use
+580 /effect @a clear
+582 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 9
+585 use
+610 /effect @a clear
+612 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 10
+615 use
+640 /effect @a clear
+642 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 11
+645 use
+670 /effect @a clear
+672 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 12
+675 use
+700 /effect @a clear
+702 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 13
+705 use
+730 /effect @a clear
+732 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 14
+735 use
+760 /effect @a clear
+762 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 15
+765 use
+790 /effect @a clear
+792 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 16
+795 use
+820 /effect @a clear
+822 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 17
+825 use
+850 /effect @a clear
+852 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 18
+855 use
+880 /effect @a clear
+882 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 19
+885 use
+910 /effect @a clear
+912 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 20
+915 use
+940 /effect @a clear
+942 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 21
+945 use
+970 /effect @a clear
+972 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 22
+975 use
+1000 /effect @a clear
+1002 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 23
+1005 use
+1030 /effect @a clear
+1032 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 24
+1035 use
+1060 /effect @a clear
+1062 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 25
+1065 use
+1090 /effect @a clear
+1092 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 26
+1095 use
+1120 /effect @a clear
+1122 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 27
+1125 use
+1150 /effect @a clear
+1152 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 28
+1155 use
+1180 /effect @a clear
+1182 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 29
+1185 use
+1210 /effect @a clear
+1212 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 30
+1215 use
+1240 /effect @a clear
+1242 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 31
+1245 use
+1270 /effect @a clear
+1272 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 32
+1275 use
+1300 /effect @a clear
+1302 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 33
+1305 use
+1330 /effect @a clear
+1332 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 34
+1335 use
+1360 /effect @a clear
+1362 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 35
+1365 use
+1390 /effect @a clear
+1392 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 36
+1395 use
+1420 /effect @a clear
+1422 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 37
+1425 use
+1450 /effect @a clear
+1452 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 38
+1455 use
+1480 /effect @a clear
+1482 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 39
+1485 use
+1510 /effect @a clear
+1512 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 40
+1515 use
+1540 /effect @a clear
+1542 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 41
+1545 use
+1570 /effect @a clear
+1572 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 42
+1575 use
+1600 /effect @a clear
+1602 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 43
+1605 use
+1630 /effect @a clear
+1632 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 44
+1635 use
+1660 /effect @a clear
+1662 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 45
+1665 use
+1690 /effect @a clear
+1692 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 46
+1695 use
+1720 /effect @a clear
+1725 exit

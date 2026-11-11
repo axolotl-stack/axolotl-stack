@@ -97,6 +97,10 @@ fn given_stack(world: &World, name: &str, data: i32) -> Result<ItemStack, Comman
     let stack = items
         .stack_with_block(entry.identifier(), 1, blocks)
         .ok_or_else(invalid)?;
+    let stack = with_given_user_data(
+        stack,
+        crate::server::game::durability::max_durability(entry) > 0,
+    );
     let qualified = unastar_data::item_identity::qualify(name);
     let aliased = entry.identifier() != qualified;
     let aux = identity.data.unwrap_or(0);
@@ -118,6 +122,56 @@ fn given_stack(world: &World, name: &str, data: i32) -> Result<ItemStack, Comman
         vec![],
     ))
 }
+
+/// User data BDS 1.26.51 writes into a stack it gives (capture of
+/// `tools/bds-sweep/scripts/give.txt`, `testdata/bds-give.json`): these items
+/// get an NBT compound, everything else the default user data.
+const GIVEN_USER_DATA: [(&str, &str); 4] = [
+    (
+        "minecraft:banner",
+        "ffff010a00000304005479706500000000000000000000000000",
+    ),
+    (
+        "minecraft:filled_map",
+        "ffff010a00000408006d61705f7575696408000000ffffffff000000000000000000",
+    ),
+    (
+        "minecraft:firework_rocket",
+        "ffff010a00000a090046697265776f726b73090a004578706c6f73696f6e730000000000010600466c696768740100000000000000000000",
+    ),
+    (
+        "minecraft:firework_star",
+        "ffff010a00000a0d0046697265776f726b734974656d070d0046697265776f726b436f6c6f720100000000070c0046697265776f726b4661646500000000010f0046697265776f726b466c69636b657200010d0046697265776f726b547261696c00010c0046697265776f726b547970650000030b00637573746f6d436f6c6f72211d1dff000000000000000000",
+    ),
+];
+
+/// A given stack as BDS writes it: an item with durability carries
+/// `Damage` 0 (the flint and steel, every tool, weapon and armour piece, the
+/// shield...), and the banner, filled map and fireworks their measured tags.
+fn with_given_user_data(stack: ItemStack, durable: bool) -> ItemStack {
+    if let Some((_, hex)) = GIVEN_USER_DATA
+        .iter()
+        .find(|(item, _)| *item == stack.item_id())
+    {
+        let bytes: Vec<u8> = (0..hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).expect("hex user data"))
+            .collect();
+        return stack.with_nbt(bytes);
+    }
+    if durable || UNDECLARED_DURABLE.contains(&stack.item_id()) {
+        return with_durability_damage(&stack, 0);
+    }
+    stack
+}
+
+/// Items BDS gives with `Damage` 0 though the native item data declares no
+/// durability for them (the `/give` sweep); this server does not wear them.
+const UNDECLARED_DURABLE: [&str; 3] = [
+    "minecraft:fishing_rod",
+    "minecraft:warped_fungus_on_a_stick",
+    "minecraft:wolf_armor",
+];
 
 /// `stack` carrying the vanilla item components of `/give`'s JSON.
 fn with_components(
@@ -424,5 +478,65 @@ mod tests {
             ),
             CommandOutput::failure("commands.give.tagError", vec!["minecraft:item_lock".into()])
         );
+    }
+
+    /// Every item of the native registry given on BDS 1.26.51
+    /// (`testdata/bds-give.json`): the same user data for every item BDS
+    /// gives. (The table's `refused` items, which BDS's `/give` does not
+    /// accept, are given here: a commands-lane gap.)
+    #[test]
+    fn every_item_is_given_like_bds() {
+        #[derive(serde::Deserialize)]
+        struct Given {
+            id: i32,
+            aux: u32,
+            block: u32,
+            user_data: String,
+        }
+        #[derive(serde::Deserialize)]
+        struct Table {
+            given: std::collections::BTreeMap<String, Given>,
+        }
+        let table: Table = serde_json::from_str(include_str!("testdata/bds-give.json")).unwrap();
+        let mut h = Harness::new();
+        let world = h.world();
+        let items = world.resource::<ItemRegistryResource>().0.clone();
+        let block_ids = crate::server::game::types::block_network_ids(world);
+        let hex = |bytes: &[u8]| bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        let mut wrong = Vec::new();
+        // Item and block differences found by the sweep, not fixed yet: BDS
+        // gives the legacy item a legacy name names (`wool`, `boat`, ...),
+        // sends block 0 for items that place a block of another name
+        // (doors, beds, cake, ...) and another state for some blocks.
+        let mut other = 0;
+        for (name, bds) in &table.given {
+            let short = name.trim_start_matches("minecraft:");
+            let Ok(stack) = given_stack(world, short, 0) else {
+                wrong.push(format!("{name}: refused, BDS gives it"));
+                continue;
+            };
+            let ours = crate::server::game::item_descriptor(&stack, &items, block_ids).unwrap();
+            if hex(&ours.user_data_buffer) != bds.user_data {
+                wrong.push(format!(
+                    "{name}: user data BDS {}, ours {}",
+                    bds.user_data,
+                    hex(&ours.user_data_buffer)
+                ));
+            }
+            if (i32::from(ours.id), ours.auxvalue, ours.block_runtime_id)
+                != (bds.id, bds.aux, bds.block)
+            {
+                other += 1;
+            }
+        }
+        assert!(
+            wrong.is_empty(),
+            "{}",
+            wrong.join(
+                "
+"
+            )
+        );
+        assert_eq!(other, 112, "item, aux or block differences");
     }
 }

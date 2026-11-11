@@ -1182,6 +1182,27 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
     set_block_sending(world, pos, block_runtime_id, place_sound, true);
 }
 
+/// Put out a fire or soul fire block at `pos` (it becomes air).
+pub(crate) fn extinguish_fire(world: &mut World, pos: IVec3) {
+    let Some(registry) = world
+        .get_resource::<crate::server::game::types::BlockRegistryResource>()
+        .map(|r| r.0.clone())
+    else {
+        return;
+    };
+    let burning = block_at(world, (pos.x, pos.y, pos.z))
+        .and_then(|id| registry.get_by_runtime_id(id))
+        .is_some_and(|b| {
+            matches!(
+                b.string_id.as_str(),
+                "minecraft:fire" | "minecraft:soul_fire"
+            )
+        });
+    if burning && let Some(air) = registry.default_state_id_by_name("minecraft:air") {
+        set_block(world, pos, air, false);
+    }
+}
+
 /// [`set_block`] whose update reaches the viewers only with the tick's
 /// batched block updates, after what the server sends meanwhile (BDS answers
 /// a flint and steel click with its corrections first).

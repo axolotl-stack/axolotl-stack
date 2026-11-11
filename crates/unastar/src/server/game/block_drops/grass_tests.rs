@@ -47,8 +47,7 @@ fn outcome(stacks: &[ItemStack]) -> String {
 
 #[test]
 fn grass_and_fern_drops_match_the_bds_sweep() {
-    let table: Table =
-        serde_json::from_str(include_str!("testdata/bds-grass-seeds.json")).unwrap();
+    let table: Table = serde_json::from_str(include_str!("testdata/bds-grass-seeds.json")).unwrap();
     let mut world = World::new();
     let mut items = ItemRegistry::new();
     items.load_vanilla();

@@ -12,10 +12,10 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 119 | 0 | 5 | 9 | 4 | 10.5% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2643 | 172 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 101 | 807 | 627 | 635 | 177 | 58.2% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 99 | 806 | 619 | 646 | 177 | 58.3% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 136 | 22 | 46 | 12 | 15 | 26.9% |
@@ -30,13 +30,13 @@ Open rows are missing or partial headline rows (the first summary line of each d
 
 Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for the area: `area`, `owner` (your `@github-handle`), `since` (the date), `domain`, and the `families`, `ids` or id `prefixes` you are taking, and `change` (the OpenSpec change doing the work, if any); remove it when you stop or when the change is archived. `parity check` rejects unknown families or ids and claims that overlap, so talk to the owner of a claimed area before working inside it. The rest of the workflow is in [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-**Entities**: 62 open rows free, 59 claimed.
+**Entities**: 60 open rows free, 59 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | passive (part claimed) | 21 | 21 | 0 |
 | object | 16 | 16 | 0 |
-| projectile | 15 | 15 | 0 |
+| projectile | 13 | 13 | 0 |
 | built_in | 4 | 4 | 0 |
 | village | 4 | 4 | 0 |
 | boss | 2 | 2 | 0 |
@@ -65,11 +65,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
-**Items**: 0 open rows free, 908 claimed.
+**Items**: 0 open rows free, 905 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Item use | lane ITEMS | 2026-10-29 | 908 |
+| Item use | lane ITEMS | 2026-10-29 | 905 |
 
 **Commands**: 0 open rows free, 65 claimed.
 
@@ -127,7 +127,7 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| projectile | 18 | 15 | 0 | 2 | 1 | 0 | 16.7% |
+| projectile | 18 | 13 | 0 | 4 | 1 | 0 | 27.8% |
 | village | 4 | 4 | 0 | 0 | 0 | 0 | 0.0% |
 
 Sub-rows by facet, most incomplete first (30 of 371):
@@ -195,7 +195,7 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **projectile**
 
-- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:splash_potion`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile` and 3 more
+- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile`, `minecraft:wither_skull` and 1 more
 
 **village**
 
@@ -460,7 +460,7 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 |---|---:|---:|---:|---:|---:|---:|---:|
 | armour_wearables | 90 | 0 | 1 | 1 | 88 | 0 | 98.9% |
 | block_items | 1568 | 24 | 680 | 614 | 203 | 47 | 53.7% |
-| buckets | 9 | 3 | 3 | 2 | 1 | 0 | 33.3% |
+| buckets | 9 | 3 | 2 | 0 | 4 | 0 | 44.4% |
 | education | 121 | 0 | 0 | 0 | 0 | 121 | n/a |
 | entity_placers | 57 | 31 | 0 | 0 | 24 | 2 | 43.6% |
 | food | 46 | 4 | 0 | 0 | 41 | 1 | 91.1% |
@@ -469,8 +469,8 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 | other_tools | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
 | potions_drinks | 3 | 0 | 0 | 0 | 2 | 1 | 100.0% |
 | ranged_weapons | 8 | 0 | 2 | 2 | 4 | 0 | 75.0% |
-| spawn_eggs | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
-| throwables | 16 | 8 | 2 | 2 | 4 | 0 | 37.5% |
+| spawn_eggs | 91 | 0 | 85 | 1 | 4 | 1 | 5.6% |
+| throwables | 16 | 6 | 2 | 0 | 8 | 0 | 50.0% |
 | tools | 280 | 31 | 33 | 1 | 211 | 4 | 76.8% |
 
 Sub-rows by facet, most incomplete first (25 of 25):
@@ -478,20 +478,20 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | block_placer | 1504 | 28 | 692 | 615 | 0 | 169 | 46.1% |
-| spawn_egg | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
+| spawn_egg | 91 | 0 | 85 | 1 | 4 | 1 | 5.6% |
 | entity_placer | 33 | 31 | 0 | 0 | 0 | 2 | 0.0% |
 | bundle | 17 | 17 | 0 | 0 | 0 | 0 | 0.0% |
 | durability | 83 | 3 | 8 | 2 | 68 | 2 | 86.4% |
 | kinetic_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
 | piercing_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
 | repairable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
-| bucket | 8 | 3 | 3 | 2 | 0 | 0 | 25.0% |
-| throwable | 8 | 5 | 1 | 2 | 0 | 0 | 25.0% |
+| bucket | 8 | 3 | 2 | 0 | 3 | 0 | 37.5% |
+| throwable | 8 | 4 | 1 | 0 | 3 | 0 | 37.5% |
 | compostable | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
-| drink | 5 | 2 | 0 | 0 | 2 | 1 | 50.0% |
 | shooter | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | brush | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | cooldown | 8 | 1 | 0 | 0 | 7 | 0 | 87.5% |
+| drink | 5 | 1 | 0 | 0 | 3 | 1 | 75.0% |
 | shield | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | weapon | 44 | 0 | 1 | 0 | 43 | 0 | 97.7% |
 | wearable | 30 | 0 | 1 | 1 | 28 | 0 | 96.7% |
@@ -522,8 +522,7 @@ Sub-rows by facet, most incomplete first (25 of 25):
 **buckets**
 
 - `minecraft:bucket/bucket`: cannot catch fish, axolotls or tadpoles; lava and powder snow pickup are not covered by a test
-- `minecraft:powder_snow_bucket/bucket`: nothing tests this item
-- `minecraft:water_bucket/bucket`: does not waterlog blocks; water placed in the Nether does not evaporate; nothing tests placing water
+- `minecraft:water_bucket/bucket`: does not waterlog blocks (BDS 1.26.51 waterlogs a slab clicked with it, on block layer 1); water placed in the Nether does not evaporate
 - missing: `minecraft:axolotl_bucket/bucket`, `minecraft:sulfur_cube_bucket/bucket`, `minecraft:tadpole_bucket/bucket`
 
 **entity_placers**
@@ -556,7 +555,7 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 - `minecraft:arrow/throwable`: tipped arrows (arrow data values above 0) are not used as ammunition or shot with their effects
 - `minecraft:trident/durability`: tridents cannot be thrown, so throws do not wear it
-- missing: `minecraft:ender_pearl/throwable`, `minecraft:lingering_potion/drink`, `minecraft:lingering_potion/throwable`, `minecraft:splash_potion/drink`, `minecraft:splash_potion/throwable`, `minecraft:trident/throwable`, `minecraft:wind_charge/cooldown`, `minecraft:wind_charge/throwable`
+- missing: `minecraft:ender_pearl/throwable`, `minecraft:lingering_potion/drink`, `minecraft:lingering_potion/throwable`, `minecraft:trident/throwable`, `minecraft:wind_charge/cooldown`, `minecraft:wind_charge/throwable`
 
 **tools**
 

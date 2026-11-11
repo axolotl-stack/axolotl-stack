@@ -314,9 +314,19 @@ pub const SNOWBALLPOOF_PARTICLE: i32 = 15;
 pub const ICONCRACK_ITEM_SHIFT: u32 = 16;
 /// Level sound of a player throwing a projectile item.
 pub const THROW_SOUND: &str = "throw";
-/// The throw sound plays at the player's drop attach point, this far below
-/// the eyes. Provisional: the height thrown item drops spawn at.
-pub const THROW_SOUND_EYE_DROP: f64 = 0.5;
+/// The throw sound plays this far below the eyes and [`THROW_SOUND_AHEAD`]
+/// ahead along the yaw, whatever the pitch (BDS 1.26.51 capture of
+/// `tools/bds-sweep/scripts/throwables.txt`: thrown level and straight
+/// down, facing east, it played at the eyes - 0.3 and + 0.15 east).
+pub const THROW_SOUND_EYE_DROP: f64 = 0.3;
+pub const THROW_SOUND_AHEAD: f64 = 0.15;
+/// Level event of a splash where a potion, a lingering potion or an
+/// experience bottle breaks; its data is the colour (ARGB).
+pub const POTION_SPLASH_LEVEL_EVENT: i32 = 2002;
+/// How many item-crack particles of the splash potion item a splash
+/// potion makes where it breaks (BDS 1.26.51 throwables capture: five,
+/// though its definition has no `particle_on_hit`).
+pub const SPLASH_POTION_ICONCRACKS: u32 = 5;
 /// Items that throw a `minecraft:egg` actor when used (a native item
 /// class, not item components), with the egg's climate variant.
 pub const THROWN_EGG_ITEMS: [(&str, &str); 3] = [

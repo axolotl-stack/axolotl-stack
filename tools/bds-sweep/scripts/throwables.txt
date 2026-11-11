@@ -1,0 +1,119 @@
+# Throwables against BDS: `python tools/bds-sweep/script.py
+# tools/bds-sweep/scripts/throwables.txt --out DIR`. Every throw is an item
+# use in the air (`use`) with the item given to hotbar slot 0. Ticks are
+# the client's inputs.
+#
+# Arena as in breaking.txt: a stone floor at y=-61, the player at
+# (0.5,-60,0.5) facing east. A throw "ahead" flies east, level; a throw
+# "down" (pitch 90) lands at the player's feet.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /gamerule dofiretick false
+25 /time set 6000
+26 /fill -4 -61 -4 4 -61 4 stone
+27 /fill -4 -60 -4 4 -55 4 air
+28 /gamemode survival @s
+29 /clear @s
+30 /tp @s 0.5 -60 0.5 -90 0
+31 /effect @s clear
+
+# 1. A snowball and an egg ahead, then a snowball down.
+40 /give @s snowball 4
+45 use
+80 look -90 90
+82 use
+110 look -90 0
+112 /clear @s
+120 /give @s egg 4
+125 use
+160 /clear @s
+
+# 2. Ender pearls: one ahead, a second 5 inputs later (inside the cooldown),
+#    a third 25 inputs after the first; the player is put back each time.
+170 /give @s ender_pearl 4
+175 use
+180 use
+200 use
+240 /tp @s 0.5 -60 0.5 -90 0
+250 look -90 90
+252 use
+290 look -90 0
+292 /tp @s 0.5 -60 0.5 -90 0
+295 /clear @s
+
+# 3. Experience bottles: five down, 20 inputs apart.
+300 /xp -1000L @s
+305 /give @s experience_bottle 8
+310 look -90 90
+312 use
+332 use
+352 use
+372 use
+392 use
+430 look -90 0
+432 /clear @s
+
+# 4. Wind charges: one ahead, a second 5 inputs later (inside the
+#    cooldown), a third 15 after the first, then one down.
+440 /give @s wind_charge 8
+445 use
+450 use
+460 use
+500 /tp @s 0.5 -60 0.5 -90 0
+505 look -90 90
+507 use
+560 look -90 0
+562 /tp @s 0.5 -60 0.5 -90 0
+565 /clear @s
+
+# 5. Splash potions down: water (0), poison (25), healing (21) at full
+#    health, harming (23); ahead: swiftness (14).
+570 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 0
+575 look -90 90
+577 use
+610 /effect @s clear
+612 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 25
+617 use
+650 /effect @s clear
+652 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 21
+657 use
+690 /effect @s clear
+692 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 23
+697 use
+730 /effect @s clear
+732 look -90 0
+734 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 14
+739 use
+775 /effect @s clear
+777 /clear @s
+
+# 6. Lingering potions: poison (25) down, the cloud left 120 inputs; water
+#    (0) ahead.
+780 /replaceitem entity @s slot.weapon.mainhand 0 lingering_potion 1 25
+785 look -90 90
+787 use
+910 /effect @s clear
+912 /tp @s 0.5 -60 0.5 -90 0
+915 look -90 0
+917 /replaceitem entity @s slot.weapon.mainhand 0 lingering_potion 1 0
+922 use
+960 /clear @s
+962 /kill @e[type=area_effect_cloud]
+
+# 7. Creative: a snowball, an ender pearl and a splash potion ahead keep
+#    the item.
+970 /gamemode creative @s
+975 /give @s snowball 2
+980 use
+990 /clear @s
+995 /give @s ender_pearl 2
+1000 use
+1030 /tp @s 0.5 -60 0.5 -90 0
+1032 /clear @s
+1035 /replaceitem entity @s slot.weapon.mainhand 0 splash_potion 1 14
+1040 use
+1070 /clear @s
+1072 /gamemode survival @s
+1080 exit

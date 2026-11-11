@@ -3998,14 +3998,14 @@
 "minecraft:snowball/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
 "minecraft:snowball/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "presence is recorded, but projectiles have no living body, so actor pushing never moves them; untested" }
 "minecraft:snowball/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
-"minecraft:splash_potion" = { status = "missing", gaps = "not spawnable: projectile features on_hit.douse_fire, on_hit.thrown_potion_effect are rejected" }
-"minecraft:splash_potion/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but splash_potion cannot spawn yet" }
+"minecraft:splash_potion" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/throw_tests.rs::throwables_answer_like_bds"], notes = "spawned by a thrown splash potion; its AddActor position, velocity and potion aux value match the BDS 1.26.51 throwables capture (other actor data is not compared)" }
+"minecraft:splash_potion/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs" }
 "minecraft:splash_potion/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
-"minecraft:splash_potion/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but splash_potion cannot spawn yet" }
-"minecraft:splash_potion/projectile" = { status = "partial", owner = "entities", gaps = "projectile flight and impact are implemented (egg), but this definition uses rejected features: on_hit.douse_fire, on_hit.thrown_potion_effect; splash_potion cannot spawn yet" }
-"minecraft:splash_potion/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); splash_potion cannot spawn yet" }
-"minecraft:splash_potion/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but splash_potion cannot spawn yet" }
-"minecraft:splash_potion/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but splash_potion cannot spawn yet" }
+"minecraft:splash_potion/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs" }
+"minecraft:splash_potion/projectile" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/throw_tests.rs::throwables_answer_like_bds", "crates/unastar/src/server/game/item_use/throw_tests.rs::splash_potions_fall_off_with_the_distance_to_the_box", "crates/unastar/src/server/game/item_use/throw_tests.rs::water_splashes_put_out_the_fire_beside_them"], notes = "flight, the splash (thrown_potion_effect) and douse_fire as measured on BDS 1.26.51; the splash reaches players only" }
+"minecraft:splash_potion/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:splash_potion/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs" }
+"minecraft:splash_potion/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs" }
 "minecraft:thrown_trident" = { status = "missing", gaps = "not spawnable: no native AddActor attribute observation is retained for it, so players cannot throw tridents" }
 "minecraft:thrown_trident/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but thrown_trident cannot spawn yet" }
 "minecraft:thrown_trident/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
@@ -4043,14 +4043,14 @@
 "minecraft:wither_skull_dangerous/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); wither_skull_dangerous cannot spawn yet" }
 "minecraft:wither_skull_dangerous/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skull_dangerous cannot spawn yet" }
 "minecraft:wither_skull_dangerous/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither_skull_dangerous cannot spawn yet" }
-"minecraft:xp_bottle" = { status = "missing", gaps = "not spawnable: projectile features on_hit.grant_xp are rejected" }
-"minecraft:xp_bottle/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but xp_bottle cannot spawn yet" }
+"minecraft:xp_bottle" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/throw_tests.rs::throwables_answer_like_bds"], notes = "spawned by a thrown experience bottle; its AddActor position and velocity match the BDS 1.26.51 throwables capture (other actor data is not compared)" }
+"minecraft:xp_bottle/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs" }
 "minecraft:xp_bottle/conditional_bandwidth_optimization" = { status = "missing", gaps = "network send-rate tuning is not modelled; every significant change is replicated" }
-"minecraft:xp_bottle/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but xp_bottle cannot spawn yet" }
-"minecraft:xp_bottle/projectile" = { status = "partial", owner = "entities", gaps = "projectile flight and impact are implemented (egg), but this definition uses rejected features: on_hit.grant_xp; xp_bottle cannot spawn yet" }
-"minecraft:xp_bottle/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); xp_bottle cannot spawn yet" }
-"minecraft:xp_bottle/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but xp_bottle cannot spawn yet" }
-"minecraft:xp_bottle/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but xp_bottle cannot spawn yet" }
+"minecraft:xp_bottle/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs" }
+"minecraft:xp_bottle/projectile" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/throw_tests.rs::throwables_answer_like_bds"], notes = "flight, the splash and grant_xp (3 to 11 experience as orbs, compared as an outcome) as measured on BDS 1.26.51" }
+"minecraft:xp_bottle/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:xp_bottle/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs" }
+"minecraft:xp_bottle/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs" }
 
 # village (191)
 "minecraft:iron_golem" = { status = "missing", gaps = "not spawnable: needs behavior.defend_village_target, behavior.move_through_village, behavior.move_towards_dwelling_restriction, behavior.move_towards_target, behavior.offer_flower, behavior.target_when_pushed (+5 more)" }
