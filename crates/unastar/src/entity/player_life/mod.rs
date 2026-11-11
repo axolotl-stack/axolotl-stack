@@ -8,6 +8,9 @@
 //!   (tracked from `PlayerAuthInput`), lava, fire, burning and the void.
 //! - [`breath`] keeps the air supply and the `BREATHING` flag: drowning
 //!   under water, refilling above it and in bubble columns.
+//! - [`motion`] settles what the movement inputs ask for: the sprint, swim
+//!   and glide toggles BDS accepts or refuses, `MOVING` and the food
+//!   exhaustion of each move.
 //! - [`actor_data`] keeps the player's synched actor data (flags, air, box,
 //!   pose, last death) and sends its changes, its join `SetActorData` and
 //!   the rows `AddPlayer` carries.
@@ -29,6 +32,7 @@ pub mod constants;
 pub mod death;
 pub mod environment;
 pub mod hurt;
+pub mod motion;
 pub mod respawn;
 pub mod rules;
 #[cfg(test)]
@@ -42,8 +46,8 @@ pub use death::kill_player;
 pub use hurt::hurt_player;
 pub use rules::{PlayerRules, PlayerRulesError};
 
-use crate::entity::components::{PlayerSession, Position};
-use crate::server::broadcast::EntityGrid;
+use crate::entity::components::{ActorViewers, Player, PlayerSession, Position};
+use crate::entity::send_range;
 
 /// Insert the resources the player life systems read: the compiled player
 /// definition, the respawn queue and the world spawn (`spawn` uses the
@@ -55,26 +59,37 @@ pub fn install(world: &mut World, spawn: glam::DVec3) -> Result<(), PlayerRulesE
     Ok(())
 }
 
-/// Send `packet` to `player` and to the players that can see it (the
-/// players within one chunk of its chunk, as arm swings are relayed).
+/// The players that see `player`: the players it is shown to
+/// (`ActorViewers`, once players carry it) or, for a player without it,
+/// every player in the actor send range of it ([`crate::entity::send_range`],
+/// BDS 1.26.51's rule for every actor). Its actor data and attributes reach
+/// exactly these players.
+pub fn player_viewers(world: &World, player: Entity) -> Vec<Entity> {
+    if let Some(viewers) = world.get::<ActorViewers>(player) {
+        return viewers.viewers.clone();
+    }
+    let Some(position) = world.get::<Position>(player) else {
+        return Vec::new();
+    };
+    let actor = send_range::chunk_of(position.0);
+    let Some(mut players) = world.try_query_filtered::<(Entity, &Position), With<Player>>() else {
+        return Vec::new();
+    };
+    players
+        .iter(world)
+        .filter(|(viewer, at)| {
+            *viewer != player && send_range::in_range(send_range::chunk_of(at.0), actor)
+        })
+        .map(|(viewer, _)| viewer)
+        .collect()
+}
+
+/// Send `packet` to `player` and to the players that see it.
 pub(crate) fn send_to_player_and_viewers(world: &World, player: Entity, packet: &McpePacket) {
     if let Some(session) = world.get::<PlayerSession>(player) {
         let _ = session.send(packet.clone());
     }
-    let (Some(position), Some(grid)) = (
-        world.get::<Position>(player),
-        world.get_resource::<EntityGrid>(),
-    ) else {
-        return;
-    };
-    let chunk = (
-        (position.0.x.floor() as i32) >> 4,
-        (position.0.z.floor() as i32) >> 4,
-    );
-    for viewer in grid.get_neighbors(chunk, 1) {
-        if viewer == player {
-            continue;
-        }
+    for viewer in player_viewers(world, player) {
         if let Some(session) = world.get::<PlayerSession>(viewer) {
             let _ = session.send(packet.clone());
         }

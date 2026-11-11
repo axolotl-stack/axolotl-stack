@@ -3,16 +3,23 @@
 //! The ranges are the ones BDS 1.26.51 sends at join (capture
 //! `20261025T172246Z/member/join/00046-UpdateAttributesPacket`): hunger
 //! 0..20 default 20, saturation 0..20 default 5, exhaustion 0..20 default 0,
-//! absorption 0..16 default 0, health 0..max default max. After join only
-//! the attributes whose value changed are sent, one packet per player per
-//! tick, from [`sync_player_attributes`]. Experience is sent by the
-//! experience code itself (`entity::xp_orb`).
+//! absorption 0..16 default 0, health 0..max default max, movement 0..f32
+//! max default 0.1. After join only the attributes whose value changed are
+//! sent, one packet per player per tick, from [`sync_player_attributes`], to
+//! the player and the players that see it (BDS 1.26.51 sends a player's
+//! health, exhaustion and movement to its viewers too; movement capture).
+//! A sprinting player's movement is 0.13 with BDS's sprint modifier. Experience
+//! is sent by the experience code itself (`entity::xp_orb`).
 
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{ActorRuntimeId, AttributeData};
 use jolyne::valentine::{McpePacket, UpdateAttributesPacket};
 
-use crate::entity::components::{Health, Hunger, PlayerInput, PlayerSession, RuntimeEntityId};
+use crate::entity::components::{
+    ActorViewers, Health, Hunger, Player, PlayerInput, PlayerSession, PlayerState, Position,
+    RuntimeEntityId,
+};
+use crate::entity::send_range::Candidates;
 
 /// Maximum food level.
 pub const MAX_FOOD: f32 = 20.0;
@@ -24,6 +31,13 @@ pub const DEFAULT_SATURATION: f32 = 5.0;
 pub const MAX_EXHAUSTION: f32 = 20.0;
 /// Upper end of the absorption attribute.
 pub const MAX_ABSORPTION: f32 = 16.0;
+/// `minecraft:movement` of a player that is not sprinting.
+pub const WALK_SPEED: f32 = 0.1;
+/// The sprint modifier BDS lists on a sprinting player's movement:
+/// +30 % of the total (operation and operand 2), not saved.
+const SPRINT_MODIFIER_ID: &str = "d208fc00-42aa-4aad-9276-d5446530de43";
+const SPRINT_MODIFIER_NAME: &str = "Sprinting speed boost";
+const SPRINT_BOOST: f32 = 0.3;
 
 fn attr(name: &str, current: f32, max: f32, default: f32) -> AttributeData {
     AttributeData {
@@ -73,6 +87,25 @@ pub fn exhaustion(hunger: &Hunger) -> AttributeData {
     )
 }
 
+/// `minecraft:movement` of a player, sprinting or not (BDS 1.26.51: 0.13
+/// with the sprint modifier, 0.1 without).
+pub fn movement(sprinting: bool) -> AttributeData {
+    let mut data = attr("minecraft:movement", WALK_SPEED, f32::MAX, WALK_SPEED);
+    if sprinting {
+        data.current_value = WALK_SPEED * (1.0 + SPRINT_BOOST);
+        data.modifiers
+            .push(jolyne::valentine::types::AttributeModifier {
+                id: SPRINT_MODIFIER_ID.into(),
+                name: SPRINT_MODIFIER_NAME.into(),
+                amount: SPRINT_BOOST,
+                operation: 2,
+                operand: 2,
+                is_serializable: false,
+            });
+    }
+    data
+}
+
 /// Extra health from the absorption effect, drained before health.
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
 pub struct Absorption(pub f32);
@@ -85,10 +118,13 @@ pub struct SentAttributes {
     food: Option<i32>,
     saturation: Option<f32>,
     exhaustion: Option<f32>,
+    /// The movement attribute: sprinting or not.
+    movement: Option<bool>,
 }
 
 impl SentAttributes {
-    /// The state after join sent `health`, `hunger` and `absorption`.
+    /// The state after join sent `health`, `hunger`, `absorption` and the
+    /// walking movement speed.
     pub fn sent(health: &Health, hunger: &Hunger, absorption: f32) -> Self {
         Self {
             health: Some((health.current, health.max)),
@@ -96,6 +132,7 @@ impl SentAttributes {
             food: Some(hunger.food_level),
             saturation: Some(hunger.saturation),
             exhaustion: Some(hunger.exhaustion),
+            movement: Some(false),
         }
     }
 
@@ -109,9 +146,20 @@ impl SentAttributes {
         self.health = None;
     }
 
-    /// The attributes that differ from what was sent; records them as sent.
-    pub fn diff(&mut self, health: &Health, hunger: &Hunger, absorb: f32) -> Vec<AttributeData> {
+    /// The attributes that differ from what was sent, in BDS's order
+    /// (movement first); records them as sent.
+    pub fn diff(
+        &mut self,
+        health: &Health,
+        hunger: &Hunger,
+        absorb: f32,
+        sprinting: bool,
+    ) -> Vec<AttributeData> {
         let mut out = Vec::new();
+        if self.movement != Some(sprinting) {
+            self.movement = Some(sprinting);
+            out.push(movement(sprinting));
+        }
         if self.health != Some((health.current, health.max)) {
             self.health = Some((health.current, health.max));
             out.push(self::health(health));
@@ -136,33 +184,70 @@ impl SentAttributes {
     }
 }
 
-/// System: send each player the attributes that changed since the last send.
-/// The packet carries the player's last input tick, so the client applies
-/// it in order with its own prediction.
+/// System: send each player and the players that see it
+/// (`player_life::player_viewers`: its `ActorViewers`, else the actor send
+/// range) the attributes that changed since the last send. The packet
+/// carries the player's last input tick, so the client applies it in order
+/// with its own prediction.
 #[allow(clippy::type_complexity)]
 pub fn sync_player_attributes(
     mut players: Query<(
+        Entity,
         &RuntimeEntityId,
         &PlayerSession,
         &PlayerInput,
         &Health,
         &Hunger,
         Option<&Absorption>,
+        Option<&PlayerState>,
+        Option<&Position>,
+        Option<&ActorViewers>,
         &mut SentAttributes,
     )>,
+    others: Query<(Entity, &Position, &PlayerSession), With<Player>>,
 ) {
-    for (runtime_id, session, input, health, hunger, absorb, mut sent) in &mut players {
-        let changed = sent.diff(health, hunger, absorb.map_or(0.0, |a| a.0));
+    let candidates = Candidates::new(
+        others
+            .iter()
+            .map(|(entity, position, _)| (entity, position.0)),
+    );
+    for (
+        player,
+        runtime_id,
+        session,
+        input,
+        health,
+        hunger,
+        absorb,
+        state,
+        position,
+        shown_to,
+        mut sent,
+    ) in &mut players
+    {
+        let sprinting = state.is_some_and(|state| state.sprinting);
+        let changed = sent.diff(health, hunger, absorb.map_or(0.0, |a| a.0), sprinting);
         if changed.is_empty() {
             continue;
         }
-        let _ = session.send(McpePacket::from(UpdateAttributesPacket {
+        let packet = McpePacket::from(UpdateAttributesPacket {
             target_runtime_id: ActorRuntimeId {
                 actor_runtime_id: runtime_id.0 as u64,
             },
             attribute_list: changed,
             tick: input.wire_tick(),
-        }));
+        });
+        let _ = session.send(packet.clone());
+        let viewers = match (shown_to, position) {
+            (Some(viewers), _) => viewers.viewers.clone(),
+            (None, Some(position)) => candidates.in_range_of(position.0, Some(player)),
+            (None, None) => Vec::new(),
+        };
+        for viewer in viewers {
+            if let Ok((_, _, session)) = others.get(viewer) {
+                let _ = session.send(packet.clone());
+            }
+        }
     }
 }
 
@@ -194,11 +279,11 @@ mod tests {
         let health = Health::new(20.0);
         let mut hunger = Hunger::default();
         let mut sent = SentAttributes::sent(&health, &hunger, 0.0);
-        assert!(sent.diff(&health, &hunger, 0.0).is_empty());
+        assert!(sent.diff(&health, &hunger, 0.0, false).is_empty());
         hunger.food_level = 17;
         hunger.exhaustion = 0.5;
         let names: Vec<_> = sent
-            .diff(&health, &hunger, 0.0)
+            .diff(&health, &hunger, 0.0, false)
             .into_iter()
             .map(|a| a.name.to_string())
             .collect();
@@ -206,6 +291,6 @@ mod tests {
             names,
             ["minecraft:player.hunger", "minecraft:player.exhaustion"]
         );
-        assert!(sent.diff(&health, &hunger, 0.0).is_empty());
+        assert!(sent.diff(&health, &hunger, 0.0, false).is_empty());
     }
 }

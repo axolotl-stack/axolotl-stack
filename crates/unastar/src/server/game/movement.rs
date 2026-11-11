@@ -1,9 +1,12 @@
 //! Movement domain system.
 //!
 //! Processes PlayerAuthInput and PlayerAction packets, updating position,
-//! rotation, input state, player state flags and the fall the player life
-//! systems resolve. Forwards block actions from AuthInput to the block
-//! packet queue. (`PlayerAction` respawn is routed to
+//! rotation, input state, the sneak and flight flags and the fall the player
+//! life systems resolve. Each accepted input's move and the sprint, swim and
+//! glide toggles it asks for go to [`PlayerMoves`], which
+//! `player_life::motion::settle_moves` applies right after (acceptance,
+//! `MOVING`, food exhaustion). Forwards block actions from AuthInput to the
+//! block packet queue. (`PlayerAction` respawn is routed to
 //! `player_life::respawn` instead.)
 
 use bevy_ecs::prelude::*;
@@ -18,8 +21,9 @@ use super::packet_queues::{
 };
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::{Position, Rotation};
-use crate::entity::components::{GameMode, Hunger, PlayerInput, PlayerState};
+use crate::entity::components::{PlayerInput, PlayerState};
 use crate::entity::player_life::environment::PlayerFall;
+use crate::entity::player_life::motion::{Move, PlayerMoves, Toggles};
 use jolyne::valentine::types::{EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData};
 
 /// The player state the movement packets write.
@@ -32,6 +36,7 @@ type MovingPlayers<'w, 's> = Query<
         &'static mut PlayerState,
         &'static mut PlayerInput,
         Option<&'static mut PlayerFall>,
+        Option<&'static mut PlayerMoves>,
     ),
 >;
 
@@ -39,27 +44,20 @@ type MovingPlayers<'w, 's> = Query<
 ///
 /// Runs in `PacketApplySet`. Can execute in parallel with inventory, chat, and chunks
 /// because it writes disjoint components (Position, Rotation, PlayerState, PlayerInput,
-/// PlayerFall).
+/// PlayerFall, PlayerMoves).
 pub fn apply_movement(
     mut queue: ResMut<MovementPacketQueue>,
     mut block_queue: ResMut<BlockPacketQueue>,
     mut events: ResMut<MovementEvents>,
-    exhaustion: Res<super::hunger::ExhaustionValues>,
     mut players: MovingPlayers,
-    mut hungry: Query<(&mut Hunger, &GameMode)>,
 ) {
     let _span = tracing::info_span!("apply_movement", count = queue.0.len()).entered();
     for (entity, input) in queue.0.drain(..) {
         match input {
             MovementInput::AuthInput(pk) => {
                 // A rejected input is rejected whole, block actions included.
-                let Some(moved) = process_auth_input(entity, &pk, &mut players, &mut events) else {
+                if process_auth_input(entity, &pk, &mut players, &mut events).is_none() {
                     continue;
-                };
-                if let Ok((mut hunger, mode)) = hungry.get_mut(entity)
-                    && !matches!(mode, GameMode::Creative | GameMode::Spectator)
-                {
-                    hunger.exhaust(moved.exhaustion(&exhaustion));
                 }
 
                 // Forward block actions to block queue
@@ -78,14 +76,16 @@ pub fn apply_movement(
     }
 }
 
-/// Process a PlayerAuthInput packet: position, rotation, input flags, state toggles.
+/// Process a PlayerAuthInput packet: position, rotation, input flags, the
+/// sneak and flight toggles; the move and the other toggles go to
+/// [`PlayerMoves`].
 fn process_auth_input(
     entity: Entity,
     pk: &jolyne::valentine::PlayerAuthInputPacket,
     players: &mut MovingPlayers,
     events: &mut ResMut<MovementEvents>,
-) -> Option<Moved> {
-    let Ok((mut pos, mut rot, mut state, mut input, fall)) = players.get_mut(entity) else {
+) -> Option<()> {
+    let Ok((mut pos, mut rot, mut state, mut input, fall, moves)) = players.get_mut(entity) else {
         return None;
     };
 
@@ -141,47 +141,51 @@ fn process_auth_input(
     input.on_ground =
         input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision);
 
-    // Update persistent state flags
+    // The sneak and flight toggles apply here; sprint, swim and glide are
+    // settled with the world at hand (`player_life::motion`).
+    let has = |flag| input_data.contains(&flag);
+    use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
     let mut toggle_sneak = None;
-    let mut toggle_sprint = None;
-
-    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Startsneaking) {
+    if has(Flag::Startsneaking) {
         state.sneaking = true;
         toggle_sneak = Some(true);
     }
-    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Stopsneaking) {
+    if has(Flag::Stopsneaking) {
         state.sneaking = false;
         toggle_sneak = Some(false);
     }
-    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Startsprinting) {
-        state.sprinting = true;
-        toggle_sprint = Some(true);
-    }
-    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Stopsprinting) {
-        state.sprinting = false;
-        toggle_sprint = Some(false);
-    }
-    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Startswimming) {
-        state.swimming = true;
-    }
-    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Stopswimming) {
-        state.swimming = false;
-    }
-    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Startgliding) {
-        state.gliding = true;
-    }
-    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Stopgliding) {
-        state.gliding = false;
-    }
-    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Startflying) {
+    if has(Flag::Startflying) {
         state.flying = true;
     }
-    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Stopflying) {
+    if has(Flag::Stopflying) {
         state.flying = false;
     }
 
     if let Some(mut fall) = fall {
-        fall.after_move(new_pos.y - old_pos.y, input.on_ground, state.flying);
+        fall.after_move(
+            new_pos.y - old_pos.y,
+            input.on_ground,
+            state.flying,
+            state.gliding,
+        );
+    }
+    if let Some(mut moves) = moves {
+        moves.record(
+            Move {
+                delta: new_pos - old_pos,
+                jumped: has(Flag::Startjumping),
+                on_ground: input.on_ground,
+            },
+            pk.move_vector.y > 0.0,
+            Toggles {
+                start_sprint: has(Flag::Startsprinting),
+                stop_sprint: has(Flag::Stopsprinting),
+                start_swim: has(Flag::Startswimming),
+                stop_swim: has(Flag::Stopswimming),
+                start_glide: has(Flag::Startgliding),
+                stop_glide: has(Flag::Stopgliding),
+            },
+        );
     }
 
     // Emit events
@@ -201,19 +205,7 @@ fn process_auth_input(
             is_sneaking,
         });
     }
-    if let Some(is_sprinting) = toggle_sprint {
-        events.0.push(ServerEvent::PlayerToggleSprint {
-            entity,
-            is_sprinting,
-        });
-    }
-    Some(Moved {
-        delta: new_pos - old_pos,
-        sprinting: state.sprinting,
-        swimming: state.swimming,
-        flying: state.flying,
-        jumped,
-    })
+    Some(())
 }
 
 /// Whether every value the server takes from a `PlayerAuthInput` (position, rotation,
@@ -231,43 +223,6 @@ fn auth_input_is_finite(pk: &jolyne::valentine::PlayerAuthInputPacket) -> bool {
     ]
     .iter()
     .all(|value| value.is_finite())
-}
-
-/// What one accepted `PlayerAuthInput` moved, for food exhaustion.
-#[derive(Debug, Clone, Copy, PartialEq)]
-struct Moved {
-    delta: DVec3,
-    sprinting: bool,
-    swimming: bool,
-    flying: bool,
-    jumped: bool,
-}
-
-impl Moved {
-    /// Exhaustion per `minecraft:exhaustion_values`: swimming per metre
-    /// moved, sprinting and walking per horizontal metre, and per jump
-    /// (`sprint_jump` while sprinting). Flying costs nothing.
-    fn exhaustion(&self, values: &super::hunger::ExhaustionValues) -> f32 {
-        if self.flying {
-            return 0.0;
-        }
-        let horizontal = self.delta.x.hypot(self.delta.z) as f32;
-        let mut out = if self.swimming {
-            self.delta.length() as f32 * values.swim
-        } else if self.sprinting {
-            horizontal * values.sprint
-        } else {
-            horizontal * values.walk
-        };
-        if self.jumped && !self.swimming {
-            out += if self.sprinting {
-                values.sprint_jump
-            } else {
-                values.jump
-            };
-        }
-        out
-    }
 }
 
 /// Process a PlayerAction packet: sprint/sneak state, StartBreak event.
@@ -294,23 +249,13 @@ fn process_player_action(
                 face: pk.face as u8,
             });
         }
-        EnumsPlayerActionType::Startsprinting => {
-            if let Ok((_, _, mut state, _, _)) = players.get_mut(entity) {
-                state.sprinting = true;
-            }
-        }
-        EnumsPlayerActionType::Stopsprinting => {
-            if let Ok((_, _, mut state, _, _)) = players.get_mut(entity) {
-                state.sprinting = false;
-            }
-        }
         EnumsPlayerActionType::Startsneaking => {
-            if let Ok((_, _, mut state, _, _)) = players.get_mut(entity) {
+            if let Ok((_, _, mut state, ..)) = players.get_mut(entity) {
                 state.sneaking = true;
             }
         }
         EnumsPlayerActionType::Stopsneaking => {
-            if let Ok((_, _, mut state, _, _)) = players.get_mut(entity) {
+            if let Ok((_, _, mut state, ..)) = players.get_mut(entity) {
                 state.sneaking = false;
             }
         }
@@ -341,7 +286,6 @@ mod tests {
         world.init_resource::<MovementPacketQueue>();
         world.init_resource::<BlockPacketQueue>();
         world.init_resource::<MovementEvents>();
-        world.insert_resource(super::super::hunger::ExhaustionValues::vanilla());
         let player = world
             .spawn((
                 Position(START),
@@ -460,38 +404,5 @@ mod tests {
         );
         assert_eq!(pos, START);
         assert!(world.resource::<MovementEvents>().0.is_empty());
-    }
-
-    fn moved(delta: DVec3, sprinting: bool, swimming: bool, jumped: bool) -> Moved {
-        Moved {
-            delta,
-            sprinting,
-            swimming,
-            flying: false,
-            jumped,
-        }
-    }
-
-    #[test]
-    fn movement_exhaustion_uses_the_player_definition_values() {
-        let values = super::super::hunger::ExhaustionValues::vanilla();
-        let step = DVec3::new(3.0, 1.0, 4.0);
-        // Walking costs nothing; sprinting 0.1 per horizontal metre.
-        assert_eq!(moved(step, false, false, false).exhaustion(&values), 0.0);
-        assert!((moved(step, true, false, false).exhaustion(&values) - 0.5).abs() < 1e-6);
-        // Swimming 0.01 per metre in 3D.
-        let swim = moved(step, false, true, false).exhaustion(&values);
-        assert!((swim - 0.01 * 26f32.sqrt()).abs() < 1e-6);
-        assert_eq!(
-            moved(DVec3::ZERO, false, false, true).exhaustion(&values),
-            0.05
-        );
-        assert_eq!(
-            moved(DVec3::ZERO, true, false, true).exhaustion(&values),
-            0.2
-        );
-        let mut flying = moved(step, true, false, true);
-        flying.flying = true;
-        assert_eq!(flying.exhaustion(&values), 0.0);
     }
 }

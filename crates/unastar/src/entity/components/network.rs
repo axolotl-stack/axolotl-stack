@@ -19,6 +19,9 @@ use super::{PlayerSession, RuntimeId};
 #[component(on_remove = actor_viewers_on_remove)]
 pub struct ActorViewers {
     pub viewers: Vec<Entity>,
+    /// Viewers that went out of range this tick; they get `RemoveActor`
+    /// in the next one if they are still out (see `send_range`).
+    pub leaving: Vec<Entity>,
     /// Feet position last broadcast.
     pub last_position: DVec3,
     /// Velocity last broadcast.

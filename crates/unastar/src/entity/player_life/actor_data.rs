@@ -2,38 +2,44 @@
 //! the player's own join `SetActorData` and in `AddPlayer` to other players
 //! ([`full_actor_data`]), then `SetActorData` updates of what changed
 //! (`testdata/bds-1.26.51-player-data.json`,
-//! `testdata/bds-1.26.51-breath.json`).
+//! `testdata/bds-1.26.51-breath.json`,
+//! `testdata/bds-1.26.51-movement.json`).
 //!
 //! The keys that change during play:
 //! - 0, the flag word ([`player_flags`]): `CANCLIMB` and `HAS_GRAVITY`,
 //!   `HAS_COLLISION` unless spectating, `BREATHING` while breathing, the
-//!   movement flags, `USINGITEM`, `ONFIRE` while burning, `INVISIBLE` while
-//!   invisible, `FIRE_IMMUNE` under fire resistance, and `CAN_SHOW_NAME`
-//!   once an invisibility has ended;
+//!   movement flags, `MOVING` while its last input moved it
+//!   ([`super::motion`]), `USINGITEM`, `ONFIRE` while burning, `INVISIBLE`
+//!   while invisible, `FIRE_IMMUNE` under fire resistance, and
+//!   `CAN_SHOW_NAME` once an invisibility has ended;
 //! - 7, the air supply (`breath`);
 //! - 53 and 54, the box: 0.6 × 1.8 standing, 1.49 tall sneaking, 0.6 tall
-//!   crawling (a block's collision box is in the standing box but not in
-//!   the crawling one) and 0.2 × 0.2 dead;
+//!   swimming, gliding or crawling (a block's collision box is in the
+//!   standing box but not in the crawling one) and 0.2 × 0.2 dead;
 //! - 92, the second flag word: `HIDDEN_WHEN_INVISIBLE` and
 //!   `PUSH_TOWARDS_CLOSEST_SPACE`, `CRAWLING`, `BLOCKING` while sneaking and
 //!   `TRANSITION_BLOCKING` from the first sneak on;
 //! - 127, 128 and 129: the block and dimension of the last death and whether
 //!   the player ever died.
 //!
-//! Each change reaches the player and its viewers as one `SetActorData` of
-//! the changed keys, in key order, with the player's input tick:
-//! - at the end of every tick ([`sync_players`]): the breath, the pose,
-//!   burning, effects, and a death during the player tick (landing,
-//!   environment and breath damage, [`PlayerTick`]) together with its
-//!   0.2 × 0.2 box;
-//! - at once, when an item use starts or stops or the game mode changes
-//!   ([`send_changes`]), when the player dies outside the player tick (the
+//! Each change reaches the player and its viewers (the players that see it,
+//! [`super::player_viewers`]) as one `SetActorData` of the changed keys, in
+//! key order, with the player's input tick:
+//! - right after the breath ([`sync_breath`], after the tick's attribute
+//!   update): the breath, the pose, burning, and a death during the player
+//!   tick (landing, environment and breath damage, [`PlayerTick`])
+//!   together with its 0.2 × 0.2 box;
+//! - at the end of every tick ([`sync_players`]): `MOVING` (as its own
+//!   update, after the breath's), effects and whatever else changed since;
+//! - at once, when an item use starts or stops, the game mode changes
+//!   ([`send_changes`]) or a sprint, swim or glide is accepted
+//!   ([`super::motion`]), when the player dies outside the player tick (the
 //!   death keys; the box follows at the end of the tick), and when it
 //!   respawns (the box; the breath follows at the end of the tick);
-//! - starting or stopping a sneak sends three updates, whichever update
-//!   carries it first: the flags, box and unchanged second flag word with
-//!   key 139, then the second flag word with the blocking bits, and on the
-//!   next tick the flags, the second word and 139 again.
+//! - a sneak start or stop, whichever update carries it, is two updates:
+//!   the flag word with the box, then the second flag word;
+//! - a refused movement toggle resends the flag words unchanged with key 139
+//!   ([`resync`]), alone or with the update it comes with.
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
@@ -46,6 +52,7 @@ use jolyne::valentine::{McpePacket, SetActorDataPacket, actor_data_i_ds as ids, 
 
 use super::breath::PlayerBreath;
 use super::environment::Burning;
+use super::motion::PlayerMoves;
 use super::{Dead, send_to_player_and_viewers};
 use crate::entity::PLAYER_EYE_HEIGHT;
 use crate::entity::components::{
@@ -63,7 +70,7 @@ const WIDTH: f32 = 0.6;
 const STANDING_HEIGHT: f32 = 1.8;
 /// Height of a sneaking player's box.
 const SNEAKING_HEIGHT: f32 = 1.49;
-/// Height of a crawling player's box.
+/// Height of a crawling, swimming or gliding player's box.
 const CRAWLING_HEIGHT: f32 = 0.6;
 /// How far the crawl test's boxes are shrunk on every side: positions come
 /// from the client as `f32`, so feet on a floor can sit a hair below its
@@ -132,14 +139,21 @@ pub struct PlayerActorData {
     was_invisible: bool,
     /// The player sneaked: `TRANSITION_BLOCKING` stays set.
     sneaked: bool,
-    /// The sneak update still owes its next-tick repeat.
-    repeat_sneak: bool,
+    /// A movement toggle was refused: the next update resends the flag
+    /// words and key 139.
+    resync: bool,
+    /// The `MOVING` flag as the end-of-tick update last took it from
+    /// [`PlayerMoves`].
+    moving: bool,
     /// The player had its first breath tick: updates start with it.
     ticked: bool,
     /// Key 37: 0 for a player's first join, -1 when its saved data was
     /// restored (BDS 1.26.51: every rejoin in the player-data captures).
     leash_holder: i64,
     sent: Synced,
+    /// What the clients had at the start of this tick: a player joining in
+    /// it finds the others in this state ([`announce_players`]).
+    announced: Synced,
 }
 
 impl PlayerActorData {
@@ -152,10 +166,12 @@ impl PlayerActorData {
             has_died: false,
             was_invisible: false,
             sneaked: false,
-            repeat_sneak: false,
+            resync: false,
+            moving: false,
             ticked: false,
             leash_holder: 0,
             sent: Synced::joined(),
+            announced: Synced::joined(),
         }
     }
 
@@ -258,6 +274,12 @@ pub fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
         set(state.swimming, actor_flags::SWIMMING);
         set(state.gliding, actor_flags::GLIDING);
     }
+    set(
+        world
+            .get::<PlayerActorData>(player)
+            .is_some_and(|data| data.moving),
+        actor_flags::MOVING,
+    );
     set(using, actor_flags::USINGITEM);
     set(world.get::<Burning>(player).is_some(), actor_flags::ONFIRE);
     let effects = world.get::<Effects>(player);
@@ -336,14 +358,16 @@ fn current(world: &World, player: Entity, data: &PlayerActorData) -> Synced {
     let using = world.get::<ItemUsing>(player).is_some();
     let flags = player_flags(world, player, using);
     let dead = world.get::<Dead>(player).is_some();
-    let sneaking = world
+    let state = world
         .get::<PlayerState>(player)
-        .is_some_and(|state| state.sneaking);
+        .copied()
+        .unwrap_or_default();
+    let sneaking = state.sneaking;
     let sent_crawling = data.sent.flags2 & flag2(actor_flags::CRAWLING) != 0;
     let crawling = !dead && crawls(world, player).unwrap_or(sent_crawling);
     let (width, height) = if dead {
         (DEAD_SIZE, DEAD_SIZE)
-    } else if crawling {
+    } else if crawling || state.swimming || state.gliding {
         (WIDTH, CRAWLING_HEIGHT)
     } else if sneaking {
         (WIDTH, SNEAKING_HEIGHT)
@@ -552,20 +576,46 @@ pub fn send_changes(world: &mut World, player: Entity, keys: Keys) {
         return;
     };
     let now = current(world, player, data);
-    let rows = changed_rows(&data.sent, &now, keys);
+    let resync = keys == Keys::All && data.resync;
+    let mut rows = changed_rows(&data.sent, &now, keys);
+    if resync {
+        // A refused toggle: both flag words as they are, then key 139.
+        if !rows.iter().any(|row| row.id == ids::RESERVED_0) {
+            rows.insert(0, long(ids::RESERVED_0, now.flags));
+        }
+        if !rows.iter().any(|row| row.id == ids::RESERVED_092) {
+            let at = rows
+                .iter()
+                .position(|row| row.id > ids::RESERVED_092)
+                .unwrap_or(rows.len());
+            rows.insert(at, long(ids::RESERVED_092, now.flags2));
+        }
+        rows.push(long(ids::RESERVED_139, 0));
+    }
     if rows.is_empty() {
         return;
     }
     send_rows(world, player, rows);
     if let Some(mut data) = world.get_mut::<PlayerActorData>(player) {
         mark_sent(&mut data.sent, &now, keys);
+        if resync {
+            data.resync = false;
+        }
     }
 }
 
-/// A sneak started or stopped since the last update: BDS's first two
-/// updates (flags, box and the second word as it was, with key 139; then
-/// the second word with the blocking bits), the third follows on the next
-/// tick ([`sync_players`]).
+/// A movement toggle of `player` was refused: its next update (the one sent
+/// right after, if nothing else changed) resends the flag words unchanged
+/// with key 139.
+pub fn resync(world: &mut World, player: Entity) {
+    if let Some(mut data) = world.get_mut::<PlayerActorData>(player) {
+        data.resync = true;
+    }
+}
+
+/// A sneak started or stopped since the last update: the flag word with the
+/// box (BDS's first update), then the second flag word with the blocking
+/// bits.
 fn sneak(world: &mut World, player: Entity) {
     let Some(mut data) = world.get_mut::<PlayerActorData>(player) else {
         return;
@@ -573,7 +623,6 @@ fn sneak(world: &mut World, player: Entity) {
     // Remembered before the new values are computed: TRANSITION_BLOCKING
     // stays from the first sneak on.
     data.sneaked = true;
-    data.repeat_sneak = true;
     let data = world.get::<PlayerActorData>(player).expect("read above");
     let before = data.sent;
     let now = current(world, player, data);
@@ -584,8 +633,6 @@ fn sneak(world: &mut World, player: Entity) {
     if now.height != before.height {
         first.push(float(ids::RESERVED_054, now.height));
     }
-    first.push(long(ids::RESERVED_092, before.flags2));
-    first.push(long(ids::RESERVED_139, 0));
     if let Some(mut data) = world.get_mut::<PlayerActorData>(player) {
         data.sent.flags = now.flags;
         data.sent.width = now.width;
@@ -610,8 +657,35 @@ type Synchronized = QueryState<
     ),
 >;
 
-/// System (exclusive, network send): this tick's actor-data update of
-/// every player.
+/// System (exclusive, first in the tick): remember what every player's
+/// clients have now. BDS 1.26.51 shows a player joining in this tick the
+/// others as they were before the tick's updates (the late joiner's
+/// `AddPlayer` in the player-data capture carries the air of the tick
+/// before).
+pub fn announce_players(world: &mut World, players: &mut QueryState<&mut PlayerActorData>) {
+    for mut data in players.iter_mut(world) {
+        data.announced = data.sent;
+    }
+}
+
+/// System (exclusive, right after the breath): the update of what the
+/// player tick changed (breath, pose, burning, a death and its box), before
+/// `MOVING` changes.
+pub fn sync_breath(world: &mut World, players: &mut Synchronized, mut due: Local<Vec<Entity>>) {
+    due.extend(players.iter(world));
+    for player in due.drain(..) {
+        if world
+            .get::<PlayerActorData>(player)
+            .is_some_and(|data| data.ticked)
+        {
+            send_changes(world, player, Keys::All);
+        }
+    }
+}
+
+/// System (exclusive, network send): the end-of-tick actor-data update of
+/// every player: `MOVING` as the last input left it, effects, and anything
+/// else that changed after the breath.
 pub fn sync_players(world: &mut World, players: &mut Synchronized, mut due: Local<Vec<Entity>>) {
     due.extend(players.iter(world));
     for player in due.drain(..) {
@@ -624,23 +698,14 @@ pub fn sync_players(world: &mut World, players: &mut Synchronized, mut due: Loca
         let invisible = world
             .get::<Effects>(player)
             .is_some_and(|effects| effects.has(EffectType::INVISIBILITY));
+        let moving = world
+            .get::<PlayerMoves>(player)
+            .is_some_and(|moves| moves.moving);
         let mut data = world
             .get_mut::<PlayerActorData>(player)
             .expect("read above");
         data.was_invisible |= invisible;
-        let repeat = std::mem::take(&mut data.repeat_sneak);
-        let sent = data.sent;
-        if repeat {
-            send_rows(
-                world,
-                player,
-                vec![
-                    long(ids::RESERVED_0, sent.flags),
-                    long(ids::RESERVED_092, sent.flags2),
-                    long(ids::RESERVED_139, 0),
-                ],
-            );
-        }
+        data.moving = moving;
         send_changes(world, player, Keys::All);
     }
 }
@@ -689,13 +754,13 @@ pub fn respawned(world: &mut World, player: Entity) {
     send_changes(world, player, Keys::Box);
 }
 
-/// Every row of a player's actor data, as `AddPlayer` carries it, from its
-/// last sent values: the BDS 1.26.51 rows of a player (`AddPlayer` in the
+/// Every row of a player's actor data, as `AddPlayer` carries it, from the
+/// values its clients had at the start of the tick: the BDS 1.26.51 rows of a player (`AddPlayer` in the
 /// player-data capture), in key order.
 pub fn full_actor_data(name: &str, data: &PlayerActorData) -> Vec<DataItemEntry> {
     use jolyne::valentine::bedrock::codec::Nbt;
     use jolyne::valentine::types::DataItemCompoundTagPayload;
-    let sent = &data.sent;
+    let sent = &data.announced;
     let mut m = EntityMetadata::with_capacity(80);
     m.set_long(ids::RESERVED_0, sent.flags);
     m.set_int(ids::STRUCTURAL_INTEGRITY, 1);

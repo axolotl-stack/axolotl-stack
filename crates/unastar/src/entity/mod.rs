@@ -20,6 +20,7 @@ pub mod mob;
 pub(crate) mod navigation;
 pub mod player_life;
 pub mod projectile;
+pub mod send_range;
 pub mod spawning;
 pub mod systems;
 pub mod xp_orb;
