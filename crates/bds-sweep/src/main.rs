@@ -254,6 +254,9 @@ enum Order {
     HeldFlags(Vec<EnumsPlayerAuthInputPacketPayloadInputData>),
     Drop(DropOrder),
     CloseInventory,
+    /// One raw block action with the next input (several on one tick go in
+    /// the same input, in script order).
+    Action(EnumsPlayerActionType, [i32; 3], i32),
 }
 
 /// A `move` order in progress.
@@ -385,6 +388,25 @@ fn parse_order(text: &str) -> Option<Order> {
             }))
         }
         "close-inventory" => Some(Order::CloseInventory),
+        "action" => {
+            use EnumsPlayerActionType::*;
+            let action = match words.next()? {
+                "start" => Startdestroyblock,
+                "continue" => Continuedestroyblock,
+                "crack" => Crackblock,
+                "predict" => Predictdestroyblock,
+                "abort" => Abortdestroyblock,
+                "stop" => Stopdestroyblock,
+                "creative-destroy" => Creativedestroyblock,
+                _ => return None,
+            };
+            let values = numbers(words, 4)?;
+            Some(Order::Action(
+                action,
+                [values[0] as i32, values[1] as i32, values[2] as i32],
+                values[3] as i32,
+            ))
+        }
         _ => None,
     }
 }
@@ -450,6 +472,8 @@ struct Player {
     mining: Option<Mining>,
     /// A block action to send with the next input (abort or release).
     pending: Option<PlayerBlockActionData>,
+    /// Raw block actions (`action` orders) for the next input.
+    queued_actions: Vec<PlayerBlockActionData>,
     /// Authoritative native main inventory, including hotbar indices 0..8.
     inventory: [Option<CerealizerNetworkItemStackDescriptorSerializedData>; 36],
     selected_slot: u8,
@@ -594,6 +618,7 @@ impl Player {
             burst: 0,
             mining: None,
             pending: None,
+            queued_actions: Vec::new(),
             inventory: std::array::from_fn(|_| None),
             selected_slot: 0,
             inventory_window: None,
@@ -689,6 +714,7 @@ impl Player {
     /// The block actions of this tick's input, advancing the mining order.
     fn block_actions(&mut self) -> Vec<PlayerBlockActionData> {
         let mut actions: Vec<_> = self.pending.take().into_iter().collect();
+        actions.append(&mut self.queued_actions);
         if let Some(mining) = &mut self.mining {
             let action = if mining.elapsed == 0 {
                 EnumsPlayerActionType::Startdestroyblock
@@ -728,6 +754,15 @@ impl Player {
                 }
             }
             Order::Pause(ticks) => self.paused = ticks,
+            Order::Action(action, pos, face) => self.queued_actions.push(PlayerBlockActionData {
+                player_action_type: action,
+                position: BlockPos {
+                    x: pos[0],
+                    y: pos[1],
+                    z: pos[2],
+                },
+                facing: face,
+            }),
             Order::Burst(inputs) => self.burst = inputs,
             Order::Attack(target) => return Ok(vec![self.attack(target)]),
             Order::AttackNamed(name) => {

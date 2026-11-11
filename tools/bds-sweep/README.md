@@ -18,7 +18,9 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `summarize.py` | Raw sweep results to `crates/unastar-data/data/measured/` + `manifest.json` |
 | `script.py` | Plays a `bds-sweep-client --script` scenario against plain BDS (no Endstone) and records the client's packets; the same script runs against unastar with `bds-sweep-client --addr <unastar> --script ...` |
 | `scripts/breaking.txt` | Survival block breaking scenarios: by hand, tools, instant, abort, a frozen client, Haste, a block above, client predictions on time and early, `StopDestroyBlock`, blocks put back where a break goes on, a burst of inputs |
-| `breaking_fixture.py` | Cuts the committed breaking fixture (`crates/unastar/src/server/game/blocks/testdata/bds-breaking.jsonl`) out of a `script.py` capture of `scripts/breaking.txt` |
+| `breaking_fixture.py` | Cuts the committed breaking fixtures (`crates/unastar/src/server/game/blocks/testdata/bds-breaking*.jsonl`) out of a `script.py` capture of `scripts/breaking.txt` (or other windows, `--windows`), with a second player's packets moved onto the first player's clock (`--observer`) |
+| `scripts/breaking-2.txt`, `scripts/breaking-observer.txt` | Breaking seen by a second player (run with `script.py --observer scripts/breaking-observer.txt`), creative breaking (a start, a start and prediction in one input, a sword) and a `CreativeDestroyBlock` action, which ends the session |
+| `scripts/creative-break-items.txt` | A creative start on stone with each sword, the trident, the mace, each spear and other items held: which break nothing |
 | `scripts/spears.txt` | Spear scenarios with named pigs: plain hits and the attack cooldown (its last input, its category, three hits in one input), jabs without a target for every tier (also packed into the input), missed swings, holding a spear, a sword's reach |
 | `scripts/enchant-spears.txt` | `/enchant` with every enchantment (and Lunge III/IV) on a fresh spear of every tier |
 | `scripts/use-items.txt` | The spyglass, goat horns 0-7, potions 0-46 and ominous bottles 0-4 drunk to the end, and an elytra (see `scripts/elytra.txt`) |
@@ -92,6 +94,7 @@ The plugin sends these chat orders to `bds-sweep-client`:
 | `bds-sweep:glide` / `unglide`, `sprint` / `unsprint` | The input flags that start or stop gliding or sprinting (`Sprinting` on every input while sprinting) |
 | `bds-sweep:look YAW PITCH` | The rotation of the next inputs |
 | `bds-sweep:move DX DY DZ TICKS` | Move by `(DX, DY, DZ)` on each of the next `TICKS` inputs, forward held |
+| `bds-sweep:action NAME X Y Z FACE` | One raw block action with the next input (`start`, `continue`, `crack`, `predict`, `abort`, `stop`, `creative-destroy`); several on one tick share the input |
 
 `bds-sweep-client --script FILE` plays timed orders without the plugin: one `TICK ORDER` line per
 step at that client input tick, an order above without its `bds-sweep:` prefix, a slash command
@@ -100,8 +103,9 @@ camera orientation of its rotation, as a vanilla client sends it.
 
 `flags A,B` and `held-flags A,B` send raw input flags by name (`Jumpdown`, `Startgliding`, ...)
 on the next input or on every input until `held-flags none`. With `script.py --observer SCRIPT` a
-second player, `BDSObserver`, plays its own script at the same time, recorded to
-`DIR/observer-capture`.
+second player, `BDSObserver`, plays its own script, recorded to `DIR/observer-capture`. It joins
+first, and the player follows a few seconds after it spawned, because BDS refuses a second login
+from one address right away ("ip recently connected").
 
 `bds-sweep-client --decode DIR/packets.jsonl [--only ActorEvent,LevelSoundEvent]` prints a
 recording decoded, one packet per line with the client tick of the latest input, without
@@ -138,6 +142,8 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 & $py tools/bds-sweep/sweep.py attack --items spears --gap 20 --gamemode survival --client-capture
 & $py tools/bds-sweep/sweep.py mining --variants capture --client-capture   # breaking packet flow
 python tools/bds-sweep/script.py tools/bds-sweep/scripts/breaking.txt --out <dir>   # plain BDS, no plugin
+python tools/bds-sweep/script.py tools/bds-sweep/scripts/breaking-2.txt --observer tools/bds-sweep/scripts/breaking-observer.txt --out <dir>
+python tools/bds-sweep/breaking_fixture.py <dir>/client-capture/packets.jsonl <fixture> --windows 80-110,120-130,130-150,150-190,200-220,230-280,290-300,310-330,350-370,380-391,400-420,430-450,460-480 --observer <dir>/observer-capture/packets.jsonl
 python tools/bds-sweep/script.py tools/bds-sweep/scripts/spears.txt --out <dir>
 python tools/bds-sweep/combat_fixture.py <dir>/client-capture/packets.jsonl <fixture> --windows 40-160,170-275,280-520,528-588,588-628,628-670
 & $py tools/bds-sweep/sweep.py armor-slots --items all

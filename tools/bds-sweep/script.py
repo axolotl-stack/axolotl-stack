@@ -10,8 +10,9 @@ against unastar with `bds-sweep-client --addr <unastar> --script ...` (the
 player must be an operator there) and compare the two captures. Raw output
 stays outside the repository.
 
-With `--observer SCRIPT` a second scripted player, `BDSObserver`, joins at
-the same time and plays its own script (for example standing next to the
+With `--observer SCRIPT` a second scripted player, `BDSObserver`, joins
+first (the player follows a few seconds after it spawned, as BDS refuses a
+second login from one address right away) and plays its own script (for example standing next to the
 first player), recorded to `DIR/observer-capture/packets.jsonl`: what other
 players see of the first player's actions.
 """
@@ -32,6 +33,8 @@ REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-script-1.26.51'
 PLAYER = 'BDSSweep'
 OBSERVER = 'BDSObserver'
+# Seconds between the observer's spawn and the player's login.
+RELOGIN_DELAY_S = 6.0
 
 
 def main() -> int:
@@ -69,6 +72,7 @@ def main() -> int:
                 if observer_command:
                     observer = subprocess.Popen(observer_command, cwd=REPO, stdout=observer_log,
                                                 stderr=subprocess.STDOUT)
+                    wait_for_spawn(out / 'observer.log', observer)
                 try:
                     client = subprocess.run(command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT,
                                             timeout=args.timeout)
@@ -83,6 +87,17 @@ def main() -> int:
             shutil.rmtree(world)
     print(f'client exited {client.returncode} after {time.monotonic() - started:.0f}s -> {out}')
     return client.returncode
+
+
+def wait_for_spawn(log: Path, process: subprocess.Popen, timeout: float = 60.0) -> None:
+    """Waits until the observer has spawned, then lets BDS's limit on logins
+    from one address ("ip recently connected") pass before the player joins."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and process.poll() is None:
+        if 'spawned as' in log.read_text(encoding='utf-8', errors='replace'):
+            break
+        time.sleep(0.25)
+    time.sleep(RELOGIN_DELAY_S)
 
 
 if __name__ == '__main__':

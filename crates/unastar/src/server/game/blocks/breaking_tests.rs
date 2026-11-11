@@ -18,6 +18,11 @@
 //! happened to make: on both sides it must be an outcome the BDS drop sweep
 //! measured for that block and held item
 //! (`unastar-data/data/measured/block_drops/`).
+//!
+//! `testdata/bds-breaking-2.jsonl` (`tools/bds-sweep/scripts/breaking-2.txt`,
+//! played with `script.py --observer scripts/breaking-observer.txt`) adds a
+//! second player standing 3 blocks west, whose packets are compared the same
+//! way, and creative breaking.
 
 use bytes::BytesMut;
 use glam::{DVec3, IVec3};
@@ -37,27 +42,39 @@ const SHORT_GRASS_DROPS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../unastar-data/data/measured/block_drops/short_grass.json"
 ));
+const BDS_2: &str = include_str!("testdata/bds-breaking-2.jsonl");
 const SESSION: u64 = 7;
+const OBSERVER_SESSION: u64 = 8;
 /// The sweep arena: the player's feet, facing east at the west face of the
 /// mined block.
 const FEET: DVec3 = DVec3::new(0.5, -60.0, 0.5);
+/// Where `breaking-2.txt`'s second player stands: 3 blocks west, facing east.
+const OBSERVER_FEET: DVec3 = DVec3::new(-2.5, -60.0, 0.5);
 
-/// A capture record: who sent it, the client tick of the latest input, when
-/// it was recorded and the packet.
+/// A capture record: who sent it (the client, or the server to the player
+/// or to the observer), the client tick of the latest input, when it was
+/// recorded and the packet.
 struct Record {
     from_client: bool,
+    to_observer: bool,
     input: u64,
     t_ms: u64,
     packet: McpePacketData,
 }
 
 fn records() -> Vec<Record> {
-    BDS.lines()
+    records_of(BDS)
+}
+
+fn records_of(capture: &str) -> Vec<Record> {
+    capture
+        .lines()
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
             let row: serde_json::Value = serde_json::from_str(line).unwrap();
             Record {
                 from_client: row["dir"] == "c2s",
+                to_observer: row["dir"] == "s2o",
                 input: row["input"].as_u64().unwrap(),
                 t_ms: row["t_ms"].as_u64().unwrap(),
                 packet: crate::server::game::inventory::capture::decode(
@@ -135,6 +152,9 @@ enum Event {
     Drop(i16, u16),
     Wear(u32, i16, u16),
     Sound(String),
+    Pickup,
+    /// A `PacketViolationWarning`'s context.
+    Violation(String),
 }
 
 /// Near the arena, or the origin (where a `StopDestroyBlock`'s default
@@ -174,6 +194,10 @@ fn event(packet: &McpePacketData, tool: Option<i16>) -> Option<Event> {
         McpePacketData::LevelSoundEventPacket(sound) => {
             Some(Event::Sound(sound.sound_event.to_string()))
         }
+        McpePacketData::TakeItemActorPacket(_) => Some(Event::Pickup),
+        McpePacketData::PacketViolationWarningPacket(warning) => {
+            Some(Event::Violation(warning.violation_context.to_string()))
+        }
         _ => None,
     }
 }
@@ -205,6 +229,8 @@ struct Harness {
     server: GameServer,
     player: bevy_ecs::entity::Entity,
     rx: Receiver<McpePacket>,
+    /// A second player's packets, once [`Harness::add_observer`] ran.
+    observer_rx: Option<Receiver<McpePacket>>,
 }
 
 impl Harness {
@@ -227,7 +253,12 @@ impl Harness {
                 chunk_radius: 2,
             })
             .expect("valid player spawn");
-        let mut h = Self { server, player, rx };
+        let mut h = Self {
+            server,
+            player,
+            rx,
+            observer_rx: None,
+        };
         for _ in 0..40 {
             if [(-1, -1), (-1, 1), (1, -1), (1, 1)]
                 .iter()
@@ -250,6 +281,45 @@ impl Harness {
 
     fn world(&mut self) -> &mut bevy_ecs::world::World {
         self.server.ecs.world_mut()
+    }
+
+    /// A second survival player at [`OBSERVER_FEET`], once its chunks are
+    /// sent.
+    fn add_observer(&mut self) {
+        let (outbound_tx, rx) = tokio::sync::mpsc::channel(1 << 16);
+        let observer = self
+            .server
+            .spawn_player(PlayerSpawnData {
+                session_id: OBSERVER_SESSION,
+                display_name: "BDSObserver".into(),
+                xuid: None,
+                uuid: Some(format!("00000000-0000-0000-0000-{OBSERVER_SESSION:012}")),
+                runtime_id: OBSERVER_SESSION as i64,
+                position: OBSERVER_FEET + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT,
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .expect("valid observer spawn");
+        *self.world().get_mut::<GameMode>(observer).unwrap() = GameMode::Survival;
+        self.observer_rx = Some(rx);
+        for _ in 0..10 {
+            self.tick();
+        }
+        self.drain();
+        self.drain_observer();
+    }
+
+    fn drain_observer(&mut self) -> Vec<McpePacketData> {
+        let Some(rx) = self.observer_rx.as_mut() else {
+            return Vec::new();
+        };
+        std::iter::from_fn(|| rx.try_recv().ok().map(|packet| packet.data)).collect()
+    }
+
+    fn set_mode(&mut self, mode: GameMode) {
+        let player = self.player;
+        *self.world().get_mut::<GameMode>(player).unwrap() = mode;
     }
 
     fn set(&mut self, pos: IVec3, name: &str) {
@@ -427,34 +497,9 @@ fn survival_breaking_answers_every_input_like_bds() {
                 _ => panic!("client records are inputs"),
             })
             .collect();
-        let mut ours = Vec::new();
-        let mut last_input_at: Option<u64> = None;
-        let mut next = 0;
-        while next < inputs.len() {
-            // A frozen client: server ticks without input.
-            if last_input_at.is_some_and(|at| inputs[next].1 > at + 300) {
-                for _ in 0..10 {
-                    h.tick();
-                }
-            }
-            // Inputs sent at once reach the server in one tick.
-            let mut end = next + 1;
-            while end < inputs.len() && inputs[end].1 <= inputs[end - 1].1 + 10 {
-                end += 1;
-            }
-            for &(tick, _, input) in &inputs[next..end] {
-                in_window_step(&mut h, index, tick);
-                h.route(input.clone());
-            }
-            last_input_at = Some(inputs[end - 1].1);
-            next = end;
-            h.tick();
-            ours.extend(
-                h.drain()
-                    .iter()
-                    .filter_map(|packet| event(packet, Some(tool))),
-            );
-        }
+        let (ours, _) = replay(&mut h, &inputs, Some(tool), |h, tick| {
+            in_window_step(h, index, tick)
+        });
         let (bds_levels, mut bds_rest) = split(bds);
         let (our_levels, mut our_rest) = split(ours);
         if let Some(outcomes) = random_drop_outcomes(index) {
@@ -485,6 +530,301 @@ fn survival_breaking_answers_every_input_like_bds() {
                 "{}: block updates, drops, wear and sounds\n  BDS  {bds_rest:?}\n  ours {our_rest:?}",
                 scenario.name
             ));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// Routes a scenario's captured inputs, one server tick per input (ten more
+/// ticks where the client froze; inputs sent at once in one tick), with
+/// `step` before each input; the compared events the player and the
+/// observer were sent.
+fn replay(
+    h: &mut Harness,
+    inputs: &[(u64, u64, &PlayerAuthInputPacket)],
+    tool: Option<i16>,
+    step: impl Fn(&mut Harness, u64),
+) -> (Vec<Event>, Vec<Event>) {
+    let mut ours = Vec::new();
+    let mut observed = Vec::new();
+    let mut last_input_at: Option<u64> = None;
+    let mut next = 0;
+    while next < inputs.len() {
+        // A frozen client: server ticks without input.
+        if last_input_at.is_some_and(|at| inputs[next].1 > at + 300) {
+            for _ in 0..10 {
+                h.tick();
+            }
+        }
+        // Inputs sent at once reach the server in one tick.
+        let mut end = next + 1;
+        while end < inputs.len() && inputs[end].1 <= inputs[end - 1].1 + 10 {
+            end += 1;
+        }
+        for &(tick, _, input) in &inputs[next..end] {
+            step(h, tick);
+            h.route(input.clone());
+        }
+        last_input_at = Some(inputs[end - 1].1);
+        next = end;
+        h.tick();
+        // The player's captures keep no pickups.
+        ours.extend(
+            h.drain()
+                .iter()
+                .filter_map(|packet| event(packet, tool))
+                .filter(|event| *event != Event::Pickup),
+        );
+        observed.extend(
+            h.drain_observer()
+                .iter()
+                .filter_map(|packet| event(packet, tool)),
+        );
+    }
+    (ours, observed)
+}
+
+/// The scenarios of `breaking-2.txt`.
+const SCENARIOS_2: [Scenario; 13] = [
+    Scenario {
+        name: "survival: stone with a diamond pickaxe",
+        inputs: 80..110,
+    },
+    Scenario {
+        name: "survival: dirt by hand, aborted",
+        inputs: 120..130,
+    },
+    Scenario {
+        name: "survival: the same dirt, released (the break goes on)",
+        inputs: 130..150,
+    },
+    Scenario {
+        name: "survival: the air the released break left",
+        inputs: 150..190,
+    },
+    Scenario {
+        name: "creative: start, then predict",
+        inputs: 200..220,
+    },
+    Scenario {
+        name: "creative: start and predict in one input",
+        inputs: 230..280,
+    },
+    Scenario {
+        name: "creative: start, continue, abort",
+        inputs: 290..300,
+    },
+    Scenario {
+        name: "creative with a diamond sword: start, then predict",
+        inputs: 310..330,
+    },
+    Scenario {
+        name: "creative: dirt under stone",
+        inputs: 350..370,
+    },
+    Scenario {
+        name: "creative: short grass",
+        inputs: 380..391,
+    },
+    Scenario {
+        name: "creative: a torch",
+        inputs: 400..420,
+    },
+    Scenario {
+        name: "survival: start and predict in one input, by hand",
+        inputs: 430..450,
+    },
+    Scenario {
+        name: "creative: a CreativeDestroyBlock action",
+        inputs: 460..480,
+    },
+];
+
+/// `events` without the block updates that repeat what their position was
+/// last sent. BDS sends the block changes of a tick before it reads the next
+/// inputs, this server after them: a creative break's update for every viewer
+/// comes after the corrections of the next input's refused prediction here,
+/// before them on BDS, and the corrections leave it a repeat.
+fn changes_only(events: Vec<Event>) -> Vec<Event> {
+    let mut last = std::collections::HashMap::new();
+    events
+        .into_iter()
+        .filter(|event| match event {
+            Event::Block(position, block, _) => last.insert(*position, *block) != Some(*block),
+            _ => true,
+        })
+        .collect()
+}
+
+/// `testdata/bds-creative-break-items.json`: per item, whether a creative
+/// start broke stone on BDS (`tools/bds-sweep/scripts/creative-break-items.txt`).
+#[test]
+fn creative_breaking_items_match_bds() {
+    #[derive(serde::Deserialize)]
+    struct Table {
+        breaks: std::collections::BTreeMap<String, bool>,
+    }
+    let table: Table =
+        serde_json::from_str(include_str!("testdata/bds-creative-break-items.json")).unwrap();
+    let wrong: Vec<_> = table
+        .breaks
+        .iter()
+        .filter(|(item, breaks)| {
+            super::item_breaks_in_creative(&format!("minecraft:{item}")) != **breaks
+        })
+        .collect();
+    assert!(wrong.is_empty(), "{wrong:?}");
+    assert!(table.breaks.values().any(|breaks| !breaks));
+}
+
+/// `breaking-2.txt`'s set-up before scenario `index`.
+fn set_up_2(h: &mut Harness, index: usize) {
+    let mined = IVec3::new(1, -59, 0);
+    match index {
+        // The aborted dirt is mined again and released; the script's dirt
+        // for the next scenario came while that break still went on (a
+        // no-op), and the break ended in the window before. No tick
+        // between these windows.
+        2 | 3 => {}
+        0 => {
+            h.set_mode(GameMode::Survival);
+            h.set(mined, "minecraft:stone");
+            h.hold(Some("minecraft:diamond_pickaxe"));
+        }
+        1 => {
+            h.hold(None);
+            h.set(mined, "minecraft:dirt");
+        }
+        4..=6 | 12 => {
+            h.set_mode(GameMode::Creative);
+            h.hold(None);
+            h.set(mined, "minecraft:stone");
+        }
+        7 => {
+            h.set(mined, "minecraft:stone");
+            h.hold(Some("minecraft:diamond_sword"));
+        }
+        8 => {
+            h.hold(None);
+            h.set(mined, "minecraft:dirt");
+            h.set(IVec3::new(1, -58, 0), "minecraft:stone");
+        }
+        9 => h.set(mined, "minecraft:short_grass"),
+        10 => {
+            h.set(IVec3::new(1, -60, 0), "minecraft:dirt");
+            // BDS's `/setblock ... torch` stands it on the block below.
+            let registry = BlockRegistry::vanilla();
+            let torch = registry.get_by_name("minecraft:torch").unwrap();
+            let top = torch
+                .with_state_value(
+                    torch.id,
+                    "torch_facing_direction",
+                    crate::registry::block::StateValue::Str("top"),
+                )
+                .unwrap();
+            super::set_block(h.world(), mined, top, false);
+        }
+        11 => {
+            h.set_mode(GameMode::Survival);
+            h.set(mined, "minecraft:stone");
+        }
+        _ => unreachable!(),
+    }
+    if !matches!(index, 2 | 3) {
+        h.tick();
+        h.drain();
+        h.drain_observer();
+    }
+    // Each scenario's rolls, whatever the scenarios before it rolled.
+    h.world()
+        .insert_resource(crate::entity::EntityRandom::seeded(index as u64));
+}
+
+fn in_window_step_2(h: &mut Harness, index: usize, input: u64) {
+    match (index, input) {
+        (8, 361) => h.set(IVec3::new(1, -58, 0), "minecraft:air"),
+        (10, 411) => h.set(IVec3::new(1, -60, 0), "minecraft:air"),
+        (11, 440) => h.set(IVec3::new(1, -59, 0), "minecraft:air"),
+        _ => {}
+    }
+}
+
+#[test]
+fn breaking_seen_by_another_player_and_in_creative_answers_like_bds() {
+    let records = records_of(BDS_2);
+    let mut h = Harness::new();
+    h.add_observer();
+    let tool = crate::item::test_support::stack("minecraft:diamond_pickaxe", 1)
+        .item()
+        .unwrap()
+        .network_id() as i16;
+    let mut failures = Vec::new();
+    for (index, scenario) in SCENARIOS_2.iter().enumerate() {
+        set_up_2(&mut h, index);
+        let window: Vec<&Record> = records
+            .iter()
+            .filter(|record| scenario.inputs.contains(&record.input))
+            .collect();
+        let sent = |to_observer: bool| -> Vec<Event> {
+            window
+                .iter()
+                .filter(|record| !record.from_client && record.to_observer == to_observer)
+                .filter_map(|record| event(&record.packet, Some(tool)))
+                .collect()
+        };
+        let (bds, bds_observed) = (sent(false), sent(true));
+        let inputs: Vec<(u64, u64, &PlayerAuthInputPacket)> = window
+            .iter()
+            .filter(|record| record.from_client)
+            .map(|record| match &record.packet {
+                McpePacketData::PlayerAuthInputPacket(input) => {
+                    (record.input, record.t_ms, &**input)
+                }
+                _ => panic!("client records are inputs"),
+            })
+            .collect();
+        let (ours, observed) = replay(&mut h, &inputs, Some(tool), |h, tick| {
+            in_window_step_2(h, index, tick)
+        });
+        // The last scenario ends the player's session on BDS, which the
+        // observer hears as the player leaving; only the player's packets
+        // are compared there.
+        let compared = if index + 1 == SCENARIOS_2.len() { 1 } else { 2 };
+        for (who, theirs, mine) in [("player", bds, ours), ("observer", bds_observed, observed)]
+            .into_iter()
+            .take(compared)
+        {
+            // Sounds on their own: BDS sends the hit sound of a tick after
+            // the block updates and drops the tick before left.
+            let sounds = |events: &[Event]| -> Vec<Event> {
+                events
+                    .iter()
+                    .filter(|event| matches!(event, Event::Sound(_)))
+                    .cloned()
+                    .collect()
+            };
+            let (bds_sounds, our_sounds) = (sounds(&theirs), sounds(&mine));
+            let others = |events: Vec<Event>| -> Vec<Event> {
+                events
+                    .into_iter()
+                    .filter(|event| !matches!(event, Event::Sound(_)))
+                    .collect()
+            };
+            let (bds_levels, bds_rest) = split(others(theirs));
+            let (our_levels, our_rest) = split(others(mine));
+            let (bds_rest, our_rest) = (changes_only(bds_rest), changes_only(our_rest));
+            for (what, theirs, ours) in [
+                ("crack and destroy events", bds_levels, our_levels),
+                ("block updates, drops and pickups", bds_rest, our_rest),
+                ("sounds", bds_sounds, our_sounds),
+            ] {
+                if theirs != ours {
+                    failures.push(format!(
+                        "{}, {who}: {what}\n  BDS  {theirs:?}\n  ours {ours:?}",
+                        scenario.name
+                    ));
+                }
+            }
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));

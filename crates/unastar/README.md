@@ -665,9 +665,14 @@ Survival breaking follows BDS input by input:
   the blocks back and the break goes on.
 - `StopDestroyBlock` does not end the break, and a completed break goes on at that position from
   zero.
-- Every input is answered with BDS's crack events, and no sound is sent for a break.
+- Every input is answered with BDS's crack events, and no sound is sent to the breaking client.
+  Other players near the block hear its hit sound every fifth input.
+- In creative, `StartDestroyBlock` breaks the block at once, except with a sword, the trident or
+  the mace. An input carrying `CreativeDestroyBlock` is refused as malformed and ends the session,
+  as on BDS.
 
-`server/game/blocks/breaking_tests.rs` replays a BDS capture of all of this.
+`server/game/blocks/breaking_tests.rs` replays BDS captures of all of this, one with a second
+player watching.
 Block break/place intents dispatch before mutation; cancellation sends authoritative
 corrections. Allowed intents revalidate current state before committing, and
 Survival placement consumes one server-owned selected item. Placement does not

@@ -292,6 +292,11 @@ pub struct BreakingState {
     /// A break the server completed itself, waiting for plugin approval:
     /// its commit also corrects the breaking client, which never predicted it.
     pub completing: Option<(i32, i32, i32)>,
+    /// Inputs since the break started or moved to another position.
+    pub ticks: u32,
+    /// Whether the other players still hear the break's hit sound: from a
+    /// start on a block that can break until an input finds none there.
+    pub sounding: bool,
 }
 
 impl BreakingState {
@@ -308,6 +313,8 @@ impl BreakingState {
             self.progress = 0.0;
         }
         self.block = block;
+        self.ticks = 0;
+        self.sounding = speed > 0.0;
         self.continue_at(position, block, face, speed);
     }
 
@@ -319,6 +326,8 @@ impl BreakingState {
             self.progress = 0.0;
             self.block = block;
             self.speed = speed;
+            self.ticks = 0;
+            self.sounding = speed > 0.0;
         } else if speed > 0.0 {
             self.speed = speed;
         }
@@ -331,6 +340,7 @@ impl BreakingState {
         self.position = None;
         self.progress = 0.0;
         self.speed = 0.0;
+        self.sounding = false;
     }
 
     /// Whether a block is being broken.

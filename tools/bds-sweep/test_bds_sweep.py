@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
+import breaking_fixture  # noqa: E402
 import combat_fixture  # noqa: E402
 import experience_table  # noqa: E402
 import native  # noqa: E402
@@ -266,6 +267,42 @@ class ExperienceTable(unittest.TestCase):
             breaks = experience_table.schedule(path)
         self.assertEqual(breaks, [(40, 'minecraft:coal_ore', 'netherite_pickaxe+efficiency5'),
                                   (60, 'minecraft:coal_ore', 'hand')])
+
+
+class BreakingFixture(unittest.TestCase):
+    @staticmethod
+    def rows(*specs):
+        return [{'seq': i, 't_ms': t, 'dir': d, 'id': packet_id, 'name': name, 'hex': payload}
+                for i, (t, d, packet_id, name, payload) in enumerate(specs)]
+
+    def test_the_observer_is_moved_onto_the_players_clock_and_inputs(self):
+        player = self.rows(
+            (1000, 'c2s', 144, 'PlayerAuthInputPacket', '80'),
+            (1040, 's2c', 21, 'UpdateBlockPacket', 'aa'),
+            (1050, 'c2s', 144, 'PlayerAuthInputPacket', '81'),
+            (1090, 's2c', 21, 'UpdateBlockPacket', 'bb'),
+            (1100, 'c2s', 144, 'PlayerAuthInputPacket', '82'),
+        )
+        observer = self.rows(
+            (3040, 's2c', 21, 'UpdateBlockPacket', 'aa'),
+            (3060, 's2c', 123, 'LevelSoundEventPacket', 'cc'),
+            (3090, 's2c', 21, 'UpdateBlockPacket', 'bb'),
+            (3095, 's2c', 30, 'InventoryTransactionPacket', 'dd'),
+        )
+        # The inputs' ticks, without encoding real PlayerAuthInputs.
+        with mock.patch.object(breaking_fixture, 'input_tick', int):
+            self.assertEqual(breaking_fixture.clock_offset(player, observer), -2000)
+            out = breaking_fixture.cut_observer(player, observer, [(80, 90)])
+        self.assertEqual([(r['dir'], r['input'], r['t_ms'], r['hex']) for r in out],
+                         [('s2o', 80, 1040, 'aa'), ('s2o', 81, 1060, 'cc'), ('s2o', 81, 1090, 'bb')])
+
+    def test_captures_without_a_common_block_update_are_not_aligned(self):
+        with self.assertRaises(SystemExit):
+            breaking_fixture.clock_offset(self.rows((0, 's2c', 21, 'UpdateBlockPacket', 'aa')),
+                                          self.rows((0, 's2c', 21, 'UpdateBlockPacket', 'bb')))
+
+    def test_windows_parse(self):
+        self.assertEqual(breaking_fixture.parse_windows('80-110,120-130'), [(80, 110), (120, 130)])
 
 
 class RuntimeSlotTest(unittest.TestCase):
