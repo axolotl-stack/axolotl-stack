@@ -101,13 +101,11 @@ pub(crate) fn block_drops(
 pub(crate) fn loot_stacks(world: &World, drops: Vec<LootDrop>) -> Vec<ItemStack> {
     let mut stacks = Vec::new();
     for drop in drops {
-        let (item_id, data) = match unastar_data::item_identity::input_alias(
-            &drop.item_id,
-            Some(drop.data),
-        ) {
-            Some(alias) if drop.data != 0 => (alias.name.to_owned(), alias.data.unwrap_or(0)),
-            _ => (drop.item_id.clone(), drop.data),
-        };
+        let (item_id, data) =
+            match unastar_data::item_identity::input_alias(&drop.item_id, Some(drop.data)) {
+                Some(alias) if drop.data != 0 => (alias.name.to_owned(), alias.data.unwrap_or(0)),
+                _ => (drop.item_id.clone(), drop.data),
+            };
         let Some(template) = world_stack(world, &item_id, 1) else {
             warn!(item = item_id, "Loot item is not in the item registry");
             continue;
@@ -305,5 +303,47 @@ mod tests {
             u32::try_from(cobble.runtime_id).unwrap(),
             state("minecraft:cobblestone")
         );
+    }
+
+    /// The wither skeleton's loot names its skull `minecraft:skull` with
+    /// data 1; BDS 1.26.51 drops it as `minecraft:wither_skeleton_skull`
+    /// with data 0 (19 of 800 `/loot spawn … kill` rolls), and so does a
+    /// roll here: every dropped identity is one BDS dropped.
+    #[test]
+    fn a_legacy_skull_drops_as_the_wither_skeleton_skull_like_bds() {
+        use rand::SeedableRng;
+        let world = world();
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "testdata/bds-1.26.51-wither-skeleton-loot.json"
+        ))
+        .unwrap();
+        let identity = |stack: &str| stack.split('x').next().unwrap().to_owned();
+        let bds: std::collections::BTreeSet<String> = fixture["outcomes"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .flat_map(|outcome| outcome.split(';').filter(|s| !s.is_empty()))
+            .map(identity)
+            .collect();
+        assert!(bds.contains("minecraft:wither_skeleton_skull@0"));
+        let table = unastar_data::loot::get("entities/wither_skeleton").expect("the loot table");
+        let ctx = LootContext {
+            killed_by_player: true,
+            ..LootContext::default()
+        };
+        let mut ours = std::collections::BTreeSet::new();
+        for seed in 0..2000 {
+            let drops = roll(
+                unastar_data::loot::vanilla(),
+                table,
+                &ctx,
+                &mut rand::rngs::StdRng::seed_from_u64(seed),
+            )
+            .unwrap();
+            for stack in loot_stacks(&world, drops) {
+                ours.insert(format!("{}@{}", stack.item_id(), stack.damage));
+            }
+        }
+        assert_eq!(ours, bds);
     }
 }
