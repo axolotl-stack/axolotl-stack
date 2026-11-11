@@ -1,7 +1,7 @@
 //! Movement replication against BDS 1.26.51
 //! (`testdata/bds-1.26.51-replication.json`: `tools/bds-sweep/sweep.py
-//! knockback --items cadence / cadence2 --observer --client-capture` runs
-//! distilled by `replication_fixture.py`).
+//! knockback --items cadence / cadence2 / cadence3 --observer
+//! --client-capture` runs distilled by `replication_fixture.py`).
 //!
 //! Each trial is replayed tick by tick with the same actor, the same two
 //! viewers where BDS showed them the actor (the sweep player and a second
@@ -25,13 +25,16 @@ use unastar_data::actor_components::body::ActorDamageCause;
 use crate::entity::EntityRandom;
 use crate::entity::components::{
     Experience, GameMode, Health, HeldSlot, MainInventory, Player, PlayerSession, Position,
-    Rotation, RuntimeEntityId, RuntimeId,
+    Rotation, RuntimeEntityId, RuntimeId, Velocity,
 };
 use crate::entity::definition::apply_pending_definitions;
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::mob::ai::MobBrain;
 use crate::entity::mob::combat::{Hit, hurt_mob, player_attack};
 use crate::entity::mob::components::{BandwidthOptimization, BandwidthValues, KnockbackPower};
+use crate::entity::mob::net::network::{
+    MobNetState, Movement, record_spawn_state, replicate_movement, rotation_byte,
+};
 use crate::entity::mob::{SpawnCause, spawn_mob};
 use crate::server::game::{GameServer, ServerConfig};
 use crate::world::ChunkManager;
@@ -52,10 +55,12 @@ fn fixture() -> &'static Value {
 }
 
 /// The trials whose actor this server spawns (every BDS cow was an adult),
-/// each compared up to a sample: the arrow only until it hits the floor,
-/// because BDS stops it on the grass top that very tick (on the ground,
-/// motion 0) and this server's stuck-arrow landing does not yet.
-const REPLAYED: [(&str, usize); 11] = [
+/// each compared up to a sample (all of it). The arrows stop where they
+/// enter the floor, on the ground with motion 0, in the tick they hit it.
+/// The dispensed projectiles start from their `AddActor` (position,
+/// velocity) and the rotation of the first sample; the orb from its
+/// `AddActor` velocity.
+const REPLAYED: [(&str, usize); 16] = [
     ("cow|fall-40|frozen", usize::MAX),
     ("cow|fall-56|frozen", usize::MAX),
     ("cow|fall-72|frozen", usize::MAX),
@@ -66,7 +71,12 @@ const REPLAYED: [(&str, usize); 11] = [
     ("snowball|fall-32|natural", usize::MAX),
     ("snowball|fall-56|natural", usize::MAX),
     ("egg|fall-32|natural", usize::MAX),
-    ("arrow|fall-32|natural", 31),
+    ("arrow|fall-32|natural", usize::MAX),
+    ("xp_orb|fall-32|natural", usize::MAX),
+    ("arrow|wall|natural", usize::MAX),
+    ("arrow|floor|natural", usize::MAX),
+    ("arrow|floor-2|natural", usize::MAX),
+    ("snowball|wall|natural", usize::MAX),
 ];
 
 const VIEWERS: [&str; 2] = ["player", "observer"];
@@ -221,6 +231,10 @@ fn fill_command(command: &str) -> ([i32; 3], [i32; 3], u32) {
 /// What each viewer got in the replay of one trial.
 struct Replay {
     wire: Vec<(&'static str, Vec<Wire>)>,
+    /// Every `AddActor` of the actor, to any viewer.
+    adds: Vec<jolyne::valentine::AddActorPacket>,
+    /// `MotionPredictionHints` packets any viewer got.
+    hints: usize,
 }
 
 fn replay(key: &str) -> Replay {
@@ -286,31 +300,64 @@ fn replay(key: &str) -> Replay {
                 .insert(ChunkPosition::new(cx, cz), chunk);
         }
     }
+    // The block boxes of the setup (a dispenser itself is never in a
+    // projectile's way).
     for command in trial["spec"]["setup"].as_array().into_iter().flatten() {
-        let (from, to, block) = fill_command(command.as_str().unwrap());
-        fill(world, from, to, block);
+        let command = command.as_str().unwrap();
+        if command.starts_with("fill") {
+            let (from, to, block) = fill_command(command);
+            fill(world, from, to, block);
+        }
     }
 
     let at = &trial["spec"]["at"];
     let spawn = vec3(at);
     let yaw = at[3].as_f64().unwrap() as f32;
     let identifier = trial["actor"].as_str().unwrap();
-    let actor = loop {
-        let actor = spawn_mob(world, identifier, spawn, yaw, SpawnCause::Spawned).unwrap();
-        apply_pending_definitions(world);
-        let baby = world
-            .get::<ActorFlags>(actor)
-            .and_then(|flags| flags.get(actor_flags::BABY).ok())
-            .unwrap_or(false);
-        if !baby {
-            break actor;
+    // What the first viewer's `AddActor` showed.
+    let added = &trial["viewers"]["player"]["wire"][0]["add"];
+    let actor = if identifier == "minecraft:xp_orb" {
+        let orb = crate::entity::xp_orb::spawn_orb(world, spawn, 1);
+        let velocity = vec3(&added["vel"]);
+        world.get_mut::<Velocity>(orb).unwrap().0 = velocity;
+        let rotation = *world.get::<Rotation>(orb).unwrap();
+        world
+            .entity_mut(orb)
+            .insert(MobNetState::spawned(spawn, velocity, rotation, true).motion_unsent());
+        orb
+    } else if trial["spec"].get("spawn_commands").is_some() {
+        // Shot by a dispenser: as it was when BDS added it.
+        let first = &trial["samples"][0];
+        let (pitch, yaw) = (
+            first[4].as_f64().unwrap() as f32,
+            first[5].as_f64().unwrap() as f32,
+        );
+        let at = vec3(&added["pos"]);
+        let actor = spawn_mob(world, identifier, at, yaw, SpawnCause::Spawned).unwrap();
+        world.get_mut::<Velocity>(actor).unwrap().0 = vec3(&added["vel"]);
+        world.get_mut::<Rotation>(actor).unwrap().pitch = pitch;
+        record_spawn_state(world, actor, Some(false));
+        actor
+    } else {
+        loop {
+            let actor = spawn_mob(world, identifier, spawn, yaw, SpawnCause::Spawned).unwrap();
+            apply_pending_definitions(world);
+            let baby = world
+                .get::<ActorFlags>(actor)
+                .and_then(|flags| flags.get(actor_flags::BABY).ok())
+                .unwrap_or(false);
+            if !baby {
+                break actor;
+            }
+            world.despawn(actor);
         }
-        world.despawn(actor);
     };
     world.entity_mut(actor).remove::<MobBrain>();
     let runtime_id = world.get::<RuntimeId>(actor).unwrap().0 as u64;
 
     let samples = trial["samples"].as_array().unwrap().len();
+    let mut adds = Vec::new();
+    let mut hints = 0;
     let mut wire: Vec<(&'static str, Vec<Wire>)> = viewers
         .iter()
         .map(|(name, _, _)| (*name, Vec::new()))
@@ -359,9 +406,11 @@ fn replay(key: &str) -> Replay {
         for ((_, _, rx), (_, events)) in viewers.iter_mut().zip(wire.iter_mut()) {
             while let Ok(packet) = rx.try_recv() {
                 match packet.data {
+                    McpePacketData::MotionPredictionHintsPacket(_) => hints += 1,
                     McpePacketData::AddActorPacket(add)
                         if add.target_runtime_id.actor_runtime_id == runtime_id =>
                     {
+                        adds.push((*add).clone());
                         events.push(Wire::Add {
                             position: DVec3::new(
                                 add.position.x.into(),
@@ -407,7 +456,7 @@ fn replay(key: &str) -> Replay {
             }
         }
     }
-    Replay { wire }
+    Replay { wire, adds, hints }
 }
 
 /// BDS's packets for one viewer that the replay must reproduce: the
@@ -440,7 +489,7 @@ fn every_viewer_gets_the_bds_position_updates_at_its_own_cadence() {
         let replay = replay(key);
         for (viewer, ours) in &replay.wire {
             let bds = expected(trial, viewer, projectile, until);
-            assert!(bds.len() > 5, "{key} {viewer}: {} packets", bds.len());
+            assert!(bds.len() >= 2, "{key} {viewer}: {} packets", bds.len());
             let ours: Vec<&Wire> = ours
                 .iter()
                 .filter(|event| compared(event, projectile, until))
@@ -460,42 +509,42 @@ fn every_viewer_gets_the_bds_position_updates_at_its_own_cadence() {
     }
 }
 
-/// The bandwidth values a vanilla actor's definition gives it (`None`
-/// without the component).
-fn bandwidth_of(identifier: &str) -> Option<BandwidthValues> {
+/// A vanilla actor's `conditional_bandwidth_optimization` (`None` without
+/// the component).
+fn bandwidth_of(identifier: &str) -> Option<BandwidthOptimization> {
     let definition = unastar_data::actor_definitions::get(identifier).unwrap();
     let body = definition
         .components
         .get("minecraft:conditional_bandwidth_optimization")?;
     let body: unastar_data::actor_components::body::ConditionalBandwidthOptimization =
         serde_json::from_value(body.clone()).unwrap();
-    Some(BandwidthOptimization::compile(body).unwrap().0)
+    Some(BandwidthOptimization::compile(body).unwrap())
+}
+
+/// The values in force at `sample`: the conditional ones (vehicles: 0 / 0)
+/// while the actor moved in the tick before.
+fn values_at(
+    bandwidth: &BandwidthOptimization,
+    samples: &[Value],
+    sample: usize,
+) -> BandwidthValues {
+    let moved = sample >= 2 && vec3(&samples[sample - 1]) != vec3(&samples[sample - 2]);
+    bandwidth.values(moved)
 }
 
 /// Every actor of the fixture, also those this server cannot spawn yet: the
 /// `ticks` of each position update BDS sent is the band its own definition
-/// gives for the viewer's distance (eye to the actor), or 0 when the update
-/// changed its ground contact; without the component every update has
-/// `ticks` 0 and goes out every tick. (The minecart's conditional values are
-/// rejected: its updates follow `is_moving`.)
+/// gives for the viewer's distance (eye to the actor), with a vehicle's
+/// `is_moving` values (0 / 0) while it moved in the tick before, or 0 when
+/// the update changed its ground contact; without the component every update
+/// has `ticks` 0 and goes out every tick.
 #[test]
 fn bds_ticks_are_the_band_of_each_actors_own_bandwidth_values() {
     let mut banded = 0;
     for (key, trial) in fixture()["trials"].as_object().unwrap() {
         let identifier = trial["actor"].as_str().unwrap();
-        if identifier == "minecraft:minecart" {
-            let definition = unastar_data::actor_definitions::get(identifier).unwrap();
-            let body = serde_json::from_value(
-                definition.components["minecraft:conditional_bandwidth_optimization"].clone(),
-            )
-            .unwrap();
-            assert!(matches!(
-                BandwidthOptimization::compile(body),
-                Err(super::super::components::bandwidth::BandwidthError::ConditionalValues)
-            ));
-            continue;
-        }
-        let values = bandwidth_of(identifier);
+        let bandwidth = bandwidth_of(identifier);
+        let offset = DVec3::Y * trial["wire_offset"].as_f64().unwrap_or(0.0);
         let samples = trial["samples"].as_array().unwrap();
         for viewer in VIEWERS {
             let Some(seen) = trial["viewers"].get(viewer) else {
@@ -524,15 +573,17 @@ fn bds_ticks_are_the_band_of_each_actors_own_bandwidth_values() {
                 let sample = event["sample"].as_u64().unwrap() as usize;
                 let changed = last.is_none_or(|(_, before)| before != ground);
                 if event.get("timed").is_none() {
-                    let distance = eye(sample).distance(vec3(&samples[sample]));
-                    let band = values.map_or(0, |values| values.dropped_ticks(distance));
+                    let distance = eye(sample).distance(vec3(&samples[sample]) + offset);
+                    let band = bandwidth.as_ref().map_or(0, |bandwidth| {
+                        values_at(bandwidth, samples, sample).dropped_ticks(distance)
+                    });
                     assert!(
                         ticks == band || (ticks == 0 && changed),
                         "{key} {viewer} sample {sample}: ticks {ticks}, band {band} at {distance}"
                     );
                     banded += usize::from(band > 0);
                 }
-                if values.is_none()
+                if bandwidth.is_none()
                     && let Some((before, _)) = last
                 {
                     assert_eq!(sample, before + 1, "{key} {viewer}: every tick");
@@ -560,18 +611,19 @@ fn the_summon_tick_add_actor_shows_the_mob_before_its_first_move() {
     });
     let world = server.ecs.world_mut();
     let (tx, mut rx) = mpsc::channel::<McpePacket>(1 << 12);
-    let viewer = world
-        .spawn((
-            Player,
-            Position(DVec3::new(0.5, 100.0, 0.5)),
-            PlayerSession::new(1, "viewer".into(), None, None, tx),
-        ))
-        .id();
     let feet = DVec3::new(
         f64::from(native.position.x),
         f64::from(native.position.y),
         f64::from(native.position.z),
     );
+    // A viewer next to the summon, in its send range.
+    let viewer = world
+        .spawn((
+            Player,
+            Position(feet + DVec3::new(3.0, 1.62, 0.0)),
+            PlayerSession::new(1, "viewer".into(), None, None, tx),
+        ))
+        .id();
     let (cx, cz) = crate::world::ecs::world_to_chunk_coords(feet.x as i32, feet.z as i32);
     let mut chunk_viewers = ChunkViewers::default();
     chunk_viewers.insert(viewer);
@@ -593,4 +645,188 @@ fn the_summon_tick_add_actor_shows_the_mob_before_its_first_move() {
         .unwrap();
     assert_eq!(add.position, native.position);
     assert_eq!(add.velocity, native.velocity);
+}
+
+/// A position update as a viewer saw it: sample, position axes, ground
+/// contact and `ticks`.
+type DeltaSeen = (usize, [Option<f64>; 3], bool, u64);
+
+/// The minecart and the boat (not spawnable here) through the movement
+/// replication alone: fed the positions and ground contact BDS sampled, each
+/// viewer gets BDS's updates. The first update after rest uses their default
+/// values (20 ticks over 60 blocks: `ticks` 10 for the player 32 blocks away,
+/// 17 for the observer at 51), every later one while they keep falling goes
+/// out every tick with `ticks` 0 (`is_moving`: 0 / 0), and a fall that
+/// leaves the ground goes at once.
+#[test]
+fn vehicles_update_every_tick_while_they_move() {
+    for key in [
+        "minecart|fall-32|natural",
+        "minecart|rest-fall|natural",
+        "boat|rest-fall|natural",
+    ] {
+        let trial = &fixture()["trials"][key];
+        let bandwidth = bandwidth_of(trial["actor"].as_str().unwrap()).unwrap();
+        let samples = trial["samples"].as_array().unwrap();
+        let offset = DVec3::Y * trial["wire_offset"].as_f64().unwrap();
+        let wire_at = |sample: usize| vec3(&samples[sample]) + offset;
+        let ground_at = |sample: usize| samples[sample][3].as_u64().unwrap() == 1;
+        let rotation = |sample: usize| Rotation {
+            pitch: samples[sample][4].as_f64().unwrap() as f32,
+            yaw: samples[sample][5].as_f64().unwrap() as f32,
+            head_yaw: 0.0,
+        };
+        let mut world = World::new();
+        let viewers: Vec<(&str, Entity, DVec3)> = VIEWERS
+            .into_iter()
+            .filter_map(|name| {
+                let seen = &trial["viewers"][name];
+                let at = &seen["positions"][0];
+                let eye = DVec3::new(
+                    at[1].as_f64()?,
+                    at[2].as_f64()? + crate::entity::PLAYER_EYE_HEIGHT,
+                    at[3].as_f64()?,
+                );
+                Some((name, world.spawn_empty().id(), eye))
+            })
+            .collect();
+        let movers: Vec<Entity> = viewers.iter().map(|(_, entity, _)| *entity).collect();
+        let added = &trial["viewers"]["player"]["wire"][0]["add"];
+        let mut net = MobNetState::spawned(
+            vec3(&added["pos"]),
+            vec3(&added["vel"]),
+            rotation(0),
+            ground_at(0),
+        );
+        let mut ours: Vec<(&str, DeltaSeen)> = Vec::new();
+        for sample in 1..samples.len() {
+            let movement = Movement::new(
+                1,
+                wire_at(sample),
+                &rotation(sample),
+                ground_at(sample),
+                wire_at(sample) - wire_at(sample - 1),
+            );
+            replicate_movement(
+                &mut net,
+                &movement,
+                Some(&bandwidth),
+                &movers,
+                sample as u64,
+                |viewer| {
+                    viewers
+                        .iter()
+                        .find(|(_, entity, _)| *entity == viewer)
+                        .map(|(_, _, eye)| *eye)
+                },
+                |viewer, packet| {
+                    if let McpePacketData::MoveActorDeltaPacket(delta) = &packet.data {
+                        let data = &delta.move_data;
+                        let name = viewers.iter().find(|(_, e, _)| *e == viewer).unwrap().0;
+                        let axes = [
+                            data.new_position_x,
+                            data.new_position_y,
+                            data.new_position_z,
+                        ]
+                        .map(|axis| axis.map(f64::from));
+                        ours.push((name, (sample, axes, data.is_on_ground, data.ticks)));
+                    }
+                },
+            );
+        }
+        for (name, _, _) in &viewers {
+            let bds: Vec<DeltaSeen> = trial["viewers"][name]["wire"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|event| event.get("delta").is_some())
+                .map(|event| {
+                    (
+                        event["sample"].as_u64().unwrap() as usize,
+                        std::array::from_fn::<_, 3, _>(|axis| event["delta"][axis].as_f64()),
+                        event["ground"].as_bool().unwrap(),
+                        event["ticks"].as_u64().unwrap(),
+                    )
+                })
+                .collect();
+            let mine: Vec<DeltaSeen> = ours
+                .iter()
+                .filter(|(viewer, _)| viewer == name)
+                .map(|(_, seen)| *seen)
+                .collect();
+            assert_eq!(mine.len(), bds.len(), "{key} {name}: {mine:?}\nBDS {bds:?}");
+            for (ours, bds) in mine.iter().zip(&bds) {
+                let same_axes = ours.1.iter().zip(&bds.1).all(|(a, b)| match (a, b) {
+                    (Some(a), Some(b)) => (a - b).abs() < TOLERANCE,
+                    (None, None) => true,
+                    _ => false,
+                });
+                assert!(
+                    ours.0 == bds.0 && same_axes && ours.2 == bds.2 && ours.3 == bds.3,
+                    "{key} {name}: {ours:?}, BDS {bds:?}"
+                );
+            }
+        }
+    }
+}
+
+/// A projectile's `AddActor` carries its pitch and yaw cut to whole
+/// rotation bytes and head and body yaw 0 (BDS 1.26.51: a dispensed arrow at
+/// pitch -5.768 and yaw 89.885 was added with -5.625 and 88.59375).
+#[test]
+fn a_projectile_add_actor_has_its_rotation_in_bytes_and_no_head_or_body_yaw() {
+    let replay = replay("arrow|wall|natural");
+    let trial = &fixture()["trials"]["arrow|wall|natural"];
+    let first = &trial["samples"][0];
+    let (pitch, yaw) = (
+        first[4].as_f64().unwrap() as f32,
+        first[5].as_f64().unwrap() as f32,
+    );
+    assert!(!replay.adds.is_empty());
+    for add in &replay.adds {
+        assert_eq!(
+            [
+                add.rotation.x,
+                add.rotation.y,
+                add.y_head_rotation,
+                add.y_body_rotation
+            ],
+            [-5.625, 88.59375, 0.0, 0.0]
+        );
+        assert_eq!(rotation_byte(add.rotation.y), rotation_byte(yaw));
+        assert_eq!(rotation_byte(add.rotation.x), rotation_byte(pitch));
+    }
+}
+
+/// BDS 1.26.51 sent no `MotionPredictionHints` to either viewer in any
+/// trial, although most of their actors have `use_motion_prediction_hints`
+/// (minecarts, the boat, arrows, the orb, the enderman, snowballs, the egg),
+/// and this server sends none in their replays.
+#[test]
+fn no_motion_prediction_hints_are_sent() {
+    let mut with_hints = 0;
+    for (key, trial) in fixture()["trials"].as_object().unwrap() {
+        for viewer in VIEWERS {
+            let Some(seen) = trial["viewers"].get(viewer) else {
+                continue;
+            };
+            assert!(
+                seen["wire"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|event| event.get("hint").is_none()),
+                "{key} {viewer}"
+            );
+        }
+        if let Some(bandwidth) = bandwidth_of(trial["actor"].as_str().unwrap())
+            && bandwidth.default.use_motion_prediction_hints
+        {
+            with_hints += 1;
+        }
+    }
+    assert!(with_hints >= 10, "{with_hints} trials of actors with hints");
+    for (key, _) in REPLAYED {
+        assert_eq!(replay(key).hints, 0, "{key}");
+    }
 }

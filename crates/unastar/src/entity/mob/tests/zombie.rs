@@ -236,6 +236,7 @@ fn spawned_baby_zombie_add_actor_matches_native_summon() {
         world.get::<Position>(zombie).unwrap().0,
         world.get::<Velocity>(zombie).unwrap().0,
         world.get::<Rotation>(zombie).unwrap(),
+        true,
         world.get::<EntityMetadata>(zombie).unwrap(),
         world.get::<ActorProperties>(zombie).unwrap(),
         world.get::<ActorAttributes>(zombie).unwrap(),

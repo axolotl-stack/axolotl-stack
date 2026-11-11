@@ -223,6 +223,7 @@ fn ours(world: &World, identifier: &str, mob: Entity) -> AddActorPacket {
         world.get::<Position>(mob).unwrap().0,
         world.get::<Velocity>(mob).unwrap().0,
         world.get::<Rotation>(mob).unwrap(),
+        true,
         world.get::<EntityMetadata>(mob).unwrap(),
         world.get::<ActorProperties>(mob).unwrap(),
         world.get::<ActorAttributes>(mob).unwrap(),

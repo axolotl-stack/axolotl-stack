@@ -168,8 +168,12 @@ fn step(
     hits.sort_by(|a, b| a.0.total_cmp(&b.0));
 
     let mut removed = false;
-    for &(_, target) in hits.iter() {
-        removed |= on_hit(world, projectile, flight.owner, rules, from, target);
+    for &(t, target) in hits.iter() {
+        // The effects happen where the segment meets the target: BDS
+        // 1.26.51 sends an xp bottle's splash event, orbs and hit sound at
+        // the top of the block it fell on.
+        let at = from + velocity * t;
+        removed |= on_hit(world, projectile, flight.owner, rules, from, at, target);
         if removed || !rules.multiple_targets {
             break;
         }
@@ -192,6 +196,12 @@ fn step(
         };
     next.y -= rules.gravity;
     let (yaw, pitch) = heading(velocity);
+    // A projectile that stuck in a block this tick stays where it met it,
+    // on the ground with no motion and its rotation as it was (`hit::stick`;
+    // BDS 1.26.51 falling and dispensed arrows).
+    if world.get::<super::Stuck>(projectile).is_some() {
+        return;
+    }
     let mut entity = world.entity_mut(projectile);
     entity.insert((Position(to), Velocity(next)));
     // The head yaw stays as spawned (0): BDS 1.26.51 never sends a
