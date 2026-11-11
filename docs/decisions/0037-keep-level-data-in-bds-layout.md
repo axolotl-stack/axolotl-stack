@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-10
 decision-makers: [project owner]
 ---
@@ -37,7 +37,7 @@ For unreadable data:
 
 ## Decision Outcome
 
-Proposed: option 1 with A. BDS's layout is the only one that lets a BDS world keep its settings in
+Chosen: option 1 with A (accepted by the owner, 2026-11-11). BDS's layout is the only one that lets a BDS world keep its settings in
 unastar and BDS open unastar's world; keeping the whole compound means no BDS setting is lost by
 a save. B loses the record at the first save; C runs a world whose changes vanish without a word.
 Per-area and per-structure records are independent, so one bad record should not keep the server

@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-10
 decision-makers: [project owner]
 ---
@@ -52,7 +52,8 @@ BDS stops; the records are in `crates/unastar/tests/fixtures/bds_1_26_51_level_d
 
 ## Decision Outcome
 
-Proposed: option 2, reached through option 3 first. Not implemented in the commands round 3,
+Chosen: option 2, reached through option 3 first (accepted by the owner, 2026-11-11). Not
+implemented in the commands round 3,
 because it is not low-risk yet:
 
 - The key for signed-in (Xbox) players is not measured: offline BDS on loopback only shows the
