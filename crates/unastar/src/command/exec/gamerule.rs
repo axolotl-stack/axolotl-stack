@@ -5,6 +5,10 @@
 //! a change broadcasts `GameRulesChanged` with that rule only and answers
 //! `commands.gamerule.success [rule as typed, value]`. `playerWaypoints` is an
 //! int on the wire, shown and set as `everyone`/`off`.
+//!
+//! While `sendCommandFeedback` is off (also right after turning it off), a
+//! change answers nothing: BDS's console printed no line for those changes,
+//! but did for every other command (level-data capture, set session).
 
 use crate::command::prelude::*;
 use crate::world::rules::GameRules;
@@ -21,8 +25,8 @@ arg_enum! {
 }
 
 impl Waypoints {
-    /// [INFERENCE] 1 is `everyone` (the BDS default, shown as `everyone`);
-    /// 0 is the enum's other value.
+    /// 1 is `everyone`, 0 `off` (measured: `level.dat` saves
+    /// `playerwaypoints` 0 after `/gamerule playerwaypoints off`).
     const fn wire(self) -> i32 {
         match self {
             Self::Everyone => 1,
@@ -93,6 +97,9 @@ pub fn run(ctx: &mut CommandContext<'_>, args: GameRuleArgs) -> CommandResult {
             rules_list: vec![wire],
         },
     });
+    if !ctx.world.resource::<GameRules>().sends_command_feedback() {
+        return Ok(CommandOutput::default().with_count(1));
+    }
     success!(
         "commands.gamerule.success",
         &*typed,

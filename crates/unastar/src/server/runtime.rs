@@ -78,12 +78,18 @@ impl UnastarServer {
         let dimension = config.server_config().world.dimension;
         let storage_provider = config.server_config().world.storage_provider;
 
-        let provider: Option<Arc<dyn crate::storage::WorldProvider>> = match storage_provider {
+        // The world database serves chunks and the level records.
+        type Providers = (
+            Arc<dyn crate::storage::WorldProvider>,
+            Arc<dyn crate::storage::level::LevelRecordStore>,
+        );
+        let providers: Option<Providers> = match storage_provider {
             crate::world::StorageProvider::LevelDb => {
                 match crate::storage::LevelDBWorldProvider::open(&world_db_path, dimension) {
                     Ok(provider) => {
                         info!(path = %world_db_path.display(), "Opened world LevelDB");
-                        Some(Arc::new(provider))
+                        let provider = Arc::new(provider);
+                        Some((provider.clone(), provider))
                     }
                     Err(e) => {
                         warn!(error = %e, "Failed to open world LevelDB, chunk persistence disabled");
@@ -100,7 +106,7 @@ impl UnastarServer {
                 match crate::storage::BlazeDBProvider::open(&world_db_path, Some(blaze_config)) {
                     Ok(provider) => {
                         info!(path = %world_db_path.display(), cache_capacity, "Opened world BlazeDB");
-                        Some(provider as Arc<dyn crate::storage::WorldProvider>)
+                        Some((provider.clone(), provider))
                     }
                     Err(e) => {
                         warn!(error = %e, "Failed to open world BlazeDB, chunk persistence disabled");
@@ -110,7 +116,25 @@ impl UnastarServer {
             }
         };
 
-        if let Some(provider) = provider {
+        if let Some((provider, level_records)) = providers {
+            // The world's level.dat and level records (clock, game rules,
+            // spawn, scoreboard, ...). Data that cannot be read stops the
+            // start rather than being replaced.
+            let new_world = crate::world::level_data::new_world(&config.server_config());
+            let level = crate::world::level_data::open(
+                crate::storage::level::LevelFiles::new(
+                    std::path::PathBuf::from("worlds").join("default"),
+                ),
+                level_records,
+                &new_world,
+            )
+            .await
+            .map_err(|e| format!("cannot load the world's level data: {e}"))?;
+            level
+                .apply(server.ecs.world_mut())
+                .map_err(|e| format!("cannot load the world's level data: {e}"))?;
+            info!("Loaded level data");
+
             // Set provider on ChunkManager resource for load-before-generate
             let world = server.ecs.world_mut();
             if let Some(mut chunk_manager) =
@@ -210,8 +234,15 @@ impl UnastarServer {
         let local_addr = listener.local_addr();
         info!("Listening on {:?}", local_addr);
 
-        // Where dead players respawn: the configured or generated world
-        // spawn (no player's previous position).
+        // Where dead players respawn: the world spawn the level data holds,
+        // else the configured or generated one (no player's previous
+        // position).
+        let level_spawn = self
+            .server
+            .ecs
+            .world()
+            .get_resource::<crate::world::level_data::LevelSpawn>()
+            .and_then(|spawn| spawn.0);
         let world_spawn = {
             let template = self
                 .server
@@ -220,12 +251,13 @@ impl UnastarServer {
                 .resource::<crate::server::game::types::ServerWorldTemplate>()
                 .0
                 .clone();
-            crate::server::resolve_spawn_location(
+            crate::server::connect::resolve_spawn_in_world(
                 &self.config,
                 None,
                 &template,
                 &self.player_data_store,
                 None,
+                level_spawn,
             )
             .await
         };
@@ -415,6 +447,14 @@ impl UnastarServer {
         info!(players = players_saved, "Player data saved");
         let chunks_saved = self.server.save_all_chunks().await;
         info!(chunks = chunks_saved, "Chunk data saved");
+        // After the chunks, so every saved mob has its unique id for the
+        // scoreboard.
+        if let Some(save) = crate::world::level_data::capture(self.server.ecs.world_mut()) {
+            match save.write().await {
+                Ok(()) => info!("Level data saved"),
+                Err(e) => error!(error = %e, "Failed to save the level data"),
+            }
+        }
         info!("Server shutdown complete");
         Ok(())
     }

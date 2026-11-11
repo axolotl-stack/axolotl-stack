@@ -126,6 +126,19 @@ impl WeatherLevels {
         };
     }
 
+    /// Levels a saved world had (`rainLevel`, `lightningLevel`), moving from
+    /// `tick` on towards `state`.
+    pub fn restored(rain: f32, lightning: f32, tick: u64, state: WeatherState) -> Self {
+        let mut levels = Self {
+            rain,
+            lightning,
+            since_tick: tick,
+            ..Self::default()
+        };
+        levels.retarget(tick, state);
+        levels
+    }
+
     /// What `/weather query` answers at `tick`.
     pub fn reported(&self, tick: u64) -> WeatherState {
         match self.at(tick) {

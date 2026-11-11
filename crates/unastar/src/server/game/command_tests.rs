@@ -266,7 +266,19 @@ fn time_set_night_moves_the_clock_and_syncs_players() {
             .collect();
         assert_eq!(synced, [13_001]);
     }
-    assert_eq!(start_game(&server).level_current_time, 13_001);
+    // A joining player's StartGame carries the clock as the day cycle's
+    // stop time and the ticks the level has run as its time (both measured
+    // on BDS 1.26.51; see `world::level_data`).
+    // (The clock system publishes the tick count before the tick ends.)
+    assert_eq!(start_game(&server).settings.day_cycle_stop_time, 13_001);
+    assert_eq!(
+        start_game(&server).level_current_time + 1,
+        server
+            .ecs
+            .world()
+            .resource::<crate::ecs::resources::TickCounter>()
+            .current
+    );
 
     command(&mut server, &op, "/time query daytime");
     assert_eq!(

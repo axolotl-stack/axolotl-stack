@@ -602,11 +602,10 @@ Commands follow BDS 1.26.51 (`src/command/`):
   (`src/server/game/command_order_tests.rs`). A request that arrives after an
   input runs after all of the tick's inputs.
 
-Every command BDS advertises is implemented except `/locate`, `/packstack`,
-`/place`, `/reloadconfig`, `/reloadpacketlimitconfig`, `/ride`, `/script` and
-`/wsserver` (and the Editor's `/editor-allowlist`); these stay advertised
-exactly as BDS sends them and answer a literal "/<name> is not implemented in
-unastar yet" failure. Each command's status is in
+Every command BDS advertises is implemented except `/packstack` and `/ride`
+(and the Editor's `/editor-allowlist`); these stay advertised exactly as BDS
+sends them and answer a literal "/<name> is not implemented in unastar yet"
+failure. As on BDS, a line is parsed before its permission is checked. Each command's status is in
 [`docs/parity/commands.toml`](../../docs/parity/commands.toml); odd BDS answers
 copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 
@@ -617,7 +616,7 @@ copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 | `/gamemode` | Also resends `UpdateAbilities`; `default` puts the player in the configured mode instead of keeping it on `default` | Unastar's join abilities depend on the game mode; no `default` player mode |
 | `/effect` | Speed/slowness do not change movement and send no movement attribute modifier | No attribute-modifier system yet |
 | `/weather`, `/toggledownfall` | State, client events and the fading levels `/weather query` reports; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
-| `/setworldspawn`, `/scoreboard`, `/tickingarea`, `/structure`, `/mobevent` | The world spawn, objectives and scores, ticking areas, structures and mob event switches are not saved with the world (players' spawn points, tags and recipes, and mobs' tags, are) | No level-data store yet |
+| `/setworldspawn` | New players stand in the world spawn block; BDS's `spawnRadius` spread is not applied | Not measured |
 | `/scoreboard` | `belowname` sends no score actor data | Not built |
 | `/tickingarea` | Areas do not keep their chunks loaded or ticking | Chunk loading follows players only |
 | `/fill`, `/clone`, `/structure` | One `UpdateBlock` per block instead of `UpdateSubChunkBlocks`; `/clone` copies no block-entity data; `/structure` neither turns block states with the box nor saves block entities or entities | Block update path |
@@ -626,8 +625,9 @@ copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 | `/replaceitem` | No armour equip sound; armour and offhand changes resend the whole inventory | No equip-sound table |
 | `/mobevent`, `/scriptevent` | Switches and events are kept or acknowledged but nothing acts on them | No mob events or behaviour-pack scripts |
 | `/aimassist` | `set` always answers that the camera type is unsupported | The client's camera type is not tracked |
+| `/place`, `/locate` | `/place` answers only an unknown structure name; `/locate` finds no structure in flat and void worlds; placing, structure search in generated terrain and biome search answer "not implemented" | No command-driven placement; BDS's search order is not measured |
+| `/script`, `/wsserver`, `/reloadconfig`, `/reloadpacketlimitconfig` | Answer as BDS without script packs; `script diagnostics stopcapture` answers "not implemented"; no websocket connection is made | No script runtime or websocket client |
 | `/dialogue`, `/gametest` | Answer as BDS does for a world without NPC dialogue or GameTests | No NPC dialogue; no behaviour-pack scripts |
-| `/loot` | An unquoted table path with a `/` is read whole; BDS answers a syntax error at the `/` | Shared string lexing |
 | `/tellraw`, `/titleraw` | A malformed JSON message's syntax error names another token | Unastar parses JSON in one piece |
 | `/help` | Lists the operator listing for the console too | Owner-only usage lines were not captured |
 | Item names in feedback | Flattened block items without their own language key use the title-cased identifier ("Red Wool") | Block names are measured as translation keys only |
@@ -820,6 +820,23 @@ left in storage rather than deleted. When `players.save_previous_position` is
 enabled, saves also update the per-player TOML position used by spawn rules.
 Spawn rules retain their ordering and only use saved positions in the current
 dimension.
+
+Level data is kept as BDS 1.26.51 keeps it (`src/storage/level/`,
+`src/world/level_data.rs`): `worlds/default/level.dat` (clock, tick count,
+game rules, world spawn, weather, difficulty, and every BDS setting unastar
+does not use, written back as read) and the world database's `scoreboard`,
+`mobevents`, `WorldClocks`, `tickingarea_<uuid>` and `structuretemplate_<name>`
+records (BlazeDB keeps the records in a checked side file). It loads before
+players join and saves at shutdown after the chunks. Like BDS with
+`server.properties`, the configured difficulty applies at every start. Players
+keep their scores through leaving and restarts (their record's `unique_id`),
+and saved mobs through unloading. An unreadable `level.dat`, `scoreboard`,
+`mobevents` or `WorldClocks` stops the start and is left as it is; an
+unreadable ticking area or structure record is skipped and kept. A world BDS
+saved opens with its settings, and BDS opens one unastar saved
+(`src/world/level_data/tests.rs` against
+`tests/fixtures/bds_1_26_51_level_data.json`, from
+`tools/bds-sweep/level_data.py`).
 
 Regression coverage: `cargo test -p unastar --test persistence` exercises both
 world providers, stored-column preservation through asynchronous loading and

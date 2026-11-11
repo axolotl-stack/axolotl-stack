@@ -190,13 +190,37 @@ fn run_player_request(world: &mut World, entity: Entity, request: CommandRequest
         return;
     };
     print_console_notes(world);
-    // BDS answers `/say` and `/me` with their chat line only.
-    if output.messages.is_empty() {
+    let Some(packet) = player_answer(world, &output, request.origin) else {
         return;
-    }
+    };
     if let Some(session) = world.get::<PlayerSession>(entity) {
-        let _ = session.send(McpePacket::from(output.to_packet(request.origin)));
+        let _ = session.send(McpePacket::from(packet));
     }
+}
+
+/// The `CommandOutput` a player gets for its command, if any. BDS answers
+/// `/say` and `/me` with their chat line only. While `sendCommandFeedback`
+/// is off it sends nothing for a success and a failure with output type
+/// `silent` (measured: `tools/bds-sweep/level_data.py`'s player).
+pub(crate) fn player_answer(
+    world: &World,
+    output: &crate::command::CommandOutput,
+    origin: jolyne::valentine::types::CommandOriginDatajson,
+) -> Option<jolyne::valentine::CommandOutputPacket> {
+    if output.messages.is_empty() {
+        return None;
+    }
+    let feedback = world
+        .get_resource::<crate::world::rules::GameRules>()
+        .is_none_or(crate::world::rules::GameRules::sends_command_feedback);
+    let mut packet = output.to_packet(origin);
+    if !feedback {
+        if output.is_success() {
+            return None;
+        }
+        packet.output.output_type = "silent".into();
+    }
+    Some(packet)
 }
 
 /// Prints the extra console lines the last command left

@@ -5,9 +5,10 @@
 //! instead of scanning the StartGame template; the systems in
 //! `world::clock` advance the clock and replicate changes to players.
 //!
-//! None of this is persisted: the server has no level-data store (only
-//! chunk columns and player records are saved), so the clock, difficulty
-//! and game rules start from the configuration on every launch.
+//! They are saved with the world's level data (`crate::world::level_data`):
+//! the clock and game rules are restored when the world loads; the
+//! difficulty comes from the configuration at every start, as BDS takes it
+//! from `server.properties`.
 
 use std::sync::Arc;
 
@@ -212,6 +213,15 @@ impl GameRules {
         *self.slot(rule) = value;
     }
 
+    /// `sendCommandFeedback`: whether players are told what their commands
+    /// did.
+    pub fn sends_command_feedback(&self) -> bool {
+        !matches!(
+            self.value("sendCommandFeedback"),
+            Some((_, GameRuleValue::Bool(false)))
+        )
+    }
+
     /// One gameplay rule as `GameRulesChanged` carries it.
     pub fn wire(&self, rule: GameRule) -> WireGameRule {
         self.wire_named(rule.name())
@@ -337,6 +347,10 @@ struct StartGameSnapshot {
     time: WorldTime,
     difficulty: Difficulty,
     rules: GameRules,
+    /// Ticks the level has run, over every start (`currentTick`).
+    level_tick: u64,
+    /// The world spawn a command set or the level data holds.
+    world_spawn: Option<glam::IVec3>,
 }
 
 impl StartGameWorldState {
@@ -349,13 +363,38 @@ impl StartGameWorldState {
         }
     }
 
-    /// Write the clock, difficulty and game rules into a player's StartGame.
+    pub fn set_level_tick(&self, tick: u64) {
+        self.0.lock().level_tick = tick;
+    }
+
+    pub fn set_world_spawn(&self, spawn: Option<glam::IVec3>) {
+        self.0.lock().world_spawn = spawn;
+    }
+
+    /// The world spawn a command set or the level data holds.
+    pub fn world_spawn(&self) -> Option<glam::IVec3> {
+        self.0.lock().world_spawn
+    }
+
+    /// Write the level time, clock, difficulty, game rules and world spawn
+    /// into a player's StartGame. Measured (BDS 1.26.51 rejoin after a
+    /// restart, `tools/bds-sweep/level_data.py`): `level_current_time` is
+    /// the ticks the level has run (`/time query gametime`, 751 while the
+    /// clock read 4321), `day_cycle_stop_time` the clock (4321; 32 in the
+    /// member join capture, where both read 32) and
+    /// `default_spawn_block_position` the world spawn.
     pub fn apply(&self, start: &mut StartGamePacket) {
         let snapshot = self.0.lock();
-        // [INFERENCE] a negative clock keeps its two's-complement bits in
-        // StartGame's unsigned field (not captured).
-        start.level_current_time = snapshot.time.ticks as u64;
+        start.level_current_time = snapshot.level_tick;
+        start.settings.day_cycle_stop_time = snapshot.time.wire();
         start.settings.game_difficulty = snapshot.difficulty.legacy();
         start.settings.rule_data = snapshot.rules.packet_data();
+        if let Some(spawn) = snapshot.world_spawn {
+            start.settings.default_spawn_block_position = jolyne::valentine::types::BlockPos {
+                x: spawn.x,
+                y: spawn.y,
+                z: spawn.z,
+            };
+        }
     }
 }

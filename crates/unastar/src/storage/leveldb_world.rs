@@ -56,6 +56,11 @@ impl LevelDBWorldProvider {
     pub fn dimension(&self) -> i32 {
         self.dimension
     }
+
+    /// The database handle, for the level records (`storage::level`).
+    pub(crate) fn database(&self) -> Arc<DB> {
+        self.db.clone()
+    }
 }
 
 #[async_trait]

@@ -1,0 +1,473 @@
+{
+ "source": "BDS 1.26.51, a new flat world (seed 12345): console lines, then an operator player",
+ "generator": "tools/bds-sweep/command_probe.py",
+ "console": [
+  {
+   "command": "tickingarea add 0 0 0 47 0 47 probe true",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Added ticking area from 0, 0, 0 to 47, 0, 47 marked for preload.\n1/10 ticking areas in use."
+    }
+   ]
+  },
+  {
+   "command": "reloadconfig",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "No CDN config file found at: cdn_config.json for dedicated server"
+    },
+    {
+     "level": "INFO",
+     "text": "Pack configurations have been reloaded from disk from 'config'"
+    }
+   ]
+  },
+  {
+   "command": "reloadpacketlimitconfig",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Packet limit config updated"
+    }
+   ]
+  },
+  {
+   "command": "wsserver ws://127.0.0.1:1",
+   "records": []
+  },
+  {
+   "command": "wsserver out",
+   "records": []
+  },
+  {
+   "command": "script debugger listen 19399",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Inbound connections are disabled"
+    }
+   ]
+  },
+  {
+   "command": "script debugger close",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Debugger closed"
+    }
+   ]
+  },
+  {
+   "command": "script debugger connect",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Outbound connections are disabled"
+    }
+   ]
+  },
+  {
+   "command": "script profiler start",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Profiler started"
+    }
+   ]
+  },
+  {
+   "command": "script profiler stop",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Profiler stopped. Failed to save profile."
+    }
+   ]
+  },
+  {
+   "command": "script diagnostics startcapture",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Diagnostics capture started"
+    }
+   ]
+  },
+  {
+   "command": "script diagnostics stopcapture",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Diagnostics capture stopped - saved to '<home>/AppData/Roaming/Minecraft Bedrock Server/logs/diagnostics/diagnostics_2026-11-10_21-57-43.mcstats'        "
+    }
+   ]
+  },
+  {
+   "command": "packstack resource",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Syntax error: Unexpected \"resource\": at \"packstack >>resource<<\""
+    }
+   ]
+  },
+  {
+   "command": "packstack server",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "@minecraft/server TS Library (0.0.1)\n\n@minecraft/server-ui TS Library (0.0.1)\n\nresourcePack.vanilla_server.name (1.26.51)\n"
+    }
+   ]
+  },
+  {
+   "command": "packstack client",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Minecraft Texture Pack (0.0.1)\n"
+    }
+   ]
+  },
+  {
+   "command": "packstack server verbose",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Pack Name: @minecraft/server TS Library\n  UUID: 37ca4282-69e9-4402-b40b-0b07de579f02\n  Type: Behavior\n  Version: 0.0.1\n\n\nPack Name: @minecraft/server-ui TS Library\n  UUID: f53f490f-9d47-45ca-86de-0946b6d1c366\n  Type: Behavior\n  Version: 0.0.1\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.26.51\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.26.50\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.26.40\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.26.30\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.26.20\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.26.10\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.26.0\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.130\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.120\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.110\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.100\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.90\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.80\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.70\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.60\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.50\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.40\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.30\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.20\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.10\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.21.0\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.20.80\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.20.70\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.20.60\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.20.50\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.20.40\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.20.30\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.20.20\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.20.10\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.20.0\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.19.80\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.19.70\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.19.60\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.19.50\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.19.40\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.19.30\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.19.20\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.19.10\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.19.0\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.18.30\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.18.20\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.18.10\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.18.0\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.17.40\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.17.30\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.17.20\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.17.10\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.17.0\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.16.220\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.16.210\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.16.200\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.16.100\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.16.0\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.15.0\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 1.14.0\n\n\nPack Name: resourcePack.vanilla_server.name\n  UUID: fe9f8597-5454-481a-8730-8d070a8e2e58\n  Type: Behavior\n  Version: 0.0.1\n\n"
+    }
+   ]
+  },
+  {
+   "command": "packstack server verbose exclude-vanilla",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "No packs found"
+    }
+   ]
+  },
+  {
+   "command": "place feature minecraft:no_such_feature",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Syntax error: Unexpected \"minecraft:no_such_feature\": at \"e feature >>minecraft:no_such_feature<<\""
+    }
+   ]
+  },
+  {
+   "command": "place structure minecraft:no_such_structure 0 -60 0",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Invalid structure name."
+    }
+   ]
+  },
+  {
+   "command": "place jigsaw minecraft:no_such_pool minecraft:bottom 2 0 -60 0",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "[Structure] [[Jigsaw Structure]] couldn't be constructed, no pool named `minecraft:no_such_pool`\n\n"
+    },
+    {
+     "level": "ERROR",
+     "text": "Jigsaw structure generation failed."
+    }
+   ]
+  },
+  {
+   "command": "locate biome plains",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Syntax error: Unexpected \"plains\": at \"ate biome >>plains<<\""
+    }
+   ]
+  },
+  {
+   "command": "locate biome minecraft:plains",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "The nearest minecraft:plains is at block -32, -60, -32 (45 blocks away)"
+    }
+   ]
+  },
+  {
+   "command": "locate biome minecraft:desert",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Could not find a biome of type minecraft:desert within a reasonable distance"
+    }
+   ]
+  },
+  {
+   "command": "locate structure village",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "No valid structure found within a reasonable distance"
+    }
+   ]
+  },
+  {
+   "command": "ride @e[type=cow] stop_riding",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "No targets matched selector"
+    }
+   ]
+  }
+ ],
+ "player": [
+  {
+   "command": "/locate biome plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "ate biome ",
+      "plains",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "-32",
+      "-60",
+      "-32",
+      "45"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:desert",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.fail",
+     "params": [
+      "minecraft:desert"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/locate structure village",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.locate.structure.fail.nostructurefound",
+     "params": [],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/locate structure village true",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.locate.structure.fail.nostructurefound",
+     "params": [],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/summon pig 3 -60 3",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.summon.success",
+     "params": [],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/ride @s start_riding @e[type=pig,c=1]",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.ride.startRiding.failure",
+     "params": [
+      "BDSExtractor"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/ride @s stop_riding",
+   "output": null,
+   "messages": []
+  },
+  {
+   "command": "/ride @e[type=pig,c=1] evict_riders",
+   "output": null,
+   "messages": []
+  },
+  {
+   "command": "/ride @s summon_ride horse",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.ride.summonRide.success",
+     "params": [
+      "BDSExtractor"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/ride @s stop_riding",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.ride.stopRiding.success",
+     "params": [
+      "BDSExtractor"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/packstack server",
+   "output": {
+    "type": "alloutput",
+    "success_count": 3
+   },
+   "messages": [
+    {
+     "key": "@minecraft/server TS Library (0.0.1)\n",
+     "params": [],
+     "success": true
+    },
+    {
+     "key": "@minecraft/server-ui TS Library (0.0.1)\n",
+     "params": [],
+     "success": true
+    },
+    {
+     "key": "resourcePack.vanilla_server.name (1.26.51)\n",
+     "params": [],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/packstack client verbose",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "Pack Name: Minecraft Texture Pack\n  UUID: 0575c61f-a5da-4b7f-9961-ffda2908861e\n  Type: Resources\n  Version: 0.0.1\n\n",
+     "params": [],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/place feature minecraft:no_such_feature",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "e feature ",
+      "minecraft:no_such_feature",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/wsserver ws://127.0.0.1:1",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.error.permissions",
+     "params": [
+      "wsserver"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/reloadconfig",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.error.permissions",
+     "params": [
+      "reloadconfig"
+     ],
+     "success": false
+    }
+   ]
+  }
+ ]
+}

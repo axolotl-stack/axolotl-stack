@@ -5,6 +5,7 @@ pub mod chunk;
 pub mod clock;
 pub mod ecs;
 pub mod generator;
+pub mod level_data;
 pub mod regional_difficulty;
 pub mod rules;
 pub mod scoreboard;

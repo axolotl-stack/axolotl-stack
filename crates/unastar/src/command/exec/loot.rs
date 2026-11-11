@@ -397,9 +397,6 @@ mod bds_capture {
     #[test]
     fn loot_matches_the_bds_capture() {
         let differ = [
-            // BDS's lexer ends an unquoted string at `/` and answers a
-            // syntax error there; unastar reads the whole word.
-            "/loot spawn 28 201 8 loot entities/wither_boss",
             // unastar's mob runtime cannot spawn armor stands yet (the
             // summon row's gap); `kill` is tested on a pig below.
             "/summon armor_stand 4 200 4",

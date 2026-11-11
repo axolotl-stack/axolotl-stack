@@ -77,12 +77,13 @@ pub async fn accept_join_sequence(
     // 5. Resolve spawn before StartGame.
     let uuid = identity.uuid().to_string();
     let mut saved_data = load_player_data(player_provider, Some(&uuid)).await;
-    let spawn = resolve_spawn_location(
+    let spawn = resolve_spawn_in_world(
         config,
         Some(&uuid),
         world.template,
         player_data_store,
         saved_data.as_ref(),
+        world.state.world_spawn(),
     )
     .await;
     if let Some(saved) = &mut saved_data {
@@ -112,10 +113,19 @@ pub async fn accept_join_sequence(
             _ => unreachable!("player state validated on load"),
         };
     }
-    join_params.start_game.settings.default_spawn_block_position = BlockPos {
-        x: spawn.x.floor() as i32,
-        y: spawn.y.floor() as i32,
-        z: spawn.z.floor() as i32,
+    // The world spawn when one is set (BDS sends it even to a player who
+    // spawns elsewhere), else where this player spawns.
+    join_params.start_game.settings.default_spawn_block_position = match world.state.world_spawn() {
+        Some(block) => BlockPos {
+            x: block.x,
+            y: block.y,
+            z: block.z,
+        },
+        None => BlockPos {
+            x: spawn.x.floor() as i32,
+            y: spawn.y.floor() as i32,
+            z: spawn.z.floor() as i32,
+        },
     };
     join_params.start_game.rotation = Vec2 {
         x: spawn.pitch,
@@ -163,6 +173,21 @@ pub async fn resolve_spawn_location(
     player_data_store: &PlayerDataStore,
     saved_data: Option<&PlayerData>,
 ) -> SpawnLocation {
+    resolve_spawn_in_world(config, uuid, template, player_data_store, saved_data, None).await
+}
+
+/// [`resolve_spawn_location`] in a world whose spawn a command set or the
+/// level data holds (`world_spawn`, a block): a player no rule places
+/// (previous position, `always_at_location`) spawns standing in it, before
+/// any fallback location or the generator's spawn.
+pub async fn resolve_spawn_in_world(
+    config: &UnastarConfig,
+    uuid: Option<&str>,
+    template: &WorldTemplate,
+    player_data_store: &PlayerDataStore,
+    saved_data: Option<&PlayerData>,
+    world_spawn: Option<glam::IVec3>,
+) -> SpawnLocation {
     let world_dimension = template
         .start_game_template
         .settings
@@ -207,6 +232,17 @@ pub async fn resolve_spawn_location(
         {
             return location;
         }
+    }
+
+    if let Some(block) = world_spawn {
+        let at = crate::world::level_data::standing_in(block);
+        return SpawnLocation {
+            x: at.x as f32,
+            y: at.y as f32,
+            z: at.z as f32,
+            yaw: 0.0,
+            pitch: 0.0,
+        };
     }
 
     // Fallback: if any rule has a location, use it directly

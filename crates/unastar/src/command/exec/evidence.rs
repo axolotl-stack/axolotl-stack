@@ -114,7 +114,7 @@ fn decode_hex(hex: &str) -> Vec<u8> {
 }
 
 /// Decodes one packet (header and payload, as the capture stores it).
-fn decode(bytes: &[u8]) -> McpePacketData {
+pub fn decode(bytes: &[u8]) -> McpePacketData {
     let mut framed = Vec::with_capacity(bytes.len() + 5);
     let mut length = bytes.len() as u32;
     while length >= 0x80 {

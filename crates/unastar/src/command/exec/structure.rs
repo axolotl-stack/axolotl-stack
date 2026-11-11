@@ -14,13 +14,19 @@
 //!   `includeBlocks false` places none; a box below the world answers
 //!   `y.tooLow [-64]`.
 //!
-//! Structures live for the session in [`Structures`]: a `disk` save is
-//! marked as one but nothing writes structures with the world yet. Block
-//! states are not rotated with the box, block entities and entities are not
-//! saved, and integrity drops blocks at random from the seed.
+//! Structures live in [`Structures`]; those saved in `disk` mode are saved
+//! with the world as `structuretemplate_<name>` records in BDS's layout
+//! (`crate::world::level_data`): `memory` saves are gone after a restart, as
+//! on BDS. Block states are not rotated with the box, block entities and
+//! entities are not saved, and integrity drops blocks at random from the
+//! seed.
 
 use crate::command::prelude::*;
+use crate::registry::BlockRegistry;
+use crate::registry::block::StateValue;
 use crate::server::game::blocks::{block_at, set_block};
+use crate::storage::level::nbt::{Compound, Tag};
+use crate::storage::level::records::{BLOCK_STATE_VERSION, StoredBlockState, StoredStructure};
 use crate::world::chunk::blocks::AIR;
 use bevy_ecs::prelude::Resource;
 use rand::{Rng, SeedableRng};
@@ -35,14 +41,134 @@ pub struct StructureTemplate {
     pub size: IVec3,
     /// Block states, z fastest, then y, then x (the `.mcstructure` order).
     pub blocks: Vec<u32>,
-    /// Saved in `disk` mode (to be kept with the world; not written yet).
+    /// Saved in `disk` mode: kept with the world (`structuretemplate_<name>`).
     pub disk: bool,
+    /// The box's lowest corner when it was saved.
+    pub origin: IVec3,
 }
 
 impl StructureTemplate {
     fn index(&self, x: i32, y: i32, z: i32) -> usize {
         ((x * self.size.y + y) * self.size.z + z) as usize
     }
+
+    /// The structure as its `structuretemplate_<name>` record stores it
+    /// (BDS's layout: the palette in the order blocks first appear, one
+    /// layer of indices, no actors or block entity data).
+    pub fn to_stored(&self, blocks: &BlockRegistry) -> StoredStructure {
+        let mut palette: Vec<u32> = Vec::new();
+        let indices = self
+            .blocks
+            .iter()
+            .map(
+                |block| match palette.iter().position(|known| known == block) {
+                    Some(index) => index as i32,
+                    None => {
+                        palette.push(*block);
+                        palette.len() as i32 - 1
+                    }
+                },
+            )
+            .collect();
+        StoredStructure {
+            size: self.size.to_array(),
+            origin: self.origin.to_array(),
+            layers: vec![indices],
+            palette: palette
+                .iter()
+                .map(|block| stored_state(blocks, *block))
+                .collect(),
+            entities: Vec::new(),
+            block_position_data: Compound::new(),
+        }
+    }
+
+    /// The structure a record holds. Fails for what unastar's structures
+    /// cannot hold (structure void, a second layer, actors, block entity
+    /// data) and for blocks that are not in the 1.26.51 palette, so such a
+    /// record stays as it is instead of loading without part of it.
+    pub fn from_stored(stored: &StoredStructure, blocks: &BlockRegistry) -> Result<Self, String> {
+        if !stored.entities.is_empty() {
+            return Err("it holds actors, which unastar's structures do not".into());
+        }
+        if !stored.block_position_data.is_empty() {
+            return Err("it holds block entity data, which unastar's structures do not".into());
+        }
+        if stored.layers[1..]
+            .iter()
+            .any(|layer| layer.iter().any(|index| *index != -1))
+        {
+            return Err("it has a second block layer, which unastar's structures do not".into());
+        }
+        let palette = stored
+            .palette
+            .iter()
+            .map(|state| runtime_state(blocks, state))
+            .collect::<Result<Vec<u32>, String>>()?;
+        let blocks = stored.layers[0]
+            .iter()
+            .map(|index| {
+                usize::try_from(*index)
+                    .ok()
+                    .and_then(|index| palette.get(index).copied())
+                    .ok_or_else(|| {
+                        "it has structure void, which unastar's structures do not".to_owned()
+                    })
+            })
+            .collect::<Result<Vec<u32>, String>>()?;
+        Ok(Self {
+            size: IVec3::from_array(stored.size),
+            blocks,
+            disk: true,
+            origin: IVec3::from_array(stored.origin),
+        })
+    }
+}
+
+fn state_tag(value: StateValue) -> Tag {
+    match value {
+        StateValue::Byte(v) => Tag::Byte(v as i8),
+        StateValue::Int(v) => Tag::Int(v),
+        StateValue::Str(v) => Tag::String(v.to_owned()),
+    }
+}
+
+/// The states of a canonical block state, as palette entries hold them.
+fn state_compound(entry: &crate::registry::block::BlockEntry, runtime_id: u32) -> Compound {
+    entry
+        .data
+        .properties
+        .iter()
+        .filter_map(|property| {
+            entry
+                .state_value(runtime_id, property.name)
+                .map(|value| (property.name.to_owned(), state_tag(value)))
+        })
+        .collect()
+}
+
+/// A block state as a structure palette entry (BDS writes the 1.26.51 block
+/// version with every entry).
+fn stored_state(blocks: &BlockRegistry, runtime_id: u32) -> StoredBlockState {
+    let entry = blocks
+        .get_by_runtime_id(runtime_id)
+        .expect("structures hold canonical block states");
+    StoredBlockState {
+        name: entry.string_id.clone(),
+        states: state_compound(entry, runtime_id),
+        version: BLOCK_STATE_VERSION,
+    }
+}
+
+/// The canonical state a palette entry names: its block and exactly its
+/// states. Names from older versions are not upgraded.
+fn runtime_state(blocks: &BlockRegistry, state: &StoredBlockState) -> Result<u32, String> {
+    let entry = blocks
+        .get_by_name(&state.name)
+        .ok_or_else(|| format!("block {} is not in the 1.26.51 palette", state.name))?;
+    (entry.min_state_id..=entry.max_state_id)
+        .find(|runtime_id| state_compound(entry, *runtime_id) == state.states)
+        .ok_or_else(|| format!("{} has no state {:?}", state.name, state.states))
 }
 
 /// Saved structures by full name (`mystructure:s1`).
@@ -287,6 +413,7 @@ fn save(
                 size,
                 blocks,
                 disk: mode == Some(SaveMode::Disk),
+                origin: min,
             },
         );
     success!("commands.structure.save.success", full)

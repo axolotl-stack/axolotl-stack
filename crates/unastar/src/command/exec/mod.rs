@@ -32,10 +32,14 @@ mod loot;
 mod mobevent;
 mod music;
 mod op;
+mod place;
+#[cfg(test)]
+pub(crate) mod probe;
 mod recipe;
 mod replaceitem;
 mod scoreboard;
 mod scriptevent;
+mod server_tools;
 mod setblock;
 mod sound;
 mod spawnpoint;
@@ -63,13 +67,15 @@ pub use camera::{CameraState, join_packets as camera_join_packets};
 pub use function::{FunctionRegistry, run_due as run_scheduled_functions};
 pub use gamemode::set_game_mode;
 pub use kick::Kicked;
+pub use mobevent::MobEvents;
 pub use op::OperatorList;
 pub use recipe::{UnlockedRecipes, join_packet as recipes_join_packet};
+pub use scoreboard::join_packets as scoreboard_join_packets;
 pub(crate) use setblock::box_loaded;
 pub use stop::StopRequested;
 pub use structure::{StructureTemplate, Structures};
 pub use teleport::move_entity;
-pub use tickingarea::TickingAreas;
+pub use tickingarea::{TickingArea, TickingAreas};
 
 use super::registry::CommandRegistry;
 
@@ -114,6 +120,12 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(music::run)
         .register(op::run_op)
         .register(op::run_permission)
+        .register(place::run_place)
+        .register(place::run_locate)
+        .register(server_tools::run_reloadconfig)
+        .register(server_tools::run_reloadpacketlimitconfig)
+        .register(server_tools::run_script)
+        .register(server_tools::run_wsserver)
         .register(function::run_reload)
         .register(visuals::run_particle)
         .register(visuals::run_playanimation)

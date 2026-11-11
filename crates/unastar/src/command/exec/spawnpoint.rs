@@ -9,8 +9,9 @@
 //!
 //! The world spawn is the [`WorldSpawn`] players respawn at; a player's spawn
 //! point is its [`PlayerSpawnPoint`]. Both stand the player in the middle of
-//! the block. Joining players keep the configured spawn rules and the world
-//! spawn is not saved; a player's spawn point is saved with its player record.
+//! the block. The world spawn is saved with the level data (`SpawnX/Y/Z`)
+//! and new players spawn there unless a spawn rule always places them
+//! elsewhere; a player's spawn point is saved with its player record.
 
 use crate::command::prelude::*;
 use crate::entity::PLAYER_EYE_HEIGHT;
@@ -44,6 +45,15 @@ pub fn run_setworldspawn(ctx: &mut CommandContext<'_>, args: SetWorldSpawnArgs) 
     }
     let block = ctx.position(spawn_point).floor().as_ivec3();
     ctx.world.insert_resource(WorldSpawn(standing_in(block)));
+    // Saved with the level data (`SpawnX/Y/Z`); joining players spawn there.
+    ctx.world
+        .insert_resource(crate::world::level_data::LevelSpawn(Some(block)));
+    if let Some(state) = ctx
+        .world
+        .get_resource::<crate::world::rules::StartGameWorldState>()
+    {
+        state.set_world_spawn(Some(block));
+    }
     ctx.broadcast(spawn_packet(EnumsSpawnPositionType::Worldspawn, block));
     success!("commands.setworldspawn.success", block.x, block.y, block.z)
 }

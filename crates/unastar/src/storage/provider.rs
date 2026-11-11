@@ -133,6 +133,10 @@ pub struct PlayerData {
     /// recipes were stored: the initial recipes.
     #[serde(default)]
     pub unlocked_recipes: Option<Vec<String>>,
+    /// The id the player's scores are saved under (BDS's player
+    /// `UniqueID`). Missing on records saved before scores were: a new one.
+    #[serde(default)]
+    pub unique_id: Option<i64>,
 }
 
 impl Default for PlayerData {
@@ -159,6 +163,7 @@ impl Default for PlayerData {
             spawn_point: None,
             tags: Vec::new(),
             unlocked_recipes: None,
+            unique_id: None,
         }
     }
 }
@@ -243,6 +248,7 @@ impl PlayerData {
             || self
                 .spawn_point
                 .is_some_and(|point| !point.iter().all(|n| n.is_finite()))
+            || matches!(self.unique_id, Some(0 | -1))
         {
             return Err(StorageError::Deserialization("invalid player state".into()));
         }

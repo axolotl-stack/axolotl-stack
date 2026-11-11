@@ -116,6 +116,7 @@ pub fn tick_world_clock(
         sync.next_sync = tick.current + CLOCK_SYNC_INTERVAL_TICKS;
     }
     start_game.publish(*time, *difficulty, &rules);
+    start_game.set_level_tick(tick.current);
 }
 
 /// The overworld clock's state (`SyncWorldClocks` sync state).

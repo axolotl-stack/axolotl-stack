@@ -11,7 +11,7 @@ mod chunks;
 mod command_order_tests;
 #[cfg(test)]
 mod command_tests;
-mod commands;
+pub(crate) mod commands;
 mod containers;
 pub mod durability;
 pub mod effects;
@@ -154,6 +154,9 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
             unlocked_recipes: world
                 .get::<crate::command::exec::UnlockedRecipes>(entity)
                 .map(|recipes| recipes.0.clone()),
+            unique_id: world
+                .get::<crate::world::scoreboard::PlayerUniqueId>(entity)
+                .map(|id| id.0),
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -407,6 +410,7 @@ impl GameServer {
         .expect("vanilla player definition");
 
         ecs.world_mut().add_observer(on_block_changed);
+        crate::world::scoreboard::install(ecs.world_mut());
         ecs.world_mut()
             .init_resource::<containers::BlockContainers>();
         ecs.world_mut()
@@ -853,13 +857,14 @@ impl GameServer {
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
         let mut experience = crate::entity::components::Experience::default();
-        let (spawn_point, tags, unlocked_recipes) = saved_data
+        let (spawn_point, tags, unlocked_recipes, unique_id) = saved_data
             .as_mut()
             .map(|saved| {
                 (
                     saved.spawn_point,
                     std::mem::take(&mut saved.tags),
                     saved.unlocked_recipes.take(),
+                    saved.unique_id,
                 )
             })
             .unwrap_or_default();
@@ -959,6 +964,12 @@ impl GameServer {
         if let Some(recipes) = unlocked_recipes {
             player.insert(crate::command::exec::UnlockedRecipes(recipes));
         }
+        // The id its scores are saved under: inserting it gives the player
+        // back the scores it had when it left.
+        player.insert(unique_id.map_or_else(
+            crate::world::scoreboard::PlayerUniqueId::fresh,
+            crate::world::scoreboard::PlayerUniqueId,
+        ));
 
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
             session_map.insert(data.session_id, entity);
