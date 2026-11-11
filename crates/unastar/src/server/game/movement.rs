@@ -24,6 +24,7 @@ use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{PlayerInput, PlayerState};
 use crate::entity::player_life::environment::PlayerFall;
 use crate::entity::player_life::motion::{Move, PlayerMoves, Toggles};
+use crate::entity::player_life::pvp::{InputStart, Swing};
 use jolyne::valentine::types::{EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData};
 
 /// The player state the movement packets write.
@@ -51,7 +52,10 @@ pub fn apply_movement(
     mut events: ResMut<MovementEvents>,
     mut players: MovingPlayers,
     mut relayed: Option<ResMut<crate::server::player_view::RelayedMoves>>,
+    mut starts: Query<&mut InputStart>,
+    tick: Option<Res<crate::ecs::resources::TickCounter>>,
 ) {
+    let now = tick.map_or(0, |tick| tick.current);
     let _span = tracing::info_span!("apply_movement", count = queue.0.len()).entered();
     for (entity, input) in queue.0.drain(..) {
         match input {
@@ -62,6 +66,22 @@ pub fn apply_movement(
                     .get(entity)
                     .ok()
                     .map(|(_, rotation, ..)| (rotation.pitch, rotation.yaw));
+                // Combat: the attacker's state an attack of this tick sees
+                // (`player_life::pvp`).
+                if let (Ok(mut start), Ok((position, _, state, input, fall, _))) =
+                    (starts.get_mut(entity), players.get(entity))
+                    && start.tick != now
+                {
+                    *start = InputStart {
+                        tick: now,
+                        swing: Swing {
+                            eye: position.0,
+                            on_ground: input.on_ground,
+                            falling: fall.is_some_and(|fall| fall.fall.distance > 0.0),
+                            sprinting: state.sprinting,
+                        },
+                    };
+                }
                 // A rejected input is rejected whole, block actions included.
                 if process_auth_input(entity, &pk, &mut players, &mut events).is_none() {
                     continue;
@@ -157,6 +177,16 @@ fn process_auth_input(
     input.sneaking = input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Sneaking);
     input.sprinting = input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Sprinting);
     input.tick = pk.client_tick.inputtick as i64;
+    // Kept by a knockback (`player_life::hurt`); bounded like a move.
+    input.velocity = DVec3::new(
+        f64::from(pk.pos_delta.x),
+        f64::from(pk.pos_delta.y),
+        f64::from(pk.pos_delta.z),
+    )
+    .clamp(
+        DVec3::splat(-MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK),
+        DVec3::splat(MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK),
+    );
     // Vertical collision: the move ended against the ground (or a ceiling).
     input.on_ground =
         input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision);
@@ -240,6 +270,9 @@ fn auth_input_is_finite(pk: &jolyne::valentine::PlayerAuthInputPacket) -> bool {
         pk.player_head_rotation,
         pk.move_vector.x,
         pk.move_vector.y,
+        pk.pos_delta.x,
+        pk.pos_delta.y,
+        pk.pos_delta.z,
     ]
     .iter()
     .all(|value| value.is_finite())
@@ -417,6 +450,16 @@ mod tests {
             ..Default::default()
         };
         moving.move_vector.x = f32::NAN;
+        let (pos, _) = apply(
+            &mut world,
+            player,
+            MovementInput::AuthInput(Box::new(moving.clone())),
+        );
+        assert_eq!(pos, START);
+        assert!(world.resource::<MovementEvents>().0.is_empty());
+        // A reported velocity is kept by knockbacks: it must be finite too.
+        moving.move_vector.x = 0.0;
+        moving.pos_delta.z = f32::INFINITY;
         let (pos, _) = apply(
             &mut world,
             player,

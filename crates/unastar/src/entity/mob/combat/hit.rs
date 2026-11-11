@@ -99,7 +99,7 @@ pub fn player_attack(
         return;
     }
     let held = held_item(world, player).cloned();
-    let damage = unastar_data::melee::attack_damage(held.as_ref().map(|stack| stack.item_id()));
+    let damage = weapon_damage(held.as_ref());
     let applied = hurt_mob(
         world,
         target,
@@ -120,6 +120,21 @@ pub fn player_attack(
         let wear = crate::server::game::durability::attack_wear(entry);
         crate::server::game::durability::wear_held(world, player, wear);
     }
+}
+
+/// Damage Sharpness adds per level, rounded down.
+pub const SHARPNESS_DAMAGE: f32 = 1.25;
+
+/// A player's melee damage with `held`: the measured damage of the item (the
+/// bare hand's without one) plus `⌊1.25 × level⌋` for Sharpness (BDS
+/// 1.26.51 attack sweep on pigs: a diamond sword with Sharpness I-V deals 9,
+/// 10, 11, 13, 14; the PvP sweep the same on players).
+pub fn weapon_damage(held: Option<&crate::item::ItemStack>) -> f32 {
+    let sharpness = held.map_or(0, |stack| {
+        crate::item::enchant::enchantment_level(stack, crate::item::enchant::Enchantment::Sharpness)
+    });
+    unastar_data::melee::attack_damage(held.map(|stack| stack.item_id()))
+        + (SHARPNESS_DAMAGE * f32::from(sharpness)).floor()
 }
 
 /// The eye position of a player that may attack this tick.

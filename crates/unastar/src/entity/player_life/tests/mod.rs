@@ -10,6 +10,7 @@ mod environment;
 mod hurt;
 mod input_tick;
 mod movement;
+mod pvp;
 mod respawn;
 mod rules;
 

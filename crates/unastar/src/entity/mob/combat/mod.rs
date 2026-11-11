@@ -19,5 +19,5 @@ mod bds_knockback;
 
 pub use hit::{
     Hit, HurtTimer, hurt_mob, hurt_on_condition, knockback_power_of, knockback_velocity,
-    player_attack, send_actor_event,
+    player_attack, send_actor_event, weapon_damage,
 };

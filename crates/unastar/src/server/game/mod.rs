@@ -951,6 +951,7 @@ impl GameServer {
             actor_data,
             crate::entity::player_life::environment::PlayerFall::default(),
             crate::entity::player_life::motion::PlayerMoves::default(),
+            crate::entity::player_life::pvp::InputStart::default(),
         ));
         if explicit_game_mode {
             self.ecs

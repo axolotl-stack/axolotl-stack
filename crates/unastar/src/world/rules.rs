@@ -84,11 +84,12 @@ pub enum GameRule {
     DoImmediateRespawn,
     ShowDeathMessages,
     FreezeDamage,
+    Pvp,
 }
 
 impl GameRule {
     /// Every rule, in the order BDS lists them in `GameRulesChanged`.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::DoDaylightCycle,
         Self::DoMobLoot,
         Self::DoMobSpawning,
@@ -101,6 +102,7 @@ impl GameRule {
         Self::DoImmediateRespawn,
         Self::ShowDeathMessages,
         Self::FreezeDamage,
+        Self::Pvp,
     ];
 
     /// The rule's name as BDS sends it (`GameRulesChanged` at join).
@@ -118,6 +120,7 @@ impl GameRule {
             Self::DoImmediateRespawn => "doImmediateRespawn",
             Self::ShowDeathMessages => "showDeathMessages",
             Self::FreezeDamage => "freezeDamage",
+            Self::Pvp => "pvp",
         }
     }
 
@@ -147,6 +150,8 @@ pub struct GameRules {
     pub fire_damage: bool,
     pub drowning_damage: bool,
     pub freeze_damage: bool,
+    /// Players can hurt each other with melee hits (`player_life::pvp`).
+    pub pvp: bool,
     /// Captured rules without a typed field that were changed from BDS's default.
     other: Vec<(&'static str, GameRuleValue)>,
 }
@@ -166,6 +171,7 @@ impl Default for GameRules {
             fire_damage: true,
             drowning_damage: true,
             freeze_damage: true,
+            pvp: true,
             other: Vec::new(),
         };
         // The captured defaults are the source of truth for typed rules too.
@@ -195,6 +201,7 @@ impl GameRules {
             GameRule::DoImmediateRespawn => &mut self.do_immediate_respawn,
             GameRule::ShowDeathMessages => &mut self.show_death_messages,
             GameRule::FreezeDamage => &mut self.freeze_damage,
+            GameRule::Pvp => &mut self.pvp,
         }
     }
 
@@ -212,6 +219,7 @@ impl GameRules {
             GameRule::DoImmediateRespawn => self.do_immediate_respawn,
             GameRule::ShowDeathMessages => self.show_death_messages,
             GameRule::FreezeDamage => self.freeze_damage,
+            GameRule::Pvp => self.pvp,
         }
     }
 

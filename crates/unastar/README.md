@@ -814,6 +814,26 @@ The loopback test `tests/item_use_loopback.rs` eats an apple, mines stone
 with an iron pickaxe and shoots a cow with a bow through a real client
 (take the native lock to run it).
 
+### Player-versus-player
+
+`entity/player_life/pvp.rs` is one player's melee hit on another, handled
+with the world as it is when BDS applies it (with the attacker's next
+input); `hurt.rs` is the victim's side. Evidence: three lockstep
+`bds-sweep-client` players against BDS 1.26.51 (`sweep.py pvp`, 710 trials,
+`entity/player_life/testdata/bds-1.26.51-pvp.json`), replayed by
+`entity/player_life/tests/pvp.rs`; the copied oddities are the "PvP /" rows
+of `docs/quirks/bds.md`.
+
+| Behaviour | Status | Evidence |
+|---|---|---|
+| Checks: dead attacker, immune victim (creative, spectator), the `pvp` rule, held slot and item, claimed position within 6, reach 6.7 / 12 between positions | done | sweep; no facing or wall check (strict entity interactions off, as BDS's default) |
+| Damage: weapon, Sharpness, Strength and Weakness, crit x 1.5 (falling, off the ground, no Blindness or Slow Falling), no difficulty scaling | done | sweep |
+| Victim: armour with toughness, Protection, Resistance, then the hurt window (arrival ticks, excess hit pushes and restarts it) | done | sweep |
+| Knockback: half the victim's velocity kept, netherite resistance, the sprint and Knockback second push | done | sweep; the victim's velocity is the one its client reported (no server-side player simulation yet) |
+| Feedback: `SetLastHurtBy`, crit and magic-crit `Animate`, the attack sound a tick later to all but the attacker | done | sweep |
+| Order: attacks after their player's input of the tick, and different players' attacks in one tick | not done | needs packets applied in BDS's order (decision 0045); ignored tests |
+| Shields, thrown tridents, mace smash, totems | not done | not measured |
+
 
 ## Plugin Isolation
 
