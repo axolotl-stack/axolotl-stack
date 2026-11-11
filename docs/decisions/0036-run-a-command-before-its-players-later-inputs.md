@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-10
 decision-makers: [project owner]
 ---
@@ -34,7 +34,8 @@ one input late.
 
 ## Decision Outcome
 
-Chosen option: 1, early and late command slots (`CommandOrder`, `run_early_commands`).
+Chosen option: 1, early and late command slots (`CommandOrder`, `run_early_commands`), accepted
+by the owner as the current step (2026-11-11).
 
 Option 2 keeps exact order, but a client that sends command and input pairs faster than the tick
 grows the held backlog without bound unless it is capped, and capping it drops or reorders packets
@@ -57,3 +58,10 @@ system re-entrant within a tick.
 fails without the early slot. A second test checks that a command sent after an input of the same
 tick waits for it. The lesson is in
 [docs/solutions/server/per-domain-queues-lose-a-players-packet-order.md](../solutions/server/per-domain-queues-lose-a-players-packet-order.md).
+
+## More Information
+
+The owner's goal is full vanilla order: every packet applied in the order its player sent it,
+without races between parallel systems, ideally through Bevy system ordering. A follow-up looks
+for a schedule that keeps that order for the two cases this option leaves out; when it lands, a
+new record supersedes this one.
