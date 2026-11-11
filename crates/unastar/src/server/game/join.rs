@@ -28,81 +28,61 @@ use jolyne::valentine::{SetActorDataPacket, UpdateAbilitiesPacket, UpdateAttribu
 use jolyne::valentine::{actor_data_i_ds as actor_data_ids, actor_flags};
 use tracing::debug;
 
-const BUILD: u32 = 1;
-const MINE: u32 = 1 << 1;
-const DOORS_AND_SWITCHES: u32 = 1 << 2;
-const OPEN_CONTAINERS: u32 = 1 << 3;
-const ATTACK_PLAYERS: u32 = 1 << 4;
-const ATTACK_MOBS: u32 = 1 << 5;
-const INVULNERABLE: u32 = 1 << 8;
-const MAY_FLY: u32 = 1 << 10;
-const INSTANT_BUILD: u32 = 1 << 11;
-const FLY_SPEED: u32 = 1 << 13;
-const WALK_SPEED: u32 = 1 << 14;
-const VERTICAL_FLY_SPEED: u32 = 1 << 19;
-const OPERATOR_COMMANDS: u32 = 1 << 6;
-const TELEPORT: u32 = 1 << 7;
+/// Every ability bit BDS 1.26.51 marks as set in a player's base layer.
+const BASE_ABILITIES_SET: u32 = 0xF_FFFF;
+/// Base-layer values every player has: build, mine, doors and switches,
+/// open containers, attack players, attack mobs.
+const MEMBER_ABILITIES: u32 = 0x3F;
+/// Operators add the operator-commands and teleport bits.
+const OPERATOR_ABILITIES: u32 = 0xC0;
+/// Creative adds invulnerable, may-fly and instant-build.
+const CREATIVE_ABILITIES: u32 = 0xD00;
+/// The spectator layer BDS puts in front of the base layer: its set and
+/// values, with every speed 0.
+const SPECTATOR_LAYER: u16 = 2;
+const SPECTATOR_ABILITIES_SET: u32 = 0x2_0F3F;
+const SPECTATOR_ABILITIES: u32 = 0x2_0300;
 
-/// The player's `UpdateAbilities`: game-mode abilities plus, for operators,
-/// BDS's operator permission (`Operator` / command level `gamedirectors`) and
-/// the operator-commands and teleport ability bits.
+/// A player's `UpdateAbilities` as BDS 1.26.51 sends it (2026-11-11
+/// `protocol_probe.py abilities`, every mode with and without operator):
+/// one base layer with every bit set, member values plus operator and
+/// creative bits; adventure is survival's; spectator puts its own layer in
+/// front. Operators have permission `Operator` and command level
+/// `gamedirectors`. `target` is the player's unique id.
 pub(crate) fn abilities_packet(
-    runtime_id: i64,
+    target: i64,
     game_mode: GameMode,
     operator: bool,
 ) -> UpdateAbilitiesPacket {
-    // Build abilities based on gamemode (following Dragonfly's approach)
-    let mut abilities = WALK_SPEED | FLY_SPEED | VERTICAL_FLY_SPEED;
-
-    // All modes can interact (except spectator limitations handled elsewhere)
-    if game_mode.can_break_blocks() {
-        abilities |= BUILD | MINE;
-    }
-    abilities |= DOORS_AND_SWITCHES | OPEN_CONTAINERS;
-    abilities |= ATTACK_PLAYERS | ATTACK_MOBS;
-
-    // Creative/Spectator: allow flight and invulnerability
-    if game_mode.allows_flight() {
-        abilities |= MAY_FLY;
-    }
-    if !game_mode.allows_damage() {
-        abilities |= INVULNERABLE;
-    }
-    // Creative: instant break
-    if game_mode.instant_break() {
-        abilities |= INSTANT_BUILD;
-    }
+    let mut values = MEMBER_ABILITIES;
     if operator {
-        abilities |= OPERATOR_COMMANDS | TELEPORT;
+        values |= OPERATOR_ABILITIES;
     }
-
-    let layer = SerializedAbilitiesDataSerializedLayer {
+    if game_mode == GameMode::Creative {
+        values |= CREATIVE_ABILITIES;
+    }
+    let mut layers = Vec::with_capacity(2);
+    if game_mode == GameMode::Spectator {
+        layers.push(SerializedAbilitiesDataSerializedLayer {
+            serialized_layer: SPECTATOR_LAYER,
+            abilities_set: SPECTATOR_ABILITIES_SET,
+            ability_values: SPECTATOR_ABILITIES,
+            fly_speed: 0.0,
+            vertical_fly_speed: 0.0,
+            walk_speed: 0.0,
+        });
+    }
+    layers.push(SerializedAbilitiesDataSerializedLayer {
         serialized_layer: 1,
-        // Allowed = all abilities that CAN be toggled
-        abilities_set: BUILD
-            | MINE
-            | DOORS_AND_SWITCHES
-            | OPEN_CONTAINERS
-            | ATTACK_PLAYERS
-            | ATTACK_MOBS
-            | OPERATOR_COMMANDS
-            | TELEPORT
-            | WALK_SPEED
-            | FLY_SPEED
-            | VERTICAL_FLY_SPEED
-            | MAY_FLY
-            | INVULNERABLE
-            | INSTANT_BUILD,
-        // Enabled = abilities that are currently active
-        ability_values: abilities,
-        fly_speed: 0.05,         // Horizontal flight speed (Dragonfly default)
-        vertical_fly_speed: 1.0, // Vertical flight speed (Dragonfly default)
+        abilities_set: BASE_ABILITIES_SET,
+        ability_values: values,
+        fly_speed: 0.05,
+        vertical_fly_speed: 1.0,
         walk_speed: 0.1,
-    };
-
+    });
     UpdateAbilitiesPacket {
         data: SerializedAbilitiesData {
-            target_player_raw_id: runtime_id,
+            target_player_raw_id: target,
             player_permissions: if operator {
                 EnumsPlayerPermissionLevel::Operator
             } else {
@@ -113,9 +93,18 @@ pub(crate) fn abilities_packet(
             } else {
                 EnumsCommandPermissionLevel::Any
             },
-            layers: vec![layer],
+            layers,
         },
     }
+}
+
+/// A player's current abilities, from its game mode and operator status;
+/// players use one id as unique and runtime id.
+pub(crate) fn player_abilities(world: &World, player: Entity) -> Option<UpdateAbilitiesPacket> {
+    let id = world.get::<RuntimeEntityId>(player)?.0;
+    let mode = world.get::<GameMode>(player).copied().unwrap_or_default();
+    let operator = world.get::<crate::command::Operator>(player).is_some();
+    Some(abilities_packet(id, mode, operator))
 }
 
 impl GameServer {
@@ -185,10 +174,16 @@ impl GameServer {
         let _ = session.send(McpePacket::from(GameRulesChangedPacket {
             rule_data: world.resource::<GameRules>().packet_data(),
         }));
-        // Every online player, the joining one included.
+        // Every online player, the joining one included, then each one's
+        // abilities in the same order.
         let _ = session.send(McpePacket::from(roster::add_packet(
             online.iter().map(|(_, entry)| *entry),
         )));
+        for (player, _) in &online {
+            if let Some(abilities) = player_abilities(world, *player) {
+                let _ = session.send(McpePacket::from(abilities));
+            }
+        }
 
         let _ = session.send(McpePacket::from(PlayerFogPacket::default()));
         let _ = session.send(McpePacket::from(super::join_data::camera_presets()));
@@ -243,9 +238,9 @@ impl GameServer {
     }
 
     /// Tells every other online player that `entity` joined: the new
-    /// sleeping-player count, its player-list entry and the adventure
-    /// settings, in BDS order and before its `AddPlayer` (which the spawn
-    /// broadcast sends on a later tick).
+    /// sleeping-player count, its player-list entry, the adventure settings
+    /// and its abilities, in BDS order and before its `AddPlayer` (which the
+    /// spawn broadcast sends on a later tick).
     pub(super) fn announce_join(&self, entity: Entity) {
         let world = self.ecs.world();
         let Some(entry) = world.get::<roster::RosterEntry>(entity) else {
@@ -253,6 +248,7 @@ impl GameServer {
         };
         let online = roster::online(world);
         let count = roster::sleeping_players(online.len() as i32, 0);
+        let abilities = player_abilities(world, entity);
         for (other, _) in &online {
             if *other == entity {
                 continue;
@@ -261,6 +257,9 @@ impl GameServer {
                 let _ = session.send(McpePacket::from(count.clone()));
                 let _ = session.send(McpePacket::from(roster::add_packet([entry])));
                 let _ = session.send(McpePacket::from(roster::adventure_settings()));
+                if let Some(abilities) = &abilities {
+                    let _ = session.send(McpePacket::from(abilities.clone()));
+                }
             }
         }
     }

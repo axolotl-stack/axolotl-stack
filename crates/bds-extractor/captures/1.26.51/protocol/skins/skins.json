@@ -1,0 +1,307 @@
+[
+ {
+  "case": "piece-persona_skeleton",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_skeleton",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_body",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_body",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_skin",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_skin",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_bottom",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_bottom",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_feet",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_feet",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_dress",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_dress",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_top",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_top",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_high_pants",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_high_pants",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_hands",
+  "exit": 1,
+  "violation_hex": "9c010004023c436f6e6e656374696f6e205265717565737420696e76616c69642e0a726561644e6f486561646572206661696c656421207061636b657449643a2031"
+ },
+ {
+  "case": "tint-persona_hands",
+  "exit": 1,
+  "violation_hex": "9c010004023c436f6e6e656374696f6e205265717565737420696e76616c69642e0a726561644e6f486561646572206661696c656421207061636b657449643a2031"
+ },
+ {
+  "case": "piece-persona_outerwear",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_outerwear",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_facial_hair",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_facial_hair",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_mouth",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_mouth",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_eyes",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_eyes",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_hair",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_hair",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_hood",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_hood",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_back",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_back",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_face_accessory",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_face_accessory",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_head",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_head",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_legs",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_legs",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_left_leg",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_left_leg",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_right_leg",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_right_leg",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_arms",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_arms",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_left_arm",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_left_arm",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_right_arm",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_right_arm",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_capes",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_capes",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_classic_skin",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_classic_skin",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_emote",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "tint-persona_emote",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "piece-persona_bogus",
+  "exit": 1,
+  "violation_hex": "9c010004023c436f6e6e656374696f6e205265717565737420696e76616c69642e0a726561644e6f486561646572206661696c656421207061636b657449643a2031"
+ },
+ {
+  "case": "tint-persona_bogus",
+  "exit": 1,
+  "violation_hex": "9c010004023c436f6e6e656374696f6e205265717565737420696e76616c69642e0a726561644e6f486561646572206661696c656421207061636b657449643a2031"
+ },
+ {
+  "case": "tint-bogus_type",
+  "exit": 1,
+  "violation_hex": "9c010004023c436f6e6e656374696f6e205265717565737420696e76616c69642e0a726561644e6f486561646572206661696c656421207061636b657449643a2031"
+ },
+ {
+  "case": "colour-unparsable",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "colour-argb",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "arm-empty",
+  "exit": 0,
+  "violation_hex": null
+ },
+ {
+  "case": "floats",
+  "exit": 0,
+  "violation_hex": null
+ }
+]

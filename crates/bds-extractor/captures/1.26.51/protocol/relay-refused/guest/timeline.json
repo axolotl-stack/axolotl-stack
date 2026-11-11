@@ -1,0 +1,21 @@
+[
+[5850, 67927, "s2c", "MoveActorDeltaPacket"],
+[5851, 67927, "s2c", "MoveActorDeltaPacket"],
+[5852, 67927, "s2c", "MoveActorDeltaPacket"],
+[5853, 67974, "s2c", "SetActorDataPacket"],
+[5854, 67974, "s2c", "SetActorDataPacket"],
+[5855, 67974, "s2c", "MoveActorDeltaPacket"],
+[5856, 67974, "s2c", "MoveActorDeltaPacket"],
+[5857, 68022, "s2c", "MoveActorDeltaPacket"],
+[5858, 68022, "s2c", "MoveActorDeltaPacket"],
+[5859, 68022, "s2c", "MoveActorDeltaPacket"],
+[5860, 68054, "c2s", "ServerboundDataDrivenScreenClosedPacket"],
+[5861, 68086, "s2c", "UpdateBlockPacket"],
+[5862, 68086, "s2c", "MoveActorDeltaPacket"],
+[5863, 68086, "s2c", "MoveActorDeltaPacket"],
+[5864, 68086, "s2c", "MoveActorDeltaPacket"],
+[5865, 68086, "s2c", "MoveActorDeltaPacket"],
+[5866, 68086, "s2c", "MoveActorDeltaPacket"],
+[5867, 68086, "s2c", "MoveActorDeltaPacket"],
+[5868, 68086, "s2c", "PacketViolationWarningPacket"]
+]

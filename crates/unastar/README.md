@@ -109,6 +109,15 @@ players get the sleeping-player count, the newcomer's entry and the adventure
 settings before its `AddPlayer`, and the count and a removal when a player
 leaves, as measured with `tools/bds-sweep/capture.py --pair`.
 
+Skins are forwarded the way BDS forwards them (`server/game/roster/skin.rs`:
+geometry rewritten, persona pieces and tints mapped, empty PlayFab id), and
+abilities follow BDS for every game mode and permission: each listed
+player's `UpdateAbilities` after the full list, the newcomer's to online
+players, none on a game mode change. Emotes and emote lists are relayed to
+nearby players and the client packets BDS ignores are ignored
+(`server/game/client_packets.rs`); evidence in
+`crates/bds-extractor/captures/1.26.51/protocol/`.
+
 ## World Generation
 
 `[world.generator]` selects the generator; new configs default to Java-style terrain:
@@ -602,7 +611,6 @@ Implemented: `/clear`, `/clone`, `/deop`, `/difficulty`, `/effect`, `/enchant`,
 |---|---|---|
 | `/give`, `/clear`, `/setblock`, `/fill` | Legacy names and data values (`wool 14`, `wool ["color"="red"]`) fail with "not implemented"; current identifiers (`red_wool`) work | No legacy item/block upgrade table in the repository yet |
 | `/give` | No `UnlockedRecipes`; `PlayerHotbar` sent with `shouldselectslot=true` | No recipe-unlock system; shared inventory resync |
-| `/gamemode` | Also resends `UpdateAbilities` | Unastar's join abilities depend on the game mode |
 | `/effect` | Speed/slowness do not change movement; no visible-effects actor data | No attribute-modifier system yet |
 | `/weather` | State and client events only; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
 | `/spawnpoint`, `/setworldspawn` | Not persisted; new joiners still use the config spawn rules | No level-data store |

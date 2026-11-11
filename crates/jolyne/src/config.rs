@@ -258,6 +258,10 @@ pub struct ClientConfig {
     /// without first starting encryption (`ServerToClientHandshake`).
     /// Default: `false` (servers that skip encryption are accepted).
     pub require_encryption: bool,
+    /// The value of the `ClientCacheStatus` sent after `LoginSuccess`: whether
+    /// the client claims a chunk blob cache. Default: `false`. jolyne keeps no
+    /// blob cache; `true` is for probing what a server does with it.
+    pub blob_cache: bool,
 }
 
 impl Default for ClientConfig {
@@ -271,6 +275,7 @@ impl Default for ClientConfig {
             chunk_radius: 16,
             packs: ClientPackPolicy::default(),
             require_encryption: false,
+            blob_cache: false,
         }
     }
 }

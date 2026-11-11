@@ -1,0 +1,6 @@
+[
+[0, 17, "c2s", "RequestNetworkSettingsPacket"],
+[1, 80, "s2c", "NetworkSettingsPacket"],
+[2, 83, "c2s", "LoginPacket"],
+[3, 157, "s2c", "PacketViolationWarningPacket"]
+]

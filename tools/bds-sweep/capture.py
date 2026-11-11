@@ -29,6 +29,11 @@ still running. The host's `command-outputs.json` then holds what BDS sends an
 online player when another one joins and leaves, and the guest's join
 sequence is the join of a second player (for example into weather the host's
 script set). Such a capture does not update `latest.txt` either.
+`--guest-commands FILE` makes every guest run FILE after its join (scripts
+may hold `!` client actions, see `crates/bds-extractor/src/actions.rs`), and
+`--guest-client-data FILE` logs guests in with those ClientData fields (a
+custom skin). `--client-data` and `--blob-cache` apply to the host (or the
+`--commands` session).
 
     python tools/bds-sweep/capture.py [--out DIR] [--extractor PATH] [--commands FILE | --pair FILE]
 
@@ -62,7 +67,8 @@ WORLD = dict(level_seed=12345, gamemode='survival', difficulty='easy')
 
 
 def extractor_command(extractor: Path, out: Path, name: str = PLAYER, summon: bool = False,
-                      commands: Path | None = None, settle: int | None = None) -> list[str]:
+                      commands: Path | None = None, settle: int | None = None,
+                      client_data: Path | None = None, blob_cache: bool = False) -> list[str]:
     """The `bds-extractor` capture-mode command line of one session."""
     command = [str(extractor), '--addr', bds_runtime.ADDR, '--name', name, '--timeout', '120',
                '--capture-dir', str(out), '--log', 'info']
@@ -72,6 +78,10 @@ def extractor_command(extractor: Path, out: Path, name: str = PLAYER, summon: bo
         command += ['--commands', str(commands)]
     if settle is not None:
         command += ['--settle', str(settle)]
+    if client_data is not None:
+        command += ['--client-data', str(client_data)]
+    if blob_cache:
+        command.append('--blob-cache')
     return command
 
 
@@ -81,15 +91,18 @@ def describe(out: Path, properties: dict[str, object], command: list[str], **ext
         'server': 'bedrock_server.exe (no Endstone)',
         'server_properties': properties,
         'extractor_command': ['bds-extractor', *command[1:]],
+        # Wall clock just before the session starts: lines sessions of one run up.
+        'started_unix': round(time.time(), 3),
         **extra,
-    }, indent=2) + '\n', encoding='utf-8')
+    }, indent=2) + '\n', encoding='utf-8', newline='\n')
 
 
 def session(out: Path, extractor: Path, permission: str, summon: bool, timeout: int,
-            commands: Path | None = None) -> int:
+            commands: Path | None = None, client_data: Path | None = None, blob_cache: bool = False) -> int:
     out.mkdir(parents=True)
     properties = bds_runtime.base_properties(LEVEL, default_player_permission_level=permission, **WORLD)
-    command = extractor_command(extractor, out, summon=summon, commands=commands)
+    command = extractor_command(extractor, out, summon=summon, commands=commands,
+                                client_data=client_data, blob_cache=blob_cache)
     describe(out, properties, command)
     with bds_runtime.Bds(properties, out / 'bds.log', endstone=False):
         with (out / 'extractor.log').open('w', encoding='utf-8') as log:
@@ -115,15 +128,19 @@ def guest_settle(index: int, count: int, gap: float | None) -> int:
 
 
 def pair(out: Path, extractor: Path, script: Path, guest_delay: float, guests: int,
-         guest_gap: float | None, timeout: int) -> int:
+         guest_gap: float | None, timeout: int, guest_script: Path | None = None,
+         guest_client_data: Path | None = None, client_data: Path | None = None,
+         blob_cache: bool = False) -> int:
     """A host session running `script`, and `guests` guests that join and leave
     during it: one after the other, or with `guest_gap` seconds between their
-    starts so that they are online together."""
+    starts so that they are online together. Guests run `guest_script` and log
+    in with `guest_client_data` when given."""
     host_out = out / 'host'
     host_out.mkdir(parents=True)
     properties = bds_runtime.base_properties(LEVEL, default_player_permission_level='operator',
                                              max_players=guests + 1, **WORLD)
-    host = extractor_command(extractor, host_out, commands=script)
+    host = extractor_command(extractor, host_out, commands=script, client_data=client_data,
+                             blob_cache=blob_cache)
     plan = dict(guest_delay_s=guest_delay, guests=guests, guest_gap_s=guest_gap)
     describe(host_out, properties, host, **plan)
     processes: list[subprocess.Popen] = []
@@ -136,7 +153,8 @@ def pair(out: Path, extractor: Path, script: Path, guest_delay: float, guests: i
                 guest_out = out / ('guest' if index == 0 else f'guest{index + 1}')
                 guest_out.mkdir(parents=True)
                 guest = extractor_command(extractor, guest_out, name=name,
-                                          settle=guest_settle(index, guests, guest_gap))
+                                          settle=guest_settle(index, guests, guest_gap),
+                                          commands=guest_script, client_data=guest_client_data)
                 describe(guest_out, properties, guest, **plan)
                 guest_log = logs.enter_context((guest_out / 'extractor.log').open('w', encoding='utf-8'))
                 processes.append(subprocess.Popen(guest, cwd=REPO, stdout=guest_log, stderr=subprocess.STDOUT))
@@ -156,6 +174,14 @@ def pair(out: Path, extractor: Path, script: Path, guest_delay: float, guests: i
     return host_code or next((code for code in codes if code), 0)
 
 
+def copy_client_data(source: Path | None, target: Path) -> Path | None:
+    """Copies a ClientData file next to the capture so the session is self-describing."""
+    if source is None:
+        return None
+    shutil.copyfile(source, target)
+    return target
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
@@ -172,10 +198,17 @@ def main() -> int:
                         help='--pair: guests that join and leave one after the other')
     parser.add_argument('--guest-gap', type=float,
                         help='--pair: start the guests this many seconds apart, online together')
+    parser.add_argument('--guest-commands', type=Path, help='--pair: script every guest runs after its join')
+    parser.add_argument('--guest-client-data', type=Path,
+                        help='--pair: JSON object of login ClientData fields for the guests')
+    parser.add_argument('--client-data', type=Path,
+                        help='JSON object of login ClientData fields for the host or --commands session')
+    parser.add_argument('--blob-cache', action='store_true',
+                        help='the host or --commands session claims a chunk blob cache')
     args = parser.parse_args()
     if not args.extractor.exists():
         parser.error(f'{args.extractor} missing: cargo build -p bds-extractor')
-    for script in (args.commands, args.pair):
+    for script in (args.commands, args.pair, args.guest_commands, args.guest_client_data, args.client_data):
         if script is not None and not script.is_file():
             parser.error(f'{script} is not a file')
     out: Path = args.out.resolve()
@@ -186,11 +219,17 @@ def main() -> int:
         # The script is copied next to the capture so the session is self-describing.
         script = out / 'commands.txt'
         shutil.copyfile(args.pair, script)
+        guest_script = None
+        if args.guest_commands is not None:
+            guest_script = out / 'guest-commands.txt'
+            shutil.copyfile(args.guest_commands, guest_script)
+        guest_data = copy_client_data(args.guest_client_data, out / 'guest-client-data.json')
+        host_data = copy_client_data(args.client_data, out / 'client-data.json')
         if world.exists():
             shutil.rmtree(world)
         try:
             code = pair(out, args.extractor, script, args.guest_delay, args.guests, args.guest_gap,
-                        args.timeout)
+                        args.timeout, guest_script, guest_data, host_data, args.blob_cache)
         finally:
             if world.exists():
                 shutil.rmtree(world)
@@ -204,11 +243,13 @@ def main() -> int:
         script = out / 'commands.txt'
         shutil.copyfile(args.commands, script)
         sessions = [('operator-commands', 'operator', False, script)]
+    client_data = copy_client_data(args.client_data, out / 'client-data.json')
     try:
         for name, permission, summon, commands in sessions:
             if world.exists():
                 shutil.rmtree(world)
-            code = session(out / name, args.extractor, permission, summon, args.timeout, commands)
+            code = session(out / name, args.extractor, permission, summon, args.timeout, commands,
+                           client_data, args.blob_cache)
             print(f'{name}: extractor exit {code}')
             if code != 0:
                 return code

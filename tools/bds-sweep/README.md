@@ -14,6 +14,9 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `capture.py --pair FILE` | Two or more overlapping operator sessions on one fresh world: `host/` runs FILE, guests join and leave during it (`--guests N`, one after the other or `--guest-gap S` seconds apart and online together); for what BDS sends online players when others join and leave |
 | `roster_probe.py` | Player-colour reuse probe: a guest leaves before the next one joins (schedule in its docstring) |
 | `commit_roster_fixtures.py` | Copies the roster packets of `--pair`/probe runs into `crates/bds-extractor/captures/1.26.51/roster/` |
+| `capture.py --guest-commands/--guest-client-data/--client-data/--blob-cache` | `--pair` guests run a script (commands and `!` client actions) or log in with ClientData fields (a skin); the host or `--commands` session can too, or claim a blob cache |
+| `protocol_probe.py` | Protocol probes (`relay`, `abilities`, `cache`, `skins`, `ddui`): players with custom skins and client-packet scripts, server-console permission and game mode changes on a timeline, one short session per login or close reason |
+| `commit_protocol_fixtures.py` | Copies the relay, ability, skin and refusal packets and each session's packet timeline into `crates/bds-extractor/captures/1.26.51/protocol/` |
 | `command_digest.py` | `command-outputs.json` to a readable per-command `digest.md` (CommandOutput fields, key fields of every other packet) |
 | `commit_fixtures.py` | Copies the committed subset of a capture into `crates/bds-extractor/captures/1.26.51/` (see the crate README) |
 | `sweep.py` | T2: one sweep job under Endstone with `bds-sweep-client` as the player; output in `<runtime>/sweeps/1.26.51/<kind>-<UTC>/` |

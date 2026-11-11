@@ -10,9 +10,9 @@
 //! 2. **summon** (`--summon`, needs operator permission): `/summon` of every
 //!    summonable identifier from `AvailableActorIdentifiers`, one at a time,
 //!    keeping the first matching `AddActor` (or `AddPainting`);
-//! 3. **commands** (`--commands FILE`): each scripted command, one at a time,
-//!    with a fixed wait after it so every server packet is attributable to
-//!    the command that preceded it.
+//! 3. **commands** (`--commands FILE`): each scripted command or client
+//!    action ([`crate::actions`]), one at a time, with a fixed wait after it
+//!    so every server packet is attributable to the step that preceded it.
 //!
 //! Permission levels are compared across sessions (one member join, one
 //! operator join): BDS 1.26.51 does not resend `AvailableCommands` when a
@@ -27,6 +27,7 @@
 //! (sizes and SHA-256 of every file). `.bin` files hold the packet header
 //! and payload; `.json` is [`crate::debug_json`].
 
+use crate::actions::{self, Actors, Step};
 use crate::debug_json;
 use anyhow::{Context, Result, bail, ensure};
 use client_diff::{
@@ -89,8 +90,13 @@ pub struct Options {
     pub summon: bool,
     /// How long to wait for each summoned actor to appear.
     pub summon_wait: Duration,
-    /// Commands (without the leading `/`) to run after the summon phase.
-    pub commands: Vec<String>,
+    /// Commands and client actions to run after the summon phase.
+    pub commands: Vec<Step>,
+    /// ClientData JSON fields that replace jolyne's defaults in the login
+    /// (a custom skin, for example).
+    pub client_data: Option<serde_json::Map<String, Value>>,
+    /// Claim a chunk blob cache in `ClientCacheStatus`.
+    pub blob_cache: bool,
     /// Wait after each scripted command.
     pub command_wait: Duration,
 }
@@ -125,6 +131,34 @@ pub struct Summon {
     pub feedback: Vec<String>,
 }
 
+/// A client action sent during the commands phase: the recorder's
+/// `next_seq` before it was sent and its first packet, resolved to a
+/// recorded `seq` by [`write_outputs`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActionMarker {
+    pub line: String,
+    pub after_seq: u64,
+    pub packet: String,
+}
+
+/// The ClientData of a login: jolyne's defaults with `overrides` replacing
+/// whole fields.
+pub fn client_data(
+    name: &str,
+    uuid: uuid::Uuid,
+    overrides: &serde_json::Map<String, Value>,
+) -> Result<jolyne::auth::ClientData> {
+    let mut data = serde_json::to_value(jolyne::auth::client::default_client_data(name, uuid))?;
+    let fields = data
+        .as_object_mut()
+        .context("client data is not an object")?;
+    for (key, value) in overrides {
+        ensure!(fields.contains_key(key), "unknown ClientData field {key}");
+        fields.insert(key.clone(), value.clone());
+    }
+    Ok(serde_json::from_value(data)?)
+}
+
 /// Runs a capture session and writes all outputs into `options.out_dir`.
 pub async fn run(options: &Options) -> Result<()> {
     std::fs::create_dir_all(&options.out_dir)
@@ -136,26 +170,58 @@ pub async fn run(options: &Options) -> Result<()> {
         config.identity_key.clone(),
     )?));
     let transport = recording::connect(options.addr, recorder.clone()).await?;
-    let (mut play, _game) = tokio::time::timeout(options.timeout, async {
-        let stream = BedrockStream::<Handshake, Client, _>::from_transport(
-            transport,
-            ClientConfig::default(),
-        )
-        .await?;
-        stream.join(config).await
+    let client_config = ClientConfig {
+        blob_cache: options.blob_cache,
+        ..ClientConfig::default()
+    };
+    let (mut play, game) = tokio::time::timeout(options.timeout, async {
+        let stream =
+            BedrockStream::<Handshake, Client, _>::from_transport(transport, client_config).await?;
+        match &options.client_data {
+            None => stream.join(config).await.map_err(anyhow::Error::from),
+            Some(overrides) => {
+                let data = client_data(&options.name, config.uuid, overrides)?;
+                let (chain, _) = jolyne::auth::client::generate_self_signed_chain(
+                    &config.identity_key,
+                    &options.name,
+                    config.uuid,
+                )?;
+                let token = jolyne::auth::client::sign_client_data(&config.identity_key, &data)?;
+                let login = stream.request_settings().await.map_err(failed)?;
+                let secure = login
+                    .send_login_with_tokens(&config.identity_key, &chain, &token)
+                    .await
+                    .map_err(failed)?;
+                let packs = secure.await_handshake().await.map_err(failed)?;
+                let start = packs.handle_packs().await.map_err(failed)?;
+                start.await_start_game().await.map_err(failed)
+            }
+        }
     })
     .await
     .context("login timed out")?
     .context("login")?;
     info!("Spawned; collecting post-spawn definitions");
 
+    // Kept outside the session so a session the server ends during the
+    // commands phase still writes what was recorded up to then.
+    let mut phases = Phases::default();
+    let mut summons = Vec::new();
+    let mut markers = Vec::new();
     let session = async {
         let mut session = Session {
             play: &mut play,
             recorder: &recorder,
             timeout: options.timeout,
+            actors: Actors {
+                me: (
+                    game.start_game.runtime_id.actor_runtime_id,
+                    game.start_game.entity_id.actor_unique_id,
+                ),
+                peer: None,
+                actor: None,
+            },
         };
-        let mut phases = Phases::default();
         let mut identifiers = None;
         let mut seen = Vec::new();
         session
@@ -178,7 +244,6 @@ pub async fn run(options: &Options) -> Result<()> {
         session.pump_for(options.settle).await?;
         phases.join_end = session.next_seq()?;
 
-        let mut summons = Vec::new();
         if options.summon {
             let identifiers = identifiers.context("AvailableActorIdentifiers was not received")?;
             let list = summonable_identifiers(&debug_json::nbt_json(&identifiers.0)?)?;
@@ -217,15 +282,37 @@ pub async fn run(options: &Options) -> Result<()> {
         }
 
         if !options.commands.is_empty() {
-            info!("Running {} scripted commands", options.commands.len());
-            for command in &options.commands {
-                info!("/{command}");
-                session.command(command).await?;
-                session.pump_for(options.command_wait).await?;
+            info!("Running {} scripted steps", options.commands.len());
+            for step in &options.commands {
+                info!("{}", step.label());
+                match step {
+                    Step::Command(command) => {
+                        session.command(command).await?;
+                        session.pump_for(options.command_wait).await?;
+                    }
+                    Step::Action(action) => {
+                        if let actions::ActionKind::Wait(ms) = action.kind {
+                            session.pump_for(Duration::from_millis(ms)).await?;
+                            continue;
+                        }
+                        let packets = action.kind.packets(&session.actors)?;
+                        let after_seq = session.next_seq()?;
+                        let names = actions::sent_names(&packets);
+                        for packet in packets {
+                            session.play.send_packet(packet).await?;
+                        }
+                        markers.push(ActionMarker {
+                            line: action.line.clone(),
+                            after_seq,
+                            packet: format!("{:?}", names[0]),
+                        });
+                        session.pump_for(options.command_wait).await?;
+                    }
+                }
             }
             phases.commands_end = Some(session.next_seq()?);
         }
-        Ok::<_, anyhow::Error>((phases, summons))
+        Ok::<_, anyhow::Error>(())
     }
     .await;
 
@@ -238,7 +325,23 @@ pub async fn run(options: &Options) -> Result<()> {
         .lock()
         .map_err(|_| anyhow::anyhow!("capture lock poisoned"))?
         .flush()?;
-    let (phases, summons) = session?;
+    if let Err(error) = &session {
+        // A failure during the commands phase (a packet the server refuses,
+        // for example) keeps the steps recorded so far.
+        let commands_started = phases.join_end > 0
+            && (!options.summon || phases.summon_end.is_some())
+            && !options.commands.is_empty();
+        if !commands_started {
+            return session;
+        }
+        warn!("session ended early: {error:#}");
+        phases.commands_end = Some(
+            recorder
+                .lock()
+                .map_err(|_| anyhow::anyhow!("capture lock poisoned"))?
+                .next_seq(),
+        );
+    }
     if let Err(error) = disconnect
         .context("disconnect timed out")
         .and_then(|r| r.context("disconnect"))
@@ -247,7 +350,7 @@ pub async fn run(options: &Options) -> Result<()> {
     }
 
     let records = read_records(&packets_path)?;
-    let manifest = write_outputs(&options.out_dir, &records, phases, &summons)?;
+    let manifest = write_outputs(&options.out_dir, &records, phases, &summons, &markers)?;
     info!(
         "Wrote {} files to {} ({} summons captured)",
         manifest["files"].as_array().map_or(0, Vec::len),
@@ -257,13 +360,21 @@ pub async fn run(options: &Options) -> Result<()> {
             .filter(|s| !s["seq"].is_null())
             .count())
     );
-    Ok(())
+    session
+}
+
+/// A failed join step as an error (its transport is dropped).
+fn failed<T: jolyne::stream::transport::Transport>(
+    failed: jolyne::stream::Failed<T>,
+) -> anyhow::Error {
+    failed.into_parts().0.into()
 }
 
 struct Session<'a, T: jolyne::stream::transport::Transport> {
     play: &'a mut BedrockStream<Play, Client, T>,
     recorder: &'a Mutex<Recorder>,
     timeout: Duration,
+    actors: Actors,
 }
 
 impl<T: jolyne::stream::transport::Transport> Session<'_, T> {
@@ -291,6 +402,22 @@ impl<T: jolyne::stream::transport::Transport> Session<'_, T> {
         {
             latency.is_from_server = false;
             self.play.send_packet(McpePacket::from(latency)).await?;
+        }
+        if packet.is(McpePacketName::AddPlayerPacket)
+            && let McpePacketData::AddPlayerPacket(player) = packet.clone().decode()?.data
+        {
+            self.actors.peer = Some((
+                player.target_runtime_id.actor_runtime_id,
+                player.abilities_data.target_player_raw_id,
+            ));
+        }
+        if packet.is(McpePacketName::AddActorPacket)
+            && let McpePacketData::AddActorPacket(actor) = packet.clone().decode()?.data
+        {
+            self.actors.actor = Some((
+                actor.target_runtime_id.actor_runtime_id,
+                actor.target_actor_id.actor_unique_id,
+            ));
         }
         Ok(packet)
     }
@@ -515,6 +642,7 @@ pub fn write_outputs(
     records: &[Record],
     phases: Phases,
     summons: &[Summon],
+    markers: &[ActionMarker],
 ) -> Result<Value> {
     let mut outputs = Outputs {
         dir,
@@ -608,7 +736,15 @@ pub fn write_outputs(
     let mut commands = Vec::new();
     if let Some(end) = phases.commands_end {
         let start = phases.summon_end.unwrap_or(phases.join_end);
-        commands = command_outputs(records, start..end, player)?;
+        let mut actions = BTreeMap::new();
+        for marker in markers {
+            let record = records
+                .iter()
+                .find(|r| r.dir != "s2c" && r.seq >= marker.after_seq && r.name == marker.packet)
+                .with_context(|| format!("action `{}` is not in the recording", marker.line))?;
+            actions.insert(record.seq, marker.line.clone());
+        }
+        commands = command_outputs(records, start..end, player, &actions)?;
         let mut text = serde_json::to_vec_pretty(&commands)?;
         text.push(b'\n');
         outputs.write("command-outputs.json", &text, json!({}))?;
@@ -659,16 +795,26 @@ pub struct CommandOutputs {
 }
 
 /// Groups the records in `range` (the commands phase) by the client's
-/// `CommandRequest` packets.
+/// `CommandRequest` packets and by the first packet of each scripted action
+/// (`actions`: its recorded `seq` and script line).
 pub fn command_outputs(
     records: &[Record],
     range: Range<u64>,
     player: Option<u64>,
+    actions: &BTreeMap<u64, String>,
 ) -> Result<Vec<CommandOutputs>> {
     let mut commands: Vec<CommandOutputs> = Vec::new();
     for record in records.iter().filter(|r| range.contains(&r.seq)) {
         if record.dir != "s2c" {
-            if record.name == "CommandRequestPacket" {
+            if let Some(line) = actions.get(&record.seq) {
+                commands.push(CommandOutputs {
+                    command: line.clone(),
+                    request_seq: record.seq,
+                    t_ms: record.t_ms,
+                    packets: Vec::new(),
+                    excluded: BTreeMap::new(),
+                });
+            } else if record.name == "CommandRequestPacket" {
                 let McpePacketData::CommandRequestPacket(request) =
                     decode_record(&hex::decode(&record.hex)?)?
                 else {
@@ -787,7 +933,7 @@ mod tests {
             seq: None,
             feedback: vec![],
         }];
-        let manifest = write_outputs(&dir, &records, phases, &summons).unwrap();
+        let manifest = write_outputs(&dir, &records, phases, &summons, &[]).unwrap();
 
         let sequence: Vec<Value> =
             serde_json::from_slice(&std::fs::read(dir.join("join-sequence.json")).unwrap())
@@ -846,9 +992,22 @@ mod tests {
             record(7, "s2c", CommandOutputPacket::default()),
             record(8, "c2s", request("/after")),
         ];
-        let outputs = command_outputs(&records, 1..8, Some(1)).unwrap();
+        let outputs = command_outputs(&records, 1..8, Some(1), &BTreeMap::new()).unwrap();
         let commands: Vec<&str> = outputs.iter().map(|c| c.command.as_str()).collect();
         assert_eq!(commands, ["/list", "/time query daytime"]);
+        // An action splits the packets of the command before it.
+        let mut with_action = records.clone();
+        with_action[2] = record(
+            2,
+            "c2s",
+            jolyne::valentine::ResourcePacksReadyForValidationPacket {},
+        );
+        let actions = BTreeMap::from([(2, "!packs-ready".to_owned())]);
+        let split = command_outputs(&with_action, 1..8, Some(1), &actions).unwrap();
+        let commands: Vec<&str> = split.iter().map(|c| c.command.as_str()).collect();
+        assert_eq!(commands, ["/list", "!packs-ready", "/time query daytime"]);
+        assert_eq!(split[1].request_seq, 2);
+        assert_eq!(split[1].packets.len(), 1, "the player's movement");
         let packets: Vec<&Value> = outputs[0].packets.iter().map(|p| &p["packet"]).collect();
         assert_eq!(packets, ["CommandOutputPacket", "MoveActorDeltaPacket"]);
         assert_eq!(

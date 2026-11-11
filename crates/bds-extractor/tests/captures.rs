@@ -1,6 +1,6 @@
 //! The committed BDS 1.26.51 capture fixtures (`captures/1.26.51`) are the
-//! packets the manifests describe, and Valentine decodes and re-encodes each
-//! of them byte for byte.
+//! packets the manifests (or, for probe runs, their file names) describe, and
+//! Valentine decodes and re-encodes each of them byte for byte.
 
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -63,20 +63,31 @@ fn committed_fixtures_match_manifests_and_round_trip() {
             .to_string_lossy()
             .replace('\\', "/");
         let (session, inner) = relative.split_once('/').unwrap();
-        let entry = &manifests[session][inner];
         let bytes = std::fs::read(&path).unwrap();
-        assert_eq!(
-            entry["sha256"],
-            hex::encode(Sha256::digest(&bytes)),
-            "{relative} differs from its manifest entry"
-        );
+        // The reference sessions have manifests; the probe runs beside them
+        // (`roster/`, `protocol/`) name each packet `<seq>-<Packet>.bin`.
+        let packet = match manifests.get(session) {
+            Some(manifest) => {
+                let entry = &manifest[inner];
+                assert_eq!(
+                    entry["sha256"],
+                    hex::encode(Sha256::digest(&bytes)),
+                    "{relative} differs from its manifest entry"
+                );
+                entry["packet"].as_str().unwrap().to_owned()
+            }
+            None => {
+                let stem = path.file_stem().unwrap().to_string_lossy();
+                stem.split_once('-').unwrap().1.to_owned()
+            }
+        };
 
         let (header, data) =
             McpePacketData::decode_inner_bytes(&mut framed(&bytes), McpePacketArgs)
                 .unwrap_or_else(|error| panic!("{relative}: {error:?}"));
         let debug = format!("{data:?}");
         let name = debug.split('(').next().unwrap();
-        assert_eq!(Some(name), entry["packet"].as_str(), "{relative}");
+        assert_eq!(name, packet, "{relative}");
         let mut encoded = bytes::BytesMut::new();
         data.encode_inner_bytes_mut(&mut encoded, header.from_subclient, header.to_subclient)
             .unwrap();

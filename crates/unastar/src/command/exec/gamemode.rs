@@ -7,7 +7,7 @@
 use crate::command::prelude::*;
 use crate::entity::components::{GameMode, Player, PlayerSession, RuntimeEntityId};
 use crate::server::game::ServerConfigResource;
-use crate::server::game::join::{abilities_packet, game_type};
+use crate::server::game::join::game_type;
 use jolyne::valentine::UpdatePlayerGameTypePacket;
 use jolyne::valentine::types::ActorUniqueId;
 
@@ -82,17 +82,18 @@ fn mode_key(mode: GameMode) -> &'static str {
     }
 }
 
-/// Changes a player's game mode: `UpdatePlayerGameType` to every player (as
-/// BDS does), and the new mode's abilities. BDS sends no abilities update, but
-/// unastar's join abilities depend on the game mode (flight, instant build),
-/// so they are resent rather than left stale.
+/// Changes a player's game mode: `UpdatePlayerGameType` to every player and
+/// nothing else, as BDS does. BDS's abilities depend on the game mode too
+/// (creative adds flight, spectator a layer), but a mode change does not
+/// resend them: the client follows the game type, and the next abilities
+/// update (`/op`, `/deop`, a join) carries the new mode (2026-11-11
+/// `protocol_probe.py abilities`; docs/quirks/bds.md).
 pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
     if world.get::<Player>(player).is_none() {
         return;
     }
     world.entity_mut(player).insert(mode);
     let runtime_id = world.get::<RuntimeEntityId>(player).map_or(0, |id| id.0);
-    let operator = world.get::<crate::command::Operator>(player).is_some();
     let game_type = UpdatePlayerGameTypePacket {
         player_game_type: game_type(mode),
         // Players use one id as unique and runtime id.
@@ -101,11 +102,9 @@ pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
         },
         tick: crate::entity::components::input_tick_of(world, player),
     };
-    let abilities = abilities_packet(runtime_id, mode, operator);
     let mut sessions = world.query::<&PlayerSession>();
     for session in sessions.iter(world) {
         let _ = session.send(game_type.clone().into());
-        let _ = session.send(abilities.clone().into());
     }
 }
 

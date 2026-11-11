@@ -7,6 +7,7 @@ pub mod attributes;
 mod block_drops;
 pub(crate) mod blocks;
 mod chunks;
+mod client_packets;
 #[cfg(test)]
 mod command_tests;
 mod commands;

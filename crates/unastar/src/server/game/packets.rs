@@ -122,7 +122,7 @@ impl GameServer {
         }
     }
 
-    fn route_owned_packet(
+    pub(super) fn route_owned_packet(
         world: &mut bevy_ecs::world::World,
         entity: bevy_ecs::prelude::Entity,
         session_id: SessionId,
@@ -217,6 +217,24 @@ impl GameServer {
             McpePacketData::AnimatePacket(pk) => {
                 crate::server::broadcast::relay_player_swing(world, entity, &pk);
             }
+            // Relayed or answered as BDS does (`client_packets`).
+            McpePacketData::EmotePacket(pk) => {
+                super::client_packets::relay_emote(world, entity, &pk);
+            }
+            McpePacketData::EmoteListPacket(pk) => {
+                super::client_packets::relay_emote_list(world, entity, &pk);
+            }
+            McpePacketData::ClientCacheBlobStatusPacket(pk) => {
+                super::client_packets::answer_blob_status(world, entity, &pk);
+            }
+            McpePacketData::ServerboundDataDrivenScreenClosedPacket(pk) => {
+                super::client_packets::screen_closed(world, entity, &pk);
+            }
+            // BDS 1.26.51 answers none of these (`client_packets`).
+            McpePacketData::PartyChangedPacket(_)
+            | McpePacketData::ResourcePacksReadyForValidationPacket(_)
+            | McpePacketData::ServerboundDataStorePacket(_)
+            | McpePacketData::PartyDestinationCookieResponsePacket(_) => {}
             McpePacketData::SetLocalPlayerAsInitializedPacket(_) => {
                 // Ends the streamed spawn; jolyne's receive path checked its runtime ID.
             }

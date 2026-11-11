@@ -1,0 +1,10 @@
+# The guest joins about 20 s after the host and starts its script after it settles.
+!wait 15000
+/deop BDSExtractor2
+/op BDSExtractor2
+/gamemode creative BDSExtractor2
+/gamemode adventure BDSExtractor2
+/gamemode spectator BDSExtractor2
+/gamemode survival BDSExtractor2
+/summon minecraft:cow ~3 ~ ~3
+!wait 90000

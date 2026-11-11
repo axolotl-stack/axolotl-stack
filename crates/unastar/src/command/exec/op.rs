@@ -97,10 +97,10 @@ fn change(ctx: &mut CommandContext<'_>, target: &Target, grant: bool) -> Command
             list.revoke(&name, xuid.as_deref());
             ctx.world.entity_mut(player).remove::<Operator>();
         }
-        resend_abilities(ctx, player, grant);
         // [INFERENCE] The lang's line to the target, sent as BDS sends its
-        // other target messages.
+        // other target messages; BDS sends it before the abilities.
         ctx.notify(player, &format!("{key_prefix}.message"), vec![]);
+        resend_abilities(ctx, player, grant);
         output.add_success(format!("{key_prefix}.success"), vec![name]);
     }
     if output.is_success() {
@@ -110,8 +110,9 @@ fn change(ctx: &mut CommandContext<'_>, target: &Target, grant: bool) -> Command
     }
 }
 
-/// The player's abilities with its new permission, to every player (as a
-/// game mode change resends them).
+/// The player's abilities with its new permission, to every player
+/// (2026-11-11 `protocol_probe.py abilities`: the target and everyone else
+/// get the same `UpdateAbilities`).
 fn resend_abilities(ctx: &mut CommandContext<'_>, player: Entity, operator: bool) {
     let runtime_id = ctx
         .world

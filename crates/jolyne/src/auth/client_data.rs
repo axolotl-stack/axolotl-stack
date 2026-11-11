@@ -22,6 +22,39 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use serde::{Deserialize, Deserializer, Serialize};
 
+/// The persona piece types a BDS 1.26.51 login may name, for pieces and
+/// tints. BDS refuses a login naming any other type (`persona_hands`
+/// included) as a malformed connection request: measured one login per type
+/// with `tools/bds-sweep/protocol_probe.py skins` (2026-11-11).
+pub const PERSONA_PIECE_TYPES: [&str; 26] = [
+    "persona_skeleton",
+    "persona_body",
+    "persona_skin",
+    "persona_bottom",
+    "persona_feet",
+    "persona_dress",
+    "persona_top",
+    "persona_high_pants",
+    "persona_outerwear",
+    "persona_facial_hair",
+    "persona_mouth",
+    "persona_eyes",
+    "persona_hair",
+    "persona_hood",
+    "persona_back",
+    "persona_face_accessory",
+    "persona_head",
+    "persona_legs",
+    "persona_left_leg",
+    "persona_right_leg",
+    "persona_arms",
+    "persona_left_arm",
+    "persona_right_arm",
+    "persona_capes",
+    "persona_classic_skin",
+    "persona_emote",
+];
+
 /// Caps for client-data lists. Vanilla 1.26.51 persona logins carry a handful
 /// of animations, ~10-20 persona pieces with as many tint entries, and four
 /// colours per tint; the caps leave ample headroom.
@@ -415,6 +448,17 @@ impl ClientData {
         if !(0..=2).contains(&self.ui_profile) {
             return Err(invalid("UIProfile must be between 0 and 2"));
         }
+        // BDS 1.26.51, not gophertunnel: an unknown persona piece type refuses
+        // the login.
+        if self
+            .persona_pieces
+            .iter()
+            .map(|piece| &piece.piece_type)
+            .chain(self.piece_tint_colours.iter().map(|tint| &tint.piece_type))
+            .any(|kind| !PERSONA_PIECE_TYPES.contains(&kind.as_str()))
+        {
+            return Err(invalid("persona piece type is not one BDS accepts"));
+        }
         Ok(())
     }
 }
@@ -679,6 +723,18 @@ pub(crate) mod tests {
             }),
             ("SkinId", |c| c.skin_id.clear()),
             ("UIProfile", |c| c.ui_profile = 3),
+            ("persona piece type", |c| {
+                c.persona_pieces.push(PersonaPiece {
+                    piece_type: "persona_hands".into(),
+                    ..Default::default()
+                })
+            }),
+            ("tint piece type", |c| {
+                c.piece_tint_colours.push(PersonaPieceTintColour {
+                    piece_type: "bogus_type".into(),
+                    ..Default::default()
+                })
+            }),
         ];
         for (name, mutate) in cases {
             let mut data = valid();
