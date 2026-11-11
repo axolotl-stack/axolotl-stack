@@ -94,12 +94,12 @@ Nothing in this domain is claimed.
 | Bedrock world generation | lane BED | 2026-10-29 | 491 |
 | Java world generation | lane JAVA | 2026-10-29 | 47 |
 
-**Gameplay systems**: 52 open rows free, 16 claimed.
+**Gameplay systems**: 53 open rows free, 15 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | player | 16 | 5 | 11 |
-| world (part claimed) | 13 | 6 | 7 |
+| world (part claimed) | 14 | 6 | 8 |
 | mobs | 10 | 8 | 2 |
 | interface | 6 | 4 | 2 |
 | crafting (part claimed) | 4 | 2 | 2 |
@@ -110,7 +110,6 @@ Nothing in this domain is claimed.
 | Gravity, fire and redstone | lane BLOCKS | 2026-10-29 | 4 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 1 |
 | Workstations: crafting, smelting, anvil, grindstone, smithing, brewing, enchanting | lane ITEMS | 2026-10-29 | 8 |
-| Game rules saved with the level data ([`persist-level-data`](../../openspec/changes/persist-level-data/proposal.md)) | lane COMMANDS | 2026-11-10 | 1 |
 | Generation speed | lane PERF | 2026-10-29 | 1 |
 | Chunk streaming | lane LOAD | 2026-10-29 | 1 |
 

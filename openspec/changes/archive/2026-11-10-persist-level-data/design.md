@@ -27,6 +27,8 @@ fixture `crates/unastar/tests/fixtures/bds_1_26_51_level_data.json`).
 
 ## Decisions
 
+Recorded as [decision 0037](../../../../docs/decisions/0037-keep-level-data-in-bds-layout.md) (proposed).
+
 ### 1. BDS's layout, not an unastar format
 
 Options: (a) `level.dat` and LevelDB keys as BDS writes them; (b) an unastar file (JSON or TOML)

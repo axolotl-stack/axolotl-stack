@@ -178,14 +178,6 @@ domain = "worldgen"
 prefixes = ["java/"]
 
 [[claim]]
-area = "Game rules saved with the level data"
-owner = "lane COMMANDS"
-since = 2026-11-10
-domain = "systems"
-ids = ["world.game_rules"]
-change = "persist-level-data"
-
-[[claim]]
 area = "Generation speed"
 owner = "lane PERF"
 since = 2026-10-29
