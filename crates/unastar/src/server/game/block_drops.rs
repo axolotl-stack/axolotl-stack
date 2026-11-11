@@ -51,6 +51,23 @@ pub(crate) fn block_drops(
     block_runtime_id: u32,
     tool: Option<&ItemStack>,
 ) -> Vec<ItemStack> {
+    resolve_drops(world, block_runtime_id, tool, true)
+}
+
+/// What a block that can no longer stay drops when a block update pops it:
+/// its drops by hand, without the correct-tool requirement (BDS 1.26.51: a
+/// popped grindstone, which needs a pickaxe when mined, drops itself;
+/// `measured/block_updates/support.json`).
+pub(crate) fn popped_drops(world: &mut World, block_runtime_id: u32) -> Vec<ItemStack> {
+    resolve_drops(world, block_runtime_id, None, false)
+}
+
+fn resolve_drops(
+    world: &mut World,
+    block_runtime_id: u32,
+    tool: Option<&ItemStack>,
+    needs_correct_tool: bool,
+) -> Vec<ItemStack> {
     let Some(registry) = world
         .get_resource::<BlockRegistryResource>()
         .map(|r| r.0.clone())
@@ -60,7 +77,7 @@ pub(crate) fn block_drops(
     let Some(block) = registry.get_by_runtime_id(block_runtime_id) else {
         return Vec::new();
     };
-    if !can_harvest(block, tool) {
+    if needs_correct_tool && !can_harvest(block, tool) {
         return Vec::new();
     }
     if block.state_value(block_runtime_id, "upper_block_bit") == Some(StateValue::Byte(1)) {
@@ -281,6 +298,118 @@ mod tests {
             )),
             vec![("minecraft:furnace", 1)]
         );
+    }
+
+    /// The tool of a drop-sweep tool key (`hand`, `diamond_pickaxe`,
+    /// `shears`, `diamond_pickaxe+silk_touch1`, `..+fortune2`).
+    fn sweep_tool(key: &str) -> Option<ItemStack> {
+        if key == "hand" {
+            return None;
+        }
+        let (item, enchant) = key
+            .split_once('+')
+            .map_or((key, None), |(i, e)| (i, Some(e)));
+        let stack = crate::item::test_support::stack(&format!("minecraft:{item}"), 1);
+        Some(match enchant {
+            None => stack,
+            Some(e) => {
+                let digits = e.trim_start_matches(|c: char| !c.is_ascii_digit());
+                let level: u8 = digits.parse().unwrap();
+                let enchantment = match e.trim_end_matches(char::is_numeric) {
+                    "silk_touch" => Enchantment::SilkTouch,
+                    "fortune" => Enchantment::Fortune,
+                    other => panic!("enchantment {other}"),
+                };
+                with_enchantments(&stack, &[(enchantment, level)])
+            }
+        })
+    }
+
+    /// Every exact case of the BDS 1.26.51 drop sweep
+    /// (`crates/unastar-data/data/measured/block_drops/`) for the blocks whose
+    /// loot table is the measured one (`//source` "BDS 1.26.51 drop sweep"):
+    /// every measured state and tool drops exactly what BDS dropped.
+    #[test]
+    fn measured_block_tables_reproduce_the_bds_drop_sweep() {
+        let overrides: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../unastar-data/data/overrides/loot_tables/blocks.json"
+        ))
+        .unwrap();
+        let measured: Vec<String> = overrides
+            .as_object()
+            .unwrap()
+            .iter()
+            .filter(|(_, table)| {
+                table["//source"]
+                    .as_str()
+                    .is_some_and(|s| s.starts_with("BDS 1.26.51 drop sweep"))
+            })
+            .map(|(name, _)| name.strip_prefix("blocks/").unwrap().to_owned())
+            // Double slabs with a shipped vanilla table drop the same way.
+            .chain(
+                crate::registry::BlockRegistry::vanilla()
+                    .iter()
+                    .filter_map(|b| b.string_id.strip_prefix("minecraft:"))
+                    .filter(|name| name.ends_with("_double_slab"))
+                    .map(str::to_owned),
+            )
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        assert!(measured.len() > 120, "{}", measured.len());
+        let mut world = world();
+        let mut cells = 0;
+        for block in measured {
+            let path = format!(
+                "{}/../unastar-data/data/measured/block_drops/{block}.json",
+                env!("CARGO_MANIFEST_DIR")
+            );
+            let file: serde_json::Value =
+                serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+            for case in file["cases"].as_array().unwrap() {
+                if case["fit"] != "exact" {
+                    continue;
+                }
+                let (outcome, _) = case["observed"].as_object().unwrap().iter().next().unwrap();
+                let mut expected: Vec<(String, i16, u32)> = Vec::new();
+                for part in outcome.split(';').filter(|p| !p.is_empty()) {
+                    let (name_data, count) = part.rsplit_once('x').unwrap();
+                    let (name, data) = name_data.rsplit_once('@').unwrap();
+                    let (name, data, count) = (
+                        name.to_owned(),
+                        data.parse().unwrap(),
+                        count.parse::<u32>().unwrap(),
+                    );
+                    match expected
+                        .iter_mut()
+                        .find(|(n, d, _)| *n == name && *d == data)
+                    {
+                        Some(entry) => entry.2 += count,
+                        None => expected.push((name, data, count)),
+                    }
+                }
+                for states in case["states"].as_array().unwrap() {
+                    let id = crate::server::game::block_update::tests::state(
+                        &format!("minecraft:{block}"),
+                        states,
+                    );
+                    for tool in case["tools"].as_array().unwrap() {
+                        let tool = sweep_tool(tool.as_str().unwrap());
+                        let mut got: Vec<(String, i16, u32)> = Vec::new();
+                        for stack in block_drops(&mut world, id, tool.as_ref()) {
+                            let (name, data) = (stack.item_id().to_owned(), stack.damage);
+                            match got.iter_mut().find(|(n, d, _)| *n == name && *d == data) {
+                                Some(entry) => entry.2 += u32::from(stack.count),
+                                None => got.push((name, data, u32::from(stack.count))),
+                            }
+                        }
+                        assert_eq!(got, expected, "{block} {states} with {tool:?}");
+                        cells += 1;
+                    }
+                }
+            }
+        }
+        assert!(cells > 2_000, "{cells}");
     }
 
     #[test]

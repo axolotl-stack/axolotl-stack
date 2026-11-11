@@ -663,6 +663,18 @@ Survival placement consumes one server-owned selected item. Placement does not
 replace occupied blocks. Item-specific replacement, adventure CanPlaceOn/CanDestroy
 rules, and unsupported inventory operations are not implemented.
 
+Survival block clicks answer like BDS 1.26.51 click by click
+(`server/game/placement_capture_tests.rs` replays the 205 captured clicks of
+`server/game/testdata/bds-placements.json`): the placed state (orientation rules in
+`server/game/placement.rs`), refusals where the block could not stay, the six
+`UpdateBlock` corrections after every click, the `place` sound (data, position, actor
+id -1) and the inventory resync (after a placement, a click out of reach or a click
+claiming a stack the player does not hold; a refused click in reach gets only the
+corrections). Stacks describe the block BDS describes them with
+(`unastar_data::item_blocks`, measured for every item). Not copied: the attribute and
+actor-data resend BDS sends after every click, and the sign editor BDS opens after a
+sign is placed (sign text is not implemented).
+
 Using a crafting table (unless sneaking with an item in hand) opens BDS's
 WORKBENCH screen (type 1 at the block, no actor) from the shared window-ID
 counter; ItemStackRequest crafting then uses the 3x3 grid. Closing any screen
