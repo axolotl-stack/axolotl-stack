@@ -13,8 +13,8 @@ them but did not measure whether BDS refuses hits during the cooldown
 
 ## Prior work
 
-- [decision 0013](../../../docs/decisions/0013-copy-bds-behaviour-exactly.md) (copy BDS exactly)
-  and [0014](../../../docs/decisions/0014-measure-built-in-facts-from-bds.md) (measure built-in
+- [decision 0013](../../../../docs/decisions/0013-copy-bds-behaviour-exactly.md) (copy BDS exactly)
+  and [0014](../../../../docs/decisions/0014-measure-built-in-facts-from-bds.md) (measure built-in
   facts from BDS).
 - `docs/quirks/bds.md`: Items / spears (the round 1 attack sweep).
 - `openspec/specs/server-authority`: "Item use acts on the server's selected stack and clock". Its
