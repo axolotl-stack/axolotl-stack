@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-11
 decision-makers: [project owner]
 supersedes: "0036"            # once built; until then 0036 stays in force
@@ -51,6 +51,8 @@ and numbers:
 4. **Keep 0036** (per-domain queues with early and late command slots).
 
 ## Decision Outcome
+
+Accepted by the owner on 2026-11-11.
 
 Proposed: option 1, two ordered passes in one exclusive system, because it is the only option
 that reproduces the measured order. It is deterministic by construction: one system, one
