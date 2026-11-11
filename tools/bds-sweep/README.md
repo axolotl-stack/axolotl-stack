@@ -15,6 +15,10 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `commit_fixtures.py` | Copies the committed subset of a capture into `crates/bds-extractor/captures/1.26.51/` (see the crate README); `--commands CAPTURE` commits a command session's `feedback.json` |
 | `scripts/command-order.txt` | A `bds-sweep-client --script` script: block commands sent right before (or one input before) the input that starts breaking the block, on plain BDS (flat world, survival, operator) |
 | `command_order_fixture.py` | Cuts a capture of `scripts/command-order.txt` into `crates/unastar/src/server/game/testdata/bds-command-order.jsonl` (commands, inputs and crack starts of four scenarios) |
+| `pvp_race.py` | Packet-order and PvP race captures: `script CASE` writes a script for `order_probe` (cases in `pvp_race_scripts.py`), `run SCRIPT [--join-order BAC] [--property KEY=VALUE]` plays it on plain BDS (new flat survival world, everyone operator) and keeps `events.jsonl` in `<runtime>/captures/1.26.51/pvp-race-<UTC>/` |
+| `pvp_race_scripts.py` | The race matrix: held attacks (`queue`, `model`), mutual hits, victim input, sprint and sneak, crits, reach, bursts, lag, hurt window, kills, pairs of players at one health (`pairs`, `both-low`), teleports |
+| `pvp_race_summary.py` | Groups an `events.jsonl` by trial: hurt, health, knockback, crits, corrections, actor flags, sounds, with input-tick stamps made relative; prints each variant's outcome distribution and the output-burst timing; marks trials that span a BDS stall |
+| `pvp_race_fixture.py` | Cuts captures into `crates/unastar/src/server/game/testdata/pvp-race-*.jsonl` (header with outcome distributions, then one trial per variant) |
 | `level_data.py` | Where BDS saves level data: `measure` gives every value of a new flat world a non-default setting from the console and an operator player (`bds-extractor --uuid`), stops, reloads and queries it (and a second player lists the scores while the first is offline); `clocks` checks which clock BDS loads; `import WORLD` opens a world unastar wrote and asks the same queries; `daylock` measures `/daylock`; `dump WORLD` prints `level.dat` and the level records; `fixture` writes `crates/unastar/tests/fixtures/bds_1_26_51_level_data.json`. Reads world copies with `leveldb_read.py`; snapshots stay in OUT |
 | `command_probe.py` | Console and operator-player answers for commands `command-script.txt` does not cover (`reloadconfig`, `reloadpacketlimitconfig`, `wsserver`, `script`, `place`, `locate`, `ride`, `packstack`) on a new flat world; `fixture` writes `crates/unastar/src/command/exec/testdata/bds-command-probe.json` (local paths redacted) |
 | `le_nbt.py` | Little-endian NBT reader and writer (types and compound order kept) for `level.dat` and level records, independent of unastar |
@@ -75,6 +79,13 @@ The plugin sends these chat orders to `bds-sweep-client`:
 | `bds-sweep:drop hotbar SLOT COUNT` | Closed-screen Drop from hotbar index 0..8; count 1 is Q, a full stack is ctrl-Q |
 | `bds-sweep:drop inventory SLOT COUNT` | Open the inventory, wait for its server-allocated window ID, then Drop from native inventory index 0..35 |
 | `bds-sweep:close-inventory` | Close the tracked native inventory window |
+
+`order_probe` (`crates/bds-sweep/src/bin/order_probe.rs`) is a second scripted client:
+three players (`RaceA`, `RaceB`, `RaceC`) in one process, so a script line decides which
+player sends what, in which order within a 50 ms tick, and which packets share a game
+batch. It ticks from a thread clock (a tokio interval ticks every ~62 ms on Windows; see
+`docs/solutions/tooling/time-scripted-clients-with-a-thread-clock-on-windows.md`). Script
+actions and the output format are in its module docs.
 
 Drop references come only from server `InventoryContent`/`InventorySlot`
 updates; missing/empty/idless slots and invalid counts fail rather than invent
