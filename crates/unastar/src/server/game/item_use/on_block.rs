@@ -32,6 +32,10 @@ const UP: u8 = 1;
 /// Use the held item on the clicked block. Returns whether the item did
 /// something (then nothing is placed).
 pub fn use_on_block(world: &mut World, player: Entity, clicked: IVec3, face: u8) -> bool {
+    // A jukebox takes a disc or gives one back, also to an empty hand.
+    if crate::server::game::jukebox::use_jukebox(world, player, clicked, face) {
+        return true;
+    }
     let Some((slot, stack)) = held(world, player) else {
         return false;
     };

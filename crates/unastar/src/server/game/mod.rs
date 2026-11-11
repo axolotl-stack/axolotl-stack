@@ -6,6 +6,8 @@
 pub mod attributes;
 mod block_drops;
 pub(crate) mod blocks;
+#[cfg(test)]
+pub(crate) mod capture_replay;
 mod chunks;
 #[cfg(test)]
 mod command_tests;
@@ -20,6 +22,7 @@ pub mod item_use;
 mod items;
 pub(crate) mod join;
 mod join_data;
+pub mod jukebox;
 mod loot;
 mod mining;
 mod movement;
@@ -398,6 +401,8 @@ impl GameServer {
         ecs.world_mut()
             .add_observer(containers::register_chunk_tickers);
         ecs.world_mut().add_observer(containers::forget_replaced);
+        ecs.world_mut()
+            .add_observer(jukebox::drop_record_when_replaced);
         register_chunk_systems(ecs.schedule_mut());
 
         // Domain systems in PacketApplySet (movement, inventory, chunks run parallel)
@@ -536,6 +541,9 @@ impl GameServer {
                 .after(falling::process_gravity_checks)
                 .before(tick_block_breaking),
         );
+        // Jukeboxes: ticks playing and the actor data changed last tick.
+        ecs.schedule_mut()
+            .add_systems(jukebox::tick_jukeboxes.in_set(EntityLogicSet));
         // Mob fall damage, condition damage, daylight burning and fire, death,
         // then experience orbs. After the entity chain so deaths from
         // fire/effects are caught the same tick.

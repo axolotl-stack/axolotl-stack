@@ -14,14 +14,19 @@ Animate, PlayerStartItemCooldown, LevelSoundEvent, the UpdateAttributes of
 actors other than the player (their health) and the SetActorData of the
 player (its flags). Every AddActor is kept, wherever it falls, so a replay can
 map BDS runtime ids to the name tags its script gave. Each record carries
-`input`, the client tick of the latest input sent before it.
+`input`, the client tick of the latest input sent before it; `--no-inputs`
+drops the inputs themselves for replays that only tick the server. Item use
+scenarios also keep CompletedUsingItem, MobEffect, InventorySlot, Text,
+BlockActorData, UpdateBlock and AddItemActor.
 """
 import argparse
 import json
 
 KEEP_C2S = {144: 'PlayerAuthInput', 30: 'InventoryTransaction', 31: 'MobEquipment', 44: 'Animate'}
 KEEP_S2C = {27: 'ActorEvent', 44: 'Animate', 176: 'PlayerStartItemCooldown', 123: 'LevelSoundEvent',
-            29: 'UpdateAttributes', 39: 'SetActorData'}
+            29: 'UpdateAttributes', 39: 'SetActorData', 142: 'CompletedUsingItem', 28: 'MobEffect',
+            50: 'InventorySlot', 9: 'Text', 56: 'BlockActorData', 21: 'UpdateBlock', 15: 'AddItemActor',
+            30: 'InventoryTransaction'}
 ADD_ACTOR = 13
 # Sounds of the world rather than of the scenario.
 AMBIENT_SOUNDS = (b'pop', b'spawn', b'ambient', b'mob.warning')
@@ -81,7 +86,7 @@ def windows(spec):
     return out
 
 
-def cut(rows, windows=(), commands=None, player=1):
+def cut(rows, windows=(), commands=None, player=1, inputs=True):
     """The kept records of a capture's rows (see the module docs)."""
     latest = None
     out = []
@@ -92,7 +97,7 @@ def cut(rows, windows=(), commands=None, player=1):
         inside = latest is not None and any(lo <= latest < hi for lo, hi in windows)
         if row['dir'] == 'c2s' and row['id'] == 144:
             latest = input_tick(b)
-            keep = commands is None and any(lo <= latest < hi for lo, hi in windows)
+            keep = inputs and commands is None and any(lo <= latest < hi for lo, hi in windows)
         elif commands is not None:
             if row['name'] == 'CommandRequestPacket':
                 # Header byte, then the command (length varint, text). Compared
@@ -122,9 +127,12 @@ def main():
     parser.add_argument('--commands', default=None,
                         help='keep only the commands starting with this text and their outputs')
     parser.add_argument('--player', type=int, default=1, help='runtime id BDS gave the scripted player')
+    parser.add_argument('--no-inputs', action='store_true',
+                        help='drop the PlayerAuthInputs themselves (records keep their input tick); for '
+                             'replays that only need the server to tick')
     args = parser.parse_args()
     rows = [json.loads(line) for line in open(args.source, encoding='utf-8') if line.strip()]
-    out = cut(rows, args.windows, args.commands, args.player)
+    out = cut(rows, args.windows, args.commands, args.player, not args.no_inputs)
     with open(args.target, 'w', encoding='utf-8', newline='\n') as f:
         for record in out:
             f.write(json.dumps(record, separators=(',', ':')) + '\n')

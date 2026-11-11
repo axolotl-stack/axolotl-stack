@@ -777,7 +777,10 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Stuck arrows: shake, pickup, despawn after 1200 ticks | done | capture (shake event); lifetime is a public reference |
 | Ender pearls | not done | needs `teleport_owner` and the endermite archetype (entity lane) |
 | Tridents | not done | `minecraft:thrown_trident` lacks a measured `AddActor` shape |
-| Potions, splash potions, tipped arrows | not done | potion effect table not measured |
+| Potions and ominous bottles: drinking (32 ticks), the effects of all 47 potion data values, instant health and damage, Bad Omen, sounds, glass bottle | done | BDS item-use capture (`server/game/item_use/drink_tests.rs`); splash and lingering potions and tipped arrows not done |
+| Effect pulses (poison, wither, regeneration on the duration before the tick), poison as a hurt, invisibility sounds, effect packet order | done | BDS item-use capture |
+| Goat horns (`horn_call<data>`, 140-tick cooldown, using flag) and the spyglass (using flag) | done | BDS item-use capture |
+| Jukeboxes: music discs in and out, popup, actor data, drops, breaking a playing jukebox | done | BDS jukebox capture (`server/game/jukebox/tests.rs`); no redstone signal |
 | Player death from starvation or arrows | not done | entity lane (player death and respawn) |
 
 The loopback test `tests/item_use_loopback.rs` eats an apple, mines stone

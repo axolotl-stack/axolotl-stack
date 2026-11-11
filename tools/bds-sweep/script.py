@@ -9,6 +9,11 @@ packet directions to `DIR/client-capture/packets.jsonl`. Run the same script
 against unastar with `bds-sweep-client --addr <unastar> --script ...` (the
 player must be an operator there) and compare the two captures. Raw output
 stays outside the repository.
+
+With `--observer SCRIPT` a second scripted player, `BDSObserver`, joins at
+the same time and plays its own script (for example standing next to the
+first player), recorded to `DIR/observer-capture/packets.jsonl`: what other
+players see of the first player's actions.
 """
 
 from __future__ import annotations
@@ -26,6 +31,7 @@ import bds_runtime  # noqa: E402
 REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-script-1.26.51'
 PLAYER = 'BDSSweep'
+OBSERVER = 'BDSObserver'
 
 
 def main() -> int:
@@ -34,6 +40,7 @@ def main() -> int:
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--client', type=Path, default=REPO / 'target' / 'debug' / 'bds-sweep-client.exe')
     parser.add_argument('--timeout', type=float, default=600, help='seconds for the whole script')
+    parser.add_argument('--observer', type=Path, help='script of a second player, BDSObserver')
     args = parser.parse_args()
     if not args.client.exists():
         parser.error(f'{args.client} missing: cargo build -p bds-sweep')
@@ -47,12 +54,30 @@ def main() -> int:
         default_player_permission_level='operator', view_distance=6, tick_distance=4)
     command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', PLAYER, '--script', str(args.script.resolve()),
                '--capture-dir', str(out / 'client-capture')]
+    observer_command = None
+    if args.observer:
+        observer_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', OBSERVER, '--script',
+                            str(args.observer.resolve()), '--capture-dir', str(out / 'observer-capture')]
     started = time.monotonic()
     try:
         with bds_runtime.Bds(properties, out / 'bds.log', endstone=False):
-            with (out / 'client.log').open('a', encoding='utf-8') as log:
-                client = subprocess.run(command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT,
-                                        timeout=args.timeout)
+            with (
+                (out / 'client.log').open('a', encoding='utf-8') as log,
+                (out / 'observer.log').open('a', encoding='utf-8') as observer_log,
+            ):
+                observer = None
+                if observer_command:
+                    observer = subprocess.Popen(observer_command, cwd=REPO, stdout=observer_log,
+                                                stderr=subprocess.STDOUT)
+                try:
+                    client = subprocess.run(command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT,
+                                            timeout=args.timeout)
+                finally:
+                    if observer is not None:
+                        try:
+                            observer.wait(timeout=60)
+                        except subprocess.TimeoutExpired:
+                            observer.kill()
     finally:
         if world.exists():
             shutil.rmtree(world)

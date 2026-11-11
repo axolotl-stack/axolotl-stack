@@ -1,0 +1,61 @@
+# The elytra: gliding and its wear, for packet captures of the same scripted
+# player against BDS and unastar (`bds-sweep-client --script
+# tools/bds-sweep/scripts/elytra.txt --capture-dir DIR`, an operator). The
+# client follows the server's position corrections while it falls and
+# glides. Ticks are the client's input ticks.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /gamerule falldamage false
+25 /time set 6000
+26 /fill -4 -61 -4 4 -61 4 stone
+27 /fill -4 -60 -4 4 -55 4 air
+28 /gamemode survival @s
+29 /clear @s
+30 /tp @s 0.5 -60 0.5 -90 0
+
+# 1. Gliding on the ground, and in the air without an elytra.
+40 glide
+50 unglide
+60 /tp @s 0.5 40 0.5 -90 0
+70 glide
+80 unglide
+90 /tp @s 0.5 -60 0.5 -90 0
+
+# 2. A new elytra: 100 blocks up, falling for 10 inputs, then gliding (level,
+#    facing east) until it lands; a stop after 200 inputs if it has not.
+100 /replaceitem entity @s slot.armor.chest 0 elytra
+110 /tp @s 0.5 40 0.5 -90 0
+120 glide
+320 unglide
+330 /tp @s 0.5 -60 0.5 -90 0
+
+# 3. An elytra with 2 durability left (damage 430 of 432), gliding the same
+#    way.
+340 /replaceitem entity @s slot.armor.chest 0 elytra 1 430
+350 /tp @s 0.5 40 0.5 -90 0
+360 glide
+560 unglide
+570 /tp @s 0.5 -60 0.5 -90 0
+
+# 4. A broken elytra (1 durability left, damage 431).
+580 /replaceitem entity @s slot.armor.chest 0 elytra 1 431
+590 /tp @s 0.5 40 0.5 -90 0
+600 glide
+700 unglide
+710 /tp @s 0.5 -60 0.5 -90 0
+
+# 5. Potions drunk facing south (yaw 0), north (yaw 180) and down (pitch 60),
+#    for where the drinking sound plays.
+720 /clear @s
+722 /tp @s 0.5 -60 0.5 0 0
+725 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 0
+730 use
+770 /tp @s 0.5 -60 0.5 180 0
+775 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 0
+780 use
+820 /tp @s 0.5 -60 0.5 -90 60
+825 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 0
+830 use
+880 exit

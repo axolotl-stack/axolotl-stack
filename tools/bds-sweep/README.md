@@ -21,6 +21,9 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `breaking_fixture.py` | Cuts the committed breaking fixture (`crates/unastar/src/server/game/blocks/testdata/bds-breaking.jsonl`) out of a `script.py` capture of `scripts/breaking.txt` |
 | `scripts/spears.txt` | Spear scenarios with named pigs: plain hits and the attack cooldown (its last input, its category, three hits in one input), jabs without a target for every tier (also packed into the input), missed swings, holding a spear, a sword's reach |
 | `scripts/enchant-spears.txt` | `/enchant` with every enchantment (and Lunge III/IV) on a fresh spear of every tier |
+| `scripts/use-items.txt` | The spyglass, goat horns 0-7, potions 0-46 and ominous bottles 0-4 drunk to the end, and an elytra (see `scripts/elytra.txt`) |
+| `scripts/records.txt` | All 22 music discs into a jukebox and out, a disc on a playing jukebox, creative, breaking a playing jukebox, disc 11 to its end |
+| `scripts/elytra.txt`, `scripts/elytra-2.txt` | Gliding with and without an elytra and its wear; potions drunk facing south, north and down (where the drink sound plays); which jump inputs start a glide |
 | `combat_fixture.py` | Cuts replay fixtures out of a `script.py` capture: the client's inputs and actions with BDS's hurt, health, cooldown, sound and flag packets inside scenario windows (`crates/unastar/src/entity/mob/combat/hit/testdata/bds-spears.jsonl`), or the requests of one command and their outputs (`--commands enchant`, `crates/unastar/src/item/testdata/bds-enchant-spears.jsonl`) |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
@@ -92,6 +95,11 @@ The plugin sends these chat orders to `bds-sweep-client`:
 step at that client input tick, an order above without its `bds-sweep:` prefix, a slash command
 (sent as `CommandRequest`; the player must be an operator) or `exit`. Every input carries the
 camera orientation of its rotation, as a vanilla client sends it.
+
+`flags A,B` and `held-flags A,B` send raw input flags by name (`Jumpdown`, `Startgliding`, ...)
+on the next input or on every input until `held-flags none`. With `script.py --observer SCRIPT` a
+second player, `BDSObserver`, plays its own script at the same time, recorded to
+`DIR/observer-capture`.
 
 `bds-sweep-client --decode DIR/packets.jsonl [--only ActorEvent,LevelSoundEvent]` prints a
 recording decoded, one packet per line with the client tick of the latest input, without

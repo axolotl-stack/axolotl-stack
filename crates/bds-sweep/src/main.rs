@@ -47,6 +47,9 @@
 //! * `sprint` / `unsprint`: `StartSprinting` / `StopSprinting`, then
 //!   `Sprinting` on every input while it lasts;
 //! * `look YAW PITCH`: the rotation sent from the next input on;
+//! * `flags A,B` / `held-flags A,B`: raw input flags by name (`Jumpdown`,
+//!   `Startgliding`, ...) on the next input only, or on every input until
+//!   `held-flags none`;
 //! * `move DX DY DZ TICKS`: move by `(DX, DY, DZ)` blocks on each of the
 //!   next `TICKS` inputs (forward input held).
 //!
@@ -244,6 +247,11 @@ enum Order {
     Look(f32, f32),
     /// Move by this much on each of the next inputs.
     Move([f32; 3], u32),
+    /// Raw input flags for the next input only.
+    Flags(Vec<EnumsPlayerAuthInputPacketPayloadInputData>),
+    /// Raw input flags for every input from now on (replacing the last
+    /// held set; empty clears it).
+    HeldFlags(Vec<EnumsPlayerAuthInputPacketPayloadInputData>),
     Drop(DropOrder),
     CloseInventory,
 }
@@ -300,6 +308,23 @@ fn parse_order(text: &str) -> Option<Order> {
         "unglide" => Some(Order::Glide(false)),
         "sprint" => Some(Order::Sprint(true)),
         "unsprint" => Some(Order::Sprint(false)),
+        "flags" | "held-flags" => {
+            let flags = words
+                .next()
+                .map(|list| {
+                    list.trim_end_matches(|c: char| !c.is_ascii_alphanumeric())
+                        .split(',')
+                        .filter(|name| !name.is_empty() && *name != "none")
+                        .map(input_flag)
+                        .collect::<Option<Vec<_>>>()
+                })
+                .unwrap_or(Some(Vec::new()))?;
+            Some(if keyword == "flags" {
+                Order::Flags(flags)
+            } else {
+                Order::HeldFlags(flags)
+            })
+        }
         "attack-named" => {
             let name = words
                 .next()?
@@ -440,8 +465,84 @@ struct Player {
     flags: Vec<EnumsPlayerAuthInputPacketPayloadInputData>,
     /// An item use packed into the next input.
     packed_use: Option<ItemUseInventoryTransaction>,
+    /// Input flags of every input (`held-flags`).
+    held_flags: Vec<EnumsPlayerAuthInputPacketPayloadInputData>,
     sprinting: bool,
     moving: Option<Moving>,
+}
+
+/// An input flag by its name, any case (`Jumpdown`, `startgliding`, ...).
+fn input_flag(name: &str) -> Option<EnumsPlayerAuthInputPacketPayloadInputData> {
+    use EnumsPlayerAuthInputPacketPayloadInputData::*;
+    Some(match name.to_ascii_lowercase().as_str() {
+        "ascend" => Ascend,
+        "descend" => Descend,
+        "northjump" => Northjump,
+        "jumpdown" => Jumpdown,
+        "sprintdown" => Sprintdown,
+        "changeheight" => Changeheight,
+        "jumping" => Jumping,
+        "autojumpinginwater" => Autojumpinginwater,
+        "sneaking" => Sneaking,
+        "sneakdown" => Sneakdown,
+        "up" => Up,
+        "down" => Down,
+        "left" => Left,
+        "right" => Right,
+        "upleft" => Upleft,
+        "upright" => Upright,
+        "wantup" => Wantup,
+        "wantdown" => Wantdown,
+        "wantdownslow" => Wantdownslow,
+        "wantupslow" => Wantupslow,
+        "sprinting" => Sprinting,
+        "ascendblock" => Ascendblock,
+        "descendblock" => Descendblock,
+        "sneaktoggledown" => Sneaktoggledown,
+        "persistsneak" => Persistsneak,
+        "startsprinting" => Startsprinting,
+        "stopsprinting" => Stopsprinting,
+        "startsneaking" => Startsneaking,
+        "stopsneaking" => Stopsneaking,
+        "startswimming" => Startswimming,
+        "stopswimming" => Stopswimming,
+        "startjumping" => Startjumping,
+        "startgliding" => Startgliding,
+        "stopgliding" => Stopgliding,
+        "performiteminteraction" => Performiteminteraction,
+        "performblockactions" => Performblockactions,
+        "performitemstackrequest" => Performitemstackrequest,
+        "handledteleport" => Handledteleport,
+        "emoting" => Emoting,
+        "missedswing" => Missedswing,
+        "startcrawling" => Startcrawling,
+        "stopcrawling" => Stopcrawling,
+        "startflying" => Startflying,
+        "stopflying" => Stopflying,
+        "clientackserverdata" => Clientackserverdata,
+        "isinclientpredictedvehicle" => Isinclientpredictedvehicle,
+        "paddlingleft" => Paddlingleft,
+        "paddlingright" => Paddlingright,
+        "blockbreakingdelayenabled" => Blockbreakingdelayenabled,
+        "horizontalcollision" => Horizontalcollision,
+        "verticalcollision" => Verticalcollision,
+        "downleft" => Downleft,
+        "downright" => Downright,
+        "startusingitem" => Startusingitem,
+        "iscamerarelativemovementenabled" => Iscamerarelativemovementenabled,
+        "isrotcontrolledbymovedirection" => Isrotcontrolledbymovedirection,
+        "startspinattack" => Startspinattack,
+        "stopspinattack" => Stopspinattack,
+        "ishotbaronlytouch" => Ishotbaronlytouch,
+        "jumpreleasedraw" => Jumpreleasedraw,
+        "jumppressedraw" => Jumppressedraw,
+        "jumpcurrentraw" => Jumpcurrentraw,
+        "sneakreleasedraw" => Sneakreleasedraw,
+        "sneakpressedraw" => Sneakpressedraw,
+        "sneakcurrentraw" => Sneakcurrentraw,
+        "internalupdate" => Internalupdate,
+        _ => return None,
+    })
 }
 
 /// The unit view vector of a rotation (pitch `x`, yaw `y`, degrees), as a
@@ -502,6 +603,7 @@ impl Player {
             blocks: HashMap::new(),
             flags: Vec::new(),
             packed_use: None,
+            held_flags: Vec::new(),
             sprinting: false,
             moving: None,
         }
@@ -705,6 +807,8 @@ impl Player {
                 });
             }
             Order::Look(yaw, pitch) => self.rotation = Vec2 { x: pitch, y: yaw },
+            Order::Flags(flags) => self.flags.extend(flags),
+            Order::HeldFlags(flags) => self.held_flags = flags,
             Order::Move(delta, ticks) => {
                 self.moving = (ticks > 0).then_some(Moving { delta, left: ticks });
             }
@@ -900,6 +1004,11 @@ impl Player {
         };
         if self.sprinting {
             input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Sprinting);
+        }
+        for flag in &self.held_flags {
+            if !input_data.contains(flag) {
+                input_data.push(*flag);
+            }
         }
         let item_use_transaction = self.packed_use.take().map(|item_use_transaction| {
             input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Performiteminteraction);
@@ -1783,6 +1892,14 @@ mod tests {
             ("bds-sweep:select 3", Order::Select(3)),
             ("bds-sweep:use-on 1 -59 0 1", Order::UseOn([1, -59, 0], 1)),
             ("bds-sweep:look -90 12.5", Order::Look(-90.0, 12.5)),
+            (
+                "bds-sweep:flags startgliding,Jumpdown",
+                Order::Flags(vec![
+                    EnumsPlayerAuthInputPacketPayloadInputData::Startgliding,
+                    EnumsPlayerAuthInputPacketPayloadInputData::Jumpdown,
+                ]),
+            ),
+            ("bds-sweep:held-flags none", Order::HeldFlags(Vec::new())),
             (
                 "bds-sweep:move 0.25 0 -0.5 4",
                 Order::Move([0.25, 0.0, -0.5], 4),

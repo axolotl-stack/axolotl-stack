@@ -70,9 +70,12 @@ pub enum UseKind {
     Draw(ranged::Drawn),
     Throw,
     /// Held while the button is down (`minecraft:use_modifiers` on an item
-    /// that is not eaten: the spears). BDS 1.26.51 sets the using flag at
-    /// the use and clears it at the release (spear capture).
+    /// that is not eaten: the spears; the spyglass). BDS 1.26.51 sets the
+    /// using flag at the use and clears it at the release (spear and
+    /// item-use captures).
     Hold,
+    /// The goat horn: [`play_horn`].
+    Instrument,
 }
 
 /// How an item is used in the air, from its data.
@@ -86,6 +89,13 @@ pub fn use_kind(stack: &ItemStack) -> Option<UseKind> {
     }
     if ranged::thrown(entry.identifier()).is_some() {
         return Some(UseKind::Throw);
+    }
+    // The native use animation: 10 looks through a spyglass, 11 plays an
+    // instrument.
+    match entry.data().use_animation {
+        10 => return Some(UseKind::Hold),
+        11 => return Some(UseKind::Instrument),
+        _ => {}
     }
     entry
         .components()
@@ -259,12 +269,14 @@ pub fn used_ticks(world: &World, using: &ItemUsing) -> u64 {
 }
 
 /// `CompletedUsingItem` methods BDS sends (capture `item-use-20261029`):
-/// 1 for food and -1 for the milk bucket and crossbow charging.
+/// 1 for food, 3 for potions and ominous bottles, and -1 for the milk
+/// bucket and crossbow charging.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum UseMethod {
     None = -1,
     Eat = 1,
+    Drink = 3,
 }
 
 /// Tell the player's client the item use finished.
@@ -344,9 +356,48 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
             }
         }
         (Some(UseKind::Hold), UseRequest::UseAir, Some(_)) => {}
+        (Some(UseKind::Instrument), UseRequest::UseAir, None) => {
+            play_horn(world, player, slot, &stack)
+        }
+        (Some(UseKind::Instrument), UseRequest::UseAir, Some(_)) => {}
         (_, UseRequest::Release | UseRequest::Consume, _) => stop_using(world, player),
         (None, UseRequest::UseAir, _) => {}
         (_, UseRequest::AttackAir | UseRequest::MissedSwing, _) => {}
+    }
+}
+
+/// The goat horn's cooldown: category `minecraft:goat_horn`, 140 ticks (BDS
+/// 1.26.51 item-use capture).
+fn horn_cooldown() -> crate::item::cooldown::Cooldown {
+    crate::item::cooldown::Cooldown {
+        category: "minecraft:goat_horn".into(),
+        ticks: 140,
+        attack: false,
+    }
+}
+
+/// Play the held goat horn. Measured on BDS 1.26.51 (item-use capture, horns
+/// 0-7): outside its cooldown it starts the cooldown, sets the using flag
+/// (cleared at the release) and plays `horn_call<data>` 0.1 below the eyes;
+/// inside the cooldown nothing happens.
+fn play_horn(world: &mut World, player: Entity, slot: u8, stack: &ItemStack) {
+    let cooldown = horn_cooldown();
+    if crate::item::cooldown::cooling(world, player, &cooldown.category) {
+        return;
+    }
+    let Some(entry) = stack.item() else {
+        return;
+    };
+    crate::item::cooldown::start(world, player, &cooldown);
+    start_using(world, player, slot, entry.id);
+    if let Some(eye) = world.get::<Position>(player).map(|p| p.0) {
+        crate::entity::mob::net::sound::play_level_sound(
+            world,
+            Some(player),
+            eye - glam::DVec3::new(0.0, 0.1, 0.0),
+            &format!("horn_call{}", stack.damage.max(0)),
+            -1,
+        );
     }
 }
 
@@ -514,5 +565,7 @@ fn feed(world: &World, player: Entity, stack: &ItemStack) {
     send_to(world, &viewers, &packet);
 }
 
+#[cfg(test)]
+mod drink_tests;
 #[cfg(test)]
 mod tests;

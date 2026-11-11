@@ -6,6 +6,17 @@
 //! built-in item class without pack data: drinking it clears every effect
 //! and leaves a bucket.
 //!
+//! Potions and ominous bottles are built-in drinks too, measured on BDS
+//! 1.26.51 (item-use capture, `tools/bds-sweep/scripts/use-items.txt`,
+//! replayed by `item_use/drink_tests.rs`). Each potion data value gives the
+//! effects of [`potion_effects`]; the potion leaves a glass bottle and plays
+//! `bottle.empty`. An ominous bottle gives Bad Omen at its data value as
+//! amplifier (at most 4) for 120000 ticks without particles, plays
+//! `apply_effect.bad_omen` and `ominous_bottle.end_use`, and leaves nothing.
+//! Both finish with `CompletedUsingItem` method 3 and play their sounds 0.2
+//! below the eyes and 0.2 ahead of them in the facing direction, whatever
+//! the pitch.
+//!
 //! The use duration is `minecraft:use_modifiers.use_duration` (seconds) or
 //! the legacy `minecraft:use_duration` (ticks), else the native
 //! `maxUseDuration`; they agree for every vanilla food.
@@ -34,10 +45,19 @@ pub enum ConsumeKind {
     Food,
     /// The milk bucket.
     Milk,
+    /// A potion: the effects of its data value.
+    Potion,
+    /// An ominous bottle: Bad Omen.
+    OminousBottle,
 }
 
 const MILK_BUCKET: &str = "minecraft:milk_bucket";
 const BUCKET: &str = "minecraft:bucket";
+const POTION: &str = "minecraft:potion";
+const OMINOUS_BOTTLE: &str = "minecraft:ominous_bottle";
+const GLASS_BOTTLE: &str = "minecraft:glass_bottle";
+/// Bad Omen from an ominous bottle: 100 minutes.
+const BAD_OMEN_TICKS: u32 = 120_000;
 
 /// The use duration of `entry` in ticks.
 pub fn use_duration(entry: &ItemEntry) -> u32 {
@@ -59,6 +79,10 @@ pub fn consumable(entry: &ItemEntry) -> Option<Consumable> {
         ConsumeKind::Food
     } else if entry.identifier() == MILK_BUCKET {
         ConsumeKind::Milk
+    } else if entry.identifier() == POTION {
+        ConsumeKind::Potion
+    } else if entry.identifier() == OMINOUS_BOTTLE {
+        ConsumeKind::OminousBottle
     } else {
         return None;
     };
@@ -71,7 +95,7 @@ pub fn consumable(entry: &ItemEntry) -> Option<Consumable> {
 /// Whether the player may start eating: hungry, a food that can always be
 /// eaten, a drink, creative, or peaceful.
 fn may_start(world: &World, player: Entity, entry: &ItemEntry, kind: ConsumeKind) -> bool {
-    if kind == ConsumeKind::Milk {
+    if kind != ConsumeKind::Food {
         return true;
     }
     let always = entry
@@ -167,6 +191,26 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
             effects::clear_effects(world, player);
             Some(BUCKET.to_owned())
         }
+        (ConsumeKind::Potion, _) => {
+            for &(effect, amplifier, duration) in potion_effects(stack.damage) {
+                effects::add_effect(world, player, effect, amplifier, duration);
+            }
+            Some(GLASS_BOTTLE.to_owned())
+        }
+        (ConsumeKind::OminousBottle, _) => {
+            let mut omen = crate::entity::components::ActiveEffect::new(
+                u8::try_from(stack.damage.clamp(0, 4)).unwrap_or(0),
+                BAD_OMEN_TICKS,
+            );
+            omen.show_particles = false;
+            effects::add_effect_with(
+                world,
+                player,
+                crate::entity::components::EffectType(28),
+                omen,
+            );
+            None
+        }
         (ConsumeKind::Food, None) => return,
     };
     let creative = world.get::<GameMode>(player) == Some(&GameMode::Creative);
@@ -196,9 +240,20 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
     let method = match kind {
         ConsumeKind::Food => UseMethod::Eat,
         ConsumeKind::Milk => UseMethod::None,
+        ConsumeKind::Potion | ConsumeKind::OminousBottle => UseMethod::Drink,
     };
     super::completed(world, player, entry.network_id(), method);
     super::stop_using(world, player);
+    let sounds: &[&str] = match kind {
+        ConsumeKind::Potion => &["bottle.empty"],
+        ConsumeKind::OminousBottle => &["apply_effect.bad_omen", "ominous_bottle.end_use"],
+        _ => &[],
+    };
+    if let Some(at) = drink_sound_at(world, player) {
+        for sound in sounds {
+            crate::entity::mob::net::sound::play_level_sound(world, None, at, sound, -1);
+        }
+    }
     // Food ends with a burp 0.1 below the eyes; drinking milk does not.
     if kind == ConsumeKind::Food
         && let Some(eye) = world.get::<Position>(player).map(|p| p.0)
@@ -210,6 +265,72 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
             "burp",
             -1,
         );
+    }
+}
+
+/// Where BDS plays a drink's sounds: 0.2 below the eyes and 0.2 ahead of
+/// them horizontally, along the player's yaw (the pitch does not move it).
+fn drink_sound_at(world: &World, player: Entity) -> Option<DVec3> {
+    let eye = world.get::<Position>(player)?.0;
+    let yaw = f64::from(
+        world
+            .get::<crate::entity::components::Rotation>(player)?
+            .yaw,
+    )
+    .to_radians();
+    Some(eye + DVec3::new(-yaw.sin() * 0.2, -0.2, yaw.cos() * 0.2))
+}
+
+/// The effects of the potion with data value `data`: (effect, amplifier,
+/// duration in ticks), measured on BDS 1.26.51 by drinking data 0-46
+/// (item-use capture, `MobEffect` adds). Water, mundane, thick and awkward
+/// potions (0-4) give nothing; instant effects (21-24) last 1 tick.
+pub fn potion_effects(data: i16) -> &'static [(crate::entity::components::EffectType, u8, u32)] {
+    use crate::entity::components::EffectType as E;
+    match data {
+        5 => &[(E::NIGHT_VISION, 0, 3600)],
+        6 => &[(E::NIGHT_VISION, 0, 9600)],
+        7 => &[(E::INVISIBILITY, 0, 3600)],
+        8 => &[(E::INVISIBILITY, 0, 9600)],
+        9 => &[(E::JUMP_BOOST, 0, 3600)],
+        10 => &[(E::JUMP_BOOST, 0, 9600)],
+        11 => &[(E::JUMP_BOOST, 1, 1800)],
+        12 => &[(E::FIRE_RESISTANCE, 0, 3600)],
+        13 => &[(E::FIRE_RESISTANCE, 0, 9600)],
+        14 => &[(E::SPEED, 0, 3600)],
+        15 => &[(E::SPEED, 0, 9600)],
+        16 => &[(E::SPEED, 1, 1800)],
+        17 => &[(E::SLOWNESS, 0, 1800)],
+        18 => &[(E::SLOWNESS, 0, 4800)],
+        19 => &[(E::WATER_BREATHING, 0, 3600)],
+        20 => &[(E::WATER_BREATHING, 0, 9600)],
+        21 => &[(E::INSTANT_HEALTH, 0, 1)],
+        22 => &[(E::INSTANT_HEALTH, 1, 1)],
+        23 => &[(E::INSTANT_DAMAGE, 0, 1)],
+        24 => &[(E::INSTANT_DAMAGE, 1, 1)],
+        25 => &[(E::POISON, 0, 900)],
+        26 => &[(E::POISON, 0, 2400)],
+        27 => &[(E::POISON, 1, 450)],
+        28 => &[(E::REGENERATION, 0, 900)],
+        29 => &[(E::REGENERATION, 0, 2400)],
+        30 => &[(E::REGENERATION, 1, 450)],
+        31 => &[(E::STRENGTH, 0, 3600)],
+        32 => &[(E::STRENGTH, 0, 9600)],
+        33 => &[(E::STRENGTH, 1, 1800)],
+        34 => &[(E::WEAKNESS, 0, 1800)],
+        35 => &[(E::WEAKNESS, 0, 4800)],
+        36 => &[(E::WITHER, 1, 800)],
+        37 => &[(E::SLOWNESS, 3, 400), (E::RESISTANCE, 2, 400)],
+        38 => &[(E::SLOWNESS, 3, 800), (E::RESISTANCE, 2, 800)],
+        39 => &[(E::SLOWNESS, 5, 400), (E::RESISTANCE, 3, 400)],
+        40 => &[(E::SLOW_FALLING, 0, 1800)],
+        41 => &[(E::SLOW_FALLING, 0, 4800)],
+        42 => &[(E::SLOWNESS, 3, 400)],
+        43 => &[(E(32), 0, 3600)],
+        44 => &[(E::WEAVING, 0, 3600)],
+        45 => &[(E(34), 0, 3600)],
+        46 => &[(E(35), 0, 3600)],
+        _ => &[],
     }
 }
 

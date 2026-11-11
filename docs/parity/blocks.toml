@@ -752,7 +752,7 @@
 "minecraft:gray_shulker_box" = { status = "partial", owner = "blocks", gaps = "not a container (no inventory, lid or kept contents in the dropped item)" }
 "minecraft:green_shulker_box" = { status = "partial", owner = "blocks", gaps = "not a container (no inventory, lid or kept contents in the dropped item)" }
 "minecraft:grindstone" = { status = "partial", owner = "blocks", gaps = "no grindstone menu; attachment not set from the clicked face" }
-"minecraft:jukebox" = { status = "partial", owner = "blocks", gaps = "cannot play music discs; no redstone output" }
+"minecraft:jukebox" = { status = "partial", owner = "blocks", tests = ["crates/unastar/src/server/game/jukebox/tests.rs::jukeboxes_take_and_give_discs_like_bds"], gaps = "no redstone output; placing one does not announce its block actor as BDS does", notes = "music discs go in and come out like the BDS 1.26.51 jukebox capture (see the music_disc rows in items.toml)" }
 "minecraft:jungle_shelf" = { status = "partial", owner = "blocks", gaps = "no shelf storage or hotbar swap; no redstone" }
 "minecraft:lectern" = { status = "partial", owner = "blocks", gaps = "cannot hold a book; no page turning or redstone output" }
 "minecraft:light_blue_shulker_box" = { status = "partial", owner = "blocks", gaps = "not a container (no inventory, lid or kept contents in the dropped item)" }

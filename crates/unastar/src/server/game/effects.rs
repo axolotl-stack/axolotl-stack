@@ -78,12 +78,49 @@ pub fn add_effect(
     amplifier: u8,
     duration_ticks: u32,
 ) {
+    add_effect_with(
+        world,
+        player,
+        effect,
+        crate::entity::components::ActiveEffect::new(amplifier, duration_ticks),
+    );
+}
+
+/// [`add_effect`] with the effect's particle and ambient flags.
+///
+/// Instant health heals `4 << amplifier` and instant damage hurts for
+/// `6 << amplifier` (magic) at once. As BDS 1.26.51 shows them (potion
+/// capture), the player then gets `MobEffect` add with a duration of 1 tick
+/// and remove with 0, and nothing is stored.
+pub fn add_effect_with(
+    world: &mut World,
+    player: Entity,
+    effect: EffectType,
+    state: crate::entity::components::ActiveEffect,
+) {
+    let amplifier = state.level;
     match effect {
-        EffectType::INSTANT_HEALTH => {
-            heal(world, player, (4u32 << amplifier.min(30)) as f32);
+        EffectType::INSTANT_HEALTH | EffectType::INSTANT_DAMAGE => {
+            send_instant(world, player, effect, &state);
+            if effect == EffectType::INSTANT_HEALTH {
+                heal(world, player, (4u32 << amplifier.min(30)) as f32);
+            } else {
+                crate::entity::player_life::hurt_player(
+                    world,
+                    player,
+                    &crate::entity::mob::combat::Hit {
+                        damage: (6u32 << amplifier.min(28)) as f32,
+                        cause: unastar_data::actor_components::body::ActorDamageCause::Magic,
+                        attacker: None,
+                        by_player: false,
+                        knockback_from: None,
+                        knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+                    },
+                );
+            }
             return;
         }
-        EffectType::SATURATION if duration_ticks <= 1 => {
+        EffectType::SATURATION if state.duration_ticks <= 1 => {
             saturate(world, player, amplifier);
             return;
         }
@@ -96,7 +133,7 @@ pub fn add_effect(
     entity
         .get_mut::<Effects>()
         .expect("inserted above")
-        .add(effect, amplifier, duration_ticks);
+        .apply(effect, state);
     // Absorption grants its extra health when it starts or is renewed.
     if effect == EffectType::ABSORPTION {
         let amount = (4.0 * (f32::from(amplifier) + 1.0)).min(MAX_ABSORPTION);
@@ -106,6 +143,39 @@ pub fn add_effect(
                 entity.insert(Absorption(amount));
             }
         }
+    }
+}
+
+/// The `MobEffect` add (1 tick) and remove (0) BDS sends for an instant
+/// effect.
+fn send_instant(
+    world: &World,
+    player: Entity,
+    effect: EffectType,
+    state: &crate::entity::components::ActiveEffect,
+) {
+    let (Some(runtime_id), Some(session)) = (
+        world.get::<RuntimeEntityId>(player),
+        world.get::<PlayerSession>(player),
+    ) else {
+        return;
+    };
+    for (event, duration) in [
+        (EnumsMobEffectPacketPayloadEvent::Add, 1),
+        (EnumsMobEffectPacketPayloadEvent::Remove, 0),
+    ] {
+        let _ = session.send(McpePacket::from(MobEffectPacket {
+            target_runtime_id: ActorRuntimeId {
+                actor_runtime_id: runtime_id.0 as u64,
+            },
+            event_id: event,
+            effect_id: i32::from(effect.0),
+            effect_amplifier: i32::from(state.level),
+            show_particles: state.show_particles,
+            effect_duration_ticks: duration,
+            tick: PlayerInputTick { inputtick: 0 },
+            ambient: state.ambient,
+        }));
     }
 }
 
@@ -163,21 +233,47 @@ pub fn apply_player_effects(
             continue;
         }
         let survival = !matches!(mode, GameMode::Creative | GameMode::Spectator);
+        // The pulse counts the duration before this tick took one off, so a
+        // poison of 900 ticks hurts the tick after it was added and one of
+        // 450 at level II (every 12 ticks) only 7 ticks later (BDS 1.26.51
+        // potion capture).
+        let before = |e: &crate::entity::components::ActiveEffect| e.duration_ticks.wrapping_add(1);
         if let Some(e) = effects.get(EffectType::REGENERATION)
-            && pulses(50, e.level, e.duration_ticks)
+            && pulses(50, e.level, before(e))
         {
             health.heal(1.0);
         }
+        // Poison hurts (magic damage, so the client sees the hurt) but never
+        // below 1 health.
         if survival
             && let Some(e) = effects.get(EffectType::POISON)
-            && pulses(25, e.level, e.duration_ticks)
+            && pulses(25, e.level, before(e))
             && health.current > 1.0
         {
-            health.current = (health.current - 1.0).max(1.0);
+            commands.queue(move |world: &mut World| {
+                let alive = world
+                    .get::<Health>(player)
+                    .is_some_and(|health| health.current > 1.0);
+                if alive {
+                    crate::entity::player_life::hurt_player(
+                        world,
+                        player,
+                        &crate::entity::mob::combat::Hit {
+                            damage: 1.0,
+                            cause: unastar_data::actor_components::body::ActorDamageCause::Magic,
+                            attacker: None,
+                            by_player: false,
+                            knockback_from: None,
+                            knockback_power:
+                                crate::entity::mob::components::KnockbackPower::DEFAULT,
+                        },
+                    );
+                }
+            });
         }
         if survival
             && let Some(e) = effects.get(EffectType::WITHER)
-            && pulses(40, e.level, e.duration_ticks)
+            && pulses(40, e.level, before(e))
         {
             // Wither can kill, so it takes the player damage path (hurt
             // timer, death), applied when the commands run.
@@ -219,15 +315,32 @@ pub fn apply_player_effects(
     }
 }
 
+/// Play `sound` at the player's feet + 0.9, as BDS 1.26.51 plays
+/// `disappeared` when invisibility starts and `reappeared` when it ends
+/// (potion capture).
+fn queue_feet_sound(commands: &mut Commands, player: Entity, sound: &'static str) {
+    commands.queue(move |world: &mut World| {
+        if let Some(at) = crate::server::game::item_use::swing_sound_at(world, player) {
+            crate::entity::mob::net::sound::play_level_sound(world, Some(player), at, sound, -1);
+        }
+    });
+}
+
 /// The effects a player's client last heard of.
 #[derive(Component, Debug, Clone, Default, PartialEq)]
-pub struct SentEffects(HashMap<EffectType, (u8, u32)>);
+pub struct SentEffects(HashMap<EffectType, Sent>);
+
+/// What a client last heard of an effect: amplifier, duration, particles,
+/// ambient.
+type Sent = (u8, u32, bool, bool);
 
 /// System: send each player `MobEffect` add, modify and remove packets for
 /// the changes since the last tick.
 #[allow(clippy::type_complexity)]
 pub fn sync_player_effects(
+    mut commands: Commands,
     mut players: Query<(
+        Entity,
         &RuntimeEntityId,
         &PlayerSession,
         Option<&Effects>,
@@ -235,9 +348,9 @@ pub fn sync_player_effects(
         Option<&PlayerInput>,
     )>,
 ) {
-    for (runtime_id, session, effects, mut sent, input) in &mut players {
+    for (player, runtime_id, session, effects, mut sent, input) in &mut players {
         let tick = input.map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick);
-        let send = |event, effect: EffectType, amplifier: u8, duration: u32| {
+        let send = |event, effect: EffectType, (amplifier, duration, particles, ambient): Sent| {
             let _ = session.send(McpePacket::from(MobEffectPacket {
                 target_runtime_id: ActorRuntimeId {
                     actor_runtime_id: runtime_id.0 as u64,
@@ -245,39 +358,61 @@ pub fn sync_player_effects(
                 event_id: event,
                 effect_id: i32::from(effect.0),
                 effect_amplifier: i32::from(amplifier),
-                show_particles: true,
+                show_particles: particles,
                 effect_duration_ticks: duration as i32,
                 tick: if effect.affects_movement() {
                     tick.clone()
                 } else {
                     PlayerInputTick { inputtick: 0 }
                 },
-                ambient: false,
+                ambient,
             }));
         };
         let active = effects.map(|e| &e.active);
-        let removed: Vec<_> = sent
+        // In effect id order, as BDS lists turtle master's slowness before its
+        // resistance.
+        let mut removed: Vec<_> = sent
             .0
             .keys()
             .filter(|effect| active.is_none_or(|a| !a.contains_key(effect)))
             .copied()
             .collect();
+        removed.sort_by_key(|effect| effect.0);
+        // BDS 1.26.51 names the removed effect's amplifier and what was left
+        // of its duration (potion capture).
         for effect in removed {
-            sent.0.remove(&effect);
-            send(EnumsMobEffectPacketPayloadEvent::Remove, effect, 0, 0);
+            if let Some(last) = sent.0.remove(&effect) {
+                send(EnumsMobEffectPacketPayloadEvent::Remove, effect, last);
+                if effect == EffectType::INVISIBILITY {
+                    queue_feet_sound(&mut commands, player, "reappeared");
+                }
+            }
         }
-        for (effect, state) in active.into_iter().flatten() {
+        let mut active: Vec<_> = active.into_iter().flatten().collect();
+        active.sort_by_key(|(effect, _)| effect.0);
+        for (effect, state) in active {
             // A duration that only counted down is not a change.
             let event = match sent.0.get(effect) {
                 None => Some(EnumsMobEffectPacketPayloadEvent::Add),
-                Some(&(level, last)) if level != state.level || state.duration_ticks > last => {
+                Some(&(level, last, ..)) if level != state.level || state.duration_ticks > last => {
                     Some(EnumsMobEffectPacketPayloadEvent::Update)
                 }
                 Some(_) => None,
             };
-            sent.0.insert(*effect, (state.level, state.duration_ticks));
+            let now = (
+                state.level,
+                state.duration_ticks,
+                state.show_particles,
+                state.ambient,
+            );
+            sent.0.insert(*effect, now);
             if let Some(event) = event {
-                send(event, *effect, state.level, state.duration_ticks);
+                send(event, *effect, now);
+                if event == EnumsMobEffectPacketPayloadEvent::Add
+                    && *effect == EffectType::INVISIBILITY
+                {
+                    queue_feet_sound(&mut commands, player, "disappeared");
+                }
             }
         }
     }
