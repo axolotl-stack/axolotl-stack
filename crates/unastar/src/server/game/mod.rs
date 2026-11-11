@@ -605,6 +605,7 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             (
                 effects::sync_player_effects,
+                effects::sync_visible_effects,
                 attributes::sync_player_attributes,
             )
                 .chain()
@@ -937,6 +938,7 @@ impl GameServer {
             attributes::SentAttributes::sent(&health_sent, &hunger_sent, 0.0),
             crate::entity::components::Effects::default(),
             effects::SentEffects::default(),
+            effects::SentVisibleEffects::default(),
         ));
         if operator {
             self.ecs
