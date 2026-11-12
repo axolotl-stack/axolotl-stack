@@ -5,7 +5,7 @@
 TNT could not be primed and nothing exploded (`world.explosions` missing, `minecraft:tnt`
 partial, the primed TNT actor not spawnable: `minecraft:explode` was not implemented).
 
-Prior work: the circuit model of [decision 0041](../../../docs/decisions/0041-run-redstone-as-a-two-tick-circuit-update.md)
+Prior work: the circuit model of [decision 0041](../../../../docs/decisions/0041-run-redstone-as-a-two-tick-circuit-update.md)
 and the measuring notes in `docs/solutions/testing/`. The unmerged #71 has explosion and fuse code
 (`fb1291c3` creeper `explode`, `f022f305` TNT, `c509be4d` batched sends); it is used as prior art,
 re-checked against new BDS measurements.
