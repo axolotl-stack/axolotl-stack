@@ -73,8 +73,10 @@ whole:
 - the player has a movement effect. Speed, slowness and levitation are not simulated; jump
   boost and slow falling are, but no BDS run has confirmed them.
 
-A client can seek out the rest, so each covers about one tick of vanilla movement, per axis.
-Beyond that the copy judges the input:
+A client can seek out the rest, so each covers about one tick of vanilla movement, per axis,
+and never passes through a block the simulation reproduces. The ladder, scaffolding or cobweb
+itself does not count, so climbing still works, but the wall a ladder hangs on does. Beyond
+that the copy judges the input:
 - the search box contains a block the motion table marks unsupported (1.5 horizontally, 4
   vertically). That covers unsupported identifiers, families the simulation has but no run
   confirmed, lava, flowing water (its current pushes), and friction other than the confirmed

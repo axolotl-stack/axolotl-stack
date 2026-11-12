@@ -209,6 +209,21 @@ impl<B: LayeredBlocks> WorldTerrain<'_, B> {
         })
     }
 
+    /// Whether a player box `height` tall moved from `from` to `to` passes
+    /// through no block the simulation reproduces (the blocks it does not,
+    /// such as ladders, scaffolding and cobwebs, a client moves through as
+    /// vanilla) and no unloaded one.
+    fn clear_path(&self, from: [f32; 3], to: [f32; 3], height: f32) -> bool {
+        let swept = collision_box(
+            &Aabb::from_feet(from, WIDTH, height)
+                .expand(offset(from, to))
+                .inflate([-1.0e-5; 3]),
+        );
+        let mut boxes = Vec::new();
+        collect_block_boxes(&Reproduced(self), swept, &mut boxes);
+        !boxes.iter().any(|b| b.intersects(&swept))
+    }
+
     /// Whether a player at `feet` crawls: a block is in its standing box but
     /// not in its low one (BDS 1.26.51: stone, glass and oak leaves at eye
     /// height). `None` while the blocks there are not loaded.
@@ -224,20 +239,44 @@ impl<B: LayeredBlocks> WorldTerrain<'_, B> {
     }
 }
 
+/// The blocks of a terrain the simulation reproduces; the others read as
+/// air.
+struct Reproduced<'t, 'a, B: LayeredBlocks>(&'t WorldTerrain<'a, B>);
+
+impl<B: LayeredBlocks> BlockSource for Reproduced<'_, '_, B> {
+    fn block_at(&self, pos: IVec3) -> Option<u32> {
+        let id = self.0.blocks.block_at(pos)?;
+        Some(if self.0.table.get(id).1 {
+            id
+        } else {
+            *crate::world::chunk::blocks::AIR
+        })
+    }
+
+    fn registry(&self) -> &BlockRegistry {
+        self.0.blocks.registry()
+    }
+}
+
+/// The server's collision box of the simulation's `area`.
+fn collision_box(area: &Aabb) -> collision::Aabb {
+    collision::Aabb::new(
+        DVec3::new(
+            f64::from(area.min[0]),
+            f64::from(area.min[1]),
+            f64::from(area.min[2]),
+        ),
+        DVec3::new(
+            f64::from(area.max[0]),
+            f64::from(area.max[1]),
+            f64::from(area.max[2]),
+        ),
+    )
+}
+
 impl<B: LayeredBlocks> Terrain for WorldTerrain<'_, B> {
     fn collisions(&self, area: &Aabb, out: &mut Vec<Aabb>) {
-        let area = collision::Aabb::new(
-            DVec3::new(
-                f64::from(area.min[0]),
-                f64::from(area.min[1]),
-                f64::from(area.min[2]),
-            ),
-            DVec3::new(
-                f64::from(area.max[0]),
-                f64::from(area.max[1]),
-                f64::from(area.max[2]),
-            ),
-        );
+        let area = collision_box(area);
         let mut boxes = Vec::new();
         collect_block_boxes(self.blocks, area, &mut boxes);
         // Blocks that are not loaded add nothing (the simulation does not
@@ -731,6 +770,11 @@ impl PlayerMotion {
         }
         if let Some(trust) = self.trust(input, terrain, situation) {
             let d = offset(self.body.feet, claim);
+            let height = if trust == Trust::Crawl {
+                Pose::Low.height()
+            } else {
+                self.body.pose().height()
+            };
             match trust.reach() {
                 Reach::Far
                     if d.iter().map(|v| v * v).sum::<f32>()
@@ -738,8 +782,11 @@ impl PlayerMotion {
                 {
                     return Err(trust);
                 }
-                // Out of a near trust's reach: the copy judges the input.
-                Reach::Near(bounds) if d.iter().zip(bounds).any(|(d, bound)| d.abs() > bound) => {}
+                // Out of a near trust's reach, or through a block the
+                // simulation reproduces: the copy judges the input.
+                Reach::Near(bounds)
+                    if d.iter().zip(bounds).any(|(d, bound)| d.abs() > bound)
+                        || !terrain.clear_path(self.body.feet, claim, height) => {}
                 _ => return Ok(self.trusted(input, claim, trust, situation.glide)),
             }
         }

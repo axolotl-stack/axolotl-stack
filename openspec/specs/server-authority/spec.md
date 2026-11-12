@@ -118,7 +118,7 @@ The server SHALL take a client's state without judging it where the simulation d
 - **THEN** its inputs are judged, not taken as slower, and it is corrected
 
 #### Scenario: Out of a near trust's reach
-- **WHEN** a client next to a ladder reports a position 10 blocks away, or claims a crawl space 5 blocks away
+- **WHEN** a client next to a ladder reports a position 10 blocks away or inside the wall beside it, or claims a crawl space 5 blocks away
 - **THEN** the input is judged and corrected
 
 #### Scenario: A bounded velocity

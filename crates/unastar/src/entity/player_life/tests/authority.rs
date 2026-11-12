@@ -565,12 +565,13 @@ fn a_knockback_must_be_followed() {
     assert!(sent > 0);
 }
 
-/// The trusts a client can seek out reach about one tick of movement: next
-/// to a ladder, a claim 10 blocks away is judged and corrected, and so is a
-/// claim in a crawl space the copy is not in.
+/// The trusts a client can seek out reach about one tick of movement, and
+/// not through blocks the simulation reproduces: next to a ladder, a claim
+/// 10 blocks away or inside the wall beside it is judged and corrected, and
+/// so is a claim in a crawl space the copy is not in.
 #[test]
 fn near_trusts_do_not_reach_far() {
-    let ladder = |h: &mut Harness| {
+    fn ladder(h: &mut Harness) -> DVec3 {
         let id = h
             .world()
             .resource::<crate::server::game::types::BlockRegistryResource>()
@@ -579,14 +580,29 @@ fn near_trusts_do_not_reach_far() {
             .unwrap();
         h.set_block(HOME.floor().as_ivec3() + IVec3::X, id);
         DVec3::new(10.0, 0.0, 0.0)
-    };
-    let crawl_space = |h: &mut Harness| {
+    }
+    fn crawl_space(h: &mut Harness) -> DVec3 {
         let away = DVec3::new(5.0, 0.0, 0.0);
         h.set_block((HOME + away).floor().as_ivec3() + IVec3::Y, *blocks::STONE);
         away
-    };
+    }
+    /// A ladder on a wall: the claim steps into the wall beside it.
+    fn into_a_wall(h: &mut Harness) -> DVec3 {
+        ladder(h);
+        for y in 0..2 {
+            h.set_block(
+                HOME.floor().as_ivec3() + IVec3::new(0, y, 1),
+                *blocks::STONE,
+            );
+        }
+        DVec3::new(0.0, 0.0, 1.0)
+    }
     type Setup = fn(&mut Harness) -> DVec3;
-    let cases: [(&str, Setup); 2] = [("a ladder", ladder), ("a crawl space", crawl_space)];
+    let cases: [(&str, Setup); 3] = [
+        ("a ladder", ladder),
+        ("a crawl space", crawl_space),
+        ("a wall by a ladder", into_a_wall),
+    ];
     for (case, setup) in cases {
         let mut h = harness(Difficulty::Easy);
         let start = h.feet();

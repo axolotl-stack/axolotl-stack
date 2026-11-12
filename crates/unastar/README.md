@@ -119,7 +119,8 @@ rejected whole:
   slow falling.
 
 A client can seek these out, so they cover about one tick of movement (1.5
-blocks horizontally, 4 vertically); beyond that the copy judges the input:
+blocks horizontally, 4 vertically) and never pass through a block the
+simulation reproduces; beyond that the copy judges the input:
 - inputs near blocks with movement rules of their own: climbing, honey, soul
   sand, sweet berries, lava, flowing water, bubble columns, slime, beds, powder
   snow, cobwebs, and ice, whose friction is unconfirmed (`MotionTable`, both

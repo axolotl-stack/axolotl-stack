@@ -36,7 +36,7 @@
 ## 6. Second review fixes
 
 - [x] 6.1 A non-finite reported velocity rejects the input; a trusted velocity is capped at 4 a tick per axis (`player_life/tests/authority.rs::a_trusted_velocity_is_bounded`, `server/game/movement.rs::non_finite_positions_and_rotations_are_rejected`)
-- [x] 6.2 Trusts a client can seek out (blocks, gear, crawl spaces, riptide) reach about one tick of movement and are judged beyond it; crawl spaces count only at the copy (`::near_trusts_do_not_reach_far`)
+- [x] 6.2 Trusts a client can seek out (blocks, gear, crawl spaces, riptide) reach about one tick of movement and never through a block the simulation reproduces, and are judged beyond that; crawl spaces count only at the copy (`::near_trusts_do_not_reach_far`)
 - [x] 6.3 A riptide spin is trusted only from water and for at most 20 inputs; soul speed only near soul blocks (`::a_riptide_spin_is_trusted_for_twenty_inputs`, `::situations_the_simulation_does_not_cover_are_trusted`)
 - [x] 6.4 A client only slower than the copy's simulation of its keys is taken, except after a knockback; item use and low food need no trust reason (`::a_slower_client_is_taken`, `::a_knockback_must_be_followed`)
 - [x] 6.5 One `Judgement` (judged, trusted, refused) instead of a verdict and a trust; one layer reader for blocks; `Condition` as a query struct; the swim start reads both block layers; a sprint started without the key counts
