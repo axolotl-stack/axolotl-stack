@@ -4,7 +4,7 @@
 
 Pressure plates powered circuits only while their stored state said so: nothing pressed them
 (17 pressure plate rows partial, `world.redstone` gap). Prior work: the circuit model of
-[decision 0041](../../../docs/decisions/0041-run-redstone-as-a-two-tick-circuit-update.md) and the
+[decision 0041](../../../../docs/decisions/0041-run-redstone-as-a-two-tick-circuit-update.md) and the
 round 3 pilot (`circuits_pilot3` plates).
 
 ## What Changes
