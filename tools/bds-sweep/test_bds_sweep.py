@@ -402,6 +402,22 @@ class EffectTrials(unittest.TestCase):
         with self.assertRaises(SystemExit):
             sweep.ranged_items(self.args('every'))
 
+    def test_ranged_fixture_structures_setup_and_scripted_commands(self):
+        import ranged_fixture
+        self.assertEqual(ranged_fixture.block_change('fill 0 -60 -1 1 -58 -1 barrier'),
+                         {'from': [0, -60, -1], 'to': [1, -58, -1], 'block': 'minecraft:barrier'})
+        self.assertEqual(ranged_fixture.block_change('setblock 1 -56 0 dispenser ["facing_direction"=0]'),
+                         {'from': [1, -56, 0], 'to': [1, -56, 0], 'block': 'minecraft:dispenser',
+                          'states': {'facing_direction': 0}})
+        self.assertIsNone(ranged_fixture.block_change('gamemode survival "BDSSweep"'))
+        actions = [{'t': 5, 'commands': ['replaceitem entity @e[type=minecraft:skeleton] slot.weapon.mainhand 0 '
+                                         'minecraft:air', 'event entity @e[type=minecraft:skeleton] '
+                                                          'minecraft:spring_trap']},
+                   {'t': 65, 'commands': ['tp "BDSSweep" 0.5 -60 0.5 -90 0']}]
+        self.assertEqual(ranged_fixture.scripted(actions),
+                         {'hand': [{'t': 5, 'item': None}], 'teleports': [{'t': 65, 'to': [0.5, -60.0, 0.5]}],
+                          'fired_events': [{'t': 5, 'event': 'minecraft:spring_trap'}]})
+
     def test_silverfish_items_restore_every_block_they_place(self):
         merge = sweep.silverfish_items(self.args('merge'))
         self.assertEqual(len(merge), 10)

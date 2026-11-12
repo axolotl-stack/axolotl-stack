@@ -6,7 +6,8 @@ fixture (`crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json`
 Decodes each run's `client/packets.jsonl` with `bds-extractor --decode`
 (cargo build -p bds-extractor first) and keeps, per item: the run's
 difficulty, the mob, where it and the player stood, the blocks the setup
-placed, the sample (`t`) of each change of the mob's target, of its
+placed, its scripted hand changes, player teleports and fired events, the sample
+(`t`) of each change of the mob's target, of its
 `FACING_TARGET_TO_RANGE_ATTACK` flag and of its `SHAKING` flag, and every
 arrow it shot (or a dispenser shot): the sample, the AddActor position,
 velocity and rotation, its owner and `CUSTOM_DISPLAY` actor data, the level
@@ -49,6 +50,47 @@ def vec(value: dict) -> list[float]:
 
 def data_values(packet: dict) -> dict[int, object]:
     return {row['id']: next(iter(row['payload'].values()))['value'] for row in packet['actor_data']['data']}
+
+
+def namespaced(name: str) -> str:
+    return name if ':' in name else f'minecraft:{name}'
+
+
+def block_change(line: str) -> dict | None:
+    """A `fill` or `setblock` setup line as `{from, to, block, states}`."""
+    words = line.split(' ', 7 if line.startswith('fill ') else 4)
+    if words[0] == 'setblock':
+        at = [int(v) for v in words[1:4]]
+        rest = words[4]
+        span = (at, at)
+    elif words[0] == 'fill':
+        span = ([int(v) for v in words[1:4]], [int(v) for v in words[4:7]])
+        rest = words[7]
+    else:
+        return None
+    name, _, states = rest.partition(' ')
+    out = {'from': span[0], 'to': span[1], 'block': namespaced(name)}
+    if states:
+        out['states'] = {key.strip('"'): int(value) if value.lstrip('-').isdigit() else value.strip('"')
+                         for key, value in (pair.split('=') for pair in states.strip('[]').split(','))}
+    return out
+
+
+def scripted(actions: list[dict]) -> dict:
+    """The structured effect of an item's timed commands: hand changes,
+    teleports of the player and fired actor events."""
+    hand, teleports, fired = [], [], []
+    for action in actions:
+        for line in action['commands']:
+            words = line.split(' ')
+            if words[0] == 'replaceitem' and 'slot.weapon.mainhand' in words:
+                item = namespaced(words[-1])
+                hand.append({'t': action['t'], 'item': None if item == 'minecraft:air' else item})
+            elif words[0] == 'tp':
+                teleports.append({'t': action['t'], 'to': [float(v) for v in words[2:5]]})
+            elif words[:2] == ['event', 'entity']:
+                fired.append({'t': action['t'], 'event': words[3]})
+    return {'hand': hand, 'teleports': teleports, 'fired_events': fired}
 
 
 def difficulty(directory: Path) -> str:
@@ -139,9 +181,9 @@ def distil(result: dict, records: list[dict], level: str) -> dict:
     positions = [[round(v, 4) for v in s['mob']['pos']] if s.get('mob') else None for s in samples]
     moved = len({tuple(p) for p in positions if p}) > 1
     spec = result['spec']
-    blocks = [line for line in spec.get('setup', []) if line.startswith(('fill ', 'setblock '))]
+    blocks = [change for change in map(block_change, spec.get('setup', [])) if change]
     return {'difficulty': level, 'mob': result['mob'], 'at': spec['at'], 'player': spec['player'],
-            'blocks': blocks, 'actions': spec.get('actions', []), 'ticks': spec['ticks'], 'events': events,
+            'blocks': blocks, **scripted(spec.get('actions', [])), 'ticks': spec['ticks'], 'events': events,
             'shots': shots,
             'damage': damage, 'effects': effects, 'gone': gone,
             **({'positions': positions} if moved else {})}

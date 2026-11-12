@@ -137,36 +137,31 @@ impl MobFacts<'_> {
     /// a BDS 1.26.51 skeleton shakes in powder snow at its feet and with
     /// powder snow at its head only).
     fn in_block(&self, entity: Entity, name: &str) -> Option<bool> {
-        let name = if name.contains(':') {
-            std::borrow::Cow::Borrowed(name)
+        let registry = self.world.registry();
+        let wanted = if name.contains(':') {
+            registry.get_by_name(name)
         } else {
-            std::borrow::Cow::Owned(format!("minecraft:{name}"))
-        };
+            registry.get_by_name(&format!("minecraft:{name}"))
+        }?
+        .id;
         let feet = self.feet(entity)?;
-        let (width, height) = self
+        let body = self
             .world
-            .get::<crate::entity::components::PhysicsBody>(entity)
-            .map_or((0.6, 1.8), |body| (body.width, body.height));
-        let aabb = crate::registry::collision::Aabb::from_feet(feet, width, height);
+            .get::<crate::entity::components::PhysicsBody>(entity)?;
+        let aabb = crate::registry::collision::Aabb::from_feet(feet, body.width, body.height);
         let min = aabb.min.floor().as_ivec3();
         let max = (aabb.max - DVec3::splat(1.0e-7)).floor().as_ivec3();
-        let registry = self.world.registry();
-        for x in min.x..=max.x {
-            for y in min.y..=max.y {
-                for z in min.z..=max.z {
-                    let Some(state) = self.world.block_at(IVec3::new(x, y, z)) else {
-                        continue;
-                    };
-                    if registry
-                        .get_by_runtime_id(state)
-                        .is_some_and(|entry| entry.string_id == *name)
-                    {
-                        return Some(true);
-                    }
-                }
-            }
-        }
-        Some(false)
+        let overlaps = (min.x..=max.x).any(|x| {
+            (min.y..=max.y).any(|y| {
+                (min.z..=max.z).any(|z| {
+                    self.world
+                        .block_at(IVec3::new(x, y, z))
+                        .and_then(|state| registry.get_by_runtime_id(state))
+                        .is_some_and(|entry| entry.id == wanted)
+                })
+            })
+        });
+        Some(overlaps)
     }
 
     /// `is_underground`: a block that damps light anywhere from the actor's

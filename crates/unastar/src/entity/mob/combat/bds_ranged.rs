@@ -144,32 +144,22 @@ impl Replay {
         out
     }
 
-    /// The item's setup blocks (`fill` and `setblock` lines).
+    /// The item's setup blocks (`{from, to, block}` boxes; a block with
+    /// states is not replayed by these tests).
     fn blocks(&mut self, item: &Value) {
-        for line in item["blocks"].as_array().unwrap() {
-            let words: Vec<&str> = line.as_str().unwrap().split(' ').collect();
-            let number = |i: usize| words[i].parse::<i32>().unwrap();
-            let (from, to, name) = match words[0] {
-                "setblock" => {
-                    let at = [number(1), number(2), number(3)];
-                    (at, at, words[4])
-                }
-                "fill" => (
-                    [number(1), number(2), number(3)],
-                    [number(4), number(5), number(6)],
-                    words[7],
-                ),
-                other => panic!("setup {other}"),
-            };
-            let name = format!("minecraft:{name}");
+        for change in item["blocks"].as_array().unwrap() {
+            assert!(change.get("states").is_none(), "block states: {change}");
+            let (from, to) = (vec3(&change["from"]), vec3(&change["to"]));
+            let name = change["block"].as_str().unwrap();
             let block = crate::registry::BlockRegistry::vanilla()
-                .get_by_name(&name)
+                .get_by_name(name)
                 .unwrap_or_else(|| panic!("{name}"))
                 .id;
+            let (lo, hi) = (from.min(to).as_ivec3(), from.max(to).as_ivec3());
             let world = self.world();
-            for x in from[0].min(to[0])..=from[0].max(to[0]) {
-                for y in from[1].min(to[1])..=from[1].max(to[1]) {
-                    for z in from[2].min(to[2])..=from[2].max(to[2]) {
+            for x in lo.x..=hi.x {
+                for y in lo.y..=hi.y {
+                    for z in lo.z..=hi.z {
                         set_block(world, x, y, z, block);
                     }
                 }
@@ -684,9 +674,11 @@ fn only_a_bow_keeps_a_skeleton_shooting() {
     use crate::entity::mob::gear::{GearSlot, MobEquipment};
     let mut compared = 0;
     for (run_name, key, item) in items() {
-        let Some(weapon) = key.strip_prefix("skeleton|hold-") else {
+        if !key.starts_with("skeleton|hold-") {
             continue;
-        };
+        }
+        let hand = &item["hand"][0];
+        let swap = hand["t"].as_u64().unwrap();
         let level = difficulty(item["difficulty"].as_str().unwrap());
         let mut replay = replay(level, vec3(&item["player"]), 4);
         let mob = replay.mob(item);
@@ -695,13 +687,11 @@ fn only_a_bow_keeps_a_skeleton_shooting() {
         let ticks = item["ticks"].as_u64().unwrap();
         let mut shots = 0;
         for t in 0..=ticks {
-            if t == 5 {
+            if t == swap {
                 let world = replay.world();
-                let stack = if weapon == "air" {
-                    crate::item::ItemStack::empty()
-                } else {
-                    crate::server::game::world_stack(world, &format!("minecraft:{weapon}"), 1)
-                        .unwrap()
+                let stack = match hand["item"].as_str() {
+                    Some(name) => crate::server::game::world_stack(world, name, 1).unwrap(),
+                    None => crate::item::ItemStack::empty(),
                 };
                 world
                     .get_mut::<MobEquipment>(mob)
@@ -734,23 +724,24 @@ fn is_underground_is_the_bds_roof_rule() {
         &mut diagnostics,
     )
     .unwrap();
-    let mut roofs = std::collections::BTreeMap::<String, Vec<bool>>::new();
-    for (_, key, item) in items() {
-        let Some(case) = key.strip_prefix("stray|underground-") else {
+    // Strays given `change_to_skeleton`, grouped by their roof (the setup
+    // blocks), with whether each one turned.
+    let mut roofs = std::collections::BTreeMap::<String, (Vec<bool>, &Value)>::new();
+    for (_, _, item) in items() {
+        let fired = item["fired_events"].as_array().unwrap();
+        if !fired.iter().any(|e| e["event"] == "change_to_skeleton") {
             continue;
-        };
-        let roof = case.rsplit_once('-').unwrap().0.to_owned();
-        roofs.entry(roof).or_default().push(!item["gone"].is_null());
+        }
+        let roof = roofs
+            .entry(item["blocks"].to_string())
+            .or_insert_with(|| (Vec::new(), item));
+        roof.0.push(!item["gone"].is_null());
     }
     assert_eq!(roofs.len(), 5);
-    for (roof, turned) in roofs {
+    for (roof, (turned, item)) in roofs {
         // Underground always turns; otherwise the event's random branch
         // turns one stray in five.
         let underground = turned.iter().all(|&t| t);
-        let item = items()
-            .find(|(_, key, _)| *key == format!("stray|underground-{roof}-0"))
-            .unwrap()
-            .2;
         let mut replay = replay(Difficulty::Normal, vec3(&item["player"]), 5);
         let mob = replay.mob(item);
         let world = replay.world();
@@ -811,12 +802,17 @@ fn the_spring_trap_sensor_blocks_no_hit_like_bds() {
     use crate::entity::mob::{MobKind, events::fire_event};
     use unastar_data::actor_components::body::ActorDamageCause;
     for (_, key, item) in items() {
-        let Some(trap) = key.strip_prefix("skeleton|spring-trap-") else {
+        if !key.starts_with("skeleton|spring-trap-") {
             continue;
-        };
+        }
+        let trap = item["fired_events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["event"] == "minecraft:spring_trap");
         let mut replay = replay(Difficulty::Normal, vec3(&item["player"]), 7);
         let mob = replay.mob(item);
-        if trap == "true" {
+        if trap {
             let world = replay.world();
             let handle = world
                 .get::<MobKind>(mob)
@@ -1028,20 +1024,19 @@ fn a_stuck_arrow_is_picked_up_once_its_shake_ends_like_bds() {
     let mut near = 0;
     let mut late = 0;
     for (_, key, item) in items() {
-        let Some(case) = key.strip_prefix("arrow|pickup-") else {
+        if !item["mob"].is_null() || !key.starts_with("arrow|pickup-") {
             continue;
-        };
+        }
         let shot = &item["shots"][0];
         let (Some(stuck), Some(taken)) = (shot["stuck"].as_u64(), shot["taken"].as_u64()) else {
             continue; // The arrow hit the player instead.
         };
         let shake = shot["shake"].as_u64().unwrap();
-        let arrive = item["actions"]
+        let arrive = item["teleports"]
             .as_array()
             .unwrap()
-            .iter()
-            .find(|a| a["commands"][0].as_str().unwrap().starts_with("tp "))
-            .map(|a| a["t"].as_u64().unwrap());
+            .first()
+            .map(|move_to| move_to["t"].as_u64().unwrap());
         let beside = DVec3::new(0.5, -60.0, 0.5);
         let start = vec3(&item["player"]);
         let mut replay = replay(Difficulty::Normal, start, 9);
@@ -1094,7 +1089,7 @@ fn a_stuck_arrow_is_picked_up_once_its_shake_ends_like_bds() {
             taken - stuck,
             "{key}: taken after the stick"
         );
-        if case.starts_with("near") {
+        if arrive.is_none() {
             assert_eq!(taken - stuck, shake, "BDS {key}: the shake");
             near += 1;
         } else {
