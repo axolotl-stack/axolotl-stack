@@ -1,0 +1,17 @@
+{
+  "scenarios": [
+    {
+      "name": "flat_walk",
+      "description": "Stand on stone, walk forward for 30 ticks, then let go.",
+      "world": [
+        {"from": [-8, 99, -8], "to": [8, 99, 40], "block": {"name": "minecraft:stone"}}
+      ],
+      "start": {"feet": [0.5, 100, 0.5]},
+      "inputs": [
+        {"ticks": 5},
+        {"ticks": 30, "forward": 1},
+        {"ticks": 15}
+      ]
+    }
+  ]
+}

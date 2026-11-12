@@ -9,10 +9,10 @@
 //! `--name` matches packet names without the `Packet` suffix too
 //! (`PlayerAuthInput`).
 
-use anyhow::{Context, Result};
+use anyhow::Result;
+use bds_sweep::capture::{self, Direction};
 use clap::Parser;
-use jolyne::valentine::{McpePacketArgs, McpePacketData};
-use std::io::{BufRead, Write};
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -33,15 +33,6 @@ struct Args {
     to: Option<u64>,
 }
 
-#[derive(serde::Deserialize)]
-struct Record {
-    seq: u64,
-    t_ms: u64,
-    dir: String,
-    name: String,
-    hex: String,
-}
-
 fn main() -> Result<()> {
     let args = Args::parse();
     let names: Vec<String> = args
@@ -49,44 +40,36 @@ fn main() -> Result<()> {
         .iter()
         .map(|name| name.trim_end_matches("Packet").to_owned())
         .collect();
-    let file = std::fs::File::open(&args.capture)
-        .with_context(|| format!("opening {}", args.capture.display()))?;
+    let direction = match args.dir.as_deref() {
+        None => None,
+        Some("c2s") => Some(Direction::C2s),
+        Some("s2c") => Some(Direction::S2c),
+        Some(other) => anyhow::bail!("--dir {other}: c2s or s2c"),
+    };
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
-    for line in std::io::BufReader::new(file).lines() {
-        let record: Record = serde_json::from_str(&line?)?;
-        if !names.is_empty()
-            && !names
-                .iter()
-                .any(|n| record.name.trim_end_matches("Packet") == n)
-        {
+    for record in capture::records(&args.capture)? {
+        if !names.is_empty() && !names.iter().any(|n| record.is(n)) {
             continue;
         }
-        if args.dir.as_ref().is_some_and(|dir| *dir != record.dir)
+        if direction.is_some_and(|dir| dir != record.dir)
             || args.from.is_some_and(|from| record.t_ms < from)
             || args.to.is_some_and(|to| record.t_ms > to)
         {
             continue;
         }
-        // The record is the packet header and payload; the decoder reads the
-        // batch entry's length first.
-        let bytes = hex::decode(&record.hex)?;
-        let mut framed = Vec::with_capacity(bytes.len() + 5);
-        let mut len = bytes.len() as u32;
-        while len >= 0x80 {
-            framed.push(len as u8 | 0x80);
-            len >>= 7;
-        }
-        framed.push(len as u8);
-        framed.extend_from_slice(&bytes);
-        let mut input = framed.as_slice();
-        let decoded = McpePacketData::decode_inner(&mut input, McpePacketArgs)
-            .map(|(_, data)| format!("{data:?}"))
+        let decoded = record
+            .decode()
+            .map(|data| format!("{data:?}"))
             .unwrap_or_else(|error| format!("<undecodable: {error}>"));
+        let dir = match record.dir {
+            Direction::C2s => "c2s",
+            Direction::S2c => "s2c",
+        };
         writeln!(
             out,
             "{} {} {} {} {}",
-            record.seq, record.t_ms, record.dir, record.name, decoded
+            record.seq, record.t_ms, dir, record.name, decoded
         )?;
     }
     Ok(())
