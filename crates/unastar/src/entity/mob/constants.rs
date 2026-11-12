@@ -681,9 +681,6 @@ pub const GEAR_LOOTING_DROP_BONUS: f32 = 0.01;
 /// (`Damage`) `max_damage - r`, `r` uniform in `0..=k` with `k` uniform in
 /// `0..max(max_damage, this) - 3`, so it keeps `r` durability (confirmed).
 pub const GEAR_DROP_MIN_MAX_DAMAGE: i32 = 4;
-/// Bedrock's Curse of Binding enchantment id: armour carrying it is never
-/// swapped for a picked-up piece (confirmed).
-pub const BINDING_CURSE_ID: i16 = 27;
 /// `MobEquipment` container id of a mob's off hand in the inventory send
 /// (confirmed).
 pub const GEAR_OFFHAND_CONTAINER: u8 = 119;

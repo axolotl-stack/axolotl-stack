@@ -725,7 +725,7 @@ fn apply_normal_actions(
         let Some(from) = validated_item(&action.from_item, items, block_ids) else {
             return false;
         };
-        if expected != action.from_item || from.nbt != actual.nbt {
+        if expected != action.from_item || from.nbt() != actual.nbt() {
             return false;
         }
         let Some(item) = validated_item(&action.to_item, items, block_ids) else {
@@ -1101,7 +1101,7 @@ mod tests {
             .item(0)
             .unwrap();
         assert_eq!(
-            (stack.runtime_id, stack.damage, stack.nbt.as_deref()),
+            (stack.runtime_id, stack.damage, stack.nbt().map(|b| &b[..])),
             (33, 7, Some([1, 2].as_slice()))
         );
         let mut from = descriptor(16);

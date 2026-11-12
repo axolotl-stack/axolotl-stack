@@ -120,13 +120,10 @@ pub(crate) fn loot_stacks(world: &World, drops: Vec<LootDrop>) -> Vec<ItemStack>
         };
         let mut template = template.with_damage(drop.data);
         if drop.nbt.is_some() {
-            template.nbt = drop.nbt.map(bytes::Bytes::from);
+            template = template.with_raw_nbt(drop.nbt.map(bytes::Bytes::from));
         }
         if !drop.enchantments.is_empty() {
-            template = crate::item::enchant::with_enchantment_ids(
-                &template,
-                drop.enchantments.iter().map(|e| (i16::from(e.id), e.level)),
-            );
+            template = crate::item::enchant::with_enchantments(&template, drop.enchantments);
         }
         let mut left = drop.count;
         while left > 0 {
@@ -155,10 +152,11 @@ pub(crate) fn drop_block_items(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::item::enchant::{Enchantment, with_enchantments};
+    use crate::item::enchant::with_enchantments;
     use crate::registry::{BlockRegistry, ItemRegistry};
     use crate::server::game::types::ItemRegistryResource;
     use std::sync::Arc;
+    use unastar_rules::ids::Enchantment;
 
     fn world() -> World {
         let mut world = World::new();
@@ -206,7 +204,7 @@ mod tests {
             )),
             vec![("minecraft:cobblestone", 1)]
         );
-        let silk = with_enchantments(&pick, &[(Enchantment::SilkTouch, 1)]);
+        let silk = with_enchantments(&pick, [(Enchantment::SilkTouch, 1)]);
         assert_eq!(
             ids(&block_drops(
                 &mut world,
@@ -301,7 +299,8 @@ mod tests {
     }
 
     /// The tool of a drop-sweep tool key (`hand`, `diamond_pickaxe`,
-    /// `shears`, `diamond_pickaxe+silk_touch1`, `..+fortune2`).
+    /// `shears`, `diamond_pickaxe+silk_touch1`, `..+fortune2`): an item
+    /// name, then `+<enchantment name><level>` parsed as an [`Enchantment`].
     fn sweep_tool(key: &str) -> Option<ItemStack> {
         if key == "hand" {
             return None;
@@ -313,14 +312,15 @@ mod tests {
         Some(match enchant {
             None => stack,
             Some(e) => {
-                let digits = e.trim_start_matches(|c: char| !c.is_ascii_digit());
-                let level: u8 = digits.parse().unwrap();
-                let enchantment = match e.trim_end_matches(char::is_numeric) {
-                    "silk_touch" => Enchantment::SilkTouch,
-                    "fortune" => Enchantment::Fortune,
-                    other => panic!("enchantment {other}"),
-                };
-                with_enchantments(&stack, &[(enchantment, level)])
+                let digits = e
+                    .find(|c: char| c.is_ascii_digit())
+                    .unwrap_or_else(|| panic!("{key}: no enchantment level"));
+                let (name, level) = e.split_at(digits);
+                let enchantment: Enchantment = name
+                    .parse()
+                    .unwrap_or_else(|error| panic!("{key}: {error}"));
+                let level: u8 = level.parse().unwrap_or_else(|_| panic!("{key}: level"));
+                with_enchantments(&stack, [(enchantment, level)])
             }
         })
     }

@@ -5,11 +5,11 @@
 use bevy_ecs::prelude::World;
 use unastar_data::actor_identifiers::ActorType;
 use unastar_rules::enchanting::ItemEnchanting;
+use unastar_rules::ids::Enchantment;
 use unastar_rules::loot::{Difficulty as LootDifficulty, LootError, LootStateValue};
 
 use crate::entity::mob::constants::{LEGACY_ITEM_NAMES, LEGACY_WOOL, WOOL_ITEMS};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::ItemRegistry;
 use crate::registry::block::{BlockEntry, StateValue};
 use crate::world::regional_difficulty::clamped_regional_difficulty;
@@ -65,18 +65,9 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
         self.tool.filter(|t| !t.is_empty()).map(|t| t.item_id())
     }
 
-    fn enchantment_level(&self, id: i16) -> u8 {
-        let enchantment = match id {
-            8 => Enchantment::AquaAffinity,
-            14 => Enchantment::Looting,
-            15 => Enchantment::Efficiency,
-            16 => Enchantment::SilkTouch,
-            17 => Enchantment::Unbreaking,
-            18 => Enchantment::Fortune,
-            _ => return 0,
-        };
+    fn enchantment_level(&self, enchantment: Enchantment) -> u8 {
         self.tool
-            .map_or(0, |tool| enchantment_level(tool, enchantment))
+            .map_or(0, |tool| tool.enchantment_level(enchantment))
     }
 
     fn block_state_matches(&self, property: &str, expected: &LootStateValue) -> bool {

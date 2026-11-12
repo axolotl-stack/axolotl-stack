@@ -338,9 +338,8 @@ fn authored_interaction(world: &mut World, player: Entity, target: Entity) -> bo
 /// unbreakable items take none, unbreaking level `n` spares it with
 /// probability `n / (n + 1)`, and an item worn to its maximum breaks.
 fn hurt_held_item(world: &mut World, player: Entity, amount: i32) {
-    use crate::item::enchant::{
-        Enchantment, durability_damage, enchantment_level, with_durability_damage,
-    };
+    use crate::item::enchant::{durability_damage, with_durability_damage};
+    use unastar_rules::ids::Enchantment;
     if world.get::<GameMode>(player) == Some(&GameMode::Creative) {
         return;
     }
@@ -354,7 +353,7 @@ fn hurt_held_item(world: &mut World, player: Entity, amount: i32) {
     else {
         return;
     };
-    let unbreaking = enchantment_level(&held, Enchantment::Unbreaking);
+    let unbreaking = held.enchantment_level(Enchantment::Unbreaking);
     let roll = world
         .resource_mut::<EntityRandom>()
         .0

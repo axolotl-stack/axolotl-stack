@@ -653,6 +653,12 @@ Every non-air item the server sends carries Bedrock item user data
 eighteen for the shield). The client drops the connection with `BadPacket`
 right after spawning when creative items carry an empty buffer. Client user
 data is stored verbatim and compared decoded, so a default buffer equals none.
+Enchantments are the generated `unastar_rules::ids::Enchantment` (decision
+[0052](../../docs/decisions/0052-generate-one-enchantment-type.md)): a stack
+decodes its `ench` levels once when its user data is set, so
+`stack.enchantment_level(Enchantment::Sharpness)` is an array index, and
+`item::enchant::with_enchantments` writes them back. `ench` entries with ids
+that are not Bedrock enchantments stay in the buffer untouched.
 
 Block interaction requires Survival or Creative mode and server-position reach
 (five blocks in Survival, six in Creative, measured to the block's bounding box).

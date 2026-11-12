@@ -27,6 +27,7 @@
 pub mod enchanting;
 pub mod event;
 pub mod filter;
+pub mod ids;
 pub mod loot;
 pub mod math;
 pub mod molang;
