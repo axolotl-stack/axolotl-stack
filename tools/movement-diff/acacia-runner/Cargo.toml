@@ -1,0 +1,15 @@
+[package]
+name = "acacia-runner"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Plays the movement-diff corpus through acacia-physics (outside the axolotl-stack workspace)"
+
+# Its own workspace: acacia-physics needs a newer toolchain than the
+# workspace's pinned nightly (rust-toolchain.toml here).
+[workspace]
+
+[dependencies]
+acacia-physics = { git = "https://github.com/acacia-rs/acacia", rev = "97ec4c7ce23e5abb7cde1e66026363d3c2e6fbf0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

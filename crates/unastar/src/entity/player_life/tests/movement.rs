@@ -16,6 +16,7 @@ use jolyne::valentine::types::DataItemEntryPayload;
 
 use super::*;
 use crate::entity::components::{ArmourInventory, Hunger, PlayerState};
+use crate::entity::player_life::authority::{Judgement, PlayerMotion};
 use crate::entity::player_life::environment::PlayerFall;
 use crate::item::test_support::stack;
 
@@ -107,11 +108,40 @@ fn map(dx: f64, dz: f64) -> Map {
     Map(DVec3::new(dx, DY, dz))
 }
 
-/// Put the player where `input` says, at rest and not falling (the start
-/// of a phase, a teleport).
+/// Put the player (and the server's copy of it) where `input` says, at
+/// rest and not falling: the start of a phase.
 fn place(h: &mut Harness, input: &PlayerAuthInputPacket, map: Map) {
+    put(h, map.eyes(input), false);
+}
+
+/// BDS's teleports in `phase`: the input tick each followed and the eyes
+/// of its destination.
+fn teleports(phase: &str) -> Vec<(u64, DVec3)> {
+    fixture()["phases"][phase]["teleports"]
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .map(|t| {
+                    let v = |i: usize| t[i].as_f64().unwrap();
+                    (t[0].as_u64().unwrap(), DVec3::new(v(1), v(2), v(3)))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Put the player and its copy at `eyes`: at rest, or teleported there (the
+/// copy then rests through the next input, as BDS's does).
+fn put(h: &mut Harness, eyes: DVec3, teleport: bool) {
     let player = h.player;
-    h.world().get_mut::<Position>(player).unwrap().0 = map.eyes(input);
+    h.world().get_mut::<Position>(player).unwrap().0 = eyes;
+    if let Some(mut motion) = h.world().get_mut::<PlayerMotion>(player) {
+        if teleport {
+            motion.teleported(eyes);
+        } else {
+            motion.placed(eyes);
+        }
+    }
     if let Some(mut fall) = h.world().get_mut::<PlayerFall>(player) {
         *fall = PlayerFall::default();
     }
@@ -128,8 +158,108 @@ fn replay(
     replay_with(h, phase, map, viewer, |_, _| {})
 }
 
+/// BDS's corrections in `phase`: the input tick and the eyes and velocity
+/// it put the client at.
+fn bds_corrections(phase: &str) -> Vec<(u64, DVec3, DVec3)> {
+    fixture()["phases"][phase]["corrections"]
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .map(|c| {
+                    let v = |i: usize| c[i].as_f64().unwrap();
+                    (
+                        c[0].as_u64().unwrap(),
+                        DVec3::new(v(1), v(2), v(3)),
+                        DVec3::new(v(4), v(5), v(6)),
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The corrections the player was sent: tick, eyes and velocity.
+fn our_corrections(packets: &[McpePacketData]) -> Vec<(u64, DVec3, DVec3)> {
+    packets
+        .iter()
+        .filter_map(|packet| match packet {
+            McpePacketData::CorrectPlayerMovePredictionPacket(c) => Some((
+                c.tick.inputtick,
+                DVec3::new(f64::from(c.pos.x), f64::from(c.pos.y), f64::from(c.pos.z)),
+                DVec3::new(
+                    f64::from(c.pos_delta.x),
+                    f64::from(c.pos_delta.y),
+                    f64::from(c.pos_delta.z),
+                ),
+            )),
+            _ => None,
+        })
+        .collect()
+}
+
+/// The replayed client is corrected exactly where BDS corrected it, to the
+/// state BDS sent: never where BDS was satisfied, and wherever the server's
+/// copy judged the input. Near a block the simulation does not reproduce
+/// the copy trusts the client and takes its state, so it can miss a
+/// correction BDS sent there or up to [`TRUST_CARRIES`] inputs later; the
+/// recorded client then jumped to BDS's state, which this server never
+/// asked for, so a correction of ours in the inputs after such a miss is
+/// the replay's artefact and not checked either.
+fn assert_corrections_like_bds(
+    phase: &str,
+    map: Map,
+    ours: &[(u64, DVec3, DVec3)],
+    trusted: &[u64],
+) {
+    let theirs = bds_corrections(phase);
+    let within = |ticks: &[u64], tick: u64| {
+        ticks
+            .iter()
+            .any(|from| (*from..=from + TRUST_CARRIES).contains(&tick))
+    };
+    let mut missed = Vec::new();
+    for (tick, ..) in &theirs {
+        if ours.iter().any(|(ours, ..)| ours == tick) {
+            continue;
+        }
+        assert!(
+            within(trusted, *tick) || BDS_KEPT_ITS_COPY.contains(&(phase, *tick)),
+            "{phase}: BDS corrected input {tick} where the copy judged and did not"
+        );
+        missed.push(*tick);
+    }
+    for (tick, eyes, velocity) in ours {
+        let Some((_, bds_eyes, bds_velocity)) = theirs.iter().find(|(bds, ..)| bds == tick) else {
+            assert!(
+                within(&missed, *tick),
+                "{phase}: corrected input {tick} that BDS did not correct ({eyes}, {velocity})"
+            );
+            continue;
+        };
+        let bds_eyes = *bds_eyes + map.0;
+        assert!(
+            eyes.distance(bds_eyes) < 2.0e-4 && velocity.distance(*bds_velocity) < 2.0e-4,
+            "{phase} {tick}: corrected to {eyes} {velocity}, BDS to {bds_eyes} {bds_velocity}"
+        );
+    }
+}
+
+/// Inputs a trusted client's state carries on in the server's copy (a
+/// bounce's velocity, say) before its own simulation would differ.
+const TRUST_CARRIES: u64 = 20;
+
+/// Corrections BDS sent a recording client this server's copy does not:
+/// the copy takes a position within a tenth of a block where BDS kept its
+/// own (`docs/quirks/bds.md`, Entities / player movement pull: the rule is
+/// not known). In `slime_10` the round-3 client bounced off slime a little
+/// higher than BDS (its slime physics was fixed since); the copy, which
+/// bounces as BDS does, took each of its positions, BDS kept its copy and
+/// corrected the eleventh disagreement.
+const BDS_KEPT_ITS_COPY: [(&str, u64); 1] = [("slime_10", 713)];
+
 /// [`replay`], calling `after` with each input's tick once the server has
-/// ticked with it.
+/// ticked with it. Asserts the corrections match BDS's
+/// ([`assert_corrections_like_bds`]).
 fn replay_with(
     h: &mut Harness,
     phase: &str,
@@ -137,18 +267,16 @@ fn replay_with(
     mut viewer: Option<&mut Joined>,
     mut after: impl FnMut(&mut Harness, u64),
 ) -> (Vec<McpePacketData>, Vec<McpePacketData>) {
-    use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
     let inputs = inputs(phase);
+    let teleports = teleports(phase);
     place(h, &inputs[0], map);
     h.tick();
     h.drain();
     if let Some(viewer) = viewer.as_deref_mut() {
         drain(viewer);
     }
+    let mut trusted = Vec::new();
     for input in inputs {
-        if input.input_data.contains(&Flag::Handledteleport) {
-            place(h, &input, map);
-        }
         let eyes = map.eyes(&input);
         let tick = input.client_tick.inputtick;
         h.route(PlayerAuthInputPacket {
@@ -160,9 +288,22 @@ fn replay_with(
             ..input
         });
         h.tick();
+        let player = h.player;
+        if matches!(
+            h.world().get::<PlayerMotion>(player).unwrap().last,
+            Some(Judgement::Trusted(_))
+        ) {
+            trusted.push(tick);
+        }
+        // BDS's teleports after this input (the inputs the client had sent
+        // before it saw one rest at the destination).
+        for (_, to) in teleports.iter().filter(|(after, _)| *after == tick) {
+            put(h, *to + map.0, true);
+        }
         after(h, tick);
     }
     let player = h.drain();
+    assert_corrections_like_bds(phase, map, &our_corrections(&player), &trusted);
     let seen = viewer.map(drain).unwrap_or_default();
     (player, seen)
 }
@@ -170,7 +311,16 @@ fn replay_with(
 /// A survival player that does not heal, as in the captures, with the
 /// health and exhaustion the subject had before `phase`.
 fn subject(phase: &str) -> Harness {
-    let mut h = harness(Difficulty::Easy);
+    subject_in(harness(Difficulty::Easy), phase)
+}
+
+/// [`subject`] on a platform 4 chunks around the origin, all of it in view:
+/// for phases that cross more of it.
+fn wide_subject(phase: &str) -> Harness {
+    subject_in(harness_sized(Difficulty::Easy, 4, 4), phase)
+}
+
+fn subject_in(mut h: Harness, phase: &str) -> Harness {
     h.rules().natural_regeneration = false;
     let player = h.player;
     h.world().get_mut::<Hunger>(player).unwrap().exhaustion =
@@ -545,7 +695,8 @@ fn swims_on_land_and_glides_on_the_ground_are_refused() {
 #[test]
 fn a_glide_needs_the_air_and_an_elytra() {
     let bds = bds("glide");
-    let mut h = subject("glide");
+    // The glide crosses 66 blocks of BDS's superflat floor.
+    let mut h = wide_subject("glide");
     wear_elytra(&mut h);
     let player = h.player;
     let (seen, _) = replay(&mut h, "glide", map(4.0, 4.0), None);
@@ -702,18 +853,16 @@ fn steps(series: &[(u64, f32)], base: f32) -> Vec<(u64, f32)> {
         .collect()
 }
 
-/// Ticks of the exhaustion phases where BDS charged its own simulation of
-/// the move rather than the move the recording client reported:
+/// Ticks of the exhaustion phases the replay cannot charge as BDS did:
 /// - after the sprint-swim stop the client kept the sprint's water drag a
-///   tick longer than BDS (608 to the swim's end at 619, inside the
-///   acceptance threshold, so never corrected);
-/// - around the teleport into the pool BDS charged nothing for the inputs
-///   the client sent before it handled the teleport (620, 621) and
-///   simulated the one that handles it (622: 0.005 of sinking) where the
-///   client reports the destination.
+///   tick longer than BDS's copy (608 to the swim's end at 619, up to 0.016
+///   apart); the server's copy takes the client's position that close where
+///   BDS kept its own, so it charges the client's moves;
+/// - the water walk's window starts mid-walk (619), where the replay's copy
+///   starts at rest.
 const BDS_OWN_MOVES: [(&str, std::ops::RangeInclusive<u64>); 2] = [
     ("swim_exhaustion", 608..=619),
-    ("water_walk_exhaustion", 619..=622),
+    ("water_walk_exhaustion", 619..=619),
 ];
 
 /// Exhaustion of each kind of move, tick by tick: none walking or
@@ -793,12 +942,15 @@ fn a_pushed_player_is_moving() {
         theirs,
         [(1291, true), (1304, false), (1331, true), (1344, false)]
     );
-    // The second slide was corrected by BDS at 1341 (the recording client
-    // applied each push a tick late); the corrected client positions it
-    // reported jump back, so the replay stops a tick early there.
+    // The server's copy flies, lands and is pulled towards the client (a
+    // tick late with each push) exactly as BDS's, and corrects it at 1301
+    // and 1341 as BDS did (the replay checks the corrections). On the input
+    // after the second correction BDS kept its own copy where this server
+    // takes the client's position (inside a tenth of a block), so the
+    // copy's slide stops a tick later.
     let ours = moving_edges(&updates(&seen, SESSION, &keys));
     assert_eq!(ours[..3], theirs[..3]);
-    assert_eq!(ours[3], (1343, false));
+    assert_eq!(ours[3], (1345, false));
 }
 
 /// Each hurt about `runtime_id`: the tick of the health update that

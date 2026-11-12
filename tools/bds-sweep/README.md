@@ -14,10 +14,16 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `command_digest.py` | `command-outputs.json` to a readable per-command `digest.md` (CommandOutput fields, key fields of every other packet) |
 | `commit_fixtures.py` | Copies the committed subset of a capture into `crates/bds-extractor/captures/1.26.51/` (see the crate README) |
 | `player_script.py` | Plain-BDS scripted player captures: a timed script of console commands and client orders with every client's packets recorded (see [Movement](#movement)) |
-| `player_fixture.py` | Distils `player_script.py` captures into a value-only test fixture: per phase the subject's inputs, the packets one client got about the subject, and the subject's attributes before the phase |
+| `player_fixture.py` | Distils `player_script.py` captures into a value-only test fixture: per phase the subject's inputs, the packets one client got about the subject, the subject's attributes before the phase, and the teleports and corrections BDS sent it |
+| `authority_fixture.py` | Distils movement-authority probes (a subject misreporting its position on purpose, and a viewer) into a compact value-only fixture: per phase the subject's inputs, BDS's own copy of it from the viewer's `MovePlayer` relays, and the corrections and teleports BDS sent; `crates/unastar/src/entity/player_life/testdata/bds-1.26.51-authority.json` |
 | `sweep.py` | T2: one sweep job under Endstone with `bds-sweep-client` as the player; output in `<runtime>/sweeps/1.26.51/<kind>-<UTC>/` |
 | `endstone-sweep/` | The Endstone Python plugin that runs jobs server-side (inert unless `BDS_SWEEP_JOB` is set) |
 | `summarize.py` | Raw sweep results to `crates/unastar-data/data/measured/` + `manifest.json` |
+| `knockback_fixture.py` | `knockback` sweeps (run with `--client-capture`) to the committed knockback fixture `crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-knockback.json`: per-tick mob positions, knockback events, and the mob's position and motion packets |
+| `replication_fixture.py` | `knockback --items cadence` / `cadence2` / `cadence3` sweeps (run with `--observer --client-capture`) to the committed replication fixture `crates/unastar/src/entity/mob/net/testdata/bds-1.26.51-replication.json`: per-tick actor state, where each viewer stood, and each viewer's `AddActor`, `MoveActorDelta` and `SetActorMotion` about the actor (a vehicle's deltas matched with its wire offset) |
+| `range_fixture.py` | `range` sweeps (one per view / simulation distance) to `crates/unastar/src/entity/testdata/bds-1.26.51-send-range.json`: each marker's kind and position, the observer's steps, and the step and tick of every add and remove it got |
+| `player_relay_fixture.py` | `walk` sweeps to `crates/unastar/src/server/testdata/bds-1.26.51-player-relay.json`: for every input of the sweep player, the input it sent and the `MovePlayer` the observer got for it |
+| `spawn_bonus_fixture.py` | `bonus` sweeps (with `--keep-world`; their actor records dumped by `cargo run -p unastar --example bds_actor_records`) to `crates/unastar/src/entity/mob/persistence/testdata/bds-1.26.51-spawn-bonus.json`: per kind, how many were saved and every `RandomSpawnBonus` amount |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
 
@@ -83,12 +89,32 @@ send the same text with `tellraw <player> {"rawtext":[{"text":"bds-sweep:..."}]}
 | `bds-sweep:sneak on\|off` | Press or release the sneak key |
 | `bds-sweep:jump [TICKS]` | Hold the jump key for TICKS ticks (default 1); held, the player jumps again on landing |
 | `bds-sweep:glide` | Open the elytra: a jump press in the air (needs an elytra in the chest slot) |
+| `bds-sweep:walk DX DY DZ DYAW TICKS FLAGS [DPITCH]` | For the next `TICKS` inputs, move the reported position by (`DX`, `DY`, `DZ`) and turn yaw and head yaw by `DYAW` (pitch by `DPITCH`), all in thousandths of a block or degree per input; `FLAGS` bit 0 adds forward movement (`Up`, move vector (0, 1)), bit 1 `VerticalCollision` |
+| `bds-sweep:teleports follow\|late N\|ignore\|fake` | How the next server teleports are taken: followed as a vanilla client does, `N` inputs late, never (no `HandledTeleport` either), or acknowledged without moving |
+| `bds-sweep:corrections follow\|ignore` | Rewind on `CorrectPlayerMovePrediction` (the default) or keep the client's own prediction and only count the correction |
+| `bds-sweep:offset DX DY DZ` | Report the position this many thousandths of a block away from the simulated one (`offset 0 0 0` ends it, and a drift) |
+| `bds-sweep:drift DX DY DZ` | Grow that offset by this many thousandths of a block every input |
+
+Drop references come only from server `InventoryContent`/`InventorySlot`
+updates; missing/empty/idless slots and invalid counts fail rather than invent
+a stack net ID. `/enchant` updates a slot through a legacy transaction the
+client does not track, so send `use` (or another full resync) before an
+`equip-head` of an enchanted item. `--uuid UUID` logs in with a fixed identity,
+so a player that leaves and rejoins gets its saved data back. Requests use negative odd IDs. `--capture-dir DIR` records
+both directions, including unhandled actor packets, to `DIR/packets.jsonl`;
+records are flushed individually and the recorder closes on normal/error exit.
+Windows debug startup uses the same enlarged codec stack as `bds-extractor`.
+The entity probe's `player-drop` mode drives the bounded two-client experiment;
+see `crates/unastar/README.md` for its setup and retained native evidence.
 
 ### Movement
 
 The client simulates its own movement like a vanilla client and reports it in
-every `PlayerAuthInput`, so BDS's server-authoritative movement accepts it:
-gravity and drag, ground friction and acceleration (sprint speed 0.13,
+every `PlayerAuthInput`, so BDS's server-authoritative movement accepts it. The
+simulation is `unastar_rules::movement` (re-exported as `physics`), the same
+code `unastar` judges its players with, so a run without corrections on BDS
+checks the server's physics too. It covers gravity and drag, ground
+friction and acceleration (sprint speed 0.13,
 air speed 0.02/0.026), jumps (0.42, sprint-jump push 0.2, 10-tick delay),
 sneaking (BDS applies the 0.3 itself, so the move vector is sent unscaled)
 and its edge stop, collisions with step-up, slime and bed bounces, cobwebs and
@@ -134,20 +160,17 @@ Tooling for such runs:
   (`crates/unastar/src/entity/player_life/testdata/bds-1.26.51-movement.json`).
 - A second client standing near the first receives BDS's own simulation of it
   (`MovePlayer` every tick); while the first client disagrees, BDS moves its
-  copy towards the client's position by up to about 0.005 blocks a tick, so
+  copy towards the client's position by up to 0.005 blocks a tick, so
   calibrate against runs without corrections.
-
-Drop references come only from server `InventoryContent`/`InventorySlot`
-updates; missing/empty/idless slots and invalid counts fail rather than invent
-a stack net ID. `/enchant` updates a slot through a legacy transaction the
-client does not track, so send `use` (or another full resync) before an
-`equip-head` of an enchanted item. `--uuid UUID` logs in with a fixed identity,
-so a player that leaves and rejoins gets its saved data back. Requests use negative odd IDs. `--capture-dir DIR` records
-both directions, including unhandled actor packets, to `DIR/packets.jsonl`;
-records are flushed individually and the recorder closes on normal/error exit.
-Windows debug startup uses the same enlarged codec stack as `bds-extractor`.
-The entity probe's `player-drop` mode drives the bounded two-client experiment;
-see `crates/unastar/README.md` for its setup and retained native evidence.
+- `bds-sweep-client --scenarios CORPUS --scenario-log FILE` plays the movement corpus when it
+  gets the `scenarios` order, reporting a position 3 blocks off so BDS's copy moves by its own
+  simulation (`tools/movement-diff/README.md`, run by `tools/movement-diff/bds_run.py`).
+- `authority_fixture.py SPEC.json OUT.json --captures DIR` writes the
+  movement-authority fixture from runs where the subject misreports on purpose
+  (`offset`, `drift`, `walk`, `teleports`, `corrections ignore`) and a viewer
+  watches BDS's copy; it also checks that every correction in the runs has the
+  fields BDS always sends. `unastar`'s authority tests replay it
+  (`crates/unastar/src/entity/player_life/tests/authority.rs`).
 
 
 ## Jobs
@@ -160,6 +183,11 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `armor-values` | health lost per `/damage <player> D entity_attack` wearing one item | max health 2000, hits repeated for sub-point precision; needs the full `armor-slots` result for slot assignment |
 | `attack` | melee damage per held item, warm-up + 3 trials | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value |
 | `fuel` | furnace burn ticks per item | pool of 32 furnaces, 1 cobblestone input + the item as fuel |
+| `knockback` | one mob's motion, tick by tick, around the sweep player's hits (or under its AI) | a fresh cow or zombie, frozen with Slowness 255 or left to its AI; before each hit the player is put 2 blocks west (or south-west) of it, facing east (or west); Endstone samples position, rotation, velocity (the last tick's position change) and ground contact every tick, and records each `ActorKnockbackEvent` (its `knockback` is the velocity change applied). `--items slice` (hits), `air` (tempted cows jumping a step, mobs hit while falling, a panicking cow), `far` (cows falling at 4-48 blocks, for the send rate by distance), `cadence` and `cadence2` (two viewers per actor, see below) |
+| `knockback-reload` | whether a zombie's knockback response survives a save and load | `--items spawn --keep-world`: three named, frozen zombies 200 blocks from the world spawn, each hit once and left in the world; then `--items reload --world-from <spawn run>/world`: the loaded zombies (found by name) hit again; the server starts at easy, as peaceful would remove them |
+| `range` | which actors BDS sends a viewer, by where it stands (needs `--observer`) | still markers (cows, armor stand, item, arrow, minecart, xp orb, and the sweep player) around chunk (0, 0); the observer walks away and back along +x, the diagonal and -x in one-block steps of ten ticks, then jumps between 40 and 112 blocks; a `bds-sweep:mark` chat line every tick puts each observer packet on a tick. Run once per `--view-distance` / `--tick-distance` |
+| `bonus` | the random spawn bonuses BDS saves for each kind (`--keep-world`, `--difficulty easy\|hard`) | 870 mobs of 13 kinds (no villagers, golems, wolves or illagers, which fight the others) frozen on a grid around the sweep player and left in the world; read their records from the kept world |
+| `walk` | how BDS relays a player's movement to another player (needs `--observer`) | the sweep player driven by `bds-sweep:walk` (standing, turning, walking, stepping up, tilting) with the observer 8 blocks south and a cow spawned at yaw 33.3 for its `AddActor` rotation |
 
 ```powershell
 & $py tools/bds-sweep/sweep.py drops --blocks all --samples 400   # first palette state of every block
@@ -168,7 +196,49 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 & $py tools/bds-sweep/sweep.py armor-slots --items all
 & $py tools/bds-sweep/sweep.py fuel --items all
 & $py tools/bds-sweep/summarize.py drops <dir> [<repeat dir> ...]
+& $py tools/bds-sweep/sweep.py knockback --items slice --client-capture   # also air, far
+python tools/bds-sweep/knockback_fixture.py <fixture.json> <sweep dir> [<sweep dir> ...]
+& $py tools/bds-sweep/sweep.py knockback --items cadence --observer --client-capture --view-distance 10 --tick-distance 10
+python tools/bds-sweep/replication_fixture.py <fixture.json> <cadence dir> <cadence2 dir>
+& $py tools/bds-sweep/sweep.py knockback-reload --items spawn --client-capture --keep-world --out <spawn dir>
+& $py tools/bds-sweep/sweep.py knockback-reload --items reload --client-capture --world-from <spawn dir>/world
+& $py tools/bds-sweep/sweep.py knockback --items cadence3 --observer --client-capture --view-distance 10 --tick-distance 10
+& $py tools/bds-sweep/sweep.py range --observer --client-capture --view-distance 10 --tick-distance 10   # also 6/4, 16/12
+python tools/bds-sweep/range_fixture.py <fixture.json> 10,10:<dir> 6,4:<dir> 16,12:<dir>
+& $py tools/bds-sweep/sweep.py walk --observer --client-capture --client <a client built from this checkout>
+python tools/bds-sweep/player_relay_fixture.py <fixture.json> <walk dir>
+& $py tools/bds-sweep/sweep.py bonus --difficulty easy --keep-world --client-capture   # and hard
+cargo run -p unastar --example bds_actor_records -- <bonus dir>/world/db <bonus dir>/actor_records.jsonl
+python tools/bds-sweep/spawn_bonus_fixture.py <fixture.json> <easy dir> <hard dir>
 ```
+
+`--items cadence` and `cadence2` measure how often each viewer gets a moving
+actor's position: run them with `--observer --client-capture --view-distance 10
+--tick-distance 10`. `--observer` starts a second `bds-sweep-client`
+(`BDSOther`, recorded to `<out>/observer/packets.jsonl`) a few seconds after the
+sweep player has spawned, since BDS refuses a second loopback login right
+after the first ("ip recently connected"); the job waits for it and an item's
+`observer` (x, y, z, yaw) places it. Items may run timed commands
+(`actions: [{t, commands}]`). BDS sends an actor only to viewers about four
+chunks around it whatever the view distance, and a cow more than 128 blocks
+from every player despawns at once, so keep trials inside both.
+`--keep-world` copies the world to `<out>/world` after BDS stops (read actor
+records from its LevelDB); `--world-from DIR` starts the next run from such a
+copy.
+
+`--items cadence3` adds vehicles (a minecart and a boat resting on a pillar that
+is removed in two steps) and projectiles a dispenser shoots (`spawn_commands`:
+the job follows the first new actor of the item's type those commands make).
+`range` and `walk` need `--observer`; `range` measured the same switches at view /
+simulation distance 6 / 4, 10 / 10 and 16 / 12, so one run is enough to
+recheck it. BDS simulates a player's movement itself: a `walk` without the
+forward flag is corrected to a drift, and the observer sees the server's position.
+
+`--client-capture` records the sweep player's packets (both directions) in
+`<out>/client/packets.jsonl`. The BDS process gets this checkout's
+`endstone-sweep/src` first on `PYTHONPATH`, so a worktree runs its own jobs
+even though the shared venv's editable install points at another checkout;
+the plugin logs `jobs loaded from <path>` at startup.
 
 Sweeps are resumable: rerun with the same `--out` and finished items
 (`results.jsonl`) are skipped. To hand the BDS over mid-run, create

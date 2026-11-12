@@ -80,8 +80,72 @@ still had queued beyond that tick's budget is dropped (the count is logged at de
 since the client has gone and there is no prediction left to keep in step.
 
 `PlayerAuthInput` is rejected whole (the player stays where it was) when its
-position, rotation, head yaw or move vector is not finite, or when the position is
-more than 64 blocks from the server-tracked one.
+position, rotation, head yaw or move vector is not finite.
+
+### Movement authority
+
+Player movement is server-authoritative, as in BDS 1.26.51
+(`entity/player_life/authority.rs`). The server keeps its own copy of each
+player and simulates every `PlayerAuthInput` on it with `unastar_rules::movement`,
+the `f32` simulation the sweep client runs on BDS. It then judges the reported
+position with BDS's rules (`unastar_rules::movement::authority`; the measured
+rules are in `docs/quirks/bds.md`, Entities / player movement authority, pull,
+teleport):
+
+- positions within a tenth of a block are taken;
+- other positions pull the copy towards the client;
+- positions out of reach, or ones the copy could not reach (too fast, through a
+  wall, hovering, claiming the ground while falling), are answered with
+  `CorrectPlayerMovePrediction` carrying the copy's state.
+
+The copy is what the player's viewers see, and what its falls, `MOVING` and
+exhaustion follow. A teleport (command, plugin, ender pearl, chorus fruit) leaves
+the copy at rest at the destination for the next input, so no input sent before
+the client saw it can undo it. A respawn places the copy at the spawn point, and
+a knockback becomes its velocity. Every other server-side move of a player must
+update the copy too (`PlayerMotion::teleported`), or the client's next input is
+corrected back.
+
+The simulation does not reproduce everything yet. Inputs it does not cover
+are trusted (`Trust`): the copy takes the client's position, its velocity
+(capped at 4 blocks a tick per axis) and its flags. How far a trusted input may
+move the copy depends on who brings the trust about.
+
+The server grants these; a trusted input more than 64 blocks from the copy is
+rejected whole:
+- flying in a game mode that can fly, and spectators (a survival client's
+  `StartFlying` is ignored);
+- inputs under slowness or levitation. Speed, jump boost and slow falling
+  are simulated. Levitation's first ground contact is not yet BDS's, and
+  slowness waits for the movement attribute to carry the effect's modifier,
+  without which a vanilla client may not slow down.
+
+A client can seek these out, so they cover about one tick of movement (1.5
+blocks horizontally, 4 vertically) and never pass through a block the
+simulation reproduces; beyond that the copy judges the input:
+- inputs near blocks with movement rules the simulation does not reproduce
+  yet: twisting, weeping and cave vines, scaffolding, sweet berries, lava,
+  flowing water, bubble columns, beds and powder snow (`MotionTable`, both
+  block layers). Ladders, vines, honey, soul sand, slime, cobwebs and ice are
+  judged: the movement differential (`tools/movement-diff`) matches BDS on
+  them bit for bit;
+- depth strider near water, swift sneak while sneaking, soul speed near soul
+  sand or soil;
+- a riptide trident's spin started in water, for at most 20 inputs (up to 4
+  blocks per axis);
+- a crawl space at the copy's feet.
+
+Two more cases are covered:
+- A client only slower than the copy's simulation of its keys is taken (no
+  farther horizontally, level vertically). This covers an item in use and a
+  sprint key held at 6 food or less. It does not apply while a knockback plays
+  out, so refusing knockback is still corrected.
+- The first input after joining or respawning is trusted when it is within 2
+  blocks of the spawn point.
+
+A situation leaves the trusted list only with a BDS run of the sweep client that
+covers it without corrections. The movement replays in `entity/player_life/tests/` assert
+that the server sends exactly BDS's corrections and none that BDS did not send.
 
 ## Joining
 
@@ -568,6 +632,40 @@ of the complete timing/motion matrix.
 
 
 
+### Mob movement replication
+
+**Who sees what.** Every actor, players included, is sent to the players in its
+send range (`src/entity/send_range.rs`): the viewer's chunk within Δx² + Δz² ≤ 17
+chunks of the actor's, whatever the view or simulation distance. An actor is
+added in the tick a viewer comes into range and removed one tick after it
+leaves. `src/entity/bds_send_range.rs` replays BDS's add and remove steps for
+the sweep player, a cow, an item, an arrow and an orb along every walk of
+`tools/bds-sweep/sweep.py range` (three view / simulation distances).
+
+**Mobs, projectiles and experience orbs** replicate like BDS 1.26.51
+(`src/entity/mob/net/network.rs`): a `MoveActorDelta` is measured against one
+shared "last sent" movement state, and each viewer gets it only as often as the
+actor's `minecraft:conditional_bandwidth_optimization` allows for that viewer's
+distance (every ⌊min(d, D) / D × M⌋ ticks, `ticks` set to that number; the empty
+component is 10 ticks over 80 blocks, so every tick within 8 blocks). Conditional
+values apply while their filter holds: the vehicles' `is_moving` (0 / 0) is
+answered by whether the actor moved in the tick before. A viewer's first update
+and a change of ground contact go at once with `ticks` 0, and the shared state
+moves on only when some viewer got the update, so far viewers can keep a stale
+axis, as on BDS. A newly spawned actor's `AddActor` shows it as it spawned, its
+rotation cut to whole rotation bytes; actors that are not living have head and
+body yaw 0. A projectile that sticks in a block stops where its flight entered
+it. `src/entity/mob/net/bds_replication.rs` replays two-client BDS captures
+(`testdata/bds-1.26.51-replication.json`, from `tools/bds-sweep/sweep.py knockback
+--items cadence|cadence2|cadence3 --observer`) packet for packet; `docs/quirks/bds.md`
+lists the copied oddities.
+
+**Other players** (`src/server/player_view.rs`): every input a player sends is
+relayed to its viewers as one `MovePlayer` with the position, ground contact and
+head yaw after the input, the input's tick, and the pitch and yaw before it, as
+BDS does; `src/server/bds_player_relay.rs` replays 411 inputs of
+`tools/bds-sweep/sweep.py walk`.
+
 ## Commands
 
 Commands follow BDS 1.26.51 (`src/command/`):
@@ -816,6 +914,12 @@ left in storage rather than deleted. When `players.save_previous_position` is
 enabled, saves also update the per-player TOML position used by spawn rules.
 Spawn rules retain their ordering and only use saved positions in the current
 dimension.
+
+Mobs are saved as Bedrock actor records with their chunk (`src/entity/mob/persistence`); the zombie
+classes' random spawn bonuses (a knockback resistance, and for about a third of them a raised follow
+range) are saved the way BDS saves them (`RandomSpawnBonus` modifiers of
+`minecraft:knockback_resistance` and `minecraft:follow_range`) and restored on load instead of being
+rolled again.
 
 Regression coverage: `cargo test -p unastar --test persistence` exercises both
 world providers, stored-column preservation through asynchronous loading and

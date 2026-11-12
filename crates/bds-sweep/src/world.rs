@@ -22,7 +22,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 use unastar_data::blocks::{self, BlockData};
 
-use crate::physics::{Aabb, Ground, GroundKind, Terrain};
+use crate::physics::{Aabb, Block as Motion, BlockKind, Terrain};
 
 /// Lowest sub-chunk index of the overworld (y -64).
 const MIN_INDEX: i32 = -4;
@@ -199,6 +199,41 @@ pub struct World {
 }
 
 impl World {
+    /// A fully loaded world of air holding `blocks` (position, canonical
+    /// state, layer), with every column within `margin` chunks of them
+    /// announced and loaded: the world of a movement scenario.
+    pub fn with_blocks(
+        blocks: impl IntoIterator<Item = ([i32; 3], u32, usize)>,
+        margin: i32,
+    ) -> Result<Self> {
+        let mut world = World::default();
+        let mut placed = Vec::new();
+        for (pos, state, layer) in blocks {
+            ensure!(layer < 2, "block layer {layer}");
+            blocks::by_runtime_id(state)
+                .with_context(|| format!("{state} is not a canonical block state"))?;
+            placed.push((pos, state, layer));
+        }
+        let columns = placed.iter().map(|(pos, ..)| [pos[0] >> 4, pos[2] >> 4]);
+        let (min, max) = columns.fold(([i32::MAX; 2], [i32::MIN; 2]), |(min, max), c| {
+            (
+                [min[0].min(c[0]), min[1].min(c[1])],
+                [max[0].max(c[0]), max[1].max(c[1])],
+            )
+        });
+        for cx in min[0] - margin..=max[0] + margin {
+            for cz in min[1] - margin..=max[1] + margin {
+                world.columns.insert([cx, cz], 0);
+            }
+        }
+        for (pos, state, layer) in placed {
+            let key = [pos[0] >> 4, pos[1] >> 4, pos[2] >> 4];
+            let sub = world.sub_chunks.entry(key).or_insert_with(SubChunk::air);
+            sub.layers[layer][index(pos[0], pos[1], pos[2])] = state;
+        }
+        Ok(world)
+    }
+
     /// The block at `pos` (layer 0), or `None` while its sub-chunk is not
     /// loaded.
     pub fn block(&self, pos: [i32; 3]) -> Option<Block> {
@@ -377,91 +412,25 @@ impl World {
 }
 
 impl Terrain for World {
-    fn collisions(&self, area: &Aabb) -> Result<Vec<Aabb>> {
-        World::collisions(self, area)
+    fn collisions(&self, area: &Aabb, out: &mut Vec<Aabb>) {
+        // A state without a collision shape is a data gap the movement
+        // cannot guess around.
+        out.extend(World::collisions(self, area).expect("collision shapes of BDS's blocks"));
     }
 
     fn loaded(&self, area: &Aabb) -> bool {
         World::loaded(self, area)
     }
 
-    fn ground(&self, pos: [i32; 3]) -> Ground {
+    fn block(&self, pos: [i32; 3]) -> Motion {
         let Some(block) = self.block(pos) else {
-            return Ground {
-                friction: 0.6,
-                kind: GroundKind::Air,
-            };
+            return Motion::AIR;
         };
-        let kind = match block.identifier() {
-            "minecraft:slime" => GroundKind::Slime,
-            "minecraft:bed" => GroundKind::Bed,
-            "minecraft:air" => GroundKind::Air,
-            _ => GroundKind::Plain,
-        };
-        Ground {
+        Motion {
             friction: block.data.friction,
-            kind,
+            kind: BlockKind::of(block.identifier()),
+            water: self.water_at(pos).unwrap_or(false),
         }
-    }
-
-    fn stuck(&self, body: &Aabb) -> Option<[f32; 3]> {
-        let feet = [
-            ((body.min[0] + body.max[0]) * 0.5).floor() as i32,
-            body.min[1].floor() as i32,
-            ((body.min[2] + body.max[2]) * 0.5).floor() as i32,
-        ];
-        if self
-            .block(feet)
-            .is_some_and(|block| block.identifier() == "minecraft:powder_snow")
-        {
-            return Some([0.9, 1.5, 0.9]);
-        }
-        let (min, max) = body.block_range();
-        let web = (min[0]..=max[0]).any(|x| {
-            (min[1]..=max[1]).any(|y| {
-                (min[2]..=max[2]).any(|z| {
-                    self.block([x, y, z])
-                        .is_some_and(|block| block.identifier() == "minecraft:web")
-                })
-            })
-        });
-        web.then_some([0.25, 0.05, 0.25])
-    }
-
-    fn water(&self, area: &Aabb) -> bool {
-        let (min, max) = area.block_range();
-        (min[0]..=max[0]).any(|x| {
-            (min[1]..=max[1])
-                .any(|y| (min[2]..=max[2]).any(|z| self.water_at([x, y, z]).unwrap_or(false)))
-        })
-    }
-}
-
-/// Worlds for the client's own tests.
-#[cfg(test)]
-pub mod tests_support {
-    use super::*;
-
-    /// Stone from y -64 up to -61 (the floor's top at -60) in the chunks
-    /// around the origin, air above.
-    pub fn flat_stone_world() -> World {
-        let stone = blocks::get("minecraft:stone").unwrap().min_state_id;
-        let mut world = World::default();
-        for cx in -2..=2 {
-            for cz in -2..=2 {
-                world.columns.insert([cx, cz], 1);
-                let mut sub = SubChunk::air();
-                for x in 0..16 {
-                    for z in 0..16 {
-                        for y in 0..4 {
-                            sub.layers[0][index(x, y, z)] = stone;
-                        }
-                    }
-                }
-                world.sub_chunks.insert([cx, -4, cz], sub);
-            }
-        }
-        world
     }
 }
 

@@ -33,13 +33,26 @@ pub trait BlockSource {
     fn registry(&self) -> &BlockRegistry;
 }
 
+/// Block sources that also read the second block layer, where a
+/// waterlogged block keeps its water (seagrass, kelp, waterlogged stairs).
+pub trait LayeredBlocks: BlockSource {
+    /// Runtime ID of the second-layer block at `pos`; `None` if the chunk
+    /// is not loaded.
+    fn second_layer_at(&self, pos: IVec3) -> Option<u32>;
+}
+
 fn in_world_height(y: i32) -> bool {
     (MIN_Y..MIN_Y + i32::from(SUBCHUNK_COUNT) * 16).contains(&y)
 }
 
-fn chunk_block(chunk: &ChunkData, pos: IVec3) -> u32 {
+/// The block in `layer` (0, or 1 for a waterlogged block's water) at `pos`
+/// of a loaded chunk; air above and below the world.
+pub fn chunk_layer(chunk: &ChunkData, pos: IVec3, layer: u8) -> u32 {
+    if !in_world_height(pos.y) {
+        return *crate::world::chunk::blocks::AIR;
+    }
     let (x, y, z) = world_to_local_coords(pos.x, pos.y, pos.z);
-    chunk.inner.get_block(x, y, z)
+    chunk.inner.get_block_layer(x, y, z, layer)
 }
 
 /// [`BlockSource`] for systems: the chunk manager plus chunk data components.
@@ -54,10 +67,7 @@ impl BlockSource for WorldBlocks<'_, '_> {
     fn block_at(&self, pos: IVec3) -> Option<u32> {
         let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
         let chunk = self.chunks.get(self.manager.get_by_coords(cx, cz)?).ok()?;
-        if !in_world_height(pos.y) {
-            return Some(*crate::world::chunk::blocks::AIR);
-        }
-        Some(chunk_block(chunk, pos))
+        Some(chunk_layer(chunk, pos, 0))
     }
 
     fn registry(&self) -> &BlockRegistry {
@@ -65,19 +75,28 @@ impl BlockSource for WorldBlocks<'_, '_> {
     }
 }
 
+/// The loaded chunk of `world` holding `pos`.
+fn world_chunk(world: &World, pos: IVec3) -> Option<&ChunkData> {
+    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+    let entity = world
+        .get_resource::<ChunkManager>()?
+        .get_by_coords(cx, cz)?;
+    world.get::<ChunkData>(entity)
+}
+
 impl BlockSource for World {
     fn block_at(&self, pos: IVec3) -> Option<u32> {
-        let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
-        let entity = self.get_resource::<ChunkManager>()?.get_by_coords(cx, cz)?;
-        let chunk = self.get::<ChunkData>(entity)?;
-        if !in_world_height(pos.y) {
-            return Some(*crate::world::chunk::blocks::AIR);
-        }
-        Some(chunk_block(chunk, pos))
+        Some(chunk_layer(world_chunk(self, pos)?, pos, 0))
     }
 
     fn registry(&self) -> &BlockRegistry {
         &self.resource::<BlockRegistryResource>().0
+    }
+}
+
+impl LayeredBlocks for World {
+    fn second_layer_at(&self, pos: IVec3) -> Option<u32> {
+        Some(chunk_layer(world_chunk(self, pos)?, pos, 1))
     }
 }
 
@@ -427,6 +446,10 @@ pub fn living_block_friction(blocks: &impl BlockSource, feet: DVec3) -> f64 {
 /// the vertical step is `(v.y - 0.02) * drag` and both horizontal axes use
 /// the same drag; otherwise gravity and drag apply as on land, with the
 /// support block's friction × 0.91 on the ground and 0.91 in the air.
+/// Ground and support block are those of `feet` and `on_ground` *before*
+/// the move, as BDS decides them: a mob knocked off the ground still gets
+/// ground friction after its first (rising) move, and one that lands gets
+/// air friction after its landing move (BDS 1.26.51 knockback captures).
 /// Horizontal components at most 1e-7 in magnitude are zeroed. A body with
 /// wing-flap drag that travels through air then scales a negative vertical
 /// velocity by `1 - drag` (last, after friction, as BDS orders its drags).
@@ -531,6 +554,8 @@ pub fn step_body_sensed(
         velocity.y -= body.gravity;
     }
 
+    // A living body's friction is decided by where it stood before the move.
+    let started_on_ground = *on_ground;
     let result = move_aabb(blocks, aabb, *velocity, body.step_height, *on_ground);
     if result.moved.x != velocity.x {
         velocity.x = 0.0;
@@ -549,7 +574,14 @@ pub fn step_body_sensed(
     }
 
     if body.model == PhysicsModel::Living {
-        apply_living_drag(blocks, body, feet, *on_ground, living_liquid, velocity);
+        apply_living_drag(
+            blocks,
+            body,
+            position,
+            started_on_ground,
+            living_liquid,
+            velocity,
+        );
         return (feet, living_liquid);
     }
 

@@ -24,7 +24,7 @@ mod loot;
 mod mining;
 mod movement;
 mod packet_domains;
-mod packet_queues;
+pub(crate) mod packet_queues;
 mod packets;
 mod placement;
 mod plugins;
@@ -52,9 +52,10 @@ use crate::ecs::{
 use crate::entity::bundles::PlayerBundle;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, BreakingState, ChunkRadius, ContainerWindows, EnderChestInventory, GameMode,
-    HeldSlot, Inventory, LastBroadcastPosition, MainInventory, OffhandSlot, Player, PlayerInput,
-    PlayerName, PlayerSession, PlayerState, PlayerUi, PlayerUuid, RuntimeEntityId, SpatialChunk,
+    ActorViewers, ArmourInventory, BreakingState, ChunkRadius, ContainerWindows,
+    EnderChestInventory, GameMode, HeldSlot, Inventory, LastBroadcastPosition, MainInventory,
+    OffhandSlot, Player, PlayerInput, PlayerName, PlayerSession, PlayerState, PlayerUi, PlayerUuid,
+    RuntimeEntityId, SpatialChunk,
 };
 use crate::entity::systems::{
     apply_poison, apply_regeneration, apply_wither, despawn_dead, despawn_out_of_world,
@@ -64,9 +65,8 @@ use crate::entity::systems::{
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
 use crate::server::broadcast::{
-    EntityGrid, broadcast_block_updates, broadcast_despawn_system, broadcast_movement_system,
-    broadcast_spawn_system, cleanup_despawned_entities, sync_actor_viewers, sync_spatial_chunks,
-    tick_block_breaking,
+    EntityGrid, broadcast_block_updates, broadcast_despawn_system, cleanup_despawned_entities,
+    sync_actor_viewers, sync_spatial_chunks, tick_block_breaking,
 };
 use crate::storage::PlayerData;
 use crate::world::ChunkManager;
@@ -379,6 +379,8 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<packet_queues::MovementEvents>();
         ecs.world_mut()
+            .init_resource::<crate::server::player_view::RelayedMoves>();
+        ecs.world_mut()
             .init_resource::<packet_queues::InventoryEvents>();
         ecs.world_mut().init_resource::<packet_queues::ChatEvents>();
         ecs.world_mut()
@@ -675,8 +677,7 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             (
                 sync_spatial_chunks,
-                broadcast_spawn_system,
-                broadcast_movement_system,
+                crate::server::player_view::sync_player_viewers,
                 broadcast_despawn_system,
                 broadcast_block_updates,
                 sync_actor_viewers,
@@ -692,6 +693,10 @@ impl GameServer {
             .insert_resource(types::ItemRegistryResource(items));
         ecs.world_mut()
             .insert_resource(crate::entity::mob::ai::PathBlockTable::new(&blocks));
+        ecs.world_mut()
+            .insert_resource(crate::entity::player_life::authority::MotionTable::new(
+                &blocks,
+            ));
         ecs.world_mut()
             .insert_resource(types::BlockRegistryResource(Arc::new(blocks)));
         crate::entity::spawning::install(ecs.world_mut());
@@ -913,6 +918,7 @@ impl GameServer {
                     yaw: rotation.yaw,
                     pitch: rotation.pitch,
                 },
+                viewers: ActorViewers::default(),
                 chunk_loader,
                 last_publisher_state: LastPublisherState::default(),
                 main_inventory,
@@ -949,6 +955,7 @@ impl GameServer {
             actor_data,
             crate::entity::player_life::environment::PlayerFall::default(),
             crate::entity::player_life::motion::PlayerMoves::default(),
+            crate::entity::player_life::authority::PlayerMotion::spawned(data.position),
         ));
         if explicit_game_mode {
             self.ecs

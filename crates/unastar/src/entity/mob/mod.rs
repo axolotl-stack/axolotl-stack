@@ -34,6 +34,7 @@ pub mod life;
 pub mod native;
 pub mod net;
 pub mod persistence;
+pub mod spawn_bonus;
 pub mod state;
 
 #[cfg(test)]
@@ -52,8 +53,8 @@ pub use derive::derive_mob_state;
 pub use events::EventError;
 
 use crate::entity::components::{
-    ActorViewers, Age, FallDistance, Living, Mob, OnGround, PhysicsBody, Position, Rotation,
-    RuntimeId, Velocity,
+    ActorViewers, Age, FallDistance, Living, Mob, OnGround, PhysicsBody, PhysicsModel, Position,
+    Rotation, RuntimeId, Velocity,
 };
 use crate::entity::definition::attributes::ActorAttributes;
 use crate::entity::definition::flags::ActorFlags;
@@ -125,7 +126,13 @@ pub fn spawn_mob(
     };
     let entity = spawn_unattached(world, &archetype, position, yaw)?;
     if cause == SpawnCause::Loaded {
-        world.entity_mut(entity).insert(persistence::Restoring);
+        // The spawn knockback resistance was rolled once and saved; restoring
+        // puts it back (BDS 1.26.51 keeps it across a save and load).
+        world
+            .entity_mut(entity)
+            .insert(persistence::Restoring)
+            .remove::<combat::knockback::KnockbackResistance>()
+            .remove::<spawn_bonus::FollowRangeBonus>();
     }
     attach_definition(world, entity, Arc::clone(&archetype.definition))
         .expect("a freshly spawned mob exists and has no definition stack");
@@ -143,6 +150,24 @@ pub fn spawn_mob(
     }
     apply_pending_definitions(world);
     derive_entity(world, entity);
+    let falls = world
+        .get::<PhysicsBody>(entity)
+        .is_some_and(|body| body.model == PhysicsModel::Living && body.gravity > 0.0);
+    if cause != SpawnCause::Loaded
+        && falls
+        && let Some(mut velocity) = world.get_mut::<Velocity>(entity)
+    {
+        velocity.0.y = constants::MOB_SPAWN_VELOCITY_Y;
+    }
+    // BDS reports a new living mob on the ground until its first move, also
+    // in mid-air, so the first update of one spawned in the air is a change
+    // of ground contact (BDS 1.26.51 replication captures).
+    let reported_on_ground = if cause == SpawnCause::Loaded {
+        None
+    } else {
+        Some(falls)
+    };
+    net::network::record_spawn_state(world, entity, reported_on_ground);
     Ok(entity)
 }
 
@@ -163,6 +188,16 @@ fn spawn_unattached(
     };
     let mut molang = PropertyDefaults(rand::SeedableRng::seed_from_u64(seed));
     let properties = ActorProperties::new(Arc::clone(&archetype.properties), &mut molang)?;
+    // From the mob's own seed, so the shared random sequence is unchanged.
+    let knockback_resistance = archetype
+        .native
+        .knockback_resistance_bonus
+        .map(|max| combat::knockback::KnockbackResistance::roll(&mut molang.0, max));
+    let follow_range_bonus = if archetype.native.follow_range_bonus {
+        spawn_bonus::FollowRangeBonus::roll(&mut molang.0)
+    } else {
+        None
+    };
     let attributes = ActorAttributes::new(
         Arc::clone(&archetype.attributes),
         archetype.attribute_seed.clone(),
@@ -198,7 +233,12 @@ fn spawn_unattached(
         (
             MobKind(Arc::clone(archetype)),
             Position(position),
-            Rotation::new(yaw, 0.0),
+            // A projectile's head yaw is 0 (its BDS 1.26.51 `AddActor`).
+            if archetype.projectile {
+                Rotation::with_head_yaw(yaw, 0.0, 0.0)
+            } else {
+                Rotation::new(yaw, 0.0)
+            },
             Velocity::default(),
             OnGround(false),
             Age::default(),
@@ -228,6 +268,12 @@ fn spawn_unattached(
             FallDistance::default(),
             ai::MobBrain::default(),
         ));
+        if let Some(resistance) = knockback_resistance {
+            entity.insert(resistance);
+        }
+        if let Some(bonus) = follow_range_bonus {
+            entity.insert(bonus);
+        }
     }
     Ok(entity.id())
 }

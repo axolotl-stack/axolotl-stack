@@ -5,7 +5,7 @@ use unastar_data::actor_identifiers::ActorType;
 
 use super::constants::{
     ANIMAL_AMBIENT_SOUND_INTERVAL, CHICKEN_FALL_DAMAGE_MULTIPLIER, DEFAULT_AMBIENT_SOUND_INTERVAL,
-    WING_FLAP_VERTICAL_DRAG,
+    WING_FLAP_VERTICAL_DRAG, ZOMBIE_KNOCKBACK_RESISTANCE_BONUS,
 };
 
 /// The native traits of one actor class.
@@ -31,6 +31,12 @@ pub struct NativeTraits {
     /// zombie classes number their kind (zombie 0, zombie villager 1, husk 2,
     /// zombie pigman 3, drowned 4).
     pub aux_value: Option<i16>,
+    /// The class spawns with a random knockback resistance below this
+    /// (`mob::combat::knockback`); `None` for no resistance.
+    pub knockback_resistance_bonus: Option<f64>,
+    /// The class rolls a follow-range bonus at spawn and saves its
+    /// `minecraft:follow_range` (`mob::spawn_bonus`).
+    pub follow_range_bonus: bool,
 }
 
 /// Which native natural-spawn check an actor class runs.
@@ -50,6 +56,19 @@ impl NativeTraits {
         let immune_to_wither = matches!(actor_type, ActorType::WitherSkeleton);
         let ambient_sound_interval = ambient_sound_interval(actor_type);
         let aux_value = zombie_kind(actor_type);
+        // The zombie classes BDS 1.26.51 saved spawn bonuses for (the
+        // spawn-bonus sweep: zombies, husks, drowned and zombified piglins
+        // all have both; zombie villagers neither).
+        let zombie_bonuses = matches!(
+            actor_type,
+            ActorType::Zombie | ActorType::Husk | ActorType::Drowned | ActorType::ZombiePigman
+        );
+        let knockback_resistance_bonus = if zombie_bonuses {
+            Some(ZOMBIE_KNOCKBACK_RESISTANCE_BONUS)
+        } else {
+            None
+        };
+        let follow_range_bonus = zombie_bonuses;
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -58,6 +77,8 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                knockback_resistance_bonus,
+                follow_range_bonus,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -66,6 +87,8 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                knockback_resistance_bonus,
+                follow_range_bonus,
             },
         }
     }

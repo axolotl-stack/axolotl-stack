@@ -13,6 +13,7 @@
 //! [`ACCEPTED_WITHOUT_BEHAVIOUR`] for the list and the reason for each.
 
 pub mod ambient;
+pub mod bandwidth;
 pub mod body;
 pub mod breeding;
 pub mod color;
@@ -37,6 +38,7 @@ use std::sync::Arc;
 use unastar_data::actor_components::{ActorComponent, body as bodies};
 
 pub use ambient::AmbientSoundConfig;
+pub use bandwidth::{BandwidthOptimization, BandwidthValues};
 pub use body::{BreathableConfig, NameableConfig, Pushable};
 pub use breeding::{AgeableConfig, BreedableConfig, FeedEntry, OffspringConfig};
 pub use color::{ActorColor, DyeableConfig};
@@ -70,10 +72,6 @@ use common::inert;
 /// server-side behaviour implemented yet, and why that is acceptable now.
 /// `docs/research/mob-runtime-constants.md` mirrors this list.
 pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
-    (
-        ActorComponent::ConditionalBandwidthOptimization,
-        "network send-rate tuning only; unastar replicates every significant change",
-    ),
     (
         ActorComponent::Leashable,
         "leads are not implemented; using a lead on the mob does nothing",
@@ -157,7 +155,7 @@ pub fn register_component_kinds(
     breeding::register_component_kinds(builder)?;
     loot::register_component_kinds(builder)?;
     interact::register_component_kinds(builder)?;
-    inert::<bodies::ConditionalBandwidthOptimization>(builder)?;
+    bandwidth::register_component_kinds(builder)?;
     inert::<bodies::Leashable>(builder)?;
     inert::<bodies::LeashableTo>(builder)?;
     inert::<bodies::Balloonable>(builder)?;

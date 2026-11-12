@@ -20,6 +20,7 @@ use super::ItemStack;
 pub enum Enchantment {
     FeatherFalling = 2,
     Respiration = 6,
+    DepthStrider = 7,
     AquaAffinity = 8,
     Looting = 14,
     Efficiency = 15,
@@ -27,6 +28,9 @@ pub enum Enchantment {
     Unbreaking = 17,
     Fortune = 18,
     Infinity = 22,
+    Riptide = 30,
+    SoulSpeed = 36,
+    SwiftSneak = 37,
 }
 
 impl Enchantment {
@@ -35,6 +39,7 @@ impl Enchantment {
         Some(match name.strip_prefix("minecraft:").unwrap_or(name) {
             "feather_falling" => Self::FeatherFalling,
             "respiration" => Self::Respiration,
+            "depth_strider" => Self::DepthStrider,
             "aqua_affinity" => Self::AquaAffinity,
             "looting" => Self::Looting,
             "efficiency" => Self::Efficiency,
@@ -42,6 +47,9 @@ impl Enchantment {
             "unbreaking" => Self::Unbreaking,
             "fortune" => Self::Fortune,
             "infinity" => Self::Infinity,
+            "riptide" => Self::Riptide,
+            "soul_speed" => Self::SoulSpeed,
+            "swift_sneak" => Self::SwiftSneak,
             _ => return None,
         })
     }

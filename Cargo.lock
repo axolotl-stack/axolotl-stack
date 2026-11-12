@@ -449,6 +449,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unastar-data",
+ "unastar-rules",
  "uuid",
 ]
 
