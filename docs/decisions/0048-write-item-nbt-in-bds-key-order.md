@@ -40,6 +40,10 @@ need every builder to insert in BDS's order.
 - Good, because a compound that cannot be written (a string over 65535 bytes) is now a typed error
   (`NbtWriteError`), not a panic.
 - Bad, because unastar keeps a second NBT writer for item user data beside `zuri_nbt`'s.
+- Neutral: the evidence is two book compounds whose keys are in byte order; it does not tell
+  sorting from a fixed insertion order, and no other item (enchantments, `RepairCost`) has been
+  compared with a capture yet. Every item compound is now written sorted; a capture of an item
+  whose BDS key order is not sorted would overturn this decision.
 
 ### Confirmation
 

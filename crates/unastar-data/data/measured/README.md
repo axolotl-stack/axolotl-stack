@@ -10,7 +10,7 @@ behaviour, not copies of Mojang data files; the raw per-run logs
 `manifest.json` lists every artefact with its SHA-256, the BDS version, the
 harness revision, the sweep runs (start time, status, seconds, item count) and
 the measurement method. The capture-derived tables (`recipe_legacy_identities.json`,
-`builtin_recipes.json`, `potion_types.json`) are not sweep artefacts and record
+`builtin_recipes.json`, `potion_types.json`, `actor_pick_items.json`) are not sweep artefacts and record
 their source capture's SHA-256 inside the file instead.
 `tests/measured_manifest.rs` checks every listed hash and that no other file is
 missing from the manifest. Regenerate a family with `sweep.py` (exclusive BDS
@@ -36,6 +36,7 @@ $py = 'C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe'
 | `mining_ticks.json` | `{block state: {variant: {ticks: [3 trials], median, tool_item, commands, on_ground, in_water}}}`; variants: tool key plus `+efficiencyN`, `+haste1`, `+haste2`, `+mining_fatigue1`, `+underwater`. Airborne is not measured (levitation lifts the player out of reach) | the scripted player keeps mining (Start/ContinueDestroyBlock); ticks from the click event to the break event (±1 tick) |
 | `recipe_legacy_identities.json` | canonical input/output item and aux identities for legacy recipe spellings | pinned 1.26.51 CraftingData capture; `../../tools/extract_recipe_identities.py` |
 | `builtin_recipes.json` | native shaped/shapeless/user-data recipes absent from pack JSON, stable UUID groups/multi identities, result NBT and canonical block states (`null` explicitly means no block state) | same pinned capture; transient network ids/random UUID values discarded; source SHA-256 included |
+| `actor_pick_items.json` | `{actors: {actor: {item, aux, name, data_user_data?}}, no_item: [actor]}`: the item and `GuiDataPickItem` name a creative pick of each summonable actor gives, the user data a pick with data gives when it differs, and the actors whose pick gets no answer; `source_sha256` of the run's `packets.jsonl` | `tools/bds-sweep/protocol_probe.py pick-actors` (a creative player with `PlayerAuthInput` summons each actor beside itself and picks it without and with data on an empty inventory) and two rechecks of the actors it missed (`pick-actors ACTORS`), then `tools/bds-sweep/pick_table.py` over the three runs (an answer in any run counts: mobs that move out of reach are missed); the picks' packets are committed under `crates/bds-extractor/captures/1.26.51/protocol/pick-actors/`, `pick-recheck/`, `pick-recheck2/` |
 | `potion_types.json` | lowercase pack potion type identifier to measured aux | unique labelled-graph solution against all captured brewing edges; source SHA-256 included |
 
 `loot_table` uses the behaviour-pack loot-table schema (`pools`, `rolls`,

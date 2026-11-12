@@ -1,0 +1,245 @@
+/gamerule domobspawning false
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/gamerule randomtickspeed 0
+/kill @e[type=!player]
+/gamemode creative @s
+/clear @s
+!wait 1000
+/summon cow ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon zombie ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon villager ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon sheep ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon armor_stand ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon minecart ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon chest_minecart ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon hopper_minecart ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon boat ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon chest_boat ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon ender_crystal ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon tnt ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon snow_golem ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon iron_golem ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon wither ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon ender_dragon ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon xp_orb ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon arrow ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon leash_knot ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon trader_llama ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon zombie_horse ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon painting ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon npc ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/summon item ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 300
+/replaceitem entity @s slot.hotbar 0 stone
+/replaceitem entity @s slot.hotbar 1 stone
+/replaceitem entity @s slot.hotbar 2 stone
+/replaceitem entity @s slot.hotbar 3 stone
+/replaceitem entity @s slot.hotbar 4 stone
+/replaceitem entity @s slot.hotbar 5 stone
+/replaceitem entity @s slot.hotbar 6 stone
+/replaceitem entity @s slot.hotbar 7 stone
+/replaceitem entity @s slot.hotbar 8 stone
+/summon cow ~ ~ ~3
+!wait 500
+!pick-actor actor
+/clear @s
+/replaceitem entity @s slot.hotbar 4 cow_spawn_egg
+!pick-actor actor
+!pick-actor actor 3
+/kill @e[type=!player]
+/clear @s
+/setblock ~2 ~ ~0 chest
+/setblock ~-2 ~ ~0 oak_log ["pillar_axis"="x"]
+/setblock ~0 ~ ~2 red_wool
+/setblock ~0 ~ ~-2 furnace
+/setblock ~2 ~ ~2 oak_stairs ["weirdo_direction"=2]
+/setblock ~-2 ~ ~-2 bed
+/setblock ~2 ~ ~-2 flower_pot
+/setblock ~-2 ~ ~2 standing_sign
+/setblock ~3 ~ ~0 wheat ["growth"=7]
+/replaceitem block ~2 ~ ~ slot.container 0 diamond 5
+!wait 500
+!pick-block ~2 ~ ~0
+!pick-block ~2 ~ ~0 9 data
+/clear @s
+!pick-block ~-2 ~ ~0
+!pick-block ~-2 ~ ~0 9 data
+/clear @s
+!pick-block ~0 ~ ~2
+!pick-block ~0 ~ ~2 9 data
+/clear @s
+!pick-block ~0 ~ ~-2
+!pick-block ~0 ~ ~-2 9 data
+/clear @s
+!pick-block ~2 ~ ~2
+!pick-block ~2 ~ ~2 9 data
+/clear @s
+!pick-block ~-2 ~ ~-2
+!pick-block ~-2 ~ ~-2 9 data
+/clear @s
+!pick-block ~2 ~ ~-2
+!pick-block ~2 ~ ~-2 9 data
+/clear @s
+!pick-block ~-2 ~ ~2
+!pick-block ~-2 ~ ~2 9 data
+/clear @s
+!pick-block ~3 ~ ~0
+!pick-block ~3 ~ ~0 9 data
+/clear @s
+!pick-block ~30 ~ ~30
+!pick-block ~ ~-1 ~
+/gamemode survival @s
+/replaceitem entity @s slot.inventory 0 chest
+/replaceitem entity @s slot.hotbar 6 red_wool
+/summon cow ~ ~ ~3
+!wait 500
+!pick-actor actor
+!pick-block ~2 ~ ~
+!pick-block ~2 ~ ~ 9 data
+!pick-block ~ ~ ~2
+!pick-block ~-2 ~ ~
+!wait 1000

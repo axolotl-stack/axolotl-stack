@@ -665,6 +665,13 @@ impl GameServer {
         ecs.world_mut().insert_resource(
             books::BookItems::resolve(&items).expect("vanilla book and quill and written book"),
         );
+        ecs.world_mut().insert_resource(
+            inventory::actor_pick::ActorPickItems::resolve(
+                unastar_data::actor_picks::vanilla(),
+                &items,
+            )
+            .expect("measured actor pick items are registered"),
+        );
         ecs.world_mut()
             .insert_resource(types::ItemRegistryResource(items));
         ecs.world_mut()

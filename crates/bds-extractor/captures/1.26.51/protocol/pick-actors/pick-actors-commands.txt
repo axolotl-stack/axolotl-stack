@@ -1,0 +1,792 @@
+/gamerule domobspawning false
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/gamerule randomtickspeed 0
+/kill @e[type=!player]
+/gamemode creative @s
+/clear @s
+!wait 1000
+/summon minecraft:fireworks_rocket ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:goat ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:tnt ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:sheep ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:xp_orb ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:allay ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:ender_crystal ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:leash_knot ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:chest_boat ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:cushion ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:boat ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:llama ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:lightning_bolt ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:blaze ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:npc ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:elder_guardian_ghost ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:strider ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:armor_stand ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:bee ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:ravager ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:piglin ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:piglin_brute ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:copper_golem ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:iron_golem ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:snow_golem ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:shulker ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:wandering_trader ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:sulfur_cube ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:creeper ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:slime ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:enderman ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:vex ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:ghast ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:magma_cube ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:witch ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:panda ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:guardian ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:pillager ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:elder_guardian ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:ender_dragon ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:fox ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:vindicator ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:evocation_illager ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:warden ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:pig ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:breeze ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:rabbit ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:creaking ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:turtle ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:chicken ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:cow ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:mooshroom ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:polar_bear ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:hoglin ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:axolotl ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:frog ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:camel ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:sniffer ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:armadillo ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:happy_ghast ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:trader_llama ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:squid ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:dolphin ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:pufferfish ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:salmon ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:tropicalfish ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:cod ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:glow_squid ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:tadpole ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:nautilus ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:wolf ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:ocelot ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:parrot ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:cat ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:bat ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:zombie_pigman ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:wither ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:phantom ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:zoglin ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:camel_husk ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:zombie_nautilus ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:zombie ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:zombie_villager ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:husk ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:drowned ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:spider ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:silverfish ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:cave_spider ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:endermite ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:minecart ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:hopper_minecart ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:tnt_minecart ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:chest_minecart ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:command_block_minecart ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:skeleton ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:stray ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:wither_skeleton ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:bogged ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:parched ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:horse ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:donkey ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:mule ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:skeleton_horse ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:zombie_horse ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:xp_bottle ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:snowball ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:egg ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:splash_potion ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:evocation_fang ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:wind_charge_projectile ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:arrow ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:villager ~ ~ ~3
+!wait 400
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200

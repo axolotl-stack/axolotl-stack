@@ -49,10 +49,16 @@ Probes:
   opened book stays open (`BOOK_GATE`); then one that tries the page, text
   and title limits (`BOOK_LIMITS`); `/replaceitem` on another
   slot after each step shows what BDS sends back.
-- `pick`: one creative session with input on a stone platform: actor picks
-  of many actor kinds with and without data, picks with a full hotbar and
-  with the egg already held, then block picks with and without data, then
-  the same in survival (`PICK`).
+- `pick`: one creative session with input: actor picks of many actor kinds
+  with and without data, picks with a full hotbar and with the egg already
+  held, then block picks with and without data beside the player, then a
+  few in survival (`pick_script`).
+- `pick-actors`: one creative session with input that summons every
+  summonable actor beside the player and picks it without and with data
+  (`pick_actors_script`); `CASE_PREFIX` may instead list actors
+  (comma-separated) to summon one block away and pick at once.
+- `pick-reach`: creative picks of a cow summoned 1 to 24 blocks away
+  (`pick_reach_script`).
 """
 
 from __future__ import annotations
@@ -358,48 +364,78 @@ BOOK_GATE = QUIET + """/replaceitem entity @s slot.hotbar 0 writable_book
 !wait 1000
 """
 
-# Actors picked in `pick`: one per kind of spawn egg and actors without one.
-PICK_ACTORS = ['cow', 'zombie', 'villager_v2', 'sheep', 'armor_stand', 'minecart', 'chest_minecart',
-               'boat', 'chest_boat', 'ender_crystal', 'tnt', 'snow_golem', 'iron_golem', 'wither',
-               'ender_dragon', 'xp_orb', 'arrow', 'leash_knot', 'trader_llama', 'zombie_horse']
+# Actors picked in `pick`: spawn-egg mobs, mobs and objects without an egg,
+# vehicles and other objects with an item.
+PICK_ACTORS = ['cow', 'zombie', 'villager', 'sheep', 'armor_stand', 'minecart', 'chest_minecart',
+               'hopper_minecart', 'boat', 'chest_boat', 'ender_crystal', 'tnt', 'snow_golem', 'iron_golem',
+               'wither', 'ender_dragon', 'xp_orb', 'arrow', 'leash_knot', 'trader_llama', 'zombie_horse',
+               'painting', 'npc', 'item']
 
-# Blocks placed around the platform for block picks: (x, z, setblock state).
+# Blocks placed beside the player for block picks: (dx, dz, setblock block).
 PICK_BLOCKS = [(2, 0, 'chest'), (-2, 0, 'oak_log ["pillar_axis"="x"]'), (0, 2, 'red_wool'),
                (0, -2, 'furnace'), (2, 2, 'oak_stairs ["weirdo_direction"=2]'),
-               (-2, -2, 'bed'), (2, -2, 'flower_pot'), (-2, 2, 'oak_sign')]
+               (-2, -2, 'bed'), (2, -2, 'flower_pot'), (-2, 2, 'standing_sign'), (3, 0, 'wheat ["growth"=7]')]
 
 
 def pick_script() -> str:
     """The `pick` script: actor picks, then block picks, in creative then
-    survival, on a platform at y 100 (blocks at y 101)."""
-    # The platform's chunks load once the player is there.
-    lines = [QUIET.rstrip('\n'), '/tp @s 0 101 0', '!wait 3000', '/fill -4 100 -4 4 100 4 stone',
-             '/tp @s 0 101 0', '/gamemode creative @s', '/clear @s', '!wait 1000']
+    survival. Everything is placed next to where the player stands (block
+    picks use `~` coordinates the extractor resolves from its position)."""
+    lines = [QUIET.rstrip('\n'), '/gamemode creative @s', '/clear @s', '!wait 1000']
     for actor in PICK_ACTORS:
-        lines += [f'/summon {actor} 0 101 3', '!wait 500', '!pick-actor actor', '!pick-actor actor 9 data',
+        lines += [f'/summon {actor} ~ ~ ~3', '!wait 500', '!pick-actor actor', '!pick-actor actor 9 data',
                   '/kill @e[type=!player]', '/clear @s', '!wait 300']
     # A full hotbar, then the egg already held in slot 4 (not selected).
     lines += [f'/replaceitem entity @s slot.hotbar {slot} stone' for slot in range(9)]
-    lines += ['/summon cow 0 101 3', '!wait 500', '!pick-actor actor', '/clear @s',
+    lines += ['/summon cow ~ ~ ~3', '!wait 500', '!pick-actor actor', '/clear @s',
               '/replaceitem entity @s slot.hotbar 4 cow_spawn_egg', '!pick-actor actor',
               '!pick-actor actor 3', '/kill @e[type=!player]', '/clear @s']
-    lines += [f'/setblock {x} 101 {z} {block}' for x, z, block in PICK_BLOCKS]
-    lines += ['/replaceitem block 2 101 0 slot.container 0 diamond 5', '!wait 500']
-    for x, z, _ in PICK_BLOCKS:
-        lines += [f'!pick-block {x} 101 {z}', f'!pick-block {x} 101 {z} 9 data', '/clear @s']
-    lines += ['!pick-block 30 101 30', '!pick-block 0 101 0', '/gamemode survival @s',
+    lines += [f'/setblock ~{dx} ~ ~{dz} {block}' for dx, dz, block in PICK_BLOCKS]
+    lines += ['/replaceitem block ~2 ~ ~ slot.container 0 diamond 5', '!wait 500']
+    for dx, dz, _ in PICK_BLOCKS:
+        lines += [f'!pick-block ~{dx} ~ ~{dz}', f'!pick-block ~{dx} ~ ~{dz} 9 data', '/clear @s']
+    lines += ['!pick-block ~30 ~ ~30', '!pick-block ~ ~-1 ~', '/gamemode survival @s',
               '/replaceitem entity @s slot.inventory 0 chest', '/replaceitem entity @s slot.hotbar 6 red_wool',
-              '/summon cow 0 101 3', '!wait 500', '!pick-actor actor', '!pick-block 2 101 0',
-              '!pick-block 2 101 0 9 data', '!pick-block 0 101 2', '!wait 1000']
+              '/summon cow ~ ~ ~3', '!wait 500', '!pick-actor actor', '!pick-block ~2 ~ ~',
+              '!pick-block ~2 ~ ~ 9 data', '!pick-block ~ ~ ~2', '!pick-block ~-2 ~ ~', '!wait 1000']
     return '\n'.join(lines) + '\n'
 
 
-def single(out: Path, extractor: Path, scripts: dict[str, str]) -> int:
+def summonable_actors() -> list[str]:
+    """Every actor BDS 1.26.51 lets `/summon` create, in capture order
+    (`crates/unastar-data/output/actor_identifiers.json`)."""
+    path = capture.REPO / 'crates' / 'unastar-data' / 'output' / 'actor_identifiers.json'
+    entries = json.loads(path.read_text(encoding='utf-8'))['entries']
+    return [entry['id'] for entry in entries if entry['summonable']]
+
+
+def pick_actors_script(actors: list[str] | None = None, settle_ms: int = 400, distance: int = 3) -> str:
+    """The `pick-actors` script: a creative pick of every summonable actor
+    (or of `actors`) summoned `distance` blocks away, without and with data,
+    each on an empty inventory, `settle_ms` after the summon."""
+    lines = [QUIET.rstrip('\n'), '/gamemode creative @s', '/clear @s', '!wait 1000']
+    for actor in actors or summonable_actors():
+        lines += [f'/summon {actor} ~ ~ ~{distance}', f'!wait {settle_ms}', '!pick-actor actor', '!pick-actor actor 9 data',
+                  '/kill @e[type=!player]', '/clear @s', '!wait 200']
+    return '\n'.join(lines) + '\n'
+
+
+def pick_reach_script() -> str:
+    """The `pick-reach` script: a creative pick of a cow summoned 1 to 24
+    blocks in front of the player, right after the summon."""
+    lines = [QUIET.rstrip('\n'), '/gamemode creative @s', '/clear @s', '!wait 1000']
+    for distance in [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24]:
+        lines += [f'/summon cow ~ ~ ~{distance}', '!wait 200', '!pick-actor actor',
+                  '/kill @e[type=!player]', '/clear @s', '!wait 200']
+    return '\n'.join(lines) + '\n'
+
+
+def single(out: Path, extractor: Path, scripts: dict[str, str], timeout: int = 600) -> int:
     """One operator session per script, one after the other, each with a
-    PlayerAuthInput stream."""
+    PlayerAuthInput stream and `timeout` seconds."""
     code = 0
     for name, script in scripts.items():
-        code = code or capture.session(out / name, extractor, 'operator', False, 600,
+        code = code or capture.session(out / name, extractor, 'operator', False, timeout,
                                        commands=write(out / f'{name}-commands.txt', script),
                                        player_input=True)
     return code
@@ -632,7 +668,7 @@ def skins(out: Path, extractor: Path, only: str = '') -> int:
 
 def main() -> int:
     if len(sys.argv) not in (3, 4) or sys.argv[1] not in ('relay', 'cache', 'skins', 'abilities', 'ddui',
-                                                           'book', 'pick'):
+                                                           'book', 'pick', 'pick-actors', 'pick-reach'):
         print(__doc__)
         return 2
     probe, out = sys.argv[1], Path(sys.argv[2]).resolve()
@@ -654,6 +690,17 @@ def main() -> int:
                                            'limits': BOOK_LIMITS})
         elif probe == 'pick':
             code = single(out, extractor, {'pick': pick_script()})
+        elif probe == 'pick-reach':
+            code = single(out, extractor, {'pick-reach': pick_reach_script()})
+        elif probe == 'pick-actors':
+            # 112 actors at about 8.5 s each.
+            if len(sys.argv) == 4:
+                # A recheck of some actors, given comma-separated: summoned one
+                # block away and picked at once, before they move out of reach.
+                script = pick_actors_script(sys.argv[3].split(','), settle_ms=200, distance=1)
+                code = single(out, extractor, {'pick-actors': script}, timeout=2400)
+            else:
+                code = single(out, extractor, {'pick-actors': pick_actors_script()}, timeout=2400)
         elif probe == 'skins':
             code = skins(out, extractor, sys.argv[3] if len(sys.argv) == 4 else '')
         else:

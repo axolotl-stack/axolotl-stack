@@ -15,8 +15,10 @@
 //! - `ReplacePage` and `AddPage` past the last page pad the book with empty
 //!   pages; a book holds at most [`MAX_PAGES`] pages, so an index of 50 or
 //!   more, or adding to a full book, is refused. `DeletePage` and `SwapPages`
-//!   need existing pages. Page text and the title have no length limit (257
-//!   and 17 characters were kept).
+//!   need existing pages. Page text and the title longer than the client
+//!   allows are kept (257 and 17 characters were; longer was not tried), up
+//!   to the NBT string limit.
+//! - Signing keeps the `author` and `xuid` the client sent.
 //! - Signing makes a written book with the pages, `title`, `author` and
 //!   `xuid` from the packet and `generation` 0.
 //! - Every accepted edit is answered with a server `InventoryTransaction`

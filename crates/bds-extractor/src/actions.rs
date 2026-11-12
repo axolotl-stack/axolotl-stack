@@ -12,7 +12,7 @@
 //! | `!wait MS` | nothing; pumps packets for `MS` milliseconds |
 //! | `!interact ACTION TARGET [X Y Z]` | `Interact`; `ACTION` is `mouseover`, `stop-riding`, `npc-open`, `open-inventory`, `invalid` or a number |
 //! | `!pick-actor TARGET [MAX_SLOTS] [data]` | `ActorPickRequest` for the target's unique id |
-//! | `!pick-block X Y Z [MAX_SLOTS] [data]` | `BlockPickRequest` for the block at X Y Z |
+//! | `!pick-block X Y Z [MAX_SLOTS] [data]` | `BlockPickRequest` for the block at X Y Z (`~N` is relative to the block the player's feet are in) |
 //! | `!equip SLOT` | `MobEquipment` selecting hotbar SLOT with the item the server last put there |
 //! | `!use-item SLOT` | `InventoryTransaction` item use on air (`Use`, player input) with hotbar SLOT's item, as a client opening a book |
 //! | `!emote EMOTE_ID [FLAGS] [TICKS]` | `Emote` for the player itself |
@@ -102,7 +102,7 @@ pub enum ActionKind {
         with_data: bool,
     },
     PickBlock {
-        position: BlockPos,
+        position: [Coordinate; 3],
         max_slots: u8,
         with_data: bool,
     },
@@ -139,6 +139,30 @@ pub enum ActionKind {
     },
 }
 
+/// A block coordinate: absolute, or (`~N`) relative to the block the
+/// player's feet are in, as in commands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Coordinate {
+    Absolute(i32),
+    Relative(i32),
+}
+
+impl std::str::FromStr for Coordinate {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        match text.strip_prefix('~') {
+            Some("") => Ok(Self::Relative(0)),
+            Some(offset) => offset.parse().map(Self::Relative),
+            None => text.parse().map(Self::Absolute),
+        }
+    }
+}
+
+/// Eye height above the feet of a standing player (the height `StartGame`,
+/// `MovePlayer` and corrections add to the feet position).
+const EYE_HEIGHT: f32 = 1.62;
+
 /// What actions resolve targets and items against: actors the session saw,
 /// the player's inventory as the server last sent it and its position.
 #[derive(Debug, Clone, Default)]
@@ -165,6 +189,21 @@ impl Actors {
             // Players' unique ids equal their runtime ids in every BDS capture.
             Target::Runtime(id) => Ok((id, id as i64)),
         }
+    }
+
+    /// The block position `coordinates` name, relative ones from the block
+    /// the player's feet are in.
+    fn block(&self, coordinates: &[Coordinate; 3]) -> BlockPos {
+        let feet = [
+            self.position.x,
+            self.position.y - EYE_HEIGHT,
+            self.position.z,
+        ];
+        let [x, y, z] = std::array::from_fn(|axis| match coordinates[axis] {
+            Coordinate::Absolute(value) => value,
+            Coordinate::Relative(offset) => feet[axis].floor() as i32 + offset,
+        });
+        BlockPos { x, y, z }
     }
 
     /// The item the server last put in inventory slot `slot` (air if none).
@@ -293,11 +332,11 @@ fn parse_action(verb: &str, args: &[&str]) -> Result<ActionKind> {
             with_data: args.get(2) == Some(&"data"),
         },
         "pick-block" => ActionKind::PickBlock {
-            position: BlockPos {
-                x: number(arg(args, 0, "x")?, "x")?,
-                y: number(arg(args, 1, "y")?, "y")?,
-                z: number(arg(args, 2, "z")?, "z")?,
-            },
+            position: [
+                number(arg(args, 0, "x")?, "x")?,
+                number(arg(args, 1, "y")?, "y")?,
+                number(arg(args, 2, "z")?, "z")?,
+            ],
             max_slots: args
                 .get(3)
                 .map(|slots| number(slots, "max slots"))
@@ -465,7 +504,7 @@ impl ActionKind {
                 with_data,
             } => vec![
                 BlockPickRequestPacket {
-                    position: position.clone(),
+                    position: actors.block(position),
                     with_data: *with_data,
                     max_slots: *max_slots,
                 }
@@ -611,6 +650,7 @@ mod tests {
             "!pick-actor peer 9 data",
             "!pick-block 0 -60 0",
             "!pick-block 1 2 3 9 data",
+            "!pick-block ~2 ~ ~-1",
             "!equip 0",
             "!use-item 8",
             "!emote 4c8ae710-df2e-47cd-814d-cc7bf21a3d67 1 40",
@@ -631,6 +671,23 @@ mod tests {
             };
             action.kind.packets(&actors).unwrap();
         }
+        let Step::Action(action) = parse_line("!pick-block ~2 ~ -7").unwrap() else {
+            unreachable!()
+        };
+        let standing = Actors {
+            position: Vec3 {
+                x: -0.5,
+                y: 54.62,
+                z: 3.0,
+            },
+            ..Actors::default()
+        };
+        let McpePacketData::BlockPickRequestPacket(pick) =
+            &action.kind.packets(&standing).unwrap()[0].data
+        else {
+            panic!("not a block pick");
+        };
+        assert_eq!(pick.position, BlockPos { x: 1, y: 53, z: -7 });
         assert!(parse_line("!nope").is_err());
         assert!(parse_line("!interact mouseover").is_err());
         let Step::Action(action) = parse_line("!pick-actor peer").unwrap() else {

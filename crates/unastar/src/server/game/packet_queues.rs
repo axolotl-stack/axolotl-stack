@@ -54,6 +54,7 @@ pub enum InventoryAction {
     Interact(jolyne::valentine::InteractPacket),
     Transaction(jolyne::valentine::InventoryTransactionPacket),
     BlockPick(jolyne::valentine::BlockPickRequestPacket),
+    ActorPick(jolyne::valentine::ActorPickRequestPacket),
 }
 
 /// Domain event buffer for the inventory system.

@@ -481,6 +481,13 @@ fn spawn_or_reject(
         return true;
     };
     warn!(session_id, %error, "Rejecting player with invalid saved data");
+    // The refused player no longer counts as online; the later
+    // `Disconnected` finds the place already given back.
+    server
+        .ecs
+        .world()
+        .resource::<crate::server::game::roster::OnlineRoster>()
+        .leave(session_id);
     let _ = reject_tx.try_send(McpePacket::from(DisconnectPacket {
         reason: EnumsConnectionDisconnectFailReason::Disconnected,
         messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
@@ -700,7 +707,15 @@ mod tests {
                 };
 
                 let (data, mut rx) = join(1, "minecraft:not_a_real_item");
+                // The connection task reserved the place before StartGame.
+                let roster = server
+                    .ecs
+                    .world()
+                    .resource::<crate::server::game::roster::OnlineRoster>()
+                    .clone();
+                roster.reserve(1).keep();
                 assert!(!spawn_or_reject(&mut server, None, data));
+                assert!(roster.is_empty(), "a refused player no longer counts");
                 assert!(
                     server
                         .ecs

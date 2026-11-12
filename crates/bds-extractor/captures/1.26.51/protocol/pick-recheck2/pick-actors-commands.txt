@@ -1,0 +1,57 @@
+/gamerule domobspawning false
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/gamerule randomtickspeed 0
+/kill @e[type=!player]
+/gamemode creative @s
+/clear @s
+!wait 1000
+/summon minecraft:rabbit ~ ~ ~1
+!wait 200
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:salmon ~ ~ ~1
+!wait 200
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:silverfish ~ ~ ~1
+!wait 200
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:snow_golem ~ ~ ~1
+!wait 200
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:armor_stand ~ ~ ~1
+!wait 200
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:ender_dragon ~ ~ ~1
+!wait 200
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:tnt ~ ~ ~1
+!wait 200
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200

@@ -31,6 +31,13 @@ looked like the missing piece; it was not the only one.
 - `protocol_probe.single` runs one session per script on one server; a run without
   `BDS_RUNTIME`/`BDS_PORT` falls back to the shared `orca/bds-runtime` on port 19132. Always set
   both, even when calling the probe functions from Python directly.
+- A player sent to an open-air platform with `/tp` may fall through it while its input stream is
+  still claiming the old position: BDS's corrections dropped the player about 48 blocks, out of block
+  reach. Place test blocks beside wherever the player stands instead (`/setblock ~2 ~ ~ ...` and
+  `!pick-block ~2 ~ ~`, which the extractor resolves from its last known position).
+- `protocol_probe.single` sessions have a timeout (600 s by default). A run over every summonable
+  actor (about 8.5 s each) needs about 16 minutes; at the timeout the harness stops BDS and kills
+  the extractor mid-script, which looks like a crash. Pass a longer `timeout`.
 - zuri_nbt writes compound keys in `HashMap` order. BDS writes them sorted and types an empty list
   `End` (0); `crate::item::nbt::write_sorted` does the same, so item NBT compares byte for byte.
 
@@ -38,6 +45,6 @@ looked like the missing piece; it was not the only one.
 
 `crates/bds-extractor/src/input.rs`, `crates/bds-extractor/src/actions.rs` (`!equip`,
 `!use-item`, `!pick-block`), `crates/bds-extractor/src/capture.rs` (`dump`),
-`tools/bds-sweep/protocol_probe.py` (`book`, `pick`); fixtures in
-`crates/bds-extractor/captures/1.26.51/protocol/book/`; related:
+`tools/bds-sweep/protocol_probe.py` (`book`, `pick`, `pick-actors`); fixtures in
+`crates/bds-extractor/captures/1.26.51/protocol/book/`, `pick/` and `pick-actors/`; related:
 [scripted-client-packets-in-bds-captures.md](scripted-client-packets-in-bds-captures.md).

@@ -8,6 +8,7 @@
 pub mod actor_components;
 pub mod actor_definitions;
 pub mod actor_identifiers;
+pub mod actor_picks;
 pub mod actor_wire;
 pub mod armour;
 pub mod bds_packets;
