@@ -67,6 +67,12 @@ generates schema enums from the same data directories.
   `nbt()`/`with_nbt()`/`with_raw_nbt()`.
 - Bad, because the drop and mining sweep fixtures still spell tools as `diamond_pickaxe+fortune3`;
   tests parse them through `FromStr` instead of converting 1,476 hashed sweep artefacts.
+- Neutral: vanilla gameplay is unchanged, but malformed or foreign item NBT now reads through the
+  level table, which treats level 0 as absent and accepts any integer id tag. A Curse of Binding
+  entry without a level (or at level 0) no longer stops a mob from swapping the armour piece.
+  `/enchant` on an item with an unknown `ench` id keeps that entry (moved after the known ones)
+  where it used to panic. Loot names that only failed when rolled (and `bow_infinity`, which
+  used to be unsupported) are now checked at load. None of this is measured against BDS.
 
 ### Confirmation
 
