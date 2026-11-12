@@ -567,6 +567,22 @@ of the complete timing/motion matrix.
 
 
 
+### Mob movement replication
+
+Mobs and projectiles replicate like BDS 1.26.51 (`src/entity/mob/net/network.rs`):
+a `MoveActorDelta` is measured against one shared "last sent" movement state, and
+each viewer gets it only as often as the actor's
+`minecraft:conditional_bandwidth_optimization` allows for that viewer's distance
+(every ⌊min(d, D) / D × M⌋ ticks, `ticks` set to that number; the empty component
+is 10 ticks over 80 blocks, so every tick within 8 blocks). A viewer's first
+update and a change of ground contact go at once with `ticks` 0, and the shared
+state moves on only when some viewer got the update, so far viewers can keep a
+stale axis, as on BDS. A newly spawned mob's `AddActor` shows it as it spawned.
+`src/entity/mob/net/bds_replication.rs` replays two-client BDS captures
+(`testdata/bds-1.26.51-replication.json`, from `tools/bds-sweep/sweep.py knockback
+--items cadence|cadence2 --observer`) packet for packet; `docs/quirks/bds.md`
+lists the copied oddities.
+
 ## Commands
 
 Commands follow BDS 1.26.51 (`src/command/`):
@@ -883,6 +899,10 @@ happens when its items don't resolve. When `players.save_previous_position` is
 enabled, saves also update the per-player TOML position used by spawn rules.
 Spawn rules retain their ordering and only use saved positions in the current
 dimension.
+
+Mobs are saved as Bedrock actor records with their chunk (`src/entity/mob/persistence`); a zombie's random
+spawn knockback resistance is saved the way BDS saves it (a `RandomSpawnBonus` modifier of
+`minecraft:knockback_resistance`) and restored on load instead of being rolled again.
 
 Regression coverage: `cargo test -p unastar --test persistence` exercises both
 world providers, stored-column preservation through asynchronous loading and

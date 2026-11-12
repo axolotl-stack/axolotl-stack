@@ -5,7 +5,7 @@ use unastar_data::actor_identifiers::ActorType;
 
 use super::constants::{
     ANIMAL_AMBIENT_SOUND_INTERVAL, CHICKEN_FALL_DAMAGE_MULTIPLIER, DEFAULT_AMBIENT_SOUND_INTERVAL,
-    WING_FLAP_VERTICAL_DRAG,
+    WING_FLAP_VERTICAL_DRAG, ZOMBIE_KNOCKBACK_RESISTANCE_BONUS,
 };
 
 /// The native traits of one actor class.
@@ -31,6 +31,9 @@ pub struct NativeTraits {
     /// zombie classes number their kind (zombie 0, zombie villager 1, husk 2,
     /// zombie pigman 3, drowned 4).
     pub aux_value: Option<i16>,
+    /// The class spawns with a random knockback resistance below this
+    /// (`mob::combat::knockback`); `None` for no resistance.
+    pub knockback_resistance_bonus: Option<f64>,
     /// The `VARIANT` actor data the class starts with, if it sets one: the
     /// native skeleton classes number their kind there (skeleton 0, wither
     /// skeleton 1, stray 2, bogged 3, parched 4) although their definitions
@@ -55,6 +58,12 @@ impl NativeTraits {
         let immune_to_wither = matches!(actor_type, ActorType::WitherSkeleton);
         let ambient_sound_interval = ambient_sound_interval(actor_type);
         let aux_value = zombie_kind(actor_type);
+        // Measured on the zombie only; the other zombie classes (husk, zombie
+        // pigman, ...) are not measured and spawn without it.
+        let knockback_resistance_bonus = match actor_type {
+            ActorType::Zombie => Some(ZOMBIE_KNOCKBACK_RESISTANCE_BONUS),
+            _ => None,
+        };
         let variant = skeleton_kind(actor_type);
         match actor_type {
             ActorType::Chicken => Self {
@@ -64,6 +73,7 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                knockback_resistance_bonus,
                 variant,
             },
             _ => Self {
@@ -73,6 +83,7 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                knockback_resistance_bonus,
                 variant,
             },
         }
