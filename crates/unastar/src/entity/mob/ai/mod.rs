@@ -21,7 +21,10 @@ mod path;
 mod pickup;
 mod ranged;
 pub mod sensing;
+pub mod silverfish;
 mod targeting;
+
+pub(crate) use targeting::Candidate;
 
 #[cfg(test)]
 mod tests;
@@ -92,23 +95,29 @@ enum Turn {
 pub struct AiScratch {
     mobs: Vec<(Entity, Turn)>,
     nearby: Nearby,
-    /// Mobs whose eat timer ran out this tick; they eat once the AI's
-    /// resource scopes end (eating fires events, which draw randomness).
-    eaten: Vec<Entity>,
-    /// Melee hits `(attacker, target)` of this tick; dealt once the AI's
-    /// resource scopes end (hits draw randomness and hurt players).
-    attacks: Vec<(Entity, Entity)>,
-    /// Ranged shots `(shooter, target)` of this tick; made once the AI's
-    /// resource scopes end (they spawn projectiles).
-    shots: Vec<(Entity, Entity)>,
-    /// Item pickups, equips and pickup events of this tick; made once the
-    /// AI's resource scopes end (they spawn items and fire events).
-    gear: Vec<(Entity, pickup::GearWork)>,
-    /// Target changes of this tick (`on_target_acquired` /
-    /// `on_target_escape`); fired once the AI's resource scopes end.
-    target_changes: Vec<TargetChange>,
+    /// World work the goals asked for this tick.
+    deferred: Deferred,
     /// Door collision boxes for [`break_door`].
     boxes: Vec<Aabb>,
+}
+
+/// World work the goals of this tick asked for, done once the AI's resource
+/// scopes end (it fires events, draws randomness, spawns actors or changes
+/// blocks).
+#[derive(Default)]
+struct Deferred {
+    /// Mobs whose eat timer ran out.
+    eaten: Vec<Entity>,
+    /// Melee hits `(attacker, target)`.
+    attacks: Vec<(Entity, Entity)>,
+    /// Ranged shots `(shooter, target)`.
+    shots: Vec<(Entity, Entity)>,
+    /// Item pickups, equips and pickup events.
+    gear: Vec<(Entity, pickup::GearWork)>,
+    /// Target changes (`on_target_acquired` / `on_target_escape`).
+    target_changes: Vec<TargetChange>,
+    /// Silverfish merging into blocks and waking their friends.
+    silverfish: Vec<(Entity, silverfish::SilverfishWork)>,
 }
 
 type BrainQuery = (Entity, Ref<'static, DefinitionState>, Has<Dead>);
@@ -195,33 +204,28 @@ pub fn tick_mob_ai(
                         .expect("queried with a brain") = brain;
                 }
                 if let Some(output) = output {
-                    apply(
-                        world,
-                        entity,
-                        output,
-                        &mut scratch.eaten,
-                        &mut scratch.attacks,
-                        &mut scratch.shots,
-                        &mut scratch.gear,
-                        &mut scratch.target_changes,
-                    );
+                    apply(world, entity, output, &mut scratch.deferred);
                 }
             }
         });
     });
-    for entity in scratch.eaten.drain(..) {
+    let deferred = &mut scratch.deferred;
+    for entity in deferred.eaten.drain(..) {
         eat_block::finish_eating(world, entity);
     }
-    for (attacker, target) in scratch.attacks.drain(..) {
+    for (attacker, target) in deferred.attacks.drain(..) {
         super::combat::melee::melee_attack(world, attacker, target);
     }
-    for (shooter, target) in scratch.shots.drain(..) {
+    for (shooter, target) in deferred.shots.drain(..) {
         super::combat::ranged::shoot(world, shooter, target);
     }
-    for (entity, work) in scratch.gear.drain(..) {
+    for (entity, work) in deferred.gear.drain(..) {
         pickup::finish(world, entity, work);
     }
-    for change in scratch.target_changes.drain(..) {
+    for (entity, work) in deferred.silverfish.drain(..) {
+        super::life::infested::finish(world, entity, work);
+    }
+    for change in deferred.target_changes.drain(..) {
         fire_target_trigger(world, change);
     }
     break_door::tick_door_breakers(
@@ -404,17 +408,7 @@ struct TargetChange {
     previous: Option<Entity>,
 }
 
-#[allow(clippy::too_many_arguments)]
-fn apply(
-    world: &mut World,
-    entity: Entity,
-    output: Output,
-    eaten: &mut Vec<Entity>,
-    attacks: &mut Vec<(Entity, Entity)>,
-    shots: &mut Vec<(Entity, Entity)>,
-    gear: &mut Vec<(Entity, pickup::GearWork)>,
-    target_changes: &mut Vec<TargetChange>,
-) {
+fn apply(world: &mut World, entity: Entity, output: Output, deferred: &mut Deferred) {
     let Output {
         yaw,
         head_yaw,
@@ -446,7 +440,7 @@ fn apply(
         Some(Some(target)) => {
             mob.insert(AttackTarget(target));
             if previous != Some(target) {
-                target_changes.push(TargetChange {
+                deferred.target_changes.push(TargetChange {
                     mob: entity,
                     acquired: Some(target),
                     previous,
@@ -456,7 +450,7 @@ fn apply(
         Some(None) => {
             mob.remove::<AttackTarget>();
             if previous.is_some() {
-                target_changes.push(TargetChange {
+                deferred.target_changes.push(TargetChange {
                     mob: entity,
                     acquired: None,
                     previous,
@@ -487,10 +481,10 @@ fn apply(
         );
     }
     if effects.eat_finished {
-        eaten.push(entity);
+        deferred.eaten.push(entity);
     }
     if let Some(target) = effects.attack {
-        attacks.push((entity, target));
+        deferred.attacks.push((entity, target));
     }
     if let Some(facing) = effects.ranged_facing {
         set_flag(
@@ -500,10 +494,20 @@ fn apply(
         );
     }
     if let Some(target) = effects.shoot {
-        shots.push((entity, target));
+        deferred.shots.push((entity, target));
     }
     if !effects.gear.is_empty() {
-        gear.push((entity, effects.gear));
+        deferred.gear.push((entity, effects.gear));
+    }
+    if let Some(work) = effects.silverfish {
+        deferred.silverfish.push((entity, work));
+    }
+    if effects.swell_started
+        && let Some(head) = super::life::anger::head(world, entity)
+    {
+        // Heard one tick after the goal starts: two ticks after the creeper
+        // lit, as BDS 1.26.51 sends `fuse`.
+        super::net::sound::queue_synced_sound(world, Some(entity), head, "fuse", -1);
     }
 }
 

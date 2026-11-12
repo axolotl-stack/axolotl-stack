@@ -19,6 +19,7 @@ pub mod equipment;
 pub mod fuel;
 pub mod game_rules;
 pub mod help;
+pub mod infested;
 pub mod item_components;
 pub mod item_identity;
 pub mod items;

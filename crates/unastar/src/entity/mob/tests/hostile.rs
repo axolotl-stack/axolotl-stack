@@ -95,7 +95,7 @@ fn flag(world: &World, mob: Entity, index: u32) -> bool {
     world.get::<ActorFlags>(mob).unwrap().get(index).unwrap()
 }
 
-fn native(bytes: &[u8]) -> AddActorPacket {
+pub(super) fn native(bytes: &[u8]) -> AddActorPacket {
     assert_eq!(bytes[0], 0x0d);
     let mut input = &bytes[1..];
     let packet = AddActorPacket::decode(&mut input, ()).unwrap();
@@ -141,7 +141,12 @@ impl Harness {
 
 /// Our AddActor for `mob` equals the native summon's in every field the
 /// spawn decides (type, attributes, actor data, links, synced properties).
-fn assert_add_actor_matches(world: &World, identifier: &str, mob: Entity, native: &AddActorPacket) {
+pub(super) fn assert_add_actor_matches(
+    world: &World,
+    identifier: &str,
+    mob: Entity,
+    native: &AddActorPacket,
+) {
     let ours = add_actor_packet(
         identifier,
         world.get::<RuntimeId>(mob).unwrap().0,

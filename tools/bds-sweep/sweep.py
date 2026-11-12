@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -749,7 +750,7 @@ def silverfish_items(args) -> list[dict]:
         return [{'key': f'silverfish|merge-{n}', 'mob': 'minecraft:silverfish', 'at': [5.5, -60, 1.5, 0],
                  'player': far, 'frozen': False, 'ticks': 600, 'setup': pit, 'cleanup': undo, 'actions': []}
                 for n in range(10)]
-    if args.items == 'wake':
+    if args.items in ('wake', 'wake-nogrief'):
         # Infested stone along +x at 1..12 blocks, along +z at 1..6 and
         # 2..6 blocks up; stone underneath so nothing falls.
         cells = ([(x, -60, 0) for x in range(1, 13)] + [(0, -60, z) for z in range(1, 7)]
@@ -763,10 +764,112 @@ def silverfish_items(args) -> list[dict]:
                    f'effect {target} regeneration 100000 4 true']
         restore = [f'effect {target} clear', f'gamemode creative {target}']
         hurt = {'t': 40, 'commands': [f'damage @e[type=minecraft:silverfish] 1 entity_attack entity {target}']}
-        return [{'key': f'silverfish|wake-{n}', 'mob': 'minecraft:silverfish', 'at': [4.5, -60, 0.5, 90],
-                 'player': [0.5, -60, 0.5, -90], 'frozen': True, 'ticks': 300, 'setup': place + protect,
-                 'cleanup': restore + undo, 'actions': [hurt]} for n in range(3)]
-    raise SystemExit('silverfish --items must be merge or wake')
+        # `wake-nogrief`: the same with mobGriefing off.
+        rules = ['gamerule mobgriefing false'] if args.items == 'wake-nogrief' else []
+        return [{'key': f'silverfish|{args.items}-{n}', 'mob': 'minecraft:silverfish', 'at': [4.5, -60, 0.5, 90],
+                 'player': [0.5, -60, 0.5, -90], 'frozen': True, 'ticks': 300, 'setup': rules + place + protect,
+                 'cleanup': restore + undo + ['gamerule mobgriefing true'], 'actions': [hurt]}
+                for n in range(3)]
+    if args.items in ('pit', 'blocks', 'griefing', 'ab'):
+        # A 1 x 1 pit two blocks deep in a 3 x 3 x 4 block of one kind: the
+        # silverfish's feet block has five neighbours of that kind and
+        # nowhere to walk. `pit` repeats stone 20 times for when it merges,
+        # `blocks` tries each kind three times for which ones it merges
+        # into (and what they become), `griefing` turns mobGriefing off and
+        # `ab` interleaves stone and cobblestone pits.
+        def pit(block: str, n: int, ticks: int, rules=()) -> dict:
+            cut = ['fill 4 -61 0 6 -58 2 ' + block, 'fill 5 -60 1 5 -59 1 air']
+            undo = ['fill 4 -61 0 6 -58 2 air', 'fill 4 -61 0 6 -61 2 grass_block',
+                    'kill @e[type=minecraft:silverfish]', 'gamerule mobgriefing true']
+            # `deepslate ["pillar_axis"="x"]` -> `deepslate-x`.
+            name = '-'.join([block.split(' [')[0]] + re.findall(r'="([^"]+)"', block))
+            return {'key': f'silverfish|{args.items}-{name}-{n}', 'mob': 'minecraft:silverfish',
+                    'at': [5.5, -60, 1.5, 0], 'player': far, 'frozen': False, 'ticks': ticks,
+                    'setup': list(rules) + cut, 'cleanup': undo, 'actions': []}
+        if args.items == 'pit':
+            return [pit('stone', n, 400) for n in range(20)]
+        if args.items == 'ab':
+            # Stone and cobblestone pits interleaved, 20 each: whether the
+            # host block changes how soon the silverfish merges.
+            return [pit(block, n, 300) for n in range(20) for block in ('stone', 'cobblestone')]
+        if args.items == 'griefing':
+            return [pit('stone', n, 400, ['gamerule mobgriefing false']) for n in range(3)]
+        kinds = ['cobblestone', 'stone_bricks', 'mossy_stone_bricks', 'cracked_stone_bricks',
+                 'chiseled_stone_bricks', 'deepslate', 'deepslate ["pillar_axis"="x"]', 'cobbled_deepslate',
+                 'andesite', 'granite', 'diorite', 'tuff', 'smooth_stone', 'infested_stone']
+        return [pit(kind, n, 300) for kind in kinds for n in range(3)]
+    raise SystemExit('silverfish --items must be merge, wake, wake-nogrief, pit, blocks, griefing or ab')
+
+
+def creeper_items(args) -> list[dict]:
+    """`creeper`: a creeper and the survival sweep player (Resistance V, so
+    the blast hurts nothing; a barrier pen holds it in place), sampled every
+    tick; run with `--client-capture` for the creeper's flags, fuse actor
+    data, sounds and the explosion's packets. `--items slice` (the default,
+    or a comma-separated list of the item names below):
+    `approach` (an unfrozen creeper walks in from 6 blocks, three times),
+    `cancel` (a frozen creeper 2 blocks away lights; the player leaves to 10
+    blocks on tick 15 and comes back on tick 60), `sight` (the player hides
+    behind a stone wall on tick 15), `flint` (a frozen creeper 4 blocks
+    away, outside the sensor, lit with flint and steel on tick 20),
+    `charged` (`minecraft:become_charged` on tick 0, then lit),
+    `no-griefing` (mobGriefing false), `flint-alone` (lit by a creative
+    player, so without a target) and `gap` / `gap-far` (the player steps back
+    from a lit creeper, no pen). Every item rebuilds the floor the blast
+    broke."""
+    target = f'"{PLAYER}"'
+    protect = [f'gamemode survival {target}', f'effect {target} resistance 100000 4 true']
+    pen = ['fill -1 -60 -1 -1 -58 1 barrier', 'fill 0 -60 -1 1 -58 -1 barrier', 'fill 0 -60 1 1 -58 1 barrier']
+    floor = ['fill -8 -60 -8 14 -50 8 air', 'fill -8 -63 -8 14 -62 8 dirt', 'fill -8 -61 -8 14 -61 8 grass_block',
+             'kill @e[type=minecraft:item]', 'kill @e[type=minecraft:creeper]']
+    restore = [f'effect {target} clear', f'gamemode creative {target}', 'gamerule mobgriefing true'] + floor
+    home = [0.5, -60, 0.5, -90]
+    away = f'tp {target} -9.5 -60 0.5 -90 0'
+    back = f'tp {target} 0.5 -60 0.5 -90 0'
+
+    def item(key, at, frozen, ticks, actions, setup=(), hold=None, target=True):
+        row = {'key': f'creeper|{key}', 'mob': 'minecraft:creeper', 'at': at, 'player': home, 'frozen': frozen,
+               'ticks': ticks, 'setup': list(setup) + (protect if target else []), 'cleanup': restore,
+               'actions': actions}
+        if hold is not None:
+            row['hold'] = hold
+        return row
+
+    near = [2.5, -60, 0.5, 90]
+    # Stone, not barrier, for the wall that hides the player.
+    wall = 'fill 1 -60 -1 1 -58 1 stone'
+    items = [item(f'approach-{n}', [6.5, -60, 0.5, 90], False, 160, []) for n in range(3)]
+    items += [
+        item('cancel', near, True, 140, [{'t': 15, 'commands': [away]}, {'t': 60, 'commands': [back]}]),
+        item('sight', near, True, 140, [{'t': 15, 'commands': [wall]}]),
+        # The first use after the hand changed is refused (it resyncs the
+        # slot), so the player uses the flint and steel twice.
+        item('flint', [4.5, -60, 0.5, 90], True, 80, [{'t': 10, 'commands': [], 'order': 'interact'},
+                                                      {'t': 20, 'commands': [], 'order': 'interact'}],
+             hold={'item': 'minecraft:flint_and_steel'}),
+        item('charged', near, True, 80, [{'t': 0, 'commands': ['event entity @e[type=minecraft:creeper] '
+                                                               'minecraft:become_charged']}]),
+        item('no-griefing', near, True, 80, [], setup=['gamerule mobgriefing false']),
+        # No target: the creative player lights a frozen creeper 3 blocks away.
+        item('flint-alone', [3.5, -60, 0.5, 90], True, 80, [{'t': 10, 'commands': [], 'order': 'interact'},
+                                                            {'t': 20, 'commands': [], 'order': 'interact'}],
+             hold={'item': 'minecraft:flint_and_steel'}, target=False),
+    ]
+    for row in items:
+        row['setup'] = pen + row['setup']
+    # Lit by the sensor, then the player steps back on tick 40 to 4.9 and
+    # 6.4 blocks between centres (4.3 and 5.8 between the boxes): whether the
+    # lit creeper follows, and which distance `outside_range` measures.
+    for key, x in (('gap', -1.5), ('gap-far', -3.0)):
+        items.append(item(key, [6.5, -60, 0.5, 90], False, 120,
+                          [{'t': 40, 'commands': [f'tp {target} {x} -60 0.5 -90 0']}]))
+    if args.items in ('slice', 'all'):
+        return items
+    # A comma-separated list of item names (`flint,charged`) reruns those.
+    chosen = [row for row in items if row['key'].split('|')[1] in args.items.split(',')]
+    if not chosen:
+        raise SystemExit(f'creeper --items must be slice or names among {[row["key"] for row in items]}')
+    return chosen
 
 
 def melee_effect_items(args) -> list[dict]:
@@ -876,13 +979,14 @@ def build_job(args, out: Path) -> dict:
         # Zombies need a difficulty above peaceful and burn in daylight.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = effect_items(args)
-    elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish'):
+    elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish', 'creeper'):
         # The generic per-tick job of `effects`; hostile mobs need a
         # difficulty above peaceful and skeletons burn in daylight.
         job['kind'] = 'effects'
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = {'ranged': ranged_items, 'mooshroom': mooshroom_items,
-                        'melee-effects': melee_effect_items, 'silverfish': silverfish_items}[args.kind](args)
+                        'melee-effects': melee_effect_items, 'silverfish': silverfish_items,
+                        'creeper': creeper_items}[args.kind](args)
     elif args.kind == 'entity-loot':
         # Hostile mobs need a difficulty above peaceful.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
@@ -908,7 +1012,7 @@ def main() -> int:
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
                                          'knockback', 'knockback-reload', 'range', 'bonus', 'walk',
                                          'effects', 'entity-loot', 'ranged', 'mooshroom', 'melee-effects',
-                                         'silverfish'])
+                                         'silverfish', 'creeper'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])

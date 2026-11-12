@@ -11,7 +11,9 @@ use unastar_data::actor_components::body::{
 };
 use unastar_rules::filter::Filter;
 
-use super::common::{FilterError, SelfEvent, SelfEventError, filter, insert, self_event};
+use super::common::{
+    FilterError, SelfEvent, SelfEventError, filter, insert, insert_infallible, self_event,
+};
 use crate::entity::components::EffectType;
 use crate::entity::definition::{ComponentError, ComponentKindsBuilder, DefinitionError};
 use crate::entity::goal_selector::GoalControls;
@@ -82,6 +84,21 @@ pub struct MeleeBoxAttackGoal {
     pub track_target: bool,
 }
 
+/// `minecraft:behavior.swell`: the creeper's goal while its fuse burns. It
+/// runs while the mob is lit (the `IGNITED` flag `minecraft:explode` sets),
+/// stops the mob and plays `fuse` (BDS 1.26.51: a lit creeper stands still
+/// and hisses two ticks after it lights, with or without a target).
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct SwellGoal {
+    pub priority: i32,
+    pub(crate) controls: GoalControls,
+    /// Authored, but not told apart from the creeper's
+    /// `target_nearby_sensor` ranges, which are the same numbers in vanilla
+    /// and decide when the fuse lights and goes out.
+    pub start_distance: f32,
+    pub stop_distance: f32,
+}
+
 /// One `entity_types` entry of a target goal.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TargetEntry {
@@ -145,6 +162,12 @@ pub struct BurnsInDaylightConfig {
 pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
 ) -> Result<(), DefinitionError> {
+    insert_infallible(builder, |b: body::BehaviorSwell| SwellGoal {
+        priority: b.priority,
+        controls: controls(&b.control_flags, GoalControls::MOVE),
+        start_distance: b.start_distance,
+        stop_distance: b.stop_distance,
+    })?;
     insert(builder, compile_attack)?;
     insert(builder, compile_melee_box_attack)?;
     insert(builder, compile_nearest_attackable_target)?;

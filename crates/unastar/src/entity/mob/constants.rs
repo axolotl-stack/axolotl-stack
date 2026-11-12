@@ -856,3 +856,25 @@ pub const TIPPED_ARROW_EFFECTS: [(u8, crate::entity::components::EffectType, u32
 /// shooter's box, before the shooter's own `sound` (measured: BDS 1.26.51
 /// sends `undefined` with an empty actor identifier on every shot).
 pub const RANGED_SHOT_SOUND: &str = "undefined";
+
+// --- Silverfish (`mob::ai::silverfish`, `mob::life::infested`) ---------------------
+
+/// The merge goal tries to merge on one roll in this many per tick it may
+/// start, then draws one of the feet block's six faces (BDS 1.26.51: 101
+/// silverfish in 1 × 1 pits with five host faces waited 8.9 ticks on
+/// average; the most likely whole roll is 8, with 9 close and 10 about two
+/// standard errors off).
+pub const SILVERFISH_MERGE_ROLL: u32 = 8;
+/// Ticks from the wake-up goal's start to its first scan, and between
+/// scans (BDS 1.26.51: hurt on tick 40, blocks broke on 60, 80, 100, …).
+pub const SILVERFISH_WAKE_INTERVAL_TICKS: u32 = 20;
+/// How far the wake-up scan reaches along x and z (BDS 1.26.51: blocks 10
+/// away broke, 11 and 12 away never did).
+pub const SILVERFISH_WAKE_RANGE_XZ: i32 = 10;
+/// How far the wake-up scan reaches along y (BDS 1.26.51: 5 above broke, 6
+/// above never did).
+pub const SILVERFISH_WAKE_RANGE_Y: i32 = 5;
+/// A silverfish let out of an infested block stands at the block's corner
+/// moved this far along x (BDS 1.26.51: every released silverfish's
+/// `AddActor`).
+pub const SILVERFISH_RELEASE_OFFSET_X: f64 = -0.2;

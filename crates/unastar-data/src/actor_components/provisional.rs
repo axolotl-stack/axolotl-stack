@@ -474,3 +474,10 @@ pub const SPELL_EFFECTS_AMPLIFIER: i32 = 0;
 
 /// ML `minecraftcomponent_shooter`: `aux_val` -1 (no aux value).
 pub const SHOOTER_AUX_VAL: i32 = -1;
+
+// minecraft:target_nearby_sensor (Mojang form `minecraft_target_nearby_sensor.form.json`)
+
+/// `inside_range` 1 block.
+pub const TARGET_NEARBY_INSIDE_RANGE: f32 = 1.0;
+/// `outside_range` 5 blocks.
+pub const TARGET_NEARBY_OUTSIDE_RANGE: f32 = 5.0;

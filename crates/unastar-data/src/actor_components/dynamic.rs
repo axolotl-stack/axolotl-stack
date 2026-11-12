@@ -1487,6 +1487,32 @@ defaults! {
     shooter_aux_val -> i32 = p::SHOOTER_AUX_VAL;
 }
 
+/// `minecraft:target_nearby_sensor`: events fired as the mob's target comes
+/// within `inside_range`, leaves past `outside_range`, or drops out of
+/// sight inside the range.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TargetNearbySensor {
+    #[serde(default = "target_nearby_inside_range")]
+    pub inside_range: f32,
+    #[serde(default = "target_nearby_outside_range")]
+    pub outside_range: f32,
+    /// The inside events need the target in sight.
+    #[serde(default)]
+    pub must_see: bool,
+    #[serde(default)]
+    pub on_inside_range: Option<ActorDefinitionTrigger>,
+    #[serde(default)]
+    pub on_outside_range: Option<ActorDefinitionTrigger>,
+    #[serde(default)]
+    pub on_vision_lost_inside_range: Option<ActorDefinitionTrigger>,
+}
+
+defaults! {
+    target_nearby_inside_range -> f32 = p::TARGET_NEARBY_INSIDE_RANGE;
+    target_nearby_outside_range -> f32 = p::TARGET_NEARBY_OUTSIDE_RANGE;
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1555,6 +1581,7 @@ dynamic_bodies!(
     SpawnEggInteraction,
     SpawnEntity,
     SpellEffects,
+    TargetNearbySensor,
     Transformation,
     Timer,
     TypeFamily,
