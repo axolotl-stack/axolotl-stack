@@ -1204,34 +1204,63 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
 /// [`set_block`] without block updates: store the block, broadcast it and
 /// schedule gravity checks.
 pub(crate) fn write_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    let Some(stored) = store_block(world, pos, block_runtime_id) else {
+        return;
+    };
+    send_block(world, &stored, pos, place_sound);
+}
+
+/// What [`store_block`] stored at a position.
+pub(crate) struct Stored {
+    pub chunk: Entity,
+    /// The block stored (air set over a waterlogged block leaves its water).
+    pub block: u32,
+    /// The new liquid layer, when it changed.
+    pub layer: Option<u32>,
+}
+
+/// Store `block_runtime_id` at `pos` without sending it: water in the
+/// liquid layer stays when the new block holds water ([`super::liquids::stored`]);
+/// block observers, redstone and gravity checks hear of the change.
+pub(crate) fn store_block(world: &mut World, pos: IVec3, block_runtime_id: u32) -> Option<Stored> {
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
 
     let chunk_entity = {
-        let Some(chunk_manager) = world.get_resource::<ChunkManager>() else {
-            return;
-        };
+        let chunk_manager = world.get_resource::<ChunkManager>()?;
         chunk_manager.get_by_coords(cx, cz)
     };
 
     let Some(chunk_entity) = chunk_entity else {
         debug!(chunk = ?(cx, cz), "place_block: chunk not found");
-        return;
+        return None;
     };
 
-    let old_block_id = world
+    let (old_block_id, old_layer) = world
         .get::<crate::world::ecs::ChunkData>(chunk_entity)
-        .map(|cd| cd.inner.get_block(local_x, local_y, local_z))
-        .unwrap_or(0);
+        .map(|cd| {
+            (
+                cd.inner.get_block(local_x, local_y, local_z),
+                cd.inner.get_block_layer(local_x, local_y, local_z, 1),
+            )
+        })
+        .unwrap_or((0, *blocks::AIR));
+    let (block, layer) = match world.get_resource::<super::types::BlockRegistryResource>() {
+        Some(registry) => {
+            super::liquids::stored(&registry.0, old_block_id, old_layer, block_runtime_id)
+        }
+        None => (block_runtime_id, *blocks::AIR),
+    };
 
     // Update chunk data
-    if let Some(mut chunk_data) = world.get_mut::<crate::world::ecs::ChunkData>(chunk_entity) {
+    let mut chunk_data = world.get_mut::<crate::world::ecs::ChunkData>(chunk_entity)?;
+    if layer == *blocks::AIR && old_layer == *blocks::AIR {
+        chunk_data.inner.set_block(local_x, local_y, local_z, block);
+    } else {
         chunk_data
             .inner
-            .set_block(local_x, local_y, local_z, block_runtime_id);
-    } else {
-        return;
+            .set_block_layers(local_x, local_y, local_z, block, Some(layer));
     }
 
     if let Some(mut state_flags) = world.get_mut::<crate::world::ecs::ChunkStateFlags>(chunk_entity)
@@ -1243,29 +1272,47 @@ pub(crate) fn write_block(world: &mut World, pos: IVec3, block_runtime_id: u32, 
         chunk_entity,
         block_pos: IVec3::new(x, y, z),
         old_block: old_block_id,
-        new_block: block_runtime_id,
+        new_block: block,
     });
-    super::redstone::note_change(world, pos, old_block_id, block_runtime_id);
+    super::redstone::note_change(world, pos, old_block_id, block);
 
     world.write_message(BlockBroadcastEvent {
         chunk_entity,
         block_pos: IVec3::new(x, y, z),
-        new_block: block_runtime_id,
+        new_block: block,
     });
 
     super::falling::schedule_gravity_checks(world, pos);
+    Some(Stored {
+        chunk: chunk_entity,
+        block,
+        layer: (layer != old_layer).then_some(layer),
+    })
+}
 
+/// Send what [`store_block`] stored at `pos` to the chunk's viewers (with
+/// the place sound when `place_sound`): the block, then the liquid layer
+/// when it changed.
+pub(crate) fn send_block(world: &World, stored: &Stored, pos: IVec3, place_sound: bool) {
+    let (x, y, z) = (pos.x, pos.y, pos.z);
     // Broadcast to viewers
-    if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
+    if let Some(chunk_viewers) = world.get::<ChunkViewers>(stored.chunk) {
         use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
-        let wire_block = super::types::block_network_ids(world).to_wire(block_runtime_id);
+        let network = super::types::block_network_ids(world);
+        let wire_block = network.to_wire(stored.block);
         let update_packet = UpdateBlockPacket {
             block_position: BlockPos { x, y, z },
             block_runtime_id: wire_block,
             flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
             layer: 0,
         };
+        let layer_packet = stored.layer.map(|layer| UpdateBlockPacket {
+            block_position: BlockPos { x, y, z },
+            block_runtime_id: network.to_wire(layer),
+            flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
+            layer: 1,
+        });
 
         let sound_packet = place_sound.then(|| LevelSoundEventPacket {
             sound_event: "place".into(),
@@ -1285,12 +1332,54 @@ pub(crate) fn write_block(world: &mut World, pos: IVec3, block_runtime_id: u32, 
         for viewer_entity in chunk_viewers.iter() {
             if let Some(session) = world.get::<PlayerSession>(viewer_entity) {
                 let _ = session.send(McpePacket::from(update_packet.clone()));
+                if let Some(layer) = &layer_packet {
+                    let _ = session.send(McpePacket::from(layer.clone()));
+                }
                 if let Some(sound) = &sound_packet {
                     let _ = session.send(McpePacket::from(sound.clone()));
                 }
             }
         }
     }
+}
+
+/// Store `state` in the liquid layer at `pos` without sending it (the
+/// liquid engine batches what it sends). `None` when the chunk is not loaded.
+pub(crate) fn store_layer(world: &mut World, pos: IVec3, state: u32) -> Option<Entity> {
+    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+    let (x, y, z) = world_to_local_coords(pos.x, pos.y, pos.z);
+    let chunk = world
+        .get_resource::<ChunkManager>()?
+        .get_by_coords(cx, cz)?;
+    let mut data = world.get_mut::<crate::world::ecs::ChunkData>(chunk)?;
+    let block = data.inner.get_block(x, y, z);
+    data.inner.set_block_layers(x, y, z, block, Some(state));
+    if let Some(mut flags) = world.get_mut::<crate::world::ecs::ChunkStateFlags>(chunk) {
+        flags.mark_needs_rebroadcast();
+    }
+    Some(chunk)
+}
+
+/// The liquid-layer block at `pos` (air when empty); `None` outside the
+/// world or in an unloaded chunk.
+pub(crate) fn layer_at(world: &World, pos: IVec3) -> Option<u32> {
+    if !(crate::world::chunk::MIN_Y
+        ..crate::world::chunk::MIN_Y + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16)
+        .contains(&pos.y)
+    {
+        return None;
+    }
+    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+    let chunk = world
+        .get_resource::<ChunkManager>()?
+        .get_by_coords(cx, cz)?;
+    let (x, y, z) = world_to_local_coords(pos.x, pos.y, pos.z);
+    Some(
+        world
+            .get::<crate::world::ecs::ChunkData>(chunk)?
+            .inner
+            .get_block_layer(x, y, z, 1),
+    )
 }
 
 /// Break the block `state` at `pos`, which can no longer stay where it is

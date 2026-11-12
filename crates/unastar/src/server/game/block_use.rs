@@ -97,14 +97,18 @@ pub(crate) fn coral_changed(world: &mut World, pos: IVec3, placed: bool) {
     }
 }
 
+/// Water beside `pos`: a water block, or water in a block's liquid layer.
 fn touches_water(world: &World, pos: IVec3) -> bool {
     super::block_update::NEIGHBOURS.iter().any(|offset| {
-        entry_at(world, pos + *offset).is_some_and(|(entry, _)| {
-            matches!(
-                entry.string_id.as_str(),
-                "minecraft:water" | "minecraft:flowing_water"
-            )
-        })
+        let at = pos + *offset;
+        let water = |state: u32| {
+            world
+                .get_resource::<BlockRegistryResource>()
+                .and_then(|registry| registry.0.liquid_state(state))
+                .is_some_and(|liquid| liquid.kind == crate::registry::block::LiquidKind::Water)
+        };
+        super::blocks::block_at(world, (at.x, at.y, at.z)).is_some_and(water)
+            || super::blocks::layer_at(world, at).is_some_and(water)
     })
 }
 

@@ -104,7 +104,7 @@ pub(crate) fn placed_tripwire(blocks: &impl BlockSource, pos: IVec3) -> Option<u
 
 /// Facing (`weirdo_direction`: 0 east, 1 west, 2 south, 3 north) and upside
 /// down half of a stair state.
-fn stair_facing(entry: &BlockEntry, state: u32) -> Option<(Side, bool)> {
+pub(crate) fn stair_facing(entry: &BlockEntry, state: u32) -> Option<(Side, bool)> {
     let Some(StateValue::Int(direction)) = entry.state_value(state, "weirdo_direction") else {
         return None;
     };

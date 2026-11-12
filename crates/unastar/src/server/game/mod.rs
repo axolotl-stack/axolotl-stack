@@ -24,6 +24,7 @@ pub mod item_use;
 mod items;
 pub(crate) mod join;
 mod join_data;
+pub(crate) mod liquids;
 mod loot;
 mod mining;
 mod movement;
@@ -553,13 +554,20 @@ impl GameServer {
                 .after(containers::tick_block_containers)
                 .before(tick_block_breaking),
         );
+        // Liquids, after the scheduled block changes (exclusive: edits chunks).
+        ecs.schedule_mut().add_systems(
+            liquids::tick_liquids
+                .in_set(EntityLogicSet)
+                .after(block_use::tick_scheduled_blocks)
+                .before(tick_block_breaking),
+        );
         // Redstone, after this tick's other block changes, then random block
         // ticks (exclusive: edit chunks).
         ecs.schedule_mut().add_systems(
             (redstone::tick_redstone, random_ticks::tick_random_blocks)
                 .chain()
                 .in_set(EntityLogicSet)
-                .after(block_use::tick_scheduled_blocks)
+                .after(liquids::tick_liquids)
                 .before(tick_block_breaking),
         );
         // Mob fall damage, condition damage, daylight burning and fire, death,

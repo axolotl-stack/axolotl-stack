@@ -81,17 +81,16 @@ domain = "systems"
 ids = ["world.block_updates", "world.falling_blocks", "world.fire", "world.pistons", "world.random_ticks", "world.redstone"]
 
 [[claim]]
-area = "Liquids: water and lava flow, waterlogging, sponges"
-owner = "a contributor"
-since = 2026-10-29
+area = "Liquids: water and lava flow, mixing, the liquid layer"
+owner = "lane LIQUIDS"
+since = 2026-11-11
 domain = "blocks"
 families = ["liquids"]
-ids = ["minecraft:sponge", "minecraft:wet_sponge"]
 
 [[claim]]
-area = "Liquids: water and lava flow, waterlogging, sponges"
-owner = "a contributor"
-since = 2026-10-29
+area = "Liquids: water and lava flow, mixing, the liquid layer"
+owner = "lane LIQUIDS"
+since = 2026-11-11
 domain = "systems"
 ids = ["world.liquids"]
 

@@ -218,4 +218,5 @@ pub(crate) fn world_changed(world: &mut World, pos: IVec3, placed: bool) {
     }
     changed(&mut Live(world), pos, placed);
     super::block_use::coral_changed(world, pos, placed);
+    super::liquids::note_change(world, pos);
 }

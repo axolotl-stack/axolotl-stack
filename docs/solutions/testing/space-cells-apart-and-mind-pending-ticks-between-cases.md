@@ -18,6 +18,9 @@ player-placed one dies at a random tick within 60 (two of 12 by tick 10). Both w
   6-block scenario grid it reached the coral blocks of neighbouring cells and kept them alive.
   Cells 16 blocks apart with a 15 x 15 box refilled after each wave (`coral.py` `LAYOUT`)
   showed every coral block set out of water dying, 45 ticks later.
+  (Correction, lane LIQUIDS: water set this way stays still until a block beside it changes, and
+  a tube coral plant set by Endstone held no water and died; see
+  [liquids-stay-still-until-woken-and-need-per-tick-capture-cuts.md](liquids-stay-still-until-woken-and-need-per-tick-capture-cuts.md).)
 - The `placements` job runs its cases one after another on one spot. A block tick a case
   leaves pending (a coral block's 45-tick check) fires on the next case's block: the two
   "dead by tick 10" coral blocks were placed about 45 ticks after the case before them. A

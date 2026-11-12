@@ -490,7 +490,12 @@ fn grow_grass(world: &mut World, ctx: &Use) {
 /// An empty bucket on a still water or lava source, or on powder snow,
 /// takes it.
 fn fill_bucket(world: &mut World, ctx: &Use) -> bool {
-    let filled = match ctx.registry.liquid_state(ctx.state) {
+    // Water in a block's liquid layer (a waterlogged block) counts too.
+    let liquid = ctx.registry.liquid_state(ctx.state).or_else(|| {
+        crate::server::game::blocks::layer_at(world, ctx.clicked)
+            .and_then(|layer| ctx.registry.liquid_state(layer))
+    });
+    let filled = match liquid {
         Some(liquid) if liquid.depth == 0 => match liquid.kind {
             LiquidKind::Water => ("minecraft:water_bucket", "bucket.fill.water"),
             LiquidKind::Lava => ("minecraft:lava_bucket", "bucket.fill.lava"),
@@ -507,7 +512,13 @@ fn fill_bucket(world: &mut World, ctx: &Use) -> bool {
     let Some(bucket) = crate::server::game::world_stack(world, filled.0, 1) else {
         return false;
     };
-    set_block(world, ctx.clicked, air, false);
+    if liquid.is_some() {
+        if crate::server::game::liquids::take_source(world, ctx.clicked).is_none() {
+            return false;
+        }
+    } else {
+        set_block(world, ctx.clicked, air, false);
+    }
     sound(world, ctx.player, centre(ctx.clicked), filled.1, -1);
     if world.get::<GameMode>(ctx.player) != Some(&GameMode::Creative) {
         let rest = ctx.stack.grow(-1);
@@ -522,14 +533,38 @@ fn fill_bucket(world: &mut World, ctx: &Use) -> bool {
 }
 
 /// A filled bucket places its source block in the clicked block when that
-/// is a liquid or replaceable, else next to the clicked face, and becomes
-/// an empty bucket.
+/// is a liquid or replaceable (water: into a block that holds water), else
+/// next to the clicked face, and becomes an empty bucket. Liquids go
+/// through [`crate::server::game::liquids::place_source`], so they flow.
 fn empty_bucket(world: &mut World, ctx: &Use) -> bool {
     let (block, sound_name) = match ctx.stack.item_id() {
         "minecraft:water_bucket" => ("minecraft:water", "bucket.empty.water"),
         "minecraft:lava_bucket" => ("minecraft:lava", "bucket.empty.lava"),
         _ => ("minecraft:powder_snow", "bucket.empty.powder_snow"),
     };
+    let kind = match block {
+        "minecraft:water" => Some(LiquidKind::Water),
+        "minecraft:lava" => Some(LiquidKind::Lava),
+        _ => None,
+    };
+    if let Some(kind) = kind {
+        let Some(empty) = crate::server::game::world_stack(world, "minecraft:bucket", 1) else {
+            return false;
+        };
+        let place = crate::server::game::liquids::place_source;
+        let pos = if place(world, ctx.clicked, kind) {
+            ctx.clicked
+        } else if place(world, ctx.target(), kind) {
+            ctx.target()
+        } else {
+            return false;
+        };
+        sound(world, ctx.player, centre(pos), sound_name, -1);
+        if world.get::<GameMode>(ctx.player) != Some(&GameMode::Creative) {
+            set_slot(world, ctx.player, ctx.slot, empty);
+        }
+        return true;
+    }
     let replaceable = |pos: IVec3| {
         block_at(world, (pos.x, pos.y, pos.z))
             .and_then(|id| Some((id, ctx.registry.get_by_runtime_id(id)?)))
@@ -743,6 +778,35 @@ mod tests {
         assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
         assert_eq!(block(&world, chunk, 65), "minecraft:lava");
         assert_eq!(held_stack(&world, player).item_id(), "minecraft:bucket");
+    }
+
+    /// A water bucket on a fence fills the fence's liquid layer (BDS 1.26.51,
+    /// `liquids/liquids_logged.json` `bucket_on`); an empty bucket takes it back.
+    #[test]
+    fn buckets_fill_and_empty_a_block_that_holds_water() {
+        let layer = |world: &World| {
+            let state = crate::server::game::blocks::layer_at(world, IVec3::new(1, 64, 1)).unwrap();
+            BlockRegistry::vanilla()
+                .get_by_runtime_id(state)
+                .unwrap()
+                .string_id
+                .clone()
+        };
+        let (mut world, player, chunk) =
+            world_with("minecraft:oak_fence", "minecraft:water_bucket", 1);
+        assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
+        assert_eq!(block(&world, chunk, 64), "minecraft:oak_fence");
+        assert_eq!(block(&world, chunk, 65), "minecraft:air");
+        assert_eq!(layer(&world), "minecraft:water");
+        assert_eq!(held_stack(&world, player).item_id(), "minecraft:bucket");
+
+        assert!(use_on_block(&mut world, player, IVec3::new(1, 64, 1), UP));
+        assert_eq!(block(&world, chunk, 64), "minecraft:oak_fence");
+        assert_eq!(layer(&world), "minecraft:air");
+        assert_eq!(
+            held_stack(&world, player).item_id(),
+            "minecraft:water_bucket"
+        );
     }
 
     #[test]
