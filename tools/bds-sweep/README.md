@@ -16,6 +16,8 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `sweep.py` | T2: one sweep job under Endstone with `bds-sweep-client` as the player; output in `<runtime>/sweeps/1.26.51/<kind>-<UTC>/` |
 | `endstone-sweep/` | The Endstone Python plugin that runs jobs server-side (inert unless `BDS_SWEEP_JOB` is set) |
 | `summarize.py` | Raw sweep results to `crates/unastar-data/data/measured/` + `manifest.json` |
+| `knockback_fixture.py` | `knockback` sweeps (run with `--client-capture`) to the committed knockback fixture `crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-knockback.json`: per-tick mob positions, knockback events, and the mob's position and motion packets |
+| `replication_fixture.py` | `knockback --items cadence` / `cadence2` sweeps (run with `--observer --client-capture`) to the committed replication fixture `crates/unastar/src/entity/mob/net/testdata/bds-1.26.51-replication.json`: per-tick actor state, where each viewer stood, and each viewer's `AddActor`, `MoveActorDelta` and `SetActorMotion` about the actor |
 | `script.py` | Plays a `bds-sweep-client --script` scenario against plain BDS (no Endstone) and records the client's packets; the same script runs against unastar with `bds-sweep-client --addr <unastar> --script ...` |
 | `scripts/breaking.txt` | Survival block breaking scenarios: by hand, tools, instant, abort, a frozen client, Haste, a block above, client predictions on time and early, `StopDestroyBlock`, blocks put back where a break goes on, a burst of inputs |
 | `breaking_fixture.py` | Cuts the committed breaking fixture (`crates/unastar/src/server/game/blocks/testdata/bds-breaking.jsonl`) out of a `script.py` capture of `scripts/breaking.txt` |
@@ -115,6 +117,8 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `armor-wear` | durability one `/damage <player> D entity_attack` hit costs a worn piece, per D (1, 3, 4, 5, 7, 8, 12, 16, 40) | one breakable piece in its `armor_slots.json` slot, read back through Endstone before and after every hit |
 | `attack` | melee damage per held item, warm-up + 3 trials, and the held stack's durability damage after every trial | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value. `--gamemode survival` lets hits wear the item; `--items spears` adds every spear tier, `--gap` ticks apart |
 | `fuel` | furnace burn ticks per item | pool of 32 furnaces, 1 cobblestone input + the item as fuel |
+| `knockback` | one mob's motion, tick by tick, around the sweep player's hits (or under its AI) | a fresh cow or zombie, frozen with Slowness 255 or left to its AI; before each hit the player is put 2 blocks west (or south-west) of it, facing east (or west); Endstone samples position, rotation, velocity (the last tick's position change) and ground contact every tick, and records each `ActorKnockbackEvent` (its `knockback` is the velocity change applied). `--items slice` (hits), `air` (tempted cows jumping a step, mobs hit while falling, a panicking cow), `far` (cows falling at 4-48 blocks, for the send rate by distance), `cadence` and `cadence2` (two viewers per actor, see below) |
+| `knockback-reload` | whether a zombie's knockback response survives a save and load | `--items spawn --keep-world`: three named, frozen zombies 200 blocks from the world spawn, each hit once and left in the world; then `--items reload --world-from <spawn run>/world`: the loaded zombies (found by name) hit again; the server starts at easy, as peaceful would remove them |
 | `scenarios` | block states BDS stores after a scripted sequence of block sets (with or without the block update a placement triggers), waits and reads | items from `scenarios.py` families run in waves of up to 64 cells (6 blocks apart, east of the player); one wait covers a wave; touched cells are cleared without updates and the superflat layers restored after each wave |
 | `placements` | what BDS stores and sends when the survival player clicks a block face with a stack (blocks read back, the held stack, every packet both ways) | per item: the arena box around (4,-60,4) is cleared, its blocks set with block updates, the stack put in hotbar slot 0 with `/replaceitem` (the inventory API does not reach the client), the player teleported with its look; chat markers `bds-sweep:mark <key>` / `bds-sweep:mark end` cut the client capture (`--capture-dir`, on automatically) per item |
 | `item-blocks` | the block state BDS describes a stack of each item with | `/replaceitem` of every registry item into hotbar slot 0, one per two ticks behind a chat marker; slot 0 of the next main-inventory `InventoryContent` in the client capture |
@@ -139,10 +143,33 @@ python tools/bds-sweep/script.py tools/bds-sweep/scripts/breaking.txt --out <dir
 & $py tools/bds-sweep/summarize.py scenarios <dir>
 & $py tools/bds-sweep/summarize.py placements <dir>   # -> crates/unastar/src/server/game/testdata/bds-placements.json
 & $py tools/bds-sweep/summarize.py item-blocks <dir>  # -> data/measured/item_blocks.json
+& $py tools/bds-sweep/sweep.py knockback --items slice --client-capture   # also air, far
+python tools/bds-sweep/knockback_fixture.py <fixture.json> <sweep dir> [<sweep dir> ...]
+& $py tools/bds-sweep/sweep.py knockback --items cadence --observer --client-capture --view-distance 10 --tick-distance 10
+python tools/bds-sweep/replication_fixture.py <fixture.json> <cadence dir> <cadence2 dir>
+& $py tools/bds-sweep/sweep.py knockback-reload --items spawn --client-capture --keep-world --out <spawn dir>
+& $py tools/bds-sweep/sweep.py knockback-reload --items reload --client-capture --world-from <spawn dir>/world
 ```
+
+`--items cadence` and `cadence2` measure how often each viewer gets a moving
+actor's position: run them with `--observer --client-capture --view-distance 10
+--tick-distance 10`. `--observer` starts a second `bds-sweep-client`
+(`BDSOther`, recorded to `<out>/observer/packets.jsonl`) a few seconds after the
+sweep player has spawned, since BDS refuses a second loopback login right
+after the first ("ip recently connected"); the job waits for it and an item's
+`observer` (x, y, z, yaw) places it. Items may run timed commands
+(`actions: [{t, commands}]`). BDS sends an actor only to viewers about four
+chunks around it whatever the view distance, and a cow more than 128 blocks
+from every player despawns at once, so keep trials inside both.
+`--keep-world` copies the world to `<out>/world` after BDS stops (read actor
+records from its LevelDB); `--world-from DIR` starts the next run from such a
+copy.
 
 `--client-capture` records the scripted client's packets (both directions) to
 `<out>/client-capture/packets.jsonl`, outside the repository like every raw result.
+The BDS process gets this checkout's `endstone-sweep/src` first on `PYTHONPATH`, so
+a worktree runs its own jobs even though the shared venv's editable install points
+at another checkout; the plugin logs `jobs loaded from <path>` at startup.
 
 Sweeps are resumable: rerun with the same `--out` and finished items
 (`results.jsonl`) are skipped. To hand the BDS over mid-run, create

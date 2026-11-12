@@ -13,12 +13,12 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 117 | 0 | 3 | 13 | 4 | 12.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1084 | 2660 | 277 | 15 | 46 | 7.2% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1084 | 2658 | 277 | 17 | 46 | 7.3% |
 | [Blocks](#blocks) | 1477 | 0 | 564 | 633 | 113 | 167 | 56.9% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
-| [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
+| [Protocol](#protocol) | 231 | 137 | 21 | 44 | 14 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
 
@@ -135,7 +135,7 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | pushable_by_block | 117 | 2 | 115 | 0 | 0 | 0 | 0.0% |
-| conditional_bandwidth_optimization | 116 | 101 | 14 | 0 | 0 | 1 | 0.0% |
+| conditional_bandwidth_optimization | 116 | 101 | 12 | 0 | 2 | 1 | 1.7% |
 | physics | 125 | 0 | 111 | 13 | 0 | 1 | 10.5% |
 | type_family | 124 | 1 | 109 | 13 | 0 | 1 | 10.6% |
 | collision_box | 124 | 0 | 109 | 14 | 0 | 1 | 11.4% |
@@ -604,7 +604,7 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | bidirectional | 80 | 44 | 13 | 16 | 1 | 6 | 23.0% |
-| clientbound | 146 | 88 | 8 | 30 | 11 | 9 | 29.9% |
+| clientbound | 146 | 88 | 8 | 28 | 13 | 9 | 29.9% |
 | serverbound | 5 | 5 | 0 | 0 | 0 | 0 | 0.0% |
 
 ### Protocol gaps
