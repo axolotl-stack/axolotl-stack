@@ -37,6 +37,15 @@ The server SHALL accept packets only in the order `RequestNetworkSettings`, `Log
 Evidence: crates/jolyne/src/proto/server.rs, crates/jolyne/src/proto/phase.rs (`unexpected`), crates/jolyne/src/proto/testdata/bds-1.26.51-join-s2c.txt, crates/jolyne/src/proto/tests.rs (`join_sequence_follows_the_bds_capture`, `post_encryption_packets_match_bds_bytes`), docs/parity/protocol.toml (`NetworkSettingsPacket`, `StartGamePacket` rows)
 Verified by: `tools/client-diff` (jolyne and gophertunnel clients complete `join-idle` and `join-chat` against BDS 1.26.51)
 
+### Requirement: Game packets before StartGame
+The server SHALL send the application's `WorldJoinParams::before_start_game` packets first in the `StartGame` batch, in their given order, before `DimensionData` and `JigsawStructureData`; jolyne MUST NOT inspect or reorder them.
+
+#### Scenario: Pre-StartGame packets open the StartGame batch
+- **WHEN** the application passes `LevelEventGeneric`, `PlayerList` and `SyncWorldClocks` in `before_start_game`
+- **THEN** the server sends them in that order directly before `JigsawStructureData`, in the same single batch as `StartGame`, and the packets still follow the BDS trace
+
+Evidence: crates/jolyne/src/proto/server.rs (`send_start_game`), crates/jolyne/src/world.rs (`WorldJoinParams`), crates/jolyne/src/proto/tests.rs (`game_packets_can_precede_start_game_in_its_batch`), docs/decisions/0044-send-pre-start-game-roster-packets-before-start-game.md
+
 ### Requirement: Exact protocol version
 The server SHALL accept only `PROTOCOL_VERSION` in both `RequestNetworkSettings` and `Login`. A mismatch MUST answer `PlayStatus` (`LoginFailedClientOld` when the client is older, `LoginFailedServerOld` otherwise) and fail with `ProtocolError::IncompatibleProtocol`, for which no further `Disconnect` is sent. The client MUST report a `PlayStatus` refusal as `JolyneError::LoginRefused`.
 

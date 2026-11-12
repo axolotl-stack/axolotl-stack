@@ -130,17 +130,9 @@ impl GameServer {
 
         let input_tick = crate::entity::components::input_tick_of(world, entity);
 
-        // BDS sends these two before StartGame; the earliest unastar can is
-        // right after it. The count includes the joining player.
+        // The sleeping-player count, the player's own list entry and the
+        // clock state went before StartGame (`roster::before_start_game`).
         let online = roster::online(world);
-        let _ = session.send(McpePacket::from(roster::sleeping_players(
-            online.len() as i32,
-            0,
-        )));
-        if let Some(own) = world.get::<roster::RosterEntry>(entity) {
-            let _ = session.send(McpePacket::from(roster::add_packet([own])));
-        }
-
         for packet in world
             .resource::<crate::entity::definition::properties::ActorPropertyRegistry>()
             .packets()
@@ -247,7 +239,9 @@ impl GameServer {
             return;
         };
         let online = roster::online(world);
-        let count = roster::sleeping_players(online.len() as i32, 0);
+        // Everyone online, joins still before their spawn included.
+        let count =
+            roster::sleeping_players(world.resource::<roster::OnlineRoster>().len() as i32, 0);
         let abilities = player_abilities(world, entity);
         for (other, _) in &online {
             if *other == entity {
@@ -265,14 +259,14 @@ impl GameServer {
     }
 
     /// Tells every other online player that `entity` is leaving: the new
-    /// sleeping-player count and the removal of its player-list entry.
-    pub(super) fn announce_leave(&self, entity: Entity) {
+    /// sleeping-player count (`remaining` online) and the removal of its
+    /// player-list entry.
+    pub(super) fn announce_leave(&self, entity: Entity, remaining: usize) {
         let world = self.ecs.world();
         let Some(entry) = world.get::<roster::RosterEntry>(entity) else {
             return;
         };
         let online = roster::online(world);
-        let remaining = online.iter().filter(|(other, _)| *other != entity).count();
         let count = roster::sleeping_players(remaining as i32, 0);
         let remove = roster::remove_packet(entry.uuid());
         for (other, _) in &online {

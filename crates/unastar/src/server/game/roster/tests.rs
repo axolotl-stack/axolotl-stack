@@ -4,6 +4,7 @@
 
 use super::*;
 use jolyne::auth::client::default_client_data;
+use jolyne::valentine::McpePacketData;
 use std::collections::HashMap;
 
 const CAPTURES: &str = concat!(
@@ -86,6 +87,56 @@ fn own_entry_matches_the_bds_member_join_byte_for_byte() {
         let colours = HashMap::from([(own.uuid, free_colour([]))]);
         assert_rebuilds(file, &colours);
     }
+}
+
+/// The packets that open the `StartGame` batch: the member join fixtures
+/// `00011`-`00013`, byte for byte, in that order.
+#[test]
+fn packets_before_start_game_match_the_bds_member_join_byte_for_byte() {
+    let native: PlayerListPacket = decode("member/join/00012-PlayerListPacket.bin");
+    let own = rebuilt(added(&native)[0], free_colour([]));
+    let ours = before_start_game(1, &own, crate::world::rules::WorldTime { ticks: 32 });
+    let ours: Vec<McpePacketData> = ours.into_iter().map(|packet| packet.data).collect();
+    let [
+        McpePacketData::LevelEventGenericPacket(count),
+        McpePacketData::PlayerListPacket(list),
+        McpePacketData::SyncWorldClocksPacket(clock),
+    ] = &ours[..]
+    else {
+        panic!("BDS order expected: {ours:?}");
+    };
+    for (bytes, file) in [
+        (
+            encode(count),
+            "member/join/00011-LevelEventGenericPacket.bin",
+        ),
+        (encode(list), "member/join/00012-PlayerListPacket.bin"),
+        (encode(clock), "member/join/00013-SyncWorldClocksPacket.bin"),
+    ] {
+        assert_eq!(bytes, payload(file), "{file}");
+    }
+}
+
+/// A reservation counts the joining player and holds its colour; a join that
+/// fails before the game loop takes it over gives both back, and a kept one
+/// stays until the player leaves.
+#[test]
+fn reservations_count_joins_and_free_their_colour_when_dropped() {
+    let roster = OnlineRoster::default();
+    let host = roster.reserve(1);
+    assert_eq!((host.colour(), host.online()), (PLAYER_COLOURS[0], 1));
+    host.keep();
+    let failed = roster.reserve(2);
+    assert_eq!((failed.colour(), failed.online()), (PLAYER_COLOURS[1], 2));
+    drop(failed);
+    assert_eq!(roster.len(), 1);
+    let guest = roster.reserve(3);
+    assert_eq!((guest.colour(), guest.online()), (PLAYER_COLOURS[1], 2));
+    guest.keep();
+    // The game loop finds the reserved colour, and frees it on the leave.
+    assert_eq!(roster.join(3), (PLAYER_COLOURS[1], 2));
+    assert_eq!(roster.leave(3), 1);
+    assert_eq!(roster.reserve(4).colour(), PLAYER_COLOURS[1]);
 }
 
 #[test]
@@ -232,10 +283,37 @@ mod server {
     use jolyne::valentine::{McpePacket, McpePacketData};
     use tokio::sync::mpsc::{Receiver, channel};
 
-    fn join(server: &mut GameServer, session: u64, name: &str) -> Receiver<McpePacket> {
+    /// A join as the connection task runs it: the roster place and the
+    /// packets before `StartGame`, then the spawn in the game loop.
+    fn join(
+        server: &mut GameServer,
+        session: u64,
+        name: &str,
+    ) -> (Vec<McpePacketData>, Receiver<McpePacket>) {
         let (outbound_tx, outbound_rx) = channel(256);
         let uuid = format!("00000000-0000-0000-0000-{session:012}");
         let client = jolyne::auth::client::default_client_data(name, uuid.parse().unwrap());
+        let world = server.ecs.world();
+        let reservation = world
+            .resource::<super::super::OnlineRoster>()
+            .reserve(session);
+        let own = super::super::RosterEntry::new(
+            uuid.parse().unwrap(),
+            session as i64,
+            name,
+            None,
+            &client,
+            reservation.colour(),
+        );
+        let before = super::super::before_start_game(
+            reservation.online(),
+            &own,
+            *world.resource::<crate::world::rules::WorldTime>(),
+        )
+        .into_iter()
+        .map(|packet| packet.data)
+        .collect();
+        reservation.keep();
         server
             .spawn_player_with_login(
                 PlayerSpawnData {
@@ -252,7 +330,7 @@ mod server {
                 Some(&client),
             )
             .unwrap();
-        outbound_rx
+        (before, outbound_rx)
     }
 
     fn drain(rx: &mut Receiver<McpePacket>) -> Vec<McpePacketData> {
@@ -299,31 +377,39 @@ mod server {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..ServerConfig::default()
         });
-        let mut host = join(&mut server, 1, "Host");
+        let (host_before, mut host) = join(&mut server, 1, "Host");
         let host_join = drain(&mut host);
-        assert_eq!(
-            player_lists(&host_join),
-            [vec!["Host".to_string()], vec!["Host".to_string()]]
-        );
+        // The count and the player's own entry open the StartGame batch;
+        // the join after StartGame lists everyone once.
         assert!(matches!(
-            &host_join[..2],
+            &host_before[..],
             [
                 McpePacketData::LevelEventGenericPacket(_),
-                McpePacketData::PlayerListPacket(_)
+                McpePacketData::PlayerListPacket(_),
+                McpePacketData::SyncWorldClocksPacket(_)
             ]
         ));
+        assert_eq!(player_lists(&host_before), [vec!["Host".to_string()]]);
+        assert_eq!(player_lists(&host_join), [vec!["Host".to_string()]]);
+        assert!(
+            !host_join
+                .iter()
+                .any(|packet| matches!(packet, McpePacketData::LevelEventGenericPacket(_)))
+        );
         // After the full list, each listed player's abilities in list order
         // (`protocol/abilities` joins: the host's, then the joiner's own).
         assert_eq!(abilities_after_full_list(&host_join), [1]);
-        let mut guest = join(&mut server, 2, "Guest");
+        let (guest_before, mut guest) = join(&mut server, 2, "Guest");
         let guest_join = drain(&mut guest);
         assert_eq!(abilities_after_full_list(&guest_join), [1, 2]);
         assert_eq!(
+            guest_before[0],
+            McpePacketData::LevelEventGenericPacket(super::super::sleeping_players(2, 0))
+        );
+        assert_eq!(player_lists(&guest_before), [vec!["Guest".to_string()]]);
+        assert_eq!(
             player_lists(&guest_join),
-            [
-                vec!["Guest".to_string()],
-                vec!["Host".to_string(), "Guest".to_string()]
-            ]
+            [vec!["Host".to_string(), "Guest".to_string()]]
         );
         let guest_entry = super::super::online(server.ecs.world())
             .into_iter()

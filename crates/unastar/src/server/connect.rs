@@ -19,6 +19,21 @@ use crate::storage::{PlayerData, PlayerProvider};
 pub struct JoinWorld<'a> {
     pub template: &'a WorldTemplate,
     pub state: &'a crate::world::rules::StartGameWorldState,
+    /// Who is online; the join reserves its place before StartGame.
+    pub roster: &'a crate::server::game::roster::OnlineRoster,
+}
+
+/// A join that reached the client's chunk radius request.
+pub struct AcceptedJoin {
+    pub play: ServerPlayStream,
+    pub identity: ValidatedIdentity,
+    pub position: Vec3,
+    pub saved_data: Option<PlayerData>,
+    pub client_data: ClientData,
+    /// The player's place in the online roster; give it to the game loop
+    /// with [`Reservation::keep`](crate::server::game::roster::Reservation::keep)
+    /// once it has the player, or drop it to free the place.
+    pub reservation: crate::server::game::roster::Reservation,
 }
 
 /// Performs the complete join sequence for a connecting player.
@@ -29,8 +44,10 @@ pub struct JoinWorld<'a> {
 /// 3. Encryption handshake
 /// 4. Resource pack negotiation
 /// 5. Spawn location resolution
-/// 6. Start game packet, returning at the client's chunk radius request
-///    (streamed spawn: the client has not initialized yet)
+/// 6. A place in the online roster, then the packets BDS sends before
+///    `StartGame` (sleeping-player count, the player's own list entry, the
+///    clock state) and `StartGame`, returning at the client's chunk radius
+///    request (streamed spawn: the client has not initialized yet)
 ///
 /// A failed step sends the client a reasoned disconnect before returning.
 pub async fn accept_join_sequence(
@@ -41,16 +58,7 @@ pub async fn accept_join_sequence(
     player_provider: Option<&dyn PlayerProvider>,
     session_id: u64,
     handshake_stream: ServerHandshakeStream,
-) -> Result<
-    (
-        ServerPlayStream,
-        ValidatedIdentity,
-        Vec3,
-        Option<PlayerData>,
-        ClientData,
-    ),
-    JolyneError,
-> {
+) -> Result<AcceptedJoin, JolyneError> {
     /// Tells the client why a join step failed, then surfaces the error.
     async fn reasoned<T>(
         step: impl Future<Output = Result<T, Failed<RakNetTransport>>>,
@@ -129,12 +137,37 @@ pub async fn accept_join_sequence(
         y: spawn.yaw,
     };
 
+    // BDS counts the player as online, with its colour, from here on, and
+    // opens the StartGame batch with the count, the player's own list entry
+    // and the clock state (member join fixtures 00011-00013).
+    let reservation = world.roster.reserve(session_id);
+    let own = crate::server::game::roster::RosterEntry::new(
+        identity.uuid(),
+        session_id as i64,
+        identity.display_name(),
+        identity.xuid(),
+        &client_data,
+        reservation.colour(),
+    );
+    join_params.before_start_game = crate::server::game::roster::before_start_game(
+        reservation.online(),
+        &own,
+        world.state.time(),
+    );
+
     // 7. Join. The streamed spawn returns at the client's radius request, before
     // it initializes: the chunk systems send the view, the chunks they have and
     // `PlayStatus(PlayerSpawn)`, and keep streaming while the client loads (BDS
     // order). The play receive path enforces `SetLocalPlayerAsInitialized`.
     let play = reasoned(start_game_state.start_game_streamed(join_params)).await?;
-    Ok((play, identity, initial_position, saved_data, client_data))
+    Ok(AcceptedJoin {
+        play,
+        identity,
+        position: initial_position,
+        saved_data,
+        client_data,
+        reservation,
+    })
 }
 
 /// Load validated player state once, before StartGame and ECS spawning.

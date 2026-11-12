@@ -385,6 +385,45 @@ async fn join_sequence_follows_the_bds_capture() {
     );
 }
 
+/// The application's `before_start_game` packets open the `StartGame` batch
+/// in their own order, ahead of `JigsawStructureData`, where BDS 1.26.51 sends
+/// the sleeping-player event, the joining player's list entry and the clock
+/// state; the client defers them into its play session.
+#[tokio::test]
+async fn game_packets_can_precede_start_game_in_its_batch() {
+    use McpePacketName as N;
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let mut params = params(7);
+    params.before_start_game = vec![
+        McpePacket::from(crate::valentine::LevelEventGenericPacket::default()),
+        McpePacket::from(crate::valentine::PlayerListPacket::default()),
+        McpePacket::from(crate::valentine::SyncWorldClocksPacket::default()),
+    ];
+    let (mut spawn, mut client) = harness.through_packs(params).await;
+    // One batch, LevelEventGeneric .. CreativeContent.
+    assert_eq!(pump(&mut spawn, &mut client), 1);
+    let (_server, client) = finish_spawn(spawn, client);
+    let sent: Vec<_> = harness.sent.lock().iter().map(|(name, _)| *name).collect();
+    let first = sent
+        .iter()
+        .position(|name| *name == N::LevelEventGenericPacket)
+        .expect("LevelEventGeneric sent");
+    assert_eq!(
+        sent[first..first + 4],
+        [
+            N::LevelEventGenericPacket,
+            N::PlayerListPacket,
+            N::SyncWorldClocksPacket,
+            N::JigsawStructureDataPacket
+        ]
+    );
+    follow_bds_trace(&sent);
+    assert_eq!(client.session.session.runtime_id(), 7);
+}
+
 /// BDS sends `StartGame` with the structure and definition packets in one
 /// batch, and gophertunnel answers `RequestChunkRadius` with
 /// `ChunkRadiusUpdated` and `PlayStatus(PlayerSpawn)` in one flush; under the

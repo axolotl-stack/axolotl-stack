@@ -581,8 +581,8 @@ impl WorldReady {
         &self.login
     }
 
-    /// Sends `DimensionData` (when set), `JigsawStructureData`, `VoxelShapes`,
-    /// `StartGame`, `ItemRegistry` and the definition lists as one batch
+    /// Sends the application's `before_start_game` packets, `DimensionData`
+    /// (when set), `JigsawStructureData`, `VoxelShapes`, `StartGame`, `ItemRegistry` and the definition lists as one batch
     /// whatever the flush mode (BDS order and batching; definitions precede
     /// the client's `RequestChunkRadius`). jolyne answers the radius request
     /// with `ChunkRadiusUpdated` and `PlayStatus(PlayerSpawn)` and hands over
@@ -619,6 +619,9 @@ impl WorldReady {
         streamed: bool,
     ) -> Result<ServerSpawn, Failure<Self>> {
         let result = self.conn.queue_group(|conn| {
+            for packet in &params.before_start_game {
+                conn.queue_packet(packet, now)?;
+            }
             if let Some(dimensions) = &params.dimension_data {
                 conn.queue_body(
                     McpePacketName::DimensionDataPacket,

@@ -250,6 +250,12 @@ impl UnastarServer {
                     .world()
                     .resource::<crate::world::rules::StartGameWorldState>()
                     .clone(),
+                roster: self
+                    .server
+                    .ecs
+                    .world()
+                    .resource::<crate::server::game::roster::OnlineRoster>()
+                    .clone(),
                 key: self.server_key.clone(),
                 config: self.config.clone(),
                 player_data_store: self.player_data_store.clone(),
@@ -490,6 +496,7 @@ fn spawn_or_reject(
 struct AcceptLoopState {
     template: Arc<jolyne::WorldTemplate>,
     world_state: crate::world::rules::StartGameWorldState,
+    roster: crate::server::game::roster::OnlineRoster,
     key: SecretKey,
     config: Arc<UnastarConfig>,
     player_data_store: Arc<PlayerDataStore>,
@@ -506,6 +513,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
         let AcceptLoopState {
             template,
             world_state,
+            roster,
             key,
             config,
             player_data_store,
@@ -535,6 +543,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
 
                     let template = template.clone();
                     let world_state = world_state.clone();
+                    let roster = roster.clone();
                     let key = key.clone();
                     let config = config.clone();
                     let player_data_store = player_data_store.clone();
@@ -550,6 +559,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                             crate::server::connect::JoinWorld {
                                 template: &template,
                                 state: &world_state,
+                                roster: &roster,
                             },
                             &key,
                             &config,
@@ -560,13 +570,14 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                         )
                         .await
                         {
-                            Ok((
-                                mut play_stream,
+                            Ok(crate::server::connect::AcceptedJoin {
+                                play: mut play_stream,
                                 identity,
-                                initial_position,
+                                position: initial_position,
                                 saved_data,
                                 client_data,
-                            )) => {
+                                reservation,
+                            }) => {
                                 let display_name = identity.display_name().to_string();
 
                                 info!(%addr, name = %display_name, "Player joined");
@@ -612,6 +623,9 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                 {
                                     return; // Server shutting down
                                 }
+                                // The game loop frees the place when the
+                                // session's Disconnected arrives.
+                                reservation.keep();
 
                                 run_network_loop(
                                     play_stream,

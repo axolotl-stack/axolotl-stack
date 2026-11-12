@@ -46,7 +46,7 @@ sequenceDiagram
 
     Note over Server: Start Game Sequence
 
-    Server->>Client: [DimensionData] (optional), JigsawStructureData, VoxelShapes
+    Server->>Client: [before_start_game packets], [DimensionData] (optional), JigsawStructureData, VoxelShapes
     Server->>Client: StartGame
     Server->>Client: ItemRegistry
     Server->>Client: BiomeDefinitionList
@@ -88,7 +88,7 @@ sequenceDiagram
 - **ClientCacheStatus**: Clients may send this to indicate blob cache support. It should be handled (usually ignored if cache not implemented) without blocking the flow.
 
 ### 3. Spawn Sequence
-- `DimensionData` (only for custom dimensions), `JigsawStructureData` and `VoxelShapes` precede `StartGame`, followed by `ItemRegistry` and the definition lists, in one batch in BDS/gophertunnel order. The client disconnects with "Missing structure data from server." when `JigsawStructureData` is missing (gophertunnel sends empty lists; BDS sends its full definitions).
+- The application's `WorldJoinParams::before_start_game` packets come first (BDS sends the sleeping-player `LevelEventGeneric`, the joining player's own `PlayerList` entry and the clock state `SyncWorldClocks` there). `DimensionData` (only for custom dimensions), `JigsawStructureData` and `VoxelShapes` precede `StartGame`, followed by `ItemRegistry` and the definition lists, in one batch in BDS/gophertunnel order. The client disconnects with "Missing structure data from server." when `JigsawStructureData` is missing (gophertunnel sends empty lists; BDS sends its full definitions).
 - The client requests its chunk radius after `StartGame`. A client reads a `NetworkChunkPublisherUpdate` before `PlayStatus(PlayerSpawn)` as "terrain for this view is coming" and may withhold `SetLocalPlayerAsInitialized` until every column of it has arrived (Cinnabar does; BDS follows its pre-spawn publisher update with the spawn-area `LevelChunk`s). Announcing a view without sending it deadlocks such clients into `Timeout(Spawn)` (Unastar, 2026-10-28), so the view is only ever announced by whoever sends the chunks:
   - `start_game` (gophertunnel `handleRequestChunkRadius` order): jolyne answers with `ChunkRadiusUpdated` and `PlayStatus(PlayerSpawn)` in one batch, no publisher update, and hands over the session at `SetLocalPlayerAsInitialized`. The client starts with an empty view; the application publishes it with its first chunks (Dragonfly does the same).
   - `start_game_streamed` (BDS order): jolyne answers with `ChunkRadiusUpdated` alone and hands over the session at once, not yet initialized (`is_initialized()` is false), except when a matching `SetLocalPlayerAsInitialized` already arrived before the radius request: then the session it hands over is already initialized. The application sends `NetworkChunkPublisherUpdate`, the chunks it already has, and `PlayStatus(PlayerSpawn)`; it never holds `PlayerSpawn` back for chunk generation, and keeps streaming while the client loads. The play receive path (`Session::next_packet`, `BedrockStream::recv_packet*`) checks `SetLocalPlayerAsInitialized` and fails with `Timeout(Spawn)` at the spawn deadline; packets the client sent during the join are replayed into the session first.
