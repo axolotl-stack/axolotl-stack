@@ -1,0 +1,98 @@
+# Survival block breaking, for packet captures of the same scripted player
+# against BDS and unastar: `bds-sweep-client --script tools/bds-sweep/scripts/breaking.txt
+# --capture-dir DIR` (the player must be an operator). Ticks are the
+# client's input ticks; a pause delays every later step.
+#
+# Arena as the sweep plugin builds it: a stone floor at y=-61, the player at
+# (0.5,-60,0.5) facing east (yaw -90) at the west face (4) of (1,-59,0).
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /time set 6000
+25 /fill -4 -61 -4 4 -61 4 stone
+26 /fill -4 -60 -4 4 -55 4 air
+27 /gamemode survival @s
+28 /clear @s
+29 /tp @s 0.5 -60 0.5 -90 0
+40 /setblock 1 -59 0 dirt
+
+# 1. Dirt by hand: the server completes the break on the 15th input; the
+#    client keeps continuing on the air until the stop.
+60 mine 1 -59 0 4 0
+90 stop
+
+# 2. Stone with a diamond pickaxe (6 inputs); the pickaxe wears. Drops are
+#    picked up, so clear them and the inventory before the give (slot 0).
+98 /kill @e[type=item]
+99 /clear @s
+100 /setblock 1 -59 0 stone
+101 /give @s diamond_pickaxe
+120 mine 1 -59 0 4 0
+140 stop
+141 /clear @s
+
+# 3. Short grass: an instant break.
+150 /setblock 1 -59 0 short_grass
+160 mine 1 -59 0 4 0
+170 stop
+
+# 4. Dirt, aborted after 5 inputs.
+180 /setblock 1 -59 0 dirt
+190 mine 1 -59 0 4 0
+195 stop
+
+# 5. A frozen client: 6 inputs, 10 ticks without any input, then on.
+220 mine 1 -59 0 4 0
+225 pause 10
+260 stop
+
+# 6. Haste II (8 inputs).
+270 /setblock 1 -59 0 dirt
+271 /effect @s haste 1000 1 true
+280 mine 1 -59 0 4 0
+300 stop
+301 /effect @s clear
+
+# 7. A block above the broken one.
+310 /setblock 1 -58 0 stone
+311 /setblock 1 -59 0 dirt
+320 mine 1 -59 0 4 0
+350 stop
+351 /setblock 1 -58 0 air
+
+# 8. The client predicts the break on time (the 15th input).
+360 /setblock 1 -59 0 dirt
+370 mine 1 -59 0 4 14
+400 stop
+
+# 9. The client predicts early (the 8th input), on another block so it
+#    cannot inherit the state step 8 leaves behind.
+410 /setblock 1 -59 1 dirt
+420 mine 1 -59 1 4 7
+450 stop
+
+# 10. The button released after 5 inputs (StopDestroyBlock, the default
+#     position): the break goes on and completes on the 15th input. It then
+#     goes on from zero over the air: dirt put back 4 inputs later breaks 15
+#     inputs after the first break.
+460 /setblock 1 -59 0 dirt
+470 mine 1 -59 0 4 0
+475 release
+488 /setblock 1 -59 0 dirt
+
+# 11. Start and continue on the air of the position still being broken
+#     (crack speed 0; the progress and speed are kept): dirt put back on the
+#     3rd input breaks on the 5th, 15 inputs after the last break; then
+#     released.
+510 mine 1 -59 0 4 0
+512 /setblock 1 -59 0 dirt
+530 release
+
+# 12. A burst on another block: the 2nd input is followed by 14 more at once
+#     (a client running faster than real time). Last, in case BDS queues them.
+560 /setblock 1 -59 -1 dirt
+570 mine 1 -59 -1 4 0
+571 burst 14
+600 stop
+640 exit

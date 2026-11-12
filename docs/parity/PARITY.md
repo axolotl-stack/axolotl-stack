@@ -14,8 +14,8 @@ Each domain's first line is its headline: the rows its family table, gap list an
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 117 | 0 | 3 | 13 | 4 | 12.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1084 | 2660 | 277 | 15 | 46 | 7.2% |
-| [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
+| [Blocks](#blocks) | 1477 | 0 | 564 | 633 | 113 | 167 | 56.9% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
@@ -45,31 +45,31 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 55 |
 
-**Blocks**: 381 open rows free, 487 claimed.
+**Blocks**: 315 open rows free, 249 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | functional (part claimed) | 62 | 0 | 62 |
-| plants | 53 | 0 | 53 |
-| surface_dynamic (part claimed) | 48 | 0 | 48 |
-| building_blocks | 45 | 0 | 45 |
+| surface_dynamic (part claimed) | 47 | 0 | 47 |
 | coral | 35 | 0 | 35 |
 | candles | 34 | 0 | 34 |
 | copper_oxidising | 33 | 0 | 33 |
-| carpets | 18 | 0 | 18 |
-| 7 more families | 53 | 0 | 53 |
+| building_blocks | 28 | 0 | 28 |
+| plants | 22 | 0 | 22 |
+| leaves | 14 | 0 | 14 |
+| 7 more families | 40 | 0 | 40 |
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Block behaviour families, gravity, fire and redstone | lane BLOCKS | 2026-10-29 | 470 |
+| Block behaviour families, gravity, fire and redstone | lane BLOCKS | 2026-10-29 | 232 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
-**Items**: 0 open rows free, 1069 claimed.
+**Items**: 0 open rows free, 950 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Item use | lane ITEMS | 2026-10-29 | 1069 |
+| Item use | lane ITEMS | 2026-10-29 | 950 |
 
 **Commands**: 0 open rows free, 65 claimed.
 
@@ -94,11 +94,11 @@ Nothing in this domain is claimed.
 | Bedrock world generation | lane BED | 2026-10-29 | 491 |
 | Java world generation | lane JAVA | 2026-10-29 | 47 |
 
-**Gameplay systems**: 53 open rows free, 15 claimed.
+**Gameplay systems**: 52 open rows free, 16 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
-| player | 16 | 5 | 11 |
+| player (part claimed) | 15 | 5 | 10 |
 | world (part claimed) | 14 | 6 | 8 |
 | mobs | 10 | 8 | 2 |
 | interface | 6 | 4 | 2 |
@@ -110,6 +110,7 @@ Nothing in this domain is claimed.
 | Gravity, fire and redstone | lane BLOCKS | 2026-10-29 | 4 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 1 |
 | Workstations: crafting, smelting, anvil, grindstone, smithing, brewing, enchanting | lane ITEMS | 2026-10-29 | 8 |
+| Survival block breaking | lane ITEMS | 2026-11-10 | 1 |
 | Generation speed | lane PERF | 2026-10-29 | 1 |
 | Chunk streaming | lane LOAD | 2026-10-29 | 1 |
 
@@ -207,13 +208,13 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | air | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| attached_lights | 25 | 0 | 19 | 6 | 0 | 0 | 24.0% |
+| attached_lights | 25 | 0 | 11 | 11 | 3 | 0 | 56.0% |
 | banners | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | beds | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
-| building_blocks | 230 | 0 | 45 | 185 | 0 | 0 | 80.4% |
+| building_blocks | 230 | 0 | 28 | 200 | 2 | 0 | 87.8% |
 | buttons | 15 | 0 | 15 | 0 | 0 | 0 | 0.0% |
 | candles | 34 | 0 | 34 | 0 | 0 | 0 | 0.0% |
-| carpets | 18 | 0 | 18 | 0 | 0 | 0 | 0.0% |
+| carpets | 18 | 0 | 1 | 0 | 17 | 0 | 94.4% |
 | copper_oxidising | 51 | 0 | 33 | 18 | 0 | 0 | 35.3% |
 | coral | 40 | 0 | 35 | 5 | 0 | 0 | 12.5% |
 | crops_growing | 32 | 0 | 32 | 0 | 0 | 0 | 0.0% |
@@ -221,67 +222,63 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 | education | 166 | 0 | 0 | 0 | 0 | 166 | n/a |
 | falling | 5 | 0 | 2 | 3 | 0 | 0 | 60.0% |
 | fence_gates | 13 | 0 | 13 | 0 | 0 | 0 | 0.0% |
-| fences | 14 | 0 | 14 | 0 | 0 | 0 | 0.0% |
-| functional | 83 | 0 | 72 | 10 | 1 | 0 | 13.3% |
+| fences | 14 | 0 | 0 | 11 | 3 | 0 | 100.0% |
+| functional | 83 | 0 | 72 | 9 | 2 | 0 | 13.3% |
 | leaves | 14 | 0 | 14 | 0 | 0 | 0 | 0.0% |
 | liquids | 5 | 0 | 5 | 0 | 0 | 0 | 0.0% |
-| logs_stems | 51 | 0 | 1 | 50 | 0 | 0 | 98.0% |
+| logs_stems | 51 | 0 | 1 | 49 | 1 | 0 | 98.0% |
 | ores | 19 | 0 | 14 | 5 | 0 | 0 | 26.3% |
-| panes_bars | 26 | 0 | 26 | 0 | 0 | 0 | 0.0% |
-| plants | 54 | 0 | 53 | 1 | 0 | 0 | 1.9% |
+| panes_bars | 26 | 0 | 4 | 20 | 2 | 0 | 84.6% |
+| plants | 54 | 0 | 22 | 19 | 13 | 0 | 59.3% |
 | pressure_plates | 17 | 0 | 17 | 0 | 0 | 0 | 0.0% |
 | rails | 4 | 0 | 4 | 0 | 0 | 0 | 0.0% |
 | redstone | 39 | 0 | 39 | 0 | 0 | 0 | 0.0% |
 | saplings | 10 | 0 | 10 | 0 | 0 | 0 | 0.0% |
 | signs | 39 | 0 | 39 | 0 | 0 | 0 | 0.0% |
-| slabs | 202 | 0 | 77 | 125 | 0 | 0 | 61.9% |
-| stairs | 97 | 0 | 97 | 0 | 0 | 0 | 0.0% |
-| surface_dynamic | 62 | 0 | 52 | 10 | 0 | 0 | 16.1% |
+| slabs | 202 | 0 | 8 | 128 | 66 | 0 | 96.0% |
+| stairs | 97 | 0 | 4 | 91 | 2 | 0 | 95.9% |
+| surface_dynamic | 62 | 0 | 51 | 10 | 1 | 0 | 17.7% |
 | technical | 31 | 0 | 8 | 22 | 0 | 1 | 73.3% |
 | trapdoors | 22 | 0 | 22 | 0 | 0 | 0 | 0.0% |
-| walls | 32 | 0 | 32 | 0 | 0 | 0 | 0.0% |
+| walls | 32 | 0 | 0 | 31 | 1 | 0 | 100.0% |
 
 ### Blocks gaps
 
 **attached_lights**
 
-- `minecraft:lantern`, `minecraft:soul_lantern`, `minecraft:waxed_copper_lantern`, `minecraft:waxed_exposed_copper_lantern`, `minecraft:waxed_oxidized_copper_lantern`, `minecraft:waxed_weathered_copper_lantern`: hanging not set when placed under a block; no support check (stays when the block holding it is removed)
-- `minecraft:copper_chain`, `minecraft:exposed_copper_chain`, `minecraft:weathered_copper_chain`: no oxidation over time; no honeycomb waxing
-- `minecraft:copper_lantern`, `minecraft:exposed_copper_lantern`, `minecraft:weathered_copper_lantern`: hanging not set when placed under a block; no support check (stays when the block holding it is removed); no oxidation over time; no honeycomb waxing
-- `minecraft:copper_torch`, `minecraft:soul_torch`, `minecraft:torch`: no support check (stays when the block holding it is removed); placement refusal and fallback-face rules only partly match BDS
-- `minecraft:end_rod`: facing_direction not set from the clicked face; no support check (stays when the block holding it is removed)
-- 3 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- `minecraft:copper_chain`, `minecraft:copper_lantern`, `minecraft:exposed_copper_chain`, `minecraft:exposed_copper_lantern`, `minecraft:weathered_copper_chain`, `minecraft:weathered_copper_lantern`: no oxidation over time; no honeycomb waxing
+- `minecraft:copper_torch`, `minecraft:soul_torch`, `minecraft:torch`: placement refusal and fallback-face rules only partly match BDS
+- `minecraft:oxidized_copper_chain`, `minecraft:oxidized_copper_lantern`: no honeycomb waxing
 
 **banners**
 
-- `minecraft:standing_banner`: not placed by the banner item; no banner block actor (colour, patterns); no support check (stays when the block holding it is removed)
-- `minecraft:wall_banner`: not placed on walls by the banner item; no banner block actor (colour, patterns); no support check (stays when the block holding it is removed)
+- `minecraft:standing_banner`: not placed by the banner item; no banner block actor (colour, patterns)
+- `minecraft:wall_banner`: not placed on walls by the banner item; no banner block actor (colour, patterns); its support check (the measured wall-banner holders) is not replayed against the support sweep
 
 **beds**
 
-- `minecraft:bed`, `minecraft:straw_bed`: places only one block (no head half); no sleeping, spawn point or explosion outside the Overworld; no colour block actor
+- `minecraft:bed`, `minecraft:straw_bed`: no sleeping, spawn point or explosion outside the Overworld; no colour block actor
 
 **building_blocks**
 
-- `minecraft:black_glazed_terracotta`, `minecraft:blue_glazed_terracotta`, `minecraft:brown_glazed_terracotta`, `minecraft:cyan_glazed_terracotta`, `minecraft:gray_glazed_terracotta`, `minecraft:green_glazed_terracotta`, `minecraft:light_blue_glazed_terracotta`, `minecraft:lime_glazed_terracotta`, `minecraft:magenta_glazed_terracotta`, `minecraft:orange_glazed_terracotta`, `minecraft:pink_glazed_terracotta`, `minecraft:purple_glazed_terracotta` and 4 more: facing_direction not set from the player look (placed with the default facing)
 - `minecraft:infested_chiseled_stone_bricks`, `minecraft:infested_cobblestone`, `minecraft:infested_cracked_stone_bricks`, `minecraft:infested_deepslate`, `minecraft:infested_mossy_stone_bricks`, `minecraft:infested_stone`, `minecraft:infested_stone_bricks`: breaking does not release a silverfish
-- `minecraft:waxed_exposed_lightning_rod`, `minecraft:waxed_lightning_rod`, `minecraft:waxed_oxidized_lightning_rod`, `minecraft:waxed_weathered_lightning_rod`: facing_direction not set from the clicked face; no lightning attraction or redstone output; no axe wax removal
+- `minecraft:waxed_exposed_lightning_rod`, `minecraft:waxed_lightning_rod`, `minecraft:waxed_oxidized_lightning_rod`, `minecraft:waxed_weathered_lightning_rod`: no lightning attraction or redstone output; no axe wax removal
 - `minecraft:carved_pumpkin`, `minecraft:lit_pumpkin`: placing it does not build snow or iron golems
 - `minecraft:deprecated_purpur_block_1`, `minecraft:deprecated_purpur_block_2`: legacy block; drops and load upgrade not checked against BDS
-- 14 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- `minecraft:exposed_lightning_rod`, `minecraft:weathered_lightning_rod`: no lightning attraction or redstone output; no oxidation over time; no axe scraping or honeycomb waxing
+- 11 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **buttons**
 
-- `minecraft:acacia_button`, `minecraft:bamboo_button`, `minecraft:birch_button`, `minecraft:cherry_button`, `minecraft:crimson_button`, `minecraft:dark_oak_button`, `minecraft:jungle_button`, `minecraft:mangrove_button`, `minecraft:pale_oak_button`, `minecraft:polished_blackstone_button`, `minecraft:poplar_button`, `minecraft:spruce_button` and 3 more: facing_direction not set from the clicked face; cannot be pressed; no redstone power; no support check (stays when the block holding it is removed)
+- `minecraft:acacia_button`, `minecraft:bamboo_button`, `minecraft:birch_button`, `minecraft:cherry_button`, `minecraft:crimson_button`, `minecraft:dark_oak_button`, `minecraft:jungle_button`, `minecraft:mangrove_button`, `minecraft:pale_oak_button`, `minecraft:polished_blackstone_button`, `minecraft:poplar_button`, `minecraft:spruce_button` and 3 more: cannot be pressed; no redstone power
 
 **candles**
 
-- `minecraft:black_candle`, `minecraft:blue_candle`, `minecraft:brown_candle`, `minecraft:candle`, `minecraft:cyan_candle`, `minecraft:gray_candle`, `minecraft:green_candle`, `minecraft:light_blue_candle`, `minecraft:light_gray_candle`, `minecraft:lime_candle`, `minecraft:magenta_candle`, `minecraft:orange_candle` and 5 more: candles do not stack into one block; cannot be put out; lighting is not covered by a test; no support check (stays when the block holding it is removed)
+- `minecraft:black_candle`, `minecraft:blue_candle`, `minecraft:brown_candle`, `minecraft:candle`, `minecraft:cyan_candle`, `minecraft:gray_candle`, `minecraft:green_candle`, `minecraft:light_blue_candle`, `minecraft:light_gray_candle`, `minecraft:lime_candle`, `minecraft:magenta_candle`, `minecraft:orange_candle` and 5 more: candles do not stack into one block; cannot be put out; lighting is not covered by a test
 - `minecraft:black_candle_cake`, `minecraft:blue_candle_cake`, `minecraft:brown_candle_cake`, `minecraft:candle_cake`, `minecraft:cyan_candle_cake`, `minecraft:gray_candle_cake`, `minecraft:green_candle_cake`, `minecraft:light_blue_candle_cake`, `minecraft:light_gray_candle_cake`, `minecraft:lime_candle_cake`, `minecraft:magenta_candle_cake`, `minecraft:orange_candle_cake` and 5 more: not made by placing a candle on a cake; cannot be eaten or put out; lighting is not covered by a test
 
 **carpets**
 
-- `minecraft:black_carpet`, `minecraft:blue_carpet`, `minecraft:brown_carpet`, `minecraft:cyan_carpet`, `minecraft:gray_carpet`, `minecraft:green_carpet`, `minecraft:light_blue_carpet`, `minecraft:light_gray_carpet`, `minecraft:lime_carpet`, `minecraft:magenta_carpet`, `minecraft:moss_carpet`, `minecraft:orange_carpet` and 5 more: no support check (stays when the block below is removed)
 - `minecraft:pale_moss_carpet`: side and upper states not computed from neighbours; no support check (stays when the block holding it is removed)
 
 **copper_oxidising**
@@ -295,29 +292,29 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **coral**
 
-- `minecraft:brain_coral`, `minecraft:bubble_coral`, `minecraft:fire_coral`, `minecraft:horn_coral`, `minecraft:tube_coral`: does not die without water; drops itself without silk touch (vanilla drops nothing); no support check (stays when the block holding it is removed)
-- `minecraft:brain_coral_block`, `minecraft:bubble_coral_block`, `minecraft:fire_coral_block`, `minecraft:horn_coral_block`, `minecraft:tube_coral_block`: does not die without water; drops itself instead of its dead block without silk touch
-- `minecraft:brain_coral_fan`, `minecraft:bubble_coral_fan`, `minecraft:fire_coral_fan`, `minecraft:horn_coral_fan`, `minecraft:tube_coral_fan`: does not die without water; drops itself without silk touch (vanilla drops nothing); coral_fan_direction not set from the click; no support check (stays when the block holding it is removed)
-- `minecraft:brain_coral_wall_fan`, `minecraft:bubble_coral_wall_fan`, `minecraft:fire_coral_wall_fan`, `minecraft:horn_coral_wall_fan`, `minecraft:tube_coral_wall_fan`: not placed on walls by the fan item; does not die without water; drops itself without silk touch (vanilla drops nothing); no support check (stays when the block holding it is removed)
-- `minecraft:dead_brain_coral`, `minecraft:dead_bubble_coral`, `minecraft:dead_fire_coral`, `minecraft:dead_horn_coral`, `minecraft:dead_tube_coral`: drops itself without silk touch (vanilla drops nothing); no support check (stays when the block holding it is removed)
+- `minecraft:brain_coral`, `minecraft:bubble_coral`, `minecraft:fire_coral`, `minecraft:horn_coral`, `minecraft:tube_coral`: does not die without water; no support check (stays when the block holding it is removed)
+- `minecraft:brain_coral_block`, `minecraft:bubble_coral_block`, `minecraft:fire_coral_block`, `minecraft:horn_coral_block`, `minecraft:tube_coral_block`: does not die without water
+- `minecraft:brain_coral_fan`, `minecraft:bubble_coral_fan`, `minecraft:fire_coral_fan`, `minecraft:horn_coral_fan`, `minecraft:tube_coral_fan`: does not die without water; coral_fan_direction not set from the click; no support check (stays when the block holding it is removed)
+- `minecraft:brain_coral_wall_fan`, `minecraft:bubble_coral_wall_fan`, `minecraft:fire_coral_wall_fan`, `minecraft:horn_coral_wall_fan`, `minecraft:tube_coral_wall_fan`: not placed on walls by the fan item; does not die without water; no support check (stays when the block holding it is removed)
+- `minecraft:dead_brain_coral`, `minecraft:dead_bubble_coral`, `minecraft:dead_fire_coral`, `minecraft:dead_horn_coral`, `minecraft:dead_tube_coral`: no support check (stays when the block holding it is removed)
 - 10 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **crops_growing**
 
-- `minecraft:amethyst_cluster`, `minecraft:large_amethyst_bud`, `minecraft:medium_amethyst_bud`, `minecraft:small_amethyst_bud`: minecraft:block_face not set from the clicked face; no growth from budding amethyst; no support check (stays when the block holding it is removed)
-- `minecraft:chorus_flower`, `minecraft:twisting_vines`, `minecraft:weeping_vines`: no growth; no support check (stays when the block holding it is removed)
-- `minecraft:cave_vines_body_with_berries`, `minecraft:cave_vines_head_with_berries`: glow berries cannot be picked; no growth; no support check (stays when the block holding it is removed)
-- `minecraft:bamboo`: no growth; no soil or support check (placed anywhere; stays when the block below is removed)
-- `minecraft:bamboo_sapling`: no growth into bamboo; no soil or support check (placed anywhere; stays when the block below is removed)
+- `minecraft:amethyst_cluster`, `minecraft:large_amethyst_bud`, `minecraft:medium_amethyst_bud`, `minecraft:small_amethyst_bud`: no growth from budding amethyst
+- `minecraft:bamboo`, `minecraft:weeping_vines`: no growth
+- `minecraft:cave_vines_body_with_berries`, `minecraft:cave_vines_head_with_berries`: glow berries cannot be picked; no growth
+- `minecraft:chorus_flower`, `minecraft:twisting_vines`: no growth; no support check (stays when the block holding it is removed)
+- `minecraft:bamboo_sapling`: no growth into bamboo
 - 21 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **doors**
 
-- `minecraft:acacia_door`, `minecraft:bamboo_door`, `minecraft:birch_door`, `minecraft:cherry_door`, `minecraft:crimson_door`, `minecraft:dark_oak_door`, `minecraft:jungle_door`, `minecraft:mangrove_door`, `minecraft:pale_oak_door`, `minecraft:poplar_door`, `minecraft:spruce_door`, `minecraft:warped_door` and 1 more: hinge not set from neighbours; does not open or close on use; breaking one half leaves the other half; no redstone power; no support check (stays when the block holding it is removed)
-- `minecraft:waxed_copper_door`, `minecraft:waxed_exposed_copper_door`, `minecraft:waxed_oxidized_copper_door`, `minecraft:waxed_weathered_copper_door`: hinge not set from neighbours; does not open or close on use; breaking one half leaves the other half; no redstone power; no support check (stays when the block holding it is removed); axe wax removal changes only the clicked half
-- `minecraft:exposed_copper_door`, `minecraft:weathered_copper_door`: hinge not set from neighbours; does not open or close on use; breaking one half leaves the other half; no redstone power; no support check (stays when the block holding it is removed); no oxidation over time; no honeycomb waxing; axe scraping changes only the clicked half
-- `minecraft:copper_door`: hinge not set from neighbours; does not open or close on use; breaking one half leaves the other half; no redstone power; no support check (stays when the block holding it is removed); no oxidation over time; no honeycomb waxing
-- `minecraft:iron_door`: hinge not set from neighbours; no redstone power (cannot be opened); breaking one half leaves the other half; no support check (stays when the block holding it is removed)
+- `minecraft:acacia_door`, `minecraft:bamboo_door`, `minecraft:birch_door`, `minecraft:cherry_door`, `minecraft:crimson_door`, `minecraft:dark_oak_door`, `minecraft:jungle_door`, `minecraft:mangrove_door`, `minecraft:pale_oak_door`, `minecraft:poplar_door`, `minecraft:spruce_door`, `minecraft:warped_door` and 1 more: hinge not set from neighbours; does not open or close on use; no redstone power
+- `minecraft:waxed_copper_door`, `minecraft:waxed_exposed_copper_door`, `minecraft:waxed_oxidized_copper_door`, `minecraft:waxed_weathered_copper_door`: hinge not set from neighbours; does not open or close on use; no redstone power; axe wax removal changes only the clicked half
+- `minecraft:exposed_copper_door`, `minecraft:weathered_copper_door`: hinge not set from neighbours; does not open or close on use; no redstone power; no oxidation over time; no honeycomb waxing; axe scraping changes only the clicked half
+- `minecraft:copper_door`: hinge not set from neighbours; does not open or close on use; no redstone power; no oxidation over time; no honeycomb waxing
+- `minecraft:iron_door`: hinge not set from neighbours; no redstone power (cannot be opened)
 - 1 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **falling**
@@ -327,11 +324,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **fence_gates**
 
-- `minecraft:acacia_fence_gate`, `minecraft:bamboo_fence_gate`, `minecraft:birch_fence_gate`, `minecraft:cherry_fence_gate`, `minecraft:crimson_fence_gate`, `minecraft:dark_oak_fence_gate`, `minecraft:fence_gate`, `minecraft:jungle_fence_gate`, `minecraft:mangrove_fence_gate`, `minecraft:pale_oak_fence_gate`, `minecraft:poplar_fence_gate`, `minecraft:spruce_fence_gate` and 1 more: does not open or close on use; in_wall_bit not set next to walls; no redstone power
-
-**fences**
-
-- `minecraft:acacia_fence`, `minecraft:bamboo_fence`, `minecraft:birch_fence`, `minecraft:cherry_fence`, `minecraft:crimson_fence`, `minecraft:dark_oak_fence`, `minecraft:jungle_fence`, `minecraft:mangrove_fence`, `minecraft:nether_brick_fence`, `minecraft:oak_fence`, `minecraft:pale_oak_fence`, `minecraft:poplar_fence` and 2 more: connection states not written to the world (derived only for collision)
+- `minecraft:acacia_fence_gate`, `minecraft:bamboo_fence_gate`, `minecraft:birch_fence_gate`, `minecraft:cherry_fence_gate`, `minecraft:crimson_fence_gate`, `minecraft:dark_oak_fence_gate`, `minecraft:fence_gate`, `minecraft:jungle_fence_gate`, `minecraft:mangrove_fence_gate`, `minecraft:pale_oak_fence_gate`, `minecraft:poplar_fence_gate`, `minecraft:spruce_fence_gate` and 1 more: does not open or close on use; no redstone power
 
 **functional**
 
@@ -354,7 +347,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **logs_stems**
 
-- `minecraft:mushroom_stem`: drops itself without silk touch (vanilla drops nothing); huge_mushroom_bits not set on placement
+- `minecraft:mushroom_stem`: huge_mushroom_bits not set on placement
 
 **ores**
 
@@ -364,27 +357,26 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **panes_bars**
 
-- `minecraft:black_stained_glass_pane`, `minecraft:blue_stained_glass_pane`, `minecraft:brown_stained_glass_pane`, `minecraft:cyan_stained_glass_pane`, `minecraft:glass_pane`, `minecraft:gray_stained_glass_pane`, `minecraft:green_stained_glass_pane`, `minecraft:iron_bars`, `minecraft:light_blue_stained_glass_pane`, `minecraft:light_gray_stained_glass_pane`, `minecraft:lime_stained_glass_pane`, `minecraft:magenta_stained_glass_pane` and 10 more: connection states not written to the world (derived only for collision)
-- `minecraft:copper_bars`, `minecraft:exposed_copper_bars`, `minecraft:weathered_copper_bars`: connection states not written to the world (derived only for collision); no oxidation over time; no honeycomb waxing
-- `minecraft:oxidized_copper_bars`: connection states not written to the world (derived only for collision); no honeycomb waxing
+- `minecraft:copper_bars`, `minecraft:exposed_copper_bars`, `minecraft:weathered_copper_bars`: no oxidation over time; no honeycomb waxing
+- `minecraft:oxidized_copper_bars`: no honeycomb waxing
 
 **plants**
 
-- `minecraft:allium`, `minecraft:azure_bluet`, `minecraft:blue_orchid`, `minecraft:bush`, `minecraft:cactus_flower`, `minecraft:cornflower`, `minecraft:crimson_roots`, `minecraft:dandelion`, `minecraft:deadbush`, `minecraft:fern`, `minecraft:firefly_bush`, `minecraft:golden_dandelion` and 12 more: no soil or support check (placed anywhere; stays when the block below is removed)
-- `minecraft:large_fern`, `minecraft:lilac`, `minecraft:peony`, `minecraft:rose_bush`, `minecraft:sunflower`, `minecraft:tall_grass`: breaking one half leaves the other half; no soil or support check (placed anywhere; stays when the block below is removed)
-- `minecraft:azalea`, `minecraft:flowering_azalea`: bone meal does not grow an azalea tree; no soil or support check (placed anywhere; stays when the block below is removed)
+- `minecraft:azalea`, `minecraft:flowering_azalea`: bone meal does not grow an azalea tree
 - `minecraft:brown_mushroom`, `minecraft:red_mushroom`: no spreading in low light; no soil or support check (placed anywhere; stays when the block below is removed)
 - `minecraft:brown_mushroom_block`, `minecraft:red_mushroom_block`: drops itself without silk touch (vanilla drops 0-2 mushrooms); huge_mushroom_bits not set on placement
-- 17 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- `minecraft:crimson_fungus`, `minecraft:warped_fungus`: bone meal does not grow huge fungi
+- `minecraft:cactus_flower`: no soil or support check (placed anywhere; stays when the block below is removed)
+- 13 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **pressure_plates**
 
-- `minecraft:acacia_pressure_plate`, `minecraft:bamboo_pressure_plate`, `minecraft:birch_pressure_plate`, `minecraft:cherry_pressure_plate`, `minecraft:crimson_pressure_plate`, `minecraft:dark_oak_pressure_plate`, `minecraft:heavy_weighted_pressure_plate`, `minecraft:jungle_pressure_plate`, `minecraft:light_weighted_pressure_plate`, `minecraft:mangrove_pressure_plate`, `minecraft:pale_oak_pressure_plate`, `minecraft:polished_blackstone_pressure_plate` and 5 more: not pressed by entities; no redstone power; no support check (stays when the block holding it is removed)
+- `minecraft:acacia_pressure_plate`, `minecraft:bamboo_pressure_plate`, `minecraft:birch_pressure_plate`, `minecraft:cherry_pressure_plate`, `minecraft:crimson_pressure_plate`, `minecraft:dark_oak_pressure_plate`, `minecraft:heavy_weighted_pressure_plate`, `minecraft:jungle_pressure_plate`, `minecraft:light_weighted_pressure_plate`, `minecraft:mangrove_pressure_plate`, `minecraft:pale_oak_pressure_plate`, `minecraft:polished_blackstone_pressure_plate` and 5 more: not pressed by entities; no redstone power
 
 **rails**
 
-- `minecraft:activator_rail`, `minecraft:detector_rail`, `minecraft:golden_rail`: rail_direction not computed from neighbouring rails; no powered, detector or activator behaviour; no support check (stays when the block holding it is removed)
-- `minecraft:rail`: rail_direction not computed from neighbouring rails; no support check (stays when the block holding it is removed)
+- `minecraft:activator_rail`, `minecraft:detector_rail`, `minecraft:golden_rail`: rail_direction not computed from neighbouring rails; no powered, detector or activator behaviour; sloped rails do not need the block they climb against
+- `minecraft:rail`: rail_direction not computed from neighbouring rails; sloped rails do not need the block they climb against
 
 **redstone**
 
@@ -392,43 +384,37 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 - `minecraft:copper_bulb`, `minecraft:exposed_copper_bulb`, `minecraft:weathered_copper_bulb`: does not toggle on redstone pulses; no oxidation over time; no honeycomb waxing
 - `minecraft:calibrated_sculk_sensor`, `minecraft:sculk_sensor`: does not detect vibrations or emit power
 - `minecraft:piston_arm_collision`, `minecraft:sticky_piston_arm_collision`: piston heads are never produced (pistons do not extend)
-- `minecraft:powered_comparator`, `minecraft:unpowered_comparator`: not placed by the comparator item; no compare or subtract output
+- `minecraft:powered_comparator`, `minecraft:unpowered_comparator`: no compare or subtract output
 - 26 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **saplings**
 
-- `minecraft:acacia_sapling`, `minecraft:birch_sapling`, `minecraft:cherry_sapling`, `minecraft:dark_oak_sapling`, `minecraft:jungle_sapling`, `minecraft:oak_sapling`, `minecraft:pale_oak_sapling`, `minecraft:poplar_sapling`, `minecraft:spruce_sapling`: no growth into trees (random ticks or bone meal); no soil or support check (placed anywhere; stays when the block below is removed)
-- `minecraft:mangrove_propagule`: hanging propagules not placed under leaves; no growth into trees (random ticks or bone meal); no soil or support check (placed anywhere; stays when the block below is removed)
+- `minecraft:acacia_sapling`, `minecraft:birch_sapling`, `minecraft:cherry_sapling`, `minecraft:dark_oak_sapling`, `minecraft:jungle_sapling`, `minecraft:oak_sapling`, `minecraft:pale_oak_sapling`, `minecraft:poplar_sapling`, `minecraft:spruce_sapling`: no growth into trees (random ticks or bone meal)
+- `minecraft:mangrove_propagule`: hanging propagules not placed under leaves; no growth into trees (random ticks or bone meal); a hanging propagule does not need the leaves above it
 
 **signs**
 
-- `minecraft:acacia_hanging_sign`, `minecraft:bamboo_hanging_sign`, `minecraft:birch_hanging_sign`, `minecraft:cherry_hanging_sign`, `minecraft:crimson_hanging_sign`, `minecraft:dark_oak_hanging_sign`, `minecraft:jungle_hanging_sign`, `minecraft:mangrove_hanging_sign`, `minecraft:oak_hanging_sign`, `minecraft:pale_oak_hanging_sign`, `minecraft:poplar_hanging_sign`, `minecraft:spruce_hanging_sign` and 1 more: hanging, attached_bit and facing not set from the click; no text editing or sign block actor; no support check (stays when the block holding it is removed)
-- `minecraft:acacia_standing_sign`, `minecraft:bamboo_standing_sign`, `minecraft:birch_standing_sign`, `minecraft:cherry_standing_sign`, `minecraft:crimson_standing_sign`, `minecraft:darkoak_standing_sign`, `minecraft:jungle_standing_sign`, `minecraft:mangrove_standing_sign`, `minecraft:pale_oak_standing_sign`, `minecraft:poplar_standing_sign`, `minecraft:spruce_standing_sign`, `minecraft:standing_sign` and 1 more: not placed by the sign item; ground_sign_direction not set; no text editing or sign block actor; no support check (stays when the block holding it is removed)
-- `minecraft:acacia_wall_sign`, `minecraft:bamboo_wall_sign`, `minecraft:birch_wall_sign`, `minecraft:cherry_wall_sign`, `minecraft:crimson_wall_sign`, `minecraft:darkoak_wall_sign`, `minecraft:jungle_wall_sign`, `minecraft:mangrove_wall_sign`, `minecraft:pale_oak_wall_sign`, `minecraft:poplar_wall_sign`, `minecraft:spruce_wall_sign`, `minecraft:wall_sign` and 1 more: not placed on walls by the sign item; no text editing or sign block actor; no support check (stays when the block holding it is removed)
+- `minecraft:acacia_standing_sign`, `minecraft:acacia_wall_sign`, `minecraft:bamboo_standing_sign`, `minecraft:bamboo_wall_sign`, `minecraft:birch_standing_sign`, `minecraft:birch_wall_sign`, `minecraft:cherry_standing_sign`, `minecraft:cherry_wall_sign`, `minecraft:crimson_standing_sign`, `minecraft:crimson_wall_sign`, `minecraft:darkoak_standing_sign`, `minecraft:darkoak_wall_sign` and 14 more: no text editing or sign block actor
+- `minecraft:acacia_hanging_sign`, `minecraft:bamboo_hanging_sign`, `minecraft:birch_hanging_sign`, `minecraft:cherry_hanging_sign`, `minecraft:crimson_hanging_sign`, `minecraft:dark_oak_hanging_sign`, `minecraft:jungle_hanging_sign`, `minecraft:mangrove_hanging_sign`, `minecraft:oak_hanging_sign`, `minecraft:pale_oak_hanging_sign`, `minecraft:poplar_hanging_sign`, `minecraft:spruce_hanging_sign` and 1 more: no text editing or sign block actor; no support check (stays when the block holding it is removed)
 
 **slabs**
 
-- `minecraft:acacia_double_slab`, `minecraft:andesite_double_slab`, `minecraft:bamboo_double_slab`, `minecraft:bamboo_mosaic_double_slab`, `minecraft:birch_double_slab`, `minecraft:blackstone_double_slab`, `minecraft:brick_double_slab`, `minecraft:cherry_double_slab`, `minecraft:cinnabar_brick_double_slab`, `minecraft:cinnabar_double_slab`, `minecraft:cobbled_deepslate_double_slab`, `minecraft:cobblestone_double_slab` and 49 more: breaking drops one double-slab item instead of two slabs
-- `minecraft:waxed_cut_copper_slab`, `minecraft:waxed_exposed_cut_copper_slab`, `minecraft:waxed_oxidized_cut_copper_slab`, `minecraft:waxed_weathered_cut_copper_slab`: does not merge into its double slab
-- `minecraft:waxed_double_cut_copper_slab`, `minecraft:waxed_exposed_double_cut_copper_slab`, `minecraft:waxed_oxidized_double_cut_copper_slab`, `minecraft:waxed_weathered_double_cut_copper_slab`: not formed by merging slabs; breaking drops one double-slab item instead of two slabs
-- `minecraft:cut_copper_slab`, `minecraft:exposed_cut_copper_slab`, `minecraft:weathered_cut_copper_slab`: does not merge into its double slab; no oxidation over time; no honeycomb waxing
-- `minecraft:double_cut_copper_slab`, `minecraft:exposed_double_cut_copper_slab`, `minecraft:weathered_double_cut_copper_slab`: not formed by merging slabs; breaking drops one double-slab item instead of two slabs; no oxidation over time; no honeycomb waxing
-- 2 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- `minecraft:cut_copper_slab`, `minecraft:double_cut_copper_slab`, `minecraft:exposed_cut_copper_slab`, `minecraft:exposed_double_cut_copper_slab`, `minecraft:weathered_cut_copper_slab`, `minecraft:weathered_double_cut_copper_slab`: no oxidation over time; no honeycomb waxing
+- `minecraft:oxidized_cut_copper_slab`, `minecraft:oxidized_double_cut_copper_slab`: no honeycomb waxing
 
 **stairs**
 
-- `minecraft:acacia_stairs`, `minecraft:andesite_stairs`, `minecraft:bamboo_mosaic_stairs`, `minecraft:bamboo_stairs`, `minecraft:birch_stairs`, `minecraft:black_concrete_stairs`, `minecraft:black_wool_stairs`, `minecraft:blackstone_stairs`, `minecraft:blue_concrete_stairs`, `minecraft:blue_wool_stairs`, `minecraft:brick_stairs`, `minecraft:brown_concrete_stairs` and 81 more: minecraft:corner not computed from neighbouring stairs
-- `minecraft:cut_copper_stairs`, `minecraft:exposed_cut_copper_stairs`, `minecraft:weathered_cut_copper_stairs`: minecraft:corner not computed from neighbouring stairs; no oxidation over time; no honeycomb waxing
-- `minecraft:oxidized_cut_copper_stairs`: minecraft:corner not computed from neighbouring stairs; no honeycomb waxing
+- `minecraft:cut_copper_stairs`, `minecraft:exposed_cut_copper_stairs`, `minecraft:weathered_cut_copper_stairs`: no oxidation over time; no honeycomb waxing
+- `minecraft:oxidized_cut_copper_stairs`: no honeycomb waxing
 
 **surface_dynamic**
 
 - `minecraft:black_concrete_powder`, `minecraft:blue_concrete_powder`, `minecraft:brown_concrete_powder`, `minecraft:cyan_concrete_powder`, `minecraft:gray_concrete_powder`, `minecraft:green_concrete_powder`, `minecraft:light_blue_concrete_powder`, `minecraft:light_gray_concrete_powder`, `minecraft:lime_concrete_powder`, `minecraft:magenta_concrete_powder`, `minecraft:orange_concrete_powder`, `minecraft:pink_concrete_powder` and 4 more: does not harden into concrete next to water
 - `minecraft:crimson_nylium`, `minecraft:warped_nylium`: bone meal does not grow nether vegetation; does not turn to netherrack under blocks
-- `minecraft:cake`: cannot be eaten; candles cannot be placed on it; no support check (stays when the block holding it is removed)
+- `minecraft:cake`: cannot be eaten; candles cannot be placed on it
 - `minecraft:coarse_dirt`: hoe turning it into dirt is not covered by a test
 - `minecraft:dragon_egg`: does not teleport when used or attacked
-- 31 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- 30 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **technical**
 
@@ -440,14 +426,10 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **trapdoors**
 
-- `minecraft:acacia_trapdoor`, `minecraft:bamboo_trapdoor`, `minecraft:birch_trapdoor`, `minecraft:cherry_trapdoor`, `minecraft:crimson_trapdoor`, `minecraft:dark_oak_trapdoor`, `minecraft:jungle_trapdoor`, `minecraft:mangrove_trapdoor`, `minecraft:pale_oak_trapdoor`, `minecraft:poplar_trapdoor`, `minecraft:spruce_trapdoor`, `minecraft:trapdoor` and 5 more: direction and upper/lower half not set from the click; does not open or close on use; no redstone power
-- `minecraft:copper_trapdoor`, `minecraft:exposed_copper_trapdoor`, `minecraft:weathered_copper_trapdoor`: direction and upper/lower half not set from the click; does not open or close on use; no redstone power; no oxidation over time; no honeycomb waxing
-- `minecraft:iron_trapdoor`: direction and upper/lower half not set from the click; no redstone power (cannot be opened)
-- `minecraft:oxidized_copper_trapdoor`: direction and upper/lower half not set from the click; does not open or close on use; no redstone power; no honeycomb waxing
-
-**walls**
-
-- `minecraft:andesite_wall`, `minecraft:blackstone_wall`, `minecraft:brick_wall`, `minecraft:cinnabar_brick_wall`, `minecraft:cinnabar_wall`, `minecraft:cobbled_deepslate_wall`, `minecraft:cobblestone_wall`, `minecraft:deepslate_brick_wall`, `minecraft:deepslate_tile_wall`, `minecraft:diorite_wall`, `minecraft:end_stone_brick_wall`, `minecraft:granite_wall` and 20 more: connection states and post not written to the world (derived only for collision)
+- `minecraft:acacia_trapdoor`, `minecraft:bamboo_trapdoor`, `minecraft:birch_trapdoor`, `minecraft:cherry_trapdoor`, `minecraft:crimson_trapdoor`, `minecraft:dark_oak_trapdoor`, `minecraft:jungle_trapdoor`, `minecraft:mangrove_trapdoor`, `minecraft:pale_oak_trapdoor`, `minecraft:poplar_trapdoor`, `minecraft:spruce_trapdoor`, `minecraft:trapdoor` and 5 more: does not open or close on use; no redstone power
+- `minecraft:copper_trapdoor`, `minecraft:exposed_copper_trapdoor`, `minecraft:weathered_copper_trapdoor`: does not open or close on use; no redstone power; no oxidation over time; no honeycomb waxing
+- `minecraft:iron_trapdoor`: no redstone power (cannot be opened)
+- `minecraft:oxidized_copper_trapdoor`: does not open or close on use; no redstone power; no honeycomb waxing
 
 ## Items
 
@@ -457,34 +439,32 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| armour_wearables | 90 | 1 | 32 | 29 | 28 | 0 | 63.3% |
-| block_items | 1568 | 24 | 680 | 817 | 0 | 47 | 53.7% |
-| buckets | 9 | 3 | 3 | 3 | 0 | 0 | 33.3% |
+| armour_wearables | 90 | 1 | 2 | 0 | 87 | 0 | 96.7% |
+| block_items | 1568 | 24 | 680 | 614 | 203 | 47 | 53.7% |
+| buckets | 9 | 3 | 3 | 2 | 1 | 0 | 33.3% |
 | education | 121 | 0 | 0 | 0 | 0 | 121 | n/a |
-| entity_placers | 57 | 31 | 0 | 24 | 0 | 2 | 43.6% |
-| food | 46 | 4 | 2 | 39 | 0 | 1 | 86.7% |
-| materials_misc | 40 | 2 | 0 | 38 | 0 | 0 | 95.0% |
-| melee_weapons | 17 | 0 | 1 | 16 | 0 | 0 | 94.1% |
+| entity_placers | 57 | 31 | 0 | 0 | 24 | 2 | 43.6% |
+| food | 46 | 4 | 0 | 40 | 1 | 1 | 91.1% |
+| materials_misc | 40 | 2 | 0 | 0 | 38 | 0 | 95.0% |
+| melee_weapons | 17 | 0 | 1 | 0 | 16 | 0 | 94.1% |
 | other_tools | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
 | potions_drinks | 3 | 2 | 0 | 0 | 0 | 1 | 0.0% |
-| ranged_weapons | 8 | 0 | 4 | 4 | 0 | 0 | 50.0% |
+| ranged_weapons | 8 | 0 | 2 | 2 | 4 | 0 | 75.0% |
 | spawn_eggs | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
-| throwables | 16 | 8 | 5 | 3 | 0 | 0 | 18.8% |
-| tools | 280 | 95 | 87 | 94 | 0 | 4 | 34.1% |
+| throwables | 16 | 8 | 2 | 2 | 4 | 0 | 37.5% |
+| tools | 280 | 81 | 19 | 1 | 175 | 4 | 63.8% |
 
 Sub-rows by facet, most incomplete first (25 of 25):
 
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | block_placer | 1504 | 28 | 692 | 615 | 0 | 169 | 46.1% |
-| digger | 141 | 0 | 111 | 28 | 0 | 2 | 20.1% |
 | spawn_egg | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
 | entity_placer | 33 | 31 | 0 | 0 | 0 | 2 | 0.0% |
 | record | 22 | 22 | 0 | 0 | 0 | 0 | 0.0% |
 | bundle | 17 | 17 | 0 | 0 | 0 | 0 | 0.0% |
-| durability | 83 | 11 | 1 | 69 | 0 | 2 | 85.2% |
+| durability | 83 | 4 | 8 | 3 | 66 | 2 | 85.2% |
 | cooldown | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
-| weapon | 44 | 7 | 1 | 36 | 0 | 0 | 81.8% |
 | enchantable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
 | kinetic_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
 | piercing_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
@@ -496,17 +476,18 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | shooter | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | wearable | 30 | 0 | 2 | 0 | 28 | 0 | 93.3% |
 | brush | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| food | 40 | 0 | 1 | 39 | 0 | 0 | 97.5% |
 | instrument | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | shield | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | spyglass | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| fuel | 277 | 0 | 0 | 277 | 0 | 0 | 100.0% |
+| weapon | 44 | 0 | 1 | 0 | 43 | 0 | 97.7% |
+| digger | 141 | 0 | 0 | 0 | 139 | 2 | 100.0% |
+| food | 40 | 0 | 0 | 40 | 0 | 0 | 100.0% |
+| fuel | 277 | 0 | 0 | 0 | 277 | 0 | 100.0% |
 
 ### Items gaps
 
 **armour_wearables**
 
-- `minecraft:chainmail_boots/digger`, `minecraft:chainmail_chestplate/digger`, `minecraft:chainmail_helmet/digger`, `minecraft:chainmail_leggings/digger`, `minecraft:copper_boots/digger`, `minecraft:copper_chestplate/digger`, `minecraft:copper_helmet/digger`, `minecraft:copper_leggings/digger`, `minecraft:diamond_boots/digger`, `minecraft:diamond_chestplate/digger`, `minecraft:diamond_helmet/digger`, `minecraft:diamond_leggings/digger` and 18 more: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:elytra/wearable`: equips to the chest slot; gliding is not implemented
 - `minecraft:turtle_helmet/wearable`: protection only: Water Breathing from the helmet is not applied
 - missing: `minecraft:elytra/durability`
@@ -534,8 +515,6 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **food**
 
-- `minecraft:apple/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
-- `minecraft:chorus_fruit/food`: the random teleport after eating is not covered by a test
 - missing: `minecraft:carrot/block_placer`, `minecraft:glow_berries/block_placer`, `minecraft:potato/block_placer`, `minecraft:sweet_berries/block_placer`
 
 **materials_misc**
@@ -552,7 +531,6 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **ranged_weapons**
 
-- `minecraft:bow/digger`, `minecraft:crossbow/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:bow/shooter`: Power, Punch and Flame are not applied; tipped arrows are not shot
 - `minecraft:crossbow/shooter`: Multishot, Piercing and Quick Charge are not applied; cannot load firework rockets or tipped arrows
 
@@ -567,18 +545,16 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **throwables**
 
-- `minecraft:arrow/digger`, `minecraft:snowball/digger`, `minecraft:wind_charge/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:arrow/throwable`: tipped arrows (arrow data values above 0) are not used as ammunition or shot with their effects
 - `minecraft:trident/durability`: tridents cannot be thrown, so throws do not wear it
 - missing: `minecraft:ender_pearl/throwable`, `minecraft:lingering_potion/drink`, `minecraft:lingering_potion/throwable`, `minecraft:splash_potion/drink`, `minecraft:splash_potion/throwable`, `minecraft:trident/throwable`, `minecraft:wind_charge/cooldown`, `minecraft:wind_charge/throwable`
 
 **tools**
 
-- `minecraft:black_bundle/digger`, `minecraft:blue_bundle/digger`, `minecraft:breeze_rod/digger`, `minecraft:brewing_stand/digger`, `minecraft:brown_bundle/digger`, `minecraft:brush/digger`, `minecraft:bundle/digger`, `minecraft:cake/digger`, `minecraft:campfire/digger`, `minecraft:carrot_on_a_stick/digger`, `minecraft:cauldron/digger`, `minecraft:charcoal/digger` and 62 more: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:brewing_stand/block_placer`, `minecraft:cake/block_placer`, `minecraft:campfire/block_placer`, `minecraft:cauldron/block_placer`, `minecraft:flower_pot/block_placer`, `minecraft:kelp/block_placer`, `minecraft:nether_sprouts/block_placer`, `minecraft:red_shrub/block_placer`, `minecraft:shelf_mushroom/block_placer`, `minecraft:soul_campfire/block_placer`: non-cube block: support and attachment rules are not checked and its placement has no test
+- `minecraft:copper_spear/durability`, `minecraft:diamond_spear/durability`, `minecraft:golden_spear/durability`, `minecraft:iron_spear/durability`, `minecraft:netherite_spear/durability`, `minecraft:stone_spear/durability`, `minecraft:wooden_spear/durability`: the jab reach and the charge attack are not implemented, so only plain hits wear it
 - `minecraft:frame/block_placer`, `minecraft:glow_frame/block_placer`: facing_direction is not set from the click or look
-- `minecraft:shears/digger`: shears speeds on cobweb, leaves, wool and vines exist but have no test
-- missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/cooldown`, `minecraft:copper_spear/durability`, `minecraft:copper_spear/enchantable`, `minecraft:copper_spear/kinetic_weapon`, `minecraft:copper_spear/piercing_weapon` and 83 more
+- missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/cooldown`, `minecraft:copper_spear/enchantable`, `minecraft:copper_spear/kinetic_weapon`, `minecraft:copper_spear/piercing_weapon`, `minecraft:copper_spear/repairable` and 69 more
 
 ## Commands
 
@@ -839,7 +815,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **player**
 
 - `player.abilities_permissions`: abilities follow the game mode; configured operators get operator commands, member/operator command levels answer like BDS and /op, /deop change them until restart (not saved); no visitor or custom permission levels, RequestAbility/RequestPermissions or UpdateAdventureSettings
-- `player.block_breaking`: break times, tool tiers, wear and loot drops work; breaking runs no neighbour updates (attached blocks and door halves stay), no ore experience
+- `player.block_breaking`: breaking runs no neighbour updates (attached blocks and door halves stay); no ore experience; what other players see of a break and creative breaking are not compared against BDS yet
 - `player.block_placing`: logs, stairs, slabs, facing blocks, doors, hoppers and torches place with orientation, and hoes, shovels, axes, shears, flint and steel, fire charges, bone meal and buckets act on blocks; no crops/seeds, beds, signs, buttons, fence/wall/pane connections or support checks
 - `player.combat`: melee against mobs and mob attacks on players with hurt timer, armour and knockback; bows, crossbows and snowballs; hits wear the weapon; no player-versus-player damage, melee critical hits, shields or thrown tridents
 - `player.damage_sources`: fall, lava, fire blocks, burning, void and mob attacks; no drowning, suffocation, freezing, cactus, starvation, magic, lightning or explosion damage; block identities resolved by name string for fall damage
