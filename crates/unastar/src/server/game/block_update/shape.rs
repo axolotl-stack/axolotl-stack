@@ -20,6 +20,7 @@ use glam::IVec3;
 use crate::entity::systems::BlockSource;
 use crate::registry::block::{BlockEntry, StateValue};
 use crate::registry::collision::{Connectable, Side, connectable, connected_state};
+use crate::server::game::redstone::tripwire::TRIPWIRE;
 
 /// Native tag of the stairs that take corners.
 pub(crate) const CORNERABLE_STAIRS: &str = "minecraft:cornerable_stairs";
@@ -41,19 +42,17 @@ pub(crate) fn shaped(blocks: &impl BlockSource, pos: IVec3, entry: &BlockEntry, 
     state
 }
 
-const TRIPWIRE: &str = "minecraft:trip_wire";
-
 /// A tripwire links (`minecraft:connection_<side>`) to the tripwire beside
 /// it on each side, and they link back (BDS 1.26.51: string placed beside
-/// one tripwire and between two, `testdata/bds-placements-leftovers.json`).
-/// Links to tripwire hooks are not measured.
+/// one tripwire and between two, `testdata/bds-placements-leftovers.json`),
+/// and to a tripwire hook beside it facing it (`measured/redstone/
+/// plates_tripwire.json`).
 pub(crate) fn tripwire_links(
     blocks: &impl BlockSource,
     pos: IVec3,
     entry: &BlockEntry,
     state: u32,
 ) -> u32 {
-    let registry = blocks.registry();
     let mut state = state;
     for (side, offset) in [
         ("north", IVec3::NEG_Z),
@@ -61,10 +60,7 @@ pub(crate) fn tripwire_links(
         ("west", IVec3::NEG_X),
         ("east", IVec3::X),
     ] {
-        let linked = blocks
-            .block_at(pos + offset)
-            .and_then(|other| registry.get_by_runtime_id(other))
-            .is_some_and(|other| other.string_id == TRIPWIRE);
+        let linked = crate::server::game::redstone::tripwire::links_to(blocks, pos, offset);
         state = entry
             .with_state_value(
                 state,

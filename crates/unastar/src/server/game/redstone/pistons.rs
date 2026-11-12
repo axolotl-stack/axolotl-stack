@@ -28,6 +28,7 @@ use zuri_nbt::{NBTTag, tag};
 
 use super::Circuit;
 use super::kinds::{Consumer, FACES, Facts, Glue, Kind, Table, piston_facing_value};
+use super::piston_actors::{ActorPush, Motion};
 use crate::registry::BlockRegistry;
 use crate::registry::block::StateValue;
 use crate::server::game::block_actors;
@@ -75,6 +76,9 @@ pub(crate) struct Pistons {
     ends: BTreeMap<u64, Vec<(IVec3, bool)>>,
     /// Blocks in motion by destination.
     moving: HashMap<IVec3, Moving>,
+    /// The moves actors feel (`super::piston_actors`), dropped after their
+    /// second tick.
+    motions: Vec<Motion>,
 }
 
 /// The blocks one move takes: `moved` in the order BDS moves them, and
@@ -453,6 +457,14 @@ impl Pistons {
         self.due.entry(now + 1).or_default().push((pos, powered));
     }
 
+    /// What the moves under way do to actors at `now`.
+    pub(crate) fn actor_pushes(&self, now: u64) -> Vec<ActorPush> {
+        self.motions
+            .iter()
+            .filter_map(|motion| motion.push(now))
+            .collect()
+    }
+
     /// Forget a piston that is no longer there.
     pub(crate) fn removed(&mut self, pos: IVec3) {
         self.arms.remove(&pos);
@@ -467,6 +479,7 @@ impl Pistons {
         now: u64,
     ) -> Vec<IVec3> {
         let mut written = Vec::new();
+        self.motions.retain(|motion| motion.start + 1 >= now);
         for (pos, extend) in self.due.remove(&now).unwrap_or_default() {
             let Some(state) = world.block_at(pos) else {
                 continue;
@@ -537,6 +550,12 @@ impl Pistons {
             written.push(*broken);
         }
         let actors = self.shift(registry, world, pos, &structure.moved, dir, true, written);
+        self.motions.push(Motion {
+            start: now,
+            dir,
+            head: Some(pos + dir),
+            blocks: structure.moved.iter().map(|at| *at + dir).collect(),
+        });
         let arm_name = if sticky {
             "minecraft:sticky_piston_arm_collision"
         } else {
@@ -608,7 +627,15 @@ impl Pistons {
             written.push(head);
         }
         let actors = match pulled {
-            Some(pulled) => self.shift(registry, world, pos, &pulled.moved, -dir, false, written),
+            Some(pulled) => {
+                self.motions.push(Motion {
+                    start: now,
+                    dir: -dir,
+                    head: None,
+                    blocks: pulled.moved.iter().map(|at| *at - dir).collect(),
+                });
+                self.shift(registry, world, pos, &pulled.moved, -dir, false, written)
+            }
             None => Vec::new(),
         };
         for (at, actor) in actors {

@@ -71,6 +71,13 @@ impl Cell {
         }
     }
 
+    /// Change the block at `pos` from outside the circuit, with the block
+    /// updates of a change (not a placement).
+    fn change(&mut self, pos: IVec3, state: u32) {
+        UpdateTarget::write(self, pos, state);
+        changed(self, pos, false);
+    }
+
     fn step(&mut self) {
         // The block updates of the circuit's changes of the last tick.
         let written = self.redstone.as_mut().expect("circuit").take_written();
@@ -252,7 +259,14 @@ fn placed(stored: &Stored, pos: IVec3, block: &str, states: &Value) -> u32 {
 }
 
 /// Apply one scenario action to the cell; `Err` when the replay cannot.
-fn apply(cell: &mut Cell, stored: &Stored, event: &Value) -> Result<(), Skip> {
+/// With `recorded_actors` the actors a command or drop adds or removes come
+/// from the row's actor records instead.
+fn apply(
+    cell: &mut Cell,
+    stored: &Stored,
+    event: &Value,
+    recorded_actors: bool,
+) -> Result<(), Skip> {
     let kind = event[0].as_str().unwrap();
     match kind {
         "set" => {
@@ -270,7 +284,9 @@ fn apply(cell: &mut Cell, stored: &Stored, event: &Value) -> Result<(), Skip> {
         }
         "cmd" => {
             let text = event[1].as_str().unwrap();
-            if text.starts_with("tp ") {
+            if text.starts_with("tp ")
+                || recorded_actors && (text.starts_with("summon ") || text.starts_with("kill "))
+            {
                 return Ok(());
             }
             let words: Vec<&str> = text.split_whitespace().collect();
@@ -290,6 +306,7 @@ fn apply(cell: &mut Cell, stored: &Stored, event: &Value) -> Result<(), Skip> {
         }
         // Clicks are applied from the trace (see `switches`).
         "use" => {}
+        "drop" if recorded_actors => {}
         other => return Err(format!("event `{other}` is not modelled")),
     }
     Ok(())
@@ -333,6 +350,22 @@ fn switches(events: &[Value], watch: &[IVec3], trace: &[Value]) -> Vec<(u64, boo
 /// Replay one row, comparing every watched position but `ignored`;
 /// `Ok(Err(skip))` for rows the in-memory world cannot run.
 fn replay(row: &Value, ignored: &[usize]) -> Result<Result<(), Skip>, String> {
+    replay_with(row, ignored, None)
+}
+
+/// What the recorded actors do in tick `t`: called before the cell steps
+/// (`false`) and after (`true`).
+type Pressing<'a> = &'a mut dyn FnMut(&mut Cell, u64, bool);
+
+/// [`replay`], with `pressing` run every timeline tick around the step (the
+/// actors of the row's records pressing string or pushed by pistons; their
+/// commands and drops are then not modelled as such).
+fn replay_with(
+    row: &Value,
+    ignored: &[usize],
+    mut pressing: Option<Pressing>,
+) -> Result<Result<(), Skip>, String> {
+    let recorded_actors = pressing.is_some();
     let witness = row[1].as_u64().unwrap();
     let steps = row[2].as_array().unwrap();
     let trace = row[3].as_array().unwrap();
@@ -388,7 +421,7 @@ fn replay(row: &Value, ignored: &[usize]) -> Result<Result<(), Skip>, String> {
                 for t in 0..ticks {
                     for event in events {
                         if event[0].as_u64() == Some(t)
-                            && let Err(skip) = apply(&mut cell, &stored, &event[1])
+                            && let Err(skip) = apply(&mut cell, &stored, &event[1], recorded_actors)
                         {
                             return Ok(Err(skip));
                         }
@@ -427,11 +460,17 @@ fn replay(row: &Value, ignored: &[usize]) -> Result<Result<(), Skip>, String> {
                             cell.set(watch[*k], *state, true);
                         }
                     }
+                    if let Some(pressing) = pressing.as_mut() {
+                        pressing(&mut cell, t, false);
+                    }
                     cell.step();
+                    if let Some(pressing) = pressing.as_mut() {
+                        pressing(&mut cell, t, true);
+                    }
                 }
             }
             _ => {
-                if let Err(skip) = apply(&mut cell, &stored, step) {
+                if let Err(skip) = apply(&mut cell, &stored, step, recorded_actors) {
                     return Ok(Err(skip));
                 }
             }
@@ -832,14 +871,61 @@ fn presser_size(kind: &str) -> Option<(f64, f64)> {
     })
 }
 
+/// The actors of a row's records (`[tick, [[id, type, dx, dy, dz, ...]]]`)
+/// at read `read`: (id, presser).
+fn actors_at(actors: &[Value], read: u64) -> Vec<(i64, super::plates::Presser)> {
+    use super::plates::Presser;
+    use crate::registry::collision::Aabb;
+    actors
+        .iter()
+        .rev()
+        .find(|entry| entry[0].as_u64().unwrap() <= read)
+        .map(|entry| {
+            entry[1]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|a| {
+                    let (width, height) = presser_size(a[1].as_str()?)?;
+                    let feet = DVec3::new(a[2].as_f64()?, a[3].as_f64()?, a[4].as_f64()?);
+                    Some((
+                        a[0].as_i64()?,
+                        Presser {
+                            aabb: Aabb::from_feet(feet, width, height),
+                            item: a[1] == "item",
+                        },
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The actors that press plates in tick `t`: those that existed when it
+/// began (read `t`), where its movement left them (read `t + 1`); a mob
+/// removed in the tick still counts where it was, an item merged into
+/// another does not (items merge before plates read; a mob is removed
+/// after).
+fn pressers_in_tick(actors: &[Value], t: u64) -> Vec<super::plates::Presser> {
+    let after = actors_at(actors, t + 1);
+    actors_at(actors, t)
+        .into_iter()
+        .filter_map(
+            |(id, presser)| match after.iter().find(|(other, _)| *other == id) {
+                Some((_, moved)) => Some(*moved),
+                None => (!presser.item).then_some(presser),
+            },
+        )
+        .collect()
+}
+
 /// Every plate row replayed from the actors BDS had in the cell each tick:
 /// the plate's stored signal matches at every read (wooden, stone,
 /// blackstone and weighted plates under armour stands, pigs, items and
 /// stacks; the weighted plates under 1-64 items as they merge).
 #[test]
 fn plates_press_like_bds_under_the_measured_actors() {
-    use super::plates::{PlateKind, Plates, Presser};
-    use crate::registry::collision::Aabb;
+    use super::plates::{PlateKind, Plates};
     let mut failures = Vec::new();
     let mut compared = 0;
     for family in ["plates_press", "plates_weighted"] {
@@ -867,49 +953,8 @@ fn plates_press_like_bds_under_the_measured_actors() {
                 .unwrap();
             let mut plates = Plates::default();
             let mut stored = 0u8;
-            // The actors at each read: (id, presser).
-            let at_read = |read: u64| -> Vec<(i64, Presser)> {
-                actors
-                    .iter()
-                    .rev()
-                    .find(|entry| entry[0].as_u64().unwrap() <= read)
-                    .map(|entry| {
-                        entry[1]
-                            .as_array()
-                            .unwrap()
-                            .iter()
-                            .filter_map(|a| {
-                                let (width, height) = presser_size(a[1].as_str()?)?;
-                                let feet =
-                                    DVec3::new(a[2].as_f64()?, a[3].as_f64()?, a[4].as_f64()?);
-                                Some((
-                                    a[0].as_i64()?,
-                                    Presser {
-                                        aabb: Aabb::from_feet(feet, width, height),
-                                        item: a[1] == "item",
-                                    },
-                                ))
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            };
             for t in 0..ticks.saturating_sub(1) {
-                // Tick t reads the actors that existed when it began (in
-                // read t), where its movement left them (read t + 1); a mob
-                // removed in the tick still counts where it was, an item
-                // merged into another does not.
-                let after = at_read(t + 1);
-                let seen: Vec<Presser> = at_read(t)
-                    .into_iter()
-                    .filter_map(|(id, presser)| {
-                        match after.iter().find(|(other, _)| *other == id) {
-                            Some((_, moved)) => Some(*moved),
-                            // Items merge before plates read; a mob is removed after.
-                            None => (!presser.item).then_some(presser),
-                        }
-                    })
-                    .collect();
+                let seen = pressers_in_tick(actors, t);
                 for (_, signal) in plates.tick(t, &[(pos, kind, stored)], &seen) {
                     stored = signal;
                 }
@@ -932,6 +977,170 @@ fn plates_press_like_bds_under_the_measured_actors() {
         failures.join("\n")
     );
     assert!(compared > 3000, "{compared}");
+}
+
+/// Every tripwire row replayed block by block, tick by tick, with the
+/// string pressed by the actors BDS had in the cell each tick: the hooks,
+/// the string and the lamp a hook powers match BDS at every read (the line
+/// attaching as it is built, an armour stand and items on the string, the
+/// string cut).
+#[test]
+fn tripwires_follow_bds_under_the_measured_actors() {
+    let mut replayed = 0;
+    for family in ["plates_tripwire", "plates_tripwire_more"] {
+        let path = format!(
+            "{}/../unastar-data/data/measured/redstone/{family}.json",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        if family != "plates_tripwire" && !std::path::Path::new(&path).exists() {
+            continue;
+        }
+        for row in rows(family) {
+            let actors = row[5].as_array().unwrap().clone();
+            let mut pressing = tripwire_pressing(actors);
+            match replay_with(&row, &[], Some(&mut pressing)) {
+                Ok(Ok(())) => replayed += 1,
+                Ok(Err(skip)) => panic!("{}: {skip}", row[0]),
+                Err(message) => panic!("{}: {message}", row[0]),
+            }
+        }
+    }
+    assert!(replayed >= 5, "{replayed}");
+}
+
+/// The string and hooks the recorded `actors` press each tick, as the live
+/// server's `press_plates` does.
+fn tripwire_pressing(actors: Vec<Value>) -> impl FnMut(&mut Cell, u64, bool) {
+    use super::plates::{PlateKind, Plates};
+    let mut plates = Plates::default();
+    move |cell: &mut Cell, t: u64, stepped: bool| {
+        if stepped {
+            return;
+        }
+        let seen = pressers_in_tick(&actors, t);
+        let strings: Vec<(IVec3, PlateKind, u8)> = cell
+            .blocks
+            .iter()
+            .filter_map(|(pos, state)| {
+                let entry = registry().get_by_runtime_id(*state)?;
+                let kind = PlateKind::of(&entry.string_id).filter(|kind| !kind.is_plate())?;
+                Some((*pos, kind, kind.stored(entry, *state)))
+            })
+            .collect();
+        let mut changed = Vec::new();
+        for (pos, signal) in plates.tick(t, &strings, &seen) {
+            let state = cell.block_at(pos).unwrap();
+            let entry = registry().get_by_runtime_id(state).unwrap();
+            let next = PlateKind::Tripwire
+                .with_signal(entry, state, signal)
+                .unwrap();
+            cell.change(pos, next);
+            changed.push(pos);
+        }
+        for (pos, next) in super::tripwire::hook_power(cell, &changed) {
+            cell.change(pos, next);
+        }
+    }
+}
+
+/// Every piston row with actors replayed block by block, and every actor
+/// BDS had in the cell moved by the replay's piston moves of each tick: what
+/// it moved along the move's axis between two reads is the push or carry
+/// plus its own motion (the velocity BDS read before or after the tick: a
+/// landing item moves with the one before, within 0.02).
+#[test]
+fn pistons_move_actors_like_bds() {
+    let mut compared = 0;
+    for family in ["pistons_entities", "pistons_riding"] {
+        let path = format!(
+            "{}/../unastar-data/data/measured/pistons/{family}.json",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        if family != "pistons_entities" && !std::path::Path::new(&path).exists() {
+            continue;
+        }
+        for row in piston_rows(family) {
+            let actors = row[5].as_array().unwrap().clone();
+            let mut failures = Vec::new();
+            let mut check = |cell: &mut Cell, t: u64, stepped: bool| {
+                if !stepped {
+                    return;
+                }
+                let pushes = cell.redstone.as_ref().expect("circuit").actor_pushes();
+                let before = recorded_actors(&actors, t);
+                for (id, kind, feet, velocity_before) in &before {
+                    let Some((width, height)) = presser_size(kind) else {
+                        continue;
+                    };
+                    let Some((_, _, after, velocity)) = recorded_actors(&actors, t + 1)
+                        .into_iter()
+                        .find(|(other, ..)| other == id)
+                    else {
+                        continue;
+                    };
+                    let aabb = crate::registry::collision::Aabb::from_feet(*feet, width, height);
+                    let axis = pushes
+                        .first()
+                        .map_or(DVec3::X, |push| push.dir.abs().as_dvec3());
+                    let moved: DVec3 = pushes
+                        .iter()
+                        .map(|push| super::piston_actors::displacement(&aabb, push))
+                        .sum();
+                    let own = (after - *feet - moved).dot(axis);
+                    compared += 1;
+                    if [velocity, *velocity_before]
+                        .iter()
+                        .all(|v| (own - v.dot(axis)).abs() > 0.02)
+                    {
+                        failures.push(format!(
+                            "read {}: {kind} from {feet} to {after}, unastar moves it {moved}",
+                            t + 1
+                        ));
+                    }
+                }
+            };
+            match replay_with(&row, &[], Some(&mut check)) {
+                Ok(Ok(())) => {}
+                Ok(Err(skip)) => panic!("{}: {skip}", row[0]),
+                Err(message) => panic!("{}: {message}", row[0]),
+            }
+            assert!(
+                failures.is_empty(),
+                "{}: {}",
+                row[0],
+                failures.join(
+                    "
+"
+                )
+            );
+        }
+    }
+    assert!(compared > 300, "{compared}");
+}
+
+/// The actors of a row's records at read `read`: (id, type, feet, velocity).
+fn recorded_actors(actors: &[Value], read: u64) -> Vec<(i64, String, DVec3, DVec3)> {
+    actors
+        .iter()
+        .rev()
+        .find(|entry| entry[0].as_u64().unwrap() <= read)
+        .map(|entry| {
+            entry[1]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|a| {
+                    let v = |i: usize| a[i].as_f64();
+                    Some((
+                        a[0].as_i64()?,
+                        a[1].as_str()?.to_string(),
+                        DVec3::new(v(2)?, v(3)?, v(4)?),
+                        DVec3::new(v(5)?, v(6)?, v(7)?),
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Why a block has no measured piston class: the per-block sweep could not
