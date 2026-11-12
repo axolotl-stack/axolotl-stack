@@ -427,13 +427,17 @@ def command_states(states: dict) -> str:
     return '[' + ','.join(parts) + ']'
 
 
+# Timeline events the scripted player carries out: an item with one runs alone.
+PLAYER_EVENTS = ('use', 'mine', 'stop')
+
+
 def step_signature(item: dict) -> tuple:
     """Items of one wave run step by step together, so their step kinds and
     waits (and timeline lengths) must line up. The scripted player clicks
     for one cell at a time: an item with a `use` event runs alone."""
     out = []
     for step in item['steps']:
-        if step[0] == 'timeline' and any(event[0] == 'use' for _, event in step[3]):
+        if step[0] == 'timeline' and any(event[0] in PLAYER_EVENTS for _, event in step[3]):
             out.append(f'timeline{step[1]}:{item["key"]}')
         elif step[0] in ('wait', 'timeline'):
             out.append(f'{step[0]}{step[1]}')
@@ -498,6 +502,15 @@ def run_event(ctx: Context, at, event: list, touched: set, failures: list) -> No
         target = ctx.block(pos).data.runtime_id
         ux, uy, uz = event[3]
         ctx.player.send_message(f'bds-sweep:use {pos[0]} {pos[1]} {pos[2]} {event[2]} {ux} {uy} {uz} {target}')
+    elif kind == 'mine':
+        # `['mine', offset, face]`: the scripted player starts breaking that
+        # face with what it holds and keeps at it until BDS breaks the block
+        # (the `mining` job's order); it must stand within reach.
+        pos = at(event[1])
+        ctx.player.send_message(f'bds-sweep:mine {pos[0]} {pos[1]} {pos[2]} {event[2]} 0')
+    elif kind == 'stop':
+        # `['stop']`: the scripted player stops breaking.
+        ctx.player.send_message('bds-sweep:stop')
     else:
         raise RuntimeError(f'unknown scenario event {event!r}')
 
@@ -667,7 +680,7 @@ def scenarios(ctx: Context, job: dict):
                     for pos in (tuple(witness), dust_at):
                         ctx.set_state(pos, 'minecraft:air', {})
                 # Clicks moved the scripted player next to the cell.
-                if any(event[0] == 'use' for item in wave for _, event in item['steps'][index][3]):
+                if any(event[0] in PLAYER_EVENTS for item in wave for _, event in item['steps'][index][3]):
                     player = job['arena']['player']
                     ctx.must(f'tp "{ctx.player.name}" {player[0]} {player[1]} {player[2]}')
                 continue

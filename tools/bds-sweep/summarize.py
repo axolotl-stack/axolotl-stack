@@ -1341,7 +1341,7 @@ ROUND4_METHOD = CIRCUIT_METHOD + (
 )
 ROUND4_ROW = '[name, witness, steps, trace, items, actors]'
 # Families of `pistons.py` and the directory their rows go to.
-ROUND4_PREFIXES = {'pistons_': 'pistons', 'tnt_': 'explosions', 'plates_': 'redstone'}
+ROUND4_PREFIXES = {'pistons_': 'pistons', 'tnt_': 'explosions', 'plates_': 'redstone', 'infested_': 'infested'}
 # Actor types left out of the TNT families' actor traces (items thrown by explosions).
 ROUND4_NOISE = {'minecraft:item'}
 BLAST_ROW = '[material, sample, witness, destroyed offsets, dropped items {item: count}]'

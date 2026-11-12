@@ -5,7 +5,7 @@ use bevy_ecs::prelude::*;
 use glam::{IVec3, Vec3};
 use zuri_nbt::tag;
 
-use super::plates::{PlateKind, Plates, Presser};
+use super::plates::{Plates, Presser};
 use super::{Circuit, Redstone};
 use crate::entity::systems::BlockSource;
 use crate::registry::BlockRegistry;
@@ -169,6 +169,29 @@ fn pressers(world: &mut World) -> Vec<Presser> {
     out
 }
 
+/// Move the actors the circuit's piston moves of this tick push or carry
+/// (`super::piston_actors`). Players move themselves (their client is
+/// authoritative) and are left alone.
+pub(crate) fn push_actors(world: &mut World) {
+    use crate::entity::components::{PhysicsBody, Player, Position};
+    use crate::registry::collision::Aabb;
+    let Some(pushes) = world
+        .get_resource::<Redstone>()
+        .map(Redstone::actor_pushes)
+        .filter(|pushes| !pushes.is_empty())
+    else {
+        return;
+    };
+    let mut actors = world.query_filtered::<(&mut Position, &PhysicsBody), Without<Player>>();
+    for (mut position, body) in actors.iter_mut(world) {
+        let aabb = Aabb::from_feet(position.0, body.width, body.height);
+        let moved = super::piston_actors::moved(&aabb, &pushes);
+        if moved != glam::DVec3::ZERO {
+            position.0 += moved;
+        }
+    }
+}
+
 /// Press and release the pressure plates actors touch (`super::plates`),
 /// before the circuit steps: a plate's change is an outside change.
 pub(crate) fn press_plates(world: &mut World) {
@@ -176,7 +199,6 @@ pub(crate) fn press_plates(world: &mut World) {
         .get_resource::<crate::ecs::resources::TickCounter>()
         .map_or(0, |ticks| ticks.current);
     let pressers = pressers(world);
-    let registry = world.registry().clone();
     let mut candidates: std::collections::HashSet<IVec3> = world
         .get_resource::<Plates>()
         .map(|plates| plates.pressed().collect())
@@ -192,56 +214,23 @@ pub(crate) fn press_plates(world: &mut World) {
             }
         }
     }
-    let mut plates = Vec::new();
-    for pos in candidates {
-        let Some(state) = world.block_at(pos) else {
-            continue;
-        };
-        let Some(entry) = registry.get_by_runtime_id(state) else {
-            continue;
-        };
-        match PlateKind::of(&entry.string_id) {
-            Some(kind) => {
-                let stored = match entry.state_value(state, "redstone_signal") {
-                    Some(crate::registry::block::StateValue::Int(signal)) => {
-                        u8::try_from(signal.clamp(0, 15)).unwrap_or(0)
-                    }
-                    _ => 0,
-                };
-                plates.push((pos, kind, stored, state));
-            }
-            None => {
-                if let Some(mut tracked) = world.get_resource_mut::<Plates>() {
-                    tracked.removed(pos);
-                }
-            }
-        }
-    }
-    if plates.is_empty() {
-        return;
-    }
-    let listed: Vec<(IVec3, PlateKind, u8)> = plates
-        .iter()
-        .map(|(pos, kind, stored, _)| (*pos, *kind, *stored))
-        .collect();
-    let changes = world
-        .get_resource_or_init::<Plates>()
-        .tick(now, &listed, &pressers);
-    for (pos, signal) in changes {
-        let Some((_, _, _, state)) = plates.iter().find(|(at, ..)| *at == pos) else {
-            continue;
-        };
-        let Some(next) = registry.get_by_runtime_id(*state).and_then(|entry| {
-            entry.with_state_value(
-                *state,
-                "redstone_signal",
-                crate::registry::block::StateValue::Int(i32::from(signal)),
-            )
-        }) else {
-            continue;
-        };
-        crate::server::game::blocks::set_block(world, pos, next, false);
-    }
+    let mut plates = world.remove_resource::<Plates>().unwrap_or_default();
+    super::plates::press(
+        world,
+        &mut plates,
+        now,
+        candidates,
+        &pressers,
+        changed_by_actors,
+    );
+    world.insert_resource(plates);
+}
+
+/// A plate, string or hook actors changed: stored and announced, with the
+/// block updates of a change (not of a placement).
+fn changed_by_actors(world: &mut World, pos: IVec3, state: u32) {
+    crate::server::game::blocks::write_block(world, pos, state, false);
+    crate::server::game::block_update::world_changed(world, pos, false);
 }
 
 #[cfg(test)]

@@ -429,7 +429,7 @@ fn classify(entry: &BlockEntry, state: u32) -> Kind {
             on: byte(entry, state, "button_pressed_bit") == Some(true),
         });
     }
-    if let Some(plate) = super::plates::PlateKind::of(id) {
+    if let Some(plate) = super::plates::PlateKind::of(id).filter(|kind| kind.is_plate()) {
         return Kind::Plate {
             signal: signal(entry, state),
             plate,

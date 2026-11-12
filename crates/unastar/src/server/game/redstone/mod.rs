@@ -34,6 +34,7 @@
 
 pub(crate) mod kinds;
 mod live;
+pub(crate) mod piston_actors;
 #[cfg(test)]
 mod piston_packets;
 pub(crate) mod pistons;
@@ -41,6 +42,7 @@ pub(crate) mod plates;
 pub(crate) mod power;
 #[cfg(test)]
 mod tests;
+pub(crate) mod tripwire;
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -54,7 +56,7 @@ use crate::registry::BlockRegistry;
 use crate::registry::block::StateValue;
 use crate::server::game::block_update::support::Face;
 use kinds::{Consumer, FACES, Kind, Table};
-pub(crate) use live::{note_change, press_plates, tick_redstone};
+pub(crate) use live::{note_change, press_plates, push_actors, tick_redstone};
 use power::View;
 
 /// Turn-offs within [`BURNOUT_TICKS`] that burn a torch out.
@@ -373,6 +375,11 @@ impl Redstone {
         let mut written = std::mem::take(&mut self.written);
         written.dedup();
         written
+    }
+
+    /// What the piston moves of the last step do to actors.
+    pub(crate) fn actor_pushes(&self) -> Vec<piston_actors::ActorPush> {
+        self.pistons.actor_pushes(self.now)
     }
 
     /// One game tick.

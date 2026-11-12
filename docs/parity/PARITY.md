@@ -14,7 +14,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 120 | 1 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1213 | 2645 | 170 | 8 | 46 | 4.4% |
-| [Blocks](#blocks) | 1477 | 0 | 385 | 511 | 414 | 167 | 70.6% |
+| [Blocks](#blocks) | 1477 | 0 | 383 | 511 | 416 | 167 | 70.8% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
@@ -45,7 +45,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 59 |
 
-**Blocks**: 237 open rows free, 148 claimed.
+**Blocks**: 237 open rows free, 146 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
@@ -61,7 +61,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Block behaviour families, gravity, fire, redstone and random ticks | lane BLOCKS | 2026-10-29 | 131 |
+| Block behaviour families, gravity, fire, redstone and random ticks | lane BLOCKS | 2026-10-29 | 129 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
@@ -232,7 +232,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 | plants | 54 | 0 | 17 | 19 | 18 | 0 | 68.5% |
 | pressure_plates | 17 | 0 | 0 | 0 | 17 | 0 | 100.0% |
 | rails | 4 | 0 | 3 | 0 | 1 | 0 | 25.0% |
-| redstone | 39 | 0 | 16 | 0 | 23 | 0 | 59.0% |
+| redstone | 39 | 0 | 14 | 0 | 25 | 0 | 64.1% |
 | saplings | 10 | 0 | 10 | 0 | 0 | 0 | 0.0% |
 | signs | 39 | 0 | 0 | 23 | 16 | 0 | 100.0% |
 | slabs | 202 | 0 | 8 | 128 | 66 | 0 | 96.0% |
@@ -260,7 +260,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **building_blocks**
 
-- `minecraft:infested_chiseled_stone_bricks`, `minecraft:infested_cobblestone`, `minecraft:infested_cracked_stone_bricks`, `minecraft:infested_deepslate`, `minecraft:infested_mossy_stone_bricks`, `minecraft:infested_stone`, `minecraft:infested_stone_bricks`: breaking does not release a silverfish
+- `minecraft:infested_chiseled_stone_bricks`, `minecraft:infested_cobblestone`, `minecraft:infested_cracked_stone_bricks`, `minecraft:infested_deepslate`, `minecraft:infested_mossy_stone_bricks`, `minecraft:infested_stone`, `minecraft:infested_stone_bricks`: breaking does not release a silverfish: measured in crates/unastar-data/data/measured/infested/infested_break.json (a survival player breaking it without silk touch, with doTileDrops on and off peaceful lets out one silverfish at the block's corner 0.2 along -x in the tick it breaks); waits for the silverfish release of the entities lane (PR #109)
 - `minecraft:waxed_exposed_lightning_rod`, `minecraft:waxed_lightning_rod`, `minecraft:waxed_oxidized_lightning_rod`, `minecraft:waxed_weathered_lightning_rod`: no lightning attraction or redstone output; no axe wax removal
 - `minecraft:exposed_lightning_rod`, `minecraft:oxidized_lightning_rod`, `minecraft:weathered_lightning_rod`: no lightning attraction or redstone output; no axe scraping or honeycomb waxing
 - `minecraft:carved_pumpkin`, `minecraft:lit_pumpkin`: placing it does not build snow or iron golems
@@ -360,7 +360,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 - `minecraft:dispenser`, `minecraft:dropper`: not a container; does not dispense or drop (power sets triggered_bit only)
 - `minecraft:crafter`: not a container; no crafting; its partial block actor is not sent (power sets triggered_bit only)
 - `minecraft:daylight_detector`: does not measure daylight (its signal powers circuits as stored); cannot be inverted on use
-- 6 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- 4 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **saplings**
 

@@ -560,6 +560,7 @@ impl GameServer {
             (
                 redstone::press_plates,
                 redstone::tick_redstone,
+                redstone::push_actors,
                 random_ticks::tick_random_blocks,
             )
                 .chain()
