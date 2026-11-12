@@ -259,6 +259,13 @@ fn spawn(
     (entity, rx)
 }
 
+/// The seed of every arena's entity random. Seeded from entropy, the
+/// candle a candle cake drops (`candle_onto_candle_cake`,
+/// `candle_cake_empty_hand`, `lit_candle_cake_with_candle`) landed within
+/// the clicking player's reach as its pickup delay ran out for 5 of 59
+/// seeds tried, so a different case failed now and then.
+const ARENA_SEED: u64 = 1;
+
 impl Arena {
     fn world(&mut self) -> &mut World {
         self.server.ecs.world_mut()
@@ -293,6 +300,12 @@ impl Arena {
             difficulty,
             ..ServerConfig::default()
         });
+        // Item drops pop with a random offset and velocity: a fixed seed
+        // keeps a case from depending on where a drop lands.
+        server
+            .ecs
+            .world_mut()
+            .insert_resource(crate::entity::EntityRandom::seeded(ARENA_SEED));
         let (entity, rx) = spawn(&mut server, SESSION, "BDSSweep", feet);
         let watcher = case.get("watcher_packets").map(|_| {
             let spot = origin.as_dvec3() + dvec(&case["watcher"]);
