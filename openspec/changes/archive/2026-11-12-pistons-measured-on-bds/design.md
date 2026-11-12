@@ -8,7 +8,7 @@
   consumer of the circuit update with the per-block movement measured on BDS.
 - Chosen: the circuit consumer with a measured table, because the measured timings fall on the
   circuit update without extra latencies and the measured table corrects the hand-written lists.
-  Recorded as [decision 0050](../../../docs/decisions/0050-move-pistons-from-the-circuit-update.md).
+  Recorded as [decision 0050](../../../../docs/decisions/0050-move-pistons-from-the-circuit-update.md).
 
 ## Model
 

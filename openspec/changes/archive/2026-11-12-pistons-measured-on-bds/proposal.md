@@ -4,12 +4,12 @@
 
 Pistons and sticky pistons did nothing in unastar (`world.pistons` missing; the piston, sticky
 piston, head and moving block rows partial). Round 3's redstone engine
-([decision 0041](../../../docs/decisions/0041-run-redstone-as-a-two-tick-circuit-update.md)) skipped
+([decision 0041](../../../../docs/decisions/0041-run-redstone-as-a-two-tick-circuit-update.md)) skipped
 every circuit that held a piston.
 
 Prior work: the redstone timing notes in
-[measure-redstone-tick-by-tick-with-a-parity-witness](../../../docs/solutions/testing/measure-redstone-tick-by-tick-with-a-parity-witness.md)
-and the "Redstone / ..." rows of [docs/quirks/bds.md](../../../docs/quirks/bds.md). The unmerged
+[measure-redstone-tick-by-tick-with-a-parity-witness](../../../../docs/solutions/testing/measure-redstone-tick-by-tick-with-a-parity-witness.md)
+and the "Redstone / ..." rows of [docs/quirks/bds.md](../../../../docs/quirks/bds.md). The unmerged
 #71 has piston code (`a8732b6c`) with hand-written block lists; it is used as prior art only and
 re-checked against new BDS measurements.
 
