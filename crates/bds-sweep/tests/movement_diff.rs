@@ -29,11 +29,6 @@ const KNOWN_GAPS: &[(&str, u32, &str)] = &[
     ),
     ("scaffolding_climb", 6, "scaffolding is not simulated"),
     (
-        "slime_bounce",
-        14,
-        "BDS bounces higher than the impact speed (0.8585 from 0.8439, 0.7470 from 0.7298); bedsim agrees with unastar",
-    ),
-    (
         "water_sprint_swim",
         6,
         "a swimmer's pitch steering differs from the first input (bedsim matches BDS to tick 10)",

@@ -48,6 +48,9 @@ const JUMP_VELOCITY: f32 = 0.42;
 const JUMP_BOOST_STEP: f32 = 0.1;
 /// Climbing speed on ladders and vines, and their slowest fall.
 const CLIMB_SPEED: f32 = 0.2;
+/// The slowest fall onto slime that bounces (just over a standing player's
+/// 0.0784).
+const SLIME_MIN_BOUNCE: f32 = 0.080_000_12;
 /// Soul sand's friction is scaled by this for the acceleration only.
 const SOUL_SAND_ACCELERATION: f32 = 1.225;
 /// Levitation's pull per level each tick: a fifth of its 0.05 speed.
@@ -729,9 +732,15 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
     if body.vertical_collision {
         body.velocity[1] = if !was_on_ground && before[1] < 0.0 && !controls.sneak {
             match ground.kind {
+                // Slime returns the speed at impact: the speed the tick
+                // started with, accelerated by gravity over the distance
+                // fallen before the floor stopped the move (BDS bounces 0.8585
+                // from 0.8439 after falling 0.1555); slower falls do not
+                // bounce.
+                BlockKind::Slime if -before[1] < SLIME_MIN_BOUNCE => 0.0,
                 BlockKind::Slime => {
-                    let bounce = -before[1];
-                    if bounce.abs() < 1.0e-4 { 0.0 } else { bounce }
+                    let fallen = -body.velocity[1];
+                    (before[1] * before[1] + 2.0 * GRAVITY * fallen).sqrt()
                 }
                 BlockKind::Bed => (-0.66 * before[1]).min(1.0),
                 _ => 0.0,
