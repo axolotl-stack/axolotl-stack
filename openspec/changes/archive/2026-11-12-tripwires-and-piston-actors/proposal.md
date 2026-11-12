@@ -6,7 +6,7 @@ String between tripwire hooks did nothing (`trip_wire` and `tripwire_hook` parti
 moved blocks but no actors (`world.pistons` gap). Both were measured on BDS 1.26.51 in round 4
 (`plates_tripwire.json`, `pistons_entities.json`) and not implemented. Prior work: the plate
 engine (`redstone/plates.rs`) and the piston moves of
-[decision 0050](../../../docs/decisions/0050-move-pistons-from-the-circuit-update.md).
+[decision 0050](../../../../docs/decisions/0050-move-pistons-from-the-circuit-update.md).
 
 ## What Changes
 
