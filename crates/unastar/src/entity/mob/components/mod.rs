@@ -33,6 +33,7 @@ pub mod movement;
 pub mod ranged;
 pub mod sensors;
 pub mod shearing;
+pub mod silverfish;
 pub mod spawn_entity;
 pub mod stats;
 pub mod target_triggers;
@@ -60,7 +61,7 @@ pub use goals::{
 };
 pub use hostile::{
     AttackConfig, BurnsInDaylightConfig, HurtByTargetGoal, MeleeBoxAttackGoal,
-    NearestAttackableTargetGoal,
+    NearestAttackableTargetGoal, SwellGoal,
 };
 pub use hurt_on_condition::{HurtCondition, HurtOnConditionConfig};
 pub use interact::{
@@ -70,7 +71,8 @@ pub use knockback::{KnockbackPower, KnockbackRules};
 pub use loot::{ExperienceRewardConfig, LootConfig};
 pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
 pub use ranged::{AvoidEntry, AvoidMobTypeGoal, RangedAttackGoal, ShooterConfig};
-pub use sensors::{EnvironmentSensorConfig, Timer};
+pub use sensors::{EnvironmentSensorConfig, TargetNearbySensorConfig, TargetZone, Timer};
+pub use silverfish::{InfestedBlocks, MergeWithStoneGoal, WakeUpFriendsGoal};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
 pub use target_triggers::{OnFriendlyAnger, OnTargetAcquired, OnTargetEscape, TargetTrigger};
 pub use transformation::TransformationConfig;
@@ -206,6 +208,7 @@ pub fn register_component_kinds(
     sensors::register_component_kinds(builder)?;
     color::register_component_kinds(builder)?;
     shearing::register_component_kinds(builder)?;
+    silverfish::register_component_kinds(builder)?;
     damage_sensor::register_component_kinds(builder)?;
     ambient::register_component_kinds(builder)?;
     spawn_entity::register_component_kinds(builder, items)?;

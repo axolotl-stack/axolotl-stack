@@ -6104,6 +6104,32 @@
     }
    ]
   },
+  "infested_blocks": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "infested_blocks.json",
+     "sha256": "b0d1579e2e1936fa57f3a776db251d08d095cec396d576f84cc73ebfc9b18d65"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py silverfish --items blocks, endstone-sweep plugin) at d5bfd9b6",
+   "method": "a silverfish with no target in a 1 x 1 pit two blocks deep cut into a 3 x 3 x 4 block of one kind, 300 ticks; host when it merged (the UpdateBlock beside its RemoveActor names the infested block)",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "ent5-silverfish-blocks",
+     "items": 42,
+     "runs": [
+      {
+       "items": 42,
+       "seconds": 689.7,
+       "started": "20261112T195419Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "mining_ticks": {
    "bds_version": "1.26.51",
    "files": [

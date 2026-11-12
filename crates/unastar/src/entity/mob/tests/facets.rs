@@ -51,8 +51,9 @@ const PARCHED: &str = "minecraft:parched";
 /// `/summon minecraft:zombie_villager` creates this actor (see
 /// `hostile::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon`).
 const ZOMBIE_VILLAGER: &str = "minecraft:zombie_villager_v2";
+const SILVERFISH: &str = "minecraft:silverfish";
 
-fn block(name: &str) -> u32 {
+pub(super) fn block(name: &str) -> u32 {
     BlockRegistry::vanilla()
         .default_state_id_by_name(name)
         .expect(name)
@@ -67,7 +68,7 @@ pub(super) struct Arena {
 /// A grass floor whose top is y = 64 over chunks -1..=1 × -1..=1, plus the
 /// blocks `build` places (y 50..80), at midnight. One player in `mode`
 /// stands at (12.5, 64, 12.5) and views every chunk.
-fn arena(
+pub(super) fn arena(
     seed: u64,
     difficulty: Difficulty,
     mode: GameMode,
@@ -147,7 +148,7 @@ impl Arena {
     /// A mob of `identifier` with its feet at `feet`, a baby exactly when
     /// `baby`, that drew a spawn branch with component groups (the zombie
     /// pigman can draw an undeclared one and spawn without any).
-    fn spawn(&mut self, identifier: &str, feet: DVec3, baby: bool) -> Entity {
+    pub(super) fn spawn(&mut self, identifier: &str, feet: DVec3, baby: bool) -> Entity {
         let world = self.world();
         for _ in 0..2000 {
             let mob = spawn_mob(world, identifier, feet, 0.0, SpawnCause::Spawned)
@@ -163,11 +164,11 @@ impl Arena {
         panic!("no {identifier} with baby = {baby} in 2000 spawns");
     }
 
-    fn adult(&mut self, identifier: &str, feet: DVec3) -> Entity {
+    pub(super) fn adult(&mut self, identifier: &str, feet: DVec3) -> Entity {
         self.spawn(identifier, feet, false)
     }
 
-    fn feet(&mut self, mob: Entity) -> DVec3 {
+    pub(super) fn feet(&mut self, mob: Entity) -> DVec3 {
         self.world().get::<Position>(mob).unwrap().0
     }
 
@@ -280,6 +281,7 @@ fn listed_mobs_fall_and_stay_on_the_ground() {
         ZOMBIE_PIGMAN,
         ZOGLIN,
         ZOMBIE_VILLAGER,
+        SILVERFISH,
     ] {
         let mut a = floor(1, Difficulty::Normal, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, 70.0, 0.5));
@@ -403,6 +405,7 @@ fn overlapping_listed_mobs_push_each_other_apart() {
         ZOMBIE_PIGMAN,
         ZOGLIN,
         ZOMBIE_VILLAGER,
+        SILVERFISH,
     ] {
         let mut a = floor(7, Difficulty::Normal, GameMode::Creative);
         let first = a.adult(identifier, DVec3::new(0.4, SURFACE, 0.5));
@@ -541,6 +544,7 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
         ZOMBIE_PIGMAN,
         ZOGLIN,
         ZOMBIE_VILLAGER,
+        SILVERFISH,
     ] {
         let mut a = floor(15, Difficulty::Normal, GameMode::Creative);
         let near = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
@@ -558,7 +562,7 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
 /// definition gives it, and not for a family it lacks.
 #[test]
 fn listed_mobs_belong_to_their_authored_families() {
-    let cases: [(&str, &[&str], &str); 10] = [
+    let cases: [(&str, &[&str], &str); 11] = [
         (SKELETON, &["skeleton", "undead", "monster", "mob"], "stray"),
         (
             STRAY,
@@ -605,6 +609,11 @@ fn listed_mobs_belong_to_their_authored_families() {
             &["zombie_pigman", "undead", "monster", "mob"],
             "baby_zombie_pigman",
         ),
+        (
+            SILVERFISH,
+            &["silverfish", "monster", "mob", "arthropod"],
+            "undead",
+        ),
     ];
     let mut a = floor(17, Difficulty::Normal, GameMode::Creative);
     for (identifier, families, absent) in cases {
@@ -632,7 +641,7 @@ fn listed_mobs_belong_to_their_authored_families() {
 fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
     // The stray, bogged and parched also drop a tipped arrow on a player
     // kill (`set_potion`), which loot does not implement.
-    let cases: [(&str, &[&str], Option<&str>, u32); 7] = [
+    let cases: [(&str, &[&str], Option<&str>, u32); 8] = [
         (
             SKELETON,
             &["minecraft:arrow", "minecraft:bone"],
@@ -678,6 +687,7 @@ fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
             5,
         ),
         (ENDERMITE, &[], None, 3),
+        (SILVERFISH, &[], None, 5),
         (
             ZOMBIE_PIGMAN,
             &[
@@ -729,6 +739,7 @@ fn listed_mobs_standing_in_lava_are_hurt_by_it() {
         STRAY,
         BOGGED,
         PARCHED,
+        SILVERFISH,
     ] {
         let mut a = floor(21, Difficulty::Normal, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
@@ -798,7 +809,14 @@ fn tough_player(a: &mut Arena) {
 /// cooldown.
 #[test]
 fn listed_hostile_mobs_target_and_hit_a_survival_player() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOGLIN, ZOMBIE_VILLAGER] {
+    for identifier in [
+        HUSK,
+        WITHER_SKELETON,
+        ENDERMITE,
+        ZOGLIN,
+        ZOMBIE_VILLAGER,
+        SILVERFISH,
+    ] {
         let mut a = floor(23, Difficulty::Normal, GameMode::Survival);
         tough_player(&mut a);
         a.move_player(DVec3::new(6.5, SURFACE, 0.5));
@@ -823,7 +841,14 @@ fn listed_hostile_mobs_target_and_hit_a_survival_player() {
 /// targeted.
 #[test]
 fn listed_hostile_mobs_ignore_creative_players() {
-    for identifier in [HUSK, WITHER_SKELETON, ENDERMITE, ZOGLIN, ZOMBIE_VILLAGER] {
+    for identifier in [
+        HUSK,
+        WITHER_SKELETON,
+        ENDERMITE,
+        ZOGLIN,
+        ZOMBIE_VILLAGER,
+        SILVERFISH,
+    ] {
         let mut a = floor(25, Difficulty::Hard, GameMode::Creative);
         a.move_player(DVec3::new(4.5, SURFACE, 0.5));
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));

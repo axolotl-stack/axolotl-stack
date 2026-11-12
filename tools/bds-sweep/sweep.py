@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -769,29 +770,35 @@ def silverfish_items(args) -> list[dict]:
                  'player': [0.5, -60, 0.5, -90], 'frozen': True, 'ticks': 300, 'setup': rules + place + protect,
                  'cleanup': restore + undo + ['gamerule mobgriefing true'], 'actions': [hurt]}
                 for n in range(3)]
-    if args.items in ('pit', 'blocks', 'griefing'):
+    if args.items in ('pit', 'blocks', 'griefing', 'ab'):
         # A 1 x 1 pit two blocks deep in a 3 x 3 x 4 block of one kind: the
         # silverfish's feet block has five neighbours of that kind and
         # nowhere to walk. `pit` repeats stone 20 times for when it merges,
         # `blocks` tries each kind three times for which ones it merges
-        # into (and what they become), `griefing` turns mobGriefing off.
+        # into (and what they become), `griefing` turns mobGriefing off and
+        # `ab` interleaves stone and cobblestone pits.
         def pit(block: str, n: int, ticks: int, rules=()) -> dict:
             cut = ['fill 4 -61 0 6 -58 2 ' + block, 'fill 5 -60 1 5 -59 1 air']
             undo = ['fill 4 -61 0 6 -58 2 air', 'fill 4 -61 0 6 -61 2 grass_block',
                     'kill @e[type=minecraft:silverfish]', 'gamerule mobgriefing true']
-            name = block.split('[')[0]
+            # `deepslate ["pillar_axis"="x"]` -> `deepslate-x`.
+            name = '-'.join([block.split(' [')[0]] + re.findall(r'="([^"]+)"', block))
             return {'key': f'silverfish|{args.items}-{name}-{n}', 'mob': 'minecraft:silverfish',
                     'at': [5.5, -60, 1.5, 0], 'player': far, 'frozen': False, 'ticks': ticks,
                     'setup': list(rules) + cut, 'cleanup': undo, 'actions': []}
         if args.items == 'pit':
             return [pit('stone', n, 400) for n in range(20)]
+        if args.items == 'ab':
+            # Stone and cobblestone pits interleaved, 20 each: whether the
+            # host block changes how soon the silverfish merges.
+            return [pit(block, n, 300) for n in range(20) for block in ('stone', 'cobblestone')]
         if args.items == 'griefing':
             return [pit('stone', n, 400, ['gamerule mobgriefing false']) for n in range(3)]
         kinds = ['cobblestone', 'stone_bricks', 'mossy_stone_bricks', 'cracked_stone_bricks',
                  'chiseled_stone_bricks', 'deepslate', 'deepslate ["pillar_axis"="x"]', 'cobbled_deepslate',
                  'andesite', 'granite', 'diorite', 'tuff', 'smooth_stone', 'infested_stone']
         return [pit(kind, n, 300) for kind in kinds for n in range(3)]
-    raise SystemExit('silverfish --items must be merge, wake, wake-nogrief, pit, blocks or griefing')
+    raise SystemExit('silverfish --items must be merge, wake, wake-nogrief, pit, blocks, griefing or ab')
 
 
 def creeper_items(args) -> list[dict]:

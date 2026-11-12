@@ -20,8 +20,9 @@ use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind
 use crate::entity::mob::components::{
     AvoidMobTypeGoal, BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FleeSunGoal,
     FloatGoal, FollowParentGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal,
-    NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal, RandomLookAroundGoal,
-    RandomStrollGoal, RangedAttackGoal, TemptGoal, WalkNavigationConfig,
+    MergeWithStoneGoal, NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal,
+    RandomLookAroundGoal, RandomStrollGoal, RangedAttackGoal, SwellGoal, TemptGoal,
+    WakeUpFriendsGoal, WalkNavigationConfig,
 };
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
@@ -58,10 +59,13 @@ pub enum Goal {
     FleeSun,
     RangedAttack,
     AvoidMobType,
+    MergeWithStone,
+    WakeUpFriends,
+    Swell,
 }
 
 impl Goal {
-    const ALL: [Goal; 17] = [
+    const ALL: [Goal; 20] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -79,6 +83,9 @@ impl Goal {
         Goal::FleeSun,
         Goal::RangedAttack,
         Goal::AvoidMobType,
+        Goal::MergeWithStone,
+        Goal::WakeUpFriends,
+        Goal::Swell,
     ];
 
     pub fn id(self) -> GoalId {
@@ -90,8 +97,8 @@ impl Goal {
     }
 
     /// The goal kind's native controls; `behavior.eat_block`,
-    /// `behavior.pickup_items`, `behavior.equip_item` and `behavior.flee_sun`
-    /// may author their own.
+    /// `behavior.pickup_items`, `behavior.equip_item`, `behavior.flee_sun`
+    /// and the silverfish goals may author their own.
     fn controls(self) -> GoalControls {
         match self {
             Goal::Float => GoalControls::JUMP,
@@ -107,7 +114,8 @@ impl Goal {
             Goal::MeleeBoxAttack | Goal::PickupItems => GoalControls::MOVE | GoalControls::LOOK,
             Goal::EquipItem => GoalControls::NONE,
             Goal::RangedAttack => GoalControls::MOVE | GoalControls::LOOK,
-            Goal::AvoidMobType => GoalControls::MOVE,
+            Goal::AvoidMobType | Goal::MergeWithStone | Goal::Swell => GoalControls::MOVE,
+            Goal::WakeUpFriends => GoalControls::NONE,
         }
     }
 }
@@ -231,6 +239,30 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls,
         });
     }
+    if let Some(goal) = entity.get::<MergeWithStoneGoal>() {
+        out.push(GoalSpec {
+            id: Goal::MergeWithStone.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<WakeUpFriendsGoal>() {
+        out.push(GoalSpec {
+            id: Goal::WakeUpFriends.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<SwellGoal>() {
+        out.push(GoalSpec {
+            id: Goal::Swell.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
 }
 
 /// World writes the goals request; applied after the mob's tick.
@@ -254,6 +286,10 @@ pub struct Effects {
     pub ranged_facing: Option<bool>,
     /// The pickup and equip goals' item work (`super::pickup`).
     pub gear: super::pickup::GearWork,
+    /// A silverfish merging into a block or waking its friends.
+    pub silverfish: Option<super::silverfish::SilverfishWork>,
+    /// The swell goal started: the mob hisses (`fuse`).
+    pub swell_started: bool,
 }
 
 #[derive(Debug, Default)]
@@ -297,6 +333,7 @@ pub struct GoalStates {
     pub(super) ranged: super::ranged::RangedState,
     pub(super) avoid: super::avoid::AvoidState,
     pub(super) pickup: super::pickup::PickupState,
+    pub(super) silverfish: super::silverfish::SilverfishState,
 }
 
 /// Everything a goal reads and writes during one mob's tick.
@@ -472,6 +509,17 @@ impl<'a> GoalContext<'a> {
                     .total_cmp(&b.feet.distance_squared(self.body.feet))
             })
             .map(|m| m.entity)
+    }
+
+    /// Whether the mob's fuse is lit (`IGNITED`).
+    fn lit(&self) -> bool {
+        self.world
+            .get::<crate::entity::definition::flags::ActorFlags>(self.entity)
+            .is_some_and(|flags| {
+                flags
+                    .get(jolyne::valentine::actor_flags::IGNITED)
+                    .unwrap_or(false)
+            })
     }
 
     pub(super) fn aabb(&self) -> Aabb {
@@ -669,13 +717,20 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::FleeSun => self.flee_sun_can_start(),
             Goal::RangedAttack => self.ranged_can_start(),
             Goal::AvoidMobType => self.avoid_can_start(),
+            Goal::MergeWithStone => self.merge_can_start(),
+            Goal::WakeUpFriends => self.wake_can_start(),
+            Goal::Swell => self.config::<SwellGoal>().is_some() && self.lit(),
         }
     }
 
     fn can_continue(&mut self, id: GoalId) -> bool {
         match Goal::from_id(id) {
             Goal::Float => self.body.liquid.is_some(),
-            Goal::Panic | Goal::RandomStroll | Goal::FleeSun => !self.nav.is_done(),
+            Goal::Panic | Goal::RandomStroll | Goal::FleeSun | Goal::MergeWithStone => {
+                !self.nav.is_done()
+            }
+            Goal::WakeUpFriends => self.config::<WakeUpFriendsGoal>().is_some(),
+            Goal::Swell => self.lit(),
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return false;
@@ -805,13 +860,22 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::FleeSun => self.flee_sun_start(),
             Goal::RangedAttack => self.ranged_start(),
             Goal::AvoidMobType => self.avoid_start(),
+            Goal::MergeWithStone => self.merge_start(),
+            Goal::WakeUpFriends => self.wake_start(),
+            Goal::Swell => {
+                self.nav.stop(self.movement);
+                self.effects.swell_started = true;
+            }
         }
     }
 
     fn stop(&mut self, id: GoalId) {
         match Goal::from_id(id) {
             Goal::Float => {}
-            Goal::Panic | Goal::RandomStroll | Goal::FleeSun => self.nav.stop(self.movement),
+            Goal::Panic | Goal::RandomStroll | Goal::FleeSun | Goal::MergeWithStone => {
+                self.nav.stop(self.movement)
+            }
+            Goal::WakeUpFriends | Goal::Swell => {}
             Goal::FollowParent => {
                 self.nav.stop(self.movement);
                 self.states.parent = None;
@@ -865,7 +929,9 @@ impl GoalCallbacks for GoalContext<'_> {
                     }
                 }
             }
-            Goal::RandomStroll | Goal::FleeSun => {}
+            Goal::RandomStroll | Goal::FleeSun | Goal::MergeWithStone => {}
+            Goal::WakeUpFriends => self.wake_tick(),
+            Goal::Swell => self.nav.stop(self.movement),
             Goal::EatBlock => {
                 self.states.eat_ticks = self.states.eat_ticks.max(1) - 1;
                 if self.states.eat_ticks == 0 {

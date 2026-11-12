@@ -1,0 +1,8433 @@
+{
+ "source": "BDS 1.26.51, tools/bds-sweep/sweep.py silverfish --client-capture, distilled by tools/bds-sweep/silverfish_fixture.py",
+ "merge": [
+  {
+   "key": "merge-0",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 600,
+   "merge_anim": 11,
+   "changed": {
+    "t": 12,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 12
+  },
+  {
+   "key": "merge-1",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 600,
+   "merge_anim": 34,
+   "changed": {
+    "t": 35,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 35
+  },
+  {
+   "key": "merge-2",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 600,
+   "merge_anim": 176,
+   "changed": {
+    "t": 177,
+    "pos": [
+     3,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 177
+  },
+  {
+   "key": "merge-3",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 600,
+   "merge_anim": 113,
+   "changed": {
+    "t": 114,
+    "pos": [
+     6,
+     -60,
+     3
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 114
+  },
+  {
+   "key": "merge-4",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 600,
+   "merge_anim": 79,
+   "changed": {
+    "t": 80,
+    "pos": [
+     6,
+     -61,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 80
+  },
+  {
+   "key": "merge-5",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 600,
+   "merge_anim": 17,
+   "changed": {
+    "t": 18,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 18
+  },
+  {
+   "key": "merge-6",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 600,
+   "merge_anim": 122,
+   "changed": {
+    "t": 123,
+    "pos": [
+     6,
+     -60,
+     3
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 123
+  },
+  {
+   "key": "merge-7",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 600,
+   "merge_anim": 39,
+   "changed": {
+    "t": 40,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 40
+  },
+  {
+   "key": "merge-8",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 600,
+   "merge_anim": 21,
+   "changed": {
+    "t": 22,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 22
+  },
+  {
+   "key": "merge-9",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 600,
+   "merge_anim": 12,
+   "changed": {
+    "t": 13,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 13
+  },
+  {
+   "key": "pit-stone-0",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 25,
+   "changed": {
+    "t": 26,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 26
+  },
+  {
+   "key": "pit-stone-1",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 16,
+   "changed": {
+    "t": 17,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 17
+  },
+  {
+   "key": "pit-stone-2",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 17,
+   "changed": {
+    "t": 18,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 18
+  },
+  {
+   "key": "pit-stone-3",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 1
+  },
+  {
+   "key": "pit-stone-4",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 1,
+   "changed": {
+    "t": 2,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 2
+  },
+  {
+   "key": "pit-stone-5",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 1,
+   "changed": {
+    "t": 2,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 2
+  },
+  {
+   "key": "pit-stone-6",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 1
+  },
+  {
+   "key": "pit-stone-7",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 6,
+   "changed": {
+    "t": 7,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 7
+  },
+  {
+   "key": "pit-stone-8",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 13,
+   "changed": {
+    "t": 14,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 14
+  },
+  {
+   "key": "pit-stone-9",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 30,
+   "changed": {
+    "t": 31,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 31
+  },
+  {
+   "key": "pit-stone-10",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 33,
+   "changed": {
+    "t": 34,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 34
+  },
+  {
+   "key": "pit-stone-11",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 36,
+   "changed": {
+    "t": 37,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 37
+  },
+  {
+   "key": "pit-stone-12",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 7,
+   "changed": {
+    "t": 8,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 8
+  },
+  {
+   "key": "pit-stone-13",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 17,
+   "changed": {
+    "t": 18,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 18
+  },
+  {
+   "key": "pit-stone-14",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 1,
+   "changed": {
+    "t": 2,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 2
+  },
+  {
+   "key": "pit-stone-15",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 1,
+   "changed": {
+    "t": 2,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 2
+  },
+  {
+   "key": "pit-stone-16",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 42,
+   "changed": {
+    "t": 43,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 43
+  },
+  {
+   "key": "pit-stone-17",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 35,
+   "changed": {
+    "t": 36,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 36
+  },
+  {
+   "key": "pit-stone-18",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 39,
+   "changed": {
+    "t": 40,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 40
+  },
+  {
+   "key": "pit-stone-19",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 6,
+   "changed": {
+    "t": 7,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 7
+  },
+  {
+   "key": "pit-stone-0",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 7,
+   "changed": {
+    "t": 8,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 8
+  },
+  {
+   "key": "pit-stone-1",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 8,
+   "changed": {
+    "t": 9,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 9
+  },
+  {
+   "key": "pit-stone-2",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 15,
+   "changed": {
+    "t": 16,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 16
+  },
+  {
+   "key": "pit-stone-3",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 51,
+   "changed": {
+    "t": 52,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 52
+  },
+  {
+   "key": "pit-stone-4",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 9,
+   "changed": {
+    "t": 10,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 10
+  },
+  {
+   "key": "pit-stone-5",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 30,
+   "changed": {
+    "t": 31,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 31
+  },
+  {
+   "key": "pit-stone-6",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 21,
+   "changed": {
+    "t": 22,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 22
+  },
+  {
+   "key": "pit-stone-7",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 12,
+   "changed": {
+    "t": 13,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 13
+  },
+  {
+   "key": "pit-stone-8",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 4,
+   "changed": {
+    "t": 5,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 5
+  },
+  {
+   "key": "pit-stone-9",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 10,
+   "changed": {
+    "t": 11,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 11
+  },
+  {
+   "key": "pit-stone-10",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 9,
+   "changed": {
+    "t": 10,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 10
+  },
+  {
+   "key": "pit-stone-11",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 7,
+   "changed": {
+    "t": 8,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 8
+  },
+  {
+   "key": "pit-stone-12",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 13,
+   "changed": {
+    "t": 14,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 14
+  },
+  {
+   "key": "pit-stone-13",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 7,
+   "changed": {
+    "t": 8,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 8
+  },
+  {
+   "key": "pit-stone-14",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 6,
+   "changed": {
+    "t": 7,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 7
+  },
+  {
+   "key": "pit-stone-15",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 24,
+   "changed": {
+    "t": 25,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 25
+  },
+  {
+   "key": "pit-stone-16",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 8,
+   "changed": {
+    "t": 9,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 9
+  },
+  {
+   "key": "pit-stone-17",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 3
+  },
+  {
+   "key": "pit-stone-18",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 10,
+   "changed": {
+    "t": 11,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 11
+  },
+  {
+   "key": "pit-stone-19",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": 39,
+   "changed": {
+    "t": 40,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 40
+  },
+  {
+   "key": "blocks-cobblestone-0",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 3
+  },
+  {
+   "key": "blocks-cobblestone-1",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 10,
+   "changed": {
+    "t": 11,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 11
+  },
+  {
+   "key": "blocks-cobblestone-2",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 4
+  },
+  {
+   "key": "blocks-stone_bricks-0",
+   "block": "minecraft:stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 4,
+   "changed": {
+    "t": 5,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 1188684497
+   },
+   "removed": 5
+  },
+  {
+   "key": "blocks-stone_bricks-1",
+   "block": "minecraft:stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 27,
+   "changed": {
+    "t": 28,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1188684497
+   },
+   "removed": 28
+  },
+  {
+   "key": "blocks-stone_bricks-2",
+   "block": "minecraft:stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1188684497
+   },
+   "removed": 4
+  },
+  {
+   "key": "blocks-mossy_stone_bricks-0",
+   "block": "minecraft:mossy_stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 4227024645
+   },
+   "removed": 4
+  },
+  {
+   "key": "blocks-mossy_stone_bricks-1",
+   "block": "minecraft:mossy_stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 1,
+   "changed": {
+    "t": 2,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 4227024645
+   },
+   "removed": 2
+  },
+  {
+   "key": "blocks-mossy_stone_bricks-2",
+   "block": "minecraft:mossy_stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 5,
+   "changed": {
+    "t": 6,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 4227024645
+   },
+   "removed": 6
+  },
+  {
+   "key": "blocks-cracked_stone_bricks-0",
+   "block": "minecraft:cracked_stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 1839492969
+   },
+   "removed": 3
+  },
+  {
+   "key": "blocks-cracked_stone_bricks-1",
+   "block": "minecraft:cracked_stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 10,
+   "changed": {
+    "t": 11,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 1839492969
+   },
+   "removed": 11
+  },
+  {
+   "key": "blocks-cracked_stone_bricks-2",
+   "block": "minecraft:cracked_stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1839492969
+   },
+   "removed": 4
+  },
+  {
+   "key": "blocks-chiseled_stone_bricks-0",
+   "block": "minecraft:chiseled_stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 5,
+   "changed": {
+    "t": 6,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 656057126
+   },
+   "removed": 6
+  },
+  {
+   "key": "blocks-chiseled_stone_bricks-1",
+   "block": "minecraft:chiseled_stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 10,
+   "changed": {
+    "t": 11,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 656057126
+   },
+   "removed": 11
+  },
+  {
+   "key": "blocks-chiseled_stone_bricks-2",
+   "block": "minecraft:chiseled_stone_bricks",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 6,
+   "changed": {
+    "t": 7,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 656057126
+   },
+   "removed": 7
+  },
+  {
+   "key": "blocks-deepslate-0",
+   "block": "minecraft:deepslate",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 1860943670
+   },
+   "removed": 3
+  },
+  {
+   "key": "blocks-deepslate-1",
+   "block": "minecraft:deepslate",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 14,
+   "changed": {
+    "t": 15,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1860943670
+   },
+   "removed": 15
+  },
+  {
+   "key": "blocks-deepslate-2",
+   "block": "minecraft:deepslate",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 9,
+   "changed": {
+    "t": 10,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 1860943670
+   },
+   "removed": 10
+  },
+  {
+   "key": "blocks-deepslate -0",
+   "block": "minecraft:deepslate",
+   "states": {
+    "pillar_axis": "x"
+   },
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 21,
+   "changed": {
+    "t": 22,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2916250241
+   },
+   "removed": 22
+  },
+  {
+   "key": "blocks-deepslate -1",
+   "block": "minecraft:deepslate",
+   "states": {
+    "pillar_axis": "x"
+   },
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 5,
+   "changed": {
+    "t": 6,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2916250241
+   },
+   "removed": 6
+  },
+  {
+   "key": "blocks-deepslate -2",
+   "block": "minecraft:deepslate",
+   "states": {
+    "pillar_axis": "x"
+   },
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2916250241
+   },
+   "removed": 4
+  },
+  {
+   "key": "blocks-cobbled_deepslate-0",
+   "block": "minecraft:cobbled_deepslate",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-cobbled_deepslate-1",
+   "block": "minecraft:cobbled_deepslate",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-cobbled_deepslate-2",
+   "block": "minecraft:cobbled_deepslate",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-andesite-0",
+   "block": "minecraft:andesite",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-andesite-1",
+   "block": "minecraft:andesite",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-andesite-2",
+   "block": "minecraft:andesite",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-granite-0",
+   "block": "minecraft:granite",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-granite-1",
+   "block": "minecraft:granite",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-granite-2",
+   "block": "minecraft:granite",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-diorite-0",
+   "block": "minecraft:diorite",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-diorite-1",
+   "block": "minecraft:diorite",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-diorite-2",
+   "block": "minecraft:diorite",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-tuff-0",
+   "block": "minecraft:tuff",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-tuff-1",
+   "block": "minecraft:tuff",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-tuff-2",
+   "block": "minecraft:tuff",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-smooth_stone-0",
+   "block": "minecraft:smooth_stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-smooth_stone-1",
+   "block": "minecraft:smooth_stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-smooth_stone-2",
+   "block": "minecraft:smooth_stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-infested_stone-0",
+   "block": "minecraft:infested_stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-infested_stone-1",
+   "block": "minecraft:infested_stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "blocks-infested_stone-2",
+   "block": "minecraft:infested_stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "griefing-stone-0",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": false,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "griefing-stone-1",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": false,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "griefing-stone-2",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": false,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 400,
+   "merge_anim": null,
+   "changed": null,
+   "removed": null
+  },
+  {
+   "key": "ab-stone-0",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 4
+  },
+  {
+   "key": "ab-cobblestone-0",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 3
+  },
+  {
+   "key": "ab-stone-1",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 6,
+   "changed": {
+    "t": 7,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 7
+  },
+  {
+   "key": "ab-cobblestone-1",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 1,
+   "changed": {
+    "t": 2,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 2
+  },
+  {
+   "key": "ab-stone-2",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 4,
+   "changed": {
+    "t": 5,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 5
+  },
+  {
+   "key": "ab-cobblestone-2",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 7,
+   "changed": {
+    "t": 8,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 8
+  },
+  {
+   "key": "ab-stone-3",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 16,
+   "changed": {
+    "t": 17,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 17
+  },
+  {
+   "key": "ab-cobblestone-3",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 9,
+   "changed": {
+    "t": 10,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 10
+  },
+  {
+   "key": "ab-stone-4",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 1
+  },
+  {
+   "key": "ab-cobblestone-4",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 10,
+   "changed": {
+    "t": 11,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 11
+  },
+  {
+   "key": "ab-stone-5",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 4
+  },
+  {
+   "key": "ab-cobblestone-5",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 3
+  },
+  {
+   "key": "ab-stone-6",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 13,
+   "changed": {
+    "t": 14,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 14
+  },
+  {
+   "key": "ab-cobblestone-6",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 9,
+   "changed": {
+    "t": 10,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 10
+  },
+  {
+   "key": "ab-stone-7",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 3
+  },
+  {
+   "key": "ab-cobblestone-7",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 13,
+   "changed": {
+    "t": 14,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 14
+  },
+  {
+   "key": "ab-stone-8",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 21,
+   "changed": {
+    "t": 22,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 22
+  },
+  {
+   "key": "ab-cobblestone-8",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 6,
+   "changed": {
+    "t": 7,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 7
+  },
+  {
+   "key": "ab-stone-9",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 13,
+   "changed": {
+    "t": 14,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 14
+  },
+  {
+   "key": "ab-cobblestone-9",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 12,
+   "changed": {
+    "t": 13,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 13
+  },
+  {
+   "key": "ab-stone-10",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 16,
+   "changed": {
+    "t": 17,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 17
+  },
+  {
+   "key": "ab-cobblestone-10",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 19,
+   "changed": {
+    "t": 20,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 20
+  },
+  {
+   "key": "ab-stone-11",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 1
+  },
+  {
+   "key": "ab-cobblestone-11",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 12,
+   "changed": {
+    "t": 13,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 13
+  },
+  {
+   "key": "ab-stone-12",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 15,
+   "changed": {
+    "t": 16,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 16
+  },
+  {
+   "key": "ab-cobblestone-12",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 4
+  },
+  {
+   "key": "ab-stone-13",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 3
+  },
+  {
+   "key": "ab-cobblestone-13",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 12,
+   "changed": {
+    "t": 13,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 13
+  },
+  {
+   "key": "ab-stone-14",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 1
+  },
+  {
+   "key": "ab-cobblestone-14",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 6,
+   "changed": {
+    "t": 7,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 7
+  },
+  {
+   "key": "ab-stone-15",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 10,
+   "changed": {
+    "t": 11,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 11
+  },
+  {
+   "key": "ab-cobblestone-15",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 7,
+   "changed": {
+    "t": 8,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 8
+  },
+  {
+   "key": "ab-stone-16",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 16,
+   "changed": {
+    "t": 17,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 17
+  },
+  {
+   "key": "ab-cobblestone-16",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 1,
+   "changed": {
+    "t": 2,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 2
+  },
+  {
+   "key": "ab-stone-17",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 3
+  },
+  {
+   "key": "ab-cobblestone-17",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 9,
+   "changed": {
+    "t": 10,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 10
+  },
+  {
+   "key": "ab-stone-18",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 1,
+   "changed": {
+    "t": 2,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 2
+  },
+  {
+   "key": "ab-cobblestone-18",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 12,
+   "changed": {
+    "t": 13,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 13
+  },
+  {
+   "key": "ab-stone-19",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 8,
+   "changed": {
+    "t": 9,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 9
+  },
+  {
+   "key": "ab-cobblestone-19",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 36,
+   "changed": {
+    "t": 37,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 37
+  },
+  {
+   "key": "ab-stone-0",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 5,
+   "changed": {
+    "t": 6,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 6
+  },
+  {
+   "key": "ab-cobblestone-0",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 17,
+   "changed": {
+    "t": 18,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 18
+  },
+  {
+   "key": "ab-stone-1",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 4
+  },
+  {
+   "key": "ab-cobblestone-1",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 3
+  },
+  {
+   "key": "ab-stone-2",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 8,
+   "changed": {
+    "t": 9,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 9
+  },
+  {
+   "key": "ab-cobblestone-2",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 19,
+   "changed": {
+    "t": 20,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 20
+  },
+  {
+   "key": "ab-stone-3",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 8,
+   "changed": {
+    "t": 9,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 9
+  },
+  {
+   "key": "ab-cobblestone-3",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 1,
+   "changed": {
+    "t": 2,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 2
+  },
+  {
+   "key": "ab-stone-4",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 21,
+   "changed": {
+    "t": 22,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 22
+  },
+  {
+   "key": "ab-cobblestone-4",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 1
+  },
+  {
+   "key": "ab-stone-5",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 1
+  },
+  {
+   "key": "ab-cobblestone-5",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 4,
+   "changed": {
+    "t": 5,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 5
+  },
+  {
+   "key": "ab-stone-6",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 10,
+   "changed": {
+    "t": 11,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 11
+  },
+  {
+   "key": "ab-cobblestone-6",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 4,
+   "changed": {
+    "t": 5,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 5
+  },
+  {
+   "key": "ab-stone-7",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 30,
+   "changed": {
+    "t": 31,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 31
+  },
+  {
+   "key": "ab-cobblestone-7",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 4
+  },
+  {
+   "key": "ab-stone-8",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 13,
+   "changed": {
+    "t": 14,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 14
+  },
+  {
+   "key": "ab-cobblestone-8",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 13,
+   "changed": {
+    "t": 14,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 14
+  },
+  {
+   "key": "ab-stone-9",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 7,
+   "changed": {
+    "t": 8,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 8
+  },
+  {
+   "key": "ab-cobblestone-9",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 1,
+   "changed": {
+    "t": 2,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 2
+  },
+  {
+   "key": "ab-stone-10",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 48,
+   "changed": {
+    "t": 49,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 49
+  },
+  {
+   "key": "ab-cobblestone-10",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 8,
+   "changed": {
+    "t": 9,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 9
+  },
+  {
+   "key": "ab-stone-11",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 3
+  },
+  {
+   "key": "ab-cobblestone-11",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 6,
+   "changed": {
+    "t": 7,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 7
+  },
+  {
+   "key": "ab-stone-12",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 5,
+   "changed": {
+    "t": 6,
+    "pos": [
+     5,
+     -60,
+     0
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 6
+  },
+  {
+   "key": "ab-cobblestone-12",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 25,
+   "changed": {
+    "t": 26,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 26
+  },
+  {
+   "key": "ab-stone-13",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 3
+  },
+  {
+   "key": "ab-cobblestone-13",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 27,
+   "changed": {
+    "t": 28,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 28
+  },
+  {
+   "key": "ab-stone-14",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 3,
+   "changed": {
+    "t": 4,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 4
+  },
+  {
+   "key": "ab-cobblestone-14",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 1
+  },
+  {
+   "key": "ab-stone-15",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 4,
+   "changed": {
+    "t": 5,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 5
+  },
+  {
+   "key": "ab-cobblestone-15",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 10,
+   "changed": {
+    "t": 11,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 11
+  },
+  {
+   "key": "ab-stone-16",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 41,
+   "changed": {
+    "t": 42,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 42
+  },
+  {
+   "key": "ab-cobblestone-16",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 20,
+   "changed": {
+    "t": 21,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 21
+  },
+  {
+   "key": "ab-stone-17",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 2,
+   "changed": {
+    "t": 3,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 3
+  },
+  {
+   "key": "ab-cobblestone-17",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 1
+  },
+  {
+   "key": "ab-stone-18",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     4,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 1
+  },
+  {
+   "key": "ab-cobblestone-18",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 14,
+   "changed": {
+    "t": 15,
+    "pos": [
+     5,
+     -60,
+     2
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 15
+  },
+  {
+   "key": "ab-stone-19",
+   "block": "minecraft:stone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 0,
+   "changed": {
+    "t": 1,
+    "pos": [
+     6,
+     -60,
+     1
+    ],
+    "network_id": 2988963749
+   },
+   "removed": 1
+  },
+  {
+   "key": "ab-cobblestone-19",
+   "block": "minecraft:cobblestone",
+   "states": {},
+   "griefing": true,
+   "feet": [
+    5,
+    -60,
+    1
+   ],
+   "ticks": 300,
+   "merge_anim": 29,
+   "changed": {
+    "t": 30,
+    "pos": [
+     5,
+     -61,
+     1
+    ],
+    "network_id": 1889697702
+   },
+   "removed": 30
+  }
+ ],
+ "wake": [
+  {
+   "key": "wake-0",
+   "griefing": true,
+   "feet": [
+    4,
+    -60,
+    0
+   ],
+   "hurt": 40,
+   "ticks": 300,
+   "cells": [
+    [
+     5,
+     -60,
+     0
+    ],
+    [
+     6,
+     -60,
+     0
+    ],
+    [
+     7,
+     -60,
+     0
+    ],
+    [
+     8,
+     -60,
+     0
+    ],
+    [
+     9,
+     -60,
+     0
+    ],
+    [
+     10,
+     -60,
+     0
+    ],
+    [
+     11,
+     -60,
+     0
+    ],
+    [
+     12,
+     -60,
+     0
+    ],
+    [
+     13,
+     -60,
+     0
+    ],
+    [
+     14,
+     -60,
+     0
+    ],
+    [
+     15,
+     -60,
+     0
+    ],
+    [
+     16,
+     -60,
+     0
+    ],
+    [
+     4,
+     -60,
+     1
+    ],
+    [
+     4,
+     -60,
+     2
+    ],
+    [
+     4,
+     -60,
+     3
+    ],
+    [
+     4,
+     -60,
+     4
+    ],
+    [
+     4,
+     -60,
+     5
+    ],
+    [
+     4,
+     -60,
+     6
+    ],
+    [
+     4,
+     -58,
+     0
+    ],
+    [
+     4,
+     -57,
+     0
+    ],
+    [
+     4,
+     -56,
+     0
+    ],
+    [
+     4,
+     -55,
+     0
+    ],
+    [
+     4,
+     -54,
+     0
+    ]
+   ],
+   "events": [
+    {
+     "t": 60,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 61,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       1.0
+      ],
+      [
+       3.8000002,
+       -60.0,
+       2.0
+      ]
+     ]
+    },
+    {
+     "t": 80,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 81,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       3.0
+      ],
+      [
+       3.8000002,
+       -60.0,
+       4.0
+      ],
+      [
+       3.8000002,
+       -60.0,
+       5.0
+      ],
+      [
+       3.8000002,
+       -60.0,
+       6.0
+      ]
+     ]
+    },
+    {
+     "t": 100,
+     "destroyed": [
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 101,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       4.8,
+       -60.0,
+       0.0
+      ],
+      [
+       5.8,
+       -60.0,
+       0.0
+      ],
+      [
+       6.8,
+       -60.0,
+       0.0
+      ],
+      [
+       7.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 120,
+     "destroyed": [
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 121,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       8.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 140,
+     "destroyed": [
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 141,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       9.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 160,
+     "destroyed": [
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 161,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       10.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 180,
+     "destroyed": [
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 181,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       11.8,
+       -60.0,
+       0.0
+      ],
+      [
+       12.8,
+       -60.0,
+       0.0
+      ],
+      [
+       13.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 200,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 201,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -58.0,
+       0.0
+      ],
+      [
+       3.8000002,
+       -57.0,
+       0.0
+      ],
+      [
+       3.8000002,
+       -56.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 220,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 221,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -55.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 300,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        15,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -54,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        16,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        15,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -54,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        16,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      }
+     ],
+     "released": []
+    }
+   ]
+  },
+  {
+   "key": "wake-1",
+   "griefing": true,
+   "feet": [
+    4,
+    -60,
+    0
+   ],
+   "hurt": 40,
+   "ticks": 300,
+   "cells": [
+    [
+     5,
+     -60,
+     0
+    ],
+    [
+     6,
+     -60,
+     0
+    ],
+    [
+     7,
+     -60,
+     0
+    ],
+    [
+     8,
+     -60,
+     0
+    ],
+    [
+     9,
+     -60,
+     0
+    ],
+    [
+     10,
+     -60,
+     0
+    ],
+    [
+     11,
+     -60,
+     0
+    ],
+    [
+     12,
+     -60,
+     0
+    ],
+    [
+     13,
+     -60,
+     0
+    ],
+    [
+     14,
+     -60,
+     0
+    ],
+    [
+     15,
+     -60,
+     0
+    ],
+    [
+     16,
+     -60,
+     0
+    ],
+    [
+     4,
+     -60,
+     1
+    ],
+    [
+     4,
+     -60,
+     2
+    ],
+    [
+     4,
+     -60,
+     3
+    ],
+    [
+     4,
+     -60,
+     4
+    ],
+    [
+     4,
+     -60,
+     5
+    ],
+    [
+     4,
+     -60,
+     6
+    ],
+    [
+     4,
+     -58,
+     0
+    ],
+    [
+     4,
+     -57,
+     0
+    ],
+    [
+     4,
+     -56,
+     0
+    ],
+    [
+     4,
+     -55,
+     0
+    ],
+    [
+     4,
+     -54,
+     0
+    ]
+   ],
+   "events": [
+    {
+     "t": 60,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 61,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "t": 80,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 81,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       2.0
+      ],
+      [
+       3.8000002,
+       -60.0,
+       3.0
+      ],
+      [
+       3.8000002,
+       -60.0,
+       4.0
+      ]
+     ]
+    },
+    {
+     "t": 100,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 101,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       5.0
+      ],
+      [
+       3.8000002,
+       -60.0,
+       6.0
+      ]
+     ]
+    },
+    {
+     "t": 120,
+     "destroyed": [
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 121,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       4.8,
+       -60.0,
+       0.0
+      ],
+      [
+       5.8,
+       -60.0,
+       0.0
+      ],
+      [
+       6.8,
+       -60.0,
+       0.0
+      ],
+      [
+       7.8,
+       -60.0,
+       0.0
+      ],
+      [
+       8.8,
+       -60.0,
+       0.0
+      ],
+      [
+       9.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 140,
+     "destroyed": [
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 141,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       10.8,
+       -60.0,
+       0.0
+      ],
+      [
+       11.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 160,
+     "destroyed": [
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 161,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       12.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 180,
+     "destroyed": [
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 181,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       13.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 200,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 201,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -58.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 220,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 221,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -57.0,
+       0.0
+      ],
+      [
+       3.8000002,
+       -56.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 240,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 241,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -55.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 300,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        15,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -54,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        16,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        15,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -54,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        16,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      }
+     ],
+     "released": []
+    }
+   ]
+  },
+  {
+   "key": "wake-2",
+   "griefing": true,
+   "feet": [
+    4,
+    -60,
+    0
+   ],
+   "hurt": 40,
+   "ticks": 300,
+   "cells": [
+    [
+     5,
+     -60,
+     0
+    ],
+    [
+     6,
+     -60,
+     0
+    ],
+    [
+     7,
+     -60,
+     0
+    ],
+    [
+     8,
+     -60,
+     0
+    ],
+    [
+     9,
+     -60,
+     0
+    ],
+    [
+     10,
+     -60,
+     0
+    ],
+    [
+     11,
+     -60,
+     0
+    ],
+    [
+     12,
+     -60,
+     0
+    ],
+    [
+     13,
+     -60,
+     0
+    ],
+    [
+     14,
+     -60,
+     0
+    ],
+    [
+     15,
+     -60,
+     0
+    ],
+    [
+     16,
+     -60,
+     0
+    ],
+    [
+     4,
+     -60,
+     1
+    ],
+    [
+     4,
+     -60,
+     2
+    ],
+    [
+     4,
+     -60,
+     3
+    ],
+    [
+     4,
+     -60,
+     4
+    ],
+    [
+     4,
+     -60,
+     5
+    ],
+    [
+     4,
+     -60,
+     6
+    ],
+    [
+     4,
+     -58,
+     0
+    ],
+    [
+     4,
+     -57,
+     0
+    ],
+    [
+     4,
+     -56,
+     0
+    ],
+    [
+     4,
+     -55,
+     0
+    ],
+    [
+     4,
+     -54,
+     0
+    ]
+   ],
+   "events": [
+    {
+     "t": 60,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 61,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "t": 80,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 81,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       2.0
+      ]
+     ]
+    },
+    {
+     "t": 100,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 101,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       3.0
+      ]
+     ]
+    },
+    {
+     "t": 120,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 121,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       4.0
+      ]
+     ]
+    },
+    {
+     "t": 140,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 141,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       5.0
+      ]
+     ]
+    },
+    {
+     "t": 160,
+     "destroyed": [
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 161,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       3.8000002,
+       -60.0,
+       6.0
+      ],
+      [
+       4.8,
+       -60.0,
+       0.0
+      ],
+      [
+       5.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 180,
+     "destroyed": [
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 181,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       6.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 200,
+     "destroyed": [
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 201,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       7.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 220,
+     "destroyed": [
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 221,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       8.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 240,
+     "destroyed": [
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 241,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       9.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 260,
+     "destroyed": [
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 261,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       10.8,
+       -60.0,
+       0.0
+      ],
+      [
+       11.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 280,
+     "destroyed": [
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [],
+     "released": []
+    },
+    {
+     "t": 281,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       12.8,
+       -60.0,
+       0.0
+      ]
+     ]
+    },
+    {
+     "t": 300,
+     "destroyed": [
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": -1306003547
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": -1306003547
+      }
+     ],
+     "set": [
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        15,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -54,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        16,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": [
+      [
+       13.8,
+       -60.0,
+       0.0
+      ],
+      [
+       3.8000002,
+       -58.0,
+       0.0
+      ],
+      [
+       3.8000002,
+       -57.0,
+       0.0
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "key": "wake-nogrief-0",
+   "griefing": false,
+   "feet": [
+    4,
+    -60,
+    0
+   ],
+   "hurt": 40,
+   "ticks": 300,
+   "cells": [
+    [
+     5,
+     -60,
+     0
+    ],
+    [
+     6,
+     -60,
+     0
+    ],
+    [
+     7,
+     -60,
+     0
+    ],
+    [
+     8,
+     -60,
+     0
+    ],
+    [
+     9,
+     -60,
+     0
+    ],
+    [
+     10,
+     -60,
+     0
+    ],
+    [
+     11,
+     -60,
+     0
+    ],
+    [
+     12,
+     -60,
+     0
+    ],
+    [
+     13,
+     -60,
+     0
+    ],
+    [
+     14,
+     -60,
+     0
+    ],
+    [
+     15,
+     -60,
+     0
+    ],
+    [
+     16,
+     -60,
+     0
+    ],
+    [
+     4,
+     -60,
+     1
+    ],
+    [
+     4,
+     -60,
+     2
+    ],
+    [
+     4,
+     -60,
+     3
+    ],
+    [
+     4,
+     -60,
+     4
+    ],
+    [
+     4,
+     -60,
+     5
+    ],
+    [
+     4,
+     -60,
+     6
+    ],
+    [
+     4,
+     -58,
+     0
+    ],
+    [
+     4,
+     -57,
+     0
+    ],
+    [
+     4,
+     -56,
+     0
+    ],
+    [
+     4,
+     -55,
+     0
+    ],
+    [
+     4,
+     -54,
+     0
+    ]
+   ],
+   "events": [
+    {
+     "t": 61,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 81,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 101,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 121,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 141,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 161,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 181,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 201,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 221,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 241,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 300,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        15,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -54,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        16,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        15,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -54,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        16,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      }
+     ],
+     "released": []
+    }
+   ]
+  },
+  {
+   "key": "wake-nogrief-1",
+   "griefing": false,
+   "feet": [
+    4,
+    -60,
+    0
+   ],
+   "hurt": 40,
+   "ticks": 300,
+   "cells": [
+    [
+     5,
+     -60,
+     0
+    ],
+    [
+     6,
+     -60,
+     0
+    ],
+    [
+     7,
+     -60,
+     0
+    ],
+    [
+     8,
+     -60,
+     0
+    ],
+    [
+     9,
+     -60,
+     0
+    ],
+    [
+     10,
+     -60,
+     0
+    ],
+    [
+     11,
+     -60,
+     0
+    ],
+    [
+     12,
+     -60,
+     0
+    ],
+    [
+     13,
+     -60,
+     0
+    ],
+    [
+     14,
+     -60,
+     0
+    ],
+    [
+     15,
+     -60,
+     0
+    ],
+    [
+     16,
+     -60,
+     0
+    ],
+    [
+     4,
+     -60,
+     1
+    ],
+    [
+     4,
+     -60,
+     2
+    ],
+    [
+     4,
+     -60,
+     3
+    ],
+    [
+     4,
+     -60,
+     4
+    ],
+    [
+     4,
+     -60,
+     5
+    ],
+    [
+     4,
+     -60,
+     6
+    ],
+    [
+     4,
+     -58,
+     0
+    ],
+    [
+     4,
+     -57,
+     0
+    ],
+    [
+     4,
+     -56,
+     0
+    ],
+    [
+     4,
+     -55,
+     0
+    ],
+    [
+     4,
+     -54,
+     0
+    ]
+   ],
+   "events": [
+    {
+     "t": 61,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 81,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 101,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 121,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 141,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 161,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 181,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 201,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 221,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 241,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 261,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 281,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 300,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        15,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -54,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        16,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        15,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        4,
+        -54,
+        0
+       ],
+       "network_id": 2988963749
+      },
+      {
+       "pos": [
+        16,
+        -60,
+        0
+       ],
+       "network_id": 2988963749
+      }
+     ],
+     "released": []
+    }
+   ]
+  },
+  {
+   "key": "wake-nogrief-2",
+   "griefing": false,
+   "feet": [
+    4,
+    -60,
+    0
+   ],
+   "hurt": 40,
+   "ticks": 300,
+   "cells": [
+    [
+     5,
+     -60,
+     0
+    ],
+    [
+     6,
+     -60,
+     0
+    ],
+    [
+     7,
+     -60,
+     0
+    ],
+    [
+     8,
+     -60,
+     0
+    ],
+    [
+     9,
+     -60,
+     0
+    ],
+    [
+     10,
+     -60,
+     0
+    ],
+    [
+     11,
+     -60,
+     0
+    ],
+    [
+     12,
+     -60,
+     0
+    ],
+    [
+     13,
+     -60,
+     0
+    ],
+    [
+     14,
+     -60,
+     0
+    ],
+    [
+     15,
+     -60,
+     0
+    ],
+    [
+     16,
+     -60,
+     0
+    ],
+    [
+     4,
+     -60,
+     1
+    ],
+    [
+     4,
+     -60,
+     2
+    ],
+    [
+     4,
+     -60,
+     3
+    ],
+    [
+     4,
+     -60,
+     4
+    ],
+    [
+     4,
+     -60,
+     5
+    ],
+    [
+     4,
+     -60,
+     6
+    ],
+    [
+     4,
+     -58,
+     0
+    ],
+    [
+     4,
+     -57,
+     0
+    ],
+    [
+     4,
+     -56,
+     0
+    ],
+    [
+     4,
+     -55,
+     0
+    ],
+    [
+     4,
+     -54,
+     0
+    ]
+   ],
+   "events": [
+    {
+     "t": 60,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 80,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 100,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 120,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 140,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 160,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 180,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 200,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 220,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 240,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 2150698529
+      },
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 2150698529
+      }
+     ],
+     "released": []
+    },
+    {
+     "t": 300,
+     "destroyed": [],
+     "set": [
+      {
+       "pos": [
+        5,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        6,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        7,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        8,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        9,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        10,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        11,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        12,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        13,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        14,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        15,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        1
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        2
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        3
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        4
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        5
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -60,
+        6
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -58,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -57,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -56,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -55,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        4,
+        -54,
+        0
+       ],
+       "network_id": 3690217760
+      },
+      {
+       "pos": [
+        16,
+        -60,
+        0
+       ],
+       "network_id": 3690217760
+      }
+     ],
+     "released": []
+    }
+   ]
+  }
+ ]
+}

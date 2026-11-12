@@ -513,6 +513,24 @@ effects, the bow as the only ranged weapon, the `is_underground` and
 `in_block` filters, the skeleton's trap sensor, fleeing a wolf
 (`behavior.avoid_mob_type`) and the arrow pickup after its shake.
 
+The silverfish (`sweep.py silverfish --client-capture`: 1 × 1 pits of 14 kinds
+of block, interleaved stone and cobblestone pits, mobGriefing off, and
+infested stone around a hurt silverfish, distilled by
+`tools/bds-sweep/silverfish_fixture.py` into
+`src/entity/mob/ai/testdata/bds-1.26.51-silverfish.json`) is replayed by
+`src/entity/mob/tests/silverfish.rs`: which blocks it merges into and what
+they become (the measured table `unastar-data/data/measured/infested_blocks.json`,
+decision 0059), which faces and how soon by distribution over seeded runs,
+and the wake-up scan's order, range, cadence and stopping coin, the released
+silverfish's position and mobGriefing turning woken blocks back into stone.
+The creeper's fuse (`sweep.py creeper`, distilled by
+`tools/bds-sweep/creeper_fixture.py` into
+`src/entity/mob/ai/testdata/bds-1.26.51-creeper.json`) is measured; its
+`target_nearby_sensor` decision is replayed on the BDS positions by
+`src/entity/mob/tests/creeper.rs` (ranges between the collision boxes). The
+creeper spawns once `minecraft:explode` (blocks round 4) and
+`behavior.melee_attack` exist.
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the

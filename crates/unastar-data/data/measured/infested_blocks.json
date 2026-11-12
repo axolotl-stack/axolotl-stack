@@ -1,0 +1,23 @@
+{
+ "bds_version": "1.26.51",
+ "method": "sweep.py silverfish --items blocks: a silverfish with no target in a 1 x 1 pit two blocks deep cut into a 3 x 3 x 4 block of one kind, 300 ticks, three runs per kind; a host block is one the silverfish merged into (the infested block is the UpdateBlock that came with its RemoveActor), every run of every host merged; `releases` is the actor whose AddActor follows a woken block's destroy particles (sweep.py silverfish --items wake)",
+ "releases": "minecraft:silverfish",
+ "pairs": [
+  {"host": "minecraft:stone", "infested": "minecraft:infested_stone"},
+  {"host": "minecraft:cobblestone", "infested": "minecraft:infested_cobblestone"},
+  {"host": "minecraft:stone_bricks", "infested": "minecraft:infested_stone_bricks"},
+  {"host": "minecraft:mossy_stone_bricks", "infested": "minecraft:infested_mossy_stone_bricks"},
+  {"host": "minecraft:cracked_stone_bricks", "infested": "minecraft:infested_cracked_stone_bricks"},
+  {"host": "minecraft:chiseled_stone_bricks", "infested": "minecraft:infested_chiseled_stone_bricks"},
+  {"host": "minecraft:deepslate", "infested": "minecraft:infested_deepslate"}
+ ],
+ "never_merged": [
+  "minecraft:andesite",
+  "minecraft:cobbled_deepslate",
+  "minecraft:diorite",
+  "minecraft:granite",
+  "minecraft:infested_stone",
+  "minecraft:smooth_stone",
+  "minecraft:tuff"
+ ]
+}

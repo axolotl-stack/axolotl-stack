@@ -433,6 +433,7 @@ class EffectTrials(unittest.TestCase):
         self.assertTrue(all('gamerule mobgriefing true' in item['cleanup'] for item in nogrief))
         pits = sweep.silverfish_items(self.args('blocks'))
         self.assertIn('silverfish|blocks-deepslate-0', [item['key'] for item in pits])
+        self.assertIn('silverfish|blocks-deepslate-x-0', [item['key'] for item in pits])
         for item in pits + sweep.silverfish_items(self.args('pit')) + sweep.silverfish_items(self.args('griefing')):
             self.assertIn('fill 4 -61 0 6 -58 2 air', item['cleanup'])
         with self.assertRaises(SystemExit):
@@ -445,6 +446,12 @@ class EffectTrials(unittest.TestCase):
         self.assertEqual(silverfish_fixture.setup_block(result), ('minecraft:deepslate', {'pillar_axis': 'x'}))
         result['spec']['setup'][0] = 'fill 4 -61 0 6 -58 2 stone'
         self.assertEqual(silverfish_fixture.setup_block(result), ('minecraft:stone', {}))
+
+    def test_creeper_fixture_reads_actor_data_by_id(self):
+        import creeper_fixture
+        entries = [{'id': 0, 'payload': {'DataItemInt64Payload': {'type_': 'Int64', 'value': 1 << 10}}},
+                   {'id': 55, 'payload': {'DataItemIntPayload': {'type_': 'Int', 'value': 29}}}]
+        self.assertEqual(creeper_fixture.data_items(entries), {0: 1 << 10, 55: 29})
 
     def test_creeper_items_rebuild_the_floor_and_pick_items_by_name(self):
         items = sweep.creeper_items(self.args())

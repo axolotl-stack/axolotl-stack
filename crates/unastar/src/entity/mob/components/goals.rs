@@ -181,15 +181,7 @@ pub fn register_component_kinds(
             speed_multiplier: b.speed_multiplier,
         },
     })?;
-    insert_infallible(builder, |b: body::BehaviorRandomStroll| RandomStrollGoal {
-        base: GoalBase {
-            priority: b.priority,
-            speed_multiplier: b.speed_multiplier,
-        },
-        xz_dist: b.xz_dist.max(1),
-        y_dist: b.y_dist.max(1),
-        interval: b.interval,
-    })?;
+    insert_infallible(builder, random_stroll)?;
     insert_infallible(builder, |b: body::BehaviorLookAtPlayer| LookAtPlayerGoal {
         priority: b.priority,
         look_distance: b.look_distance,
@@ -251,6 +243,20 @@ fn compile_tempt(b: body::BehaviorTempt) -> Result<TemptGoal, GoalError> {
             b.stop_distance
         },
     })
+}
+
+/// `minecraft:behavior.random_stroll`; also the stroll half of the
+/// silverfish's merge goal.
+pub(super) fn random_stroll(b: body::BehaviorRandomStroll) -> RandomStrollGoal {
+    RandomStrollGoal {
+        base: GoalBase {
+            priority: b.priority,
+            speed_multiplier: b.speed_multiplier,
+        },
+        xz_dist: b.xz_dist.max(1),
+        y_dist: b.y_dist.max(1),
+        interval: b.interval,
+    }
 }
 
 fn compile_eat_block(b: body::BehaviorEatBlock) -> Result<EatBlockGoal, GoalError> {
