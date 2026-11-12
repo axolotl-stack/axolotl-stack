@@ -63,6 +63,7 @@ fn derive(
         physics.map_or((false, false), |p| (p.has_gravity, p.has_collision));
     let mut body = PhysicsBody::living(f64::from(width * scale), f64::from(height * scale));
     body.wing_flap_drag = kind.0.native.wing_flap_drag;
+    body.wall_climber = walk.is_some_and(|w| w.climbs_walls);
     if !gravity {
         body.gravity = 0.0;
     }

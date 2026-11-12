@@ -11,10 +11,12 @@
 
 mod avoid;
 mod break_door;
+mod climb;
 mod control;
 mod eat_block;
 mod flee_sun;
 mod goals;
+mod leap;
 mod melee;
 mod nearby;
 mod path;
@@ -30,6 +32,7 @@ pub(crate) use targeting::Candidate;
 mod tests;
 
 pub(crate) use self::break_door::stop_breaking_doors;
+pub use self::climb::sync_wall_climbing;
 pub use self::path::PathBlockTable;
 
 use bevy_ecs::prelude::*;
@@ -376,6 +379,8 @@ fn think(
         living_block_friction(world, feet),
         velocity,
     );
+    // A leap replaces the velocity the travel step made.
+    let velocity = effects.leap.take().unwrap_or(velocity);
     Some(Output {
         yaw,
         head_yaw,

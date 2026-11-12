@@ -19,10 +19,10 @@ use crate::entity::components::PhysicsBody;
 use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind, GoalSpec};
 use crate::entity::mob::components::{
     AvoidMobTypeGoal, BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FleeSunGoal,
-    FloatGoal, FollowParentGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal,
-    MergeWithStoneGoal, NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal,
-    RandomLookAroundGoal, RandomStrollGoal, RangedAttackGoal, SwellGoal, TemptGoal,
-    WakeUpFriendsGoal, WalkNavigationConfig,
+    FloatGoal, FollowParentGoal, HurtByTargetGoal, LeapAtTargetGoal, LookAtPlayerGoal,
+    MeleeBoxAttackGoal, MergeWithStoneGoal, NearestAttackableTargetGoal, PanicGoal,
+    PickupItemsGoal, RandomLookAroundGoal, RandomStrollGoal, RangedAttackGoal, SwellGoal,
+    TemptGoal, WakeUpFriendsGoal, WalkNavigationConfig,
 };
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
@@ -35,7 +35,7 @@ use crate::entity::mob::constants::{
 use crate::entity::mob::events::held_item;
 use crate::entity::mob::state::{InLove, LastHurt, MateRequest};
 use crate::entity::mob::{MobArchetype, MobKind};
-use crate::entity::navigation::{NavigationScratch, WalkNavigation};
+use crate::entity::navigation::{NavigationScratch, WalkMovement, WalkNavigation, WalkWaypoint};
 use crate::registry::block::LiquidKind;
 use crate::registry::collision::Aabb;
 
@@ -62,10 +62,11 @@ pub enum Goal {
     MergeWithStone,
     WakeUpFriends,
     Swell,
+    LeapAtTarget,
 }
 
 impl Goal {
-    const ALL: [Goal; 20] = [
+    const ALL: [Goal; 21] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -86,6 +87,7 @@ impl Goal {
         Goal::MergeWithStone,
         Goal::WakeUpFriends,
         Goal::Swell,
+        Goal::LeapAtTarget,
     ];
 
     pub fn id(self) -> GoalId {
@@ -116,6 +118,7 @@ impl Goal {
             Goal::RangedAttack => GoalControls::MOVE | GoalControls::LOOK,
             Goal::AvoidMobType | Goal::MergeWithStone | Goal::Swell => GoalControls::MOVE,
             Goal::WakeUpFriends => GoalControls::NONE,
+            Goal::LeapAtTarget => GoalControls::MOVE | GoalControls::JUMP,
         }
     }
 }
@@ -255,6 +258,14 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls,
         });
     }
+    if let Some(goal) = entity.get::<LeapAtTargetGoal>() {
+        out.push(GoalSpec {
+            id: Goal::LeapAtTarget.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
     if let Some(goal) = entity.get::<SwellGoal>() {
         out.push(GoalSpec {
             id: Goal::Swell.id(),
@@ -290,6 +301,8 @@ pub struct Effects {
     pub silverfish: Option<super::silverfish::SilverfishWork>,
     /// The swell goal started: the mob hisses (`fuse`).
     pub swell_started: bool,
+    /// The leap goal started: the mob's velocity after this tick's travel.
+    pub leap: Option<DVec3>,
 }
 
 #[derive(Debug, Default)]
@@ -397,6 +410,28 @@ impl<'a> GoalContext<'a> {
             return false;
         };
         self.path_to(goal)
+    }
+
+    /// [`Self::path_toward`] for a chase: a wall climber with no walk path
+    /// heads straight for `point` instead and climbs what stands in the way
+    /// (BDS 1.26.51: a spider walks straight at a player on a 3-tall block
+    /// and climbs it; decision 0061). Only the melee chase uses it.
+    pub(super) fn chase_path_toward(&mut self, point: DVec3) -> bool {
+        if self.path_toward(point) {
+            return true;
+        }
+        if !self.physics.wall_climber {
+            return false;
+        }
+        let waypoint = |feet| WalkWaypoint {
+            feet,
+            movement: WalkMovement::Walk,
+            lift_height: 0.0,
+        };
+        let staging = &mut self.states.staging.waypoints;
+        staging.clear();
+        staging.extend([waypoint(self.body.feet), waypoint(point)]);
+        true
     }
 
     pub(super) fn follow_staged(&mut self, speed_multiplier: f32) {
@@ -720,6 +755,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MergeWithStone => self.merge_can_start(),
             Goal::WakeUpFriends => self.wake_can_start(),
             Goal::Swell => self.config::<SwellGoal>().is_some() && self.lit(),
+            Goal::LeapAtTarget => self.leap_can_start(),
         }
     }
 
@@ -731,6 +767,7 @@ impl GoalCallbacks for GoalContext<'_> {
             }
             Goal::WakeUpFriends => self.config::<WakeUpFriendsGoal>().is_some(),
             Goal::Swell => self.lit(),
+            Goal::LeapAtTarget => !self.body.on_ground,
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return false;
@@ -866,6 +903,7 @@ impl GoalCallbacks for GoalContext<'_> {
                 self.nav.stop(self.movement);
                 self.effects.swell_started = true;
             }
+            Goal::LeapAtTarget => self.leap_start(),
         }
     }
 
@@ -875,7 +913,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::Panic | Goal::RandomStroll | Goal::FleeSun | Goal::MergeWithStone => {
                 self.nav.stop(self.movement)
             }
-            Goal::WakeUpFriends | Goal::Swell => {}
+            Goal::WakeUpFriends | Goal::Swell | Goal::LeapAtTarget => {}
             Goal::FollowParent => {
                 self.nav.stop(self.movement);
                 self.states.parent = None;
@@ -929,7 +967,7 @@ impl GoalCallbacks for GoalContext<'_> {
                     }
                 }
             }
-            Goal::RandomStroll | Goal::FleeSun | Goal::MergeWithStone => {}
+            Goal::RandomStroll | Goal::FleeSun | Goal::MergeWithStone | Goal::LeapAtTarget => {}
             Goal::WakeUpFriends => self.wake_tick(),
             Goal::Swell => self.nav.stop(self.movement),
             Goal::EatBlock => {

@@ -1,5 +1,6 @@
 //! Movement and navigation components: `minecraft:navigation.walk`,
-//! `minecraft:movement.basic` and `minecraft:jump.static`.
+//! `minecraft:navigation.climb`, `minecraft:movement.basic` and
+//! `minecraft:jump.static`.
 
 use bevy_ecs::prelude::*;
 use unastar_data::actor_components::body;
@@ -28,6 +29,26 @@ pub struct WalkNavigationConfig {
     pub can_open_doors: bool,
     /// Closed iron doors are passable for a door-opening or door-breaking mob.
     pub can_open_iron_doors: bool,
+    /// `minecraft:navigation.climb`: the mob climbs the walls it walks into
+    /// (`mob::ai::climb`).
+    pub climbs_walls: bool,
+}
+
+impl From<&body::NavigationWalk> for WalkNavigationConfig {
+    fn from(b: &body::NavigationWalk) -> Self {
+        Self {
+            avoid_water: b.avoid_water,
+            avoid_damage_blocks: b.avoid_damage_blocks,
+            can_path_over_water: b.can_path_over_water,
+            can_sink: b.can_sink,
+            can_walk: b.can_walk,
+            can_jump: b.can_jump,
+            can_pass_doors: b.can_pass_doors,
+            can_open_doors: b.can_open_doors,
+            can_open_iron_doors: b.can_open_iron_doors,
+            climbs_walls: false,
+        }
+    }
 }
 
 /// `minecraft:movement.basic`: the move control's turn limit, degrees/tick.
@@ -46,16 +67,12 @@ pub struct JumpConfig {
 pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
 ) -> Result<(), DefinitionError> {
-    insert_infallible(builder, |b: body::NavigationWalk| WalkNavigationConfig {
-        avoid_water: b.avoid_water,
-        avoid_damage_blocks: b.avoid_damage_blocks,
-        can_path_over_water: b.can_path_over_water,
-        can_sink: b.can_sink,
-        can_walk: b.can_walk,
-        can_jump: b.can_jump,
-        can_pass_doors: b.can_pass_doors,
-        can_open_doors: b.can_open_doors,
-        can_open_iron_doors: b.can_open_iron_doors,
+    insert_infallible(builder, |b: body::NavigationWalk| {
+        WalkNavigationConfig::from(&b)
+    })?;
+    insert_infallible(builder, |b: body::NavigationClimb| WalkNavigationConfig {
+        climbs_walls: true,
+        ..WalkNavigationConfig::from(&b.0)
     })?;
     insert_infallible(builder, |b: body::MovementBasic| BasicMovementConfig {
         max_turn: b.max_turn,

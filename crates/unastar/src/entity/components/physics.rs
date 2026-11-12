@@ -71,6 +71,9 @@ pub struct PhysicsBody {
     /// through air (not water or lava) and its vertical velocity is negative
     /// after gravity and drag, that velocity is multiplied by `1 - drag`.
     pub wing_flap_drag: Option<f64>,
+    /// A living body that climbs the walls it walks into
+    /// (`minecraft:navigation.climb`; see [`WallClimbing`]).
+    pub wall_climber: bool,
 }
 
 impl PhysicsBody {
@@ -90,6 +93,7 @@ impl PhysicsBody {
         ground_friction: GroundFriction::Block,
         step_height: 0.0,
         wing_flap_drag: None,
+        wall_climber: false,
     };
 
     /// Falling block: measured 0.98 box, 0.49 wire offset, 0.04 pre-move
@@ -107,6 +111,7 @@ impl PhysicsBody {
         ground_friction: GroundFriction::None,
         step_height: 0.0,
         wing_flap_drag: None,
+        wall_climber: false,
     };
 
     /// Living mob: gravity 0.08 after the move, 0.98 vertical drag, 0.91
@@ -128,6 +133,7 @@ impl PhysicsBody {
             ground_friction: GroundFriction::Block,
             step_height: MOB_STEP_HEIGHT,
             wing_flap_drag: None,
+            wall_climber: false,
         }
     }
 
@@ -145,6 +151,7 @@ impl PhysicsBody {
             ground_friction: GroundFriction::None,
             step_height: 0.0,
             wing_flap_drag: None,
+            wall_climber: false,
         }
     }
 }
@@ -157,6 +164,14 @@ pub struct FallingBlock {
     /// Runtime ID of the falling block state.
     pub state: u32,
 }
+
+/// Whether a wall-climbing body ([`PhysicsBody::wall_climber`]) climbs: its
+/// last move was blocked horizontally. The physics step writes it after each
+/// move; a climbing body whose next move is blocked horizontally again leaves
+/// that move rising at `CLIMB_SPEED` instead of falling. Mobs show it as the
+/// `WALLCLIMBING` actor flag (BDS 1.26.51 spider captures).
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct WallClimbing(pub bool);
 
 /// How far a living body has fallen, maintained by the physics step.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Default)]

@@ -63,6 +63,7 @@ pub const XP_ORB_BODY: PhysicsBody = PhysicsBody {
     ground_friction: GroundFriction::Block,
     step_height: 0.0,
     wing_flap_drag: None,
+    wall_climber: false,
 };
 
 /// `minecraft:buoyant` of the vanilla orb as BDS serialises it into the

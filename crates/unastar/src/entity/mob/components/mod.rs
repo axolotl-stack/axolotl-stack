@@ -28,6 +28,7 @@ pub mod hostile;
 pub mod hurt_on_condition;
 pub mod interact;
 pub mod knockback;
+pub mod leap;
 pub mod loot;
 pub mod movement;
 pub mod ranged;
@@ -68,6 +69,7 @@ pub use interact::{
     InteractConfig, InteractParticle, Interaction, SpawnEggInteraction, SpawnItems,
 };
 pub use knockback::{KnockbackPower, KnockbackRules};
+pub use leap::LeapAtTargetGoal;
 pub use loot::{ExperienceRewardConfig, LootConfig};
 pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
 pub use ranged::{AvoidEntry, AvoidMobTypeGoal, RangedAttackGoal, ShooterConfig};
@@ -160,7 +162,18 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
     ),
     (
         ActorComponent::FreezingImmune,
-        "keeps powder snow from freezing the mob, and powder snow has no          freezing behaviour on the server: no actor freezes",
+        "keeps powder snow from freezing the mob, and powder snow has no \
+         freezing behaviour on the server: no actor freezes",
+    ),
+    (
+        ActorComponent::Addrider,
+        "riding is not implemented: a spider jockey (one spider in a hundred, \
+         at night or underground) spawns without its skeleton rider",
+    ),
+    (
+        ActorComponent::BlockMovementSlowdownImmunity,
+        "no block slows a mob down on the server (cobwebs and sweet berry \
+         bushes have no movement effect), so there is nothing to be immune to",
     ),
     (
         ActorComponent::GameEventMovementTracking,
@@ -203,6 +216,8 @@ pub fn register_component_kinds(
     inert::<bodies::BlockClimber>(builder)?;
     inert::<bodies::CanStandOnPowderSnow>(builder)?;
     inert::<bodies::FreezingImmune>(builder)?;
+    inert::<bodies::Addrider>(builder)?;
+    inert::<bodies::BlockMovementSlowdownImmunity>(builder)?;
     ranged::register_component_kinds(builder)?;
     hostile::register_component_kinds(builder)?;
     sensors::register_component_kinds(builder)?;
@@ -214,6 +229,7 @@ pub fn register_component_kinds(
     spawn_entity::register_component_kinds(builder, items)?;
     equipment::register_component_kinds(builder, items)?;
     knockback::register_component_kinds(builder)?;
+    leap::register_component_kinds(builder)?;
     variant::register_component_kinds(builder)?;
     target_triggers::register_component_kinds(builder)?;
     stats::register_component_kinds(builder)?;

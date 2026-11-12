@@ -113,55 +113,61 @@ impl Aabb {
 
     /// Clamp a movement of `mover` along X so it stops at this box.
     pub fn clip_x(&self, mover: &Aabb, mut dx: f64) -> f64 {
-        if mover.max.y <= self.min.y
-            || mover.min.y >= self.max.y
-            || mover.max.z <= self.min.z
-            || mover.min.z >= self.max.z
+        if mover.max.y <= self.min.y + CLIP_EPSILON
+            || mover.min.y >= self.max.y - CLIP_EPSILON
+            || mover.max.z <= self.min.z + CLIP_EPSILON
+            || mover.min.z >= self.max.z - CLIP_EPSILON
         {
             return dx;
         }
-        if dx > 0.0 && mover.max.x <= self.min.x {
-            dx = dx.min(self.min.x - mover.max.x);
-        } else if dx < 0.0 && mover.min.x >= self.max.x {
-            dx = dx.max(self.max.x - mover.min.x);
+        if dx > 0.0 && mover.max.x <= self.min.x + CLIP_EPSILON {
+            dx = dx.min((self.min.x - mover.max.x).max(0.0));
+        } else if dx < 0.0 && mover.min.x >= self.max.x - CLIP_EPSILON {
+            dx = dx.max((self.max.x - mover.min.x).min(0.0));
         }
         dx
     }
 
     /// Clamp a movement of `mover` along Y so it stops at this box.
     pub fn clip_y(&self, mover: &Aabb, mut dy: f64) -> f64 {
-        if mover.max.x <= self.min.x
-            || mover.min.x >= self.max.x
-            || mover.max.z <= self.min.z
-            || mover.min.z >= self.max.z
+        if mover.max.x <= self.min.x + CLIP_EPSILON
+            || mover.min.x >= self.max.x - CLIP_EPSILON
+            || mover.max.z <= self.min.z + CLIP_EPSILON
+            || mover.min.z >= self.max.z - CLIP_EPSILON
         {
             return dy;
         }
-        if dy > 0.0 && mover.max.y <= self.min.y {
-            dy = dy.min(self.min.y - mover.max.y);
-        } else if dy < 0.0 && mover.min.y >= self.max.y {
-            dy = dy.max(self.max.y - mover.min.y);
+        if dy > 0.0 && mover.max.y <= self.min.y + CLIP_EPSILON {
+            dy = dy.min((self.min.y - mover.max.y).max(0.0));
+        } else if dy < 0.0 && mover.min.y >= self.max.y - CLIP_EPSILON {
+            dy = dy.max((self.max.y - mover.min.y).min(0.0));
         }
         dy
     }
 
     /// Clamp a movement of `mover` along Z so it stops at this box.
     pub fn clip_z(&self, mover: &Aabb, mut dz: f64) -> f64 {
-        if mover.max.x <= self.min.x
-            || mover.min.x >= self.max.x
-            || mover.max.y <= self.min.y
-            || mover.min.y >= self.max.y
+        if mover.max.x <= self.min.x + CLIP_EPSILON
+            || mover.min.x >= self.max.x - CLIP_EPSILON
+            || mover.max.y <= self.min.y + CLIP_EPSILON
+            || mover.min.y >= self.max.y - CLIP_EPSILON
         {
             return dz;
         }
-        if dz > 0.0 && mover.max.z <= self.min.z {
-            dz = dz.min(self.min.z - mover.max.z);
-        } else if dz < 0.0 && mover.min.z >= self.max.z {
-            dz = dz.max(self.max.z - mover.min.z);
+        if dz > 0.0 && mover.max.z <= self.min.z + CLIP_EPSILON {
+            dz = dz.min((self.min.z - mover.max.z).max(0.0));
+        } else if dz < 0.0 && mover.min.z >= self.max.z - CLIP_EPSILON {
+            dz = dz.max((self.max.z - mover.min.z).min(0.0));
         }
         dz
     }
 }
+
+/// Overlap smaller than this counts as touching: a box whose face lies a
+/// rounding error inside a block (a spider pressed against a wall at x 2.7
+/// sits at `1.9999999999999996` after `feet ± width / 2`) is stopped at the
+/// face instead of passing through it, as BDS's spiders do.
+const CLIP_EPSILON: f64 = 1.0e-7;
 
 fn to_aabb(b: &ShapeBox) -> Aabb {
     let [x0, y0, z0, x1, y1, z1] = b.map(f64::from);

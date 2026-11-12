@@ -320,6 +320,7 @@ fn spawn_unattached(
             // Replaced by `derive_mob_state` once the composition applies.
             PhysicsBody::living(0.0, 0.0),
             FallDistance::default(),
+            crate::entity::components::WallClimbing::default(),
             ai::MobBrain::default(),
         ));
         if let Some(resistance) = knockback_resistance {

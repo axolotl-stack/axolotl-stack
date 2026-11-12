@@ -127,7 +127,10 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::DistanceToNearestPlayer
         | BuiltinTest::InactivityTimer
         | BuiltinTest::InBlock
-        | BuiltinTest::IsUnderground => subject == Subject::Self_,
+        | BuiltinTest::IsUnderground
+        | BuiltinTest::IsBrightness
+        | BuiltinTest::IsDaytime
+        | BuiltinTest::IsSnowCovered => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
         BuiltinTest::IsFamily
         | BuiltinTest::HasComponent
