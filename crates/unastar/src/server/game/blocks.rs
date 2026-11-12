@@ -316,7 +316,6 @@ enum BlockUse {
 /// An interactive block's `use` (crafting table, container) runs before item
 /// placement unless the player is sneaking with an item in hand.
 fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<BlockUse> {
-    use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
     let block_use = block_at(world, clicked).and_then(|runtime_id| {
         let entry = world
             .get_resource::<super::types::BlockRegistryResource>()?
@@ -329,15 +328,22 @@ fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<
                 .map(|_| BlockUse::Container)
         }
     })?;
+    (!sneaking_with_item(world, entity)).then_some(block_use)
+}
+
+/// A player sneaking with an item in hand places it (or uses it) instead of
+/// using the clicked block.
+fn sneaking_with_item(world: &World, entity: Entity) -> bool {
+    use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
     let sneaking = world
         .get::<PlayerState>(entity)
         .is_some_and(|state| state.sneaking);
-    let holding = world
-        .get::<HeldSlot>(entity)
-        .zip(world.get::<MainInventory>(entity))
-        .and_then(|(slot, main)| main.0.item(usize::from(slot.0)))
-        .is_some_and(|stack| !stack.is_empty());
-    (!(sneaking && holding)).then_some(block_use)
+    sneaking
+        && world
+            .get::<HeldSlot>(entity)
+            .zip(world.get::<MainInventory>(entity))
+            .and_then(|(slot, main)| main.0.item(usize::from(slot.0)))
+            .is_some_and(|stack| !stack.is_empty())
 }
 
 /// Resolve placeable content exclusively from the server's selected stack.
@@ -1090,6 +1096,9 @@ fn handle_block_click(
 /// to this click, else whether the click changed something (BDS then sends
 /// the click corrections).
 fn interact_with_block(world: &mut World, entity: Entity, clicked: IVec3) -> Option<bool> {
+    if sneaking_with_item(world, entity) {
+        return None;
+    }
     let held = held_item(world, entity).filter(|stack| !stack.is_empty());
     let held_id = held.as_ref().map(|stack| stack.item_id().to_owned());
     super::signs::used(world, entity, clicked, held_id.as_deref())

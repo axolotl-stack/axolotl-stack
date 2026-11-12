@@ -525,13 +525,14 @@ fn placed_state(block: &BlockEntry, input: &PlacementInput) -> Option<u32> {
     }
     // A crafter faces the player with its top up, whatever the pitch.
     if block.string_id == "minecraft:crafter" {
-        let orientation = format!("{}_up", looking.opposite().cardinal());
+        let orientation = match looking.opposite() {
+            Horizontal::South => "south_up",
+            Horizontal::West => "west_up",
+            Horizontal::North => "north_up",
+            Horizontal::East => "east_up",
+        };
         state = block
-            .with_state_value(
-                state,
-                "orientation",
-                StateValue::Str(Box::leak(orientation.into_boxed_str())),
-            )
+            .with_state_value(state, "orientation", StateValue::Str(orientation))
             .unwrap_or(state);
     }
     // A shelf mushroom only goes on a side face and faces out of it.

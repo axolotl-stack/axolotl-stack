@@ -180,4 +180,3 @@ class RoundTwoScenarios(unittest.TestCase):
         rails = scenarios.FAMILIES['rails']()
         self.assertEqual(len(rails), 4 * 81 * 2)
         self.assertEqual(len({item['key'] for item in rails}), len(rails))
-
