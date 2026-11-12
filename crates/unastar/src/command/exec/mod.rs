@@ -32,6 +32,7 @@ mod loot;
 mod mobevent;
 mod music;
 mod op;
+mod packstack;
 mod place;
 #[cfg(test)]
 pub(crate) mod probe;
@@ -120,6 +121,7 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(music::run)
         .register(op::run_op)
         .register(op::run_permission)
+        .register(packstack::run)
         .register(place::run_place)
         .register(place::run_locate)
         .register(server_tools::run_reloadconfig)
