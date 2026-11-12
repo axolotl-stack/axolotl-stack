@@ -16,7 +16,8 @@
 
 use super::setblock::{BlockSpec, box_loaded, volume};
 use crate::command::prelude::*;
-use crate::server::game::blocks::{block_at, destroy_block, set_block};
+use crate::server::game::block_update::world_changed;
+use crate::server::game::blocks::{block_at, destroy_block, write_block};
 use crate::world::chunk::blocks::AIR;
 
 /// The most blocks one `/fill` may cover.
@@ -153,7 +154,11 @@ pub fn run(ctx: &mut CommandContext<'_>, args: FillArgs) -> CommandResult {
         return failure!("commands.fill.outOfWorld");
     }
 
+    // Every cell is written before any block update runs, so an attached
+    // block inside the box never pops because a cell next to it was written
+    // first.
     let mut changed = 0usize;
+    let mut written = Vec::new();
     for x in min.x..=max.x {
         for y in min.y..=max.y {
             for z in min.z..=max.z {
@@ -179,11 +184,15 @@ pub fn run(ctx: &mut CommandContext<'_>, args: FillArgs) -> CommandResult {
                     destroy_block(ctx.world, pos);
                 }
                 if block_at(ctx.world, (x, y, z)) != Some(new) {
-                    set_block(ctx.world, pos, new, false);
+                    write_block(ctx.world, pos, new, false);
+                    written.push(pos);
                     changed += 1;
                 }
             }
         }
+    }
+    for pos in written {
+        world_changed(ctx.world, pos, true);
     }
     if changed == 0 {
         return failure!("commands.fill.success", 0);

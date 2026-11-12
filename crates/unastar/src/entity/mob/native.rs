@@ -5,7 +5,7 @@ use unastar_data::actor_identifiers::ActorType;
 
 use super::constants::{
     ANIMAL_AMBIENT_SOUND_INTERVAL, CHICKEN_FALL_DAMAGE_MULTIPLIER, DEFAULT_AMBIENT_SOUND_INTERVAL,
-    WING_FLAP_VERTICAL_DRAG,
+    WING_FLAP_VERTICAL_DRAG, ZOMBIE_KNOCKBACK_RESISTANCE_BONUS,
 };
 
 /// The native traits of one actor class.
@@ -31,6 +31,14 @@ pub struct NativeTraits {
     /// zombie classes number their kind (zombie 0, zombie villager 1, husk 2,
     /// zombie pigman 3, drowned 4).
     pub aux_value: Option<i16>,
+    /// The class spawns with a random knockback resistance below this
+    /// (`mob::combat::knockback`); `None` for no resistance.
+    pub knockback_resistance_bonus: Option<f64>,
+    /// The `VARIANT` actor data the class starts with, if it sets one: the
+    /// native skeleton classes number their kind there (skeleton 0, wither
+    /// skeleton 1, stray 2, bogged 3, parched 4) although their definitions
+    /// declare no `minecraft:variant`.
+    pub variant: Option<i32>,
 }
 
 /// Which native natural-spawn check an actor class runs.
@@ -50,6 +58,13 @@ impl NativeTraits {
         let immune_to_wither = matches!(actor_type, ActorType::WitherSkeleton);
         let ambient_sound_interval = ambient_sound_interval(actor_type);
         let aux_value = zombie_kind(actor_type);
+        // Measured on the zombie only; the other zombie classes (husk, zombie
+        // pigman, ...) are not measured and spawn without it.
+        let knockback_resistance_bonus = match actor_type {
+            ActorType::Zombie => Some(ZOMBIE_KNOCKBACK_RESISTANCE_BONUS),
+            _ => None,
+        };
+        let variant = skeleton_kind(actor_type);
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -58,6 +73,8 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                knockback_resistance_bonus,
+                variant,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -66,6 +83,8 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                knockback_resistance_bonus,
+                variant,
             },
         }
     }
@@ -118,6 +137,20 @@ const fn zombie_kind(class: ActorType) -> Option<i16> {
         A::Husk => 2,
         A::ZombiePigman => 3,
         A::Drowned => 4,
+        _ => return None,
+    })
+}
+
+/// The kind number the native skeleton classes send as `VARIANT`
+/// (measured from the retained 1.26.51 summon captures).
+const fn skeleton_kind(class: ActorType) -> Option<i32> {
+    use ActorType as A;
+    Some(match class {
+        A::Skeleton => 0,
+        A::WitherSkeleton => 1,
+        A::Stray => 2,
+        A::Bogged => 3,
+        A::Parched => 4,
         _ => return None,
     })
 }

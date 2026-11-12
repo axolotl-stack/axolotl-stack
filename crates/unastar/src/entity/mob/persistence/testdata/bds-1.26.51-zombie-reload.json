@@ -1,0 +1,278 @@
+{
+ "bds_version": "1.26.51",
+ "protocol": 2193,
+ "method": "tools/bds-sweep/sweep.py knockback-reload --items spawn --client-capture --keep-world, then --items reload --world-from <spawn run>/world: three frozen zombies hit by the player before the BDS stop and after the next start; the saved attributes are read from the kept world (LevelDB actor records, typed as stored)",
+ "zombies": [
+  {
+   "key": "zombie-0",
+   "push_before_save": [
+    0.3824386,
+    0.4784,
+    0.0
+   ],
+   "push_after_load": [
+    0.3824386,
+    0.4784,
+    0.0
+   ],
+   "saved_attributes": {
+    "minecraft:follow_range": {
+     "Base": {
+      "Float": 16.0
+     },
+     "Current": {
+      "Float": 16.0
+     },
+     "DefaultMax": {
+      "Float": 2048.0
+     },
+     "DefaultMin": {
+      "Float": 0.0
+     },
+     "Max": {
+      "Float": 2048.0
+     },
+     "Min": {
+      "Float": 0.0
+     },
+     "Name": "minecraft:follow_range"
+    },
+    "minecraft:knockback_resistance": {
+     "Base": {
+      "Float": 0.0
+     },
+     "Current": {
+      "Float": 0.043903619050979614
+     },
+     "DefaultMax": {
+      "Float": 1.0
+     },
+     "DefaultMin": {
+      "Float": -2.0
+     },
+     "Max": {
+      "Float": 1.0
+     },
+     "Min": {
+      "Float": -2.0
+     },
+     "Modifiers": [
+      {
+       "Amount": {
+        "Float": 0.043903619050979614
+       },
+       "Name": "RandomSpawnBonus",
+       "Operand": {
+        "Int": 2
+       },
+       "Operation": {
+        "Int": 0
+       },
+       "UUIDLeast": {
+        "Long": -5445178238703144195
+       },
+       "UUIDMost": {
+        "Long": -4391065492226947424
+       }
+      }
+     ],
+     "Name": "minecraft:knockback_resistance"
+    }
+   }
+  },
+  {
+   "key": "zombie-1",
+   "push_before_save": [
+    0.3875902,
+    0.4784,
+    0.0
+   ],
+   "push_after_load": [
+    0.3875902,
+    0.4784,
+    0.0
+   ],
+   "saved_attributes": {
+    "minecraft:follow_range": {
+     "Base": {
+      "Float": 16.0
+     },
+     "Current": {
+      "Float": 32.402095794677734
+     },
+     "DefaultMax": {
+      "Float": 2048.0
+     },
+     "DefaultMin": {
+      "Float": 0.0
+     },
+     "Max": {
+      "Float": 2048.0
+     },
+     "Min": {
+      "Float": 0.0
+     },
+     "Modifiers": [
+      {
+       "Amount": {
+        "Float": 1.0251309871673584
+       },
+       "Name": "RandomSpawnBonus",
+       "Operand": {
+        "Int": 2
+       },
+       "Operation": {
+        "Int": 2
+       },
+       "UUIDLeast": {
+        "Long": -5445178238703144195
+       },
+       "UUIDMost": {
+        "Long": -4391065492226947424
+       }
+      }
+     ],
+     "Name": "minecraft:follow_range"
+    },
+    "minecraft:knockback_resistance": {
+     "Base": {
+      "Float": 0.0
+     },
+     "Current": {
+      "Float": 0.031024489551782608
+     },
+     "DefaultMax": {
+      "Float": 1.0
+     },
+     "DefaultMin": {
+      "Float": -2.0
+     },
+     "Max": {
+      "Float": 1.0
+     },
+     "Min": {
+      "Float": -2.0
+     },
+     "Modifiers": [
+      {
+       "Amount": {
+        "Float": 0.031024489551782608
+       },
+       "Name": "RandomSpawnBonus",
+       "Operand": {
+        "Int": 2
+       },
+       "Operation": {
+        "Int": 0
+       },
+       "UUIDLeast": {
+        "Long": -5445178238703144195
+       },
+       "UUIDMost": {
+        "Long": -4391065492226947424
+       }
+      }
+     ],
+     "Name": "minecraft:knockback_resistance"
+    }
+   }
+  },
+  {
+   "key": "zombie-2",
+   "push_before_save": [
+    0.3923741,
+    0.4784,
+    0.0
+   ],
+   "push_after_load": [
+    0.3923741,
+    0.4784,
+    0.0
+   ],
+   "saved_attributes": {
+    "minecraft:follow_range": {
+     "Base": {
+      "Float": 16.0
+     },
+     "Current": {
+      "Float": 34.0517578125
+     },
+     "DefaultMax": {
+      "Float": 2048.0
+     },
+     "DefaultMin": {
+      "Float": 0.0
+     },
+     "Max": {
+      "Float": 2048.0
+     },
+     "Min": {
+      "Float": 0.0
+     },
+     "Modifiers": [
+      {
+       "Amount": {
+        "Float": 1.1282347440719604
+       },
+       "Name": "RandomSpawnBonus",
+       "Operand": {
+        "Int": 2
+       },
+       "Operation": {
+        "Int": 2
+       },
+       "UUIDLeast": {
+        "Long": -5445178238703144195
+       },
+       "UUIDMost": {
+        "Long": -4391065492226947424
+       }
+      }
+     ],
+     "Name": "minecraft:follow_range"
+    },
+    "minecraft:knockback_resistance": {
+     "Base": {
+      "Float": 0.0
+     },
+     "Current": {
+      "Float": 0.01906464621424675
+     },
+     "DefaultMax": {
+      "Float": 1.0
+     },
+     "DefaultMin": {
+      "Float": -2.0
+     },
+     "Max": {
+      "Float": 1.0
+     },
+     "Min": {
+      "Float": -2.0
+     },
+     "Modifiers": [
+      {
+       "Amount": {
+        "Float": 0.01906464621424675
+       },
+       "Name": "RandomSpawnBonus",
+       "Operand": {
+        "Int": 2
+       },
+       "Operation": {
+        "Int": 0
+       },
+       "UUIDLeast": {
+        "Long": -5445178238703144195
+       },
+       "UUIDMost": {
+        "Long": -4391065492226947424
+       }
+      }
+     ],
+     "Name": "minecraft:knockback_resistance"
+    }
+   }
+  }
+ ]
+}

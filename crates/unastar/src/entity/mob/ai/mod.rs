@@ -98,6 +98,9 @@ pub struct AiScratch {
     /// Item pickups, equips and pickup events of this tick; made once the
     /// AI's resource scopes end (they spawn items and fire events).
     gear: Vec<(Entity, pickup::GearWork)>,
+    /// Target changes of this tick (`on_target_acquired` /
+    /// `on_target_escape`); fired once the AI's resource scopes end.
+    target_changes: Vec<TargetChange>,
     /// Door collision boxes for [`break_door`].
     boxes: Vec<Aabb>,
 }
@@ -193,6 +196,7 @@ pub fn tick_mob_ai(
                         &mut scratch.eaten,
                         &mut scratch.attacks,
                         &mut scratch.gear,
+                        &mut scratch.target_changes,
                     );
                 }
             }
@@ -206,6 +210,9 @@ pub fn tick_mob_ai(
     }
     for (entity, work) in scratch.gear.drain(..) {
         pickup::finish(world, entity, work);
+    }
+    for change in scratch.target_changes.drain(..) {
+        fire_target_trigger(world, change);
     }
     break_door::tick_door_breakers(
         world,
@@ -325,6 +332,7 @@ fn think(
         }
         Turn::Think(false) => {}
     }
+    ctx.check_unheld_target();
     selector.tick(&mut ctx);
     let goal_jump = ctx.jump;
 
@@ -360,6 +368,18 @@ fn think(
     })
 }
 
+/// A change of a mob's target this tick.
+#[derive(Debug, Clone, Copy)]
+struct TargetChange {
+    mob: Entity,
+    /// The new target (`on_target_acquired`), or `None` when the target
+    /// was dropped (`on_target_escape`).
+    acquired: Option<Entity>,
+    /// The target before the change.
+    previous: Option<Entity>,
+}
+
+#[allow(clippy::too_many_arguments)]
 fn apply(
     world: &mut World,
     entity: Entity,
@@ -367,6 +387,7 @@ fn apply(
     eaten: &mut Vec<Entity>,
     attacks: &mut Vec<(Entity, Entity)>,
     gear: &mut Vec<(Entity, pickup::GearWork)>,
+    target_changes: &mut Vec<TargetChange>,
 ) {
     let Output {
         yaw,
@@ -374,6 +395,11 @@ fn apply(
         velocity,
         effects,
     } = output;
+    // The target as viewers see it: its actor id in the `TARGET` actor data,
+    // 0 once the target is dropped (as BDS replicates it).
+    let target_id = effects
+        .target
+        .map(|target| target.map_or(0, |target| wire_actor_id(world, target)));
     let mut mob = world.entity_mut(entity);
     if let Some(mut rotation) = mob.get_mut::<Rotation>()
         && (rotation.yaw != yaw || rotation.head_yaw != head_yaw)
@@ -389,14 +415,34 @@ fn apply(
     if effects.persistent && !mob.contains::<Persistent>() {
         mob.insert(Persistent);
     }
+    let previous = mob.get::<AttackTarget>().map(|target| target.0);
     match effects.target {
         Some(Some(target)) => {
             mob.insert(AttackTarget(target));
+            if previous != Some(target) {
+                target_changes.push(TargetChange {
+                    mob: entity,
+                    acquired: Some(target),
+                    previous,
+                });
+            }
         }
         Some(None) => {
             mob.remove::<AttackTarget>();
+            if previous.is_some() {
+                target_changes.push(TargetChange {
+                    mob: entity,
+                    acquired: None,
+                    previous,
+                });
+            }
         }
         None => {}
+    }
+    if let Some(id) = target_id
+        && let Some(mut metadata) = mob.get_mut::<EntityMetadata>()
+    {
+        metadata.set_long(jolyne::valentine::actor_data_i_ds::TARGET, id);
     }
     if let Some(tempted) = effects.tempted {
         set_flag(&mut mob, actor_flags::TEMPTED, tempted);
@@ -423,6 +469,122 @@ fn apply(
     if !effects.gear.is_empty() {
         gear.push((entity, effects.gear));
     }
+}
+
+/// Make `mob` target `target` from outside its target goals (anger spreading
+/// to its kin, `mob::life::anger`): the target is set as if a target goal
+/// chose it, viewers see it in the `TARGET` actor data, and the mob's
+/// `on_target_acquired` fires. Returns whether the target changed: nothing
+/// happens when it already targets `target` or has no brain (dying).
+pub(crate) fn provoke(world: &mut World, mob: Entity, target: Entity) -> bool {
+    let previous = world.get::<AttackTarget>(mob).map(|t| t.0);
+    if previous == Some(target) || world.get::<Dead>(mob).is_some() {
+        return false;
+    }
+    let Some(mut brain) = world.get_mut::<MobBrain>(mob) else {
+        return false;
+    };
+    brain.states.targets.provoke(target);
+    let id = wire_actor_id(world, target);
+    let mut entity = world.entity_mut(mob);
+    entity.insert(AttackTarget(target));
+    if let Some(mut metadata) = entity.get_mut::<EntityMetadata>() {
+        metadata.set_long(jolyne::valentine::actor_data_i_ds::TARGET, id);
+    }
+    fire_target_trigger(
+        world,
+        TargetChange {
+            mob,
+            acquired: Some(target),
+            previous,
+        },
+    );
+    true
+}
+
+/// Drop `mob`'s target when no target goal holds it (one its kin's anger
+/// provoked it into, see [`provoke`]); its `on_target_escape` fires.
+pub(crate) fn release_unheld_target(world: &mut World, mob: Entity) {
+    let Some(mut brain) = world.get_mut::<MobBrain>(mob) else {
+        return;
+    };
+    let Some(previous) = brain.states.targets.release_unheld() else {
+        return;
+    };
+    let mut entity = world.entity_mut(mob);
+    entity.remove::<AttackTarget>();
+    if let Some(mut metadata) = entity.get_mut::<EntityMetadata>() {
+        metadata.set_long(jolyne::valentine::actor_data_i_ds::TARGET, 0);
+    }
+    fire_target_trigger(
+        world,
+        TargetChange {
+            mob,
+            acquired: None,
+            previous: Some(previous),
+        },
+    );
+}
+
+/// Fire the mob's `on_target_acquired` (a new target) or `on_target_escape`
+/// (the target dropped) event when its filter passes with the target as
+/// `other`. Dying mobs fire neither.
+fn fire_target_trigger(world: &mut World, change: TargetChange) {
+    use super::components::{OnTargetAcquired, OnTargetEscape};
+    if world.get::<Dead>(change.mob).is_some() {
+        return;
+    }
+    let (trigger, other) = match change.acquired {
+        Some(target) => (
+            world
+                .get::<OnTargetAcquired>(change.mob)
+                .map(|t| t.0.clone()),
+            Some(target),
+        ),
+        None => (
+            world.get::<OnTargetEscape>(change.mob).map(|t| t.0.clone()),
+            change.previous,
+        ),
+    };
+    let Some(trigger) = trigger else {
+        return;
+    };
+    let Some(event) = trigger.event else {
+        return;
+    };
+    if let Some(filter) = &trigger.filter
+        && !filter.evaluate(&super::events::MobFacts {
+            world,
+            entity: change.mob,
+            other,
+        })
+    {
+        return;
+    }
+    let Some(handle) = world
+        .get::<super::MobKind>(change.mob)
+        .and_then(|kind| kind.0.events.event(&event.0))
+    else {
+        tracing::warn!(event = %event.0, "target trigger names an event the mob does not define");
+        return;
+    };
+    if let Err(error) = super::events::fire_event(world, change.mob, &handle, other) {
+        tracing::warn!(event = %event.0, %error, "target trigger event failed");
+    }
+}
+
+/// The actor ID viewers know `actor` by: a mob's runtime ID, a player's
+/// runtime entity ID (unastar sends the same number as the unique ID).
+fn wire_actor_id(world: &World, actor: Entity) -> i64 {
+    world
+        .get::<crate::entity::components::RuntimeId>(actor)
+        .map(|id| id.0)
+        .or_else(|| {
+            world
+                .get::<crate::entity::components::RuntimeEntityId>(actor)
+                .map(|id| id.0)
+        })
+        .unwrap_or(0)
 }
 
 /// Set one actor flag and mirror the flag words into the metadata the

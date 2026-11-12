@@ -101,6 +101,54 @@ impl RegistryEntry for BlockEntry {
     }
 }
 
+/// A block-state property value as saved worlds store it: one field of a
+/// palette entry's `states` compound, borrowed from the bytes it was read from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SavedStateValue<'a> {
+    /// `TAG_Byte` (booleans such as `open_bit`).
+    Byte(u8),
+    /// `TAG_Int`.
+    Int(i32),
+    /// `TAG_String`.
+    Str(&'a str),
+}
+
+impl SavedStateValue<'_> {
+    /// Same value and same NBT type as the registry's `value`.
+    fn is(self, value: StateValue) -> bool {
+        match (self, value) {
+            (Self::Byte(saved), StateValue::Byte(known)) => saved == known,
+            (Self::Int(saved), StateValue::Int(known)) => saved == known,
+            (Self::Str(saved), StateValue::Str(known)) => saved == known,
+            _ => false,
+        }
+    }
+}
+
+/// A saved `{name, states}` pair that names no canonical block state.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum UnknownBlockState {
+    /// No block has this name.
+    #[error("unknown block `{0}`")]
+    Block(String),
+    /// The block exists but has no state with exactly these properties.
+    #[error("block `{name}` has no state {states}")]
+    State { name: String, states: String },
+}
+
+/// `{key=value, ...}` in the saved order, values tagged with their NBT type.
+fn describe_states(states: &[(&str, SavedStateValue<'_>)]) -> String {
+    let fields: Vec<String> = states
+        .iter()
+        .map(|(key, value)| match value {
+            SavedStateValue::Byte(byte) => format!("{key}={byte}b"),
+            SavedStateValue::Int(int) => format!("{key}={int}"),
+            SavedStateValue::Str(text) => format!("{key}={text:?}"),
+        })
+        .collect();
+    format!("{{{}}}", fields.join(", "))
+}
+
 /// Block registry with O(1) runtime_id -> block lookup.
 #[derive(Debug, Clone, Default)]
 pub struct BlockRegistry {
@@ -353,6 +401,57 @@ impl BlockRegistry {
         self.get_by_name(name).map(|block| block.default_state_id)
     }
 
+    /// Canonical runtime state of block `name` whose state properties are
+    /// exactly `states`: every property of the block once, each with its value
+    /// and its NBT type, as saved worlds store them (`{name, states}`).
+    ///
+    /// No property may be missing, extra, repeated or of another type; this
+    /// never substitutes a default state.
+    pub fn state_by_properties(
+        &self,
+        name: &str,
+        states: &[(&str, SavedStateValue<'_>)],
+    ) -> Result<u32, UnknownBlockState> {
+        let block = self
+            .get_by_name(name)
+            .ok_or_else(|| UnknownBlockState::Block(name.to_owned()))?;
+        let data = block.data;
+        let unknown = || UnknownBlockState::State {
+            name: name.to_owned(),
+            states: describe_states(states),
+        };
+        let width = data.properties.len();
+        if states.len() != width {
+            return Err(unknown());
+        }
+        let mut columns: Vec<Option<u8>> = vec![None; width];
+        for &(key, value) in states {
+            let column = data
+                .properties
+                .iter()
+                .position(|property| property.name == key)
+                .ok_or_else(unknown)?;
+            let index = data.properties[column]
+                .values
+                .iter()
+                .position(|&candidate| value.is(candidate))
+                .ok_or_else(unknown)?;
+            let slot = &mut columns[column];
+            if slot.is_some() {
+                return Err(unknown());
+            }
+            *slot = Some(u8::try_from(index).map_err(|_| unknown())?);
+        }
+        // Equal lengths and no repeats: every column is set.
+        let wanted: Vec<u8> = columns.into_iter().map(Option::unwrap).collect();
+        (data.min_state_id..=data.max_state_id)
+            .find(|&state| {
+                let start = (state - data.min_state_id) as usize * width;
+                data.state_values.get(start..start + width) == Some(wanted.as_slice())
+            })
+            .ok_or_else(unknown)
+    }
+
     /// Iterate over all entries.
     pub fn iter(&self) -> impl Iterator<Item = &BlockEntry> {
         self.entries.iter()
@@ -502,6 +601,58 @@ mod tests {
                 .unwrap()
                 .string_id,
             grass.string_id
+        );
+    }
+
+    /// Every canonical state resolves from its own name and typed properties,
+    /// in any property order; a near miss names the block and the states.
+    #[test]
+    fn every_state_resolves_from_its_name_and_properties() {
+        let registry = BlockRegistry::vanilla();
+        let mut checked = 0;
+        for block in registry.iter() {
+            for id in block.min_state_id..=block.max_state_id {
+                let states: Vec<(&str, SavedStateValue<'_>)> = block
+                    .data
+                    .properties
+                    .iter()
+                    .rev()
+                    .map(|property| {
+                        let value = match block.state_value(id, property.name).unwrap() {
+                            StateValue::Byte(byte) => SavedStateValue::Byte(byte),
+                            StateValue::Int(int) => SavedStateValue::Int(int),
+                            StateValue::Str(text) => SavedStateValue::Str(text),
+                        };
+                        (property.name, value)
+                    })
+                    .collect();
+                assert_eq!(
+                    registry.state_by_properties(&block.string_id, &states),
+                    Ok(id)
+                );
+                checked += 1;
+            }
+        }
+        assert_eq!(checked, 22_091);
+        assert_eq!(
+            registry.state_by_properties(
+                "minecraft:oak_log",
+                &[("pillar_axis", SavedStateValue::Int(0))]
+            ),
+            Err(UnknownBlockState::State {
+                name: "minecraft:oak_log".to_owned(),
+                states: "{pillar_axis=0}".to_owned(),
+            })
+        );
+        assert_eq!(
+            registry.state_by_properties("minecraft:stone", &[]),
+            Ok(registry
+                .default_state_id_by_name("minecraft:stone")
+                .unwrap())
+        );
+        assert_eq!(
+            registry.state_by_properties("stone", &[]),
+            Err(UnknownBlockState::Block("stone".to_owned()))
         );
     }
 
