@@ -571,17 +571,202 @@ def ranged_items(args) -> list[dict]:
     east of the sweep player, who stands in survival with Resistance V (no
     damage) and Regeneration so it lives through every shot; the mob is
     sampled every tick for 300 ticks and the capture holds every arrow it
-    shoots (run with `--client-capture`, once per `--difficulty`)."""
+    shoots (run with `--client-capture`, once per `--difficulty`).
+    `--items geometry` moves the shooter and the player off the axis and up
+    and down, `spread` keeps the player in a barrier pen for 1200 ticks of
+    shots, `damage` drops the Resistance (Health Boost keeps the player
+    alive) and `avoid` leaves an unfrozen skeleton next to a frozen wolf."""
     target = f'"{PLAYER}"'
     protect = [f'gamemode survival {target}', f'effect {target} resistance 100000 4 true',
                f'effect {target} regeneration 100000 4 true']
     restore = [f'effect {target} clear', f'gamemode creative {target}', 'kill @e[type=minecraft:arrow]']
-    items = []
-    for mob, distance in (('skeleton', 8), ('skeleton', 15), ('stray', 8), ('bogged', 8), ('parched', 8)):
-        items.append({'key': f'{mob}|shoot-{distance}', 'mob': f'minecraft:{mob}',
-                      'at': [0.5 + distance, -60, 0.5, 90], 'player': [0.5, -60, 0.5, -90], 'frozen': True,
-                      'ticks': 300, 'setup': protect, 'cleanup': restore, 'actions': []})
-    return items
+    choice = args.items
+    if choice == 'slice':
+        items = []
+        for mob, distance in (('skeleton', 8), ('skeleton', 15), ('stray', 8), ('bogged', 8), ('parched', 8)):
+            items.append({'key': f'{mob}|shoot-{distance}', 'mob': f'minecraft:{mob}',
+                          'at': [0.5 + distance, -60, 0.5, 90], 'player': [0.5, -60, 0.5, -90], 'frozen': True,
+                          'ticks': 300, 'setup': protect, 'cleanup': restore, 'actions': []})
+        return items
+    # A barrier wall west, north and south of the player keeps it in place
+    # when an arrow knocks it back; the east side, towards the mobs, is open.
+    pen = ['fill -1 -60 -1 -1 -58 1 barrier', 'fill 0 -60 -1 1 -58 -1 barrier', 'fill 0 -60 1 1 -58 1 barrier']
+    unpen = [line.replace(' barrier', ' air') for line in pen]
+    if choice == 'geometry':
+        # Off-axis and raised shooters and targets pin where the arrow
+        # spawns (relative to the look or to the target) and how it aims.
+        rows = [
+            ('skeleton|off-axis', [8.5, -60, 3.5, 90], [0.5, -60, 0.5, -90], [], []),
+            ('skeleton|diagonal', [5.5, -60, 5.5, 135], [0.5, -60, 0.5, -45], [], []),
+            ('skeleton|player-raised', [8.5, -60, 0.5, 90], [0.5, -57, 0.5, -90],
+             ['fill 0 -60 0 0 -58 0 stone'], ['fill 0 -60 0 0 -58 0 air']),
+            ('skeleton|mob-raised', [8.5, -56, 2.5, 90], [0.5, -60, 0.5, -90],
+             ['fill 8 -60 2 8 -57 2 stone'], ['fill 8 -60 2 8 -57 2 air']),
+            ('stray|off-axis', [6.5, -60, -4.5, 45], [0.5, -60, 0.5, -90], [], []),
+        ]
+        return [{'key': key, 'mob': mob_of(key), 'at': at, 'player': player, 'frozen': True, 'ticks': 200,
+                 'setup': setup + protect, 'cleanup': restore + cleanup, 'actions': []}
+                for key, at, player, setup, cleanup in rows]
+    if choice == 'spread':
+        # Many shots for the spread statistics: the player is held in place
+        # by the barrier pen so every shot has the same geometry.
+        return [{'key': f'skeleton|spread-{n}', 'mob': 'minecraft:skeleton', 'at': [8.5, -60, 0.5, 90],
+                 'player': [0.5, -60, 0.5, -90], 'frozen': True, 'ticks': 1200,
+                 'setup': pen + protect, 'cleanup': restore + unpen, 'actions': []} for n in range(2)]
+    if choice in ('damage', 'damage-long'):
+        # The damage an arrow deals: no Resistance, the player lives on
+        # Health Boost X, a full heal and Regeneration V. `damage-long`
+        # repeats the skeleton for the damage statistics.
+        alive = [f'gamemode survival {target}', f'effect {target} health_boost 100000 9 true',
+                 f'effect {target} regeneration 100000 4 true']
+        heal = [{'t': 0, 'commands': [f'effect {target} instant_health 1 9 true']}]
+        cases = ([('skeleton', ''), ('stray', ''), ('bogged', '')] if choice == 'damage'
+                 else [('skeleton', f'-{n}') for n in range(4)])
+        return [{'key': f'{mob}|damage{suffix}', 'mob': f'minecraft:{mob}', 'at': [8.5, -60, 0.5, 90],
+                 'player': [0.5, -60, 0.5, -90], 'frozen': True, 'ticks': 900 if choice == 'damage' else 1200,
+                 'setup': pen + alive, 'cleanup': restore + unpen, 'actions': heal}
+                for mob, suffix in cases]
+    if choice in ('avoid', 'avoid-many'):
+        # `behavior.avoid_mob_type`: a skeleton two blocks from a frozen wolf
+        # with no target (the player is in creative) runs away from it;
+        # `avoid-many` repeats it 20 times for where the flight ends.
+        wolf = ['summon minecraft:wolf 2.5 -60 6.5', 'effect @e[type=minecraft:wolf] slowness 100000 255 true',
+                'effect @e[type=minecraft:wolf] resistance 100000 4 true']
+        return [{'key': f'skeleton|avoid-{n}', 'mob': 'minecraft:skeleton', 'at': [4.5, -60, 6.5, 0],
+                 'player': [0.5, -60, -12.5, 0], 'frozen': False, 'ticks': 200 if choice == 'avoid' else 120,
+                 'setup': wolf, 'cleanup': ['kill @e[type=minecraft:wolf]', 'kill @e[type=minecraft:arrow]'],
+                 'actions': []}
+                for n in range(3 if choice == 'avoid' else 20)]
+    if choice == 'weapon':
+        # `has_ranged_weapon`: which held items keep a skeleton shooting.
+        # The frozen skeleton's hand is replaced on tick 5; one that loses
+        # its ranged weapon turns to melee and never shoots.
+        rows = []
+        for weapon in ('bow', 'crossbow', 'trident', 'snowball', 'stick', 'air'):
+            hand = f'replaceitem entity @e[type=minecraft:skeleton] slot.weapon.mainhand 0 minecraft:{weapon}'
+            rows.append({'key': f'skeleton|hold-{weapon}', 'mob': 'minecraft:skeleton', 'at': [8.5, -60, 0.5, 90],
+                         'player': [0.5, -60, 0.5, -90], 'frozen': True, 'ticks': 160, 'setup': pen + protect,
+                         'cleanup': restore + unpen, 'actions': [{'t': 5, 'commands': [hand]}]})
+        return rows
+    if choice == 'aim':
+        # How the shot aims: the player pinned in a barrier pen at several
+        # heights and distances from the frozen skeleton (run on hard, the
+        # smallest spread). `(distance, player raise, mob raise)`.
+        rows = []
+        for distance, up, down in ((4, 0, 0), (8, 0, 0), (12, 0, 0), (8, 3, 0), (8, 6, 0), (8, 0, 3),
+                                   (8, 0, 6)):
+            py, my = -60 + up, -60 + down
+            setup = [f'fill -1 {py} -1 -1 {py + 2} 1 barrier', f'fill 0 {py} -1 1 {py + 2} -1 barrier',
+                     f'fill 0 {py} 1 1 {py + 2} 1 barrier']
+            if up:
+                setup.append(f'fill 0 -60 0 0 {py - 1} 0 stone')
+            if down:
+                setup.append(f'fill {distance} -60 0 {distance} {my - 1} 0 stone')
+            cleanup = [line.replace(' barrier', ' air').replace(' stone', ' air') for line in setup]
+            rows.append({'key': f'skeleton|aim-{distance}-up{up}-down{down}', 'mob': 'minecraft:skeleton',
+                         'at': [distance + 0.5, my, 0.5, 90], 'player': [0.5, py, 0.5, -90], 'frozen': True,
+                         'ticks': 400, 'setup': setup + protect, 'cleanup': restore + cleanup, 'actions': []})
+        return rows
+    if choice == 'pickup':
+        # Arrow pickup: a dispenser facing down at (1, -56, 0) shoots an
+        # arrow into the floor next to the survival player (`near`), or
+        # while the player stands 6 blocks away and is moved next to it 60
+        # ticks later (`late`); the capture holds the `TakeItemActor`.
+        dispenser = ['setblock 1 -56 0 dispenser ["facing_direction"=0]',
+                     'replaceitem block 1 -56 0 slot.container 0 arrow 1']
+        fire = {'t': 5, 'commands': ['setblock 1 -55 0 redstone_block']}
+        undo = ['setblock 1 -55 0 air', 'setblock 1 -56 0 air', 'kill @e[type=minecraft:arrow]',
+                f'clear {target}', f'gamemode creative {target}']
+        rows = []
+        for n in range(3):
+            rows.append({'key': f'arrow|pickup-near-{n}', 'mob': None, 'at': None,
+                         'player': [0.5, -60, 0.5, -90], 'frozen': False, 'ticks': 100,
+                         'setup': [f'gamemode survival {target}'] + dispenser,
+                         'cleanup': undo, 'actions': [fire]})
+            rows.append({'key': f'arrow|pickup-late-{n}', 'mob': None, 'at': None,
+                         'player': [0.5, -60, 6.5, -90], 'frozen': False, 'ticks': 120,
+                         'setup': [f'gamemode survival {target}'] + dispenser,
+                         'cleanup': undo,
+                         'actions': [fire, {'t': 65, 'commands': [f'tp {target} 0.5 -60 0.5 -90 0']}]})
+        return rows
+    if choice == 'filters':
+        # `is_underground`: a stray given `change_to_skeleton` turns into a
+        # skeleton when underground, and one time in five anyway; four
+        # repeats per roof. `in_block`: a skeleton with powder snow at its
+        # feet or only at its head shakes (`is_shaking`) when it is in it.
+        rows = []
+        roofs = {'open': None, 'stone-3': ('stone', 3), 'stone-12': ('stone', 12), 'glass-3': ('glass', 3),
+                 'leaves-3': ('oak_leaves', 3)}
+        for name, roof in roofs.items():
+            setup = [] if roof is None else [f'setblock 4 {-60 + roof[1]} 0 {roof[0]}']
+            cleanup = [] if roof is None else [f'setblock 4 {-60 + roof[1]} 0 air']
+            for n in range(4):
+                rows.append({'key': f'stray|underground-{name}-{n}', 'mob': 'minecraft:stray',
+                             'at': [4.5, -60, 0.5, 90], 'player': [0.5, -60, -12.5, 0], 'frozen': True,
+                             'ticks': 40, 'setup': setup, 'cleanup': cleanup + ['kill @e[type=minecraft:skeleton]',
+                                                                               'kill @e[type=minecraft:stray]'],
+                             'actions': [{'t': 5, 'commands': [
+                                 'event entity @e[type=minecraft:stray] change_to_skeleton']}]})
+        # The skeleton's `minecraft:lightning_immune` damage sensor filters
+        # on `other_with_families`, which is no filter key: with and
+        # without `spring_trap`, how much of a hit gets through.
+        for trap in (False, True):
+            hurt = ['damage @e[type=minecraft:skeleton] 4 entity_attack']
+            actions = ([{'t': 5, 'commands': ['event entity @e[type=minecraft:skeleton] minecraft:spring_trap']}]
+                       if trap else []) + [{'t': 15, 'commands': hurt},
+                                           {'t': 40, 'commands': ['damage @e[type=minecraft:skeleton] 3 fall']}]
+            rows.append({'key': f'skeleton|spring-trap-{str(trap).lower()}', 'mob': 'minecraft:skeleton',
+                         'at': [4.5, -60, 0.5, 90], 'player': [0.5, -60, -12.5, 0], 'frozen': True,
+                         'ticks': 60, 'setup': [], 'cleanup': [], 'actions': actions})
+        for name, y in (('feet', -60), ('head', -59)):
+            rows.append({'key': f'skeleton|powder-{name}', 'mob': 'minecraft:skeleton', 'at': [4.5, -60, 0.5, 90],
+                         'player': [0.5, -60, -12.5, 0], 'frozen': True, 'ticks': 60,
+                         'setup': [f'setblock 4 {y} 0 powder_snow'], 'cleanup': [f'setblock 4 {y} 0 air'],
+                         'actions': []})
+        return rows
+    raise SystemExit("ranged --items must be one of slice, geometry, spread, damage, damage-long, avoid, "
+                     "avoid-many, weapon, aim, filters, pickup")
+
+
+def mob_of(key: str) -> str:
+    """The mob identifier of a `<mob>|<case>` item key."""
+    return f'minecraft:{key.split("|")[0]}'
+
+
+def silverfish_items(args) -> list[dict]:
+    """`silverfish`: `--items merge` leaves a silverfish (no target: the
+    player is creative and far) in a 3 × 3 pit dug into stone for 600 ticks,
+    ten times, for when and where it merges into the stone
+    (`behavior.silverfish_merge_with_stone`; the capture holds the block
+    updates). `--items wake` puts infested stone at several distances from
+    a frozen silverfish and hurts it on tick 20, three times, for which
+    blocks `behavior.silverfish_wake_up_friends` breaks and when."""
+    far = [0.5, -60, -24.5, 0]
+    if args.items in ('slice', 'merge'):
+        pit = ['fill 2 -61 -2 8 -58 4 stone', 'fill 4 -60 0 6 -58 2 air']
+        undo = ['fill 2 -61 -2 8 -58 4 air', 'fill 2 -61 -2 8 -61 4 grass_block',
+                'kill @e[type=minecraft:silverfish]']
+        return [{'key': f'silverfish|merge-{n}', 'mob': 'minecraft:silverfish', 'at': [5.5, -60, 1.5, 0],
+                 'player': far, 'frozen': False, 'ticks': 600, 'setup': pit, 'cleanup': undo, 'actions': []}
+                for n in range(10)]
+    if args.items == 'wake':
+        # Infested stone along +x at 1..12 blocks, along +z at 1..6 and
+        # 2..6 blocks up; stone underneath so nothing falls.
+        cells = ([(x, -60, 0) for x in range(1, 13)] + [(0, -60, z) for z in range(1, 7)]
+                 + [(0, y, 0) for y in range(-58, -53)])
+        place = [f'setblock {x + 4} {y} {z} infested_stone' for x, y, z in cells]
+        undo = [f'setblock {x + 4} {y} {z} air' for x, y, z in cells] + ['kill @e[type=minecraft:silverfish]']
+        # The silverfish only turns angry with a target: the survival player
+        # 4 blocks west, protected, then hits it through `/damage`.
+        target = f'"{PLAYER}"'
+        protect = [f'gamemode survival {target}', f'effect {target} resistance 100000 4 true',
+                   f'effect {target} regeneration 100000 4 true']
+        restore = [f'effect {target} clear', f'gamemode creative {target}']
+        hurt = {'t': 40, 'commands': [f'damage @e[type=minecraft:silverfish] 1 entity_attack entity {target}']}
+        return [{'key': f'silverfish|wake-{n}', 'mob': 'minecraft:silverfish', 'at': [4.5, -60, 0.5, 90],
+                 'player': [0.5, -60, 0.5, -90], 'frozen': True, 'ticks': 300, 'setup': place + protect,
+                 'cleanup': restore + undo, 'actions': [hurt]} for n in range(3)]
+    raise SystemExit('silverfish --items must be merge or wake')
 
 
 def melee_effect_items(args) -> list[dict]:
@@ -691,13 +876,13 @@ def build_job(args, out: Path) -> dict:
         # Zombies need a difficulty above peaceful and burn in daylight.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = effect_items(args)
-    elif args.kind in ('ranged', 'mooshroom', 'melee-effects'):
+    elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish'):
         # The generic per-tick job of `effects`; hostile mobs need a
         # difficulty above peaceful and skeletons burn in daylight.
         job['kind'] = 'effects'
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = {'ranged': ranged_items, 'mooshroom': mooshroom_items,
-                        'melee-effects': melee_effect_items}[args.kind](args)
+                        'melee-effects': melee_effect_items, 'silverfish': silverfish_items}[args.kind](args)
     elif args.kind == 'entity-loot':
         # Hostile mobs need a difficulty above peaceful.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
@@ -722,7 +907,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
                                          'knockback', 'knockback-reload', 'range', 'bonus', 'walk',
-                                         'effects', 'entity-loot', 'ranged', 'mooshroom', 'melee-effects'])
+                                         'effects', 'entity-loot', 'ranged', 'mooshroom', 'melee-effects',
+                                         'silverfish'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
