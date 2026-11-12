@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-12
 decision-makers: [project owner]
 ---
@@ -37,6 +37,8 @@ Copying BDS exactly would mean exiting the server.
 - No limit: run chains of any depth without recursion.
 
 ## Decision Outcome
+
+Accepted by the owner on 2026-11-11.
 
 Chosen: refuse at 640. The parser and the chain runner keep their own stacks (no recursion), so
 nothing depends on the thread's stack. A chain counts every subcommand it runs through, the

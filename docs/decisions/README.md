@@ -49,6 +49,6 @@ documents and still appear in code comments and research docs; the table maps th
 | [0036](0036-run-a-command-before-its-players-later-inputs.md) | Run a command before the inputs its player sent after it | 2026-11-10 | accepted | |
 | [0037](0037-keep-level-data-in-bds-layout.md) | Keep level data in BDS's layout and never replace unreadable level data | 2026-11-10 | accepted | |
 | [0038](0038-store-players-as-bds-player-records.md) | Store players as BDS's player records, starting with reading them | 2026-11-10 | accepted | |
-| [0058](0058-refuse-execute-chains-deeper-than-bds-survives.md) | Refuse `/execute` chains deeper than BDS survives | 2026-11-12 | proposed | |
+| [0058](0058-refuse-execute-chains-deeper-than-bds-survives.md) | Refuse `/execute` chains deeper than BDS survives | 2026-11-12 | accepted | |
 
 Proposed records await the owner's approval; their work is an open OpenSpec change anyone can pick up.
