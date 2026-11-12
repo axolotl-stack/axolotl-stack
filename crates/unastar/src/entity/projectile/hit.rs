@@ -22,19 +22,23 @@ use crate::entity::systems::physics::collect_block_boxes;
 use crate::registry::collision::Aabb;
 use crate::server::game::types::ItemRegistryResource;
 
-/// Run the `on_hit` effects of one hit at `at`; returns whether the
-/// projectile is removed.
+/// Run the `on_hit` effects of one hit at `at` (where the flight segment
+/// starting at `origin` meets the target); returns whether the projectile
+/// is removed.
 pub(super) fn on_hit(
     world: &mut World,
     projectile: Entity,
     owner: Option<Entity>,
     rules: &ProjectileRules,
+    origin: DVec3,
     at: DVec3,
     target: Target,
 ) -> bool {
     let mut removed = false;
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
-        let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);
+        // Knockback pushes away from where the projectile flew from this
+        // tick.
+        let (destroyed, applied) = impact_damage(world, projectile, owner, impact, origin, actor);
         removed |= destroyed;
         if !destroyed {
             rebound(world, projectile, rules, applied);
@@ -155,7 +159,10 @@ fn rebound(world: &mut World, projectile: Entity, rules: &ProjectileRules, appli
 }
 
 /// `stick_in_ground`: stop at the hit point and shake for `shake` ticks
-/// (`ActorEvent` 39 with the shake time, as BDS sends for arrows).
+/// (`ActorEvent` 39 with the shake time, as BDS sends for arrows). From the
+/// tick of the hit the projectile is on the ground with no motion (BDS
+/// 1.26.51: falling and dispensed arrows stop exactly where their flight met
+/// the block, to 1e-6, grounded, and send one zero `SetActorMotion`).
 fn stick(world: &mut World, projectile: Entity, at: DVec3, shake: u32) {
     let now = world
         .resource::<crate::ecs::resources::TickCounter>()
@@ -164,6 +171,7 @@ fn stick(world: &mut World, projectile: Entity, at: DVec3, shake: u32) {
         super::Stuck { since: now },
         crate::entity::components::Position(at),
         crate::entity::components::Velocity(DVec3::ZERO),
+        crate::entity::components::OnGround(true),
     ));
     crate::entity::mob::combat::send_actor_event(
         world,

@@ -15,8 +15,26 @@ pub const MOVE_ARRIVE_DIST_SQ: f64 = 0.1;
 pub const MOVE_ARRIVE_HEIGHT: f64 = 0.25;
 /// Floor of the final-node slow-down: `max(target * d², ARRIVAL_FLOOR * target)`.
 pub const MOVE_ARRIVAL_FLOOR: f32 = 0.5;
-/// Speed cap while the wanted position is below the feet.
+/// Speed cap while the wanted position is below the feet; a faster mob drops
+/// to it at once (a tempted cow at 0.3125, also with Speed II at 0.4375,
+/// accelerates at the capped speed from its first tick above a step it jumps
+/// onto, and a panicking cow from its first tick in the air after a
+/// knockback: BDS 1.26.51 knockback captures).
 pub const MOVE_DESCEND_CAP: f32 = 0.25;
+/// The travel step's forward input is the move control's speed × this
+/// (BDS 1.26.51: a walking cow at speed `s` gains `0.98 s²` per tick on
+/// grass, through every step of its 10 %/tick speed ramp). Measured on
+/// land and in the air only; it is applied in liquids too, unmeasured.
+pub const MOVE_INPUT_DECAY: f32 = 0.98;
+/// Vertical velocity of a living mob with gravity when it spawns or is born
+/// (80 of the 112 BDS 1.26.51 summon captures: every living actor with
+/// gravity except the shulker; without gravity, or not living, 0). It is the
+/// `AddActor` velocity and the mob's first move.
+pub const MOB_SPAWN_VELOCITY_Y: f64 = -1.0e-5;
+/// Acceleration per unit of forward input of a mob in the air (BDS 1.26.51:
+/// a cow at speed `s` gains `0.02 × 0.98 s` per tick in the air, not the
+/// ground acceleration).
+pub const MOB_AIR_ACCELERATION: f64 = 0.02;
 /// Land mobs step up this high without jumping.
 pub const MOB_STEP_HEIGHT: f64 = 0.5625;
 /// Target height difference (when the mob was in water) that triggers a jump.
@@ -217,6 +235,15 @@ pub const DAYLIGHT_BURN_TICKS: u64 = 160;
 /// (the check is confirmed; the block is provisional: Java Edition, where
 /// powder snow keeps undead from burning).
 pub const DAYLIGHT_BURN_BLOCKER: &str = "minecraft:powder_snow";
+/// The damage causes an actor with the `FIRE_IMMUNE` flag
+/// (`minecraft:fire_immune`) does not take (measured: `/damage` with these
+/// fails on the fire-immune zombie pigman and wither skeleton and succeeds on
+/// the zombie and skeleton; every other cause, campfire and soul campfire
+/// included, hurts all four; `testdata/bds-1.26.51-fire-immune-causes.json`).
+pub const FIRE_IMMUNE_CAUSES: &[unastar_data::actor_components::body::ActorDamageCause] = {
+    use unastar_data::actor_components::body::ActorDamageCause as Cause;
+    &[Cause::Fire, Cause::FireTick, Cause::Lava, Cause::Magma]
+};
 
 // --- Entity pushing ---------------------------------------------------------------
 
@@ -242,6 +269,19 @@ pub const KNOCKBACK_VERTICAL: f64 = 0.4;
 pub const KNOCKBACK_VERTICAL_CAP: f64 = 0.4;
 /// Existing velocity is multiplied by this before knockback is added.
 pub const KNOCKBACK_RETAIN: f64 = 0.5;
+/// A native zombie spawns with a knockback resistance drawn uniformly from
+/// `[0, this)`, which scales the push and the lift of every knockback it
+/// takes (five BDS 1.26.51 zombies: 0.0150, 0.0306, 0.0434, 0.0472, 0.0493;
+/// the 1,160 zombies, husks, drowned and zombified piglins of the spawn-bonus
+/// sweep all saved one in `[0.0001, 0.0499]`).
+pub const ZOMBIE_KNOCKBACK_RESISTANCE_BONUS: f64 = 0.05;
+/// The zombie classes' follow-range bonus draw: uniform below this, kept
+/// only above [`FOLLOW_RANGE_BONUS_THRESHOLD`] (BDS 1.26.51 spawn-bonus
+/// sweep: 403 of 1,160 saved one, amounts 1.0014 to 1.4997;
+/// `mob::spawn_bonus`).
+pub const FOLLOW_RANGE_BONUS_DRAW_MAX: f32 = 1.5;
+/// See [`FOLLOW_RANGE_BONUS_DRAW_MAX`].
+pub const FOLLOW_RANGE_BONUS_THRESHOLD: f32 = 1.0;
 /// The body is removed (and XP spawned) this many ticks after death.
 pub const DEATH_TICKS: u32 = 20;
 /// Experience orb sizes, largest first.
@@ -331,8 +371,11 @@ pub const CLIMATE_VARIANT_PROPERTY: &str = "minecraft:climate_variant";
 
 /// Orbs are removed this many ticks after spawning.
 pub const XP_ORB_LIFETIME_TICKS: u64 = 6000;
-/// Gravity subtracted before the move.
-pub const XP_ORB_GRAVITY: f64 = 0.03;
+/// Gravity subtracted before the move (BDS 1.26.51: an orb summoned with an
+/// upward velocity of 0.1204 rose 0.0804 in its first tick, then
+/// `0.0804 × 0.98 − 0.04`; `net/testdata/bds-1.26.51-replication.json`,
+/// trial `xp_orb|fall-32|natural`).
+pub const XP_ORB_GRAVITY: f64 = 0.04;
 /// Per-tick velocity multiplier (block friction also applies on the ground).
 pub const XP_ORB_DRAG: f64 = 0.98;
 /// Spawn velocity: x/z uniform in `±XP_ORB_SPAWN_HORIZONTAL`, y uniform in

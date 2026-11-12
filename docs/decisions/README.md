@@ -43,8 +43,10 @@ documents and still appear in code comments and research docs; the table maps th
 | [0030](0030-use-26x-world-clocks.md) | Sync time with 26.x world clocks | 2026-10-24 | accepted | WD5 |
 | [0031](0031-parallel-chunk-generation-is-allowed.md) | Parallel chunk generation is allowed | 2026-10-24 | accepted | world §1.3 |
 | [0032](0032-two-worldgen-numeric-backends.md) | Two worldgen numeric backends | 2026-10-27 | accepted | |
-| [0033](0033-persist-block-states-by-name.md) | Save block states on disk by name and states | 2026-11-04 | proposed | |
+| [0033](0033-persist-block-states-by-name.md) | Save block states on disk by name and states | 2026-11-04 | accepted | |
 | [0034](0034-bound-the-java-native-session.md) | Bound the Java-style native session without changing its output | 2026-11-05 | proposed | |
 | [0035](0035-disable-a-plugin-after-it-traps.md) | Disable a plugin after it traps | 2026-11-05 | accepted | |
+| [0039](0039-fail-the-column-on-damaged-sub-chunks.md) | Fail the column load on damaged sub-chunk data | 2026-11-10 | proposed | |
+| [0053](0053-bedrock-terrain-uses-java-exact-noise.md) | Bedrock-style terrain uses the Java-exact noise backend | 2026-11-12 | proposed | |
 
 Proposed records await the owner's approval; their work is an open OpenSpec change anyone can pick up.

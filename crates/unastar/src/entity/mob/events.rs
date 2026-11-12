@@ -7,6 +7,7 @@
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
+use jolyne::valentine::actor_data_i_ds as ids;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use thiserror::Error;
@@ -24,6 +25,7 @@ use crate::entity::definition::events::{
     TriggerEvent,
 };
 use crate::entity::definition::flags::ActorFlags;
+use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::definition::properties::{ActorProperties, PropertyError, PropertyValue};
 use crate::entity::definition::{DefinitionState, GroupChange, queue_group_change};
 use crate::entity::systems::BlockSource;
@@ -132,6 +134,12 @@ impl MobFacts<'_> {
         under_water_at(self.world, self.breathing_point(entity)?)
     }
 
+    fn appearance(&self, entity: Entity, key: u32) -> Option<Fact> {
+        let metadata = self.world.get::<EntityMetadata>(entity)?;
+        let id = super::components::variant::appearance_id(metadata, key)?;
+        Some(Fact::Number(f64::from(id)))
+    }
+
     fn property(&self, entity: Entity, test: &FilterTest) -> Option<PropertyValue> {
         let properties = self.world.get::<ActorProperties>(entity)?;
         let slot = properties.layout().slot(test.domain_str()?)?;
@@ -212,6 +220,12 @@ impl FilterContext for MobFacts<'_> {
                         .is_some_and(|state| state.has_actor_component(component)),
                 )
             }
+            // The appearance ids the actor data carries (`components::variant`
+            // and the native class values); an actor without one is not
+            // answered, so the test is false.
+            BuiltinTest::IsVariant => self.appearance(entity, ids::VARIANT)?,
+            BuiltinTest::IsMarkVariant => self.appearance(entity, ids::MARK_VARIANT)?,
+            BuiltinTest::IsSkinId => self.appearance(entity, ids::SKIN_ID)?,
             // Only players sneak.
             BuiltinTest::IsSneakHeld => Fact::Bool(
                 self.world

@@ -50,24 +50,42 @@ pub fn apply_movement(
     mut block_queue: ResMut<BlockPacketQueue>,
     mut events: ResMut<MovementEvents>,
     mut players: MovingPlayers,
+    mut relayed: Option<ResMut<crate::server::player_view::RelayedMoves>>,
 ) {
     let _span = tracing::info_span!("apply_movement", count = queue.0.len()).entered();
     for (entity, input) in queue.0.drain(..) {
         match input {
             MovementInput::AuthInput(pk) => {
+                // The rotation before this input: what the relayed move
+                // carries as the player's pitch and yaw.
+                let before = players
+                    .get(entity)
+                    .ok()
+                    .map(|(_, rotation, ..)| (rotation.pitch, rotation.yaw));
                 // A rejected input is rejected whole, block actions included.
                 if process_auth_input(entity, &pk, &mut players, &mut events).is_none() {
                     continue;
                 }
-
-                // Forward block actions to block queue
-                if let Some(block_actions) = pk.player_block_actions
-                    && !block_actions.is_empty()
+                // Every accepted input is relayed to the player's viewers.
+                if let (Some(relayed), Some((pitch, yaw)), Ok((position, rotation, ..))) =
+                    (relayed.as_mut(), before, players.get(entity))
                 {
-                    block_queue
-                        .0
-                        .push((entity, BlockAction::AuthInputActions(block_actions)));
+                    relayed.0.push(crate::server::player_view::RelayedMove {
+                        player: entity,
+                        position: position.0,
+                        pitch,
+                        yaw,
+                        head_yaw: rotation.head_yaw,
+                        tick: pk.client_tick.inputtick,
+                    });
                 }
+
+                // Every accepted input goes to the block system, with or
+                // without block actions: a break advances once per input.
+                block_queue.0.push((
+                    entity,
+                    BlockAction::AuthInputActions(pk.player_block_actions.unwrap_or_default()),
+                ));
             }
             MovementInput::PlayerAction(pk) => {
                 process_player_action(entity, &pk, &mut players, &mut events);

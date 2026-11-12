@@ -1,5 +1,7 @@
 //! Concrete native preset kernels and source-native post-noise stages.
 
+use std::sync::Arc;
+
 use noise::NoiseSource;
 use noise::features::java_blocks::states;
 use noise::java_biomes::JavaBiome;
@@ -28,8 +30,41 @@ pub(super) fn disabled_aquifer(y: i32, sea_level: i32, default_fluid: u32) -> u3
     }
 }
 
+/// A chunk's native biomes: shared with the replay cache when its fill is
+/// history-independent, else this call's own.
+enum NativeBiomes {
+    Shared(Arc<Option<(QuartBiomes, biome_source::Replay)>>),
+    Owned(QuartBiomes),
+}
+
+impl std::ops::Deref for NativeBiomes {
+    type Target = QuartBiomes;
+
+    fn deref(&self) -> &QuartBiomes {
+        match self {
+            Self::Shared(cached) => {
+                let (biomes, _) = cached
+                    .as_ref()
+                    .as_ref()
+                    .expect("only replayable fills are shared");
+                biomes
+            }
+            Self::Owned(biomes) => biomes,
+        }
+    }
+}
+
+impl NativeBiomes {
+    fn into_owned(self) -> QuartBiomes {
+        match self {
+            Self::Owned(biomes) => biomes,
+            Self::Shared(_) => (*self).clone(),
+        }
+    }
+}
+
 macro_rules! secondary_stage {
-    ($method:ident, $router:ident, $settings:ident, $biomes:ident) => {
+    ($method:ident, $router:ident, $settings:ident) => {
         pub(super) fn $method(&self, pos: ChunkPos, stage: JavaTerrainStage) -> ProtoChunk {
             use noise::$router as router;
             use noise::$settings as settings;
@@ -37,7 +72,7 @@ macro_rules! secondary_stage {
             let source = self.terrain_source(pos);
             let biomes = {
                 let _biomes = profile::scope(Stage::Biomes);
-                biome_source::$biomes(&source, pos)
+                self.generate_native_biomes(pos).into_owned()
             };
             if stage == JavaTerrainStage::Biomes {
                 return self.biomes_stage(pos, biomes);
@@ -128,7 +163,10 @@ impl JavaGenerator {
         let columns = noise::ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
         let biomes = {
             let _biomes = profile::scope(Stage::Biomes);
-            biome_source::fill_overworld_native(&source, pos, &flat, &columns)
+            self.native_biomes(pos, || {
+                biome_source::fill_overworld_native(&source, pos, &flat, &columns)
+            })
+            .into_owned()
         };
         if stage == JavaTerrainStage::Biomes {
             return self.biomes_stage(pos, biomes);
@@ -144,8 +182,28 @@ impl JavaGenerator {
             self.seed,
             OverworldFluidPicker::new(settings::SEA_LEVEL),
         );
+        let dense = self.overworld_native_cells(pos, &source, &flat, &columns, &mut aquifer);
+        self.finish_native_stage(pos, stage, dense, biomes, &source, |x, y, z| {
+            aquifer.carve_substance(x, y, z).map(java_aquifer_substance)
+        })
+    }
+
+    /// Overworld noise-stage blocks in Java-exact arithmetic: interpolated
+    /// density cells, aquifer fluids (barriers fall through to the ore veins,
+    /// then the default block) and ore veins. Shared by the Java backend (its
+    /// source adds the structure beardifier) and the Bedrock backend (plain
+    /// noise, no Java structures).
+    pub(super) fn overworld_native_cells<N: NoiseSource>(
+        &self,
+        pos: ChunkPos,
+        source: &N,
+        flat: &noise::FlatCacheGrid,
+        columns: &noise::ColumnContextGrid,
+        aquifer: &mut NoiseBasedAquifer<'_, OverworldFluidPicker, N>,
+    ) -> DenseBlocks {
+        use noise::overworld_settings as settings;
         let veins = NativeOreVeinifier::new(self.ore_random.clone());
-        let mut sampler = noise::NativeCellSampler::new(pos.x, pos.z, &flat, &columns, &source);
+        let mut sampler = noise::NativeCellSampler::new(pos.x, pos.z, flat, columns, source);
         let mut dense = DenseBlocks::filled_with_bounds(
             u32::from(states::AIR.0),
             BlockStateSpace::Java,
@@ -204,23 +262,11 @@ impl JavaGenerator {
                 }
             }
         }
-        self.finish_native_stage(pos, stage, dense, biomes, &source, |x, y, z| {
-            aquifer.carve_substance(x, y, z).map(java_aquifer_substance)
-        })
+        dense
     }
 
-    secondary_stage!(
-        generate_nether_native,
-        nether_compiled,
-        nether_settings,
-        fill_nether_native
-    );
-    secondary_stage!(
-        generate_end_native,
-        end_compiled,
-        end_settings,
-        fill_end_native
-    );
+    secondary_stage!(generate_nether_native, nether_compiled, nether_settings);
+    secondary_stage!(generate_end_native, end_compiled, end_settings);
 
     pub(super) fn biomes_stage(&self, pos: ChunkPos, mut biomes: QuartBiomes) -> ProtoChunk {
         biomes.set_block_bounds(self.options.dimension.block_bounds());
@@ -236,16 +282,52 @@ impl JavaGenerator {
         }
     }
 
-    pub(super) fn generate_native_biomes(&self, pos: ChunkPos) -> QuartBiomes {
+    fn generate_native_biomes(&self, pos: ChunkPos) -> NativeBiomes {
         let source = self.terrain_source(pos);
         match self.options.dimension {
-            JavaDimension::Overworld => {
+            JavaDimension::Overworld => self.native_biomes(pos, || {
                 let flat = noise::FlatCacheGrid::new_native(pos.x, pos.z, &source);
                 let columns = noise::ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
                 biome_source::fill_overworld_native(&source, pos, &flat, &columns)
+            }),
+            JavaDimension::Nether => {
+                self.native_biomes(pos, || biome_source::fill_nether_native(&source, pos))
             }
-            JavaDimension::Nether => biome_source::fill_nether_native(&source, pos),
-            JavaDimension::End => biome_source::fill_end_native(&source, pos),
+            JavaDimension::End => NativeBiomes::Owned(biome_source::fill_end_native(&source, pos)),
+        }
+    }
+
+    /// The biomes `fill` computes for `pos` with the calling thread's search
+    /// history. A fill none of whose searches met an equal-distance tie is
+    /// the same from every history: it runs once, and later calls share its
+    /// biomes and restore the history it leaves. Other fills run every time.
+    fn native_biomes(
+        &self,
+        pos: ChunkPos,
+        mut fill: impl FnMut() -> biome_source::NativeFill,
+    ) -> NativeBiomes {
+        let mut computed = None;
+        let cached = self.biome_fills.get_or_compute(pos, || {
+            let biome_source::NativeFill { biomes, replay } = fill();
+            match replay {
+                Some(replay) => Some((biomes, replay)),
+                None => {
+                    computed = Some(biomes);
+                    None
+                }
+            }
+        });
+        if let Some(biomes) = computed {
+            // This thread ran a fill with ties against its own history.
+            return NativeBiomes::Owned(biomes);
+        }
+        match &*cached {
+            Some((_, replay)) => {
+                // Idempotent when this thread just ran the fill itself.
+                replay.apply();
+                NativeBiomes::Shared(cached)
+            }
+            None => NativeBiomes::Owned(fill().biomes),
         }
     }
 
@@ -292,7 +374,7 @@ impl JavaGenerator {
             let surface = profile::scope(Stage::Surface);
             // Native reference profile: center BIOMES/NOISE, then additional
             // BIOMES chunks dz-outer/dx-inner. The center is borrowed, not copied.
-            let neighbors: [Option<QuartBiomes>; 9] = std::array::from_fn(|slot| {
+            let neighbors: [Option<NativeBiomes>; 9] = std::array::from_fn(|slot| {
                 let dx = slot as i32 % 3 - 1;
                 let dz = slot as i32 / 3 - 1;
                 (slot != 4)
@@ -308,7 +390,7 @@ impl JavaGenerator {
                         "native surface queried outside its biome neighborhood"
                     );
                     let slot = ((dz + 1) * 3 + dx + 1) as usize;
-                    let column = neighbors[slot].as_ref().unwrap_or(&biomes);
+                    let column = neighbors[slot].as_deref().unwrap_or(&biomes);
                     JavaBiome::from_index(column.at_block(
                         ((qx & 3) * 4) as u8,
                         qy * 4,
@@ -396,5 +478,48 @@ where
             z,
             has_fluid,
         )
+    }
+}
+
+/// The Java generator needs the `java-worldgen` templates.
+#[cfg(all(test, feature = "java-worldgen"))]
+mod tests {
+    use super::*;
+    use crate::world::chunk::blocks;
+
+    /// Native aquifer-trace results for chunk (-406, 124): every voxel is
+    /// water. Its nearest center (-6478, -31, 1985) is a deep dark region
+    /// at its exact position, but not at its flat-cached quart corner, which
+    /// is what the native aquifer reads, so the center floods.
+    #[test]
+    fn aquifer_centers_over_the_chunk_read_flat_cached_erosion_and_depth() {
+        use noise::overworld_settings as settings;
+        let g = JavaGenerator::new(6788061584965324779);
+        let pos = ChunkPos::new(-406, 124);
+        let source = g.terrain_source(pos);
+        let flat = noise::FlatCacheGrid::new_native(pos.x, pos.z, &source);
+        let columns = noise::ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
+        let mut aquifer = NoiseBasedAquifer::new(
+            pos.x,
+            pos.z,
+            settings::MIN_Y,
+            settings::HEIGHT,
+            &source,
+            &flat,
+            &columns,
+            g.seed,
+            OverworldFluidPicker::new(settings::SEA_LEVEL),
+        );
+        // Native consumed densities (f64 bits) at each traced voxel.
+        for (x, y, z, bits) in [
+            (-6487, -26, 1984, 0xbf4183a4bb6adc5d_u64),
+            (-6481, -26, 1988, 0xbf2abec23cf85bed),
+            (-6487, -21, 1984, 0xbfa6d09f82e70636),
+            (-6481, -22, 1988, 0xbf9dedb919510d16),
+        ] {
+            let ctx = noise::FunctionContext::new(x, y, z);
+            let substance = aquifer.compute_substance(&ctx, f64::from_bits(bits));
+            assert_eq!(substance, Some(*blocks::WATER), "({x}, {y}, {z})");
+        }
     }
 }

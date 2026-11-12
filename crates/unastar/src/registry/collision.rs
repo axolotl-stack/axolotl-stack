@@ -11,36 +11,16 @@
 //!
 //! Fences, walls, glass panes and (copper/iron) bars carry their connections
 //! in their Bedrock states (`minecraft:connection_*` and
-//! `wall_connection_type_*`), and the table gives each of those states its
-//! own shape. Those properties depend on the neighbours (protocolgen's README:
-//! "Neighbor-dependent block shapes describe the extraction context; live
-//! worlds may need their own models to resolve connections"), and unastar does
-//! not yet rewrite them on neighbour updates, so [`connected_state`] derives
-//! them from the neighbours whenever a collision shape is needed. Property
-//! names, connection families, face coverage and canonical state transitions
-//! are resolved once when the registry loads; queries only read the immutable
-//! numeric cache and shared native geometry. The rule follows
-//! df-mc/dragonfly's `block/model` (`Fence.Connects`, `Thin.Connects`)
-//! and `block/wall.go` (`calculateConnections`, `calculatePost`) (MIT):
-//!
-//! - A fence connects to fences of the same kind (wooden fences to each other,
-//!   the nether brick fence only to itself), to a fence gate whose closed
-//!   panel lies along the connection (gate facing perpendicular to it), and
-//!   to blocks whose collision shape covers the whole face towards the fence.
-//! - A pane or bars connects to panes, bars and walls, and to full faces.
-//! - A wall connects to walls, panes and bars, fence gates as fences do, and
-//!   full faces. A wall's collision depends on which sides connect and on
-//!   `wall_post_bit` (a straight wall without a post is 6/16 thick instead
-//!   of 8/16), not on `short` versus `tall`, so a newly connected side becomes
-//!   `short` and a stored height is otherwise kept. The post is raised unless
-//!   exactly two opposite sides connect, or when the block above forces it:
-//!   a standing lantern, a standing sign, a torch on top, a post wall, or an
-//!   open wooden trapdoor facing a connected side.
-//! - Unloaded neighbours count as full blocks, as they do for physics.
-//!
-//! "Full face" is computed from the neighbour's collision shape; whether BDS
-//! uses that or another solidity notion (glass, leaves, ice, soul sand) is
-//! not yet confirmed: see `docs/quirks/bds.md`.
+//! `wall_connection_type_*`, `wall_post_bit`), and the table gives each of
+//! those states its own shape. The block-update pass
+//! (`server::game::block_update`) writes them to the world when a block or
+//! its neighbours change; [`connected_state`] derives them from the
+//! neighbours, so collision of a block whose stored state is stale (for
+//! example generated terrain) still matches. Property names, connection
+//! families, face coverage, outline footprints and canonical state
+//! transitions are resolved once when the registry loads; queries only read
+//! the immutable numeric cache. The rules were measured on BDS 1.26.51 and
+//! are listed on [`connected_state`].
 
 use glam::{DVec3, IVec3};
 use unastar_data::shapes::{self, ShapeBox, ShapeRef};
@@ -200,7 +180,7 @@ pub fn block_collision_aabbs(runtime_id: u32) -> impl Iterator<Item = Aabb> {
 
 /// Horizontal side of a block, with its connection state properties.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Side {
+pub(crate) enum Side {
     North,
     East,
     South,
@@ -208,9 +188,9 @@ enum Side {
 }
 
 impl Side {
-    const ALL: [Self; 4] = [Self::North, Self::East, Self::South, Self::West];
+    pub(crate) const ALL: [Self; 4] = [Self::North, Self::East, Self::South, Self::West];
 
-    fn offset(self) -> IVec3 {
+    pub(crate) fn offset(self) -> IVec3 {
         match self {
             Self::North => IVec3::NEG_Z,
             Self::East => IVec3::X,
@@ -219,7 +199,7 @@ impl Side {
         }
     }
 
-    fn opposite(self) -> Self {
+    pub(crate) fn opposite(self) -> Self {
         match self {
             Self::North => Self::South,
             Self::East => Self::West,
@@ -228,7 +208,7 @@ impl Side {
         }
     }
 
-    fn along_x(self) -> bool {
+    pub(crate) fn along_x(self) -> bool {
         matches!(self, Self::East | Self::West)
     }
 
@@ -249,11 +229,31 @@ impl Side {
             Self::West => "wall_connection_type_west",
         }
     }
+
+    /// Footprint `[x0, z0, x1, z1]` of this side's wall arm: from the post
+    /// (1/4 in from the side) to the side, 6/16 wide.
+    fn arm(self) -> [f32; 4] {
+        const A: f32 = 5.0 / 16.0;
+        const B: f32 = 11.0 / 16.0;
+        match self {
+            Self::North => [A, 0.0, B, 0.25],
+            Self::East => [0.75, A, 1.0, B],
+            Self::South => [A, 0.75, B, 1.0],
+            Self::West => [0.0, A, 0.25, B],
+        }
+    }
 }
+
+/// Footprint `[x0, z0, x1, z1]` of a wall post.
+const POST: [f32; 4] = [0.25, 0.25, 0.75, 0.75];
+
+/// Outline boxes whose bottom is within this of the block's floor count as
+/// standing on it (table outlines are inset by up to 0.0005).
+const ON_FLOOR: f32 = 0.01;
 
 /// Blocks whose connection state properties follow their neighbours.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Connectable {
+pub(crate) enum Connectable {
     /// `*_fence`; wooden fences connect to each other, the nether brick fence
     /// only to itself.
     Fence { nether_brick: bool },
@@ -271,7 +271,7 @@ fn has_property(entry: &BlockEntry, name: &str) -> bool {
 /// The connection family of `entry`, if it has one. `minecraft:trip_wire`
 /// also has `minecraft:connection_*` properties, but they link tripwire, not
 /// collision arms, so it is not a family here.
-fn connectable(entry: &BlockEntry) -> Option<Connectable> {
+pub(crate) fn connectable(entry: &BlockEntry) -> Option<Connectable> {
     if has_property(entry, Side::North.wall_property()) {
         return Some(Connectable::Wall);
     }
@@ -324,38 +324,51 @@ fn covers_face(boxes: &[ShapeBox], face: Side) -> bool {
     })
 }
 
+/// Whether an outline box standing on the block's floor overlaps the
+/// horizontal footprint `area` (`[x0, z0, x1, z1]`).
+fn floor_overlaps(boxes: &[ShapeBox], area: [f32; 4]) -> bool {
+    boxes.iter().any(|&[x0, y0, z0, x1, y1, z1]| {
+        y0 <= ON_FLOOR
+            && y1 > ON_FLOOR
+            && x0 < area[2]
+            && x1 > area[0]
+            && z0 < area[3]
+            && z1 > area[1]
+    })
+}
+
+fn outline_shape(runtime_id: u32) -> &'static [ShapeBox] {
+    match shapes::outline(runtime_id) {
+        Some(ShapeRef::Available(boxes)) => boxes,
+        _ => &[],
+    }
+}
+
 /// Numeric facts for one canonical state. Unknown states have no cache row.
 #[derive(Debug, Clone, Copy)]
 struct ConnectionState {
     kind: Option<Connectable>,
-    full_faces: u8,
+    /// Faces (bit per [`Side`]) a fence, pane, bars or wall connects to: the
+    /// collision-covered faces, overridden by the measured BDS table.
+    connecting_faces: u8,
     gate_spans_x: Option<bool>,
-    wall_post: WallPost,
+    /// As the block above a wall: the arms (bit per [`Side`]) and the post
+    /// (bit 4) its outline overlaps on the floor.
+    above_footprint: u8,
+    /// As the block above a wall: it is itself a wall-like block with a post.
+    post_above: bool,
     transition: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
-enum WallPost {
-    Never,
-    Always,
-    Facing(Side),
-}
-
-impl WallPost {
-    fn raises(self, connected: [bool; 4]) -> bool {
-        match self {
-            Self::Never => false,
-            Self::Always => true,
-            Self::Facing(side) => connected[side as usize],
-        }
-    }
-}
+const POST_BIT: u8 = 1 << 4;
 
 /// Each transition changes exactly one property, retaining every other native
-/// property, including stored wall arm heights and unrelated base-state values.
+/// property.
 #[derive(Debug, Clone)]
 struct ConnectionTransitions {
-    sides: [[u32; 2]; 4],
+    /// Per side: the state with that side `none`, `short` and `tall` (fences,
+    /// panes and bars: unconnected, connected, connected).
+    sides: [[u32; 3]; 4],
     post: [u32; 2],
 }
 
@@ -378,10 +391,20 @@ impl ConnectionCache {
             states: vec![None; len],
             transitions: Vec::new(),
         };
+        let faces = unastar_data::block_updates::connection_faces();
         for entry in registry.iter() {
             let kind = connectable(entry);
             let gate = has_property(entry, "in_wall_bit");
+            let block_verdict = faces.verdict(&entry.string_id);
+            let state_verdicts: Vec<_> = faces.state_verdicts(&entry.string_id).collect();
+            let wall_like = has_property(entry, "wall_post_bit");
             for state in entry.min_state_id..=entry.max_state_id {
+                let verdict = block_verdict.or_else(|| {
+                    state_verdicts
+                        .iter()
+                        .find(|(states, _)| has_states(entry, state, states))
+                        .map(|(_, verdict)| *verdict)
+                });
                 let transition = if let Some(kind) = kind {
                     let set = |property, value| {
                         entry
@@ -392,18 +415,12 @@ impl ConnectionCache {
                     };
                     let sides = Side::ALL.map(|side| {
                         if kind != Connectable::Wall {
-                            return [0, 1]
-                                .map(|bit| set(side.fence_property(), StateValue::Byte(bit)));
+                            let [off, on] =
+                                [0, 1].map(|bit| set(side.fence_property(), StateValue::Byte(bit)));
+                            return [off, on, on];
                         }
-                        let property = side.wall_property();
-                        let connected = match entry.state_value(state, property) {
-                            Some(StateValue::Str("none")) | None => StateValue::Str("short"),
-                            Some(stored) => stored,
-                        };
-                        [
-                            set(property, StateValue::Str("none")),
-                            set(property, connected),
-                        ]
+                        ["none", "short", "tall"]
+                            .map(|height| set(side.wall_property(), StateValue::Str(height)))
                     });
                     let post = if kind == Connectable::Wall {
                         [0, 1].map(|bit| set("wall_post_bit", StateValue::Byte(bit)))
@@ -418,10 +435,13 @@ impl ConnectionCache {
                 } else {
                     usize::MAX
                 };
+                let collision = collision_shape(state);
+                let outline = outline_shape(state);
                 cache.states[state as usize] = Some(ConnectionState {
                     kind,
-                    full_faces: Side::ALL.into_iter().fold(0, |mask, side| {
-                        mask | (u8::from(covers_face(collision_shape(state), side)) << side as u8)
+                    connecting_faces: Side::ALL.into_iter().fold(0, |mask, side| {
+                        let connects = verdict.unwrap_or_else(|| covers_face(collision, side));
+                        mask | (u8::from(connects) << side as u8)
                     }),
                     gate_spans_x: gate.then(|| {
                         matches!(
@@ -429,7 +449,18 @@ impl ConnectionCache {
                             Some(StateValue::Str("north" | "south"))
                         )
                     }),
-                    wall_post: wall_post_rule(entry, state, kind),
+                    above_footprint: Side::ALL.into_iter().fold(
+                        if floor_overlaps(outline, POST) {
+                            POST_BIT
+                        } else {
+                            0
+                        },
+                        |mask, side| {
+                            mask | (u8::from(floor_overlaps(outline, side.arm())) << side as u8)
+                        },
+                    ),
+                    post_above: wall_like
+                        && entry.state_value(state, "wall_post_bit") == Some(StateValue::Byte(1)),
                     transition,
                 });
             }
@@ -459,6 +490,12 @@ impl ConnectionCache {
                     nether_brick: other,
                 }),
             ) => return nether_brick == other,
+            // Fences never connect to panes, bars or walls, nor those to
+            // fences, whatever their faces.
+            (Connectable::Fence { .. }, Some(_))
+            | (Connectable::Thin | Connectable::Wall, Some(Connectable::Fence { .. })) => {
+                return false;
+            }
             (
                 Connectable::Thin | Connectable::Wall,
                 Some(Connectable::Thin | Connectable::Wall),
@@ -467,18 +504,60 @@ impl ConnectionCache {
             }
             _ => {}
         }
-        // Preserve the existing gate-axis rule, including open gates.
-        if kind != Connectable::Thin
-            && let Some(spans_x) = neighbour.gate_spans_x
-        {
-            return spans_x == side.along_x();
+        // A gate connects along its panel, open or closed; panes and bars
+        // never connect to gates.
+        if let Some(spans_x) = neighbour.gate_spans_x {
+            return kind != Connectable::Thin && spans_x == side.along_x();
         }
-        neighbour.full_faces & (1 << side.opposite() as u8) != 0
+        neighbour.connecting_faces & (1 << side.opposite() as u8) != 0
     }
+}
+
+/// Whether `state` of `entry` has every listed property value (booleans
+/// are byte properties).
+fn has_states(
+    entry: &BlockEntry,
+    state: u32,
+    states: &serde_json::Map<String, serde_json::Value>,
+) -> bool {
+    states.iter().all(
+        |(property, value)| match (entry.state_value(state, property), value) {
+            (Some(StateValue::Byte(b)), serde_json::Value::Bool(v)) => (b != 0) == *v,
+            (Some(StateValue::Int(i)), serde_json::Value::Number(v)) => {
+                v.as_i64() == Some(i64::from(i))
+            }
+            (Some(StateValue::Str(s)), serde_json::Value::String(v)) => s == v,
+            _ => false,
+        },
+    )
 }
 
 /// The state of `state` at `pos`, with neighbour-derived fence/wall/pane/bar
 /// connections. All query-time work uses numeric immutable registry data.
+///
+/// Measured on BDS 1.26.51 (`crates/unastar-data/data/measured/block_updates/`,
+/// `connections.json` and `wall_above.json`):
+///
+/// - A fence connects to fences of the same kind (wooden fences to each other,
+///   the nether brick fence only to itself), to a fence gate whose panel lies
+///   along the connection (open or closed), and to blocks whose collision
+///   covers the face toward it, except the measured exceptions in
+///   `connection_faces.json` (never: leaves, shulker boxes, pumpkins, melons,
+///   barrier, cauldron, ...; always: honey, mud, soul sand, structure void).
+/// - A pane or bars connects to panes, bars and walls, and to faces as above,
+///   never to fence gates.
+/// - A wall connects to walls, panes and bars, fence gates as fences do, and
+///   faces as above. A connected arm is `tall` when the outline of the block
+///   above, where it stands on the wall's top, overlaps the arm's footprint,
+///   else `short`.
+/// - A wall has a post unless its connections form one straight line (lone
+///   walls, ends, corners, T junctions and crosses always have one); a
+///   wall-like block with a post above always forces one. A straight line has
+///   none when both its arms are tall, has one when they differ, and otherwise
+///   has one when the outline of the block above overlaps the post's
+///   footprint (`junctions.json` adds the crosses and T junctions).
+/// - Unloaded neighbours count as full blocks, as they do for physics; an
+///   unloaded block above counts as air.
 pub fn connected_state(
     registry: &BlockRegistry,
     pos: IVec3,
@@ -490,57 +569,52 @@ pub fn connected_state(
         return state;
     };
     let connected = Side::ALL.map(|side| cache.connects(kind, side, block_at(pos + side.offset())));
+    let above = (kind == Connectable::Wall)
+        .then(|| block_at(pos + IVec3::Y))
+        .flatten()
+        .and_then(|state| cache.state(state));
+    let footprint = above.map_or(0, |above| above.above_footprint);
+    let tall = Side::ALL.map(|side| footprint & (1 << side as u8) != 0);
     let mut resolved = state;
     for side in Side::ALL {
-        resolved =
-            cache.transitions(resolved).sides[side as usize][usize::from(connected[side as usize])];
+        let i = side as usize;
+        let height = match (connected[i], tall[i]) {
+            (false, _) => 0,
+            (true, false) => 1,
+            (true, true) => 2,
+        };
+        resolved = cache.transitions(resolved).sides[i][height];
     }
     if kind == Connectable::Wall {
-        let straight = matches!(
+        let post = wall_post(
             connected,
-            [true, false, true, false] | [false, true, false, true]
+            tall,
+            footprint & POST_BIT != 0,
+            above.is_some_and(|a| a.post_above),
         );
-        let above = block_at(pos + IVec3::Y);
-        let post = !straight
-            || above
-                .and_then(|state| cache.state(state))
-                .is_some_and(|state| state.wall_post.raises(connected));
         resolved = cache.transitions(resolved).post[usize::from(post)];
     }
     resolved
 }
 
-/// Resolve post-forcing categories at registry load, preserving the original
-/// lantern/sign/torch/wall/wooden-trapdoor precedence and native state values.
-fn wall_post_rule(entry: &BlockEntry, state: u32, kind: Option<Connectable>) -> WallPost {
-    let id = entry.string_id.as_str();
-    let value = |property| entry.state_value(state, property);
-    let raises = if id.ends_with("lantern") {
-        value("hanging") == Some(StateValue::Byte(0))
-    } else if id.ends_with("standing_sign") {
-        true
-    } else if has_property(entry, "torch_facing_direction") {
-        value("torch_facing_direction") == Some(StateValue::Str("top"))
-    } else if kind == Some(Connectable::Wall) {
-        value("wall_post_bit") == Some(StateValue::Byte(1))
-    } else {
-        let wooden_trapdoor =
-            id.ends_with("trapdoor") && id != "minecraft:iron_trapdoor" && !id.contains("copper");
-        if wooden_trapdoor && value("open_bit") == Some(StateValue::Byte(1)) {
-            return WallPost::Facing(match value("direction") {
-                Some(StateValue::Int(0)) => Side::East,
-                Some(StateValue::Int(1)) => Side::West,
-                Some(StateValue::Int(2)) => Side::South,
-                Some(StateValue::Int(3)) => Side::North,
-                other => panic!("{id} direction {other:?}"),
-            });
-        }
-        false
+/// Whether a wall with `connected` sides and `tall` arms (both in
+/// [`Side::ALL`] order) has a post, given whether the block above overlaps the
+/// post's footprint and whether it is a wall-like block with a post.
+fn wall_post(connected: [bool; 4], tall: [bool; 4], above_on_post: bool, post_above: bool) -> bool {
+    let [n, e, s, w] = connected;
+    let line = match (n, e, s, w) {
+        (true, false, true, false) => (Side::North, Side::South),
+        (false, true, false, true) => (Side::East, Side::West),
+        // Lone walls, ends, corners, T junctions and crosses.
+        _ => return true,
     };
-    if raises {
-        WallPost::Always
-    } else {
-        WallPost::Never
+    if post_above {
+        return true;
+    }
+    match (tall[line.0 as usize], tall[line.1 as usize]) {
+        (true, true) => false,
+        (false, false) => above_on_post,
+        _ => true,
     }
 }
 
@@ -562,229 +636,84 @@ mod tests {
         BlockRegistry::vanilla()
     }
 
-    /// Pre-cache property-based resolver, kept only as a behavior oracle.
-    fn reference_connected(pos: IVec3, state: u32, block_at: impl Fn(IVec3) -> Option<u32>) -> u32 {
-        let Some(entry) = registry().get_by_runtime_id(state) else {
-            return state;
-        };
-        let Some(kind) = connectable(entry) else {
-            return state;
-        };
-        let connected =
-            Side::ALL.map(|side| reference_connects(kind, side, block_at(pos + side.offset())));
-        let mut resolved = state;
-        for (side, connected) in Side::ALL.into_iter().zip(connected) {
-            let (property, value) = if kind != Connectable::Wall {
-                (side.fence_property(), StateValue::Byte(u8::from(connected)))
-            } else {
-                let property = side.wall_property();
-                let value = match entry.state_value(state, property) {
-                    _ if !connected => StateValue::Str("none"),
-                    Some(StateValue::Str("none")) | None => StateValue::Str("short"),
-                    Some(stored) => stored,
-                };
-                (property, value)
-            };
-            resolved = entry.with_state_value(resolved, property, value).unwrap();
-        }
-        if kind == Connectable::Wall {
-            let straight = matches!(
-                connected,
-                [true, false, true, false] | [false, true, false, true]
-            );
-            let post = !straight
-                || block_at(pos + IVec3::Y)
-                    .is_some_and(|above| reference_raises_post(connected, above));
-            resolved = entry
-                .with_state_value(resolved, "wall_post_bit", StateValue::Byte(u8::from(post)))
-                .unwrap();
-        }
-        resolved
-    }
-
-    fn reference_connects(kind: Connectable, side: Side, neighbour: Option<u32>) -> bool {
-        let Some(state) = neighbour else {
-            return true;
-        };
-        let Some(entry) = registry().get_by_runtime_id(state) else {
-            return false;
-        };
-        match (kind, connectable(entry)) {
-            (
-                Connectable::Fence { nether_brick },
-                Some(Connectable::Fence {
-                    nether_brick: other,
-                }),
-            ) => return nether_brick == other,
-            (
-                Connectable::Thin | Connectable::Wall,
-                Some(Connectable::Thin | Connectable::Wall),
-            ) => return true,
-            _ => {}
-        }
-        if kind != Connectable::Thin && has_property(entry, "in_wall_bit") {
-            let spans_x = matches!(
-                entry.state_value(state, "minecraft:cardinal_direction"),
-                Some(StateValue::Str("north" | "south"))
-            );
-            return spans_x == side.along_x();
-        }
-        covers_face(collision_shape(state), side.opposite())
-    }
-
-    fn reference_raises_post(connected: [bool; 4], above: u32) -> bool {
-        let Some(entry) = registry().get_by_runtime_id(above) else {
-            return false;
-        };
-        let id = entry.string_id.as_str();
-        let value = |property| entry.state_value(above, property);
-        if id.ends_with("lantern") {
-            return value("hanging") == Some(StateValue::Byte(0));
-        }
-        if id.ends_with("standing_sign") {
-            return true;
-        }
-        if has_property(entry, "torch_facing_direction") {
-            return value("torch_facing_direction") == Some(StateValue::Str("top"));
-        }
-        if connectable(entry) == Some(Connectable::Wall) {
-            return value("wall_post_bit") == Some(StateValue::Byte(1));
-        }
-        let wooden_trapdoor =
-            id.ends_with("trapdoor") && id != "minecraft:iron_trapdoor" && !id.contains("copper");
-        if wooden_trapdoor && value("open_bit") == Some(StateValue::Byte(1)) {
-            let facing = match value("direction") {
-                Some(StateValue::Int(0)) => Side::East,
-                Some(StateValue::Int(1)) => Side::West,
-                Some(StateValue::Int(2)) => Side::South,
-                Some(StateValue::Int(3)) => Side::North,
-                other => panic!("{id} direction {other:?}"),
-            };
-            return connected[facing as usize];
-        }
-        false
-    }
-
-    #[test]
-    fn all_native_connection_states_match_property_resolver() {
-        let air = plain("minecraft:air");
-        // A standing sign raises a straight wall post; air does not.
-        let sign = registry()
-            .iter()
-            .find(|entry| entry.string_id.ends_with("standing_sign"))
-            .unwrap()
-            .default_state_id;
-        for entry in registry()
-            .iter()
-            .filter(|entry| connectable(entry).is_some())
-        {
-            for state in entry.min_state_id..=entry.max_state_id {
-                for mask in 0u8..16 {
-                    for above in [air, sign] {
-                        let at = |pos| {
-                            if pos == IVec3::Y {
-                                return Some(above);
-                            }
-                            let side = Side::ALL
-                                .into_iter()
-                                .find(|side| side.offset() == pos)
-                                .unwrap();
-                            // Unloaded neighbours connect for every family.
-                            (mask & (1 << side as u8) == 0).then_some(air)
-                        };
-                        assert_eq!(
-                            connected_state(registry(), IVec3::ZERO, state, at),
-                            reference_connected(IVec3::ZERO, state, at),
-                            "{} state={state} mask={mask} above={above}",
-                            entry.string_id
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn all_native_neighbours_match_property_predicates() {
-        let kinds = [
-            Connectable::Fence {
-                nether_brick: false,
+    /// Wall state of `state` as `[N, E, S, W]` arm heights and the post bit.
+    fn wall_parts(state: u32) -> ([&'static str; 4], bool) {
+        let entry = registry().get_by_runtime_id(state).unwrap();
+        let arms = Side::ALL.map(
+            |side| match entry.state_value(state, side.wall_property()) {
+                Some(StateValue::Str(v)) => v,
+                other => panic!("{other:?}"),
             },
-            Connectable::Fence { nether_brick: true },
-            Connectable::Thin,
-            Connectable::Wall,
-        ];
-        let cache = &registry().connections;
-        for neighbour in registry()
-            .iter()
-            .flat_map(|entry| entry.min_state_id..=entry.max_state_id)
-            .map(Some)
-            .chain([None, Some(u32::MAX)])
-        {
-            for kind in kinds {
-                for side in Side::ALL {
-                    assert_eq!(
-                        cache.connects(kind, side, neighbour),
-                        reference_connects(kind, side, neighbour),
-                        "{kind:?} side={side:?} neighbour={neighbour:?}"
-                    );
-                }
-            }
-            for mask in 0u8..16 {
-                let connected = Side::ALL.map(|side| mask & (1 << side as u8) != 0);
-                let actual = neighbour
-                    .and_then(|state| cache.state(state))
-                    .is_some_and(|state| state.wall_post.raises(connected));
-                let expected =
-                    neighbour.is_some_and(|state| reference_raises_post(connected, state));
-                assert_eq!(actual, expected, "above={neighbour:?} mask={mask}");
-            }
-        }
+        );
+        let post = entry.state_value(state, "wall_post_bit") == Some(StateValue::Byte(1));
+        (arms, post)
     }
 
+    /// Measured on BDS: the block above sets a connected arm's height
+    /// (`tall` where its outline stands on the arm) and the post.
     #[test]
-    fn straight_wall_retains_tall_arm_and_uses_trapdoor_facing_for_post() {
-        let wall = state(
-            "minecraft:cobblestone_wall",
-            &[
-                ("wall_connection_type_north", StateValue::Str("tall")),
-                ("wall_connection_type_east", StateValue::Str("tall")),
-                ("wall_connection_type_south", StateValue::Str("none")),
-                ("wall_post_bit", StateValue::Byte(1)),
-            ],
+    fn wall_arms_take_their_height_and_post_from_the_block_above() {
+        let wall = plain("minecraft:cobblestone_wall");
+        let straight = |above: u32| {
+            World::new(&[(IVec3::ZERO, wall), (E, wall), (W, wall), (IVec3::Y, above)])
+                .resolve(IVec3::ZERO)
+        };
+        // Nothing above: a straight wall has short arms and no post.
+        assert_eq!(
+            wall_parts(straight(plain("minecraft:air"))),
+            (["none", "short", "none", "short"], false)
         );
-        let stone = plain("minecraft:stone");
-        for direction in 0..4 {
-            let trapdoor = state(
-                "minecraft:trapdoor",
-                &[
-                    ("open_bit", StateValue::Byte(1)),
-                    ("direction", StateValue::Int(direction)),
-                ],
-            );
-            let world = World::new(&[
-                (IVec3::ZERO, wall),
-                (N, stone),
-                (S, stone),
-                (IVec3::Y, trapdoor),
-            ]);
-            let resolved = world.resolve(IVec3::ZERO);
-            let entry = registry().get_by_runtime_id(resolved).unwrap();
-            let types = Side::ALL.map(|side| entry.state_value(resolved, side.wall_property()));
-            assert_eq!(
-                types,
-                [
-                    Some(StateValue::Str("tall")),
-                    Some(StateValue::Str("none")),
-                    Some(StateValue::Str("short")),
-                    Some(StateValue::Str("none")),
-                ]
-            );
-            assert_eq!(
-                entry.state_value(resolved, "wall_post_bit"),
-                Some(StateValue::Byte(u8::from(direction >= 2))),
-                "trapdoor direction={direction}"
-            );
+        // A full block above: tall arms, still no post.
+        assert_eq!(
+            wall_parts(straight(plain("minecraft:stone"))),
+            (["none", "tall", "none", "tall"], false)
+        );
+        // A torch on top stands only on the post.
+        let torch = state(
+            "minecraft:torch",
+            &[("torch_facing_direction", StateValue::Str("top"))],
+        );
+        assert_eq!(
+            wall_parts(straight(torch)),
+            (["none", "short", "none", "short"], true)
+        );
+        // A cake with bites taken stands on the east arm only: mixed heights
+        // raise the post.
+        let cake = state("minecraft:cake", &[("bite_counter", StateValue::Int(6))]);
+        assert_eq!(
+            wall_parts(straight(cake)),
+            (["none", "tall", "none", "short"], true)
+        );
+        // A lone wall above (a post, no arms) forces a post.
+        let post_wall = state(
+            "minecraft:andesite_wall",
+            &[("wall_post_bit", StateValue::Byte(1))],
+        );
+        assert_eq!(
+            wall_parts(straight(post_wall)),
+            (["none", "short", "none", "short"], true)
+        );
+        // A lone wall or an end always has a post.
+        let lone = World::new(&[(IVec3::ZERO, wall), (IVec3::Y, plain("minecraft:stone"))])
+            .resolve(IVec3::ZERO);
+        assert_eq!(wall_parts(lone), (["none", "none", "none", "none"], true));
+    }
+
+    /// Measured on BDS: some faces do not follow their collision shape.
+    #[test]
+    fn measured_faces_override_the_collision_rule() {
+        let fence = plain("minecraft:oak_fence");
+        for (neighbour, connects) in [
+            ("minecraft:oak_leaves", false),
+            ("minecraft:pumpkin", false),
+            ("minecraft:white_shulker_box", false),
+            ("minecraft:mud", true),
+            ("minecraft:honey_block", true),
+            ("minecraft:stone", true),
+        ] {
+            let resolved =
+                World::new(&[(IVec3::ZERO, fence), (E, plain(neighbour))]).resolve(IVec3::ZERO);
+            assert_eq!(arms(resolved), [0, u8::from(connects), 0, 0], "{neighbour}");
         }
     }
 

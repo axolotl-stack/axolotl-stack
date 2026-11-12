@@ -71,6 +71,11 @@ pub enum ArchetypeError {
     Events(#[from] EventCompileError<BindingError>),
     #[error("{0}: no native AddActor attribute observation")]
     NoAttributeObservation(String),
+    /// The native summon carries no attributes: the class is not a living
+    /// mob (boats, minecarts, the cushion, lightning, fireworks, TNT, ...),
+    /// and only living mobs and projectiles are implemented.
+    #[error("{0} is not a living mob, and non-living actors are not implemented")]
+    NotLiving(String),
     #[error(transparent)]
     Attributes(#[from] AttributeError),
     /// What the projectile spawns on hit is not spawnable.
@@ -107,7 +112,6 @@ pub fn component_kinds(
 fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
     match test {
         BuiltinTest::HasBiomeTag
-        | BuiltinTest::HasComponent
         | BuiltinTest::InLava
         | BuiltinTest::IsBaby
         | BuiltinTest::IsDifficulty
@@ -116,11 +120,15 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::RiderCount => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
         BuiltinTest::IsFamily
+        | BuiltinTest::HasComponent
         | BuiltinTest::HasEquipment
         | BuiltinTest::EnumProperty
         | BuiltinTest::InWater
         | BuiltinTest::IsUnderwater
-        | BuiltinTest::IsVehicleFamily => {
+        | BuiltinTest::IsVehicleFamily
+        | BuiltinTest::IsVariant
+        | BuiltinTest::IsMarkVariant
+        | BuiltinTest::IsSkinId => {
             matches!(subject, Subject::Self_ | Subject::Other)
         }
         _ => false,
@@ -252,6 +260,9 @@ impl MobArchetype {
             &mut bindings,
         )?;
         let (attributes, attribute_seed) = attribute_seed(identifier)?;
+        if !projectile && attribute_seed.is_empty() {
+            return Err(ArchetypeError::NotLiving(identifier.to_owned()));
+        }
         let attributes = Arc::new(attributes);
         Ok(Self {
             identifier: Arc::from(identifier),

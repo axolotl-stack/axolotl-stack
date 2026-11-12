@@ -151,14 +151,16 @@ fn spawned_adult_chicken_add_actor_matches_native_summon() {
         "minecraft:chicken",
         world.get::<RuntimeId>(chicken).unwrap().0,
         world.get::<Position>(chicken).unwrap().0,
-        DVec3::new(0.0, f64::from(native.velocity.y), 0.0),
+        world.get::<Velocity>(chicken).unwrap().0,
         &rotation,
+        true,
         world.get::<EntityMetadata>(chicken).unwrap(),
         world.get::<ActorProperties>(chicken).unwrap(),
         world.get::<ActorAttributes>(chicken).unwrap(),
     );
     assert_eq!(ours.actor_type, native.actor_type);
     assert_eq!(ours.position, native.position);
+    assert_eq!(ours.velocity, native.velocity);
     assert_eq!(ours.attributes_list, native.attributes_list);
     assert_eq!(ours.actor_data, native.actor_data);
     assert_eq!(ours.actor_links, native.actor_links);
@@ -468,6 +470,7 @@ fn summoned_egg_add_actor_matches_native_summon() {
         world.get::<Position>(egg).unwrap().0,
         world.get::<Velocity>(egg).unwrap().0,
         world.get::<Rotation>(egg).unwrap(),
+        false,
         world.get::<EntityMetadata>(egg).unwrap(),
         world.get::<ActorProperties>(egg).unwrap(),
         world.get::<ActorAttributes>(egg).unwrap(),
@@ -560,6 +563,15 @@ fn thrown_egg_follows_its_arc_breaks_on_the_floor_and_uses_one_egg() {
     let flags = world.get::<ActorFlags>(egg).unwrap();
     assert!(flags.get(actor_flags::INVISIBLE).unwrap());
     assert_eq!(add.synched_properties.int_entries_list[0].data, 2);
+    // The AddActor shows the egg as launched (at the eye, with its launch
+    // velocity, head yaw 0) although it has flown one tick when it is sent.
+    let wire = |v: &jolyne::valentine::types::Vec3| {
+        DVec3::new(f64::from(v.x), f64::from(v.y), f64::from(v.z))
+    };
+    let launch = DVec3::new(0.0, -10f64.to_radians().sin(), 10f64.to_radians().cos()) * 1.5;
+    assert!((wire(&add.position) - eye).abs().max_element() < 1e-5);
+    assert!((wire(&add.velocity) - launch).abs().max_element() < 1e-6);
+    assert_eq!(add.y_head_rotation, 0.0);
 
     // 1.5 blocks per tick along the view, no thrower velocity; one tick
     // flown: the position moved by it, the velocity kept 0.99 and lost 0.03
@@ -671,8 +683,12 @@ fn creative_throws_keep_the_egg_and_hatch_chicks_at_the_native_rates() {
         assert!(is_baby(world, chick));
         assert_eq!(climate(world, chick), "cold");
         let feet = world.get::<Position>(chick).unwrap().0;
+        // Hatched where the egg met the floor top (some are mid-hop now).
+        let floor_top = f64::from(FLOOR + 1);
         assert!(
-            feet.x == 2.5 && feet.y > f64::from(FLOOR + 1) && (8.0..12.0).contains(&feet.z),
+            feet.x == 2.5
+                && (floor_top..floor_top + 1.0).contains(&feet.y)
+                && (8.0..12.0).contains(&feet.z),
             "chick at {feet}"
         );
     }

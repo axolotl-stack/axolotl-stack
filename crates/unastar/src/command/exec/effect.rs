@@ -14,7 +14,10 @@
 //! systems tick. Instant effects act once when given (measured: `MobEffect`
 //! `Add` for 30 ticks, one second by default): instant health heals
 //! `4 << amplifier`, instant damage deals `6 << amplifier` magic damage,
-//! reversed for undead mobs.
+//! reversed for undead mobs. They stay listed for those ticks: BDS's
+//! `/effect @s clear` 24 ticks after `instant_health` sends its `Remove`.
+//! `clear` removes effects in ascending id order (measured once: instant
+//! health, 6, before regeneration, 10, which was given first).
 
 use crate::command::prelude::*;
 use crate::entity::components::{
@@ -35,8 +38,9 @@ const MAX_SECONDS: i32 = 1_000_000;
 const MAX_AMPLIFIER: i32 = 255;
 /// Duration when `seconds` is omitted.
 const DEFAULT_SECONDS: i32 = 30;
-/// Measured: an instant effect defaults to one second and is sent for 30 ticks.
-const INSTANT_DEFAULT_SECONDS: i32 = 1;
+/// Measured: an instant effect takes its duration in ticks (30 by default)
+/// and answers with that many whole seconds (`instant_health 1 10` is sent
+/// for 1 tick and answers 0 seconds; the default answers 1).
 const INSTANT_TICKS: i32 = 30;
 
 arg_enum! {
@@ -174,7 +178,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: EffectArgs) -> CommandResult {
             hide_particles,
         } => {
             let default = if effect.is_instant() {
-                INSTANT_DEFAULT_SECONDS
+                INSTANT_TICKS
             } else {
                 DEFAULT_SECONDS
             };
@@ -183,9 +187,9 @@ pub fn run(ctx: &mut CommandContext<'_>, args: EffectArgs) -> CommandResult {
             let amplifier = amplifier.unwrap_or(0);
             in_range(amplifier, MAX_AMPLIFIER)?;
             if seconds == 0 {
-                // [INFERENCE] As the older command system did, zero seconds
-                // takes the effect away.
-                return clear(ctx, &player, Some(effect));
+                // Measured: zero seconds takes the effect away and answers
+                // `commands.effect.success.removed`, active or not.
+                return remove(ctx, &player, effect);
             }
             give(
                 ctx,
@@ -264,7 +268,7 @@ fn give(
             // [INFERENCE] An infinite instant effect acts and shows like any
             // other instant effect.
             let shown = ActiveEffect {
-                duration_ticks: INSTANT_TICKS as u32,
+                duration_ticks: seconds.unwrap_or(INSTANT_TICKS) as u32,
                 infinite: false,
                 ..active.clone()
             };
@@ -276,9 +280,23 @@ fn give(
                 &shown,
             );
             apply_instant(ctx.world, target, effect, amplifier);
+            // Listed (not acting again) until its ticks run out.
+            ctx.world
+                .entity_mut(target)
+                .entry::<Effects>()
+                .or_default()
+                .get_mut()
+                .apply(effect_type, shown);
         } else {
             give_lasting(ctx.world, target, effect_type, &active);
         }
+        let shown_seconds = |seconds: i32| {
+            if effect.is_instant() {
+                seconds / 20
+            } else {
+                seconds
+            }
+        };
         match seconds {
             Some(seconds) => output.add_success(
                 "commands.effect.success",
@@ -286,7 +304,7 @@ fn give(
                     effect.param(),
                     amplifier.to_string(),
                     name,
-                    seconds.to_string(),
+                    shown_seconds(seconds).to_string(),
                 ],
             ),
             None => output.add_success(
@@ -364,6 +382,35 @@ fn is_undead(world: &World, entity: Entity) -> bool {
 }
 
 /// Clears one effect, or every effect when `effect` is `None`.
+/// `/effect <player> <effect> 0`: the effect is taken away, and every target
+/// answers `commands.effect.success.removed` whether it had it or not.
+fn remove(ctx: &mut CommandContext<'_>, player: &Target, effect: EffectName) -> CommandResult {
+    let targets = targets(ctx, player)?;
+    let effect_type = effect.info().0;
+    let mut output = CommandOutput::default();
+    for target in targets {
+        let removed = ctx
+            .world
+            .get_mut::<Effects>(target)
+            .and_then(|mut effects| effects.active.remove(&effect_type));
+        if let Some(active) = removed {
+            send_effect(
+                ctx.world,
+                target,
+                EnumsMobEffectPacketPayloadEvent::Remove,
+                effect_type,
+                &active,
+            );
+        }
+        let name = ctx.name(target);
+        output.add_success(
+            "commands.effect.success.removed",
+            vec![effect.param(), name],
+        );
+    }
+    Ok(output)
+}
+
 fn clear(
     ctx: &mut CommandContext<'_>,
     player: &Target,
@@ -384,7 +431,11 @@ fn clear(
                         .into_iter()
                         .collect()
                 }
-                None => effects.active.drain().collect(),
+                None => {
+                    let mut all: Vec<_> = effects.active.drain().collect();
+                    all.sort_by_key(|(effect_type, _)| effect_type.0);
+                    all
+                }
             },
             None => Vec::new(),
         };
@@ -724,10 +775,11 @@ mod tests {
             (6, 0, 30, true)
         );
         assert_eq!(health(&mut h, alice), 14.0);
+        // Listed for its 30 ticks, as BDS's later clear shows.
         assert!(
             h.world()
                 .get::<Effects>(alice)
-                .is_none_or(|e| !e.has(EffectType::INSTANT_HEALTH))
+                .is_some_and(|e| e.has(EffectType::INSTANT_HEALTH))
         );
 
         h.run(alice, "/effect @s instant_health 1 1");
@@ -786,5 +838,20 @@ mod tests {
         assert!(effects.apply(EffectType::SPEED, effect));
         assert!(!effects.apply(EffectType::SPEED, ActiveEffect::new(0, 100)));
         assert!(effects.apply(EffectType::SPEED, ActiveEffect::new(1, 100)));
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::{Replay, assert_same_packets};
+
+    /// Visible-effect actor data and movement attributes are not compared:
+    /// unastar sends neither (see the parity row's gaps).
+    #[test]
+    fn effect_matches_the_bds_capture() {
+        let steps = Replay::new().assert_segment("effect", &[]);
+        assert_same_packets(&steps, &["MobEffectPacket"], &[]);
     }
 }

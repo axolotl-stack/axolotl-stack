@@ -81,14 +81,16 @@ fn spawned_adult_cow_add_actor_matches_native_summon() {
         "minecraft:cow",
         world.get::<RuntimeId>(cow).unwrap().0,
         world.get::<Position>(cow).unwrap().0,
-        DVec3::new(0.0, f64::from(native.velocity.y), 0.0),
+        world.get::<Velocity>(cow).unwrap().0,
         &rotation,
+        true,
         world.get::<EntityMetadata>(cow).unwrap(),
         world.get::<ActorProperties>(cow).unwrap(),
         world.get::<ActorAttributes>(cow).unwrap(),
     );
     assert_eq!(ours.actor_type, native.actor_type);
     assert_eq!(ours.position, native.position);
+    assert_eq!(ours.velocity, native.velocity);
     assert_eq!(ours.attributes_list, native.attributes_list);
     assert_eq!(ours.actor_data, native.actor_data);
     assert_eq!(ours.actor_links, native.actor_links);

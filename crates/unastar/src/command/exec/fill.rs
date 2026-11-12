@@ -8,13 +8,16 @@
 //! `UpdateSubChunkBlocks`; unastar's block path sends one `UpdateBlock` per
 //! block.
 //!
-//! [INFERENCE] The count is the number of blocks that changed, and a fill
-//! that changes nothing answers `commands.fill.failed`. A replace filter
-//! without states matches every state of its block.
+//! The count is the number of blocks the fill itself changed: a fill that
+//! changes nothing answers `commands.fill.success [0]` as a failure, and so
+//! does `air destroy` over a box, whose breaking already left air (measured).
+//! [INFERENCE] A replace filter without states matches every state of its
+//! block.
 
 use super::setblock::{BlockSpec, box_loaded, volume};
 use crate::command::prelude::*;
-use crate::server::game::blocks::{block_at, destroy_block, set_block};
+use crate::server::game::block_update::world_changed;
+use crate::server::game::blocks::{block_at, destroy_block, write_block};
 use crate::world::chunk::blocks::AIR;
 
 /// The most blocks one `/fill` may cover.
@@ -151,7 +154,11 @@ pub fn run(ctx: &mut CommandContext<'_>, args: FillArgs) -> CommandResult {
         return failure!("commands.fill.outOfWorld");
     }
 
+    // Every cell is written before any block update runs, so an attached
+    // block inside the box never pops because a cell next to it was written
+    // first.
     let mut changed = 0usize;
+    let mut written = Vec::new();
     for x in min.x..=max.x {
         for y in min.y..=max.y {
             for z in min.z..=max.z {
@@ -177,14 +184,18 @@ pub fn run(ctx: &mut CommandContext<'_>, args: FillArgs) -> CommandResult {
                     destroy_block(ctx.world, pos);
                 }
                 if block_at(ctx.world, (x, y, z)) != Some(new) {
-                    set_block(ctx.world, pos, new, false);
+                    write_block(ctx.world, pos, new, false);
+                    written.push(pos);
+                    changed += 1;
                 }
-                changed += 1;
             }
         }
     }
+    for pos in written {
+        world_changed(ctx.world, pos, true);
+    }
     if changed == 0 {
-        return failure!("commands.fill.failed");
+        return failure!("commands.fill.success", 0);
     }
     success!("commands.fill.success", changed)
 }
@@ -231,7 +242,7 @@ mod tests {
         assert_eq!(count(&mut h, min, max, "minecraft:air"), 27);
         assert_eq!(
             h.run(op, "/fill ~ ~ ~ ~2 ~2 ~2 air"),
-            CommandOutput::failure("commands.fill.failed", vec![])
+            CommandOutput::failure("commands.fill.success", vec!["0".into()])
         );
     }
 
@@ -295,9 +306,10 @@ mod tests {
             h.run(op, "/fill 0 64 0 2 64 0 dirt replace"),
             CommandOutput::success("commands.fill.success", vec!["3".into()])
         );
+        // Breaking already leaves air: nothing is left for the fill to change.
         assert_eq!(
             h.run(op, "/fill 0 64 0 1 64 0 air destroy"),
-            CommandOutput::success("commands.fill.success", vec!["2".into()])
+            CommandOutput::failure("commands.fill.success", vec!["0".into()])
         );
         assert_eq!(block(&mut h, 0, 64, 0), *AIR);
         let dirt = ("minecraft:dirt".to_owned(), 1);
@@ -320,5 +332,17 @@ mod tests {
         );
         assert_eq!(count(&mut h, min, max, "minecraft:glass"), 26);
         assert_eq!(block(&mut h, 4, 65, 4), *AIR);
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::Replay;
+
+    #[test]
+    fn fill_matches_the_bds_capture() {
+        Replay::new().assert_segment("fill", &[]);
     }
 }

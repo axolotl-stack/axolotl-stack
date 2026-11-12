@@ -1,83 +1,682 @@
-# Vanilla command feedback reference: capture.py --commands tools/bds-sweep/command-script.txt
-# One command per line, run in order by an operator on a fresh world.
+# Vanilla command feedback reference:
+#   capture.py --commands tools/bds-sweep/command-script.txt --command-wait 600
+# One command per line, run in order by an operator (BDSExtractor) on a fresh
+# seed-12345 world. `# segment: NAME` starts a segment; commit_fixtures.py
+# --commands records each command's segment, and unastar's evidence tests
+# replay one segment at a time from the prelude's state. Every segment leaves
+# the world as it found it (the player on the platform at 8 200 8, survival,
+# full health, empty inventory, no effects, clear weather, time 1000).
+# Entity selectors use r=16 so animals of the surrounding chunks never match.
+
+# segment: prelude
+/gamerule domobspawning false
+/gamerule domobloot false
+/gamerule dotiledrops false
+/gamerule doweathercycle false
+/gamerule dodaylightcycle false
+/time set 1000
+/weather clear
+/tp @s 8 200 8
+/time query daytime
+/time query daytime
+/time query daytime
+/time query daytime
+/fill 0 200 0 15 215 15 air
+/fill 0 199 0 15 199 15 stone
+/kill @e[type=!player,r=64]
+/testforblock 8 199 8 stone
+
+# segment: permissions
+/op NoSuchPlayer
+/deop NoSuchPlayer
+/stop
+/setmaxplayers 5
+/allowlist list
+/permission list
+/save query
+/transfer x y
+/notacommand
+/tp
+/list extra
+
+# segment: chat
+/say hello world
+/say hi @s
+/say
+/me waves
+/me
+/tell @s secret message
+/msg @s again
+/w @s psst
+/tell @s
+/tell NoSuchPlayer hi
+/list
+
+# segment: gamemode
 /gamemode creative
 /gamemode survival @s
 /gamemode 1
+/gamemode 0
 /gamemode foo
 /gamemode
+/gamemode adventure
+/gamemode creative @a[m=a]
+/gamemode spectator
+/gamemode default
+/gamemode survival
+
+# segment: give
 /give @s wheat 64
 /give @s minecraft:diamond_sword
 /give @s stone 600
 /give @s notanitem
 /give @s wheat 64 0 {"minecraft:keep_on_death":{}}
+/give @s apple 0
+/give @s apple 32768
+/give NoSuchPlayer apple
 /clear @s wheat
 /clear @s wheat 0 10
-/clear
 /clear @s diamond
-/tp 0 100 0
+/clear @s stone 0 0
+/clear @s
+/clear
+/clear NoSuchPlayer
+
+# segment: teleport
+/tp 8 205 8
 /tp @s ~ ~5 ~
 /tp @s ~ ~ ~ 90 0
-/teleport @s 10 80 10
+/teleport @s 10 201 10
+/tp @s 8 200 8 facing 8 200 0
 /tp NoSuchPlayer
+/tp @s 8 200 8 0 0
+/summon cow 4 200 4
+/tp @s @e[type=cow,r=16,c=1]
+/tp @e[type=cow,r=16] 12 200 12
+/tp @s 8 200 8 0 0
+/kill @e[type=cow,r=16]
+
+# segment: time
 /time set day
 /time set 6000
 /time add 100
 /time query daytime
-/time query gametime
 /time query day
+/time set -5
+/time set night
+/time query daytime
+/time set 1000
+
+# segment: weather
+/weather query
 /weather rain
+/weather query
 /weather thunder 100
+/weather query
 /weather clear
 /weather query
+
+# segment: difficulty
 /difficulty hard
 /difficulty 0
+/difficulty 7
+/difficulty e
+/difficulty normal
+/difficulty easy
+
+# segment: gamerule
 /gamerule
 /gamerule keepinventory true
 /gamerule keepinventory
 /gamerule randomtickspeed 5
+/gamerule randomtickspeed
+/gamerule nosuchrule true
+/gamerule keepinventory false
+/gamerule randomtickspeed 1
+
+# segment: xp
 /xp 10
 /xp 5L
 /xp -100L
+/xp -5
+/xp 10 NoSuchPlayer
+/xp 0
+/xp 0L
+
+# segment: effect
 /effect @s speed 10 1
 /effect @s speed infinite 2 true
 /effect @s clear
 /effect @s clear speed
+/effect @s regeneration 5 0 true
+/effect @s instant_health
+/effect @s speed 0
+/effect @s clear
+/effect NoSuchPlayer speed
+
+# segment: enchant
 /enchant @s sharpness 2
 /give @s diamond_sword
 /enchant @s sharpness 2
 /enchant @s sharpness 9
 /enchant @s protection 1
-/say hello world
-/say hi @s
-/me waves
-/tell @s secret message
-/msg @s again
-/list
+/clear @s
+
+# segment: spawn
 /setworldspawn
 /setworldspawn 5 70 5
 /spawnpoint
 /spawnpoint @s 1 70 1
-/setblock ~ ~-1 ~ stone
-/setblock ~ ~-1 ~ stone
-/setblock ~1 ~ ~ minecraft:wool ["color"="red"]
-/setblock ~1 ~ ~ concrete ["color"="blue"] keep
-/fill ~ ~ ~ ~2 ~2 ~2 glass
-/fill ~ ~ ~ ~2 ~2 ~2 air
-/fill ~ ~ ~ ~100 ~100 ~100 stone
-/clone ~ ~-1 ~ ~1 ~-1 ~1 ~5 ~-1 ~5
-/summon cow ~ ~ ~3
-/summon pig ~ ~ ~3 0 0 minecraft:entity_spawned Bob
+/clearspawnpoint @s
+/clearspawnpoint
+/clearspawnpoint NoSuchPlayer
+/setworldspawn 8 200 8
+
+# segment: setblock
+/setblock 8 200 9 stone
+/setblock 8 200 9 stone
+/setblock 8 200 9 dirt keep
+/setblock 8 200 9 dirt replace
+/setblock 8 200 9 air destroy
+/setblock 8 200 9 oak_log ["pillar_axis"="x"]
+/setblock 8 200 9 oak_log ["nope"="x"]
+/setblock 8 200 9 oak_log ["pillar_axis"="w"]
+/setblock 8 -100 9 stone
+/setblock 8 200 9 air
+
+# segment: fill
+/fill 0 200 12 2 202 14 glass
+/fill 0 200 12 2 202 14 glass
+/fill 0 200 12 2 202 14 air
+/fill 0 200 12 2 202 14 stone outline
+/fill 0 200 12 2 202 14 glass hollow
+/fill 0 200 12 2 202 14 dirt replace glass
+/fill 0 200 12 2 202 14 dirt keep
+/fill 0 200 12 2 202 14 air destroy
+/fill 0 200 12 100 300 100 stone
+
+# segment: clone
+/fill 0 200 12 1 200 13 glass
+/clone 0 200 12 1 200 13 4 200 12
+/clone 0 200 12 1 200 13 4 200 12
+/clone 0 200 12 1 200 13 0 200 13
+/clone 0 200 12 1 200 13 4 201 12 masked move
+/fill 0 200 12 6 201 14 air
+
+# segment: summon
+/summon cow 4 200 4
+/summon pig 4 200 4 0 0 minecraft:entity_spawned Bob
 /summon minecraft:nothing
-/kill @e[type=cow]
-/kill @e[type=pig,c=1]
+/summon cow Named 12 200 12
+/kill @e[type=cow,r=16]
+/kill @e[type=pig,c=1,r=16]
 /kill @e[type=zombie]
-/op NoSuchPlayer
-/deop NoSuchPlayer
-/help
-/defaultgamemode creative
-/notacommand
-/tp
-/list extra
-/scoreboard objectives list
-/gamemode creative @a[m=s]
+/gamemode creative
 /kill @s
+/gamemode survival
+
+# segment: title
+/title @s title Hello
+/title @s subtitle Sub
+/title @s actionbar Bar
+/title @s times 10 20 30
+/title @s clear
+/title @s reset
+/title @s title hi @s
+/title @s title
+/title @a title All
+/title NoSuchPlayer title x
+/title @s times 0 0 0
+/title @s times -1 5 5
+
+# segment: titleraw
+/titleraw @s title {"rawtext":[{"text":"Raw title"}]}
+/titleraw @s subtitle {"rawtext":[{"translate":"commands.kill.successful","with":["x"]}]}
+/titleraw @s actionbar {"rawtext":[{"selector":"@s"}]}
+/titleraw @s times 1 2 3
+/titleraw @s clear
+/titleraw @s reset
+/titleraw @s title {"rawtext":"x"}
+/titleraw @s title {"rawtext":[{"selector":"@e[type=zombie]"}]}
+
+# segment: tellraw
+/tellraw @s {"rawtext":[{"text":"hello"}]}
+/tellraw @s {"rawtext":[{"text":"a "},{"translate":"commands.kill.successful","with":["x"]},{"text":" "},{"selector":"@s"}]}
+/tellraw @s {"rawtext":[{"translate":"%%s and %%s","with":{"rawtext":[{"text":"one"},{"selector":"@s"}]}}]}
+/tellraw @s {"rawtext":[{"translate":"commands.kill.successful"}]}
+/tellraw @s {"rawtext":[{"rawtext":[{"text":"nested"}]}]}
+/tellraw @s {"rawtext":[{"text":"a"},{"selector":"@e[type=zombie]"}]}
+/tellraw @s {"rawtext":[{"selector":"@e[type=zombie]"}]}
+/tellraw @s {"rawtext":[{"text":""}]}
+/tellraw @s {"rawtext":[]}
+/tellraw @s {"rawtext":"x"}
+/tellraw @s {}
+/tellraw @s {"rawtext":["x"]}
+/tellraw @s {"rawtext":[{"text":1}]}
+/tellraw @s {"rawtext":[{"translate":"a","with":"x"}]}
+/tellraw @s {"rawtext":[{"translate":"a","with":[1]}]}
+/tellraw @s {"rawtext":[{"unknown":"x"}]}
+/tellraw @s {"rawtext":[{"text":"x"}],"extra":1}
+/tellraw @s {"rawtext":[{"score":{"name":"@s","objective":"nosuch"}}]}
+/tellraw @s {bad json
+/tellraw @s [1]
+/tellraw NoSuchPlayer {"rawtext":[{"text":"x"}]}
+/tellraw @a {"rawtext":[{"text":"all"}]}
+
+# segment: sound
+/playsound random.pop @s
+/playsound mob.cow.say @s 8 200 8 1 1 0
+/playsound random.pop @s 8 201 8 0.5 2 0
+/playsound random.pop @s ~16 ~ ~
+/playsound random.pop @s ~17 ~ ~
+/playsound random.pop @s ~32 ~ ~ 2 1 0
+/playsound random.pop @s ~33 ~ ~ 2 1 0
+/playsound random.pop @s ~1000 ~ ~
+/playsound random.pop @s ~1000 ~ ~ 1 1 0.5
+/playsound random.pop @s ~ ~100 ~ 1 1 0.5
+/playsound random.pop @s ~ ~ ~ 0 1 0
+/playsound random.pop @s ~ ~ ~ 1 0 0
+/playsound random.pop
+/playsound random.pop NoSuchPlayer
+/stopsound @s random.pop
+/stopsound @s
+/stopsound NoSuchPlayer
+
+# segment: particle
+/particle minecraft:heart_particle 8 201 8
+/particle minecraft:heart_particle
+/particle nosuch:thing ~ ~1 ~
+
+# segment: camerashake
+/camerashake add @s
+/camerashake add @s 0.5 1 positional
+/camerashake add @s 4 2 rotational
+/camerashake add @s 5 1
+/camerashake add @s 0 1
+/camerashake add @s 1 0
+/camerashake add @s -1 1
+/camerashake stop @s
+/camerashake stop
+/camerashake add NoSuchPlayer
+
+# segment: hud
+/hud @s hide
+/hud @s hide all
+/hud @s hide hunger
+/hud @s reset hotbar
+/hud @s hide touch_controls
+/hud @s reset
+/hud NoSuchPlayer hide
+
+# segment: fog
+/fog @s push minecraft:fog_hell a
+/fog @s push minecraft:fog_ocean b
+/fog @s push minecraft:fog_hell a
+/fog @s pop a
+/fog @s remove b
+/fog @s pop nosuch
+/fog @s remove nosuch
+/fog @s push nosuch:fog c
+/fog @s remove c
+/fog @s remove a
+
+# segment: playanimation
+/playanimation @s animation.player.sleeping
+/playanimation @s animation.player.sleeping next 1 "query.x" ctrl
+/summon cow 4 200 4
+/summon cow 12 200 12
+/playanimation @e[type=cow,r=16] animation.cow.x
+/playanimation NoSuchPlayer animation.x
+/kill @e[type=cow,r=16]
+
+# segment: music
+/music play record.cat 1 0 play_once
+/music queue record.cat 0.5 2 loop
+/music volume 0.5
+/music stop
+/music stop 1
+/music play record.cat
+/music volume 2
+/music volume -1
+/music play record.cat -1
+/music play record.cat 1 -1
+/music stop
+
+# segment: daylock
+/time set 15000
+/daylock true
+/time query daytime
+/daylock true
+/daylock
+/alwaysday false
+/daylock false
+/gamerule dodaylightcycle
+/gamerule dodaylightcycle false
+/time set 1000
+/toggledownfall
+/weather query
+/toggledownfall
+/weather query
+/weather thunder
+/toggledownfall
+/weather query
+
+# segment: testfor
+/testfor @s
+/testfor @e[type=zombie]
+/summon cow 4 200 4
+/summon cow 12 200 12
+/testfor @e[type=cow,r=16]
+/testfor @e[r=16]
+/testfor NoSuchPlayer
+/testfor BDSExtractor
+/kill @e[type=cow,r=16]
+
+# segment: testforblock
+/testforblock 8 199 8 stone
+/testforblock 8 199 8 dirt
+/testforblock 8 200 8 air
+/testforblock 8 200 8 stone
+/setblock 9 200 8 red_wool
+/testforblock 9 200 8 red_wool
+/testforblock 9 200 8 white_wool
+/setblock 10 200 8 oak_log ["pillar_axis"="x"]
+/testforblock 10 200 8 oak_log
+/testforblock 10 200 8 oak_log ["pillar_axis"="x"]
+/testforblock 10 200 8 oak_log ["pillar_axis"="y"]
+/testforblock 10 200 8 oak_log ["nope"="x"]
+/testforblock 8 -100 8 stone
+/setblock 9 200 8 air
+/setblock 10 200 8 air
+
+# segment: testforblocks
+/fill 0 200 0 1 200 1 glass
+/fill 4 200 0 5 200 1 glass
+/testforblocks 0 200 0 1 200 1 4 200 0
+/testforblocks 0 200 0 1 200 1 4 201 0
+/testforblocks 0 200 0 1 200 1 4 200 0 all
+/testforblocks 0 200 0 1 201 1 4 200 0 masked
+/testforblocks 0 200 0 1 201 1 4 200 0 all
+/setblock 5 200 1 air
+/testforblocks 0 200 0 1 200 1 4 200 0 masked
+/testforblocks 0 199 0 15 199 15 0 199 0
+/testforblocks 0 100 0 100 200 100 0 100 0
+/fill 0 200 0 5 200 1 air
+
+# segment: damage
+/damage @s 2
+/damage @s 3 fall
+/damage @s 0
+/damage @s -1
+/summon cow 4 200 4
+/damage @e[type=cow,r=16] 1 entity_attack entity @s
+/damage @e[type=cow,r=16] 2 magic
+/damage @s 1 entity_attack entity @e[type=cow,r=16]
+/damage @e[type=cow,r=16] 100
+/damage @e[type=zombie] 1
+/gamemode creative
+/damage @s 5
+/damage @s 5 void
+/gamemode survival
+/damage NoSuchPlayer 1
+/effect @s instant_health 1 10 true
+
+# segment: tag
+/tag @s add builder
+/tag @s add builder
+/tag @s list
+/tag @s add second
+/tag @s list
+/summon cow 4 200 4
+/summon cow 12 200 12
+/tag @e[type=cow,r=16] add herd
+/tag @e[r=16] list
+/tag @e[tag=builder] list
+/testfor @e[tag=herd]
+/testfor @e[tag=!herd,r=16]
+/tag @e[type=cow,r=16] remove herd
+/tag @e[type=cow,r=16] remove herd
+/tag @e[type=cow,r=16] list
+/tag @s remove builder
+/tag @s remove builder
+/tag @s remove second
+/tag @s list
+/tag NoSuchPlayer add x
+/tag @s add "spaced tag"
+/tag @s remove "spaced tag"
+/kill @e[type=cow,r=16]
+
+# segment: scoreboard
+/scoreboard objectives list
+/scoreboard objectives add kills dummy Kills
+/scoreboard objectives add kills dummy
+/scoreboard objectives add deaths dummy
+/scoreboard objectives add "two words" dummy
+/scoreboard objectives add bad deathCount
+/scoreboard objectives list
+/scoreboard objectives setdisplay sidebar kills ascending
+/scoreboard objectives setdisplay sidebar kills descending
+/scoreboard objectives setdisplay sidebar kills
+/scoreboard objectives setdisplay list kills
+/scoreboard objectives setdisplay belowname kills
+/scoreboard objectives setdisplay sidebar nosuch
+/scoreboard objectives setdisplay sidebar
+/scoreboard objectives setdisplay list
+/scoreboard objectives setdisplay belowname
+/scoreboard objectives setdisplay sidebar kills
+/scoreboard objectives setdisplay belowname kills
+/scoreboard players list
+/scoreboard players set @s kills 5
+/scoreboard players set Fake kills 3
+/scoreboard players add @s kills 2
+/scoreboard players remove @s kills 1
+/scoreboard players add @s kills -2
+/scoreboard players remove @s kills -2
+/scoreboard players set @s nosuch 1
+/scoreboard players set @s deaths 0
+/scoreboard players list
+/scoreboard players list @s
+/scoreboard players list Fake
+/scoreboard players list *
+/scoreboard players list NoSuchPlayer
+/scoreboard players test @s kills 1 10
+/scoreboard players test @s kills 20 30
+/scoreboard players test @s kills * 10
+/scoreboard players test @s kills 6
+/scoreboard players test Fake deaths 0 1
+/scoreboard players operation @s kills += Fake kills
+/scoreboard players operation @s kills -= Fake kills
+/scoreboard players operation @s kills *= Fake kills
+/scoreboard players operation @s kills /= Fake kills
+/scoreboard players operation @s kills %= Fake kills
+/scoreboard players operation @s kills = Fake kills
+/scoreboard players operation @s kills < Fake kills
+/scoreboard players operation @s kills > Fake kills
+/scoreboard players operation @s kills >< Fake kills
+/scoreboard players set Fake kills 0
+/scoreboard players operation @s kills /= Fake kills
+/scoreboard players operation @s kills %= Fake kills
+/scoreboard players operation @s kills += Nobody kills
+/scoreboard players random @s deaths 4 4
+/scoreboard players random @s deaths 10 1
+/summon cow 4 200 4
+/scoreboard players set @e[type=cow,r=16] kills 1
+/scoreboard players list
+/scoreboard players list @e[type=cow,r=16]
+/testfor @a[scores={kills=1..}]
+/testfor @a[scores={kills=100..}]
+/testfor @e[scores={kills=1},r=16]
+/tellraw @s {"rawtext":[{"score":{"name":"@s","objective":"kills"}}]}
+/tellraw @s {"rawtext":[{"score":{"name":"*","objective":"kills"}}]}
+/tellraw @s {"rawtext":[{"score":{"name":"Fake","objective":"kills"}}]}
+/titleraw @s actionbar {"rawtext":[{"score":{"name":"*","objective":"kills"}}]}
+/scoreboard players reset Fake kills
+/scoreboard players reset Fake
+/scoreboard players reset @s kills
+/scoreboard players reset @s
+/kill @e[type=cow,r=16]
+/scoreboard objectives remove kills
+/scoreboard objectives remove kills
+/scoreboard objectives remove deaths
+/scoreboard objectives remove "two words"
+
+# segment: execute
+/execute as @s run say hi
+/summon cow 4 200 4
+/summon cow 12 200 12
+/execute as @e[type=cow,r=16] run say moo
+/execute as @e[type=cow,r=16] at @s run tp @s ~ ~ ~
+/execute at @s run setblock ~ ~1 ~ glass
+/execute at @s run setblock ~ ~1 ~ glass
+/execute as @e[type=cow,r=16] run setblock 8 202 8 glass
+/execute positioned 3 200 3 run tp @s ~ ~ ~
+/execute positioned 8 200 8 run tp @s ~ ~ ~
+/execute if entity @e[type=cow,r=16] run say cow
+/execute unless entity @e[type=zombie] run say nozombie
+/execute unless entity @e[type=cow,r=16] run say nocow
+/execute if block 8 199 8 stone run say stone
+/execute if block 8 199 8 dirt run say dirt
+/execute if blocks 0 199 0 1 199 1 2 199 2 all run say same
+/execute if blocks 8 201 8 8 201 8 8 199 8 all run say differ
+/execute if entity @s
+/execute unless entity @s
+/execute if entity @e[type=cow,r=16]
+/execute if block 8 199 8 stone
+/execute if blocks 0 199 0 1 199 1 2 199 2 all
+/execute rotated 90 0 run tp @s ~ ~ ~ ~ ~
+/execute rotated as @e[type=cow,r=16,c=1] run tp @s ~ ~ ~ ~ ~
+/execute facing 8 200 0 run tp @s ~ ~ ~ ~ ~
+/execute facing entity @e[type=cow,r=16,c=1] feet run tp @s ~ ~ ~ ~ ~
+/execute align xyz run summon pig ~ ~ ~
+/execute anchored eyes positioned ^ ^ ^1 run summon pig ~ ~ ~
+/execute as @s at @s run tp @s ~ ~1 ~
+/execute as @s at @s run tp @s 8 200 8 0 0
+/execute positioned as @e[type=cow,r=16,c=1] run testfor @s
+/execute in overworld run testfor @s
+/execute as @e[type=cow,r=16] run testfor @s
+/execute as NoSuchPlayer run say x
+/execute if score @s kills matches 1.. run say s
+/scoreboard objectives add k dummy
+/scoreboard players set @s k 3
+/scoreboard players set Fake k 5
+/execute if score @s k matches 1..5 run say inrange
+/execute if score @s k < Fake k run say less
+/execute unless score @s k = Fake k run say notequal
+/execute if score @s k matches 10..
+/scoreboard objectives remove k
+/execute run say plain
+/execute as @e[type=pig,r=16] run kill @s
+/execute as @e[type=cow,r=16] run kill @s
+/setblock 8 201 8 air
+/setblock 8 202 8 air
+
+# segment: event
+/summon cow 4 200 4
+/event entity @e[type=cow,r=16] minecraft:entity_born
+/event entity @e[type=cow,r=16] nosuch:event
+/event entity @s minecraft:gain_bad_omen
+/event entity @s nosuch:event
+/summon cow 12 200 12
+/event entity @e[type=cow,r=16] minecraft:entity_born
+/event entity NoSuchPlayer minecraft:entity_born
+/kill @e[type=cow,r=16]
+
+# segment: inputpermission
+/inputpermission query @s camera
+/inputpermission set @s camera disabled
+/inputpermission query @s camera
+/inputpermission query @s camera disabled
+/inputpermission query @s camera enabled
+/inputpermission set @s movement disabled
+/inputpermission set @s jump disabled
+/inputpermission query @s movement
+/testfor @a[haspermission={camera=disabled}]
+/testfor @a[haspermission={camera=enabled}]
+/inputpermission set @s camera enabled
+/inputpermission set @s movement enabled
+/inputpermission set @s jump enabled
+/inputpermission set @s lateral_movement disabled
+/inputpermission set @s sneak disabled
+/inputpermission set @s dismount disabled
+/inputpermission set @s mount disabled
+/inputpermission set @s move_backward disabled
+/inputpermission set @s move_forward disabled
+/inputpermission set @s move_left disabled
+/inputpermission set @s move_right disabled
+/inputpermission query @s move_right
+/inputpermission set @s lateral_movement enabled
+/inputpermission set @s sneak enabled
+/inputpermission set @s dismount enabled
+/inputpermission set @s mount enabled
+/inputpermission set @s move_backward enabled
+/inputpermission set @s move_forward enabled
+/inputpermission set @s move_left enabled
+/inputpermission set @s move_right enabled
+/inputpermission set NoSuchPlayer camera disabled
+
+# segment: mobevent
+/mobevent events_enabled
+/mobevent minecraft:pillager_patrols_event
+/mobevent minecraft:pillager_patrols_event false
+/mobevent minecraft:pillager_patrols_event
+/mobevent minecraft:wandering_trader_event
+/mobevent minecraft:ender_dragon_event
+/mobevent events_enabled false
+/mobevent minecraft:wandering_trader_event true
+/mobevent minecraft:wandering_trader_event
+/mobevent events_enabled
+/mobevent events_enabled true
+/mobevent minecraft:pillager_patrols_event true
+
+# segment: scriptevent
+/scriptevent my:event hello
+/scriptevent my:event
+/scriptevent minecraft:x hi
+/scriptevent noname hi
+/scriptevent a:b:c hi
+
+# segment: camera
+/aimassist @s clear
+/aimassist @s set
+/controlscheme @s clear
+/controlscheme @s set camera_relative
+/camera @s clear
+
+# segment: replaceitem
+/replaceitem entity @s slot.hotbar 0 diamond 3
+/replaceitem entity @s slot.hotbar 0 keep stone
+/replaceitem entity @s slot.hotbar 1 keep stone
+/replaceitem entity @s slot.hotbar 1 destroy apple 2
+/replaceitem entity @s slot.hotbar 9 dirt
+/replaceitem entity @s slot.inventory 0 dirt 64
+/replaceitem entity @s slot.inventory 26 dirt 65
+/replaceitem entity @s slot.inventory 27 dirt
+/replaceitem entity @s slot.armor.head 0 diamond_helmet
+/replaceitem entity @s slot.armor.chest 0 stick
+/replaceitem entity @s slot.armor.chest 0 diamond_chestplate
+/replaceitem entity @s slot.armor.legs 0 iron_leggings
+/replaceitem entity @s slot.armor.feet 0 iron_boots
+/replaceitem entity @s slot.armor.feet 1 iron_boots
+/replaceitem entity @s slot.weapon.offhand 0 shield
+/replaceitem entity @s slot.weapon.mainhand 0 apple 2
+/replaceitem entity @s slot.enderchest 0 dirt
+/replaceitem entity @s slot.armor.body 0 dirt
+/replaceitem entity @s slot.hotbar 2 dirt 0
+/replaceitem entity @s slot.hotbar 2 dirt 100
+/replaceitem entity NoSuchPlayer slot.hotbar 0 dirt
+/summon cow 4 200 4
+/replaceitem entity @e[type=cow,r=16] slot.armor.head 0 diamond_helmet
+/kill @e[type=cow,r=16]
+/setblock 10 200 10 chest
+/replaceitem block 10 200 10 slot.container 0 dirt 5
+/replaceitem block 10 200 10 slot.container 0 keep stone
+/replaceitem block 10 200 10 slot.container 26 stone
+/replaceitem block 10 200 10 slot.container 27 stone
+/replaceitem block 11 200 10 slot.container 0 dirt
+/setblock 10 200 10 air
+/clear @s
+
+# segment: kick
+/kick NoSuchPlayer reason
+/kick @e[type=cow,r=16] x
+/kick @s Goodbye now

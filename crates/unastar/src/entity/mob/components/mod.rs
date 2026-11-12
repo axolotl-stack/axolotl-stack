@@ -13,6 +13,8 @@
 //! [`ACCEPTED_WITHOUT_BEHAVIOUR`] for the list and the reason for each.
 
 pub mod ambient;
+pub mod angry;
+pub mod bandwidth;
 pub mod body;
 pub mod breeding;
 pub mod color;
@@ -31,12 +33,15 @@ pub mod movement;
 pub mod sensors;
 pub mod shearing;
 pub mod spawn_entity;
+pub mod target_triggers;
+pub mod variant;
 
 use std::sync::Arc;
 
 use unastar_data::actor_components::{ActorComponent, body as bodies};
 
 pub use ambient::AmbientSoundConfig;
+pub use bandwidth::{BandwidthOptimization, BandwidthValues};
 pub use body::{BreathableConfig, NameableConfig, Pushable};
 pub use breeding::{AgeableConfig, BreedableConfig, FeedEntry, OffspringConfig};
 pub use color::{ActorColor, DyeableConfig};
@@ -61,6 +66,7 @@ pub use loot::{ExperienceRewardConfig, LootConfig};
 pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
 pub use sensors::{EnvironmentSensorConfig, Timer};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
+pub use target_triggers::{OnTargetAcquired, OnTargetEscape, TargetTrigger};
 
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
 use crate::registry::ItemRegistry;
@@ -70,10 +76,6 @@ use common::inert;
 /// server-side behaviour implemented yet, and why that is acceptable now.
 /// `docs/research/mob-runtime-constants.md` mirrors this list.
 pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
-    (
-        ActorComponent::ConditionalBandwidthOptimization,
-        "network send-rate tuning only; unastar replicates every significant change",
-    ),
     (
         ActorComponent::Leashable,
         "leads are not implemented; using a lead on the mob does nothing",
@@ -135,6 +137,16 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
          is not implemented",
     ),
     (
+        ActorComponent::BlockClimber,
+        "lets the mob climb scaffolding, and scaffolding climbing is not \
+         implemented for any actor",
+    ),
+    (
+        ActorComponent::CanStandOnPowderSnow,
+        "keeps the mob from sinking into powder snow, and powder snow has no \
+         sinking or freezing behaviour on the server",
+    ),
+    (
         ActorComponent::GameEventMovementTracking,
         "emits flap/move/swim game events, which only vibration listeners \
          (sculk sensors, wardens, allays) consume; vibrations are not implemented",
@@ -157,7 +169,7 @@ pub fn register_component_kinds(
     breeding::register_component_kinds(builder)?;
     loot::register_component_kinds(builder)?;
     interact::register_component_kinds(builder)?;
-    inert::<bodies::ConditionalBandwidthOptimization>(builder)?;
+    bandwidth::register_component_kinds(builder)?;
     inert::<bodies::Leashable>(builder)?;
     inert::<bodies::LeashableTo>(builder)?;
     inert::<bodies::Balloonable>(builder)?;
@@ -172,6 +184,8 @@ pub fn register_component_kinds(
     inert::<bodies::BehaviorFindMount>(builder)?;
     inert::<bodies::BehaviorUseKineticWeapon>(builder)?;
     inert::<bodies::DimensionBound>(builder)?;
+    inert::<bodies::BlockClimber>(builder)?;
+    inert::<bodies::CanStandOnPowderSnow>(builder)?;
     hostile::register_component_kinds(builder)?;
     sensors::register_component_kinds(builder)?;
     color::register_component_kinds(builder)?;
@@ -180,5 +194,8 @@ pub fn register_component_kinds(
     ambient::register_component_kinds(builder)?;
     spawn_entity::register_component_kinds(builder, items)?;
     equipment::register_component_kinds(builder)?;
-    knockback::register_component_kinds(builder)
+    knockback::register_component_kinds(builder)?;
+    variant::register_component_kinds(builder)?;
+    target_triggers::register_component_kinds(builder)?;
+    angry::register_component_kinds(builder)
 }
