@@ -948,8 +948,8 @@ fn waterlogged_blocks_are_water_and_flowing_water_is_trusted() {
         blocks: &*world,
         table,
     };
-    assert!(terrain.block(pos.to_array()).water, "waterlogged seagrass");
-    assert!(!terrain.block((pos + IVec3::X).to_array()).water, "air");
+    assert!(terrain.block(pos.to_array()).water(), "waterlogged seagrass");
+    assert!(!terrain.block((pos + IVec3::X).to_array()).water(), "air");
     assert!(table.reproduces(*blocks::WATER), "still water");
     assert!(!table.reproduces(flowing), "flowing water");
     assert!(!table.reproduces(lava), "lava");

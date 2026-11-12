@@ -129,22 +129,16 @@ impl MotionTable {
                     // Ids the registry does not name are not supported.
                     blocks.resize(index + 1, (Block::AIR, false));
                 }
-                let liquid = registry.liquid_state(id);
+                let block = unastar_data::motion::block(id);
                 // Still water only: a current pushes, and lava has rules of
                 // its own.
-                let liquid_supported = liquid
+                let liquid_supported = block
+                    .liquid
                     .is_none_or(|liquid| liquid.kind == LiquidKind::Water && liquid.depth == 0);
                 let supported = kind.confirmed()
                     && !UNSUPPORTED.contains(&entry.string_id.as_str())
                     && liquid_supported;
-                blocks[index] = (
-                    Block {
-                        friction: entry.data.friction,
-                        kind,
-                        water: liquid.is_some_and(|liquid| liquid.kind == LiquidKind::Water),
-                    },
-                    supported,
-                );
+                blocks[index] = (block, supported);
             }
         }
         Self { blocks }
@@ -184,7 +178,7 @@ impl<B: LayeredBlocks> WorldTerrain<'_, B> {
 
     /// Whether water is in or around `area`.
     fn water_near(&self, area: &Aabb) -> bool {
-        !self.every_block(area, 0, |pos| !self.block(pos.to_array()).water)
+        !self.every_block(area, 0, |pos| !self.block(pos.to_array()).water())
     }
 
     /// Whether a block whose family passes `test` is in or around `area`
@@ -296,10 +290,12 @@ impl<B: LayeredBlocks> Terrain for WorldTerrain<'_, B> {
         };
         let mut block = self.table.get(id).0;
         // A waterlogged block's water is in the second layer.
-        block.water |= self
-            .blocks
-            .second_layer_at(pos)
-            .is_some_and(|id| self.table.get(id).0.water);
+        if block.liquid.is_none() {
+            block.liquid = self
+                .blocks
+                .second_layer_at(pos)
+                .and_then(|id| self.table.get(id).0.liquid);
+        }
         block
     }
 }

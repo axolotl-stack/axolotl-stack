@@ -16,20 +16,10 @@ static VANILLA_BLOCK_REGISTRY: LazyLock<BlockRegistry> = LazyLock::new(|| {
     registry
 });
 
-/// Native liquid material identity, resolved once when the registry loads.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LiquidKind {
-    Water,
-    Lava,
-}
-
-/// Cached per-state facts used by actor liquid motion without string lookups.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LiquidState {
-    pub kind: LiquidKind,
-    /// Native `liquid_depth`, including the falling states 8 through 15.
-    pub depth: u8,
-}
+/// The liquid of a block state (material and `liquid_depth`), resolved once
+/// from the block data (`unastar_data::motion`); the movement simulation's
+/// own types.
+pub use unastar_rules::movement::{LiquidKind, LiquidState};
 
 /// Runtime block entry in the registry.
 #[derive(Debug, Clone)]
@@ -229,17 +219,6 @@ impl BlockRegistry {
         self.liquid_states = vec![None; self.runtime_id_map.len()];
         self.network_hashes = vec![0; self.runtime_id_map.len()];
         self.runtime_by_hash.clear();
-        let material = |identifier| {
-            ALL_BLOCKS
-                .iter()
-                .find(|block| block.identifier == identifier)
-                .expect("native liquid archetype")
-                .material
-        };
-        let water_material = material("minecraft:water");
-        let lava_material = material("minecraft:lava");
-        assert_ne!(water_material, lava_material, "distinct native liquids");
-
         for block in ALL_BLOCKS.iter() {
             let entry = BlockEntry {
                 id: block.id,
@@ -271,32 +250,8 @@ impl BlockRegistry {
                 );
             }
 
-            let kind = if block.liquid && block.material == water_material {
-                Some(LiquidKind::Water)
-            } else if block.liquid && block.material == lava_material {
-                Some(LiquidKind::Lava)
-            } else {
-                None
-            };
-            if let Some(kind) = kind {
-                let column = block
-                    .properties
-                    .iter()
-                    .position(|property| property.name == "liquid_depth")
-                    .expect("native water/lava depth property");
-                let property = &block.properties[column];
-                for rid in block.min_state_id..=block.max_state_id {
-                    let row = (rid - block.min_state_id) as usize * block.properties.len();
-                    let index = usize::from(block.state_values[row + column]);
-                    let StateValue::Int(value) = property.values[index] else {
-                        panic!("native liquid depth must be an integer");
-                    };
-                    let depth = u8::try_from(value)
-                        .ok()
-                        .filter(|depth| *depth <= 15)
-                        .expect("native liquid depth must be in 0..=15");
-                    self.liquid_states[rid as usize] = Some(LiquidState { kind, depth });
-                }
+            for rid in block.min_state_id..=block.max_state_id {
+                self.liquid_states[rid as usize] = unastar_data::motion::liquid(rid);
             }
 
             // Registry IDs are unique first-palette ordinals.

@@ -18,20 +18,14 @@ use bds_sweep::scenario::{Corpus, TickState, Traces, simulate};
 const KNOWN_GAPS: &[(&str, u32, &str)] = &[
     (
         "elytra_glide",
-        6,
-        "the glide differs from its first tick (bedsim too); not fitted yet",
-    ),
-    ("lava_walk", 6, "lava is not simulated"),
-    (
-        "levitation_float",
-        1,
-        "BDS reports a levitating player off the ground on the first input; positions and velocities match",
+        36,
+        "the first tick pitched down after a climb: x and y velocity an ULP or a few off",
     ),
     ("scaffolding_climb", 6, "scaffolding is not simulated"),
     (
         "water_sprint_swim",
-        6,
-        "a swimmer's pitch steering differs from the first input (bedsim matches BDS to tick 10)",
+        12,
+        "the swimmer's pitch steering is a few ULP off from the second swimming tick",
     ),
 ];
 

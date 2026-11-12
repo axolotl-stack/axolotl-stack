@@ -35,19 +35,25 @@ impl Terrain for Flat {
         true
     }
     fn block(&self, pos: [i32; 3]) -> Block {
-        let water = self.water.is_some_and(|w| {
-            let y = pos[1] as f32;
-            y + 1.0 > w && y < w + 100.0
-        });
+        let liquid = self
+            .water
+            .is_some_and(|w| {
+                let y = pos[1] as f32;
+                y + 1.0 > w && y < w + 100.0
+            })
+            .then_some(LiquidState {
+                kind: LiquidKind::Water,
+                depth: 0,
+            });
         if pos[1] == self.top as i32 - 1 {
             Block {
                 friction: self.friction,
                 kind: self.kind,
-                water,
+                liquid,
             }
         } else {
             Block {
-                water,
+                liquid,
                 ..Block::AIR
             }
         }
@@ -318,6 +324,7 @@ fn sprinting_needs_forward_input_and_no_sneak() {
             sprint: true,
             ..Default::default()
         },
+        false,
         &mut changes,
     );
     assert!(!body.sprinting && !changes.started_sprinting);
@@ -327,6 +334,7 @@ fn sprinting_needs_forward_input_and_no_sneak() {
             sprint: true,
             ..walk(1.0)
         },
+        false,
         &mut changes,
     );
     assert!(body.sprinting && changes.started_sprinting);

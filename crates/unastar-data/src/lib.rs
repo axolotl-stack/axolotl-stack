@@ -25,6 +25,7 @@ pub mod items;
 pub mod lang;
 pub mod loot;
 pub mod melee;
+pub mod motion;
 pub mod pack_manifest;
 pub mod pmmp;
 pub mod recipes;

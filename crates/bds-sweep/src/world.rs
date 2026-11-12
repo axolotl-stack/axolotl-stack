@@ -22,7 +22,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 use unastar_data::blocks::{self, BlockData};
 
-use crate::physics::{Aabb, Block as Motion, BlockKind, Terrain};
+use crate::physics::{Aabb, Block as Motion, Terrain};
 
 /// Lowest sub-chunk index of the overworld (y -64).
 const MIN_INDEX: i32 = -4;
@@ -162,12 +162,9 @@ impl Block {
         self.data.identifier
     }
 
-    /// Water, still or flowing (layer 0 or the water of a waterlogged block).
+    /// Water, still or flowing.
     pub fn is_water(&self) -> bool {
-        matches!(
-            self.data.identifier,
-            "minecraft:water" | "minecraft:flowing_water"
-        )
+        unastar_data::motion::block(self.state).water()
     }
 
     /// Its collision boxes, in world coordinates, for the block at `pos`.
@@ -240,8 +237,9 @@ impl World {
         self.layer(pos, 0)
     }
 
-    /// The block at `pos` in `layer`.
-    fn layer(&self, pos: [i32; 3], layer: usize) -> Option<Block> {
+    /// The block at `pos` in `layer` (0 blocks, 1 the water of waterlogged
+    /// blocks).
+    pub fn layer(&self, pos: [i32; 3], layer: usize) -> Option<Block> {
         let key = [pos[0] >> 4, pos[1] >> 4, pos[2] >> 4];
         let state = match self.sub_chunks.get(&key) {
             Some(sub) => sub.layers[layer][index(pos[0], pos[1], pos[2])],
@@ -426,11 +424,14 @@ impl Terrain for World {
         let Some(block) = self.block(pos) else {
             return Motion::AIR;
         };
-        Motion {
-            friction: block.data.friction,
-            kind: BlockKind::of(block.identifier()),
-            water: self.water_at(pos).unwrap_or(false),
+        let mut motion = unastar_data::motion::block(block.state);
+        if motion.liquid.is_none() {
+            // A waterlogged block's water is in the second layer.
+            motion.liquid = self
+                .layer(pos, 1)
+                .and_then(|layer| unastar_data::motion::liquid(layer.state));
         }
+        motion
     }
 }
 
