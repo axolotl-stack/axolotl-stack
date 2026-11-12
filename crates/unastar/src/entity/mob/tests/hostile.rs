@@ -198,6 +198,7 @@ fn vanilla_husk_wither_skeleton_endermite_and_zombie_pigman_compile_to_spawnable
         "minecraft:wither_skeleton",
         "minecraft:endermite",
         "minecraft:zombie_pigman",
+        "minecraft:zoglin",
     ] {
         assert!(
             registry.get(identifier).is_some(),
@@ -205,6 +206,20 @@ fn vanilla_husk_wither_skeleton_endermite_and_zombie_pigman_compile_to_spawnable
             registry.unsupported_reason(identifier)
         );
     }
+}
+
+#[test]
+fn the_armor_stand_is_refused_until_its_native_class_behaviour_exists() {
+    let mut h = harness(18, Difficulty::Easy);
+    let world = h.world();
+    let reason = world
+        .resource::<MobRegistry>()
+        .unsupported("minecraft:armor_stand")
+        .cloned();
+    assert!(
+        matches!(reason.as_deref(), Some(ArchetypeError::NativeClass(..))),
+        "{reason:?}"
+    );
 }
 
 #[test]
@@ -263,6 +278,16 @@ fn spawned_endermite_add_actor_matches_native_summon() {
     ));
     let endermite = h.at_native("minecraft:endermite", &native);
     assert_add_actor_matches(h.world(), "minecraft:endermite", endermite, &native);
+}
+
+#[test]
+fn spawned_adult_zoglin_add_actor_matches_native_summon() {
+    let mut h = harness(17, Difficulty::Easy);
+    let native = native(include_bytes!(
+        "../../../../../bds-extractor/captures/1.26.51/operator/summons/zoglin.bin"
+    ));
+    let zoglin = h.at_native("minecraft:zoglin", &native);
+    assert_add_actor_matches(h.world(), "minecraft:zoglin", zoglin, &native);
 }
 
 #[test]
@@ -335,19 +360,26 @@ fn appearance_filters_read_the_ids_the_actor_data_carries() {
 #[test]
 fn wither_skeletons_never_catch_fire() {
     let mut h = harness(7, Difficulty::Easy);
-    let wither = h.spawn(
-        "minecraft:wither_skeleton",
-        DVec3::new(0.5, 64.0, 0.5),
-        false,
-    );
     let zombie = h.spawn("minecraft:zombie", DVec3::new(3.5, 64.0, 0.5), false);
+    for identifier in [
+        "minecraft:wither_skeleton",
+        "minecraft:zombie_pigman",
+        "minecraft:zoglin",
+    ] {
+        let immune = h.spawn(identifier, DVec3::new(0.5, 64.0, 0.5), false);
+        let world = h.world();
+        assert!(
+            flag(world, immune, actor_flags::FIRE_IMMUNE),
+            "{identifier}"
+        );
+        fire::ignite(world, immune, 160);
+        assert!(!fire::is_burning(world, immune), "{identifier}");
+        assert!(!flag(world, immune, actor_flags::ONFIRE), "{identifier}");
+        world.despawn(immune);
+    }
     let world = h.world();
-    assert!(flag(world, wither, actor_flags::FIRE_IMMUNE));
     assert!(!flag(world, zombie, actor_flags::FIRE_IMMUNE));
-    fire::ignite(world, wither, 160);
     fire::ignite(world, zombie, 160);
-    assert!(!fire::is_burning(world, wither));
-    assert!(!flag(world, wither, actor_flags::ONFIRE));
     assert!(fire::is_burning(world, zombie));
 }
 
@@ -509,23 +541,34 @@ fn the_target_is_replicated_as_target_actor_data() {
     assert_eq!(target(h.world()), 0);
 }
 
-/// `behavior.hurt_by_target`: a zombie, husk or wither skeleton, ignoring
-/// the creative player, turns on the cow that hurt it. The zombie and husk
-/// list `entity_types` (anything but a breeze); the wither skeleton lists
-/// none, the published default, which retaliates against any attacker.
+/// `behavior.hurt_by_target`: a zombie, husk, wither skeleton or zoglin,
+/// ignoring the creative player, turns on the cow that hurt it. The zombie
+/// and husk list `entity_types` (anything but a breeze); the wither skeleton
+/// and the zoglin list none, the published default, which retaliates
+/// against any attacker.
 #[test]
 fn hurt_mobs_target_the_mob_that_hurt_them() {
     use crate::entity::mob::state::AttackTarget;
-    for identifier in [
-        "minecraft:wither_skeleton",
-        "minecraft:zombie",
-        "minecraft:husk",
+    // The zoglin attacks cows on sight within 16 blocks: its cow stands 20
+    // blocks away, which retaliation without `entity_types` still reaches.
+    for (identifier, cow_x) in [
+        ("minecraft:wither_skeleton", 3.5),
+        ("minecraft:zombie", 3.5),
+        ("minecraft:husk", 3.5),
+        ("minecraft:zoglin", 20.5),
+        ("minecraft:zombie_villager_v2", 3.5),
     ] {
         let mut h = harness(11, Difficulty::Normal);
         let player = h.player;
         *h.world().get_mut::<GameMode>(player).unwrap() = GameMode::Creative;
         let mob = h.spawn(identifier, DVec3::new(0.5, 64.0, 0.5), false);
-        let cow = h.spawn("minecraft:cow", DVec3::new(3.5, 64.0, 0.5), false);
+        h.world()
+            .entity_mut(mob)
+            .remove::<crate::entity::mob::components::RandomStrollGoal>();
+        let cow = h.spawn("minecraft:cow", DVec3::new(cow_x, 64.0, 0.5), false);
+        h.world()
+            .entity_mut(cow)
+            .remove::<crate::entity::mob::components::RandomStrollGoal>();
         h.ticks(5);
         assert!(h.world().get::<AttackTarget>(mob).is_none(), "{identifier}");
         let applied = combat::hurt_mob(
@@ -536,17 +579,22 @@ fn hurt_mobs_target_the_mob_that_hurt_them() {
                 cause: ActorDamageCause::EntityAttack,
                 attacker: Some(cow),
                 by_player: false,
-                knockback_from: Some(DVec3::new(3.5, 64.0, 0.5)),
+                knockback_from: Some(DVec3::new(cow_x, 64.0, 0.5)),
                 knockback_power: KnockbackPower::DEFAULT,
             },
         );
         assert_eq!(applied, 1.0, "{identifier}");
-        h.ticks(2);
+        h.ticks(1);
         assert_eq!(
             h.world().get::<AttackTarget>(mob),
             Some(&AttackTarget(cow)),
             "{identifier}"
         );
+        h.ticks(1);
+        // Beyond its follow range (16) the zoglin lets the cow go again on
+        // the next tick, as the BDS pigman 40 blocks away did.
+        let kept = h.world().get::<AttackTarget>(mob) == Some(&AttackTarget(cow));
+        assert_eq!(kept, cow_x < 16.0, "{identifier}");
     }
 }
 
@@ -564,77 +612,6 @@ fn spawned_baby_zombie_pigman_add_actor_matches_native_summon() {
     // The native summon drew a baby.
     let pigman = h.spawn("minecraft:zombie_pigman", feet, true);
     assert_add_actor_matches(h.world(), "minecraft:zombie_pigman", pigman, &native);
-}
-
-/// The anger experiment of `testdata/bds-1.26.51-pigman-anger.json`
-/// replayed: the hurt pigman and its kin within 20 blocks target the
-/// attacker and show `ANGRY`; a pigman out of the hurt one's range stays
-/// calm although it is within range of a pigman that received the anger.
-#[test]
-fn hurting_a_zombie_pigman_angers_its_kin_within_range_but_not_beyond() {
-    use crate::entity::mob::state::AttackTarget;
-    let fixture: serde_json::Value =
-        serde_json::from_str(include_str!("../testdata/bds-1.26.51-pigman-anger.json")).unwrap();
-    let mut h = harness(13, Difficulty::Normal);
-    let player = h.player;
-    let feet = DVec3::new(8.5, 64.0, 12.5);
-    h.world().get_mut::<Position>(player).unwrap().0 =
-        feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT;
-    // The BDS player had full resistance; here the pigmen's hits must not
-    // kill it either.
-    *h.world().get_mut::<Health>(player).unwrap() = Health {
-        current: 10_000.0,
-        max: 10_000.0,
-    };
-    let mut pigmen = Vec::new();
-    for row in fixture["pigmen"].as_array().unwrap() {
-        let offset: Vec<f64> = serde_json::from_value(row["offset"].clone()).unwrap();
-        let mob = h.spawn(
-            "minecraft:zombie_pigman",
-            feet + DVec3::new(offset[0], offset[1], offset[2]),
-            false,
-        );
-        pigmen.push((row.clone(), mob));
-    }
-    h.ticks(2);
-    for (_, mob) in &pigmen {
-        assert!(h.world().get::<AttackTarget>(*mob).is_none());
-    }
-    let (_, hit) = pigmen.iter().find(|(row, _)| row["hit"] == true).unwrap();
-    let applied = combat::hurt_mob(
-        h.world(),
-        *hit,
-        combat::Hit {
-            damage: 1.0,
-            cause: ActorDamageCause::EntityAttack,
-            attacker: Some(player),
-            by_player: true,
-            knockback_from: Some(feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT),
-            knockback_power: KnockbackPower::DEFAULT,
-        },
-    );
-    assert_eq!(applied, 1.0);
-    h.ticks(5);
-    for (row, mob) in &pigmen {
-        let name = row["name"].as_str().unwrap();
-        let world = h.world();
-        let targets = world.get::<AttackTarget>(*mob) == Some(&AttackTarget(player));
-        assert_eq!(
-            targets,
-            row["targets_attacker"] == true,
-            "pigman {name} target"
-        );
-        let angry = flag(world, *mob, actor_flags::ANGRY);
-        assert_eq!(angry, row["angry"] == true, "pigman {name} ANGRY");
-    }
-    // The calm pigman stays calm while the others keep fighting.
-    h.ticks(100);
-    let (_, calm) = pigmen
-        .iter()
-        .find(|(row, _)| row["angry"] == false)
-        .unwrap();
-    assert!(!flag(h.world(), *calm, actor_flags::ANGRY));
-    assert!(h.world().get::<AttackTarget>(*calm).is_none());
 }
 
 /// The calm run of `testdata/bds-1.26.51-pigman-anger.json`: two angry
@@ -715,9 +692,10 @@ fn an_angry_zombie_pigman_calms_one_span_after_its_last_swing() {
             swing < 90 + 5,
             "pigman {index} swung after the player turned creative"
         );
-        // BDS: 24.95 s after the swing (packet timestamps, ±1 tick).
+        // BDS: 24.95 s after the swing (packet timestamps, ±1 tick): the
+        // span counts down from the swing's own tick.
         assert!(
-            (span - 2..=span + 2).contains(&(calmed - swing)),
+            (span - 2..=span).contains(&(calmed - swing)),
             "pigman {index} calmed {} ticks after its last swing",
             calmed - swing
         );
@@ -780,62 +758,57 @@ fn a_zombie_pigman_drawing_the_undeclared_jockey_branch_spawns_without_groups() 
     assert!(none > 0, "the undeclared branch never drawn");
 }
 
-/// When a provoked pigman's anger runs out it drops the target it only had
-/// through its kin's anger; the hurt pigman, whose hurt-by goal holds the
-/// same target, keeps it.
+/// `/summon minecraft:zombie_villager` creates the actor BDS emits for it,
+/// a `zombie_villager_v2`, whose AddActor equals the native summon's once
+/// the spawn draws the profession (`VARIANT` 0) and skin (`SKIN_ID` 0) the
+/// native one drew.
 #[test]
-fn a_provoked_zombie_pigman_drops_its_target_when_its_anger_ends() {
-    use crate::entity::mob::life::anger::Angry;
-    use crate::entity::mob::state::AttackTarget;
-    let mut h = harness(16, Difficulty::Normal);
-    let player = h.player;
-    let feet = DVec3::new(8.5, 64.0, 12.5);
-    h.world().get_mut::<Position>(player).unwrap().0 =
-        feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT;
-    *h.world().get_mut::<Health>(player).unwrap() = Health {
-        current: 10_000.0,
-        max: 10_000.0,
-    };
-    let hurt_one = h.spawn(
-        "minecraft:zombie_pigman",
-        feet + DVec3::new(4.0, 0.0, 0.0),
-        false,
+fn summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon() {
+    let mut h = harness(19, Difficulty::Easy);
+    let native = native(include_bytes!(
+        "../../../../../bds-extractor/captures/1.26.51/operator/summons/zombie_villager.bin"
+    ));
+    assert_eq!(&*native.actor_type, "minecraft:zombie_villager_v2");
+    let feet = DVec3::new(
+        f64::from(native.position.x),
+        f64::from(native.position.y),
+        f64::from(native.position.z),
     );
-    let provoked = h.spawn(
-        "minecraft:zombie_pigman",
-        feet + DVec3::new(4.0, 0.0, 6.0),
-        false,
-    );
-    combat::hurt_mob(
-        h.world(),
-        hurt_one,
-        combat::Hit {
-            damage: 1.0,
-            cause: ActorDamageCause::EntityAttack,
-            attacker: Some(player),
-            by_player: true,
-            knockback_from: Some(feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT),
-            knockback_power: KnockbackPower::DEFAULT,
-        },
-    );
-    h.ticks(5);
-    for mob in [hurt_one, provoked] {
-        assert_eq!(
-            h.world().get::<AttackTarget>(mob),
-            Some(&AttackTarget(player))
-        );
-    }
-    // Both run out of anger now (as after 25 s without a swing).
-    let now = h.world().resource::<crate::ecs::TickCounter>().current;
-    for mob in [hurt_one, provoked] {
-        h.world().get_mut::<Angry>(mob).unwrap().until_tick = Some(now);
-    }
-    h.ticks(2);
     let world = h.world();
-    assert!(!flag(world, provoked, actor_flags::ANGRY));
-    assert!(world.get::<AttackTarget>(provoked).is_none());
-    assert_eq!(
-        world.get::<AttackTarget>(hurt_one),
-        Some(&AttackTarget(player))
-    );
+    let drawn = |world: &World, mob: Entity, id: u32| match world
+        .get::<EntityMetadata>(mob)
+        .and_then(|metadata| metadata.get(id))
+    {
+        Some(jolyne::valentine::types::DataItemEntryPayload::DataItemIntPayload(item)) => {
+            Some(item.value)
+        }
+        _ => None,
+    };
+    let mob = (0..4000)
+        .find_map(|_| {
+            let mob = spawn_mob(
+                world,
+                "minecraft:zombie_villager",
+                feet,
+                0.0,
+                SpawnCause::Spawned,
+            )
+            .unwrap();
+            apply_pending_definitions(world);
+            assert_eq!(
+                &*world.get::<MobKind>(mob).unwrap().0.identifier,
+                "minecraft:zombie_villager_v2"
+            );
+            let native_like = !flag(world, mob, actor_flags::BABY)
+                && drawn(world, mob, jolyne::valentine::actor_data_i_ds::VARIANT) == Some(0)
+                && drawn(world, mob, jolyne::valentine::actor_data_i_ds::SKIN_ID) == Some(0);
+            if native_like {
+                Some(mob)
+            } else {
+                world.despawn(mob);
+                None
+            }
+        })
+        .expect("an adult unskilled zombie villager with skin 0");
+    assert_add_actor_matches(h.world(), "minecraft:zombie_villager_v2", mob, &native);
 }

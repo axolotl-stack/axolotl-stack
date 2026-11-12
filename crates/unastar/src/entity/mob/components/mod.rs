@@ -33,6 +33,7 @@ pub mod movement;
 pub mod sensors;
 pub mod shearing;
 pub mod spawn_entity;
+pub mod stats;
 pub mod target_triggers;
 pub mod variant;
 
@@ -52,8 +53,8 @@ pub use equipment::{
     EquipItemConfig, EquipItemGoal, EquipmentConfig, PickupItemsGoal, ShareablesConfig,
 };
 pub use goals::{
-    BreedGoal, EatBlockGoal, EatBlockPair, FloatGoal, FollowParentGoal, GoalBase, LookAtPlayerGoal,
-    PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal,
+    BreedGoal, EatBlockGoal, EatBlockPair, FleeSunGoal, FloatGoal, FollowParentGoal, GoalBase,
+    LookAtPlayerGoal, PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal,
 };
 pub use hostile::{
     AttackConfig, BurnsInDaylightConfig, HurtByTargetGoal, MeleeBoxAttackGoal,
@@ -66,7 +67,7 @@ pub use loot::{ExperienceRewardConfig, LootConfig};
 pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
 pub use sensors::{EnvironmentSensorConfig, Timer};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
-pub use target_triggers::{OnTargetAcquired, OnTargetEscape, TargetTrigger};
+pub use target_triggers::{OnFriendlyAnger, OnTargetAcquired, OnTargetEscape, TargetTrigger};
 
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
 use crate::registry::ItemRegistry;
@@ -197,5 +198,6 @@ pub fn register_component_kinds(
     knockback::register_component_kinds(builder)?;
     variant::register_component_kinds(builder)?;
     target_triggers::register_component_kinds(builder)?;
+    stats::register_component_kinds(builder)?;
     angry::register_component_kinds(builder)
 }

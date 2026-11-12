@@ -79,6 +79,8 @@ pub struct ProjectileRules {
     pub bounce_without_damage: bool,
     /// `stop_on_hurt`: it drops away from an actor it hurt.
     pub stop_on_hurt: bool,
+    /// `on_hit.grant_xp`: `(minXP, maxXP)` experience at the hit point.
+    pub grant_xp: Option<(i32, i32)>,
 }
 
 /// `on_hit.impact_damage`.
@@ -217,6 +219,7 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         stick_in_ground: None,
         bounce_without_damage: b.should_bounce == ShouldBounce::IfNoDamageDealt,
         stop_on_hurt: b.stop_on_hurt,
+        grant_xp: None,
     };
     let Some(on_hit) = b.on_hit else {
         return Ok(rules);
@@ -226,7 +229,6 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         (on_hit.definition_event.is_some(), "definition_event"),
         (on_hit.douse_fire.is_some(), "douse_fire"),
         (on_hit.freeze_on_hit.is_some(), "freeze_on_hit"),
-        (on_hit.grant_xp.is_some(), "grant_xp"),
         (on_hit.hurt_owner.is_some(), "hurt_owner"),
         (on_hit.ignite.is_some(), "ignite"),
         (on_hit.mob_effect.is_some(), "mob_effect"),
@@ -242,6 +244,7 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
             return Err(ProjectileError::OnHit(name));
         }
     }
+    rules.grant_xp = on_hit.grant_xp.map(|xp| (xp.min_xp, xp.max_xp));
     rules.impact_damage = on_hit.impact_damage.map(compile_impact).transpose()?;
     rules.particle = on_hit
         .particle_on_hit

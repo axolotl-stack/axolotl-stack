@@ -3,7 +3,7 @@
 Compare the actual offline client traffic sent by the pinned gophertunnel fork and jolyne to vanilla BDS, and retain vanilla replies as a behavioral reference. This tool measures divergences; it does not assert the clients are equivalent. Real Minecraft is an optional later capture and is **never started by `run.ps1`**.
 
 **Observed acceptance status:** both offline clients spawn on BDS 1.26.51 and
-complete `join-idle` and `join-chat`. The original `readNoHeader` rejection was
+complete `join-idle` and `join-chat`. The original packet-reader rejection was
 BDS's metadata validation rejecting retired UWP `DeviceOS: 7`, not malformed
 length prefixes. The shared identity now uses Android (`1`); jolyne additionally
 sends a modern multiplayer identity token. See the [secret-free observed

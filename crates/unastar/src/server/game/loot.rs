@@ -7,7 +7,9 @@ use unastar_data::actor_identifiers::ActorType;
 use unastar_rules::enchanting::ItemEnchanting;
 use unastar_rules::loot::{Difficulty as LootDifficulty, LootError, LootStateValue};
 
-use crate::entity::mob::constants::{LEGACY_ITEM_NAMES, LEGACY_WOOL, WOOL_ITEMS};
+use crate::entity::mob::constants::{
+    LEGACY_ITEM_NAMES, LEGACY_SKULL, LEGACY_WOOL, SKULL_ITEMS, WOOL_ITEMS,
+};
 use crate::item::ItemStack;
 use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::ItemRegistry;
@@ -151,12 +153,16 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
     }
 
     fn data_alias(&self, name: &str, data: i16) -> Option<&str> {
-        if !LEGACY_WOOL.eq_ignore_ascii_case(name) {
+        let items: &[&str] = if LEGACY_WOOL.eq_ignore_ascii_case(name) {
+            &WOOL_ITEMS
+        } else if LEGACY_SKULL.eq_ignore_ascii_case(name) {
+            &SKULL_ITEMS
+        } else {
             return None;
-        }
+        };
         usize::try_from(data)
             .ok()
-            .and_then(|colour| WOOL_ITEMS.get(colour))
+            .and_then(|index| items.get(index))
             .copied()
     }
 }
