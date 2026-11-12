@@ -20,6 +20,7 @@ import replication_fixture  # noqa: E402
 import leveldb_read  # noqa: E402
 import native  # noqa: E402
 import subchunk_fixture  # noqa: E402
+import subchunk_roundtrip  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
 
@@ -426,6 +427,47 @@ class LevelDbLog(unittest.TestCase):
             log = Path(tmp) / '000003.log'
             log.write_bytes(batch(1, [(b'a', b'old'), (b'b', b'gone')]) + batch(3, [(b'a', b'new'), (b'b', None)]))
             self.assertEqual(leveldb_read.read_db(tmp), {b'a': b'new'})
+
+
+class SubchunkRoundTrip(unittest.TestCase):
+    def test_writes_follow_setblock_layers(self):
+        water = subchunk_roundtrip.WATER
+        source = {}  # the section has no record: air
+        plan = [
+            {'dim': 0, 'pos': [1, 1, 1], 'state': water, 'measure': False},
+            {'dim': 0, 'pos': [1, 1, 1], 'state': subchunk_roundtrip.SLAB, 'measure': False},
+            {'dim': 0, 'pos': [2, 1, 1], 'state': water, 'measure': False},
+            {'dim': 0, 'pos': [2, 1, 1], 'state': subchunk_roundtrip.GLASS, 'measure': False},
+            {'dim': 0, 'pos': [3, 1, 1], 'state': subchunk_roundtrip.STONE, 'measure': True},
+        ]
+        sections, writes = subchunk_roundtrip.apply_plan(source, plan, include_measure=False)
+        first, liquid = sections[(0, 0, 0, 0)]
+        slab, glass = subchunk_roundtrip.index(1, 1, 1), subchunk_roundtrip.index(2, 1, 1)
+        self.assertEqual((first[slab], liquid[slab]), (subchunk_roundtrip.SLAB, water))
+        self.assertEqual((first[glass], liquid[glass]), (subchunk_roundtrip.GLASS, subchunk_fixture.AIR))
+        self.assertEqual([w[0] for w in writes], [0, 1, 2, 3])  # the measure-only edit is BDS's alone
+        plan.append({'dim': 0, 'pos': [1, 1, 1], 'state': subchunk_roundtrip.STONE, 'measure': False})
+        sections, _ = subchunk_roundtrip.apply_plan(source, plan, include_measure=False)
+        self.assertEqual(sections[(0, 0, 0, 0)][1][slab], subchunk_fixture.AIR)
+
+    def test_sparse_records_rebuild_from_placements_in_palette_order(self):
+        # Cells 0 and 300 hold entry 2, cell 5 entry 1, the rest air.
+        indices = [0] * 4096
+        indices[0], indices[300], indices[5] = 2, 2, 1
+        words = b''.join(struct.pack('<I', sum(indices[w * 16 + i] << (2 * i) for i in range(16)))
+                         for w in range(256))
+        value = (bytes([9, 1, 0, 2 << 1]) + words + struct.pack('<i', 3) + palette_entry('minecraft:air')
+                 + palette_entry('minecraft:stone') + palette_entry('minecraft:dirt'))
+        self.assertEqual(subchunk_roundtrip.sparse_build(value), [(5, 1), (0, 2), (300, 2)])
+        unused = (bytes([9, 1, 0, 2 << 1]) + words + struct.pack('<i', 4) + palette_entry('minecraft:air')
+                  + palette_entry('minecraft:stone') + palette_entry('minecraft:dirt')
+                  + palette_entry('minecraft:gold_block'))
+        self.assertIsNone(subchunk_roundtrip.sparse_build(unused))
+
+    def test_fill_edits_cover_their_box(self):
+        edit = {'dim': 0, 'fill': [[0, 0, 0], [1, 2, 0]], 'state': subchunk_fixture.AIR, 'measure': False}
+        self.assertEqual(len(subchunk_roundtrip.plan_cells(edit)), 6)
+        self.assertEqual(subchunk_roundtrip.plan_column({'dim': 2, 'pos': [-1, 5, 17], 'state': None}), (2, -1, 1))
 
 
 if __name__ == '__main__':

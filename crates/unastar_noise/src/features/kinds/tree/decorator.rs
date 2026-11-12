@@ -8,7 +8,7 @@
 
 use crate::features::blocks::{BlockPos, Direction, JavaState};
 use crate::features::config::TreeDecorator;
-use crate::features::eval::{FeatureWorld, provide_state};
+use crate::features::eval::{BlockEntityData, FeatureWorld, HiveOccupants, provide_state};
 use crate::features::java_blocks::{blocks as b, tags};
 use crate::features::random::FeatureRandom;
 
@@ -206,11 +206,9 @@ fn cocoa<W: FeatureWorld + ?Sized>(ctx: &mut Ctx<'_, W>, probability: f32) {
     }
 }
 
-/// `BeehiveDecorator`. Writes the `bee_nest` state only; the bees are
-/// block-entity data the runtime adds later. Java draws the bee count
-/// (`2 + nextInt(2)`) and one `nextInt(599)` per bee from the tree random
-/// once the nest block entity exists, so those draws are made here whenever
-/// the nest was written.
+/// `BeehiveDecorator`. The nest's block entity exists as soon as the nest is
+/// written, so Java stores `2 + nextInt(2)` bees with `nextInt(599)` ticks each,
+/// drawn from the tree random, into the live actor.
 fn beehive<W: FeatureWorld + ?Sized>(ctx: &mut Ctx<'_, W>, probability: f32) {
     if ctx.logs.is_empty() {
         return;
@@ -240,10 +238,19 @@ fn beehive<W: FeatureWorld + ?Sized>(ctx: &mut Ctx<'_, W>, probability: f32) {
         if ctx.is_air(p) && ctx.is_air(p.rel(Direction::South)) {
             let state = b::BEE_NEST.default_state().with("facing", "south");
             if ctx.set_block(p, state) {
-                let bees = 2 + ctx.rng.next_int_bounded(2);
-                for _ in 0..bees {
-                    ctx.rng.next_int_bounded(599);
+                let count = 2 + ctx.rng.next_int_bounded(2) as u8;
+                let mut ticks = [0u16; 3];
+                for tick in ticks.iter_mut().take(count as usize) {
+                    *tick = ctx.rng.next_int_bounded(599) as u16;
                 }
+                let bees = HiveOccupants { count, ticks };
+                ctx.world.set_block_entity(
+                    p,
+                    BlockEntityData {
+                        bees: Some(bees),
+                        ..BlockEntityData::NONE
+                    },
+                );
             }
             return;
         }

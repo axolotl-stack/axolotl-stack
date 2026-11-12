@@ -850,6 +850,12 @@ impl WorldProvider for BlazeDBProvider {
 
     async fn save_column(&self, pos: ChunkPos, dim: i32, col: &ChunkColumn) -> StorageResult<()> {
         let morton = morton::encode(pos.x, pos.z, dim);
+        if let Some(state) = col.chunk.unknown_block_state() {
+            return Err(StorageError::Serialization(format!(
+                "chunk ({}, {}) holds block state {state}, which is not a canonical state",
+                pos.x, pos.z
+            )));
+        }
 
         for entity in col.chunk.block_entities() {
             let [x, _, z] = entity.position();

@@ -6,14 +6,109 @@
 //! is flat and bounded: it accepts only that shape and resolves the entry to a
 //! canonical runtime state through the block registry, so an entry it cannot
 //! read or the registry does not know is an error, never a substitute block.
+//! The writer produces the bytes BDS writes for every canonical state.
 
-use crate::registry::block::{BlockRegistry, SavedStateValue};
+use std::sync::LazyLock;
+
+use crate::registry::block::{BlockRegistry, SavedStateValue, StateValue};
 
 const TAG_END: u8 = 0;
 const TAG_BYTE: u8 = 1;
 const TAG_INT: u8 = 3;
 const TAG_STRING: u8 = 8;
 const TAG_COMPOUND: u8 = 10;
+
+/// The `version` of every palette entry BDS 1.26.51 writes: block-state
+/// version 1.21.60.33 as `major << 24 | minor << 16 | patch << 8 | revision`.
+/// Every state of the 1.26.51 native block palette carries it, and so does every
+/// entry of every record BDS saved in the sub-chunk fixture worlds, blocks of
+/// the 1.21.x drops included (`tests/bds_subchunks.rs`).
+pub(super) const BLOCK_STATE_VERSION: i32 = 18_168_865;
+
+/// The persistent palette entry of every canonical state, by runtime id.
+static ENTRIES: LazyLock<Vec<Box<[u8]>>> = LazyLock::new(|| {
+    let registry = BlockRegistry::vanilla();
+    let len = registry
+        .iter()
+        .map(|block| block.max_state_id as usize + 1)
+        .max()
+        .unwrap_or(0);
+    let mut entries = vec![Box::<[u8]>::default(); len];
+    for block in registry.iter() {
+        // BDS writes compound fields sorted by name (byte order).
+        let mut properties: Vec<&str> = block.data.properties.iter().map(|p| p.name).collect();
+        properties.sort_unstable();
+        for state in block.min_state_id..=block.max_state_id {
+            let values = properties.iter().map(|&property| {
+                let value = block
+                    .state_value(state, property)
+                    .expect("every canonical state has a value for each property");
+                (property, value)
+            });
+            entries[state as usize] = entry_bytes(&block.string_id, values);
+        }
+    }
+    entries
+});
+
+/// Append the palette entry of canonical state `runtime_id`, byte for byte as
+/// BDS 1.26.51 writes it: `{name, states, version}` with the states sorted by
+/// name, each with its registry NBT type.
+///
+/// # Panics
+/// If `runtime_id` is not a canonical state. Decoded storages hold only
+/// canonical states, and the providers check a column with
+/// [`Chunk::unknown_block_state`](super::Chunk::unknown_block_state) before
+/// they save it.
+pub(super) fn write_palette_entry(out: &mut Vec<u8>, runtime_id: u32) {
+    let entry = ENTRIES
+        .get(runtime_id as usize)
+        .filter(|entry| !entry.is_empty())
+        .unwrap_or_else(|| panic!("block runtime id {runtime_id} is not a canonical state"));
+    out.extend_from_slice(entry);
+}
+
+fn entry_bytes<'a>(name: &str, states: impl Iterator<Item = (&'a str, StateValue)>) -> Box<[u8]> {
+    let mut out = vec![TAG_COMPOUND];
+    put_string(&mut out, "");
+    out.push(TAG_STRING);
+    put_string(&mut out, "name");
+    put_string(&mut out, name);
+    out.push(TAG_COMPOUND);
+    put_string(&mut out, "states");
+    for (key, value) in states {
+        match value {
+            StateValue::Byte(byte) => {
+                out.push(TAG_BYTE);
+                put_string(&mut out, key);
+                out.push(byte);
+            }
+            StateValue::Int(int) => {
+                out.push(TAG_INT);
+                put_string(&mut out, key);
+                out.extend_from_slice(&int.to_le_bytes());
+            }
+            StateValue::Str(text) => {
+                out.push(TAG_STRING);
+                put_string(&mut out, key);
+                put_string(&mut out, text);
+            }
+        }
+    }
+    out.push(TAG_END);
+    out.push(TAG_INT);
+    put_string(&mut out, "version");
+    out.extend_from_slice(&BLOCK_STATE_VERSION.to_le_bytes());
+    out.push(TAG_END);
+    out.into_boxed_slice()
+}
+
+/// NBT string: u16 LE byte length, then UTF-8.
+fn put_string(out: &mut Vec<u8>, text: &str) {
+    let len = u16::try_from(text.len()).expect("block names and states are short");
+    out.extend_from_slice(&len.to_le_bytes());
+    out.extend_from_slice(text.as_bytes());
+}
 
 /// Read the palette entry at `*offset`, advance past it and return its
 /// canonical runtime state.
