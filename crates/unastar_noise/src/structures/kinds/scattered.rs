@@ -806,17 +806,12 @@ fn collapsed_roof_pos(p: &PieceBase, seed: i64) -> BlockPos {
     BlockPos::new(p.world_x(x, z), p.world_y(y), p.world_z(x, z))
 }
 
-/// `BlockPos.asLong()`.
-fn pos_as_long(p: BlockPos) -> i64 {
-    ((p.x as i64 & 0x3FF_FFFF) << 38) | ((p.z as i64 & 0x3FF_FFFF) << 12) | (p.y as i64 & 0xFFF)
-}
-
 /// `DesertPyramidStructure.placeSuspiciousSand`.
 fn place_suspicious_sand(world: &mut dyn FeatureWorld, chunk_box: &BoundingBox, pos: BlockPos) {
     if chunk_box.is_inside(pos) && world.set_state(pos, states::SUSPICIOUS_SAND) {
         world.set_block_entity(
             pos,
-            BlockEntityData::loot(DESERT_PYRAMID_ARCHAEOLOGY_LOOT, pos_as_long(pos)),
+            BlockEntityData::loot(DESERT_PYRAMID_ARCHAEOLOGY_LOOT, pos.as_long()),
         );
     }
 }

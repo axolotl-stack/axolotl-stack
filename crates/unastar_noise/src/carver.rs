@@ -112,16 +112,18 @@ static SIN: LazyLock<Box<[f32; 65536]>> = LazyLock::new(|| {
     table
 });
 
-/// Java's table-based `Mth.sin`.
+/// Java's table-based `Mth.sin`. The float argument widens to double and
+/// scales by the double `SIN_SCALE`; a float product picks a neighbouring
+/// table entry for some angles.
 #[inline]
 pub fn sin(value: f32) -> f32 {
-    SIN[((value * 10430.378) as i32 as u32 & 0xFFFF) as usize]
+    SIN[(f64::from(value) * 10430.378350470453) as i64 as usize & 0xFFFF]
 }
 
-/// Java's table-based `Mth.cos`.
+/// Java's table-based `Mth.cos` (see [`sin`]).
 #[inline]
 pub fn cos(value: f32) -> f32 {
-    SIN[(((value * 10430.378) + 16384.0) as i32 as u32 & 0xFFFF) as usize]
+    SIN[(f64::from(value) * 10430.378350470453 + 16384.0) as i64 as usize & 0xFFFF]
 }
 
 /// Java's `WorldgenRandom.setLargeFeatureSeed(seed, chunkX, chunkZ)`.
@@ -131,4 +133,19 @@ pub fn set_large_feature_seed(random: &mut JavaRandom, seed: i64, chunk_x: i32, 
     let b = random.next_long();
     let mixed = (chunk_x as i64).wrapping_mul(a) ^ (chunk_z as i64).wrapping_mul(b) ^ seed;
     random.set_seed(mixed);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 1.9843f scales to 20696.99... in double (Java's `Mth.sin`), table
+    /// entry 20696; a float product rounds up to entry 20697.
+    #[test]
+    fn sin_indexes_the_table_with_a_double_product() {
+        let entry = |i: f64| (i * std::f64::consts::PI * 2.0 / 65536.0).sin() as f32;
+        assert_eq!(sin(1.9843_f32), entry(20696.0));
+        assert_ne!(sin(1.9843_f32), entry(20697.0));
+        assert_eq!(cos(1.9843_f32), entry(20696.0 + 16384.0));
+    }
 }

@@ -202,8 +202,12 @@ The cave-boundary regression fails before the fix and passes after it.
 Native biome ties are history-dependent, including across chunk calls on a worker.
 Request-order and parallel checks must match the reference's worker/query context
 or report that dependency; resetting tie history to force seed-only determinism
-would change native behavior. Bedrock keeps its current independent-nearest policy
-until a BDS reference establishes a different rule.
+would change native behavior. A fill whose every search found a unique nearest
+leaf is the same from any history, so `JavaGenerator` computes it once per chunk
+and replays it for the other eight surfaces that read it (sharing its biomes and
+restoring the history its last search leaves); fills that met a tie run every time.
+Bedrock keeps its current independent-nearest policy until a BDS reference
+establishes a different rule.
 
 `JavaGenerationOptions::dimension` selects the native preset. Java states, native
 biome identities and actor recipes remain intact through
@@ -269,6 +273,62 @@ ignores plain-air writes) until a non-air block enters it. `SubChunk` keeps the
 same non-air count, so the stored `cave_air` is observed as `air` in that case;
 with that change all 2,171 frames match exactly. Neither holdout seed stayed
 untouched: each exposed one pale moss carpet voxel that led to a fix.
+
+Exact frames say nothing about code no capture reached, so the
+`worldgen-coverage` feature (unastar and unastar_noise; compiled out otherwise)
+records which registry entries wrote a block into a compared chunk: placed and
+configured features, structures, templates, named processor lists, carvers,
+surface-rule leaves and biomes. `java_canonical_compare --generate` writes the
+hits next to each actual capture, and
+`unastar_noise/tools/coverage_report.py` totals them against the entries each
+dimension's world generation can reach in the pinned 1.21.11 registries
+(bonemeal, sapling, bonus chest and spawn platform features are listed as
+excluded, not counted). An entry that runs but writes nothing in a compared
+chunk counts as not exercised.
+
+Captures aimed at the unexercised entries of the first count
+(1,236 frames over the eight seeds) exposed 46 differing frames. Their causes:
+beached shipwrecks waterlog; ruined portal vines also attach to full
+cubes such as leaves; mirroring keeps a chest's left/right half; template data
+markers act only inside the placement box; bee nests store their bees; end
+gateways save their exit; desert well suspicious sand gets its archaeology
+loot; nether fossils may carry a dried ghast; the aquifer's deep-dark test
+reads erosion and depth through the chunk's flat cache (the quart corner at
+y 0) for centers over the chunk; and iceberg ellipses with a zero axis give NaN,
+which Java's `d < 0` test treats as outside. Three fresh holdout seeds followed
+in turn. 5823730942511315655 differed in one cave-edge voxel: 1.21.11 `Mth.sin`
+and `Mth.cos` scale the angle as a double, and the carvers' float product picked
+a neighbouring table entry. -3412945871029348671 differed in one stronghold
+room-crossing torch (a wall torch, not a standing torch). The third,
+8890523146617004213, matched all 408 frames before any change. With every fix,
+all 4,619 frames match exactly (529,629,184 voxels; Overworld 3,341 frames and
+378,765,312 voxels, Nether 769 and 83,951,616, End 509 and 66,912,256). That is
+evidence for these coordinates and seeds, not a proof for every seed.
+
+| Exercised / reachable | Overworld | Nether | End |
+|---|---|---|---|
+| Placed features | 207/213 | 36/37 | 5/5 |
+| Configured features | 170/173 | 30/31 | 5/5 |
+| Structures | 29/29 | 4/4 | 1/1 |
+| Templates | 793/996 | 187/194 | 19/20 |
+| Named processor lists | 22/24 | 12/12 | 0/0 |
+| Carvers | 3/3 | 1/1 | 0/0 |
+| Surface-rule leaves | 89/102 | 20/22 | 1/1 |
+| Biomes | 54/54 | 5/5 | 5/5 |
+
+Never exercised:
+- Overworld features: `brown_mushroom_normal`, `red_mushroom_normal`,
+  `red_mushroom_swamp`, `fallen_super_birch_tree`, `fancy_oak_bees` and
+  `spring_lava_frozen`; no capture reached a placement.
+- Overworld processor lists: `zombie_desert` and `zombie_snowy` (zombie villages).
+- Overworld templates: 152 village pieces (five biome sets), 23 trail ruins,
+  12 fossils, 9 trial chamber pieces and 7 others.
+- Overworld surface leaves: 13, including badlands terracotta bands and frozen
+  ocean ice and water.
+- Nether: `spring_lava` (its configuration replaces only overworld rock and
+  dirt, none of which generate in the Nether), 7 bastion and giant ruined portal templates,
+  and the warped and crimson wart-block surface leaves.
+- End: the `end_city/tower_floor` template.
 
 At the Bedrock boundary, waterlogged states and fluid-bearing aquatic plants
 produce a secondary source-water storage without changing their primary block.
@@ -756,16 +816,33 @@ replace occupied blocks. Item-specific replacement, adventure CanPlaceOn/CanDest
 rules, and unsupported inventory operations are not implemented.
 
 Survival block clicks answer like BDS 1.26.51 click by click
-(`server/game/placement_capture_tests.rs` replays the 205 captured clicks of
-`server/game/testdata/bds-placements.json`): the placed state (orientation rules in
+(`server/game/placement_capture_tests.rs` replays the 780 captured clicks of
+`server/game/testdata/bds-placements*.json`, one file per case group, for the clicking
+player and for a second player watching): the placed state (orientation rules in
 `server/game/placement.rs`), refusals where the block could not stay, the six
-`UpdateBlock` corrections after every click, the `place` sound (data, position, actor
-id -1) and the inventory resync (after a placement, a click out of reach or a click
-claiming a stack the player does not hold; a refused click in reach gets only the
-corrections). Stacks describe the block BDS describes them with
-(`unastar_data::item_blocks`, measured for every item). Not copied: the attribute and
-actor-data resend BDS sends after every click, and the sign editor BDS opens after a
-sign is placed (sign text is not implemented).
+`UpdateBlock` corrections after every click, the placement sound (`place` and the
+per-item sounds of `server/game/place_sounds.rs`), the inventory resync, and what the
+other player is sent (blocks, sounds, level events, block actors). Stacks describe
+the block BDS describes them with (`unastar_data::item_blocks`, measured for every
+item). Covered since round 2: door hinges from neighbouring doors and blocks; coral
+fans on floors and walls (placed dead out of water) and coral blocks dying after a
+placement; skulls; beehives, bee nests, looms, chiseled bookshelves, decorated pots,
+crafters, grindstones, shelf mushrooms; bells under blocks and on walls; vines, glow
+lichen, sculk veins and resin clumps on every face; stacking candles, snow layers, sea
+pickles, turtle eggs and petals; candles on cakes; seeds and other planting items;
+player-placed leaves. Placed blocks BDS announces with a block actor get the measured
+default (`unastar_data::block_updates::block_actor_default`, `block_actors.rs`).
+
+Signs (`server/game/signs.rs`) work like BDS: placing one opens its editor for the
+placer (the actor is locked for them), using one opens the side the player faces,
+the client's edit (`BlockActorData`) is applied for a player with the sign open (both
+sides' text, up to 512 characters each), dyes, glow ink sacs, ink sacs and honeycomb
+change it, and the text is kept in the chunk's block actor (saved and sent with the
+chunk). Doors, trapdoors, fence gates, buttons and levers open, close and press on
+use (`server/game/block_use.rs`); buttons pop back after 20 or 30 ticks. Not copied:
+the attribute and actor-data resend BDS sends after every click, banners (BDS's
+banner stack carries item user data unastar's lacks), flower pots taking plants,
+eating cake, and the click corrections BDS sends after lighting with flint and steel.
 
 Using a crafting table (unless sneaking with an item in hand) opens BDS's
 WORKBENCH screen (type 1 at the block, no actor) from the shared window-ID

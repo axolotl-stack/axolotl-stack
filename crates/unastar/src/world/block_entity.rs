@@ -195,11 +195,7 @@ impl BlockEntity {
             position,
             data: ActorData::JavaPending(JavaRecipe {
                 block,
-                data: BlockEntityData {
-                    loot: None,
-                    spawner_entity: None,
-                    template_nbt: None,
-                },
+                data: BlockEntityData::NONE,
             }),
         }
     }
@@ -222,11 +218,7 @@ impl BlockEntity {
         if constructs {
             self.data = ActorData::Java(JavaRecipe {
                 block: current_block,
-                data: BlockEntityData {
-                    loot: None,
-                    spawner_entity: None,
-                    template_nbt: None,
-                },
+                data: BlockEntityData::NONE,
             });
         }
         constructs
@@ -248,6 +240,12 @@ impl BlockEntity {
         }
         if data.spawner_entity.is_some() {
             recipe.data.spawner_entity = data.spawner_entity;
+        }
+        if data.bees.is_some() {
+            recipe.data.bees = data.bees;
+        }
+        if data.gateway_exit.is_some() {
+            recipe.data.gateway_exit = data.gateway_exit;
         }
         Self {
             position: self.position,
@@ -366,6 +364,41 @@ impl BlockEntity {
                 .ok_or_else(|| invalid_nbt("native SpawnData has no entity"))?
                 .compound_mut()?;
             entity_data.insert(native_actor::key("id"), native_actor::string(entity));
+        }
+        if let Some(bees) = recipe.data.bees {
+            // BeehiveBlockEntity.storeBee: occupants in insertion order.
+            let occupants = bees.ticks[..usize::from(bees.count)]
+                .iter()
+                .map(|&ticks| {
+                    JavaTag::Compound(std::collections::BTreeMap::from([
+                        (
+                            native_actor::key("entity_data"),
+                            JavaTag::Compound(std::collections::BTreeMap::from([(
+                                native_actor::key("id"),
+                                native_actor::string("minecraft:bee"),
+                            )])),
+                        ),
+                        (native_actor::key("min_ticks_in_hive"), JavaTag::Int(600)),
+                        (
+                            native_actor::key("ticks_in_hive"),
+                            JavaTag::Int(i32::from(ticks)),
+                        ),
+                    ]))
+                })
+                .collect();
+            fields.insert(native_actor::key("bees"), JavaTag::List(10, occupants));
+        }
+        if let Some((exit, exact)) = recipe.data.gateway_exit {
+            fields.insert(
+                native_actor::key("exit_portal"),
+                JavaTag::IntArray(vec![exit.x, exit.y, exit.z]),
+            );
+            // The gateway saves `ExactTeleport` only while it is set.
+            if exact {
+                fields.insert(native_actor::key("ExactTeleport"), JavaTag::Byte(1));
+            } else {
+                fields.remove(&native_actor::key("ExactTeleport"));
+            }
         }
         for (name, value) in ["x", "y", "z"].into_iter().zip(self.position) {
             fields.insert(native_actor::key(name), JavaTag::Int(value));
@@ -621,13 +654,79 @@ mod tests {
                 BlockEntityData {
                     loot,
                     spawner_entity,
-                    template_nbt: None,
+                    ..BlockEntityData::NONE
                 },
             );
             assert_eq!(actor.canonical_java_nbt().unwrap(), case["proto_saved"]);
             assert_eq!(
                 actor.canonical_java_level_nbt().unwrap(),
                 case["level_saved"]
+            );
+        }
+    }
+
+    /// Feature-created actors match native FEATURES saves: a tree nest with
+    /// its stored bees, an end gateway with its exit, and desert well
+    /// suspicious sand seeded with its position.
+    #[test]
+    fn native_feature_actor_payloads_match_actual_saves() {
+        use unastar_noise::features::BlockPos;
+        use unastar_noise::features::eval::HiveOccupants;
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/native_feature_actor_payloads_1_21_11.json"
+        ))
+        .unwrap();
+        for case in fixture["records"].as_array().unwrap() {
+            let position: [i32; 3] = std::array::from_fn(|axis| {
+                i32::try_from(case["position"][axis].as_i64().unwrap()).unwrap()
+            });
+            let [x, y, z] = position;
+            let (block, data) = match case["block"].as_str().unwrap() {
+                "minecraft:bee_nest" => {
+                    let ticks: Vec<u16> = case["bees_ticks_in_hive"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|t| u16::try_from(t.as_u64().unwrap()).unwrap())
+                        .collect();
+                    let mut occupants = [0; 3];
+                    occupants[..ticks.len()].copy_from_slice(&ticks);
+                    let bees = HiveOccupants {
+                        count: ticks.len() as u8,
+                        ticks: occupants,
+                    };
+                    (
+                        "minecraft:bee_nest",
+                        BlockEntityData {
+                            bees: Some(bees),
+                            ..BlockEntityData::NONE
+                        },
+                    )
+                }
+                "minecraft:end_gateway" => {
+                    let exit = BlockPos::new(100, 50, 0);
+                    (
+                        "minecraft:end_gateway",
+                        BlockEntityData {
+                            gateway_exit: Some((exit, case["exact"].as_bool().unwrap())),
+                            ..BlockEntityData::NONE
+                        },
+                    )
+                }
+                "minecraft:suspicious_sand" => (
+                    "minecraft:suspicious_sand",
+                    BlockEntityData::loot(
+                        "minecraft:archaeology/desert_well",
+                        BlockPos::new(x, y, z).as_long(),
+                    ),
+                ),
+                other => panic!("unmeasured native feature actor {other}"),
+            };
+            let actor = BlockEntity::generated_java(position, block, data);
+            assert_eq!(
+                actor.canonical_java_nbt().unwrap(),
+                case["proto_saved"],
+                "{block} at {position:?}"
             );
         }
     }

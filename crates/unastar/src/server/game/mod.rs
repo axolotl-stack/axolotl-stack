@@ -4,8 +4,10 @@
 //! replacing the legacy Server struct.
 
 pub mod attributes;
+pub(crate) mod block_actors;
 mod block_drops;
 pub(crate) mod block_update;
+mod block_use;
 pub(crate) mod blocks;
 mod chunks;
 #[cfg(test)]
@@ -27,10 +29,12 @@ mod movement;
 mod packet_domains;
 pub(crate) mod packet_queues;
 mod packets;
+mod place_sounds;
 mod placement;
 #[cfg(test)]
 mod placement_capture_tests;
 mod plugins;
+pub(crate) mod signs;
 pub mod types;
 
 use bevy_ecs::prelude::*;
@@ -582,6 +586,13 @@ impl GameServer {
             containers::tick_block_containers
                 .in_set(EntityLogicSet)
                 .after(falling::process_gravity_checks)
+                .before(tick_block_breaking),
+        );
+        // Pressed buttons popping back up (exclusive: edits chunks).
+        ecs.schedule_mut().add_systems(
+            block_use::tick_scheduled_blocks
+                .in_set(EntityLogicSet)
+                .after(containers::tick_block_containers)
                 .before(tick_block_breaking),
         );
         // Mob fall damage, condition damage, daylight burning and fire, death,

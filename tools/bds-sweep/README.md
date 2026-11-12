@@ -26,8 +26,8 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `scripts/breaking.txt` | Survival block breaking scenarios: by hand, tools, instant, abort, a frozen client, Haste, a block above, client predictions on time and early, `StopDestroyBlock`, blocks put back where a break goes on, a burst of inputs |
 | `breaking_fixture.py` | Cuts the committed breaking fixture (`crates/unastar/src/server/game/blocks/testdata/bds-breaking.jsonl`) out of a `script.py` capture of `scripts/breaking.txt` |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
-| `scenarios.py` | Block scenario families for the `scenarios` job (stairs, connections, wall_above, gate_in_wall, support, surfaces, soils, junctions, halves) |
-| `placements.py` | The survival clicks of the `placements` job (blocks set around the click, the stack in hand, the player's feet and look, the click, the positions read back) |
+| `scenarios.py` | Block scenario families for the `scenarios` job (stairs, connections, wall_above, gate_in_wall, support, surfaces, soils, junctions, halves; round 2: stairs_blocks, connections_blocks, wall_heights_blocks, multiface_support, rails, soils_more, coral_death) |
+| `placements.py` | The survival clicks of the `placements` job in case groups (`GROUPS`: round 1's `blocks`, then signs, door hinges, uses, coral, skulls, directions, mushrooms, bells, multi-face blocks, candles, crops, plants and stacks, block actors, follow-up): blocks set around the click, the stack in hand, the player's feet and look, the click, follow-up steps, the positions read back |
 | `subchunk_fixture.py` | Sub-chunk records BDS saves: builds every palette shape in a flat world (and generates a seed-12345 world), reloads each and checks cells with `/testforblock`, then writes `crates/unastar/tests/fixtures/bds_1_26_51_subchunks.json` (steps `build`, `probe`, `natural`, `natural-probe`, `fixture`) |
 | `subchunk_roundtrip.py` | Sub-chunk records between BDS and unastar: one BDS-saved world edited by the same plan from BDS's console (chunks then unloaded) and through unastar's provider (`cargo run -p unastar --example subchunk_roundtrip`), every record of the edited columns compared byte for byte; BDS reopens the world unastar edited and one unastar generated and checks cells with `/testforblock`; writes `crates/unastar/tests/fixtures/bds_1_26_51_subchunk_edits.json` (steps `source`, `plan`, `bds-edit`, `unastar-edit`, `compare`, `bds-verify`, `generate`, `generated-verify`, `fixture`) |
 | `leveldb_read.py` | Read-only LevelDB reader (tables and logs, raw-deflate blocks) for BDS world copies, independent of unastar |
@@ -94,6 +94,7 @@ send the same text with `tellraw <player> {"rawtext":[{"text":"bds-sweep:..."}]}
 | `bds-sweep:equip-head SLOT` | Open the inventory and move one item from hotbar index SLOT to the head armour slot (`ItemStackRequest` place) |
 | `bds-sweep:quit` | Close the connection and exit (BDS still keeps the player about 10 s, until its connection times out) |
 | `bds-sweep:use X Y Z FACE CX CY CZ TARGET` | Click block face `FACE` of `X Y Z` with the selected hotbar stack (an `ItemUse` place transaction; click position `C*`/1000 inside the block; `TARGET` the clicked block's runtime id), as a survival player's right click |
+| `bds-sweep:sign X Y Z FRONT HEX` | Edit the sign at `X Y Z`: the block-actor data the server last sent for it, with the `Text` of the front (`FRONT` 1) or back side replaced by the UTF-8 text `HEX` (`-` for empty), sent as `BlockActorData` the way a client submits an edit |
 
 `bds-sweep-client --script FILE` plays timed orders without the plugin: one `TICK ORDER` line per
 step at that client input tick, an order above without its `bds-sweep:` prefix, a slash command
@@ -129,7 +130,7 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `bonus` | the random spawn bonuses BDS saves for each kind (`--keep-world`, `--difficulty easy\|hard`) | 870 mobs of 13 kinds (no villagers, golems, wolves or illagers, which fight the others) frozen on a grid around the sweep player and left in the world; read their records from the kept world |
 | `walk` | how BDS relays a player's movement to another player (needs `--observer`) | the sweep player driven by `bds-sweep:walk` (standing, turning, walking, stepping up, tilting) with the observer 8 blocks south and a cow spawned at yaw 33.3 for its `AddActor` rotation |
 | `scenarios` | block states BDS stores after a scripted sequence of block sets (with or without the block update a placement triggers), waits and reads | items from `scenarios.py` families run in waves of up to 64 cells (6 blocks apart, east of the player); one wait covers a wave; touched cells are cleared without updates and the superflat layers restored after each wave |
-| `placements` | what BDS stores and sends when the survival player clicks a block face with a stack (blocks read back, the held stack, every packet both ways) | per item: the arena box around (4,-60,4) is cleared, its blocks set with block updates, the stack put in hotbar slot 0 with `/replaceitem` (the inventory API does not reach the client), the player teleported with its look; chat markers `bds-sweep:mark <key>` / `bds-sweep:mark end` cut the client capture (`--capture-dir`, on automatically) per item |
+| `placements` | what BDS stores and sends when the survival player clicks a block face with a stack (blocks read back, the held stack, every packet both ways), and what a second scripted player watching sees | per item: the arena box around (4,-60,4) is cleared, its blocks set with block updates, the stack put in hotbar slot 0 with `/replaceitem` (the inventory API does not reach the client), the player teleported with its look; chat markers `bds-sweep:mark <key>` / `bds-sweep:mark end` cut the client capture (`--capture-dir`, on automatically) per item |
 | `item-blocks` | the block state BDS describes a stack of each item with | `/replaceitem` of every registry item into hotbar slot 0, one per two ticks behind a chat marker; slot 0 of the next main-inventory `InventoryContent` in the client capture |
 
 ```powershell
@@ -145,7 +146,8 @@ python tools/bds-sweep/script.py tools/bds-sweep/scripts/breaking.txt --out <dir
 & $py tools/bds-sweep/sweep.py armor-wear
 & $py tools/bds-sweep/sweep.py fuel --items all
 & $py tools/bds-sweep/sweep.py scenarios --family stairs,connections,wall_above,gate_in_wall,support
-& $py tools/bds-sweep/sweep.py placements      # ~6 min for 205 clicks
+& $py tools/bds-sweep/sweep.py placements      # ~24 min for 719 clicks with the watcher
+& $py tools/bds-sweep/sweep.py placements --cases signs,uses   # case groups of placements.py
 & $py tools/bds-sweep/sweep.py item-blocks     # ~4 min for 2076 items
 & $py tools/bds-sweep/summarize.py drops <dir> [<repeat dir> ...]
 & $py tools/bds-sweep/summarize.py mining <slice dir> <held dir> <effects dir>   # merged, first wins
@@ -167,6 +169,19 @@ python tools/bds-sweep/player_relay_fixture.py <fixture.json> <walk dir>
 cargo run -p unastar --example bds_actor_records -- <bonus dir>/world/db <bonus dir>/actor_records.jsonl
 python tools/bds-sweep/spawn_bonus_fixture.py <fixture.json> <easy dir> <hard dir>
 ```
+
+The `placements` job runs a second scripted player, `BDSWatch`, unless
+`--no-watcher` is given: it joins once the sweep player has spawned (BDS
+refuses a second login from the same address right after the first, "ip
+recently connected", so it retries), stands outside the arena (or at a
+case's `watcher` spot) and records its own capture
+(`<out>/watcher-capture`), cut by the same chat markers. A case may follow
+its click with `after` steps (`wait`, `hand` to swap a player's stack with
+`/replaceitem`, another `use`, a `sign` edit by either player) and a
+`read_later`; the plugin records the tick of each step (`timeline`) so the
+replay test can route each captured packet at the same tick.
+`summarize.py placements` writes one fixture per case group
+(`crates/unastar/src/server/game/testdata/bds-placements[-<group>].json`).
 
 `--items cadence` and `cadence2` measure how often each viewer gets a moving
 actor's position: run them with `--observer --client-capture --view-distance 10

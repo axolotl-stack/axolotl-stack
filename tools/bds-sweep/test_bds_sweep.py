@@ -4,6 +4,7 @@
 """
 
 import json
+import re
 import struct
 import sys
 import tempfile
@@ -565,3 +566,53 @@ class PlayerRelayFixture(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PlacementCases(unittest.TestCase):
+    def test_keys_are_unique_marker_safe_and_grouped(self):
+        import placements
+        items = placements.items()
+        keys = [item['key'] for item in items]
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertTrue(all(re.fullmatch(r'[A-Za-z0-9_-]+', key) for key in keys))
+        self.assertEqual({item['group'] for item in items}, set(placements.GROUPS))
+        signs = placements.items('signs')
+        self.assertTrue(all(item['group'] == 'signs' for item in signs))
+        steps = {step[0] for item in items for step in item.get('after', [])}
+        self.assertLessEqual(steps, {'wait', 'hand', 'use', 'sign'})
+
+
+class CaptureMarkers(unittest.TestCase):
+    def test_packets_are_cut_per_marker_with_hex_only_where_decoded(self):
+        import summarize
+
+        def text(message: str) -> str:
+            return (bytes([9, 0, 0, 0]) + message.encode()).hex()
+
+        records = [
+            {'dir': 's2c', 'name': 'TextPacket', 'hex': text('bds-sweep:mark case_1')},
+            {'dir': 'c2s', 'name': 'InventoryTransactionPacket', 'hex': 'aa'},
+            {'dir': 's2c', 'name': 'MoveActorDeltaPacket', 'hex': 'bb'},
+            {'dir': 's2c', 'name': 'UpdateAttributesPacket', 'hex': 'cc'},
+            {'dir': 's2c', 'name': 'TextPacket', 'hex': text('bds-sweep:mark end')},
+            {'dir': 's2c', 'name': 'UpdateBlockPacket', 'hex': 'dd'},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'packets.jsonl'
+            path.write_text('\n'.join(json.dumps(r) for r in records), encoding='utf-8')
+            cut = summarize.capture_by_marker(path)
+        self.assertEqual(cut, {'case_1': [
+            {'dir': 'c2s', 'name': 'InventoryTransactionPacket', 'hex': 'aa'},
+            {'dir': 's2c', 'name': 'UpdateAttributesPacket'},
+        ]})
+
+
+class RoundTwoScenarios(unittest.TestCase):
+    def test_round_two_families_are_registered_and_small_enough(self):
+        import scenarios
+        for name in ('stairs_blocks', 'connections_blocks', 'wall_heights_blocks', 'multiface_support', 'rails',
+                     'soils_more', 'coral_death'):
+            self.assertIn(name, scenarios.FAMILIES)
+        rails = scenarios.FAMILIES['rails']()
+        self.assertEqual(len(rails), 4 * 81 * 2)
+        self.assertEqual(len({item['key'] for item in rails}), len(rails))

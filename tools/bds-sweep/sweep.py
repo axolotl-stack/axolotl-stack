@@ -40,6 +40,9 @@ import scenarios  # noqa: E402
 REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-sweep-1.26.51'
 PLAYER = 'BDSSweep'
+# The second scripted player of the `placements` job: it watches every click
+# from outside the arena and records what another player is sent.
+WATCHER = 'BDSWatch'
 # The second client of `--observer` (a second viewer of the job's actors).
 OBSERVER_NAME = 'BDSOther'
 STOP_REQUEST = 'stop.request'
@@ -52,8 +55,10 @@ ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 
          # Block scenarios: 8 x 8 cells, 6 blocks apart, east of the player and
          # inside its ticking range.
          'scenarios': {'origin': [8, -60, -24], 'spacing': 6, 'columns': 8},
-         # Survival block clicks: cleared box (offsets) around the origin.
-         'placements': {'origin': [4, -60, 4], 'clear': [[-3, -1, -4], [5, 4, 13]]}}
+         # Survival block clicks: cleared box (offsets) around the origin; the
+         # watcher stands west of the box, looking at it.
+         'placements': {'origin': [4, -60, 4], 'clear': [[-3, -1, -4], [5, 4, 13]],
+                        'watcher': [-6.5, 0, 2.5, -90, 10]}}
 SETUP = [
     'gamerule domobspawning false',
     'gamerule dodaylightcycle false',
@@ -626,7 +631,9 @@ def build_job(args, out: Path) -> dict:
     elif args.kind == 'scenarios':
         job['items'] = scenarios.items(args.family)
     elif args.kind == 'placements':
-        job['items'] = placements.items()
+        job['items'] = placements.items(args.cases)
+        if not args.no_watcher:
+            job['watcher'] = WATCHER
     elif args.kind == 'item-blocks':
         job['items'] = [{'key': name.removeprefix('minecraft:'), 'item': name}
                         for name in item_names(args.items, native.items())]
@@ -666,6 +673,10 @@ def main() -> int:
     parser.add_argument('--items', default='slice', help="'slice' or comma-separated identifiers")
     parser.add_argument('--samples', type=int, default=200)
     parser.add_argument('--family', default='pilot', help="scenarios: 'all' or comma-separated families")
+    parser.add_argument('--cases', default='all',
+                        help="placements: 'all' or comma-separated case groups (placements.GROUPS)")
+    parser.add_argument('--no-watcher', action='store_true',
+                        help='placements: run without the second (watching) scripted player')
     parser.add_argument('--max-ticks', type=int, default=24000, help='fuel: longest burn to wait for')
     parser.add_argument('--mine-ticks', type=int, default=600, help='mining: longest break to wait for')
     parser.add_argument('--variants', default='tools', choices=['tools', 'held', 'effects', 'capture'],
@@ -737,6 +748,10 @@ def main() -> int:
         # The client records both directions: BDS's answer to every click,
         # the stack descriptors BDS sends.
         client_command += ['--capture-dir', str(out / 'client-capture')]
+    watcher_command = None
+    if job.get('watcher'):
+        watcher_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', job['watcher'],
+                           '--capture-dir', str(out / 'watcher-capture')]
     observer_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', OBSERVER_NAME,
                         '--capture-dir', str(out / 'observer')]
     observer = None
@@ -747,6 +762,13 @@ def main() -> int:
             with ((out / 'client.log').open('a', encoding='utf-8') as log,
                   (out / 'observer.log').open('a', encoding='utf-8') as observer_log):
                 client = subprocess.Popen(client_command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT)
+                # BDS refuses a second login from the same address right after
+                # the first ("ip recently connected"): the watcher joins once
+                # the player has spawned, and retries.
+                watcher = None
+                watcher_logins = 0
+                watcher_next = 0.0
+                watcher_log = (out / 'watcher.log').open('a', encoding='utf-8') if watcher_command else None
                 logins = 1
                 try:
                     while time.monotonic() - started < args.timeout:
@@ -787,11 +809,24 @@ def main() -> int:
                                 continue
                             status = f'client exited {client.returncode}'
                             break
+                        if watcher_command and (watcher is None or watcher.poll() is not None):
+                            spawned = 'spawned as' in (out / 'client.log').read_text(encoding='utf-8',
+                                                                                     errors='replace')
+                            if watcher is not None and (watcher.returncode == 0 or watcher_logins >= 6):
+                                status = f'watcher exited {watcher.returncode}'
+                                break
+                            if spawned and time.monotonic() >= watcher_next:
+                                watcher_logins += 1
+                                watcher_next = time.monotonic() + 15
+                                watcher = subprocess.Popen(watcher_command, cwd=REPO, stdout=watcher_log,
+                                                           stderr=subprocess.STDOUT)
                         time.sleep(1)
                 finally:
-                    for process in (client, observer):
+                    for process in (client, observer, watcher):
                         if process is not None and process.poll() is None:
                             process.kill()
+                    if watcher_log is not None:
+                        watcher_log.close()
     finally:
         if world.exists():
             if args.keep_world:

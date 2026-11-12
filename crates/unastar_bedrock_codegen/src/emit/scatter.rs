@@ -74,34 +74,44 @@ fn int_expr(origin: &str, env: &ScatterEnv<'_, '_>, e: &molang::Expr) -> Result<
 
 /// Emit a block evaluating to `Option<BlockPos>`: the last successful
 /// placement of `place(pos)` over every scattered position, or `None`.
+/// `after_chance` runs right after the scatter chance roll, whatever its
+/// outcome, and before any position.
 ///
 /// Expects `ctx` and `origin: BlockPos` in scope.
 pub fn emit(
     em: &Emitter<'_>,
     origin_doc: &str,
     s: &Scatter,
+    after_chance: TokenStream,
     place: impl Fn(TokenStream) -> TokenStream,
 ) -> Result<TokenStream> {
     let env = ScatterEnv { em };
-    let chance = match &s.chance {
-        None => quote!(),
+    // `passed`: the chance roll (`true` without a roll); `after_chance` runs
+    // between the roll and its early return.
+    let passed = match &s.chance {
+        None => quote!(true),
         Some(ScatterChance::Fraction {
             numerator,
             denominator,
         }) => {
             if numerator >= denominator {
-                quote!()
+                quote!(true)
             } else {
-                quote!(if !ctx.rng.chance(#numerator, #denominator) { return None; })
+                quote!(ctx.rng.chance(#numerator, #denominator))
             }
         }
         Some(ScatterChance::Percent(e)) => match e.as_const() {
-            Some(p) if p >= 100.0 => quote!(),
+            Some(p) if p >= 100.0 => quote!(true),
             _ => {
                 let p = molang::emit(origin_doc, e, &env)?;
-                quote!(if !(ctx.rng.next_float() * 100.0f32 < #p) { return None; })
+                quote!(ctx.rng.next_float() * 100.0f32 < #p)
             }
         },
+    };
+    let chance = quote! {
+        let passed = #passed;
+        #after_chance
+        if !passed { return None; }
     };
 
     // Grid axes in evaluation order, for the odometer.

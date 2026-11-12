@@ -5,7 +5,16 @@
   "minecraft:soul_sand",
   "minecraft:structure_void"
  ],
- "method": "derived from block_updates/connections.json: blocks whose observed connection differs from the collision-face rule (a fence, pane, bars or wall connects to a neighbour whose collision boxes cover the face toward it), for every centre and measured state",
+ "always_states": [
+  [
+   "minecraft:snow_layer",
+   {
+    "covered_bit": false,
+    "height": 7
+   }
+  ]
+ ],
+ "method": "derived from block_updates/connections.json and connections_blocks.json: blocks whose observed connection differs from the collision-face rule (a fence, pane, bars or wall connects to a neighbour whose collision boxes cover the face toward it), for every centre and measured state; the *_states lists name single states of blocks whose other states follow the rule",
  "never": [
   "minecraft:acacia_leaves",
   "minecraft:azalea",
@@ -50,5 +59,6 @@
   "minecraft:white_shulker_box",
   "minecraft:yellow_poplar_leaves",
   "minecraft:yellow_shulker_box"
- ]
+ ],
+ "never_states": []
 }
