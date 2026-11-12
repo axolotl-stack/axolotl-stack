@@ -167,6 +167,30 @@ impl GoalContext<'_> {
         ) || self.difficulty() == Difficulty::Peaceful
     }
 
+    /// A target no target goal holds (one the mob was provoked into) is
+    /// dropped once it can no longer be attacked: gone or dead, a creative
+    /// or spectator player, any player on Peaceful, or beyond the follow
+    /// range (the rule the target goals keep their targets by). Measured: a
+    /// provoked zombie pigman drops a player who turns creative in the same
+    /// tick as the pigman whose hurt-by goal holds the player; the follow
+    /// range part is unmeasured.
+    pub(super) fn check_unheld_target(&mut self) {
+        if self.states.targets.source.is_some() {
+            return;
+        }
+        let Some(target) = self.states.targets.target else {
+            return;
+        };
+        let range = self.follow_range();
+        let attackable = Candidate::of(self.world, target).is_some_and(|candidate| {
+            !(candidate.player && self.untargetable_player(target))
+                && self.body.feet.distance_squared(candidate.pos) <= range * range
+        });
+        if !attackable {
+            self.set_target(None);
+        }
+    }
+
     /// The follow range: the nearest-attackable-target goal's
     /// `within_radius`, else the native default.
     fn follow_range(&self) -> f64 {
@@ -631,6 +655,26 @@ impl GoalContext<'_> {
 }
 
 impl TargetStates {
+    /// Take `target` from outside the target goals (anger spreading to the
+    /// mob's kin); no goal holds it, so it stays until a goal replaces it or
+    /// it can no longer be attacked.
+    pub(super) fn provoke(&mut self, target: Entity) {
+        *self = Self {
+            target: Some(target),
+            ..Self::default()
+        };
+    }
+
+    /// Give up a target no goal holds; the target it was.
+    pub(super) fn release_unheld(&mut self) -> Option<Entity> {
+        if self.source.is_some() {
+            return None;
+        }
+        let target = self.target.take()?;
+        *self = Self::default();
+        Some(target)
+    }
+
     /// Forget everything when the goal composition is rebuilt.
     pub fn reset(&mut self) {
         let target = self.target;

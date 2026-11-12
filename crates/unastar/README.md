@@ -515,6 +515,20 @@ and decoded once at startup; see `../unastar-data/README.md` for prerequisites.
 Runtime rules/loot evaluation is in the bevy-free `unastar-rules` crate.
 These data/registry checks do not establish mob gameplay or crafted-pack parity.
 
+### Measured mob behaviour
+
+Mob AddActor packets are compared field by field with the retained native
+summons (`../bds-extractor/captures/1.26.51/operator/summons/*.bin`). Behaviour
+measured with scripted command captures (`tools/bds-sweep/capture.py
+--commands`) is kept as small fixtures in `src/entity/mob/testdata/`, each
+naming its source capture by hash: which damage causes a `minecraft:fire_immune`
+mob ignores (`bds-1.26.51-fire-immune-causes.json`), the effect a husk or wither
+skeleton hit applies per difficulty (`bds-1.26.51-attack-effects.json`), how a
+zombie pigman's anger spreads and ends (`bds-1.26.51-pigman-anger.json`), and
+how often its spawn event draws a branch that names an undeclared event
+(`bds-1.26.51-pigman-spawn-branches.json`). The tests in
+`src/entity/mob/tests/hostile.rs` replay each fixture.
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the
