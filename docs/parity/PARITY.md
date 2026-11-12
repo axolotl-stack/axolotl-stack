@@ -15,7 +15,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Entities](#entities): actor rows (summon and replication) | 137 | 119 | 0 | 5 | 9 | 4 | 10.5% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2643 | 172 | 7 | 46 | 4.4% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 99 | 806 | 619 | 646 | 177 | 58.3% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 99 | 871 | 619 | 581 | 177 | 55.3% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
 | [Protocol](#protocol) | 231 | 136 | 22 | 46 | 12 | 15 | 26.9% |
@@ -65,11 +65,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
-**Items**: 0 open rows free, 905 claimed.
+**Items**: 0 open rows free, 970 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Item use | lane ITEMS | 2026-10-29 | 905 |
+| Item use | lane ITEMS | 2026-10-29 | 970 |
 
 **Commands**: 0 open rows free, 65 claimed.
 
@@ -458,20 +458,20 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| armour_wearables | 90 | 0 | 1 | 1 | 88 | 0 | 98.9% |
+| armour_wearables | 90 | 0 | 30 | 1 | 59 | 0 | 66.7% |
 | block_items | 1568 | 24 | 680 | 614 | 203 | 47 | 53.7% |
 | buckets | 9 | 3 | 2 | 0 | 4 | 0 | 44.4% |
 | education | 121 | 0 | 0 | 0 | 0 | 121 | n/a |
 | entity_placers | 57 | 31 | 0 | 0 | 24 | 2 | 43.6% |
 | food | 46 | 4 | 0 | 0 | 41 | 1 | 91.1% |
 | materials_misc | 40 | 0 | 0 | 0 | 40 | 0 | 100.0% |
-| melee_weapons | 17 | 0 | 1 | 0 | 16 | 0 | 94.1% |
+| melee_weapons | 17 | 0 | 9 | 0 | 8 | 0 | 47.1% |
 | other_tools | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
 | potions_drinks | 3 | 0 | 0 | 0 | 2 | 1 | 100.0% |
 | ranged_weapons | 8 | 0 | 2 | 2 | 4 | 0 | 75.0% |
 | spawn_eggs | 91 | 0 | 85 | 1 | 4 | 1 | 5.6% |
 | throwables | 16 | 6 | 2 | 0 | 8 | 0 | 50.0% |
-| tools | 280 | 31 | 33 | 1 | 211 | 4 | 76.8% |
+| tools | 280 | 31 | 61 | 1 | 183 | 4 | 66.7% |
 
 Sub-rows by facet, most incomplete first (25 of 25):
 
@@ -479,9 +479,9 @@ Sub-rows by facet, most incomplete first (25 of 25):
 |---|---:|---:|---:|---:|---:|---:|---:|
 | block_placer | 1504 | 28 | 692 | 615 | 0 | 169 | 46.1% |
 | spawn_egg | 91 | 0 | 85 | 1 | 4 | 1 | 5.6% |
+| durability | 83 | 3 | 73 | 2 | 3 | 2 | 6.2% |
 | entity_placer | 33 | 31 | 0 | 0 | 0 | 2 | 0.0% |
 | bundle | 17 | 17 | 0 | 0 | 0 | 0 | 0.0% |
-| durability | 83 | 3 | 8 | 2 | 68 | 2 | 86.4% |
 | kinetic_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
 | piercing_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
 | repairable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
@@ -507,6 +507,7 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **armour_wearables**
 
+- `minecraft:chainmail_boots/durability`, `minecraft:chainmail_chestplate/durability`, `minecraft:chainmail_helmet/durability`, `minecraft:chainmail_leggings/durability`, `minecraft:copper_boots/durability`, `minecraft:copper_chestplate/durability`, `minecraft:copper_helmet/durability`, `minecraft:copper_leggings/durability`, `minecraft:diamond_boots/durability`, `minecraft:diamond_chestplate/durability`, `minecraft:diamond_helmet/durability`, `minecraft:diamond_leggings/durability` and 17 more: the Unbreaking chances are public references, not measured on BDS
 - `minecraft:turtle_helmet/wearable`: protection only: Water Breathing from the helmet is not applied
 
 **block_items**
@@ -535,6 +536,7 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **melee_weapons**
 
+- `minecraft:copper_sword/durability`, `minecraft:diamond_sword/durability`, `minecraft:golden_sword/durability`, `minecraft:iron_sword/durability`, `minecraft:mace/durability`, `minecraft:netherite_sword/durability`, `minecraft:stone_sword/durability`, `minecraft:wooden_sword/durability`: the Unbreaking chances are public references, not measured on BDS
 - `minecraft:mace/weapon`: base damage only: the smash bonus from falling is not applied
 
 **ranged_weapons**
@@ -559,11 +561,12 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **tools**
 
+- `minecraft:copper_axe/durability`, `minecraft:copper_hoe/durability`, `minecraft:copper_pickaxe/durability`, `minecraft:copper_shovel/durability`, `minecraft:diamond_axe/durability`, `minecraft:diamond_hoe/durability`, `minecraft:diamond_pickaxe/durability`, `minecraft:diamond_shovel/durability`, `minecraft:golden_axe/durability`, `minecraft:golden_hoe/durability`, `minecraft:golden_pickaxe/durability`, `minecraft:golden_shovel/durability` and 16 more: the Unbreaking chances are public references, not measured on BDS
 - `minecraft:brewing_stand/block_placer`, `minecraft:cake/block_placer`, `minecraft:campfire/block_placer`, `minecraft:cauldron/block_placer`, `minecraft:flower_pot/block_placer`, `minecraft:kelp/block_placer`, `minecraft:nether_sprouts/block_placer`, `minecraft:red_shrub/block_placer`, `minecraft:shelf_mushroom/block_placer`, `minecraft:soul_campfire/block_placer`: non-cube block: support and attachment rules are not checked and its placement has no test
 - `minecraft:copper_spear/durability`, `minecraft:diamond_spear/durability`, `minecraft:golden_spear/durability`, `minecraft:iron_spear/durability`, `minecraft:netherite_spear/durability`, `minecraft:stone_spear/durability`, `minecraft:wooden_spear/durability`: the charge attack is not implemented; whether a jab that hits nothing wears the spear is not measured
 - `minecraft:copper_spear/kinetic_weapon`, `minecraft:diamond_spear/kinetic_weapon`, `minecraft:golden_spear/kinetic_weapon`, `minecraft:iron_spear/kinetic_weapon`, `minecraft:netherite_spear/kinetic_weapon`, `minecraft:stone_spear/kinetic_weapon`, `minecraft:wooden_spear/kinetic_weapon`: the charge is not implemented: no kinetic damage, knockback or dismount from the relative speed while the spear is held
 - `minecraft:copper_spear/piercing_weapon`, `minecraft:diamond_spear/piercing_weapon`, `minecraft:golden_spear/piercing_weapon`, `minecraft:iron_spear/piercing_weapon`, `minecraft:netherite_spear/piercing_weapon`, `minecraft:stone_spear/piercing_weapon`, `minecraft:wooden_spear/piercing_weapon`: a jab that hits several entities in a line is not implemented: BDS damaged only the hit target, never the entities behind it, in every form the scripted client sent a jab (UseAsAttack alone or packed into the input, a hit with the camera orientation, three hits in one input); what the vanilla client sends for a piercing jab is not captured
-- `minecraft:frame/block_placer`, `minecraft:glow_frame/block_placer`: facing_direction is not set from the click or look
+- 2 more partial rows with other gaps (see [items.toml](items.toml))
 - missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/repairable`, `minecraft:cyan_bundle/bundle`, `minecraft:diamond_spear/repairable`, `minecraft:golden_spear/repairable`, `minecraft:gray_bundle/bundle` and 19 more
 
 ## Commands
