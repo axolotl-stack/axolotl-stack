@@ -428,8 +428,39 @@ class EffectTrials(unittest.TestCase):
             for line in placed:
                 self.assertIn(line.replace(' infested_stone', ' air'), item['cleanup'])
             self.assertEqual(item['actions'][0]['t'], 40)
+        nogrief = sweep.silverfish_items(self.args('wake-nogrief'))
+        self.assertTrue(all('gamerule mobgriefing false' in item['setup'] for item in nogrief))
+        self.assertTrue(all('gamerule mobgriefing true' in item['cleanup'] for item in nogrief))
+        pits = sweep.silverfish_items(self.args('blocks'))
+        self.assertIn('silverfish|blocks-deepslate-0', [item['key'] for item in pits])
+        for item in pits + sweep.silverfish_items(self.args('pit')) + sweep.silverfish_items(self.args('griefing')):
+            self.assertIn('fill 4 -61 0 6 -58 2 air', item['cleanup'])
         with self.assertRaises(SystemExit):
             sweep.silverfish_items(self.args('every'))
+
+    def test_silverfish_fixture_reads_the_pit_block_and_its_states(self):
+        import silverfish_fixture
+        result = {'key': 'silverfish|blocks-deepslate-0', 'spec': {'setup': [
+            'fill 4 -61 0 6 -58 2 deepslate ["pillar_axis"="x"]', 'fill 5 -60 1 5 -59 1 air']}}
+        self.assertEqual(silverfish_fixture.setup_block(result), ('minecraft:deepslate', {'pillar_axis': 'x'}))
+        result['spec']['setup'][0] = 'fill 4 -61 0 6 -58 2 stone'
+        self.assertEqual(silverfish_fixture.setup_block(result), ('minecraft:stone', {}))
+
+    def test_creeper_items_rebuild_the_floor_and_pick_items_by_name(self):
+        items = sweep.creeper_items(self.args())
+        keys = [item['key'] for item in items]
+        self.assertIn('creeper|flint', keys)
+        for item in items:
+            self.assertIn('fill -8 -61 -8 14 -61 8 grass_block', item['cleanup'])
+            self.assertIn('gamerule mobgriefing true', item['cleanup'])
+        flint = next(item for item in items if item['key'] == 'creeper|flint')
+        self.assertEqual([action['t'] for action in flint['actions'] if action.get('order') == 'interact'], [10, 20])
+        alone = next(item for item in items if item['key'] == 'creeper|flint-alone')
+        self.assertNotIn('gamemode survival "BDSSweep"', alone['setup'])
+        chosen = sweep.creeper_items(self.args('cancel,sight'))
+        self.assertEqual([item['key'] for item in chosen], ['creeper|cancel', 'creeper|sight'])
+        with self.assertRaises(SystemExit):
+            sweep.creeper_items(self.args('nothing'))
 
     def test_mooshroom_items_interact_twice_with_the_held_item(self):
         items = sweep.mooshroom_items(self.args())
