@@ -122,6 +122,10 @@ impl Circuit for Cell {
         self.blocks.insert(pos, state);
     }
 
+    fn break_block(&mut self, pos: IVec3) {
+        self.blocks.insert(pos, air());
+    }
+
     fn container_signal(&mut self, pos: IVec3) -> Option<u8> {
         let state = self.block_at(pos)?;
         let entry = registry().get_by_runtime_id(state)?;
@@ -144,8 +148,13 @@ impl Circuit for Cell {
 
 /// The rows of a measured circuit family.
 pub(crate) fn rows(family: &str) -> Vec<Value> {
+    rows_in("redstone", family)
+}
+
+/// The rows of a measured circuit family under `data/measured/<dir>/`.
+pub(crate) fn rows_in(dir: &str, family: &str) -> Vec<Value> {
     let path = format!(
-        "{}/../unastar-data/data/measured/redstone/{family}.json",
+        "{}/../unastar-data/data/measured/{dir}/{family}.json",
         env!("CARGO_MANIFEST_DIR")
     );
     let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
@@ -458,14 +467,106 @@ fn skip_reason(name: &Value) -> Option<&'static str> {
             "a big dripleaf on dust is not modelled (it stays, tilts and drops on its own)",
         );
     }
-    if has("\"piston\"") || has("\"sticky_piston\"") {
-        return Some("pistons do not move blocks yet");
+    if has("[\"lever_on_top\"]") {
+        return Some(
+            "Endstone set_data on a lever does not change its power (the replay's lever does)",
+        );
+    }
+    if text.starts_with("[\"block\",") {
+        for (prefix, reason) in PISTON_BLOCK_SKIPS {
+            if text.starts_with(&format!("[\"block\",\"{prefix}")) {
+                return Some(reason);
+            }
+        }
+        if (has("_wall_sign\"") || has("\"wall_sign\"")) && has("\"facing_direction\":0") {
+            return Some(SUPPORT_SKIP);
+        }
     }
     if has("\"torch_facing_direction\":\"unknown\"") {
         return Some("BDS turns a torch set with the unknown facing into a standing one");
     }
     None
 }
+
+const SUPPORT_SKIP: &str = "unastar's support rules treat this default state differently when it is set (not a piston rule)";
+
+/// `pistons_blocks` rows whose block does something of its own in the cell
+/// before or after the piston moves it.
+const PISTON_BLOCK_SKIPS: &[(&str, &str)] = &[
+    ("ladder", SUPPORT_SKIP),
+    ("lever", SUPPORT_SKIP),
+    ("hanging_roots", SUPPORT_SKIP),
+    ("spore_blossom", SUPPORT_SKIP),
+    ("pale_hanging_moss", SUPPORT_SKIP),
+    ("weeping_vines", SUPPORT_SKIP),
+    ("amethyst_cluster", SUPPORT_SKIP),
+    ("large_amethyst_bud", SUPPORT_SKIP),
+    ("medium_amethyst_bud", SUPPORT_SKIP),
+    ("small_amethyst_bud", SUPPORT_SKIP),
+    ("chalkboard", SUPPORT_SKIP),
+    ("small_dripleaf_block", SUPPORT_SKIP),
+    ("dead_brain_coral_wall_fan", SUPPORT_SKIP),
+    ("dead_bubble_coral_wall_fan", SUPPORT_SKIP),
+    ("dead_fire_coral_wall_fan", SUPPORT_SKIP),
+    ("dead_horn_coral_wall_fan", SUPPORT_SKIP),
+    ("dead_tube_coral_wall_fan", SUPPORT_SKIP),
+    (
+        "border_block",
+        "unastar connects a border wall to the piston beside it; BDS does not (not a piston rule)",
+    ),
+    (
+        "cave_vines",
+        "BDS gives a cave vine set by the sweep a random age",
+    ),
+    (
+        "large_fern",
+        "Endstone sets the upper half of a double plant with the lower one",
+    ),
+    (
+        "lilac",
+        "Endstone sets the upper half of a double plant with the lower one",
+    ),
+    (
+        "peony",
+        "Endstone sets the upper half of a double plant with the lower one",
+    ),
+    (
+        "pitcher_plant",
+        "Endstone sets the upper half of a double plant with the lower one",
+    ),
+    (
+        "rose_bush",
+        "Endstone sets the upper half of a double plant with the lower one",
+    ),
+    (
+        "sunflower",
+        "Endstone sets the upper half of a double plant with the lower one",
+    ),
+    (
+        "tall_grass",
+        "Endstone sets the upper half of a double plant with the lower one",
+    ),
+    (
+        "brain_coral_block",
+        "a live coral block dies 45 ticks after it was set (block_updates/coral_timing.json), moved or not; the circuit replay does not run coral checks",
+    ),
+    (
+        "bubble_coral_block",
+        "a live coral block dies 45 ticks after it was set; the circuit replay does not run coral checks",
+    ),
+    (
+        "fire_coral_block",
+        "a live coral block dies 45 ticks after it was set; the circuit replay does not run coral checks",
+    ),
+    (
+        "horn_coral_block",
+        "a live coral block dies 45 ticks after it was set; the circuit replay does not run coral checks",
+    ),
+    (
+        "tube_coral_block",
+        "a live coral block dies 45 ticks after it was set; the circuit replay does not run coral checks",
+    ),
+];
 
 /// Observer cells where BDS pulsed a tick earlier than every other cell of
 /// the same kind (one tick after the change instead of three; 7 of 38
@@ -485,9 +586,14 @@ fn check_family(family: &str) {
 
 /// [`check_family`] without comparing the watched positions `ignored`.
 fn check_family_ignoring(family: &str, ignored: &[usize]) {
+    check_rows(family, rows(family), ignored);
+}
+
+/// Replay `all` (the rows of `family`), comparing every watched position
+/// but `ignored`; panics listing the rows that differ.
+pub(crate) fn check_rows(family: &str, all: Vec<Value>, ignored: &[usize]) {
     let mut failures = Vec::new();
     let mut skipped = Vec::new();
-    let all = rows(family);
     for row in &all {
         let name = &row[0];
         if let Some(reason) = skip_reason(name) {
@@ -577,4 +683,144 @@ fn dust_climbs_and_is_cut_like_bds() {
 #[test]
 fn buttons_and_levers_power_like_bds() {
     check_family("redstone_switches");
+}
+
+/// The rows of a measured piston family.
+fn piston_rows(family: &str) -> Vec<Value> {
+    rows_in("pistons", family)
+}
+
+#[test]
+fn pistons_push_lines_like_bds() {
+    check_rows("pistons_push", piston_rows("pistons_push"), &[]);
+}
+
+#[test]
+fn pistons_treat_every_block_like_bds() {
+    check_rows("pistons_blocks", piston_rows("pistons_blocks"), &[]);
+}
+
+#[test]
+fn slime_and_honey_drag_blocks_like_bds() {
+    check_rows("pistons_slime", piston_rows("pistons_slime"), &[]);
+}
+
+#[test]
+fn pistons_are_powered_like_bds() {
+    check_rows("pistons_power", piston_rows("pistons_power"), &[]);
+}
+
+#[test]
+fn pistons_time_moves_like_bds() {
+    check_rows("pistons_timing", piston_rows("pistons_timing"), &[]);
+}
+
+#[test]
+fn pistons_push_pistons_like_bds() {
+    check_rows("pistons_chains", piston_rows("pistons_chains"), &[]);
+}
+
+/// Blocks whose tool-less drops unastar gets wrong whether a piston breaks
+/// them or a block update pops them (no vanilla loot table, so unastar drops
+/// the block itself; a campfire drops charcoal or soul soil): a drop-table
+/// gap, not a piston rule.
+const POPPED_DROP_GAPS: &[&str] = &[
+    "bush",
+    "campfire",
+    "chorus_plant",
+    "orange_poplar_leaves",
+    "poplar_standing_sign",
+    "red_poplar_leaves",
+    "resin_clump",
+    "sculk_vein",
+    "short_dry_grass",
+    "soul_campfire",
+    "suspicious_gravel",
+    "suspicious_sand",
+    "tall_dry_grass",
+    "twisting_vines",
+    "yellow_poplar_leaves",
+];
+
+/// A block a piston breaks drops what it drops by hand without the
+/// correct-tool requirement, like a popped block: every item BDS dropped is
+/// a possible drop, and blocks whose drops never vary drop exactly BDS's.
+#[test]
+fn blocks_pistons_break_drop_like_bds() {
+    use bevy_ecs::prelude::World;
+
+    use crate::entity::item_drop::EntityRandom;
+    use crate::registry::ItemRegistry;
+    use crate::server::game::block_drops::popped_drops;
+    use crate::server::game::types::{BlockRegistryResource, ItemRegistryResource};
+
+    let mut world = World::new();
+    let mut items = ItemRegistry::new();
+    items.load_vanilla();
+    world.insert_resource(ItemRegistryResource(std::sync::Arc::new(items)));
+    world.insert_resource(BlockRegistryResource(std::sync::Arc::new(
+        registry().clone(),
+    )));
+    world.insert_resource(EntityRandom::seeded(4));
+    let table = super::kinds::Table::build(registry());
+    let mut failures = Vec::new();
+    let mut compared = 0;
+    for row in piston_rows("pistons_blocks") {
+        let name = &row[0];
+        if skip_reason(name).is_some() {
+            continue;
+        }
+        let block = name[1].as_str().unwrap();
+        if POPPED_DROP_GAPS.contains(&block) {
+            continue;
+        }
+        let state = state(block, &name[2]);
+        if table.get(state).movement != unastar_data::pistons::Movement::Breaks {
+            continue;
+        }
+        let mut bds: Vec<(String, u64)> = row[4]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|stack| {
+                (
+                    full_name(stack[0].as_str().unwrap()),
+                    stack[2].as_u64().unwrap(),
+                )
+            })
+            .collect();
+        bds.sort();
+        let rolls: Vec<Vec<(String, u64)>> = (0..32)
+            .map(|_| {
+                let mut out: Vec<(String, u64)> = popped_drops(&mut world, state)
+                    .iter()
+                    .map(|stack| (stack.item_id().to_string(), u64::from(stack.count)))
+                    .collect();
+                out.sort();
+                out
+            })
+            .collect();
+        compared += 1;
+        let fixed = rolls.iter().all(|roll| *roll == rolls[0]);
+        if fixed {
+            if rolls[0] != bds {
+                failures.push(format!(
+                    "{name}: BDS dropped {bds:?}, unastar {:?}",
+                    rolls[0]
+                ));
+            }
+        } else if let Some((item, _)) = bds
+            .iter()
+            .find(|(item, _)| !rolls.iter().flatten().any(|(got, _)| got == item))
+        {
+            failures.push(format!("{name}: BDS dropped {item}, unastar never does"));
+        }
+    }
+    assert!(compared > 200, "only {compared} broken blocks compared");
+    assert!(
+        failures.is_empty(),
+        "{} of {compared} differ:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 }

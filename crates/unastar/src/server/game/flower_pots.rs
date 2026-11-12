@@ -62,9 +62,6 @@ pub(crate) const PLANTS: &[&str] = &[
     "minecraft:bamboo",
 ];
 
-/// The block version BDS 1.26.51 writes in a potted plant's `PlantBlock`.
-const PLANT_BLOCK_VERSION: i32 = 18_168_865;
-
 /// A click on the block at `pos` with `face`: `None` when it is not a flower
 /// pot, else `Some(false)` (the pot answered; any corrections were sent).
 pub(crate) fn used(world: &mut World, player: Entity, pos: IVec3, face: u8) -> Option<bool> {
@@ -146,21 +143,7 @@ fn set_pot(
 
 /// `PlantBlock`: the plant's block name, its states and the block version.
 fn plant_block(plant: &BlockEntry, state: u32) -> NBTTag {
-    let mut states = std::collections::HashMap::new();
-    for property in plant.data.properties {
-        let value = match plant.state_value(state, property.name) {
-            Some(StateValue::Byte(value)) => block_actors::byte(value),
-            Some(StateValue::Int(value)) => block_actors::int(value),
-            Some(StateValue::Str(value)) => block_actors::string(value),
-            None => continue,
-        };
-        states.insert(property.name.to_owned(), value);
-    }
-    let mut compound = std::collections::HashMap::new();
-    compound.insert("name".to_owned(), block_actors::string(&plant.string_id));
-    compound.insert("states".to_owned(), NBTTag::Compound(tag::Compound(states)));
-    compound.insert("version".to_owned(), block_actors::int(PLANT_BLOCK_VERSION));
-    NBTTag::Compound(tag::Compound(compound))
+    block_actors::block_tag(plant, state)
 }
 
 #[cfg(test)]

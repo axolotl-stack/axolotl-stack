@@ -28,6 +28,7 @@ pub mod lang;
 pub mod loot;
 pub mod melee;
 pub mod pack_manifest;
+pub mod pistons;
 pub mod pmmp;
 pub mod recipes;
 pub mod redstone;

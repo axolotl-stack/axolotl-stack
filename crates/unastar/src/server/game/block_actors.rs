@@ -202,6 +202,31 @@ fn skull_rotation(
     ((wrapped / 22.5).round() * 22.5) as f32
 }
 
+/// The block version BDS 1.26.51 writes in a block-state compound inside an
+/// actor (a potted plant's `PlantBlock`, a moving block's `movingBlock`).
+const BLOCK_VERSION: i32 = 18_168_865;
+
+/// A block state as an actor holds one: its name, its states and the block
+/// version.
+pub(crate) fn block_tag(entry: &crate::registry::block::BlockEntry, state: u32) -> NBTTag {
+    use crate::registry::block::StateValue;
+    let mut states = HashMap::new();
+    for property in entry.data.properties {
+        let value = match entry.state_value(state, property.name) {
+            Some(StateValue::Byte(value)) => byte(value),
+            Some(StateValue::Int(value)) => int(value),
+            Some(StateValue::Str(value)) => string(value),
+            None => continue,
+        };
+        states.insert(property.name.to_owned(), value);
+    }
+    let mut compound = HashMap::new();
+    compound.insert("name".to_owned(), string(&entry.string_id));
+    compound.insert("states".to_owned(), NBTTag::Compound(tag::Compound(states)));
+    compound.insert("version".to_owned(), int(BLOCK_VERSION));
+    NBTTag::Compound(tag::Compound(compound))
+}
+
 pub(crate) fn string(value: &str) -> NBTTag {
     NBTTag::String(tag::String(value.to_owned()))
 }

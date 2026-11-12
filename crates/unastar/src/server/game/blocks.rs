@@ -12,7 +12,7 @@ use super::packet_queues::{BlockAction, BlockPacketQueue};
 use crate::ecs::events::{EventBuffer, ServerEvent};
 use crate::entity::components::{BreakingState, PlayerSession, PlayerUuid};
 use crate::world::chunk::blocks;
-use crate::world::ecs::{BlockBroadcastEvent, BlockChanged, ChunkManager, ChunkViewers};
+use crate::world::ecs::{BlockChanged, ChunkManager, ChunkViewers};
 use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
 use jolyne::valentine::types::{BlockPos, EnumsPlayerActionType, Vec3};
 use jolyne::valentine::{LevelEventPacket, McpePacket};
@@ -32,7 +32,7 @@ const MAX_BLOCK_ACTIONS: usize = 64;
 ///
 /// Runs in `PacketApplySet` after `apply_movement` (which forwards block
 /// actions from PlayerAuthInput). Exclusive because it fires observers
-/// (`BlockChanged`) and writes messages (`BlockBroadcastEvent`).
+/// (`BlockChanged`) and sends the changes.
 pub fn apply_block_actions(world: &mut World) {
     let actions: Vec<_> = {
         let Some(mut queue) = world.get_resource_mut::<BlockPacketQueue>() else {
@@ -730,12 +730,8 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         new_block: *blocks::AIR,
     });
 
-    world.write_message(BlockBroadcastEvent {
-        chunk_entity,
-        block_pos: IVec3::new(x, y, z),
-        new_block: *blocks::AIR,
-    });
-
+    // The break is sent once, by `broadcast_block_break` below (a
+    // `BlockBroadcastEvent` would send it a second time).
     super::falling::schedule_gravity_checks(world, IVec3::new(x, y, z));
 
     // Survival breaks drop the block's items as real item entities and wear
@@ -1246,12 +1242,8 @@ pub(crate) fn write_block(world: &mut World, pos: IVec3, block_runtime_id: u32, 
         new_block: block_runtime_id,
     });
     super::redstone::note_change(world, pos, old_block_id, block_runtime_id);
-
-    world.write_message(BlockBroadcastEvent {
-        chunk_entity,
-        block_pos: IVec3::new(x, y, z),
-        new_block: block_runtime_id,
-    });
+    // The change is sent once, below; a `BlockBroadcastEvent` (the path for
+    // writers that do not send) would send it a second time.
 
     super::falling::schedule_gravity_checks(world, pos);
 
@@ -1360,6 +1352,7 @@ pub(crate) fn destroy_block(world: &mut World, pos: IVec3) {
 mod tests {
     use super::*;
     use crate::entity::components::{GameMode, HeldSlot, MainInventory, Position};
+    use crate::world::ecs::BlockBroadcastEvent;
     use crate::world::ecs::{ChunkData, ChunkPosition};
     use glam::DVec3;
 
@@ -1389,6 +1382,31 @@ mod tests {
             ))
             .id();
         (world, player, chunk)
+    }
+
+    /// A block change reaches a viewer once: `write_block` sends it and
+    /// writes no `BlockBroadcastEvent` that the broadcast system would send
+    /// again (unastar sent every change twice).
+    #[test]
+    fn a_block_change_is_sent_once() {
+        use jolyne::valentine::McpePacketData;
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.0, 64.0, 1.0));
+        let (tx, mut rx) = tokio::sync::mpsc::channel(8);
+        world
+            .entity_mut(player)
+            .insert(PlayerSession::new(1, "test".into(), None, None, tx));
+        world.entity_mut(chunk).insert(ChunkViewers::default());
+        world.get_mut::<ChunkViewers>(chunk).unwrap().insert(player);
+        set_block(&mut world, IVec3::new(2, 64, 1), *blocks::STONE, false);
+        assert!(world.resource::<Messages<BlockBroadcastEvent>>().is_empty());
+        let mut updates = 0;
+        while let Ok(packet) = rx.try_recv() {
+            if matches!(packet.data, McpePacketData::UpdateBlockPacket(_)) {
+                updates += 1;
+            }
+        }
+        assert_eq!(updates, 1);
     }
 
     #[test]

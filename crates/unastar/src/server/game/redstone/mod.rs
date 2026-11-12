@@ -34,6 +34,9 @@
 
 pub(crate) mod kinds;
 mod live;
+#[cfg(test)]
+mod piston_packets;
+pub(crate) mod pistons;
 pub(crate) mod power;
 #[cfg(test)]
 mod tests;
@@ -42,7 +45,8 @@ use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use bevy_ecs::prelude::Resource;
-use glam::IVec3;
+use glam::{IVec3, Vec3};
+use zuri_nbt::tag;
 
 use crate::entity::systems::BlockSource;
 use crate::registry::BlockRegistry;
@@ -72,6 +76,17 @@ pub(crate) trait Circuit: BlockSource {
     fn container_signal(&mut self, pos: IVec3) -> Option<u8>;
     /// A note block at `pos` was powered.
     fn note_block(&mut self, _pos: IVec3) {}
+    /// Break the block at `pos` as a piston does: its drops fall and it
+    /// becomes air (a circuit change, block updates a tick later).
+    fn break_block(&mut self, pos: IVec3);
+    /// Remove the block actor at `pos` and return it.
+    fn take_actor(&mut self, _pos: IVec3) -> Option<tag::Compound> {
+        None
+    }
+    /// Store `actor` at `pos` and send it to the players that see it.
+    fn put_actor(&mut self, _pos: IVec3, _actor: tag::Compound) {}
+    /// Play `sound` at `pos` for the players near it.
+    fn sound(&mut self, _sound: &str, _pos: Vec3) {}
 }
 
 /// The circuit's state between ticks.
@@ -117,6 +132,7 @@ pub(crate) struct Redstone {
     burnt: HashSet<IVec3>,
     /// Container readings: (two steps ago, last step).
     containers: HashMap<IVec3, (u8, u8)>,
+    pistons: pistons::Pistons,
 }
 
 /// The update's view: outside changes of this tick hidden.
@@ -279,6 +295,9 @@ impl Redstone {
         if !matches!(kind, Kind::Consumer(_)) {
             self.powered.remove(&pos);
         }
+        if !matches!(kind, Kind::Consumer(Consumer::Piston { .. })) {
+            self.pistons.removed(pos);
+        }
         for face in FACES {
             let watcher = pos - face.offset();
             if let Some(state) = world.block_at(watcher)
@@ -395,6 +414,7 @@ impl Redstone {
         after: bool,
     ) {
         if !after {
+            self.run_pistons(registry, world, table, now);
             for pos in self.lamps_off.remove(&now).unwrap_or_default() {
                 if self.powered.get(&pos) == Some(&false)
                     && let Some(state) = world.block_at(pos)
@@ -444,6 +464,33 @@ impl Redstone {
             {
                 let off = with_byte(registry, state, "powered_bit", false);
                 self.write(world, table, pos, off);
+            }
+        }
+    }
+
+    /// Piston moves ending and starting at `now`: their writes are circuit
+    /// changes (block updates a tick later).
+    fn run_pistons(
+        &mut self,
+        registry: &BlockRegistry,
+        world: &mut (impl Circuit + ?Sized),
+        table: &Table,
+        now: u64,
+    ) {
+        let mut written = self.pistons.end_due(registry, world, table, now);
+        written.extend(self.pistons.start_due(registry, world, table, now));
+        for pos in written {
+            self.written.push(pos);
+            self.track(world, table, pos, now);
+            // An observer a piston set down pulses at once.
+            if let Some(state) = world.block_at(pos)
+                && let Kind::Observer { powered: true, .. } = table.get(state).kind
+                && self.observer_busy.insert(pos)
+            {
+                self.observer_off
+                    .entry(now + OBSERVER_PULSE)
+                    .or_default()
+                    .push(pos);
             }
         }
     }
@@ -691,6 +738,15 @@ impl Redstone {
                         rails.push((pos, power::power(&view, &dust, pos) > 0));
                         continue;
                     }
+                    Consumer::Piston { facing, .. } => {
+                        kinds::FACES
+                            .iter()
+                            .filter(|face| **face != facing)
+                            .map(|face| power::signal_from(&view, &dust, pos, *face))
+                            .max()
+                            .unwrap_or(0)
+                            > 0
+                    }
                     _ => power::power(&view, &dust, pos) > 0,
                 };
                 acts.push((pos, consumer, powered));
@@ -767,6 +823,10 @@ impl Redstone {
                     }
                 }
                 Consumer::Tnt => {}
+                Consumer::Piston { facing, .. } => {
+                    self.pistons
+                        .powered(&*world, table, pos, facing, powered, now);
+                }
             }
         }
     }

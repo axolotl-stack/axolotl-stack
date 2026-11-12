@@ -2,12 +2,14 @@
 //! exclusive system steps the circuit once per game tick.
 
 use bevy_ecs::prelude::*;
-use glam::IVec3;
+use glam::{IVec3, Vec3};
+use zuri_nbt::tag;
 
 use super::{Circuit, Redstone};
 use crate::entity::systems::BlockSource;
 use crate::registry::BlockRegistry;
 use crate::server::game::types::BlockRegistryResource;
+use crate::world::ecs::ChunkData;
 
 /// The live world as a circuit: reads and writes go through the chunk store
 /// (writes reach viewers and run no block updates).
@@ -30,6 +32,52 @@ impl Circuit for Live<'_> {
 
     fn container_signal(&mut self, pos: IVec3) -> Option<u8> {
         crate::server::game::containers::comparator_signal(self.0, pos)
+    }
+
+    fn break_block(&mut self, pos: IVec3) {
+        if let Some(state) = self.0.block_at(pos) {
+            crate::server::game::blocks::pop_block(self.0, pos, state);
+        }
+    }
+
+    fn take_actor(&mut self, pos: IVec3) -> Option<tag::Compound> {
+        use crate::server::game::{block_actors, containers};
+        containers::moving(self.0, pos);
+        let compound = block_actors::read(self.0, pos)?;
+        let chunk = block_actors::chunk_entity(self.0, pos)?;
+        if let Some(mut data) = self.0.get_mut::<ChunkData>(chunk) {
+            data.inner.remove_block_entity(pos.x, pos.y, pos.z);
+        }
+        Some(compound)
+    }
+
+    fn put_actor(&mut self, pos: IVec3, actor: tag::Compound) {
+        use crate::server::game::{block_actors, containers};
+        let Some(stored) = block_actors::write(self.0, pos, actor) else {
+            return;
+        };
+        if !containers::announce(self.0, pos) {
+            block_actors::broadcast(self.0, pos, &block_actors::data_packet(pos, &stored), None);
+        }
+    }
+
+    fn sound(&mut self, sound: &str, pos: Vec3) {
+        use jolyne::valentine::{LevelSoundEventPacket, McpePacket};
+        let packet = McpePacket::from(LevelSoundEventPacket {
+            sound_event: sound.into(),
+            position: jolyne::valentine::Vec3 {
+                x: pos.x,
+                y: pos.y,
+                z: pos.z,
+            },
+            data: -1,
+            actor_identifier: "".into(),
+            is_baby: false,
+            is_global: false,
+            actor_unique_id: -1,
+            fire_at_position: None,
+        });
+        crate::server::game::block_actors::broadcast(self.0, pos.floor().as_ivec3(), &packet, None);
     }
 }
 

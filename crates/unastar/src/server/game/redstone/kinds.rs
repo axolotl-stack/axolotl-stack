@@ -7,6 +7,8 @@
 //! let dust climb onto or come down from them is measured
 //! (`unastar_data::redstone`); the rest follows the block states.
 
+use unastar_data::pistons::Movement;
+
 use crate::registry::BlockRegistry;
 use crate::registry::block::{BlockEntry, StateValue};
 use crate::server::game::block_update::support::Face;
@@ -62,6 +64,12 @@ pub(crate) enum Consumer {
     /// TNT and note blocks: act on a rising edge only.
     Tnt,
     NoteBlock,
+    /// Pistons: powered from any side but their face, they push the blocks
+    /// in front of them (`super::pistons`).
+    Piston {
+        facing: Face,
+        sticky: bool,
+    },
 }
 
 /// A block's part in a circuit.
@@ -138,7 +146,10 @@ impl Kind {
             | Kind::Hook { .. }
             | Kind::Daylight { .. }
             | Kind::Torch { .. }
-            | Kind::Comparator { .. } => true,
+            | Kind::Comparator { .. }
+            // Dust beside a piston powers it whichever way the dust runs
+            // (`pistons_power.json` "dust_past").
+            | Kind::Consumer(Consumer::Piston { .. }) => true,
             Kind::Repeater { input, .. } => toward == input || toward == input.opposite(),
             Kind::Observer { facing, .. } => toward == facing,
             Kind::None | Kind::Consumer(_) => false,
@@ -161,6 +172,54 @@ pub(crate) struct Facts {
     /// Has a comparator reading of its own (`analog`), or is a container
     /// whose reading comes from its contents.
     pub analog: Analog,
+    /// How a piston treats it (measured, `unastar_data::pistons`).
+    pub movement: Movement,
+    /// Slime or honey: drags the blocks beside it along.
+    pub glue: Option<Glue>,
+    /// A piston head (`piston_arm_collision`, sticky or not).
+    pub head: bool,
+}
+
+/// The blocks that stick to their neighbours when a piston moves them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Glue {
+    Slime,
+    Honey,
+}
+
+impl Glue {
+    /// Slime and honey stick to every block but each other.
+    pub(crate) fn sticks_to(a: Option<Glue>, b: Option<Glue>) -> bool {
+        match (a, b) {
+            (Some(Glue::Slime), Some(Glue::Honey)) | (Some(Glue::Honey), Some(Glue::Slime)) => {
+                false
+            }
+            (a, b) => a.is_some() || b.is_some(),
+        }
+    }
+}
+
+/// How a piston treats the block `id`: its measured class, under the name
+/// the sweep measured (a lit lamp is a lamp). A block in motion holds; the
+/// blocks a scenario cell could not hold (water plants, buttons and frames
+/// whose default state falls off) were not measured and break.
+fn movement(id: &str, variants: &[String]) -> Movement {
+    if id == "minecraft:moving_block" {
+        return Movement::Immovable;
+    }
+    let measured = unastar_data::pistons::blocks();
+    std::iter::once(id)
+        .chain(variants.iter().map(String::as_str))
+        .find_map(|name| measured.movement(name))
+        .unwrap_or(Movement::Breaks)
+}
+
+fn glue(id: &str) -> Option<Glue> {
+    match id {
+        "minecraft:slime" => Some(Glue::Slime),
+        "minecraft:honey_block" => Some(Glue::Honey),
+        _ => None,
+    }
 }
 
 /// What a comparator behind which this block stands reads.
@@ -204,6 +263,33 @@ fn facing_ordinal(facing: i32) -> Option<Face> {
         5 => Face::East,
         _ => return None,
     })
+}
+
+/// A piston's `facing_direction`: 0 down, 1 up, 2 south, 3 north, 4 east,
+/// 5 west (BDS 1.26.51; the horizontal values are not the usual facing
+/// order, measured with `pistons_pilot`).
+pub(crate) fn piston_facing(facing: i32) -> Option<Face> {
+    Some(match facing {
+        0 => Face::Down,
+        1 => Face::Up,
+        2 => Face::South,
+        3 => Face::North,
+        4 => Face::East,
+        5 => Face::West,
+        _ => return None,
+    })
+}
+
+/// The `facing_direction` of a piston facing `face`.
+pub(crate) fn piston_facing_value(face: Face) -> i32 {
+    match face {
+        Face::Down => 0,
+        Face::Up => 1,
+        Face::South => 2,
+        Face::North => 3,
+        Face::East => 4,
+        Face::West => 5,
+    }
 }
 
 fn signal(entry: &BlockEntry, state: u32) -> u8 {
@@ -317,6 +403,16 @@ fn classify(entry: &BlockEntry, state: u32) -> Kind {
                 activator: id == "minecraft:activator_rail",
                 powered: byte(entry, state, "rail_data_bit") == Some(true),
             });
+        }
+        "minecraft:piston" | "minecraft:sticky_piston" => {
+            return int(entry, state, "facing_direction")
+                .and_then(piston_facing)
+                .map_or(Kind::None, |facing| {
+                    Kind::Consumer(Consumer::Piston {
+                        facing,
+                        sticky: id == "minecraft:sticky_piston",
+                    })
+                });
         }
         "minecraft:tnt" => return Kind::Consumer(Consumer::Tnt),
         "minecraft:noteblock" => return Kind::Consumer(Consumer::NoteBlock),
@@ -447,6 +543,9 @@ const NOTHING: Facts = Facts {
     climb_up: false,
     climb_down: false,
     analog: Analog::None,
+    movement: Movement::Immovable,
+    glue: None,
+    head: false,
 };
 
 impl Table {
@@ -463,6 +562,9 @@ impl Table {
             };
             let conductor = listed(&measured.conductors);
             let cuts = listed(&measured.cuts);
+            let movement = movement(id, &variants);
+            let glue = glue(id);
+            let head = id.ends_with("piston_arm_collision");
             for state in entry.min_state_id..=entry.max_state_id {
                 let index = state as usize;
                 if facts.len() <= index {
@@ -484,6 +586,9 @@ impl Table {
                     climb_up: climb.0,
                     climb_down: climb.1,
                     analog: analog(entry, state),
+                    movement,
+                    glue,
+                    head,
                 };
             }
         }

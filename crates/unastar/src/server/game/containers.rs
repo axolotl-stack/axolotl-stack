@@ -968,6 +968,48 @@ pub(super) fn breaking(world: &mut World, pos: IVec3) -> Option<BrokenContainer>
     })
 }
 
+/// Before a piston moves the container at `pos`: close its windows and
+/// unpair a double chest; the chunk actor, contents and all, moves along.
+pub(crate) fn moving(world: &mut World, pos: IVec3) {
+    if !world.contains_resource::<BlockContainers>() {
+        return;
+    }
+    let Some(kind) = load(world, pos) else {
+        return;
+    };
+    close_viewers(world, pos, kind);
+    if let Some((_, Some(_))) = halves(world, pos)
+        && let Some(other) = container(world, pos).and_then(pair_pos)
+    {
+        if let Some(mut partner) = container_mut(world, other) {
+            partner.pair = None;
+        }
+        save(world, other);
+        send_client_state(world, other);
+        if let Some(mut own) = container_mut(world, pos) {
+            own.pair = None;
+        }
+    }
+    save(world, pos);
+    let mut containers = world.resource_mut::<BlockContainers>();
+    containers.ticking.remove(&pos.to_array());
+    containers.live.remove(&pos);
+}
+
+/// After a container actor was stored at `pos` by another path (a piston
+/// setting a moved chest down): send its client state as BDS does. `false`
+/// when no container stands there.
+pub(crate) fn announce(world: &mut World, pos: IVec3) -> bool {
+    if kind_at(world, pos).is_none() || !world.contains_resource::<BlockContainers>() {
+        return false;
+    }
+    world.resource_mut::<BlockContainers>().live.remove(&pos);
+    if load(world, pos).is_some() {
+        send_client_state(world, pos);
+    }
+    true
+}
+
 /// Scatter a broken container's contents: random 10..30 item chunks, or whole
 /// stacks for furnaces.
 pub(super) fn drop_contents(world: &mut World, pos: IVec3, broken: BrokenContainer) {

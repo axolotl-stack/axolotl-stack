@@ -47,5 +47,6 @@ documents and still appear in code comments and research docs; the table maps th
 | [0034](0034-bound-the-java-native-session.md) | Bound the Java-style native session without changing its output | 2026-11-05 | proposed | |
 | [0035](0035-disable-a-plugin-after-it-traps.md) | Disable a plugin after it traps | 2026-11-05 | accepted | |
 | [0041](0041-run-redstone-as-a-two-tick-circuit-update.md) | Run redstone as one circuit update every other tick, in BDS's phases | 2026-11-10 | proposed | |
+| [0050](0050-move-pistons-from-the-circuit-update.md) | Move pistons from the circuit update, with measured per-block movement | 2026-11-11 | proposed | |
 
 Proposed records await the owner's approval; their work is an open OpenSpec change anyone can pick up.
