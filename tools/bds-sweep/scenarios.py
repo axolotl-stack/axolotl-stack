@@ -454,7 +454,7 @@ def signature(item: dict) -> list[str]:
     an item whose timeline has a click (`use`) runs alone."""
     out = []
     for step in item['steps']:
-        if step[0] == 'timeline' and any(event[0] == 'use' for _, event in step[3]):
+        if step[0] == 'timeline' and any(event[0] in ('use', 'mine', 'stop') for _, event in step[3]):
             out.append(f'timeline{step[1]}:{item["key"]}')
         elif step[0] in ('wait', 'timeline'):
             out.append(f'{step[0]}{step[1]}')
@@ -724,6 +724,11 @@ def _piston_families() -> dict:
     return {**pistons.FAMILIES, **plates.FAMILIES}
 
 
+def _infested_families() -> dict:
+    import infested
+    return infested.FAMILIES
+
+
 def _tnt_families() -> dict:
     import tnt
     return tnt.FAMILIES
@@ -732,6 +737,7 @@ def _tnt_families() -> dict:
 ROUND_THREE = _circuit_families()
 ROUND_FOUR = _piston_families()
 TNT = _tnt_families()
+INFESTED = _infested_families()
 RANDOM_TICKS = _random_tick_families()
 CORAL = _coral_families()
 FAMILIES.update(ROUND_THREE)
@@ -739,9 +745,10 @@ FAMILIES.update(RANDOM_TICKS)
 FAMILIES.update(CORAL)
 FAMILIES.update(ROUND_FOUR)
 FAMILIES.update(TNT)
+FAMILIES.update(INFESTED)
 # Families that need their own cell layout (name in sweep.ARENAS) and server
 # properties; every family in one run must share a layout.
-LAYOUTS = ({name: 'circuits' for name in ROUND_THREE | ROUND_FOUR} | {name: 'fields' for name in RANDOM_TICKS}
+LAYOUTS = ({name: 'circuits' for name in ROUND_THREE | ROUND_FOUR | INFESTED} | {name: 'fields' for name in RANDOM_TICKS}
            | {name: 'coral' for name in CORAL} | {'coral_death': 'coral'} | {name: 'blast' for name in TNT})
 
 

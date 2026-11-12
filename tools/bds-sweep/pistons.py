@@ -270,6 +270,40 @@ def pistons_entities() -> list[dict]:
     return items
 
 
-FAMILIES = {'pistons_pilot': pistons_pilot, 'pistons_push': pistons_push, 'pistons_blocks': pistons_blocks,
+def pistons_riding() -> list[dict]:
+    """Round 5: armour stands riding moving blocks. A piston at x=1 facing
+    east pushes one or two stones; the stand is set on top of them and moved
+    sideways with `tp` so its box lies over the head, one stone or two; a
+    sticky piston pulls a stone back with a stand on it; a piston facing up
+    lifts a stand standing on it (head only) or on two stones."""
+    fam = 'pistons_riding'
+    items = []
+    stand = 'summon minecraft:armor_stand {cx} {y} {cz}'
+
+    def nudge(dx: float, off) -> list:
+        return ['cmd', f'tp @e[type=armor_stand,x={{cx}},y={{y}},z={{cz}},r=0.9] ~{dx} ~ ~', off]
+
+    one = [(at(1), *piston(STICKY, EAST)), (at(2), STONE, {})]
+    two = one + [(at(3), STONE, {})]
+    for name, build, dx in (('one_middle', one, 0), ('one_west_edge', one, -0.2), ('one_east_edge', one, 0.4),
+                            ('two_middle', two, 0), ('two_between', two, 0.5), ('two_far', two, 1.0)):
+        events = [[2, ['cmd', stand, at(2, 1)]], [10, put(at(0), RB)], [30, put(at(0), AIR)]]
+        if dx:
+            events.insert(1, [3, nudge(dx, at(2, 1))])
+        items.append(run(fam, [name], build, 50, events, xs(6), actors=True))
+    # Pulled back: extended first, the stand set on the pulled stone at x=3.
+    items.append(run(fam, ['pulled'], one, 60,
+                     [[2, put(at(0), RB)], [10, ['cmd', stand, at(3, 1)]], [30, put(at(0), AIR)]], xs(6),
+                     actors=True))
+    for name, build in (('up_head', [(at(1), *piston(PISTON, UP))]),
+                        ('up_two', [(at(1), *piston(PISTON, UP)), (at(1, 1), STONE, {}), (at(1, 2), STONE, {})])):
+        top = len(build)
+        items.append(run(fam, [name], build, 60,
+                         [[2, ['cmd', stand, at(1, top)]], [10, put(at(0), RB)], [30, put(at(0), AIR)]],
+                         [at(0), at(1)] + [at(1, y) for y in range(1, top + 2)], actors=True))
+    return items
+
+
+FAMILIES = {'pistons_riding': pistons_riding, 'pistons_pilot': pistons_pilot, 'pistons_push': pistons_push, 'pistons_blocks': pistons_blocks,
             'pistons_slime': pistons_slime, 'pistons_power': pistons_power, 'pistons_timing': pistons_timing,
             'pistons_chains': pistons_chains, 'pistons_entities': pistons_entities}

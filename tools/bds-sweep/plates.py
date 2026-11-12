@@ -105,5 +105,56 @@ def plates_tripwire() -> list[dict]:
     return items
 
 
+# Supports beside the string at (2, 0, 1) an armour stand stands on with
+# its box over the string (round 5: how high the string reaches).
+SUPPORTS = {
+    'floor': None,
+    'carpet': ('minecraft:white_carpet', {}),
+    'repeater': ('minecraft:unpowered_repeater', {'minecraft:cardinal_direction': 'north', 'repeater_delay': 0}),
+    'trapdoor': ('minecraft:trapdoor', {'direction': 0, 'open_bit': False, 'upside_down_bit': False}),
+    'snow2': ('minecraft:snow_layer', {'covered_bit': False, 'height': 1}),
+    'slab': ('minecraft:smooth_stone_slab', {'minecraft:vertical_half': 'bottom'}),
+}
+
+
+def plates_tripwire_more() -> list[dict]:
+    """Round 5: the string between hooks at x=1 and x=4 (stones at x=0 and
+    x=5, string at x=2..3, a lamp beside the west hook).
+
+    - `height`: an armour stand set above a support south of the string at
+      x=2 and moved so its box reaches over the string; it falls onto the
+      support (or the floor): which heights press the string.
+    - `hooks_last`: the string set before the hooks.
+    - `no_hooks`, `one_hook`: an armour stand on string with no hook or one.
+    - `cut_then_step`: the string at x=3 set to air, then an armour stand on
+      the string at x=2 (does the hook still power?).
+    """
+    fam = 'plates_tripwire_more'
+    hook = 'minecraft:tripwire_hook'
+    west = (at(1), hook, {'attached_bit': False, 'direction': 3, 'powered_bit': False})
+    east = (at(4), hook, {'attached_bit': False, 'direction': 1, 'powered_bit': False})
+    wire = [(at(x), 'minecraft:trip_wire', {}) for x in (2, 3)]
+    ends = [(at(0), STONE, {}), (at(5), STONE, {})]
+    lamp = (at(1, 0, 1), LAMP, {})
+    watch = xs(6) + [at(1, 0, 1), at(2, 0, 1)]
+    kill = ['cmd', 'kill @e[x={cx},y={y},z={cz},r=1.5,type=!player]', at(2)]
+    stand = ['cmd', 'summon minecraft:armor_stand {cx} {y} {cz}', at(2)]
+    items = []
+    for name, support in SUPPORTS.items():
+        build = ends + [west, east] + wire + [lamp]
+        if support:
+            build.append((at(2, 0, 1), *support))
+        events = [[4, ['cmd', 'summon minecraft:armor_stand {cx} {y} {cz}', at(2, 1, 1)]],
+                  [5, ['cmd', 'tp @e[type=armor_stand,x={cx},y={y},z={cz},r=0.9] ~ ~ ~-0.6', at(2, 1, 1)]],
+                  [40, kill]]
+        items.append(item(fam, ['height', name], build, 60, events, watch))
+    items.append(item(fam, ['hooks_last'], ends + wire + [west, east, lamp], 60, [[4, stand], [34, kill]], watch))
+    items.append(item(fam, ['no_hooks'], ends + wire + [lamp], 60, [[4, stand], [34, kill]], watch))
+    items.append(item(fam, ['one_hook'], ends + [west] + wire + [lamp], 60, [[4, stand], [34, kill]], watch))
+    items.append(item(fam, ['cut_then_step'], ends + [west, east] + wire + [lamp], 70,
+                      [[4, ['set', at(3), AIR, {}, True]], [10, stand], [40, kill]], watch))
+    return items
+
+
 FAMILIES = {'plates_press': plates_press, 'plates_weighted': plates_weighted,
-            'plates_tripwire': plates_tripwire}
+            'plates_tripwire': plates_tripwire, 'plates_tripwire_more': plates_tripwire_more}
