@@ -19,6 +19,7 @@ import food_table  # noqa: E402
 import native  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
+import unbreaking_table  # noqa: E402
 
 
 class LootTableFit(unittest.TestCase):
@@ -341,6 +342,26 @@ class RuntimeSlotTest(unittest.TestCase):
         self.assertEqual(properties['server-portv6'], bds_runtime.PORT + 1)
         self.assertEqual(properties['enable-lan-visibility'], 'false')
         self.assertEqual(bds_runtime.ADDR, f'127.0.0.1:{bds_runtime.PORT}')
+
+
+class UnbreakingTable(unittest.TestCase):
+    def test_damage_reads_the_first_stack_that_has_one(self):
+        body = ('InventoryContentPacket { container_id: 0, slots: [{ id: 0, user_data_buffer: b"" }, '
+                r'{ id: 301, user_data_buffer: b"\xff\xff\x01\n\0\0\x03\x06\0Damage\x05\0\0\0\0" }] }')
+        self.assertEqual(unbreaking_table.damage(body), 5)
+        self.assertEqual(unbreaking_table.damage('no stacks'), 0)
+
+    def test_script_counts_hits_and_uses_per_marker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / 'unbreaking.txt'
+            script.write_text('\n'.join([
+                '10 /say unbreaking armour 1', '11 /damage @s 8 entity_attack', '22 /damage @s 8 entity_attack',
+                '30 /say unbreaking use 2', '31 use-on 2 -60 0 1',
+                '40 /say unbreaking use 2', '41 use-on 2 -60 0 1', '43 use-on 2 -60 0 1',
+            ]), encoding='utf-8')
+            hits, uses = unbreaking_table.script_counts(script)
+        self.assertEqual(hits, {'1': 2})
+        self.assertEqual(uses, {'2': [1, 2]})
 
 
 if __name__ == '__main__':
