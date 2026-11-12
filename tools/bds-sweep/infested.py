@@ -7,7 +7,8 @@ or a tool; the block and the actors in the cell (the silverfish it lets out)
 are read every tick.
 
 - `infested_break`: every infested block by hand; infested stone with a
-  wooden pickaxe, with a silk touch pickaxe, and with `doTileDrops` off.
+  wooden pickaxe, with a silk touch pickaxe, and with `doTileDrops` off;
+  each on peaceful (the sweep world's difficulty) and on normal.
 """
 
 from __future__ import annotations
@@ -22,10 +23,12 @@ WOODEN = 'minecraft:wooden_pickaxe'
 SILK = 'minecraft:diamond_pickaxe'
 
 
-def broken(fam: str, name, block: str, hand: str | None, before: list | None = None, ench: str = '') -> dict:
+def broken(fam: str, name, block: str, hand: str | None, difficulty: str, before: list | None = None,
+           ench: str = '') -> dict:
     give = (f'replaceitem entity {{player}} slot.weapon.mainhand 0 {hand} 1' if hand
             else 'replaceitem entity {player} slot.weapon.mainhand 0 minecraft:air')
     steps = [['build', [[at(1), block, {}, True]]],
+             ['cmd', f'difficulty {difficulty}', at(1)],
              ['cmd', 'gamemode survival {player}', at(1)],
              ['cmd', give, at(1)]]
     if ench:
@@ -37,17 +40,20 @@ def broken(fam: str, name, block: str, hand: str | None, before: list | None = N
     steps.append(line)
     if before:
         steps.append(['cmd', 'gamerule dotiledrops true', at(1)])
-    return {'key': key(fam, name), 'family': fam, 'steps': steps}
+    steps.append(['cmd', 'difficulty peaceful', at(1)])
+    return {'key': key(fam, [*name, difficulty]), 'family': fam, 'steps': steps}
 
 
 def infested_break() -> list[dict]:
     fam = 'infested_break'
-    items = [broken(fam, [block, 'hand'], block, None) for block in BLOCKS]
-    items.append(broken(fam, ['minecraft:infested_stone', 'wooden_pickaxe'], 'minecraft:infested_stone', WOODEN))
-    items.append(broken(fam, ['minecraft:infested_stone', 'silk_touch'], 'minecraft:infested_stone', SILK,
-                        ench='silk_touch 1'))
-    items.append(broken(fam, ['minecraft:infested_stone', 'no_tile_drops'], 'minecraft:infested_stone', None,
-                        before=['gamerule dotiledrops false']))
+    items = []
+    stone = 'minecraft:infested_stone'
+    for difficulty in ('peaceful', 'normal'):
+        items += [broken(fam, [block, 'hand'], block, None, difficulty) for block in BLOCKS]
+        items.append(broken(fam, [stone, 'wooden_pickaxe'], stone, WOODEN, difficulty))
+        items.append(broken(fam, [stone, 'silk_touch'], stone, SILK, difficulty, ench='silk_touch 1'))
+        items.append(broken(fam, [stone, 'no_tile_drops'], stone, None, difficulty,
+                            before=['gamerule dotiledrops false']))
     return items
 
 

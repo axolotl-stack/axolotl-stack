@@ -145,7 +145,8 @@ def plates_tripwire_more() -> list[dict]:
         if support:
             build.append((at(2, 0, 1), *support))
         events = [[4, ['cmd', 'summon minecraft:armor_stand {cx} {y} {cz}', at(2, 1, 1)]],
-                  [5, ['cmd', 'tp @e[type=armor_stand,x={cx},y={y},z={cz},r=0.9] ~ ~ ~-0.6', at(2, 1, 1)]],
+                  [5, ['cmd', 'execute as @e[type=armor_stand,x={cx},y={y},z={cz},r=0.9] at @s run tp @s ~ ~ ~-0.6',
+                       at(2, 1, 1)]],
                   [40, kill]]
         items.append(item(fam, ['height', name], build, 60, events, watch))
     items.append(item(fam, ['hooks_last'], ends + wire + [west, east, lamp], 60, [[4, stand], [34, kill]], watch))

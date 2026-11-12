@@ -6414,6 +6414,33 @@
     }
    ]
   },
+  "infested": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "infested/infested_break.json",
+     "rows": 20,
+     "sha256": "d44e1f15b15f41401150d42125cb69da8cead102a2bf884bb4c70f1ae602f2cc"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 25eefa4a20c6b80c1cc8705f819182708917ed33",
+   "method": "circuits replayed tick by tick: sweep.py scenarios --family <redstone family> (tools/bds-sweep/circuits.py): each circuit is built in a cell of its own with block updates (`build`), left `wait` ticks, then run for a `timeline` of N server ticks in which `events` ([tick, event]) are applied at their tick and every `watch` offset is read once per tick after them. `trace` lists [tick, watch index, block, states] for the first read and every change. `witness` is the tick (2 or 3) at which a dust beside a redstone block set at tick 0 outside the cells lit in the same wave: BDS works redstone every other tick, and an update shows at the reads whose tick has the parity of `witness`. Offsets are relative to the cell origin on the superflat grass (the floor is y=-1); `minecraft:` is left out of block names. Round 4 rows also keep `items` (the item actors that ended in the cell, [item, data, count]) and `actors` (for timelines with an actor box: [tick, [[id, type, dx, dy, dz, vx, vy, vz, health], ...]] whenever the actors in the cell changed; positions relative to the cell origin).",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "round5-infested-2",
+     "items": 20,
+     "runs": [
+      {
+       "items": 20,
+       "seconds": 190.9,
+       "started": "20261112T223129Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "item_blocks": {
    "bds_version": "1.26.51",
    "files": [
@@ -6506,6 +6533,11 @@
      "sha256": "db6329a59e98785ad0549c6e35f7c8373af43eff0d5cba49790e3e0b5c9eba29"
     },
     {
+     "path": "pistons/pistons_riding.json",
+     "rows": 9,
+     "sha256": "c258319ce78dbb4de9291e67a64760f15fe503fd4dec2e3d45eab64576d53507"
+    },
+    {
      "path": "pistons/pistons_slime.json",
      "rows": 24,
      "sha256": "03c3d9afaf939d601ee3899b7ab6fe095fbcfdd515292cc3cfa62b294ee35654"
@@ -6516,7 +6548,7 @@
      "sha256": "14868493cc600a887006adbd280d36f41c9f4b4363eeafe7be9740b261523c65"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 3062a24422bc3e70591e25990866088dc32535a6; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at d87c689e42c98d9f396f021c835aab33dff2d73a; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at d87c689e42c98d9f396f021c835aab33dff2d73a; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at d87c689e42c98d9f396f021c835aab33dff2d73a; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e8e158763d3cd54f3922b2c4b45d5b844e66cb49",
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 25eefa4a20c6b80c1cc8705f819182708917ed33; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 3062a24422bc3e70591e25990866088dc32535a6; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at d87c689e42c98d9f396f021c835aab33dff2d73a; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at d87c689e42c98d9f396f021c835aab33dff2d73a; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at d87c689e42c98d9f396f021c835aab33dff2d73a; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e8e158763d3cd54f3922b2c4b45d5b844e66cb49",
    "method": "circuits replayed tick by tick: sweep.py scenarios --family <redstone family> (tools/bds-sweep/circuits.py): each circuit is built in a cell of its own with block updates (`build`), left `wait` ticks, then run for a `timeline` of N server ticks in which `events` ([tick, event]) are applied at their tick and every `watch` offset is read once per tick after them. `trace` lists [tick, watch index, block, states] for the first read and every change. `witness` is the tick (2 or 3) at which a dust beside a redstone block set at tick 0 outside the cells lit in the same wave: BDS works redstone every other tick, and an update shows at the reads whose tick has the parity of `witness`. Offsets are relative to the cell origin on the superflat grass (the floor is y=-1); `minecraft:` is left out of block names. Round 4 rows also keep `items` (the item actors that ended in the cell, [item, data, count]) and `actors` (for timelines with an actor box: [tick, [[id, type, dx, dy, dz, vx, vy, vz, health], ...]] whenever the actors in the cell changed; positions relative to the cell origin).",
    "source": "bds_sweep",
    "sweeps": [
@@ -6588,6 +6620,18 @@
        "items": 97,
        "seconds": 42.7,
        "started": "20261112T170055Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "round5-circuits-2",
+     "items": 19,
+     "runs": [
+      {
+       "items": 19,
+       "seconds": 51.0,
+       "started": "20261112T223033Z",
        "status": "done"
       }
      ]
@@ -6699,6 +6743,11 @@
      "sha256": "23b45d383e6fb9f188fb101c1a6a06dc37e0f6e12ef9ee271584ea02690721c9"
     },
     {
+     "path": "redstone/plates_tripwire_more.json",
+     "rows": 10,
+     "sha256": "681cd16ddf688fd6ffe75c05015cd1c2b8f6f77fc8343fd66e8fd090dabed4d2"
+    },
+    {
      "path": "redstone/plates_weighted.json",
      "rows": 36,
      "sha256": "60729c9062c8ba86693f22ae52450f59aceb959d25b144782f41f07981c025db"
@@ -6769,7 +6818,7 @@
      "sha256": "51a20793340492ab666ed55c35c71864c52b2f76bbec848a7358a10e0091ff93"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 4e56e688749f6c155bcfe3de661d64950aa8376c; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e8e158763d3cd54f3922b2c4b45d5b844e66cb49",
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 25eefa4a20c6b80c1cc8705f819182708917ed33; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 4e56e688749f6c155bcfe3de661d64950aa8376c; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e8e158763d3cd54f3922b2c4b45d5b844e66cb49",
    "method": "circuits replayed tick by tick: sweep.py scenarios --family <redstone family> (tools/bds-sweep/circuits.py): each circuit is built in a cell of its own with block updates (`build`), left `wait` ticks, then run for a `timeline` of N server ticks in which `events` ([tick, event]) are applied at their tick and every `watch` offset is read once per tick after them. `trace` lists [tick, watch index, block, states] for the first read and every change. `witness` is the tick (2 or 3) at which a dust beside a redstone block set at tick 0 outside the cells lit in the same wave: BDS works redstone every other tick, and an update shows at the reads whose tick has the parity of `witness`. Offsets are relative to the cell origin on the superflat grass (the floor is y=-1); `minecraft:` is left out of block names. Round 4 rows also keep `items` (the item actors that ended in the cell, [item, data, count]) and `actors` (for timelines with an actor box: [tick, [[id, type, dx, dy, dz, vx, vy, vz, health], ...]] whenever the actors in the cell changed; positions relative to the cell origin).",
    "source": "bds_sweep",
    "sweeps": [
@@ -6901,6 +6950,18 @@
        "items": 97,
        "seconds": 42.7,
        "started": "20261112T170055Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "round5-circuits-2",
+     "items": 19,
+     "runs": [
+      {
+       "items": 19,
+       "seconds": 51.0,
+       "started": "20261112T223033Z",
        "status": "done"
       }
      ]

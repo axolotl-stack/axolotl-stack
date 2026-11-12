@@ -281,7 +281,8 @@ def pistons_riding() -> list[dict]:
     stand = 'summon minecraft:armor_stand {cx} {y} {cz}'
 
     def nudge(dx: float, off) -> list:
-        return ['cmd', f'tp @e[type=armor_stand,x={{cx}},y={{y}},z={{cz}},r=0.9] ~{dx} ~ ~', off]
+        return ['cmd', f'execute as @e[type=armor_stand,x={{cx}},y={{y}},z={{cz}},r=0.9] at @s run tp @s ~{dx} ~ ~',
+                off]
 
     one = [(at(1), *piston(STICKY, EAST)), (at(2), STONE, {})]
     two = one + [(at(3), STONE, {})]
