@@ -671,8 +671,15 @@ Survival breaking follows BDS input by input:
   the mace. An input carrying `CreativeDestroyBlock` is refused as malformed and ends the session,
   as on BDS.
 
+- A block put where a break goes on is broken by the inputs since counted at that block's speed:
+  at once if it is no slower than the progress built over the air.
+
 `server/game/blocks/breaking_tests.rs` replays BDS captures of all of this, one with a second
-player watching.
+player watching, with `[gameplay] block_breaking = "bds"`. The default, `"guarded"`
+([decision 0056](../../docs/decisions/0056-guarded-block-breaking.md)), changes two things a
+modified client could use: at most one input of progress counts per server tick since the
+progress began (a lagging client may catch up, never get ahead), and the progress begins again
+when the block at the position is no longer the one being broken.
 Block break/place intents dispatch before mutation; cancellation sends authoritative
 corrections. Allowed intents revalidate current state before committing, and
 Survival placement consumes one server-owned selected item. Placement does not

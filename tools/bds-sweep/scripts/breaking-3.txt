@@ -1,0 +1,81 @@
+# Survival breaking where another block is put on a break's air, for packet
+# captures of the same scripted player against BDS and unastar (see
+# breaking.txt). Measured for the guarded breaking mode's decision (0056):
+# whether progress built over the air breaks a block put there afterwards.
+# Each scenario mines its own position, so none inherits another's break.
+#
+# Arena: a stone floor at y=-61, the player at (0.5,-60,0.5) facing east,
+# breaking the west face (4) of x=1 (scenarios 1-5) or x=2 (6-7), y=-59.
+# Tile drops are off, so nothing is picked up into the held slot.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /time set 6000
+25 /fill -4 -61 -4 4 -61 4 stone
+26 /fill -4 -60 -4 4 -55 4 air
+27 /gamemode survival @s
+28 /clear @s
+29 /tp @s 0.5 -60 0.5 -90 0
+30 /gamerule dotiledrops false
+
+# 1. Dirt by hand breaks on the 15th input; obsidian put on its air 21
+#    inputs later does not break at once.
+40 /setblock 1 -59 0 dirt
+50 mine 1 -59 0 4 0
+85 /setblock 1 -59 0 obsidian
+95 stop
+96 /setblock 1 -59 0 air
+
+# 2. Coarse dirt (dirt's speed) put on the air 15 inputs after a dirt break
+#    breaks at once.
+100 /setblock 1 -59 1 dirt
+110 mine 1 -59 1 4 0
+140 /setblock 1 -59 1 coarse_dirt
+150 stop
+151 /setblock 1 -59 1 air
+
+# 3. Dirt swapped for coarse dirt after 8 inputs: the progress is kept.
+160 /setblock 1 -59 -1 dirt
+170 mine 1 -59 -1 4 0
+178 /setblock 1 -59 -1 coarse_dirt
+200 stop
+201 /setblock 1 -59 -1 air
+
+# 4. A wooden shovel selected after 8 inputs: the progress is kept and goes
+#    on at the shovel's speed.
+205 /replaceitem entity @s slot.hotbar 1 wooden_shovel
+210 /setblock 1 -59 2 dirt
+220 mine 1 -59 2 4 0
+228 select 1
+250 stop
+251 select 0
+252 /setblock 1 -59 2 air
+
+# 5. Released after 5 inputs (no more ContinueDestroyBlock): the dirt breaks
+#    on the 15th; obsidian put on its air 21 inputs later cracks at its own
+#    speed and does not break.
+260 /setblock 1 -59 3 dirt
+270 mine 1 -59 3 4 0
+275 release
+305 /setblock 1 -59 3 obsidian
+330 /setblock 1 -59 3 air
+
+# 6. Obsidian with a diamond pickaxe (131 inputs); obsidian put on its air
+#    about 270 inputs later breaks at once.
+335 /clear @s
+336 /replaceitem entity @s slot.hotbar 0 diamond_pickaxe
+340 /setblock 2 -59 0 obsidian
+350 mine 2 -59 0 4 0
+750 /setblock 2 -59 0 obsidian
+770 stop
+771 /setblock 2 -59 0 air
+
+# 7. Obsidian with a diamond pickaxe; dirt put on its air 89 inputs later
+#    breaks at once.
+780 /setblock 2 -59 1 obsidian
+790 mine 2 -59 1 4 0
+1010 /setblock 2 -59 1 dirt
+1030 stop
+1031 /setblock 2 -59 1 air
+1040 exit

@@ -297,6 +297,55 @@ pub struct BreakingState {
     /// Whether the other players still hear the break's hit sound: from a
     /// start on a block that can break until an input finds none there.
     pub sounding: bool,
+    /// Inputs since the progress began or last advanced that found no block
+    /// that can break there. BDS counts them at the speed of the block that
+    /// is there next: obsidian put by hand on the air of dirt broken 21
+    /// inputs before did not break, obsidian put on its own air did, and so
+    /// did dirt put on the air of obsidian broken with a pickaxe 89 inputs
+    /// before.
+    pub idle_inputs: u32,
+    /// The guarded mode's limit on inputs of progress (see
+    /// [`BreakInputBudget`]); unused in BDS mode.
+    pub budget: BreakInputBudget,
+}
+
+/// The guarded breaking mode's cap: since the progress last began from zero,
+/// at most one input of progress per server tick, counted from the tick of
+/// its first input (so a client that skipped ticks may catch up, never get
+/// ahead). A new progress may not count an input in a tick an earlier one
+/// already did. BDS counts every input (`docs/quirks/bds.md`, Blocks /
+/// mining).
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct BreakInputBudget {
+    /// The server tick the current progress counted its first input in.
+    since: Option<u64>,
+    /// Inputs counted since then.
+    counted: u64,
+    /// The server tick of the last input counted.
+    last: Option<u64>,
+}
+
+impl BreakInputBudget {
+    /// Whether an input at server tick `tick` may add progress; counts it if
+    /// so.
+    pub fn take(&mut self, tick: u64) -> bool {
+        if self.last.is_some_and(|last| tick <= last) && self.since.is_none() {
+            return false;
+        }
+        let since = *self.since.get_or_insert(tick);
+        if tick < since || self.counted > tick - since {
+            return false;
+        }
+        self.counted += 1;
+        self.last = Some(tick);
+        true
+    }
+
+    /// The progress begins from zero: its inputs are counted afresh.
+    pub fn restart(&mut self) {
+        self.since = None;
+        self.counted = 0;
+    }
 }
 
 impl BreakingState {
@@ -310,7 +359,7 @@ impl BreakingState {
     /// kept the progress, air did not (BDS).
     pub fn start(&mut self, position: (i32, i32, i32), block: u32, face: i32, speed: f64) {
         if self.position == Some(position) && self.block != block {
-            self.progress = 0.0;
+            self.restart();
         }
         self.block = block;
         self.ticks = 0;
@@ -323,7 +372,7 @@ impl BreakingState {
     /// last one is kept, so the break goes on over the air (BDS).
     pub fn continue_at(&mut self, position: (i32, i32, i32), block: u32, face: i32, speed: f64) {
         if self.position != Some(position) {
-            self.progress = 0.0;
+            self.restart();
             self.block = block;
             self.speed = speed;
             self.ticks = 0;
@@ -338,9 +387,24 @@ impl BreakingState {
     /// Stop breaking (`AbortDestroyBlock`).
     pub fn stop(&mut self) {
         self.position = None;
-        self.progress = 0.0;
+        self.restart();
         self.speed = 0.0;
         self.sounding = false;
+    }
+
+    /// The progress begins from zero (a completed break, another block).
+    pub fn restart(&mut self) {
+        self.progress = 0.0;
+        self.idle_inputs = 0;
+        self.budget.restart();
+    }
+
+    /// Guarded mode: the block at the position is no longer `self.block`
+    /// (another block, or one placed after the progress began over the
+    /// air), so the progress begins again on it.
+    pub fn retarget(&mut self, block: u32) {
+        self.restart();
+        self.block = block;
     }
 
     /// Whether a block is being broken.
@@ -348,9 +412,18 @@ impl BreakingState {
         self.position.is_some()
     }
 
-    /// Add one input's progress.
-    pub fn advance(&mut self) {
-        self.progress += self.speed;
+    /// One input of progress at `speed`, the speed of the block there now
+    /// (`None` where none can break): it adds that input and every idle one
+    /// before it at that speed (see [`BreakingState::idle_inputs`]).
+    pub fn advance(&mut self, speed: Option<f64>) {
+        match speed {
+            Some(speed) => {
+                self.speed = speed;
+                self.progress += speed * f64::from(self.idle_inputs + 1);
+                self.idle_inputs = 0;
+            }
+            None => self.idle_inputs += 1,
+        }
     }
 
     /// Whether the block is destroyed.

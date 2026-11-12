@@ -383,14 +383,20 @@ fn advance_breaking(
         refuse_prediction(world, player, other, face);
     }
     let predicted_here = predicted.is_some_and(|(at, _)| at == position);
-    state.advance();
-    let block = block_at(world, position).filter(|_| break_speed(world, player, position) > 0.0);
+    // The speed of the block there now with the held item (BDS: obsidian
+    // put where dirt was broken cracks at its own speed with no
+    // ContinueDestroyBlock), none where no block can break.
+    let live = Some(break_speed(world, player, position)).filter(|speed| *speed > 0.0);
+    if !breaking_mode(world).is_guarded() || guard_input(world, player, position, &mut state) {
+        state.advance(live);
+    }
+    let block = block_at(world, position).filter(|_| live.is_some());
     state.sounding &= block.is_some();
     let mut queued = false;
     match block {
         None => {}
         Some(_) if state.is_complete() => {
-            state.progress = 0.0;
+            state.restart();
             queued = break_block(world, player, position, false);
             if queued && !predicted_here {
                 state.completing = Some(position);
@@ -421,6 +427,40 @@ fn advance_breaking(
         *live = state;
     }
     queued
+}
+
+/// The configured survival breaking mode (guarded unless the server runs
+/// with `block_breaking = "bds"`).
+fn breaking_mode(world: &World) -> crate::server::config::BlockBreaking {
+    world
+        .get_resource::<super::types::ServerConfigResource>()
+        .map(|config| config.0.block_breaking)
+        .unwrap_or_default()
+}
+
+/// The guarded mode (decision 0056) before an input's progress: where the
+/// block at the position is no longer the one being broken (another block,
+/// or one placed after the progress began over the air) the progress begins
+/// again on it, and the input counts only within the budget of one input per
+/// server tick. Whether it counts. BDS does neither.
+fn guard_input(
+    world: &World,
+    player: Entity,
+    position: (i32, i32, i32),
+    state: &mut BreakingState,
+) -> bool {
+    let block = block_at(world, position).unwrap_or(*blocks::AIR);
+    if block != state.block {
+        state.retarget(block);
+    }
+    let tick = world
+        .get_resource::<crate::ecs::resources::TickCounter>()
+        .map_or(0, |tick| tick.get());
+    let counts = state.budget.take(tick);
+    if !counts {
+        trace!(player = ?player, tick, "Break progress over the per-tick budget");
+    }
+    counts
 }
 
 /// A `PredictDestroyBlock` before the break completed: the client gets back
@@ -1354,6 +1394,7 @@ mod breaking_tests;
 mod tests {
     use super::*;
     use crate::entity::components::{GameMode, HeldSlot, MainInventory, Position};
+    use crate::server::config::BlockBreaking;
     use crate::world::ecs::{ChunkData, ChunkPosition};
     use glam::DVec3;
 
@@ -1364,6 +1405,7 @@ mod tests {
         ));
         world.insert_resource(EventBuffer::default());
         world.insert_resource(super::super::types::ServerConfigResource(Default::default()));
+        world.insert_resource(crate::ecs::resources::TickCounter::default());
         world.insert_resource(super::super::types::BlockRegistryResource(
             std::sync::Arc::new(crate::registry::BlockRegistry::vanilla().clone()),
         ));
@@ -1834,6 +1876,7 @@ mod tests {
             .inner
             .set_block(1, 64, 1, *blocks::DIRT);
         world.entity_mut(player).insert(BreakingState::default());
+        set_breaking_mode(&mut world, BlockBreaking::Bds);
         let action = |kind| jolyne::valentine::PlayerBlockActionData {
             player_action_type: kind,
             position: BlockPos { x: 1, y: 64, z: 1 },
@@ -1891,6 +1934,190 @@ mod tests {
                 .get_block(1, 64, 1),
             *blocks::AIR
         );
+    }
+
+    fn set_breaking_mode(world: &mut World, mode: BlockBreaking) {
+        world
+            .resource_mut::<super::super::types::ServerConfigResource>()
+            .0
+            .block_breaking = mode;
+    }
+
+    fn obsidian() -> u32 {
+        blocks::get_block_id("minecraft:obsidian")
+    }
+
+    /// A survival player at (1.5, 64, 1.5) over a floor with `block` at
+    /// (1, 64, 1), breaking in `mode`; the world, the player and the chunk.
+    fn breaking_world(mode: BlockBreaking, block: u32) -> (World, Entity, Entity) {
+        let eye = DVec3::new(1.5, 63.0 + crate::entity::PLAYER_EYE_HEIGHT, 1.5);
+        let (mut world, player, chunk) = block_world(GameMode::Survival, eye);
+        floor_under(&mut world, chunk);
+        set_mined_block(&mut world, chunk, block);
+        world.entity_mut(player).insert(BreakingState::default());
+        set_breaking_mode(&mut world, mode);
+        (world, player, chunk)
+    }
+
+    fn set_mined_block(world: &mut World, chunk: Entity, block: u32) {
+        world
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block(1, 64, 1, block);
+    }
+
+    /// `StartDestroyBlock` on the top of (1, 64, 1).
+    fn start_mining(world: &mut World, player: Entity) {
+        process_auth_input_block_actions(
+            world,
+            player,
+            &[jolyne::valentine::PlayerBlockActionData {
+                player_action_type: EnumsPlayerActionType::Startdestroyblock,
+                position: BlockPos { x: 1, y: 64, z: 1 },
+                facing: 1,
+            }],
+        );
+    }
+
+    /// An input without block actions.
+    fn idle_input(world: &mut World, player: Entity) {
+        process_auth_input_block_actions(world, player, &[]);
+    }
+
+    /// The break events the inputs so far queued.
+    fn queued_breaks(world: &mut World) -> Vec<ServerEvent> {
+        world
+            .resource_mut::<EventBuffer>()
+            .drain()
+            .into_iter()
+            .filter(|event| matches!(event, ServerEvent::BlockBreak { .. }))
+            .collect()
+    }
+
+    fn next_tick(world: &mut World) {
+        world
+            .resource_mut::<crate::ecs::resources::TickCounter>()
+            .increment();
+    }
+
+    /// A client flooding inputs: BDS answers each (dirt by hand breaks on the
+    /// 15th input of one tick); the guard counts one input per server tick,
+    /// so the dirt breaks on the 15th tick however many inputs arrive.
+    #[test]
+    fn guarded_breaking_counts_one_input_per_tick() {
+        for (mode, flood_breaks) in [(BlockBreaking::Bds, true), (BlockBreaking::Guarded, false)] {
+            let (mut world, player, _) = breaking_world(mode, *blocks::DIRT);
+            start_mining(&mut world, player);
+            for _ in 0..20 {
+                idle_input(&mut world, player);
+            }
+            assert_eq!(
+                !queued_breaks(&mut world).is_empty(),
+                flood_breaks,
+                "{mode:?}: 21 inputs in one tick"
+            );
+            if flood_breaks {
+                continue;
+            }
+            let progress = world.get::<BreakingState>(player).unwrap().progress;
+            assert!((progress - 1.0 / 15.0).abs() < 1e-9, "one input counted");
+            for tick in 1..15 {
+                next_tick(&mut world);
+                for _ in 0..3 {
+                    idle_input(&mut world, player);
+                }
+                assert_eq!(
+                    queued_breaks(&mut world).len(),
+                    usize::from(tick == 14),
+                    "tick {tick}"
+                );
+            }
+        }
+    }
+
+    /// A client that skipped ticks may catch up, never get ahead: inputs
+    /// held back for 10 ticks count when they arrive together.
+    #[test]
+    fn guarded_breaking_lets_a_lagging_client_catch_up() {
+        let (mut world, player, _) = breaking_world(BlockBreaking::Guarded, *blocks::DIRT);
+        start_mining(&mut world, player);
+        for _ in 0..10 {
+            next_tick(&mut world);
+        }
+        for _ in 0..15 {
+            idle_input(&mut world, player);
+        }
+        let progress = world.get::<BreakingState>(player).unwrap().progress;
+        assert!((progress - 11.0 / 15.0).abs() < 1e-9, "{progress}");
+        assert!(queued_breaks(&mut world).is_empty());
+    }
+
+    /// Progress built over the air: BDS counts the inputs over the air at
+    /// the speed of the block put there next, so dirt put where dirt was
+    /// broken by hand 30 inputs before breaks on the next input while
+    /// obsidian does not (measured, `docs/quirks/bds.md`). The guard begins
+    /// again on any block put there.
+    #[test]
+    fn guarded_breaking_begins_again_on_a_block_placed_over_air() {
+        let cases = [
+            (BlockBreaking::Bds, *blocks::DIRT, true),
+            (BlockBreaking::Bds, obsidian(), false),
+            (BlockBreaking::Guarded, *blocks::DIRT, false),
+        ];
+        for (mode, put_back, breaks_at_once) in cases {
+            let (mut world, player, chunk) = breaking_world(mode, *blocks::DIRT);
+            start_mining(&mut world, player);
+            let mut broken = None;
+            for _ in 0..14 {
+                next_tick(&mut world);
+                idle_input(&mut world, player);
+                broken = broken.or_else(|| queued_breaks(&mut world).pop());
+            }
+            let broken = broken.expect("dirt breaks on the 15th input");
+            commit_block_event(&mut world, &broken);
+            for _ in 0..30 {
+                next_tick(&mut world);
+                idle_input(&mut world, player);
+            }
+            set_mined_block(&mut world, chunk, put_back);
+            next_tick(&mut world);
+            idle_input(&mut world, player);
+            assert_eq!(
+                !queued_breaks(&mut world).is_empty(),
+                breaks_at_once,
+                "{mode:?}: {put_back} put on the air"
+            );
+            if mode == BlockBreaking::Guarded {
+                let state = world.get::<BreakingState>(player).unwrap();
+                assert_eq!(state.block, put_back);
+                assert!(
+                    (state.progress - 1.0 / 15.0).abs() < 1e-9,
+                    "{}",
+                    state.progress
+                );
+            }
+        }
+    }
+
+    /// A block swapped under a break: the guard begins again on the new one.
+    #[test]
+    fn guarded_breaking_begins_again_on_another_block() {
+        let (mut world, player, chunk) = breaking_world(BlockBreaking::Guarded, *blocks::DIRT);
+        start_mining(&mut world, player);
+        for _ in 0..10 {
+            next_tick(&mut world);
+            idle_input(&mut world, player);
+        }
+        set_mined_block(&mut world, chunk, obsidian());
+        for _ in 0..10 {
+            next_tick(&mut world);
+            idle_input(&mut world, player);
+        }
+        assert!(queued_breaks(&mut world).is_empty());
+        let state = world.get::<BreakingState>(player).unwrap();
+        assert_eq!(state.block, obsidian());
+        assert!(state.progress < 0.01, "{}", state.progress);
     }
 
     /// The face picks a LevelEvent (3603 + face), so a breaking action with
