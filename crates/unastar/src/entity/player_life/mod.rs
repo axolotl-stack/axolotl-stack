@@ -46,8 +46,7 @@ pub use death::kill_player;
 pub use hurt::hurt_player;
 pub use rules::{PlayerRules, PlayerRulesError};
 
-use crate::entity::components::{ActorViewers, Player, PlayerSession, Position};
-use crate::entity::send_range;
+use crate::entity::components::{ActorViewers, PlayerSession};
 
 /// Insert the resources the player life systems read: the compiled player
 /// definition, the respawn queue and the world spawn (`spawn` uses the
@@ -59,29 +58,14 @@ pub fn install(world: &mut World, spawn: glam::DVec3) -> Result<(), PlayerRulesE
     Ok(())
 }
 
-/// The players that see `player`: the players it is shown to
-/// (`ActorViewers`, once players carry it) or, for a player without it,
-/// every player in the actor send range of it ([`crate::entity::send_range`],
-/// BDS 1.26.51's rule for every actor). Its actor data and attributes reach
-/// exactly these players.
-pub fn player_viewers(world: &World, player: Entity) -> Vec<Entity> {
-    if let Some(viewers) = world.get::<ActorViewers>(player) {
-        return viewers.viewers.clone();
-    }
-    let Some(position) = world.get::<Position>(player) else {
-        return Vec::new();
-    };
-    let actor = send_range::chunk_of(position.0);
-    let Some(mut players) = world.try_query_filtered::<(Entity, &Position), With<Player>>() else {
-        return Vec::new();
-    };
-    players
-        .iter(world)
-        .filter(|(viewer, at)| {
-            *viewer != player && send_range::in_range(send_range::chunk_of(at.0), actor)
-        })
-        .map(|(viewer, _)| viewer)
-        .collect()
+/// The players that see `player`: the ones it is shown to, its
+/// [`ActorViewers`] (kept by `server::player_view` with the actor send range
+/// every actor uses). A player not shown to anyone yet has none. Its actor
+/// data, attributes and hurt events reach exactly these players.
+pub fn player_viewers(world: &World, player: Entity) -> &[Entity] {
+    world
+        .get::<ActorViewers>(player)
+        .map_or(&[], |viewers| viewers.viewers.as_slice())
 }
 
 /// Send `packet` to `player` and to the players that see it.
@@ -90,7 +74,7 @@ pub(crate) fn send_to_player_and_viewers(world: &World, player: Entity, packet: 
         let _ = session.send(packet.clone());
     }
     for viewer in player_viewers(world, player) {
-        if let Some(session) = world.get::<PlayerSession>(viewer) {
+        if let Some(session) = world.get::<PlayerSession>(*viewer) {
             let _ = session.send(packet.clone());
         }
     }
