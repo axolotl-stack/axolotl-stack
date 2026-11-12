@@ -500,6 +500,19 @@ mushrooms and the cow it turns into (`minecraft:transformation`, which runs
 only when it names nothing but its target), the particle positions for an
 adult, a baby and a raised player, and the sounds at the middle of its box.
 
+The skeleton family's ranged attack (`sweep.py ranged --client-capture` on
+easy, normal and hard plus the `geometry`, `aim`, `spread`, `damage`,
+`damage-long`, `weapon`, `filters`, `avoid`, `avoid-many` and `pickup` sets,
+distilled by `tools/bds-sweep/ranged_fixture.py` into
+`src/entity/mob/combat/testdata/bds-1.26.51-ranged.json`) is replayed by
+`src/entity/mob/combat/bds_ranged.rs`: the shot ticks after the target, where
+each arrow starts, its owner, aux value, rotation and sounds, the aim (the
+drag-free parabola to the centre of the target's box) and spread per
+difficulty as distributions, arrow damage by difficulty, tipped-arrow
+effects, the bow as the only ranged weapon, the `is_underground` and
+`in_block` filters, the skeleton's trap sensor, fleeing a wolf
+(`behavior.avoid_mob_type`) and the arrow pickup after its shake.
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the

@@ -529,10 +529,21 @@ fn compile_tag_expression(
     source: &str,
     items: &ItemRegistry,
 ) -> Result<Vec<i32>, CompileError> {
-    let mut expression = molang::parse(source)
-        .map_err(|reason| compile_error(id, format!("ingredient Molang: {reason}")))?;
-    // Only pure item-tag expressions can be reduced to frozen numeric IDs.
-    // Fail startup on unavailable context, never silently evaluate it as zero.
+    tag_expression_items(source, items)
+        .map(|entries| entries.into_iter().map(ItemEntry::network_id).collect())
+        .map_err(|reason| compile_error(id, reason))
+}
+
+/// The items a pure item-tag Molang expression (`q.any_tag(...)`,
+/// `q.all_tags(...)` with string arguments, combined with operators) holds
+/// for, in registry order. Anything else in the expression is an error:
+/// unavailable context is never silently evaluated as zero.
+pub(crate) fn tag_expression_items<'a>(
+    source: &str,
+    items: &'a ItemRegistry,
+) -> Result<Vec<&'a ItemEntry>, String> {
+    let mut expression =
+        molang::parse(source).map_err(|reason| format!("ingredient Molang: {reason}"))?;
     let mut unsupported = None;
     expression.walk(&mut |node| match node {
         Expr::Query(query, args) => {
@@ -563,21 +574,16 @@ fn compile_tag_expression(
         _ => {}
     });
     if let Some(reason) = unsupported {
-        return Err(compile_error(id, reason));
+        return Err(reason);
     }
-    expression
-        .bind(QueryRegistry::vanilla(), QueryContext::Runtime)
-        .map_err(|reason| compile_error(id, reason))?;
+    expression.bind(QueryRegistry::vanilla(), QueryContext::Runtime)?;
     items
         .iter()
         .filter_map(
             |item| match eval::evaluate(&expression, &mut ItemTagContext(item)) {
-                Ok(value) if value.truthy() => Some(Ok(item.network_id())),
+                Ok(value) if value.truthy() => Some(Ok(item)),
                 Ok(_) => None,
-                Err(error) => Some(Err(compile_error(
-                    id,
-                    format!("ingredient Molang: {error}"),
-                ))),
+                Err(error) => Some(Err(format!("ingredient Molang: {error}"))),
             },
         )
         .collect()

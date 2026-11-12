@@ -469,3 +469,8 @@ pub const SHAREABLES_PRIORITY: i32 = 0;
 /// ML `minecraftcomponent_spell_effects`: an added effect without an
 /// `amplifier` is level I (amplifier 0).
 pub const SPELL_EFFECTS_AMPLIFIER: i32 = 0;
+
+// minecraft:shooter
+
+/// ML `minecraftcomponent_shooter`: `aux_val` -1 (no aux value).
+pub const SHOOTER_AUX_VAL: i32 = -1;

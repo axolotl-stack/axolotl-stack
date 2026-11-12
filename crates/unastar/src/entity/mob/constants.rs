@@ -792,3 +792,67 @@ pub const PICKUP_REPATH_FAIL_TICKS: i32 = 15;
 /// Head turn speed toward the item, degrees per tick (confirmed: 30, the
 /// same both axes).
 pub const PICKUP_HEAD_TURN: f32 = 30.0;
+
+// --- Ranged attacks (`mob::ai::ranged`, `mob::combat::ranged`) ---------------------
+
+/// Held items `has_ranged_weapon` counts (measured: a BDS 1.26.51 skeleton
+/// whose hand is replaced keeps shooting with a bow only; with a crossbow,
+/// trident, snowball, stick or nothing it never shoots and its ranged goal
+/// never raises `FACING_TARGET_TO_RANGE_ATTACK`, `sweep.py ranged --items
+/// weapon`).
+pub const RANGED_WEAPONS: [&str; 1] = ["minecraft:bow"];
+/// A shot waits one tick more than its `attack_interval`: BDS 1.26.51
+/// skeletons, strays, bogged and parched shoot every 61 / 71 ticks on easy
+/// and normal and every 41 / 51 on hard (intervals 3 / 3.5 / 2 / 2.5 s),
+/// the first shot one tick later still after the target is taken
+/// (measured: `sweep.py ranged`, every difficulty).
+pub const RANGED_RELOAD_EXTRA_TICKS: i32 = 1;
+/// The projectile starts this far from the shooter's feet, horizontally,
+/// toward the target's feet (measured: the BDS 1.26.51 off-axis, diagonal
+/// and raised shots land on it to 1e-6) …
+pub const RANGED_SHOT_FORWARD: f64 = 1.0;
+/// … at this fraction of the shooter's height above its feet, plus the
+/// projectile's own `offset` (measured: arrows of the 1.9-tall skeleton
+/// family start 1.61 above the feet with the arrow's -0.1 offset).
+pub const RANGED_SHOT_EYE_RATIO: f64 = 0.9;
+/// The projectile is created at the shooter's feet with the centre of its
+/// box this far up, and only then moved to its start: its `disappeared`
+/// sound plays there (measured on the 1.9-tall skeleton family).
+pub const RANGED_SHOT_CREATED_CENTRE: f64 = 0.9;
+// A shot aims at the centre of the target's box along the drag-free
+// parabola of the projectile's power and gravity, measured from the
+// shooter's horizontal position (`combat::ranged::aim_direction`; measured:
+// BDS 1.26.51 hard shots at a pinned player 4 to 12 blocks away and up to 6
+// blocks above or below the skeleton fit it with chi²/dof 0.44 over 8
+// geometries and 121 shots).
+/// Each axis of a shot's unit direction gets a gaussian times this times
+/// the projectile's uncertainty (measured: the BDS 1.26.51 spread is
+/// 0.0070 to 0.0080 per uncertainty on easy, normal and hard, gaussian:
+/// kurtosis 3.2 over 91 shots, past the bound of a triangle draw).
+pub const RANGED_SPREAD_SCALE: f64 = 0.0075;
+/// `difficulty_randomization: multiplicative` (a mob's arrows): the speed
+/// damage multiplier is scaled by `1 + this × difficulty` (easy 1 … hard
+/// 3) …
+pub const SHOT_DAMAGE_PER_DIFFICULTY: f32 = 0.05;
+/// … plus a uniform draw within ± this (measured: 291 BDS 1.26.51 skeleton
+/// arrow hits on a pinned player, the hit damage `ceil(speed × 2 × f)`
+/// fitted by maximum likelihood: mean factor 1.035 / 1.095 / 1.155 on easy
+/// / normal / hard, uniform width 0.45; a gaussian of sd 0.13 fits 1.5 log
+/// units worse, so the shape of the draw is provisional).
+pub const SHOT_DAMAGE_SPREAD: f32 = 0.225;
+/// Tipped arrows mobs shoot, by aux value (potion id + 1): the effect a hit
+/// gives, level 0, for an eighth of the potion's duration (measured: BDS
+/// 1.26.51 stray, bogged and parched hits on the sweep player sent these
+/// `MobEffect` adds on every difficulty).
+pub const TIPPED_ARROW_EFFECTS: [(u8, crate::entity::components::EffectType, u32); 3] = [
+    // Long slowness (stray).
+    (19, crate::entity::components::EffectType::SLOWNESS, 600),
+    // Poison (bogged).
+    (26, crate::entity::components::EffectType::POISON, 112),
+    // Weakness (parched).
+    (35, crate::entity::components::EffectType::WEAKNESS, 225),
+];
+/// A shot plays this unnamed sound (no actor) at the centre of the
+/// shooter's box, before the shooter's own `sound` (measured: BDS 1.26.51
+/// sends `undefined` with an empty actor identifier on every shot).
+pub const RANGED_SHOT_SOUND: &str = "undefined";

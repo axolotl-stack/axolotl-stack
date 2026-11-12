@@ -1,5 +1,6 @@
 //! Stuck projectiles: survival players pick up the item they carry
-//! (arrows, tridents) by touching them, and they despawn after a minute.
+//! (arrows, tridents) by touching them once their `stick_in_ground` shake
+//! is over, and they despawn after a minute.
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -22,19 +23,33 @@ pub const STUCK_LIFETIME: u64 = 1200;
 #[allow(clippy::type_complexity)]
 pub fn pick_up_stuck_projectiles(
     world: &mut World,
-    stuck: &mut QueryState<(Entity, &Stuck, &Position, Option<&ProjectileItem>)>,
+    stuck: &mut QueryState<(
+        Entity,
+        &Stuck,
+        &Position,
+        Option<&ProjectileItem>,
+        Option<&super::ProjectileConfig>,
+    )>,
     players: &mut QueryState<(Entity, &Position, &GameMode, &Health), With<MainInventory>>,
-    mut due: Local<Vec<(Entity, u64, DVec3, Option<ProjectileItem>)>>,
+    mut due: Local<Vec<(Entity, u64, u64, DVec3, Option<ProjectileItem>)>>,
 ) {
     let now = world.resource::<TickCounter>().current;
-    due.extend(
-        stuck
-            .iter(world)
-            .map(|(e, s, p, item)| (e, s.since, p.0, item.cloned())),
-    );
-    for (projectile, since, at, item) in due.drain(..) {
-        if now.saturating_sub(since) >= STUCK_LIFETIME {
+    due.extend(stuck.iter(world).map(|(e, s, p, item, config)| {
+        let shake = config
+            .and_then(|c| c.0.stick_in_ground)
+            .map_or(0, u64::from);
+        (e, s.since, shake, p.0, item.cloned())
+    }));
+    for (projectile, since, shake, at, item) in due.drain(..) {
+        let stuck_for = now.saturating_sub(since);
+        if stuck_for >= STUCK_LIFETIME {
             world.despawn(projectile);
+            continue;
+        }
+        // Not while it still shakes (measured: BDS 1.26.51 arrows stuck
+        // next to a survival player were taken exactly when their 7-tick
+        // shake ended; one stuck long before was taken on arrival).
+        if stuck_for < shake {
             continue;
         }
         let Some(ProjectileItem(stack)) = item else {

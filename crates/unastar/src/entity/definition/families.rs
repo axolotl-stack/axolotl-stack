@@ -138,6 +138,13 @@ pub struct ActorFamilies {
 pub struct ForeignFamilyHandle;
 
 impl ActorFamilies {
+    /// Membership of `names` in `registry` (tests stand one actor in for
+    /// another family).
+    #[cfg(test)]
+    pub(crate) fn of(registry: &Arc<FamilyRegistry>, names: &[String]) -> Self {
+        registry.membership(names).expect("registered families")
+    }
+
     pub fn contains(&self, family: &FamilyId) -> Result<bool, ForeignFamilyHandle> {
         if !Arc::ptr_eq(&self.registry, &family.owner) {
             return Err(ForeignFamilyHandle);

@@ -18,10 +18,10 @@ use super::path::{PathBlockTable, WalkPolicy, find_path, ground_below, random_ta
 use crate::entity::components::PhysicsBody;
 use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind, GoalSpec};
 use crate::entity::mob::components::{
-    BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FleeSunGoal, FloatGoal,
-    FollowParentGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal,
+    AvoidMobTypeGoal, BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FleeSunGoal,
+    FloatGoal, FollowParentGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal,
     NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal, RandomLookAroundGoal,
-    RandomStrollGoal, TemptGoal, WalkNavigationConfig,
+    RandomStrollGoal, RangedAttackGoal, TemptGoal, WalkNavigationConfig,
 };
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
@@ -56,10 +56,12 @@ pub enum Goal {
     PickupItems,
     EquipItem,
     FleeSun,
+    RangedAttack,
+    AvoidMobType,
 }
 
 impl Goal {
-    const ALL: [Goal; 15] = [
+    const ALL: [Goal; 17] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -75,6 +77,8 @@ impl Goal {
         Goal::PickupItems,
         Goal::EquipItem,
         Goal::FleeSun,
+        Goal::RangedAttack,
+        Goal::AvoidMobType,
     ];
 
     pub fn id(self) -> GoalId {
@@ -102,6 +106,8 @@ impl Goal {
             Goal::HurtByTarget | Goal::NearestAttackableTarget => GoalControls::TARGET,
             Goal::MeleeBoxAttack | Goal::PickupItems => GoalControls::MOVE | GoalControls::LOOK,
             Goal::EquipItem => GoalControls::NONE,
+            Goal::RangedAttack => GoalControls::MOVE | GoalControls::LOOK,
+            Goal::AvoidMobType => GoalControls::MOVE,
         }
     }
 }
@@ -209,6 +215,22 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls,
         });
     }
+    if let Some(goal) = entity.get::<RangedAttackGoal>() {
+        out.push(GoalSpec {
+            id: Goal::RangedAttack.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<AvoidMobTypeGoal>() {
+        out.push(GoalSpec {
+            id: Goal::AvoidMobType.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
 }
 
 /// World writes the goals request; applied after the mob's tick.
@@ -225,6 +247,11 @@ pub struct Effects {
     pub target: Option<Option<Entity>>,
     /// The melee goal hits this actor now.
     pub attack: Option<Entity>,
+    /// The ranged goal shoots at this actor now.
+    pub shoot: Option<Entity>,
+    /// The ranged goal started (`true`) or stopped: the
+    /// `FACING_TARGET_TO_RANGE_ATTACK` flag follows.
+    pub ranged_facing: Option<bool>,
     /// The pickup and equip goals' item work (`super::pickup`).
     pub gear: super::pickup::GearWork,
 }
@@ -267,6 +294,8 @@ pub struct GoalStates {
     boxes: Vec<Aabb>,
     pub(super) targets: super::targeting::TargetStates,
     pub(super) melee: super::melee::MeleeState,
+    pub(super) ranged: super::ranged::RangedState,
+    pub(super) avoid: super::avoid::AvoidState,
     pub(super) pickup: super::pickup::PickupState,
 }
 
@@ -346,7 +375,12 @@ impl<'a> GoalContext<'a> {
     }
 
     /// Prepare a path to the best reachable random position.
-    fn prepare_random_path(&mut self, xz: i32, y: i32, away: Option<DVec3>) -> Option<DVec3> {
+    pub(super) fn prepare_random_path(
+        &mut self,
+        xz: i32,
+        y: i32,
+        away: Option<DVec3>,
+    ) -> Option<DVec3> {
         let mut candidates = std::mem::take(&mut self.states.candidates);
         random_targets(
             self.world,
@@ -633,6 +667,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::PickupItems => self.pickup_can_start(),
             Goal::EquipItem => self.equip_can_start(),
             Goal::FleeSun => self.flee_sun_can_start(),
+            Goal::RangedAttack => self.ranged_can_start(),
+            Goal::AvoidMobType => self.avoid_can_start(),
         }
     }
 
@@ -690,6 +726,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_can_continue(),
             Goal::PickupItems => self.pickup_can_continue(),
             Goal::EquipItem => self.equip_can_start(),
+            Goal::RangedAttack => self.ranged_can_start(),
+            Goal::AvoidMobType => self.avoid_can_continue(),
             Goal::Breed => {
                 let Some(partner) = self.mob(self.states.breed.partner) else {
                     return false;
@@ -765,6 +803,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::PickupItems => self.pickup_start(),
             Goal::EquipItem => {}
             Goal::FleeSun => self.flee_sun_start(),
+            Goal::RangedAttack => self.ranged_start(),
+            Goal::AvoidMobType => self.avoid_start(),
         }
     }
 
@@ -797,6 +837,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_stop(),
             Goal::PickupItems => self.pickup_stop(),
             Goal::EquipItem => {}
+            Goal::RangedAttack => self.ranged_stop(),
+            Goal::AvoidMobType => self.avoid_stop(),
         }
     }
 
@@ -834,6 +876,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_tick(),
             Goal::PickupItems => self.pickup_tick(),
             Goal::EquipItem => self.equip_tick(),
+            Goal::RangedAttack => self.ranged_tick(),
+            Goal::AvoidMobType => self.avoid_tick(),
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return;

@@ -10,7 +10,7 @@
 
 # aquatic (259)
 "minecraft:cod" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.random_swim, behavior.swim_idle, behavior.swim_wander, flocking, movement.sway (+2 more)" }
-"minecraft:cod/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:cod/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); cod cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:cod/behavior.random_swim" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:cod/behavior.swim_idle" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:cod/behavior.swim_wander" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
@@ -127,7 +127,7 @@
 "minecraft:nautilus/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:pufferfish" = { status = "missing", gaps = "not spawnable: needs area_attack, behavior.avoid_mob_type, behavior.random_swim, behavior.swim_wander, entity_sensor, flocking (+4 more)" }
 "minecraft:pufferfish/area_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:pufferfish/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:pufferfish/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); pufferfish cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:pufferfish/behavior.random_swim" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:pufferfish/behavior.swim_wander" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:pufferfish/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; pufferfish cannot spawn yet" }
@@ -156,7 +156,7 @@
 "minecraft:pufferfish/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:pufferfish/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pufferfish cannot spawn yet" }
 "minecraft:salmon" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.random_swim, behavior.swim_idle, behavior.swim_wander, flocking, movement.sway (+2 more)" }
-"minecraft:salmon/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:salmon/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); salmon cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:salmon/behavior.random_swim" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:salmon/behavior.swim_idle" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:salmon/behavior.swim_wander" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
@@ -239,7 +239,7 @@
 "minecraft:tadpole/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but tadpole cannot spawn yet" }
 "minecraft:tadpole/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:tropicalfish" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.random_swim, behavior.swim_idle, behavior.swim_wander, flocking, movement.sway (+2 more)" }
-"minecraft:tropicalfish/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:tropicalfish/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); tropicalfish cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:tropicalfish/behavior.random_swim" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:tropicalfish/behavior.swim_idle" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:tropicalfish/behavior.swim_wander" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
@@ -381,47 +381,47 @@
 "minecraft:blaze/spawn_rules" = { status = "missing", gaps = "the rule has no natural conditions: blaze spawns only from structures or villages, which do not spawn mobs yet" }
 "minecraft:blaze/target_nearby_sensor" = { status = "missing", gaps = "not implemented: needs anger and target events" }
 "minecraft:blaze/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but blaze cannot spawn yet" }
-"minecraft:bogged" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.flee_sun, behavior.ranged_attack, shooter" }
-"minecraft:bogged/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
-"minecraft:bogged/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
-"minecraft:bogged/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; bogged cannot spawn yet" }
-"minecraft:bogged/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; bogged cannot spawn yet" }
-"minecraft:bogged/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; bogged cannot spawn yet" }
-"minecraft:bogged/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:bogged/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/interact" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/is_sheared" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet; loot functions not implemented: set_potion (an unsupported function or condition fails the roll)" }
-"minecraft:bogged/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; bogged cannot spawn yet" }
-"minecraft:bogged/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); bogged cannot spawn yet" }
-"minecraft:bogged/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
-"minecraft:bogged/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
-"minecraft:bogged/spawn_rules" = { status = "partial", gaps = "bogged cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
-"minecraft:bogged/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bogged cannot spawn yet" }
+"minecraft:bogged" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_skeleton_family_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/bogged.bin", notes = "Sub-row gaps: no melee fallback replay (the bow is the only ranged weapon), mobs do not drown, climb or freeze, the shot sounds go out before the arrow AddActor (BDS: after). Ranged attack, shooter and avoidance replayed against BDS 1.26.51 (crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json). Prior art: PR #71 commits 566bcfab, 61fcbad2, 59216af7." }
+"minecraft:bogged/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/behavior.avoid_mob_type" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::a_skeleton_flees_a_wolf_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::flights_end_beyond_max_flee_like_bds"], notes = "The same authored entry as the skeleton, replayed there." }
+"minecraft:bogged/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager; not yet exercised on the bogged" }
+"minecraft:bogged/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/behavior.look_at_player" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_turn_their_heads_toward_a_nearby_player"] }
+"minecraft:bogged/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/behavior.nearest_attackable_target" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks"] }
+"minecraft:bogged/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/behavior.random_look_around" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::idle_listed_mobs_look_around_within_the_angle_range"] }
+"minecraft:bogged/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/behavior.ranged_attack" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_aim_along_the_bds_parabola", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_spread_grows_with_the_uncertainty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::arrow_damage_varies_with_the_difficulty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::only_a_bow_keeps_a_skeleton_shooting"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json", notes = "Hold-position mode only; charged, burst and follow_target attacks are rejected. Strafing never measured (the BDS skeletons were frozen)." }
+"minecraft:bogged/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
+"minecraft:bogged/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
+"minecraft:bogged/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_fall_and_stay_on_the_ground"] }
+"minecraft:bogged/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates" }
+"minecraft:bogged/despawn" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_despawn_far_from_players_and_stay_near_them"] }
+"minecraft:bogged/environment_sensor" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::only_a_bow_keeps_a_skeleton_shooting", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::powder_snow_anywhere_in_the_box_shakes_a_skeleton_like_bds"], notes = "The same triggers as the skeleton, replayed there." }
+"minecraft:bogged/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/equipment" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_skeleton_family_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks"] }
+"minecraft:bogged/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
+"minecraft:bogged/hurt_on_condition" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_standing_in_lava_are_hurt_by_it"] }
+"minecraft:bogged/interact" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/is_sheared" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/jump.static" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_jump_a_block_to_reach_a_stroll_target"] }
+"minecraft:bogged/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged; loot functions not implemented: set_potion (an unsupported function or condition fails the roll)" }
+"minecraft:bogged/movement" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:bogged/movement.basic" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:bogged/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
+"minecraft:bogged/navigation.walk" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:bogged/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_fall_and_stay_on_the_ground"] }
+"minecraft:bogged/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:bogged/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::overlapping_listed_mobs_push_each_other_apart"] }
+"minecraft:bogged/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the bogged" }
+"minecraft:bogged/shooter" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_aim_along_the_bds_parabola", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_spread_grows_with_the_uncertainty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::arrow_damage_varies_with_the_difficulty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::tipped_arrows_give_the_bds_effects"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json" }
+"minecraft:bogged/spawn_rules" = { status = "partial", gaps = "no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:bogged/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_belong_to_their_authored_families"] }
 "minecraft:breeze" = { status = "missing", gaps = "not spawnable: needs behavior.fire_at_target, behavior.jump_around_target, behavior.move_around_target, follow_range, knockback_resistance, persistent (+1 more)" }
 "minecraft:breeze/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but breeze cannot spawn yet" }
 "minecraft:breeze/behavior.fire_at_target" = { status = "missing", gaps = "component behaviour not implemented" }
@@ -462,7 +462,7 @@
 "minecraft:cave_spider/addrider" = { status = "missing", gaps = "not implemented: needs riding" }
 "minecraft:cave_spider/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman (spreading, calm, sounds on the zoglin, filters, broadcast targets, spreading on hits and while dying), but cave_spider cannot spawn yet" }
 "minecraft:cave_spider/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cave_spider cannot spawn yet" }
-"minecraft:cave_spider/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:cave_spider/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); cave spider cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:cave_spider/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cave_spider cannot spawn yet" }
 "minecraft:cave_spider/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cave_spider cannot spawn yet" }
 "minecraft:cave_spider/behavior.leap_at_target" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
@@ -535,7 +535,7 @@
 "minecraft:creaking/variable_max_auto_step" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:creeper" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.melee_attack, behavior.swell, explode, is_charged, target_nearby_sensor" }
 "minecraft:creeper/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creeper cannot spawn yet" }
-"minecraft:creeper/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:creeper/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); creeper cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:creeper/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creeper cannot spawn yet" }
 "minecraft:creeper/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creeper cannot spawn yet" }
 "minecraft:creeper/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but creeper cannot spawn yet" }
@@ -719,7 +719,7 @@
 "minecraft:endermite/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_belong_to_their_authored_families"] }
 "minecraft:evocation_illager" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.celebrate, behavior.look_at_entity, behavior.move_to_village, behavior.send_event, behavior.summon_entity (+4 more)" }
 "minecraft:evocation_illager/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
-"minecraft:evocation_illager/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:evocation_illager/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); evocation illager cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:evocation_illager/behavior.celebrate" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:evocation_illager/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
@@ -789,7 +789,7 @@
 "minecraft:guardian" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.guardian_attack, behavior.move_towards_home_restriction, behavior.random_swim, follow_range, home (+4 more)" }
 "minecraft:guardian/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
 "minecraft:guardian/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
-"minecraft:guardian/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:guardian/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); guardian cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:guardian/behavior.guardian_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
 "minecraft:guardian/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but guardian cannot spawn yet" }
 "minecraft:guardian/behavior.move_towards_home_restriction" = { status = "missing", gaps = "component behaviour not implemented" }
@@ -904,48 +904,48 @@
 "minecraft:magma_cube/spawn_rules" = { status = "partial", gaps = "magma_cube cannot spawn yet, so drawn entries spawn nothing; the native spawn check of magma_cube's class is not modelled; brightness is sky light only" }
 "minecraft:magma_cube/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
 "minecraft:magma_cube/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but magma_cube cannot spawn yet" }
-"minecraft:parched" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.flee_sun, behavior.ranged_attack, mob_effect_immunity, shooter" }
-"minecraft:parched/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
-"minecraft:parched/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager, but parched cannot spawn yet" }
-"minecraft:parched/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
-"minecraft:parched/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; parched cannot spawn yet" }
-"minecraft:parched/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; parched cannot spawn yet" }
-"minecraft:parched/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; parched cannot spawn yet" }
-"minecraft:parched/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:parched/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet; loot functions not implemented: set_potion (an unsupported function or condition fails the roll)" }
-"minecraft:parched/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented (attack effects skip immune mobs) and tested on the zombie pigman, but parched cannot spawn yet" }
-"minecraft:parched/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; parched cannot spawn yet" }
-"minecraft:parched/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); parched cannot spawn yet" }
-"minecraft:parched/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
-"minecraft:parched/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
-"minecraft:parched/spawn_rules" = { status = "partial", gaps = "parched cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
-"minecraft:parched/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parched cannot spawn yet" }
+"minecraft:parched" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_skeleton_family_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/parched.bin", notes = "Sub-row gaps: no melee fallback replay (the bow is the only ranged weapon), mobs do not drown, climb or freeze, the shot sounds go out before the arrow AddActor (BDS: after). Ranged attack, shooter and avoidance replayed against BDS 1.26.51 (crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json). Prior art: PR #71 commits 566bcfab, 61fcbad2, 59216af7." }
+"minecraft:parched/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched" }
+"minecraft:parched/behavior.avoid_mob_type" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::a_skeleton_flees_a_wolf_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::flights_end_beyond_max_flee_like_bds"], notes = "The same authored entry as the skeleton, replayed there." }
+"minecraft:parched/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched" }
+"minecraft:parched/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager; not yet exercised on the parched" }
+"minecraft:parched/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched" }
+"minecraft:parched/behavior.look_at_player" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_turn_their_heads_toward_a_nearby_player"] }
+"minecraft:parched/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched" }
+"minecraft:parched/behavior.nearest_attackable_target" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks"] }
+"minecraft:parched/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched" }
+"minecraft:parched/behavior.random_look_around" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::idle_listed_mobs_look_around_within_the_angle_range"] }
+"minecraft:parched/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched" }
+"minecraft:parched/behavior.ranged_attack" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_aim_along_the_bds_parabola", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_spread_grows_with_the_uncertainty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::arrow_damage_varies_with_the_difficulty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::only_a_bow_keeps_a_skeleton_shooting"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json", notes = "Hold-position mode only; charged, burst and follow_target attacks are rejected. Strafing never measured (the BDS skeletons were frozen)." }
+"minecraft:parched/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
+"minecraft:parched/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
+"minecraft:parched/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_fall_and_stay_on_the_ground"] }
+"minecraft:parched/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates" }
+"minecraft:parched/despawn" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_despawn_far_from_players_and_stay_near_them"] }
+"minecraft:parched/environment_sensor" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::only_a_bow_keeps_a_skeleton_shooting", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::powder_snow_anywhere_in_the_box_shakes_a_skeleton_like_bds"], notes = "The same triggers as the skeleton, replayed there." }
+"minecraft:parched/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched" }
+"minecraft:parched/equipment" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_skeleton_family_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks"] }
+"minecraft:parched/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched" }
+"minecraft:parched/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
+"minecraft:parched/hurt_on_condition" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_standing_in_lava_are_hurt_by_it"] }
+"minecraft:parched/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched" }
+"minecraft:parched/jump.static" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_jump_a_block_to_reach_a_stroll_target"] }
+"minecraft:parched/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched; loot functions not implemented: set_potion (an unsupported function or condition fails the roll)" }
+"minecraft:parched/mob_effect_immunity" = { status = "partial", owner = "entities", gaps = "implemented (attack effects skip immune mobs) and tested on the zombie pigman; not yet exercised on the parched" }
+"minecraft:parched/movement" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:parched/movement.basic" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:parched/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
+"minecraft:parched/navigation.walk" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:parched/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_fall_and_stay_on_the_ground"] }
+"minecraft:parched/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:parched/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::overlapping_listed_mobs_push_each_other_apart"] }
+"minecraft:parched/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the parched" }
+"minecraft:parched/shooter" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_aim_along_the_bds_parabola", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_spread_grows_with_the_uncertainty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::arrow_damage_varies_with_the_difficulty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::tipped_arrows_give_the_bds_effects"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json" }
+"minecraft:parched/spawn_rules" = { status = "partial", gaps = "no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:parched/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_belong_to_their_authored_families"] }
 "minecraft:phantom" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.circle_around_anchor, behavior.swoop_attack, follow_range, movement.glide, renders_when_invisible" }
 "minecraft:phantom/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
-"minecraft:phantom/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:phantom/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); phantom cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:phantom/behavior.circle_around_anchor" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
 "minecraft:phantom/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but phantom cannot spawn yet" }
 "minecraft:phantom/behavior.swoop_attack" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
@@ -979,7 +979,7 @@
 "minecraft:piglin/barter" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:piglin/behavior.admire_item" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:piglin/behavior.avoid_block" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
-"minecraft:piglin/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:piglin/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); piglin cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:piglin/behavior.barter" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:piglin/behavior.charge_held_item" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
 "minecraft:piglin/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but piglin cannot spawn yet" }
@@ -1075,7 +1075,7 @@
 "minecraft:pillager" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.celebrate, behavior.charge_held_item, behavior.follow_target_captain, behavior.hold_ground, behavior.move_to_random_block (+10 more)" }
 "minecraft:pillager/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
 "minecraft:pillager/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
-"minecraft:pillager/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:pillager/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); pillager cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:pillager/behavior.celebrate" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:pillager/behavior.charge_held_item" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
 "minecraft:pillager/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but pillager cannot spawn yet" }
@@ -1225,51 +1225,51 @@
 "minecraft:silverfish/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); silverfish cannot spawn yet" }
 "minecraft:silverfish/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
 "minecraft:silverfish/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but silverfish cannot spawn yet" }
-"minecraft:skeleton" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.flee_sun, behavior.ranged_attack, freezing_immune, shooter" }
-"minecraft:skeleton/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
-"minecraft:skeleton/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
-"minecraft:skeleton/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; skeleton cannot spawn yet" }
-"minecraft:skeleton/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; skeleton cannot spawn yet" }
-"minecraft:skeleton/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; skeleton cannot spawn yet" }
-"minecraft:skeleton/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:skeleton/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
-"minecraft:skeleton/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:skeleton/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/is_shaking" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; skeleton cannot spawn yet" }
-"minecraft:skeleton/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); skeleton cannot spawn yet" }
-"minecraft:skeleton/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/rotation_locked_to_vehicle" = { status = "partial", owner = "entities", gaps = "the flag is replicated; riding is not implemented; skeleton cannot spawn yet" }
-"minecraft:skeleton/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
-"minecraft:skeleton/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
-"minecraft:skeleton/spawn_rules" = { status = "partial", gaps = "skeleton cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
-"minecraft:skeleton/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
+"minecraft:skeleton" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_skeleton_family_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/skeleton.bin", notes = "Sub-row gaps: no melee fallback replay (the bow is the only ranged weapon), mobs do not drown, climb or freeze, the shot sounds go out before the arrow AddActor (BDS: after). Ranged attack, shooter and avoidance replayed against BDS 1.26.51 (crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json). Prior art: PR #71 commits 566bcfab, 61fcbad2, 59216af7." }
+"minecraft:skeleton/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/behavior.avoid_mob_type" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::a_skeleton_flees_a_wolf_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::flights_end_beyond_max_flee_like_bds"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json", notes = "Replayed with a frozen cow in the wolf family (wolves are not spawnable yet)." }
+"minecraft:skeleton/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager; not yet exercised on the skeleton" }
+"minecraft:skeleton/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/behavior.look_at_player" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_turn_their_heads_toward_a_nearby_player"] }
+"minecraft:skeleton/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/behavior.nearest_attackable_target" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks"] }
+"minecraft:skeleton/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/behavior.random_look_around" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::idle_listed_mobs_look_around_within_the_angle_range"] }
+"minecraft:skeleton/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/behavior.ranged_attack" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_aim_along_the_bds_parabola", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_spread_grows_with_the_uncertainty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::arrow_damage_varies_with_the_difficulty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::only_a_bow_keeps_a_skeleton_shooting"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json", notes = "Hold-position mode only; charged, burst and follow_target attacks are rejected. Strafing never measured (the BDS skeletons were frozen)." }
+"minecraft:skeleton/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
+"minecraft:skeleton/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
+"minecraft:skeleton/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_fall_and_stay_on_the_ground"] }
+"minecraft:skeleton/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates" }
+"minecraft:skeleton/damage_sensor" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_spring_trap_sensor_blocks_no_hit_like_bds"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json", notes = "The other_with_families key matches nothing (BDS deals the hits in full); lightning, which a legacy is_family reading would block, is not implemented." }
+"minecraft:skeleton/despawn" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_despawn_far_from_players_and_stay_near_them"] }
+"minecraft:skeleton/environment_sensor" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::only_a_bow_keeps_a_skeleton_shooting", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::powder_snow_anywhere_in_the_box_shakes_a_skeleton_like_bds"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json", notes = "has_ranged_weapon (bow only), in_block and is_difficulty measured; is_underwater untested here." }
+"minecraft:skeleton/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/equipment" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_skeleton_family_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks"] }
+"minecraft:skeleton/experience_reward" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player"] }
+"minecraft:skeleton/freezing_immune" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: powder snow freezes nothing on the server" }
+"minecraft:skeleton/health" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player"] }
+"minecraft:skeleton/hurt_on_condition" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_standing_in_lava_are_hurt_by_it"] }
+"minecraft:skeleton/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/is_shaking" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/jump.static" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_jump_a_block_to_reach_a_stroll_target"] }
+"minecraft:skeleton/loot" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player"] }
+"minecraft:skeleton/movement" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:skeleton/movement.basic" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:skeleton/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
+"minecraft:skeleton/navigation.walk" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:skeleton/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_fall_and_stay_on_the_ground"] }
+"minecraft:skeleton/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:skeleton/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::overlapping_listed_mobs_push_each_other_apart"] }
+"minecraft:skeleton/rotation_locked_to_vehicle" = { status = "partial", owner = "entities", gaps = "the flag is replicated; riding is not implemented" }
+"minecraft:skeleton/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
+"minecraft:skeleton/shooter" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_aim_along_the_bds_parabola", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_spread_grows_with_the_uncertainty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::arrow_damage_varies_with_the_difficulty_like_bds"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json" }
+"minecraft:skeleton/spawn_rules" = { status = "partial", gaps = "no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:skeleton/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the skeleton" }
 "minecraft:skeleton/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
-"minecraft:skeleton/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but skeleton cannot spawn yet" }
+"minecraft:skeleton/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_belong_to_their_authored_families"] }
 "minecraft:slime" = { status = "missing", gaps = "not spawnable: needs area_attack, behavior.slime_attack, behavior.slime_float, behavior.slime_keep_on_jumping, behavior.slime_random_direction, mob_effect_immunity (+1 more)" }
 "minecraft:slime/area_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
 "minecraft:slime/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but slime cannot spawn yet" }
@@ -1306,7 +1306,7 @@
 "minecraft:spider/addrider" = { status = "missing", gaps = "not implemented: needs riding" }
 "minecraft:spider/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman (spreading, calm, sounds on the zoglin, filters, broadcast targets, spreading on hits and while dying), but spider cannot spawn yet" }
 "minecraft:spider/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but spider cannot spawn yet" }
-"minecraft:spider/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:spider/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); spider cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:spider/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but spider cannot spawn yet" }
 "minecraft:spider/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but spider cannot spawn yet" }
 "minecraft:spider/behavior.leap_at_target" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
@@ -1341,47 +1341,47 @@
 "minecraft:spider/rideable" = { status = "missing", gaps = "riding is not implemented; nothing can ride or be ridden" }
 "minecraft:spider/spawn_rules" = { status = "partial", gaps = "spider cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:spider/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but spider cannot spawn yet" }
-"minecraft:stray" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.flee_sun, behavior.ranged_attack, freezing_immune, shooter" }
-"minecraft:stray/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
-"minecraft:stray/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager, but stray cannot spawn yet" }
-"minecraft:stray/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
-"minecraft:stray/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; stray cannot spawn yet" }
-"minecraft:stray/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; stray cannot spawn yet" }
-"minecraft:stray/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; stray cannot spawn yet" }
-"minecraft:stray/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
-"minecraft:stray/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:stray/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet; loot functions not implemented: set_potion (an unsupported function or condition fails the roll)" }
-"minecraft:stray/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; stray cannot spawn yet" }
-"minecraft:stray/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); stray cannot spawn yet" }
-"minecraft:stray/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
-"minecraft:stray/shooter" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
-"minecraft:stray/spawn_rules" = { status = "missing", gaps = "conditions not implemented: spawn_event (2 of 2 entries left out of every pool); stray cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:stray" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_skeleton_family_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/stray.bin", notes = "Sub-row gaps: no melee fallback replay (the bow is the only ranged weapon), mobs do not drown, climb or freeze, the shot sounds go out before the arrow AddActor (BDS: after). Ranged attack, shooter and avoidance replayed against BDS 1.26.51 (crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json). Prior art: PR #71 commits 566bcfab, 61fcbad2, 59216af7." }
+"minecraft:stray/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/behavior.avoid_mob_type" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::a_skeleton_flees_a_wolf_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::flights_end_beyond_max_flee_like_bds"], notes = "The same authored entry as the skeleton, replayed there." }
+"minecraft:stray/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/behavior.flee_sun" = { status = "partial", owner = "entities", gaps = "implemented (sky-light approximation) and tested on the zombie villager; not yet exercised on the stray" }
+"minecraft:stray/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/behavior.look_at_player" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_turn_their_heads_toward_a_nearby_player"] }
+"minecraft:stray/behavior.melee_box_attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/behavior.nearest_attackable_target" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks"] }
+"minecraft:stray/behavior.pickup_items" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/behavior.random_look_around" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::idle_listed_mobs_look_around_within_the_angle_range"] }
+"minecraft:stray/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/behavior.ranged_attack" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_aim_along_the_bds_parabola", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_spread_grows_with_the_uncertainty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::arrow_damage_varies_with_the_difficulty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::only_a_bow_keeps_a_skeleton_shooting"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json", notes = "Hold-position mode only; charged, burst and follow_target attacks are rejected. Strafing never measured (the BDS skeletons were frozen)." }
+"minecraft:stray/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
+"minecraft:stray/burns_in_daylight" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
+"minecraft:stray/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_fall_and_stay_on_the_ground"] }
+"minecraft:stray/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates" }
+"minecraft:stray/despawn" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_despawn_far_from_players_and_stay_near_them"] }
+"minecraft:stray/environment_sensor" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::only_a_bow_keeps_a_skeleton_shooting", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::powder_snow_anywhere_in_the_box_shakes_a_skeleton_like_bds"], notes = "The same triggers as the skeleton, replayed there." }
+"minecraft:stray/equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/equipment" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/hostile.rs::spawned_skeleton_family_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks"] }
+"minecraft:stray/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/freezing_immune" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: powder snow freezes nothing on the server" }
+"minecraft:stray/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
+"minecraft:stray/hurt_on_condition" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_standing_in_lava_are_hurt_by_it"] }
+"minecraft:stray/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/jump.static" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_jump_a_block_to_reach_a_stroll_target"] }
+"minecraft:stray/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray; loot functions not implemented: set_potion (an unsupported function or condition fails the roll)" }
+"minecraft:stray/movement" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:stray/movement.basic" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:stray/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
+"minecraft:stray/navigation.walk" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_stroll_within_their_range_around_obstacles"] }
+"minecraft:stray/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_fall_and_stay_on_the_ground"] }
+"minecraft:stray/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:stray/pushable_by_entity" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::overlapping_listed_mobs_push_each_other_apart"] }
+"minecraft:stray/shareables" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; not yet exercised on the stray" }
+"minecraft:stray/shooter" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_follow_the_target_at_the_bds_ticks", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_first_shot_starts_and_sounds_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::shots_aim_along_the_bds_parabola", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_spread_grows_with_the_uncertainty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::arrow_damage_varies_with_the_difficulty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::tipped_arrows_give_the_bds_effects"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json" }
+"minecraft:stray/spawn_rules" = { status = "missing", gaps = "conditions not implemented: spawn_event (2 of 2 entries left out of every pool), so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:stray/transformation" = { status = "missing", gaps = "conversion never happens: no lightning (pig to zombified piglin) and the drowned target is not spawnable (zombie)" }
-"minecraft:stray/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but stray cannot spawn yet" }
+"minecraft:stray/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_belong_to_their_authored_families"] }
 "minecraft:vex" = { status = "missing", gaps = "not spawnable: needs behavior.charge_attack, behavior.look_at_entity, damage_over_time" }
 "minecraft:vex/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
 "minecraft:vex/behavior.charge_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
@@ -1414,7 +1414,7 @@
 "minecraft:vindicator/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman (spreading, calm, sounds on the zoglin, filters, broadcast targets, spreading on hits and while dying), but vindicator cannot spawn yet" }
 "minecraft:vindicator/annotation.break_door" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
-"minecraft:vindicator/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:vindicator/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); vindicator cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:vindicator/behavior.celebrate" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:vindicator/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
@@ -2329,7 +2329,7 @@
 "minecraft:cat/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cat cannot spawn yet" }
 "minecraft:cat/attack_damage" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:cat/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
-"minecraft:cat/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:cat/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); cat cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:cat/behavior.breed" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cat cannot spawn yet" }
 "minecraft:cat/behavior.drop_item_for" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:cat/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but cat cannot spawn yet" }
@@ -2514,7 +2514,7 @@
 "minecraft:dolphin/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman (spreading, calm, sounds on the zoglin, filters, broadcast targets, spreading on hits and while dying), but dolphin cannot spawn yet" }
 "minecraft:dolphin/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
 "minecraft:dolphin/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
-"minecraft:dolphin/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:dolphin/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); dolphin cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:dolphin/behavior.find_underwater_treasure" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:dolphin/behavior.follow_parent" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
 "minecraft:dolphin/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
@@ -2630,7 +2630,7 @@
 "minecraft:fox/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but fox cannot spawn yet" }
 "minecraft:fox/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but fox cannot spawn yet" }
 "minecraft:fox/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
-"minecraft:fox/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:fox/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); fox cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:fox/behavior.breed" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but fox cannot spawn yet" }
 "minecraft:fox/behavior.defend_trusted_target" = { status = "missing", gaps = "not implemented: needs anger and target events" }
 "minecraft:fox/behavior.eat_carried_item" = { status = "missing", gaps = "not implemented: needs block interaction" }
@@ -2833,7 +2833,7 @@
 "minecraft:hoglin/attack_cooldown" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
 "minecraft:hoglin/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
 "minecraft:hoglin/behavior.avoid_block" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
-"minecraft:hoglin/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:hoglin/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); hoglin cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:hoglin/behavior.breed" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
 "minecraft:hoglin/behavior.follow_parent" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
 "minecraft:hoglin/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but hoglin cannot spawn yet" }
@@ -3094,7 +3094,7 @@
 "minecraft:ocelot/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ocelot cannot spawn yet" }
 "minecraft:ocelot/attack_damage" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:ocelot/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
-"minecraft:ocelot/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:ocelot/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); ocelot cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:ocelot/behavior.breed" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ocelot cannot spawn yet" }
 "minecraft:ocelot/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ocelot cannot spawn yet" }
 "minecraft:ocelot/behavior.follow_owner" = { status = "missing", gaps = "not implemented: needs taming and owners" }
@@ -3148,7 +3148,7 @@
 "minecraft:panda/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman (spreading, calm, sounds on the zoglin, filters, broadcast targets, spreading on hits and while dying), but panda cannot spawn yet" }
 "minecraft:panda/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
 "minecraft:panda/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
-"minecraft:panda/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:panda/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); panda cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:panda/behavior.breed" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
 "minecraft:panda/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
 "minecraft:panda/behavior.follow_parent" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
@@ -3339,7 +3339,7 @@
 "minecraft:rabbit" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.raid_garden, jump.dynamic, movement.skip" }
 "minecraft:rabbit/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
 "minecraft:rabbit/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
-"minecraft:rabbit/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:rabbit/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); rabbit cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:rabbit/behavior.breed" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
 "minecraft:rabbit/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
 "minecraft:rabbit/behavior.follow_parent" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
@@ -3756,7 +3756,7 @@
 "minecraft:wolf/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman (spreading, calm, sounds on the zoglin, filters, broadcast targets, spreading on hits and while dying), but wolf cannot spawn yet" }
 "minecraft:wolf/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
 "minecraft:wolf/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
-"minecraft:wolf/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:wolf/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); wolf cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:wolf/behavior.beg" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:wolf/behavior.breed" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
 "minecraft:wolf/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
@@ -3902,7 +3902,7 @@
 "minecraft:arrow/dimension_bound" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: changing dimension is not implemented, so there are no portals to keep the arrow out of" }
 "minecraft:arrow/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs; no test puts an arrow in lava" }
 "minecraft:arrow/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/ranged.rs::arrows_stick_in_the_ground_and_come_back"] }
-"minecraft:arrow/projectile" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/ranged.rs::a_drawn_bow_shoots_an_arrow_that_hurts_a_cow", "crates/unastar/src/server/game/item_use/ranged.rs::arrows_stick_in_the_ground_and_come_back", "crates/unastar/src/server/game/item_use/ranged.rs::crossbows_load_after_25_ticks_then_fire"], gaps = "on_hit.arrow_effect applies nothing because tipped arrows are not implemented; uncertainty (mob shot spread) is unused because no mob shoots", notes = "Speed-scaled damage with critical bonus, sticking in the ground, bouncing off when no damage is dealt, and pickup are implemented." }
+"minecraft:arrow/projectile" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/server/game/item_use/ranged.rs::a_drawn_bow_shoots_an_arrow_that_hurts_a_cow", "crates/unastar/src/server/game/item_use/ranged.rs::arrows_stick_in_the_ground_and_come_back", "crates/unastar/src/server/game/item_use/ranged.rs::crossbows_load_after_25_ticks_then_fire", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::the_spread_grows_with_the_uncertainty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::arrow_damage_varies_with_the_difficulty_like_bds", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::tipped_arrows_give_the_bds_effects", "crates/unastar/src/entity/mob/combat/bds_ranged.rs::a_stuck_arrow_is_picked_up_once_its_shake_ends_like_bds"], evidence = "crates/unastar/src/entity/mob/combat/testdata/bds-1.26.51-ranged.json", notes = "Mob shots (mob_arrow: spread, difficulty damage, tipped-arrow effects for the stray, bogged and parched aux values) and the pickup after the shake replay BDS 1.26.51. Players' tipped arrows are not implemented (no tipped arrow items in bows)." }
 "minecraft:arrow/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
 "minecraft:arrow/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
 "minecraft:breeze_wind_charge_projectile" = { status = "missing", gaps = "not spawnable: needs explode; projectile features reflect_on_hurt, uncertainty, on_hit.wind_burst_on_hit are rejected" }
@@ -4097,7 +4097,7 @@
 "minecraft:villager" = { status = "missing", gaps = "not spawnable: needs annotation.open_door, behavior.avoid_mob_type, behavior.celebrate_survive, behavior.harvest_farm_block, behavior.look_at_trading_player, behavior.make_love (+12 more)" }
 "minecraft:villager/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager cannot spawn yet" }
 "minecraft:villager/annotation.open_door" = { status = "missing", gaps = "not implemented: needs block interaction" }
-"minecraft:villager/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:villager/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); villager cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:villager/behavior.celebrate_survive" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:villager/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager cannot spawn yet" }
 "minecraft:villager/behavior.harvest_farm_block" = { status = "missing", gaps = "not implemented: needs villages and raids" }
@@ -4144,7 +4144,7 @@
 "minecraft:villager_v2" = { status = "missing", gaps = "not spawnable: needs annotation.open_door, behavior.avoid_mob_type, behavior.celebrate_survive, behavior.explore_outskirts, behavior.fertilize_farm_block, behavior.harvest_farm_block (+26 more)" }
 "minecraft:villager_v2/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet" }
 "minecraft:villager_v2/annotation.open_door" = { status = "missing", gaps = "not implemented: needs block interaction" }
-"minecraft:villager_v2/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:villager_v2/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); villager v2 cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:villager_v2/behavior.celebrate_survive" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:villager_v2/behavior.explore_outskirts" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:villager_v2/behavior.fertilize_farm_block" = { status = "missing", gaps = "not implemented: needs villages and raids" }
@@ -4209,7 +4209,7 @@
 "minecraft:villager_v2/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but villager_v2 cannot spawn yet" }
 "minecraft:wandering_trader" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.drink_milk, behavior.drink_potion, behavior.look_at_trading_player, behavior.move_towards_home_restriction, behavior.trade_interest (+4 more)" }
 "minecraft:wandering_trader/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman, but the is_leashed_to broadcast filter is not implemented, so the wandering_trader definition is rejected" }
-"minecraft:wandering_trader/behavior.avoid_mob_type" = { status = "missing", gaps = "not implemented: needs fear and avoidance" }
+"minecraft:wandering_trader/behavior.avoid_mob_type" = { status = "partial", owner = "entities", gaps = "implemented (replayed against BDS on the skeleton); wandering trader cannot spawn yet, and goal-level distances, sounds, remove_target, on_escape_event, probability_per_strength and check_if_outnumbered are rejected" }
 "minecraft:wandering_trader/behavior.drink_milk" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:wandering_trader/behavior.drink_potion" = { status = "missing", gaps = "not implemented: needs mob effects" }
 "minecraft:wandering_trader/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wandering_trader cannot spawn yet" }

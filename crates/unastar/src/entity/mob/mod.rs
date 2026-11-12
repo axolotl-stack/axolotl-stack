@@ -112,6 +112,37 @@ pub fn spawn_mob(
     yaw: f32,
     cause: SpawnCause,
 ) -> Result<Entity, MobSpawnError> {
+    spawn_mob_with(world, identifier, position, yaw, cause, None)
+}
+
+/// [`spawn_mob`] with `SpawnCause::Spawned` whose `minecraft:entity_spawned`
+/// sees `other` as its `other` subject: the shooter of a projectile (the
+/// arrow's spawn event picks its group by the shooter's family and hand).
+pub fn spawn_mob_by(
+    world: &mut World,
+    identifier: &str,
+    position: DVec3,
+    yaw: f32,
+    other: Entity,
+) -> Result<Entity, MobSpawnError> {
+    spawn_mob_with(
+        world,
+        identifier,
+        position,
+        yaw,
+        SpawnCause::Spawned,
+        Some(other),
+    )
+}
+
+fn spawn_mob_with(
+    world: &mut World,
+    identifier: &str,
+    position: DVec3,
+    yaw: f32,
+    cause: SpawnCause,
+    other: Option<Entity>,
+) -> Result<Entity, MobSpawnError> {
     let registry = world
         .get_resource::<MobRegistry>()
         .ok_or(MobSpawnError::NoRegistry)?;
@@ -147,7 +178,7 @@ pub fn spawn_mob(
         SpawnCause::Loaded => None,
     };
     if let Some(event) = event
-        && let Err(error) = events::fire_event(world, entity, event, None)
+        && let Err(error) = events::fire_event(world, entity, event, other)
     {
         world.despawn(entity);
         return Err(error.into());

@@ -24,6 +24,7 @@ use unastar_rules::filter::Filter;
 
 use super::common::{FilterError, filter, insert};
 use crate::entity::definition::{ComponentError, ComponentKindsBuilder, DefinitionError};
+use unastar_data::actor_components::FilterJson;
 
 /// Why a `minecraft:damage_sensor` body cannot be compiled.
 #[derive(Debug, Error)]
@@ -123,7 +124,7 @@ fn compile_trigger(t: body::DamageSensorTrigger) -> Result<SensorTrigger, Damage
         }
         None => (t.filters, t.event.filter(|event| !event.is_empty())),
     };
-    let filter = filters.as_ref().map(filter).transpose()?;
+    let filter = filters.as_ref().map(sensor_filter).transpose()?;
     Ok(SensorTrigger {
         cause: (!matches!(t.cause, ActorDamageCause::All | ActorDamageCause::None))
             .then_some(t.cause),
@@ -138,3 +139,22 @@ fn compile_trigger(t: body::DamageSensorTrigger) -> Result<SensorTrigger, Damage
         damage_multiplier: t.damage_multiplier,
     })
 }
+
+/// A trigger's filter. A filter whose only fault is an unknown key never
+/// matches: the skeleton's `minecraft:lightning_immune` sensor filters on
+/// `other_with_families`, which is no filter key, and a BDS 1.26.51
+/// skeleton given `minecraft:spring_trap` still took an `entity_attack` and
+/// a `fall` hit in full (`sweep.py ranged --items filters`).
+fn sensor_filter(json: &FilterJson) -> Result<Filter, FilterError> {
+    match filter(json) {
+        Err(FilterError::Diagnostics(diagnostics))
+            if diagnostics.iter().all(|d| d.message == UNKNOWN_FILTER_KEY) =>
+        {
+            Ok(Filter::never())
+        }
+        other => other,
+    }
+}
+
+/// The filter parser's diagnostic for a key it does not know.
+const UNKNOWN_FILTER_KEY: &str = "unknown filter key ignored";

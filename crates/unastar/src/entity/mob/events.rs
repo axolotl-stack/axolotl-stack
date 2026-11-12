@@ -133,6 +133,58 @@ impl MobFacts<'_> {
     /// and z) is water and the point lies below that water's surface (see
     /// [`UNDERWATER_LEVEL_STEPS`](super::constants::UNDERWATER_LEVEL_STEPS)).
     /// Only the block itself counts: water a block is logged with does not.
+    /// `in_block`: a block named `name` overlaps the actor's box (measured:
+    /// a BDS 1.26.51 skeleton shakes in powder snow at its feet and with
+    /// powder snow at its head only).
+    fn in_block(&self, entity: Entity, name: &str) -> Option<bool> {
+        let name = if name.contains(':') {
+            std::borrow::Cow::Borrowed(name)
+        } else {
+            std::borrow::Cow::Owned(format!("minecraft:{name}"))
+        };
+        let feet = self.feet(entity)?;
+        let (width, height) = self
+            .world
+            .get::<crate::entity::components::PhysicsBody>(entity)
+            .map_or((0.6, 1.8), |body| (body.width, body.height));
+        let aabb = crate::registry::collision::Aabb::from_feet(feet, width, height);
+        let min = aabb.min.floor().as_ivec3();
+        let max = (aabb.max - DVec3::splat(1.0e-7)).floor().as_ivec3();
+        let registry = self.world.registry();
+        for x in min.x..=max.x {
+            for y in min.y..=max.y {
+                for z in min.z..=max.z {
+                    let Some(state) = self.world.block_at(IVec3::new(x, y, z)) else {
+                        continue;
+                    };
+                    if registry
+                        .get_by_runtime_id(state)
+                        .is_some_and(|entry| entry.string_id == *name)
+                    {
+                        return Some(true);
+                    }
+                }
+            }
+        }
+        Some(false)
+    }
+
+    /// `is_underground`: a block that damps light anywhere from the actor's
+    /// feet block up to the top of the world (measured: a BDS 1.26.51 stray
+    /// counts as underground under stone 3 or 12 blocks up and under
+    /// leaves, not under glass or the open sky).
+    fn underground(&self, entity: Entity) -> Option<bool> {
+        let feet = self.feet(entity)?.floor().as_ivec3();
+        let registry = self.world.registry();
+        let top = crate::world::chunk::MIN_Y + crate::world::chunk::SUBCHUNK_COUNT as i32 * 16;
+        Some((feet.y.max(crate::world::chunk::MIN_Y)..top).any(|y| {
+            self.world
+                .block_at(IVec3::new(feet.x, y, feet.z))
+                .and_then(|state| registry.get_by_runtime_id(state))
+                .is_some_and(|entry| entry.filter_light > 0)
+        }))
+    }
+
     fn under_water(&self, entity: Entity) -> Option<bool> {
         let point = self.breathing_point(entity)?;
         let block = point.floor().as_ivec3();
@@ -293,6 +345,19 @@ impl FilterContext for MobFacts<'_> {
                 Fact::Matches(
                     stack.is_some_and(|stack| want.matches(stack.item_id(), stack.damage)),
                 )
+            }
+            BuiltinTest::InBlock => Fact::Matches(self.in_block(entity, test.value.as_str()?)?),
+            BuiltinTest::IsUnderground => Fact::Bool(self.underground(entity)?),
+            // A ranged weapon in the main hand (`constants::RANGED_WEAPONS`).
+            BuiltinTest::HasRangedWeapon => {
+                let held = if self.world.get::<MobKind>(entity).is_some() {
+                    super::gear::mainhand(self.world, entity)
+                } else {
+                    held_item(self.world, entity)
+                };
+                Fact::Bool(held.is_some_and(|stack| {
+                    super::constants::RANGED_WEAPONS.contains(&stack.item_id())
+                }))
             }
             _ => return None,
         })

@@ -203,6 +203,11 @@ impl PathFollower {
         control.wanted = None;
     }
 
+    /// Change the speed of the path being followed.
+    pub fn set_speed(&mut self, speed_multiplier: f32) {
+        self.speed_multiplier = speed_multiplier;
+    }
+
     pub fn is_done(&self) -> bool {
         !self.active || self.index >= self.path.waypoints.len()
     }
