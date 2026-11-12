@@ -42,6 +42,12 @@ struct Args {
     #[arg(long)]
     fixture: Option<PathBuf>,
 
+    /// Derive the outputs of an existing capture directory again from its
+    /// packets.jsonl (a session that stopped before writing them), without
+    /// connecting
+    #[arg(long, conflicts_with_all = ["fixture", "capture_dir"])]
+    rewrite: Option<PathBuf>,
+
     /// Record the whole session into this directory (packets.jsonl, per-packet
     /// .bin/.json fixtures, manifest.json) instead of writing extractor JSON
     #[arg(long, conflicts_with = "fixture")]
@@ -106,6 +112,10 @@ async fn run(args: Args) -> Result<()> {
                 .unwrap_or_else(|_| args.log.parse().unwrap_or_else(|_| "info".parse().unwrap())),
         )
         .init();
+
+    if let Some(dir) = args.rewrite.as_ref() {
+        return capture::rewrite(dir);
+    }
 
     if let Some(fixture) = args.fixture.as_ref() {
         info!("Loading extraction fixture from {}...", fixture.display());

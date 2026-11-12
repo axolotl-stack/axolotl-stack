@@ -83,7 +83,11 @@ pub fn run(ctx: &mut CommandContext<'_>, args: GiveArgs) -> CommandResult {
     .with_count(targets.len()))
 }
 
-fn given_stack(world: &World, name: &str, data: i32) -> Result<ItemStack, CommandOutput> {
+pub(super) fn given_stack(
+    world: &World,
+    name: &str,
+    data: i32,
+) -> Result<ItemStack, CommandOutput> {
     let invalid = || CommandOutput::failure("commands.give.item.invalid", vec![name.to_owned()]);
     let items = &world.resource::<ItemRegistryResource>().0;
     let blocks = &world.resource::<BlockRegistryResource>().0;
@@ -120,7 +124,7 @@ fn given_stack(world: &World, name: &str, data: i32) -> Result<ItemStack, Comman
 }
 
 /// `stack` carrying the vanilla item components of `/give`'s JSON.
-fn with_components(
+pub(super) fn with_components(
     world: &World,
     stack: ItemStack,
     components: &serde_json::Value,
@@ -424,5 +428,18 @@ mod tests {
             ),
             CommandOutput::failure("commands.give.tagError", vec!["minecraft:item_lock".into()])
         );
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::{Replay, assert_same_packets};
+
+    #[test]
+    fn give_and_clear_match_the_bds_capture() {
+        let steps = Replay::new().assert_segment("give", &[]);
+        assert_same_packets(&steps, &["TextPacket"], &[]);
     }
 }

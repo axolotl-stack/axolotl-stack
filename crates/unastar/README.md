@@ -609,8 +609,18 @@ Commands follow BDS 1.26.51 (`src/command/`):
   declaration against the captured syntax, and the executor matches over it.
   Feedback is BDS's `CommandOutputPacket`: the same translation keys,
   parameters, success flags and counts, plus the side packets BDS sends
-  (rawtext target messages, `UpdatePlayerGameType`, `MovePlayer`, …), checked
-  against a scripted BDS capture of 81 commands.
+  (rawtext target messages, `UpdatePlayerGameType`, `MovePlayer`, …).
+- **Evidence is a replayed capture.** `tools/bds-sweep/command-script.txt`
+  (587 commands in segments) was run on BDS 1.26.51 and its answers committed
+  (`crates/bds-extractor/captures/1.26.51/operator-commands/feedback.json`);
+  each executor's `bds_capture` tests replay their segment on the test harness
+  (`src/command/exec/evidence.rs`) and compare every answer and the feedback
+  packets with BDS's.
+- **`/execute`** runs its subcommands as a list of execution contexts (actor
+  sources, positions, rotations, the eye anchor) and nests other commands
+  through the same registry; chains are validated with the whole line when it
+  is parsed. Selectors read entity tags (`tag=`), the scoreboard (`scores=`) and
+  input locks (`haspermission=`).
 - **Permissions:** players have BDS command level `any`; operators
   (`server.operators` in the config, or `/op` from the console) get
   `gamedirectors`, BDS's operator abilities and permission level. Unknown
@@ -621,44 +631,59 @@ Commands follow BDS 1.26.51 (`src/command/`):
   (so `/stop`, `/op`, `/deop` work there); output is printed in English from
   the vanilla `en_US.lang`.
 
-Implemented: `/clear`, `/clone`, `/deop`, `/difficulty`, `/effect`, `/enchant`,
-`/fill`, `/gamemode`, `/gamerule`, `/give`, `/help` (`/?`), `/kill`, `/list`,
-`/me`, `/op`, `/say`, `/setblock`, `/setworldspawn`, `/spawnpoint`, `/stop`,
-`/summon`, `/teleport` (`/tp`), `/tell` (`/msg`, `/w`), `/time`, `/weather`,
-`/xp`. Known differences from BDS:
+Implemented: `/camerashake`, `/clear`, `/clearspawnpoint`, `/clone`, `/damage`,
+`/daylock` (`/alwaysday`), `/deop`, `/difficulty`, `/effect`, `/enchant`,
+`/event`, `/execute`, `/fill`, `/fog`, `/gamemode`, `/gamerule`, `/give`,
+`/help` (`/?`), `/hud`, `/inputpermission`, `/kick`, `/kill`, `/list`, `/me`,
+`/mobevent`, `/music`, `/op`, `/particle`, `/playanimation`, `/playsound`,
+`/replaceitem`, `/say`, `/scoreboard`, `/scriptevent`, `/setblock`,
+`/setworldspawn`, `/spawnpoint`, `/stop`, `/stopsound`, `/summon`, `/tag`,
+`/teleport` (`/tp`), `/tell` (`/msg`, `/w`), `/tellraw`, `/testfor`,
+`/testforblock`, `/testforblocks`, `/time`, `/title`, `/titleraw`,
+`/toggledownfall`, `/weather`, `/xp`. Odd BDS answers copied on purpose are in
+`docs/quirks/bds.md`. Known differences from BDS:
 
 | Command | Difference | Why |
 |---|---|---|
 | `/give`, `/clear`, `/setblock`, `/fill` | Legacy names and data values (`wool 14`, `wool ["color"="red"]`) fail with "not implemented"; current identifiers (`red_wool`) work | No legacy item/block upgrade table in the repository yet |
 | `/give` | No `UnlockedRecipes`; `PlayerHotbar` sent with `shouldselectslot=true` | No recipe-unlock system; shared inventory resync |
-| `/gamemode` | Also resends `UpdateAbilities` | Unastar's join abilities depend on the game mode |
+| `/gamemode` | Also resends `UpdateAbilities`; `default` puts the player in the configured mode instead of keeping it on `default` | Unastar's join abilities depend on the game mode; no `default` player mode |
+| `/time set` | A negative time answers `commands.generic.num.tooSmall`; BDS accepts it | The world clock starts at 0 |
 | `/effect` | Speed/slowness do not change movement; no visible-effects actor data | No attribute-modifier system yet |
-| `/weather` | State and client events only; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
+| `/xp` | `UpdateAttributes` lists each attribute once with a level maximum of 2^31; BDS uses 24791 and lists the experience twice when the level changes | Shared experience attributes |
+| `/weather`, `/toggledownfall` | State, client events and the fading levels `/weather query` reports; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
 | `/spawnpoint`, `/setworldspawn` | Not persisted; new joiners still use the config spawn rules | No level-data store |
 | `/op`, `/deop` | Not written back to the config file | Runtime-only operator list |
 | `/fill`, `/clone` | One `UpdateBlock` per block instead of `UpdateSubChunkBlocks`; `/clone` copies no block-entity data | Block update path |
+| `/scoreboard`, `/tag` | Objectives, scores and tags are not saved; `belowname` sends no score actor data | No world store for them yet |
+| `/execute` | `in nether` and `in the_end` fail with "not implemented" | One dimension per world |
+| `/event` | Every event on a player is refused | Players have no actor definition |
+| `/damage` | The hurt `ActorEvent` carries no damage cause | Shared hurt path |
+| `/replaceitem` | No armour equip sound; armour and offhand changes resend the whole inventory | No equip-sound table |
+| `/mobevent`, `/scriptevent` | Switches and events are kept or acknowledged but nothing acts on them | No mob events or behaviour-pack scripts |
+| `/tellraw`, `/titleraw` | A malformed JSON message's syntax error names another token | Unastar parses JSON in one piece |
 | `/help` | Lists the operator listing for the console too | Owner-only usage lines were not captured |
-| Item names in feedback | Flattened block items without their own language key use the title-cased identifier ("Red Wool") | No legacy description-id data |
+| Item names in feedback | Flattened block items without their own language key use the title-cased identifier ("Red Wool") | Block names are measured as translation keys only |
 
 Every other command BDS offers stays advertised exactly as BDS sends it and
 answers a literal "/<name> is not implemented in unastar yet" failure, because
 the game system behind it does not exist yet: `aimassist`, `allowlist`,
-`camera`, `camerashake`, `changesetting`, `clearspawnpoint`, `controlscheme`,
-`damage`, `daylock`, `dialogue`, `editor-allowlist`, `event`, `execute`, `fog`,
-`function`, `gametest`, `hud`, `inputpermission`, `kick`, `locate`, `loot`,
-`mobevent`, `music`, `packstack`, `particle`, `permission`, `place`,
-`playanimation`, `playsound`, `recipe`, `reload`, `reloadconfig`,
-`reloadpacketlimitconfig`, `replaceitem`, `ride`, `save`, `schedule`,
-`scoreboard`, `script`, `scriptevent`, `sendshowstoreoffer`, `serveridentity`,
-`setmaxplayers`, `spreadplayers`, `stopsound`, `structure`, `tag`, `tellraw`,
-`testfor`, `testforblock`, `testforblocks`, `tickingarea`, `title`,
-`titleraw`, `toggledownfall`, `transfer`, `wsserver`.
+`camera`, `changesetting`, `controlscheme`, `dialogue`, `editor-allowlist`,
+`function`, `gametest`, `locate`, `loot`, `packstack`, `permission`, `place`,
+`recipe`, `reload`, `reloadconfig`, `reloadpacketlimitconfig`, `ride`, `save`,
+`schedule`, `script`, `sendshowstoreoffer`, `serveridentity`, `setmaxplayers`,
+`spreadplayers`, `structure`, `tickingarea`, `transfer`, `wsserver`.
 
 Adding a command: declare its overloads and write `run` in
 `src/command/exec/<name>.rs`, then add one `register` line in
 `src/command/exec/mod.rs` (see `src/command/mod.rs` and the existing executors).
-Tests use `exec::test_support::Harness`. The loopback check is
-`cargo test -p unastar --test commands_e2e -- --ignored --nocapture`.
+Tests use `exec::test_support::Harness`; to compare with BDS, add the
+command's lines to a segment of `tools/bds-sweep/command-script.txt`, capture
+(`tools/bds-sweep/README.md`), commit the feedback with
+`commit_fixtures.py --commands` and replay the segment with
+`exec::evidence::Replay::assert_segment` (the ignored
+`survey_the_bds_capture` test lists every differing answer). The loopback check
+is `cargo test -p unastar --test commands_e2e -- --ignored --nocapture`.
 
 ## Gameplay Permissions and Chat
 

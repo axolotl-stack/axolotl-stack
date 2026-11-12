@@ -148,11 +148,18 @@ impl CommandOutput {
 /// The `Textobject` message BDS sends a command's target alongside the
 /// command output (`gameMode.changed`, `commands.give.successRecipient`,
 /// `commands.tp.successVictim`): a rawtext translation with text parameters.
+/// Without parameters the list is `null` (`commands.always.day.locked`,
+/// measured).
 pub fn translation_text(key: &str, params: &[String]) -> TextPacket {
     let with: Vec<serde_json::Value> = params
         .iter()
         .map(|text| serde_json::json!({ "text": text }))
         .collect();
+    let with = if with.is_empty() {
+        serde_json::Value::Null
+    } else {
+        serde_json::Value::Array(with)
+    };
     let rawtext = serde_json::json!({
         "rawtext": [{ "translate": key, "with": { "rawtext": with } }]
     });

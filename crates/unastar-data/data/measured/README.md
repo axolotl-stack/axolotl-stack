@@ -10,8 +10,9 @@ behaviour, not copies of Mojang data files; the raw per-run logs
 `manifest.json` lists every artefact with its SHA-256, the BDS version, the
 harness revision, the sweep runs (start time, status, seconds, item count) and
 the measurement method. The capture-derived tables (`recipe_legacy_identities.json`,
-`builtin_recipes.json`, `potion_types.json`) are not sweep artefacts and record
-their source capture's SHA-256 inside the file instead.
+`builtin_recipes.json`, `potion_types.json`, `block_name_keys.json`) are not
+sweep artefacts and record their source capture's SHA-256 inside the file
+instead.
 `tests/measured_manifest.rs` checks every listed hash and that no other file is
 missing from the manifest. Regenerate a family with `sweep.py` (exclusive BDS
 slot; resumable with `--out`) and then `summarize.py`, e.g.:
@@ -40,6 +41,7 @@ $py = 'C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe'
 | `recipe_legacy_identities.json` | canonical input/output item and aux identities for legacy recipe spellings | pinned 1.26.51 CraftingData capture; `../../tools/extract_recipe_identities.py` |
 | `builtin_recipes.json` | native shaped/shapeless/user-data recipes absent from pack JSON, stable UUID groups/multi identities, result NBT and canonical block states (`null` explicitly means no block state) | same pinned capture; transient network ids/random UUID values discarded; source SHA-256 included |
 | `potion_types.json` | lowercase pack potion type identifier to measured aux | unique labelled-graph solution against all captured brewing edges; source SHA-256 included |
+| `block_name_keys.json` | block identifier to the translation key command feedback names it by (`minecraft:dirt` → `tile.dirt.default.name`); blocks the `Block` command enum refuses are absent | `capture.py --commands` session of `/testforblock 8 199 8 <block>` for every palette block (default state) against stone, `--command-wait 150`, answers paired in order; `commands.testforblock.failed.tile` names the expected block; source SHA-256 of the session's `command-outputs.json` included |
 
 `loot_table` uses the behaviour-pack loot-table schema (`pools`, `rolls`,
 `entries` of `type` `item`/`empty`, `weight`, `functions` `set_count` and

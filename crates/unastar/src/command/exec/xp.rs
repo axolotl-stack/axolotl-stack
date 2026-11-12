@@ -56,6 +56,10 @@ pub fn run(ctx: &mut CommandContext<'_>, args: XpArgs) -> CommandResult {
                 "commands.xp.success.negative.levels",
                 vec![levels.unsigned_abs().to_string(), name],
             ),
+            // Measured: `/xp 0L` answers like zero points.
+            Change::Levels(0) => {
+                output.add_success("commands.xp.success", vec!["0".into(), name]);
+            }
             Change::Levels(levels) => {
                 output.add_success("commands.xp.success.levels", vec![levels.to_string(), name]);
             }
@@ -172,5 +176,19 @@ mod tests {
             h.run(alice, "/xp 10 NoSuchPlayer"),
             CommandOutput::no_targets()
         );
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::Replay;
+
+    /// `UpdateAttributes` is not compared: the shared experience attributes
+    /// differ from BDS's (see the parity row's gaps).
+    #[test]
+    fn xp_matches_the_bds_capture() {
+        Replay::new().assert_segment("xp", &[]);
     }
 }
