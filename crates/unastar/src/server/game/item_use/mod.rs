@@ -15,18 +15,12 @@ pub mod on_block;
 pub mod ranged;
 
 use bevy_ecs::prelude::*;
-use jolyne::valentine::types::{
-    ActorRuntimeId, DataItemEntry, DataItemEntryPayload, DataItemInt64Payload, EnumsDataItemType,
-    PropertySyncData, SynchedActorDataCopyableDataList,
-};
-use jolyne::valentine::{
-    CompletedUsingItemPacket, McpePacket, SetActorDataPacket, actor_data_i_ds, actor_flags,
-};
+use jolyne::valentine::types::ActorRuntimeId;
+use jolyne::valentine::{CompletedUsingItemPacket, McpePacket};
 
 use crate::ecs::events::{EventBuffer, ServerEvent};
 use crate::entity::components::{
-    GameMode, Health, HeldSlot, MainInventory, PlayerSession, PlayerState, Position,
-    RuntimeEntityId,
+    GameMode, Health, HeldSlot, MainInventory, PlayerSession, Position, RuntimeEntityId,
 };
 use crate::item::ItemStack;
 use crate::server::broadcast::EntityGrid;
@@ -170,55 +164,15 @@ fn can_use(world: &World, player: Entity) -> bool {
         && world.get::<Health>(player).is_some_and(|h| !h.is_dead())
 }
 
-/// The flag word BDS sends for a player using an item: CANCLIMB,
-/// BREATHING, HAS_COLLISION and HAS_GRAVITY plus the movement state and
-/// USINGITEM (capture `item-use-20261029`).
-fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
-    let mut flags = (1u64 << actor_flags::CANCLIMB)
-        | (1u64 << actor_flags::BREATHING)
-        | (1u64 << actor_flags::HAS_COLLISION)
-        | (1u64 << actor_flags::HAS_GRAVITY);
-    if let Some(state) = world.get::<PlayerState>(player) {
-        for (on, flag) in [
-            (state.sneaking, actor_flags::SNEAKING),
-            (state.sprinting, actor_flags::SPRINTING),
-            (state.swimming, actor_flags::SWIMMING),
-            (state.gliding, actor_flags::GLIDING),
-        ] {
-            if on {
-                flags |= 1u64 << flag;
-            }
-        }
-    }
-    if using {
-        flags |= 1u64 << actor_flags::USINGITEM;
-    }
-    flags as i64
-}
-
 /// Tell the player and the players near it that it started or stopped
-/// using an item (BDS sends the flag word to the user too).
-fn broadcast_using(world: &World, player: Entity, using: bool) {
-    let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
-        return;
-    };
-    let packet = McpePacket::from(SetActorDataPacket {
-        target_runtime_id: ActorRuntimeId {
-            actor_runtime_id: runtime_id as u64,
-        },
-        actor_data: SynchedActorDataCopyableDataList {
-            data: vec![DataItemEntry {
-                id: actor_data_i_ds::RESERVED_0,
-                payload: DataItemEntryPayload::DataItemInt64Payload(DataItemInt64Payload {
-                    type_: EnumsDataItemType::Int64,
-                    value: player_flags(world, player, using),
-                }),
-            }],
-        },
-        synched_properties: PropertySyncData::default(),
-        tick: crate::entity::components::input_tick_of(world, player),
-    });
-    send_to(world, &nearby_players(world, player), &packet);
+/// using an item: the flag word with `USINGITEM` (BDS sends it to the user
+/// too; capture `item-use-20261029`), through the player's actor data.
+fn broadcast_using(world: &mut World, player: Entity) {
+    crate::entity::player_life::actor_data::send_changes(
+        world,
+        player,
+        crate::entity::player_life::actor_data::Keys::All,
+    );
 }
 
 /// Start using the held item.
@@ -227,13 +181,13 @@ pub fn start_using(world: &mut World, player: Entity, slot: u8, item: u32) {
     world
         .entity_mut(player)
         .insert(ItemUsing { slot, item, since });
-    broadcast_using(world, player, true);
+    broadcast_using(world, player);
 }
 
 /// Stop using whatever the player uses.
 pub fn stop_using(world: &mut World, player: Entity) {
     if world.entity_mut(player).take::<ItemUsing>().is_some() {
-        broadcast_using(world, player, false);
+        broadcast_using(world, player);
     }
 }
 

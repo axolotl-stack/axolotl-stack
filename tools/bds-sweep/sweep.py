@@ -40,6 +40,8 @@ import scenarios  # noqa: E402
 REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-sweep-1.26.51'
 PLAYER = 'BDSSweep'
+# The second client of `--observer` (a second viewer of the job's actors).
+OBSERVER_NAME = 'BDSOther'
 STOP_REQUEST = 'stop.request'
 # Superflat: grass top at y=-61, so the player stands at y=-60.
 # `miner` = x, y, z, yaw, pitch: facing east (yaw -90) at the west face (4) of
@@ -342,6 +344,147 @@ def attack_items(args) -> list[dict]:
     return items
 
 
+def knockback_items(args) -> list[dict]:
+    """`--items slice` (default): a cow and a zombie hit three times (at 0,
+    11 and 30 ticks after a 40-tick settle) by the player standing two blocks
+    west facing east; variants from the south-west (direction from positions
+    differs from the player's facing), with the player's back to the mob,
+    with a sword, and with the mob's AI left to move it (`natural`) instead
+    of frozen. `--items air`: mobs moving through the air under their AI or
+    hit there: a cow tempted by wheat over a one-block step (plain, Speed II,
+    Slowness I), cows and zombies hit while falling, a panicking cow hit
+    four times. `--items all`: both."""
+    east = {'from': [-2.0, 0.0], 'yaw': -90}
+    diagonal = {'from': [-1.5, -1.0], 'yaw': -90}
+    away = {'from': [-2.0, 0.0], 'yaw': 90}
+    trials = [
+        ('cow', 'east', True, east, None),
+        ('cow', 'diagonal', True, diagonal, None),
+        ('cow', 'away', True, away, None),
+        ('zombie', 'east', True, east, None),
+        ('zombie', 'east-sword', True, east, {'item': 'minecraft:wooden_sword'}),
+        ('cow', 'east', False, east, None),
+        ('cow', 'diagonal', False, diagonal, None),
+        ('zombie', 'east', False, east, None),
+    ]
+    hits = []
+    for mob, geometry, frozen, hit, tool_spec in trials:
+        hits.append({'key': f'{mob}|{geometry}|{"frozen" if frozen else "natural"}',
+                     'mob': f'minecraft:{mob}', 'at': [2.5, -60, 0.5, 90], 'frozen': frozen,
+                     'tool': tool_spec, 'settle': 40, 'tail': 40,
+                     'hits': [{**hit, 'tick': tick} for tick in (0, 11, 30)]})
+    step = 'fill 5 -60 -2 9 -60 3 {}'
+    air = []
+    for name, effects in (('plain', []), ('speed2', ['effect @e[type=minecraft:cow] speed 1000 1 true']),
+                          ('slowness1', ['effect @e[type=minecraft:cow] slowness 1000 0 true'])):
+        air.append({'key': f'cow|tempt-step-{name}|natural', 'mob': 'minecraft:cow', 'at': [1.5, -60, 0.5, -90],
+                    'frozen': False, 'effects': effects, 'tool': {'item': 'minecraft:wheat'},
+                    'player': [7.5, -59, 0.5, 90], 'setup': [step.format('stone')],
+                    'cleanup': [step.format('air')], 'settle': 0, 'tail': 120, 'hits': []})
+    for mob, key in (('cow', 'falling'), ('zombie', 'falling'), ('zombie', 'falling-2')):
+        air.append({'key': f'{mob}|{key}|frozen', 'mob': f'minecraft:{mob}', 'at': [2.5, -56, 0.5, 90],
+                    'frozen': True, 'tool': None, 'settle': 0, 'tail': 40, 'hits': [{**east, 'tick': 2}]})
+    air.append({'key': 'cow|panic-run|natural', 'mob': 'minecraft:cow', 'at': [2.5, -60, 0.5, 90],
+                'frozen': False, 'tool': None, 'settle': 20, 'tail': 40,
+                'hits': [{**east, 'tick': tick} for tick in (0, 20, 40, 60)]})
+    # Frozen cows falling 20 blocks at increasing horizontal distances from
+    # the player: how BDS sends a moving actor's updates by distance.
+    far = [{'key': f'cow|fall-{distance}|frozen', 'mob': 'minecraft:cow', 'at': [0.5 + distance, -40, 0.5, 90],
+            'frozen': True, 'tool': None, 'player': [0.5, -60, 0.5, -90], 'settle': 0, 'tail': 45, 'hits': []}
+           for distance in (4, 6, 7, 10, 16, 24, 32, 48)]
+    sets = {'slice': hits, 'air': air, 'far': far, 'cadence': cadence_items(), 'cadence2': cadence2_items(),
+            'all': hits + air + far}
+    if args.items not in sets:
+        raise SystemExit(f"knockback --items must be one of {sorted(sets)}")
+    return sets[args.items]
+
+
+# The observer client of `--items cadence` stands 40 blocks north of the
+# sweep player unless an item puts it elsewhere.
+OBSERVER = [0.5, -60, -39.5, 180]
+
+
+def cadence_items() -> list[dict]:
+    """How often BDS sends a moving actor's position to each viewer, by
+    distance and by the actor's `minecraft:conditional_bandwidth_optimization`
+    values (run with `--observer --client-capture --view-distance 10
+    --tick-distance 10`: two viewers per actor). Frozen cows falling 20
+    blocks at 40-104 blocks (the empty component's defaults, beyond their
+    80-block maximum); an armor stand and a frozen cow that land on a pillar,
+    rest, and fall again when it is removed; one falling actor each with no
+    component (goat), 10/80 with hints (enderman, xp orb), 7/100 (snowball),
+    7/80 (egg, arrow) and the conditional minecart; and a frozen cow hit into
+    a wall, whose x stops two ticks after the hit while y keeps changing,
+    seen from 2 and 44 blocks."""
+    player = [0.5, -60, 0.5, -90]
+    items = []
+    for distance in (40, 56, 72, 88, 104):
+        items.append({'key': f'cow|fall-{distance}|frozen', 'mob': 'minecraft:cow',
+                      'at': [0.5 + distance, -40, 0.5, 90], 'frozen': True, 'tool': None, 'player': player,
+                      'observer': OBSERVER, 'settle': 0, 'tail': 45, 'hits': []})
+    pillar = 'fill 40 -60 0 40 -50 0 {}'
+    for mob, frozen in (('armor_stand', False), ('cow', True)):
+        items.append({'key': f'{mob}|pause-40|{"frozen" if frozen else "natural"}', 'mob': f'minecraft:{mob}',
+                      'at': [40.5, -48.5, 0.5, 90], 'frozen': frozen, 'tool': None, 'player': player,
+                      'observer': OBSERVER, 'setup': [pillar.format('stone')], 'cleanup': [pillar.format('air')],
+                      'actions': [{'t': 40, 'commands': [pillar.format('air')]}],
+                      'settle': 0, 'tail': 40, 'hits': []})
+    for mob, frozen, distance in (('goat', True, 32), ('enderman', True, 32), ('xp_orb', False, 32),
+                                  ('snowball', False, 32), ('snowball', False, 56), ('egg', False, 32),
+                                  ('arrow', False, 32), ('minecart', False, 32)):
+        items.append({'key': f'{mob}|fall-{distance}|{"frozen" if frozen else "natural"}',
+                      'mob': f'minecraft:{mob}', 'at': [0.5 + distance, -40, 0.5, 90], 'frozen': frozen,
+                      'tool': None, 'player': player, 'observer': OBSERVER, 'settle': 0, 'tail': 50, 'hits': []})
+    wall = 'fill 4 -60 -1 4 -58 2 {}'
+    items.append({'key': 'cow|wall|frozen', 'mob': 'minecraft:cow', 'at': [3.0, -60, 0.5, 90], 'frozen': True,
+                  'tool': None, 'observer': [-41.0, -60, 0.5, -90], 'setup': [wall.format('stone')],
+                  'cleanup': [wall.format('air')], 'settle': 40, 'tail': 40,
+                  'hits': [{'from': [-2.0, 0.0], 'yaw': -90, 'tick': 0}]})
+    return items
+
+
+def cadence2_items() -> list[dict]:
+    """Follow-ups to `cadence` (same flags): a frozen cow falling from 100
+    blocks above the player, 103 blocks from it (beyond the 80-block maximum
+    of its defaults, inside the 128 blocks beyond which a cow despawns at
+    once); a frozen cow next to a wall pushed by
+    `/damage` from the sweep player 44 blocks away while the observer is 56
+    blocks away, so no viewer is near; and tempted mobs jumping a step under
+    Slowness I (pig, carrot, speed multiplier 1.2) and Slowness II (cow)."""
+    player = [0.5, -60, 0.5, -90]
+    wall = 'fill 4 -60 -1 4 -58 2 {}'
+    step = 'fill 5 -60 -2 9 -60 3 {}'
+    items = [
+        {'key': 'cow|cap|frozen', 'mob': 'minecraft:cow', 'at': [30.5, 40, 0.5, 90], 'frozen': True,
+         'tool': None, 'player': player, 'observer': OBSERVER, 'settle': 0, 'tail': 80, 'hits': []},
+        {'key': 'cow|wall-far|frozen', 'mob': 'minecraft:cow', 'at': [3.0, -60, 0.5, 90], 'frozen': True,
+         'tool': None, 'player': [-41.0, -60, 0.5, -90], 'observer': [3.0, -60, -55.5, 0],
+         'setup': [wall.format('stone')], 'cleanup': [wall.format('air')],
+         'actions': [{'t': 40, 'commands': [f'damage @e[type=minecraft:cow] 1 entity_attack entity "{PLAYER}"']}],
+         'settle': 0, 'tail': 40, 'hits': []},
+    ]
+    for mob, tool, name, effect in (('pig', 'minecraft:carrot', 'slowness1', 'slowness 1000 0'),
+                                    ('cow', 'minecraft:wheat', 'slowness2', 'slowness 1000 1')):
+        items.append({'key': f'{mob}|tempt-step-{name}|natural', 'mob': f'minecraft:{mob}',
+                      'at': [1.5, -60, 0.5, -90], 'frozen': False,
+                      'effects': [f'effect @e[type=minecraft:{mob}] {effect} true'], 'tool': {'item': tool},
+                      'player': [7.5, -59, 0.5, 90], 'observer': OBSERVER, 'setup': [step.format('stone')],
+                      'cleanup': [step.format('air')], 'settle': 0, 'tail': 120, 'hits': []})
+    return items
+
+
+def reload_items(args) -> list[dict]:
+    """`knockback-reload --items spawn` (three zombies, each hit once and left
+    in the world) or `--items reload` (the same zombies, loaded from the first
+    run's world, hit again). They stand 200 blocks from the world spawn: BDS
+    loads the chunks around the spawn while the player is still joining, and a
+    zombie loaded there despawns at once (no player counts as near yet)."""
+    if args.items not in ('spawn', 'reload'):
+        raise SystemExit("knockback-reload --items must be 'spawn' or 'reload'")
+    return [{'key': f'zombie-{index}', 'mob': 'minecraft:zombie', 'at': [200.5, -60, 0.5 + 6 * index, 90],
+             'from': [-2.0, 0.0], 'yaw': -90, 'phase': args.items} for index in range(3)]
+
+
 def build_job(args, out: Path) -> dict:
     job = {'kind': args.kind.replace('-', '_'), 'player': PLAYER, 'output_dir': str(out),
            'arena': ARENA, 'setup_commands': SETUP}
@@ -370,13 +513,20 @@ def build_job(args, out: Path) -> dict:
         job.update(furnace='furnace', lit_furnace='minecraft:lit_furnace', input='cobblestone',
                    max_ticks=args.max_ticks,
                    items=[{'key': name, 'item': name} for name in item_names(args.items, SLICE_FUELS)])
+    elif args.kind in ('knockback', 'knockback-reload'):
+        # Zombies need a difficulty above peaceful and burn in daylight.
+        job['setup_commands'] = SETUP + ['difficulty easy', 'time set 18000']
+        job['items'] = knockback_items(args) if args.kind == 'knockback' else reload_items(args)
+    if args.observer:
+        job['observer'] = OBSERVER_NAME
     return job
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'armor-wear', 'attack',
-                                         'fuel', 'scenarios', 'placements', 'item-blocks'])
+                                         'fuel', 'scenarios', 'placements', 'item-blocks', 'knockback',
+                                         'knockback-reload'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
@@ -398,6 +548,14 @@ def main() -> int:
                         help="record the client's packets to <out>/client-capture/packets.jsonl")
     parser.add_argument('--client', type=Path, default=REPO / 'target' / 'debug' / 'bds-sweep-client.exe')
     parser.add_argument('--timeout', type=float, default=6 * 3600, help='seconds for the whole job')
+    parser.add_argument('--observer', action='store_true',
+                        help=f'add a second client, {OBSERVER_NAME}, recording to <out>/observer/packets.jsonl')
+    parser.add_argument('--view-distance', type=int, default=6, help='server view distance in chunks')
+    parser.add_argument('--tick-distance', type=int, default=4, help='server simulation distance in chunks (4-12)')
+    parser.add_argument('--keep-world', action='store_true',
+                        help='copy the world to <out>/world after BDS stops (it is deleted otherwise)')
+    parser.add_argument('--world-from', type=Path,
+                        help='start from a copy of this world folder (a --keep-world copy) instead of a fresh one')
     args = parser.parse_args()
     # A queue of sweep.py runs can be paused for someone else's BDS slot:
     # while this file exists, every new run exits without starting BDS.
@@ -424,9 +582,14 @@ def main() -> int:
     world = bds_runtime.SERVER / 'worlds' / LEVEL
     if world.exists():
         shutil.rmtree(world)
+    if args.world_from:
+        shutil.copytree(args.world_from, world)
+    # A world with zombies in it must load above peaceful, which removes them.
+    difficulty = 'easy' if args.kind == 'knockback-reload' else 'peaceful'
     properties = bds_runtime.base_properties(
-        LEVEL, level_type='FLAT', gamemode='creative', force_gamemode='true', difficulty='peaceful',
-        default_player_permission_level='operator', view_distance=6, tick_distance=4)
+        LEVEL, level_type='FLAT', gamemode='creative', force_gamemode='true', difficulty=difficulty,
+        default_player_permission_level='operator', view_distance=args.view_distance,
+        tick_distance=args.tick_distance)
     env = {'BDS_SWEEP_JOB': str(job_path), 'CLIENT_DIFF_CAPTURE_DIR': str(out / 'client-diff-plugin'),
            # This checkout's plugin source wins over the shared venv's editable
            # install, so a worktree runs its own jobs without reinstalling it.
@@ -439,13 +602,34 @@ def main() -> int:
         # The client records both directions: BDS's answer to every click,
         # the stack descriptors BDS sends.
         client_command += ['--capture-dir', str(out / 'client-capture')]
+    observer_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', OBSERVER_NAME,
+                        '--capture-dir', str(out / 'observer')]
+    observer = None
+    observer_logins = 0
+    observer_due = None
     try:
         with bds_runtime.Bds(properties, out / 'bds.log', endstone=True, env=env):
-            with (out / 'client.log').open('a', encoding='utf-8') as log:
+            with ((out / 'client.log').open('a', encoding='utf-8') as log,
+                  (out / 'observer.log').open('a', encoding='utf-8') as observer_log):
                 client = subprocess.Popen(client_command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT)
                 logins = 1
                 try:
                     while time.monotonic() - started < args.timeout:
+                        # The observer logs in after the sweep player has spawned (its join
+                        # starts the job), a few seconds apart: BDS refuses a second loopback
+                        # login right after the first ("ip recently connected").
+                        if args.observer and (observer is None or observer.poll() not in (None, 0)):
+                            if observer_due is None and 'spawned as' in (out / 'client.log').read_text(
+                                    encoding='utf-8', errors='replace'):
+                                observer_due = time.monotonic() + 6
+                            if observer_due is not None and time.monotonic() >= observer_due:
+                                if observer_logins >= 5:
+                                    status = f'observer exited {observer.returncode}'
+                                    break
+                                observer_logins += 1
+                                observer = subprocess.Popen(observer_command, cwd=REPO, stdout=observer_log,
+                                                            stderr=subprocess.STDOUT)
+                                observer_due = time.monotonic() + 8
                         if (out / 'done.json').exists():
                             status = 'done'
                             break
@@ -470,10 +654,16 @@ def main() -> int:
                             break
                         time.sleep(1)
                 finally:
-                    if client.poll() is None:
-                        client.kill()
+                    for process in (client, observer):
+                        if process is not None and process.poll() is None:
+                            process.kill()
     finally:
         if world.exists():
+            if args.keep_world:
+                kept = out / 'world'
+                if kept.exists():
+                    shutil.rmtree(kept)
+                shutil.copytree(world, kept)
             shutil.rmtree(world)
     elapsed = time.monotonic() - started
     with (out / 'runs.jsonl').open('a', encoding='utf-8') as runs:

@@ -100,6 +100,14 @@ Java world radius 4, about 0.5 s / 3.0 s fresh and 0.16 s / 0.45 s when the area
 is already generated; radius 12, about 0.6 s / 17 s fresh and 0.14 s / 2.9 s
 generated (8 chunks per player per tick bound the generated case).
 
+A player's actor data follows BDS 1.26.51 (`entity/player_life/actor_data.rs`):
+its own join `SetActorData` and the `AddPlayer` other players get carry every
+row BDS sends (72 and 79), from the state the player's viewers last received;
+`AddPlayer` names game type `default` until the player's mode is set. Changes
+(breath, game mode, sneak, crawl pose, burning, effects, death) reach the
+player and its viewers as BDS groups them; the evidence and tests are in
+`entity/player_life/testdata/` and `entity/player_life/tests/`.
+
 ## World Generation
 
 `[world.generator]` selects the generator; new configs default to Java-style terrain:
@@ -627,6 +635,22 @@ of the complete timing/motion matrix.
 
 
 
+### Mob movement replication
+
+Mobs and projectiles replicate like BDS 1.26.51 (`src/entity/mob/net/network.rs`):
+a `MoveActorDelta` is measured against one shared "last sent" movement state, and
+each viewer gets it only as often as the actor's
+`minecraft:conditional_bandwidth_optimization` allows for that viewer's distance
+(every ⌊min(d, D) / D × M⌋ ticks, `ticks` set to that number; the empty component
+is 10 ticks over 80 blocks, so every tick within 8 blocks). A viewer's first
+update and a change of ground contact go at once with `ticks` 0, and the shared
+state moves on only when some viewer got the update, so far viewers can keep a
+stale axis, as on BDS. A newly spawned mob's `AddActor` shows it as it spawned.
+`src/entity/mob/net/bds_replication.rs` replays two-client BDS captures
+(`testdata/bds-1.26.51-replication.json`, from `tools/bds-sweep/sweep.py knockback
+--items cadence|cadence2 --observer`) packet for packet; `docs/quirks/bds.md`
+lists the copied oddities.
+
 ## Commands
 
 Commands follow BDS 1.26.51 (`src/command/`):
@@ -900,10 +924,13 @@ kept on disk untouched; players see a gap there until it is repaired. A
 stored subchunk, biome or block-entity record that doesn't decode fails the load
 of its column the same way, in both providers, rather than loading as air.
 
-Sub-chunks saved by BDS 1.26.51 load block for block. Each sub-chunk storage says
-in the low bit of its header how its palette is written: BDS writes block names
-and states as NBT (resolved through `BlockRegistry::state_by_properties`),
-unastar writes runtime ids. Reading follows what BDS reads: the key places a
+Sub-chunks are saved as BDS 1.26.51 saves them, and those BDS saved load block for block.
+Each sub-chunk storage says in the low bit of its header how its palette is
+written: as block names and states in NBT (`{name, states, version}`, resolved
+through `BlockRegistry::state_by_properties`), the form BDS writes and unastar
+writes, or as runtime ids, the form unastar wrote before (still read; a column
+saved that way is rewritten in BDS's form the next time it is saved). Reading
+follows what BDS reads: the key places a
 record whatever its Y byte, bytes after the last storage are skipped, and a
 palette may list more entries than its bit width indexes. Damage that BDS would
 paper over fails the column instead: an index past its palette, or an unknown
@@ -913,10 +940,21 @@ written by `tools/bds-sweep/subchunk_fixture.py`). Block names and states are
 not upgraded, so a sub-chunk an older Bedrock version wrote with a block or
 state renamed since fails its column too.
 
-Saving still writes runtime ids, which BDS reads as air (OpenSpec change
-`persist-block-states-by-name`). A column is saved again after any edit and
-whenever it holds or held actors, so running unastar on a BDS world makes those
-columns unreadable to BDS: use a copy of the world.
+Sub-chunk records are saved as BDS writes them when a chunk unloads, byte for
+byte: palette entries in the order edits added them, the smallest width that holds them, a
+changed section's unused entries dropped only when that narrows the width, a
+second storage once a section has held a waterlogged block, no record for a
+section of air, and unchanged sections exactly as they were read
+(`tests/bds_subchunks.rs` against BDS's records after the same edits,
+`tests/fixtures/bds_1_26_51_subchunk_edits.json`; BDS reopened worlds unastar
+edited and generated, `tools/bds-sweep/subchunk_roundtrip.py`), so BDS worlds can
+be served in place. Biomes go to Data3D with
+the "same as below" marker only above the last stored section: BDS stops loading a
+chunk with the marker under a stored section. Its heights are relative to y -64 and
+it has 24 sections in every dimension, where BDS uses the dimension's bottom and
+height. The column's other records differ from BDS's too: version 41 where BDS
+writes 42, and none of the per-chunk records BDS adds (`0x3f`, `0x40`, `0x41`) or
+deletes (`0x77`) on save. BDS loads unastar's columns either way.
 Loaded columns start clean, while generated or edited columns are saved on
 unload and shutdown. A chunk whose save before unload fails stays loaded, with
 its edits and mobs. Its unload is retried with a per-chunk exponential backoff
@@ -933,16 +971,22 @@ Player state is loaded through the configured player provider before StartGame
 and restored before initial inventory, abilities, and attributes are sent.
 Disconnect and shutdown use the same snapshot: position/rotation, dimension,
 gamemode, main inventory, armour, offhand, cursor, held slot, health, hunger,
-and experience. Older player records without inventory fields load with empty
-slots. Missing records use first-join defaults. A record that can't be read,
-parsed or validated (a transient read error included) refuses the join with
-the disconnect message "Unable to load saved player data. Contact the server
-operator.", logs the player's name, XUID and UUID, and is left in
-storage untouched, so no save can overwrite it with first-join state; the same
-happens when its items don't resolve. When `players.save_previous_position` is
+experience and air supply (BDS keeps it across a rejoin; the join packet still
+says full air and the first update after it carries the saved value). Older
+player records without inventory fields load with empty slots, and without an
+air supply with full air. Missing records use first-join defaults. A record
+that can't be read, parsed or validated (a transient read error included)
+refuses the join with the disconnect message "Unable to load saved player
+data. Contact the server operator.", logs the player's name, XUID and UUID,
+and is left in storage untouched, so no save can overwrite it with first-join
+state; the same happens when its items don't resolve. When `players.save_previous_position` is
 enabled, saves also update the per-player TOML position used by spawn rules.
 Spawn rules retain their ordering and only use saved positions in the current
 dimension.
+
+Mobs are saved as Bedrock actor records with their chunk (`src/entity/mob/persistence`); a zombie's random
+spawn knockback resistance is saved the way BDS saves it (a `RandomSpawnBonus` modifier of
+`minecraft:knockback_resistance`) and restored on load instead of being rolled again.
 
 Regression coverage: `cargo test -p unastar --test persistence` exercises both
 world providers, stored-column preservation through asynchronous loading and
