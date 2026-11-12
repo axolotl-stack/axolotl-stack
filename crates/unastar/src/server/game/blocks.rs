@@ -6,7 +6,7 @@
 
 use bevy_ecs::prelude::*;
 use glam::IVec3;
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace};
 
 use super::packet_queues::{BlockAction, BlockPacketQueue};
 use crate::ecs::events::{EventBuffer, ServerEvent};
@@ -17,22 +17,36 @@ use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
 use jolyne::valentine::types::{BlockPos, EnumsPlayerActionType, Vec3};
 use jolyne::valentine::{LevelEventPacket, McpePacket};
 
-// Protocol 2168 carries these event IDs as canonical i32 values. The values
-// are the LevelEvent constants used by Dragonfly/gophertunnel.
+// LevelEvent ids, carried as canonical i32 values (the names gophertunnel and
+// Dragonfly use).
 const LEVEL_EVENT_BLOCK_START_BREAK: i32 = 3600;
 const LEVEL_EVENT_BLOCK_STOP_BREAK: i32 = 3601;
+const LEVEL_EVENT_BLOCK_BREAK_SPEED: i32 = 3602;
+/// Crack particles on one side of a block: this plus the face (down, up,
+/// north, south, west, east).
+const LEVEL_EVENT_PARTICLES_CRACK_BLOCK: i32 = 3603;
 const LEVEL_EVENT_PARTICLES_DESTROY_BLOCK: i32 = 2001;
 const BLOCK_UPDATE_NEIGHBOURS: u32 = 1;
 const BLOCK_UPDATE_NETWORK: u32 = 1 << 1;
 
 /// Maximum block actions per PlayerAuthInput packet.
 const MAX_BLOCK_ACTIONS: usize = 64;
+/// Block actions one player may have waiting for the commit of a break
+/// (see [`apply_block_actions`]); the inbound cap per session and tick.
+const MAX_WAITING_BLOCK_ACTIONS: usize = 64;
 
 /// ECS exclusive system: drain block packet queue and apply block changes.
 ///
-/// Runs in `PacketApplySet` after `apply_movement` (which forwards block
-/// actions from PlayerAuthInput). Exclusive because it fires observers
-/// (`BlockChanged`) and writes messages (`BlockBroadcastEvent`).
+/// Runs in `PacketApplySet` after `apply_movement` (which forwards every
+/// accepted PlayerAuthInput, with or without block actions). Exclusive
+/// because it fires observers (`BlockChanged`) and writes messages
+/// (`BlockBroadcastEvent`).
+///
+/// Inputs that arrive together are applied together, as BDS does, except
+/// that a player's actions after an input that completed a survival break
+/// wait for the next tick: plugin dispatch commits the break after this
+/// tick, and BDS breaks the block at once, so those inputs must see it gone
+/// (in a burst of 16 inputs the 15th broke dirt and the 16th found air).
 pub fn apply_block_actions(world: &mut World) {
     let actions: Vec<_> = {
         let Some(mut queue) = world.get_resource_mut::<BlockPacketQueue>() else {
@@ -42,212 +56,330 @@ pub fn apply_block_actions(world: &mut World) {
     };
 
     let _span = tracing::info_span!("apply_block_actions", count = actions.len()).entered();
+    let mut breaking = Vec::new();
+    let mut waiting = Vec::new();
     for (entity, action) in actions {
+        if breaking.contains(&entity) {
+            if waiting
+                .iter()
+                .filter(|(waiter, _)| *waiter == entity)
+                .count()
+                < MAX_WAITING_BLOCK_ACTIONS
+            {
+                waiting.push((entity, action));
+            } else {
+                debug!(player = ?entity, "Dropped a block action over the waiting limit");
+            }
+            continue;
+        }
         match action {
             BlockAction::AuthInputActions(block_actions) => {
-                process_auth_input_block_actions(world, entity, &block_actions);
+                if process_auth_input_block_actions(world, entity, &block_actions) {
+                    breaking.push(entity);
+                }
             }
             BlockAction::BlockClick(use_item) => {
                 handle_block_click(world, entity, &use_item);
             }
         }
     }
+    if !waiting.is_empty()
+        && let Some(mut queue) = world.get_resource_mut::<BlockPacketQueue>()
+    {
+        queue.0.splice(0..0, waiting);
+    }
 }
 
-/// Process block actions from a PlayerAuthInput packet.
+/// One PlayerAuthInput's block actions, then one input of progress for the
+/// player's break (survival breaking as BDS 1.26.51 does it; see
+/// [`advance_breaking`]). Whether that input completed the break.
 fn process_auth_input_block_actions(
     world: &mut World,
     player_entity: Entity,
     block_actions: &[jolyne::valentine::PlayerBlockActionData],
-) {
-    let current_tick = world
-        .get_resource::<crate::ecs::resources::TickCounter>()
-        .unwrap()
-        .current;
-
+) -> bool {
+    let mut predicted = None;
     for action_item in block_actions.iter().take(MAX_BLOCK_ACTIONS) {
-        let (x, y, z) = (
+        let position = (
             action_item.position.x,
             action_item.position.y,
             action_item.position.z,
         );
+        let face = action_item.facing;
 
-        trace!(action = ?action_item.player_action_type, pos = ?(x, y, z), "Block action received");
-        if !can_interact(world, player_entity, (x, y, z))
+        trace!(action = ?action_item.player_action_type, pos = ?position, "Block action received");
+        // The face picks the crack particle event (3603 + face) and the
+        // blocks a refused prediction resends; abort data is not a face.
+        if matches!(
+            action_item.player_action_type,
+            EnumsPlayerActionType::Startdestroyblock
+                | EnumsPlayerActionType::Continuedestroyblock
+                | EnumsPlayerActionType::Crackblock
+                | EnumsPlayerActionType::Predictdestroyblock
+        ) && !(0..=5).contains(&face)
+        {
+            debug!(pos = ?position, face, action = ?action_item.player_action_type, "Ignored a block action with no valid face");
+            continue;
+        }
+        if !can_interact(world, player_entity, position)
             && !matches!(
                 action_item.player_action_type,
                 EnumsPlayerActionType::Abortdestroyblock | EnumsPlayerActionType::Stopdestroyblock
             )
         {
-            correct_block(world, player_entity, (x, y, z));
+            correct_block(world, player_entity, position);
             continue;
         }
 
+        let creative = world
+            .get::<crate::entity::components::GameMode>(player_entity)
+            .is_some_and(|mode| mode.instant_break());
         match action_item.player_action_type {
-            EnumsPlayerActionType::Predictdestroyblock
-            | EnumsPlayerActionType::Creativedestroyblock => {
-                trace!(pos = ?(x, y, z), "Creative/Predict block break");
-                break_block(world, player_entity, x, y, z);
+            EnumsPlayerActionType::Creativedestroyblock => {
+                break_block(world, player_entity, position, true);
             }
+            EnumsPlayerActionType::Predictdestroyblock if creative => {
+                break_block(world, player_entity, position, true);
+            }
+            // Judged with this input's progress, after the actions.
+            EnumsPlayerActionType::Predictdestroyblock => predicted = Some((position, face)),
             EnumsPlayerActionType::Startdestroyblock => {
-                let is_creative = world
-                    .get::<crate::entity::components::GameMode>(player_entity)
-                    .map(|gm| gm.instant_break())
-                    .unwrap_or(false);
-
-                let break_time_ticks = if is_creative {
-                    0
-                } else {
-                    player_break_ticks(world, player_entity, (x, y, z))
-                };
-
-                trace!(pos = ?(x, y, z), is_creative, break_time_ticks, "StartBreak");
-
                 if let Some(mut event_buffer) = world.get_resource_mut::<EventBuffer>() {
                     event_buffer.push(ServerEvent::PlayerStartBreak {
                         entity: player_entity,
-                        position: (x, y, z),
-                        face: 0,
+                        position,
+                        // Checked to be 0..=5 above.
+                        face: face as u8,
                     });
                 }
-
-                if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
-                    breaking.start(x, y, z, current_tick, break_time_ticks);
-                }
-
-                if !is_creative {
-                    broadcast_block_crack_start(world, x, y, z, break_time_ticks);
+                if !creative {
+                    start_breaking(world, player_entity, position, face);
                 }
             }
-            EnumsPlayerActionType::Crackblock | EnumsPlayerActionType::Continuedestroyblock => {
-                let needs_start = world
-                    .get::<BreakingState>(player_entity)
-                    .map(|b| b.position.is_none())
-                    .unwrap_or(true);
-
-                if needs_start {
-                    let is_creative = world
-                        .get::<crate::entity::components::GameMode>(player_entity)
-                        .map(|gm| gm.instant_break())
-                        .unwrap_or(false);
-
-                    let break_time_ticks = if is_creative {
-                        0
-                    } else {
-                        player_break_ticks(world, player_entity, (x, y, z))
-                    };
-
-                    trace!(pos = ?(x, y, z), is_creative, break_time_ticks, "CrackBreak: starting break");
-
-                    if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
-                        breaking.start(x, y, z, current_tick, break_time_ticks);
-                    }
-                }
-            }
-            EnumsPlayerActionType::Stopdestroyblock => {
-                trace!("StopBreak received");
-                let instant_break = world
-                    .get::<crate::entity::components::GameMode>(player_entity)
-                    .map(|gm| gm.instant_break())
-                    .unwrap_or(false);
-                let break_result = world
-                    .get::<BreakingState>(player_entity)
-                    .and_then(|breaking| {
-                        if let Some((x, y, z)) = breaking.position {
-                            let elapsed = current_tick.saturating_sub(breaking.start_tick);
-                            trace!(pos = ?(x, y, z), elapsed, expected = breaking.expected_ticks, "StopBreak");
-                            Some((x, y, z, instant_break || breaking.validate_break(current_tick)))
-                        } else {
-                            None
-                        }
-                    });
-
-                if let Some((x, y, z, valid_break)) = break_result {
-                    if valid_break {
-                        break_block(world, player_entity, x, y, z);
-                    } else {
-                        warn!(
-                            player = ?player_entity,
-                            pos = ?(x, y, z),
-                            "Rejected early block break"
-                        );
-                        correct_block(world, player_entity, (x, y, z));
-                    }
-
-                    if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
-                        breaking.stop();
-                    }
-
-                    broadcast_block_crack_stop(world, x, y, z);
-                }
+            EnumsPlayerActionType::Crackblock | EnumsPlayerActionType::Continuedestroyblock
+                if !creative =>
+            {
+                continue_breaking(world, player_entity, position, face);
             }
             EnumsPlayerActionType::Abortdestroyblock => {
-                debug!(pos = ?(x, y, z), "AbortBreak");
-
+                debug!(pos = ?position, "Break aborted");
+                broadcast_level_event(
+                    world,
+                    position,
+                    block_corner(position),
+                    LEVEL_EVENT_BLOCK_STOP_BREAK,
+                    0,
+                );
                 if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
                     breaking.stop();
                 }
-
-                broadcast_block_crack_stop(world, x, y, z);
             }
+            // BDS stops the crack at the position the action carries (the
+            // default, the origin, from a client) and the break goes on.
+            EnumsPlayerActionType::Stopdestroyblock => broadcast_level_event(
+                world,
+                position,
+                block_corner(position),
+                LEVEL_EVENT_BLOCK_STOP_BREAK,
+                0,
+            ),
             _ => {}
         }
     }
+    advance_breaking(world, player_entity, predicted)
 }
 
-/// Broadcast block crack start animation to chunk viewers.
-fn broadcast_block_crack_start(world: &World, x: i32, y: i32, z: i32, break_time_ticks: u32) {
-    let (cx, cz) = world_to_chunk_coords(x, z);
-
-    let Some(chunk_manager) = world.get_resource::<ChunkManager>() else {
-        return;
+/// Fraction of the block at `position` one input of `player`'s breaking
+/// destroys with the held item; 0 for air and unbreakable blocks.
+fn break_speed(world: &World, player: Entity, position: (i32, i32, i32)) -> f64 {
+    let Some(block) = block_at(world, position)
+        .filter(|id| *id != *blocks::AIR)
+        .and_then(|id| {
+            world
+                .get_resource::<super::types::BlockRegistryResource>()?
+                .0
+                .get_by_runtime_id(id)
+        })
+    else {
+        return 0.0;
     };
-    let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) else {
-        return;
-    };
+    let tool = held_item(world, player);
+    super::mining::destroy_progress(block, tool.as_ref(), mining_conditions(world, player))
+}
 
-    let break_data = 65535u32.checked_div(break_time_ticks).unwrap_or(65535) as i32;
+/// The crack speed the client animates with: 65535 times the fraction one
+/// input destroys, whole (BDS: dirt by hand 4369, Haste II 8807).
+fn crack_data(speed: f64) -> i32 {
+    (65535.0 * speed).floor().clamp(0.0, 65535.0) as i32
+}
 
-    let packet = LevelEventPacket {
-        event_id: LEVEL_EVENT_BLOCK_START_BREAK,
-        position: Vec3 {
-            x: x as f32,
-            y: y as f32,
-            z: z as f32,
-        },
-        data: break_data,
-    };
-
-    if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
-        for viewer_entity in chunk_viewers.iter() {
-            if let Some(session) = world.get::<PlayerSession>(viewer_entity) {
-                let _ = session.send(McpePacket::from(packet.clone()));
-            }
-        }
+/// `StartDestroyBlock`: the crack starts at the held item's speed (0 on air);
+/// the progress begins again unless the same block is being broken there
+/// (BDS; see [`BreakingState::start`]).
+fn start_breaking(world: &mut World, player: Entity, position: (i32, i32, i32), face: i32) {
+    let speed = break_speed(world, player, position);
+    let block = block_at(world, position).unwrap_or(*blocks::AIR);
+    broadcast_level_event(
+        world,
+        position,
+        block_corner(position),
+        LEVEL_EVENT_BLOCK_START_BREAK,
+        crack_data(speed),
+    );
+    if let Some(mut breaking) = world.get_mut::<BreakingState>(player) {
+        breaking.start(position, block, face, speed);
     }
 }
 
-/// Broadcast block crack stop animation to chunk viewers.
-fn broadcast_block_crack_stop(world: &World, x: i32, y: i32, z: i32) {
-    let (cx, cz) = world_to_chunk_coords(x, z);
+/// `ContinueDestroyBlock` (or `CrackBlock`): the crack restarts (stop, then
+/// start) at the current speed, 0 on air; another position starts from no
+/// progress (BDS).
+fn continue_breaking(world: &mut World, player: Entity, position: (i32, i32, i32), face: i32) {
+    let speed = break_speed(world, player, position);
+    let block = block_at(world, position).unwrap_or(*blocks::AIR);
+    let corner = block_corner(position);
+    broadcast_level_event(
+        world,
+        position,
+        corner.clone(),
+        LEVEL_EVENT_BLOCK_STOP_BREAK,
+        0,
+    );
+    broadcast_level_event(
+        world,
+        position,
+        corner,
+        LEVEL_EVENT_BLOCK_START_BREAK,
+        crack_data(speed),
+    );
+    if let Some(mut breaking) = world.get_mut::<BreakingState>(player) {
+        breaking.continue_at(position, block, face, speed);
+    }
+}
 
-    let Some(chunk_manager) = world.get_resource::<ChunkManager>() else {
+/// One input of progress, after the input's block actions. A break that
+/// completes is the server's own (BDS breaks the block itself) unless the
+/// client predicted it with this input; a prediction before the progress
+/// completes is refused and the break goes on. An unfinished break shows its
+/// crack particles on the worked face and its crack speed. A completed break
+/// goes on at that position from zero, and while no block that can break is
+/// there the progress keeps adding up silently, so a block put back breaks
+/// when it completes, at once if it already has (BDS). Whether a break was
+/// queued.
+fn advance_breaking(
+    world: &mut World,
+    player: Entity,
+    predicted: Option<((i32, i32, i32), i32)>,
+) -> bool {
+    let Some(mut state) = world
+        .get::<BreakingState>(player)
+        .filter(|state| state.is_breaking())
+        .cloned()
+    else {
+        if let Some((position, face)) = predicted {
+            refuse_prediction(world, player, position, face);
+        }
+        return false;
+    };
+    let position = state.position.expect("breaking");
+    if let Some((other, face)) = predicted.filter(|(at, _)| *at != position) {
+        refuse_prediction(world, player, other, face);
+    }
+    let predicted_here = predicted.is_some_and(|(at, _)| at == position);
+    state.advance();
+    let block = block_at(world, position).filter(|_| break_speed(world, player, position) > 0.0);
+    let mut queued = false;
+    match block {
+        None => {}
+        Some(_) if state.is_complete() => {
+            state.progress = 0.0;
+            queued = break_block(world, player, position, false);
+            if queued && !predicted_here {
+                state.completing = Some(position);
+            }
+        }
+        Some(block_id) => {
+            let wire = super::types::block_network_ids(world).to_wire(block_id) as i32;
+            broadcast_level_event(
+                world,
+                position,
+                block_centre(position),
+                LEVEL_EVENT_PARTICLES_CRACK_BLOCK + state.face,
+                wire,
+            );
+            broadcast_level_event(
+                world,
+                position,
+                block_corner(position),
+                LEVEL_EVENT_BLOCK_BREAK_SPEED,
+                crack_data(state.speed),
+            );
+            if predicted_here {
+                refuse_prediction(world, player, position, state.face);
+            }
+        }
+    }
+    if let Some(mut live) = world.get_mut::<BreakingState>(player) {
+        *live = state;
+    }
+    queued
+}
+
+/// A `PredictDestroyBlock` before the break completed: the client gets back
+/// the block, the block above it and the two on the worked face's side (BDS).
+fn refuse_prediction(world: &World, player: Entity, position: (i32, i32, i32), face: i32) {
+    let (x, y, z) = position;
+    let side = match face {
+        0 => (x, y - 1, z),
+        1 => (x, y + 1, z),
+        2 => (x, y, z - 1),
+        3 => (x, y, z + 1),
+        4 => (x - 1, y, z),
+        5 => (x + 1, y, z),
+        _ => position,
+    };
+    debug!(pos = ?position, "Refused an early break prediction");
+    for at in [position, (x, y + 1, z), side, (side.0, side.1 + 1, side.2)] {
+        correct_block(world, player, at);
+    }
+}
+
+fn block_corner((x, y, z): (i32, i32, i32)) -> Vec3 {
+    Vec3 {
+        x: x as f32,
+        y: y as f32,
+        z: z as f32,
+    }
+}
+
+fn block_centre((x, y, z): (i32, i32, i32)) -> Vec3 {
+    Vec3 {
+        x: x as f32 + 0.5,
+        y: y as f32 + 0.5,
+        z: z as f32 + 0.5,
+    }
+}
+
+/// A `LevelEvent` to the viewers of the chunk holding `block`.
+fn broadcast_level_event(
+    world: &World,
+    block: (i32, i32, i32),
+    position: Vec3,
+    event_id: i32,
+    data: i32,
+) {
+    let (cx, cz) = world_to_chunk_coords(block.0, block.2);
+    let Some(chunk_entity) = world
+        .get_resource::<ChunkManager>()
+        .and_then(|chunks| chunks.get_by_coords(cx, cz))
+    else {
         return;
     };
-    let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) else {
-        return;
-    };
-
     let packet = LevelEventPacket {
-        event_id: LEVEL_EVENT_BLOCK_STOP_BREAK,
-        position: Vec3 {
-            x: x as f32,
-            y: y as f32,
-            z: z as f32,
-        },
-        data: 0,
+        event_id,
+        position,
+        data,
     };
-
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
         for viewer_entity in chunk_viewers.iter() {
             if let Some(session) = world.get::<PlayerSession>(viewer_entity) {
@@ -621,11 +753,16 @@ fn level_sound(world: &World, pos: IVec3, name: &str, block: u32, at: glam::Vec3
     }
 }
 
-pub(crate) fn reject_block_event(world: &World, event: &ServerEvent) {
+pub(crate) fn reject_block_event(world: &mut World, event: &ServerEvent) {
     match event {
         ServerEvent::BlockBreak {
             entity, position, ..
         } => {
+            if let Some(mut breaking) = world.get_mut::<BreakingState>(*entity)
+                && breaking.completing == Some(*position)
+            {
+                breaking.completing = None;
+            }
             correct_block(world, *entity, *position);
             super::inventory::resync_inventory(world, *entity);
         }
@@ -647,45 +784,45 @@ pub(crate) fn reject_block_event(world: &World, event: &ServerEvent) {
     }
 }
 
-/// Validate and queue a break intent. Plugin dispatch owns the commit boundary.
-fn break_block(world: &mut World, player: Entity, x: i32, y: i32, z: i32) {
-    let position = (x, y, z);
-    let creative = world
+/// Validate and queue a break intent; plugin dispatch commits it. `creative`
+/// is a creative player's instant break; otherwise a survival break whose
+/// progress completed (see [`advance_breaking`]). Whether it was queued.
+fn break_block(
+    world: &mut World,
+    player: Entity,
+    position: (i32, i32, i32),
+    creative: bool,
+) -> bool {
+    let instant = world
         .get::<crate::entity::components::GameMode>(player)
         .is_some_and(|mode| mode.instant_break());
-    let tick = world
-        .get_resource::<crate::ecs::resources::TickCounter>()
-        .map_or(0, |tick| tick.current);
-    let mined = world.get::<BreakingState>(player).is_some_and(|state| {
-        state.position == Some(position)
-            && state.expected_ticks != u32::MAX
-            && tick.saturating_sub(state.start_tick) >= u64::from(state.expected_ticks) * 9 / 10
-    });
-    if !can_interact(world, player, position) || (!creative && !mined) {
+    if !can_interact(world, player, position) || creative != instant {
         correct_block(world, player, position);
-        return;
+        return false;
     }
     let Some(block_id) = block_at(world, position) else {
-        return;
+        return false;
     };
     if block_id == *blocks::AIR
         || (!creative && player_break_ticks(world, player, position) == u32::MAX)
     {
         correct_block(world, player, position);
-        return;
+        return false;
     }
     let player_id = world
         .get::<PlayerUuid>(player)
         .map(|id| id.0.to_string())
         .unwrap_or_default();
-    if let Some(mut events) = world.get_resource_mut::<EventBuffer>() {
-        events.push(ServerEvent::BlockBreak {
-            entity: player,
-            player_id,
-            position,
-            block_id,
-        });
-    }
+    let Some(mut events) = world.get_resource_mut::<EventBuffer>() else {
+        return false;
+    };
+    events.push(ServerEvent::BlockBreak {
+        entity: player,
+        player_id,
+        position,
+        block_id,
+    });
+    true
 }
 
 /// Apply an already approved break; never called before cancellable dispatch.
@@ -745,6 +882,18 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
 
     super::falling::schedule_gravity_checks(world, IVec3::new(x, y, z));
 
+    // The break's particles and block updates, then the tool's wear (BDS's
+    // order).
+    broadcast_block_break(
+        world,
+        breaking_player,
+        chunk_entity,
+        x,
+        y,
+        z,
+        original_block_id,
+    );
+
     // Survival breaks drop the block's items as real item entities and wear
     // the tool.
     if original_block_id != *blocks::AIR
@@ -762,17 +911,6 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         wear_held_tool(world, breaking_player, original_block_id);
         super::hunger::exhaust_player(world, breaking_player, |values| values.mine);
     }
-
-    // Broadcast update to viewers
-    broadcast_block_break(
-        world,
-        breaking_player,
-        chunk_entity,
-        x,
-        y,
-        z,
-        original_block_id,
-    );
     if let Some(broken) = broken {
         super::containers::drop_contents(world, IVec3::new(x, y, z), broken);
     }
@@ -781,9 +919,14 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
     super::block_update::world_changed(world, IVec3::new(x, y, z), false);
 }
 
-/// Broadcast block break effects (UpdateBlock, particles, sound) to viewers.
+/// What a break shows its viewers right away: the destroy particles (whose
+/// sound the client plays itself; BDS sends no sound for a player's break).
+/// The new block reaches every viewer with the chunk's block updates; a
+/// break the server completed itself also sends the breaking client the
+/// block and the block above it at once, since it never predicted the break
+/// (BDS).
 fn broadcast_block_break(
-    world: &World,
+    world: &mut World,
     breaking_player: Entity,
     chunk_entity: Entity,
     x: i32,
@@ -791,64 +934,30 @@ fn broadcast_block_break(
     z: i32,
     original_block_id: u32,
 ) {
-    use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
-
     let ids = super::types::block_network_ids(world);
-    let update_packet = UpdateBlockPacket {
-        block_position: BlockPos { x, y, z },
-        block_runtime_id: ids.to_wire(*blocks::AIR),
-        flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
-        layer: 0,
-    };
-
     let particle_packet = LevelEventPacket {
         event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK,
-        position: Vec3 {
-            x: x as f32 + 0.5,
-            y: y as f32 + 0.5,
-            z: z as f32 + 0.5,
-        },
+        position: block_centre((x, y, z)),
         data: ids.to_wire(original_block_id) as i32,
     };
-
-    let sound_packet = LevelSoundEventPacket {
-        sound_event: "break.block".into(),
-        position: Vec3 {
-            x: x as f32 + 0.5,
-            y: y as f32 + 0.5,
-            z: z as f32 + 0.5,
-        },
-        data: ids.to_wire(original_block_id) as i32,
-        actor_identifier: "".into(),
-        is_baby: false,
-        is_global: false,
-        actor_unique_id: 0,
-        fire_at_position: None,
-    };
-
+    let mut sent_to_breaker = false;
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
-        let mut sent_to = std::collections::HashSet::new();
-
         for viewer_entity in chunk_viewers.iter() {
             if let Some(session) = world.get::<PlayerSession>(viewer_entity) {
-                let _ = session.send(McpePacket::from(update_packet.clone()));
                 let _ = session.send(McpePacket::from(particle_packet.clone()));
-                let _ = session.send(McpePacket::from(sound_packet.clone()));
-                sent_to.insert(viewer_entity);
+                sent_to_breaker |= viewer_entity == breaking_player;
             }
         }
-
-        if !sent_to.contains(&breaking_player)
-            && let Some(session) = world.get::<PlayerSession>(breaking_player)
-        {
-            let _ = session.send(McpePacket::from(update_packet));
-            let _ = session.send(McpePacket::from(particle_packet));
-            let _ = session.send(McpePacket::from(sound_packet));
-        }
-    } else if let Some(session) = world.get::<PlayerSession>(breaking_player) {
-        let _ = session.send(McpePacket::from(update_packet));
+    }
+    if !sent_to_breaker && let Some(session) = world.get::<PlayerSession>(breaking_player) {
         let _ = session.send(McpePacket::from(particle_packet));
-        let _ = session.send(McpePacket::from(sound_packet));
+    }
+    let completed = world
+        .get_mut::<BreakingState>(breaking_player)
+        .and_then(|mut state| state.completing.take_if(|at| *at == (x, y, z)));
+    if completed.is_some() {
+        correct_block(world, breaking_player, (x, y, z));
+        correct_block(world, breaking_player, (x, y + 1, z));
     }
 }
 
@@ -1359,6 +1468,9 @@ pub(crate) fn destroy_block(world: &mut World, pos: IVec3) {
 }
 
 #[cfg(test)]
+mod breaking_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::entity::components::{GameMode, HeldSlot, MainInventory, Position};
@@ -1441,7 +1553,7 @@ mod tests {
     fn distant_break_leaves_block_unchanged() {
         let (mut world, player, chunk) =
             block_world(GameMode::Creative, DVec3::new(100.0, 64.0, 100.0));
-        break_block(&mut world, player, 1, 64, 1);
+        break_block(&mut world, player, (1, 64, 1), true);
         assert_eq!(
             world
                 .get::<ChunkData>(chunk)
@@ -1456,7 +1568,7 @@ mod tests {
     fn adventure_break_leaves_block_unchanged() {
         let (mut world, player, chunk) =
             block_world(GameMode::Adventure, DVec3::new(1.0, 64.0, 1.0));
-        break_block(&mut world, player, 1, 64, 1);
+        break_block(&mut world, player, (1, 64, 1), false);
         assert_eq!(
             world
                 .get::<ChunkData>(chunk)
@@ -1491,7 +1603,7 @@ mod tests {
     fn creative_break_is_only_an_intent_until_plugins_allow_it() {
         let (mut world, player, chunk) =
             block_world(GameMode::Creative, DVec3::new(1.0, 64.0, 1.0));
-        break_block(&mut world, player, 1, 64, 1);
+        break_block(&mut world, player, (1, 64, 1), true);
         assert_eq!(
             world
                 .get::<ChunkData>(chunk)
@@ -1827,21 +1939,69 @@ mod tests {
         );
     }
 
+    /// A survival break advances once per input, idle inputs included
+    /// (BDS): a prediction before the progress completes is refused and the
+    /// block stays, and the server completes the break itself on the input
+    /// that finishes it (dirt by hand: the 15th).
     #[test]
-    fn survival_prediction_cannot_skip_mining_duration() {
-        let (mut world, player, chunk) =
-            block_world(GameMode::Survival, DVec3::new(1.0, 64.0, 1.0));
-        world.insert_resource(crate::ecs::resources::TickCounter { current: 2 });
-        let mut state = BreakingState::default();
-        state.start(1, 64, 1, 1, 20);
-        world.entity_mut(player).insert(state);
-        break_block(&mut world, player, 1, 64, 1);
-        assert!(world.resource_mut::<EventBuffer>().drain().is_empty());
+    fn survival_breaks_advance_per_input_and_refuse_early_predictions() {
+        let eye = DVec3::new(1.5, 63.0 + crate::entity::PLAYER_EYE_HEIGHT, 1.5);
+        let (mut world, player, chunk) = block_world(GameMode::Survival, eye);
+        floor_under(&mut world, chunk);
         world
-            .resource_mut::<crate::ecs::resources::TickCounter>()
-            .current = 20;
-        break_block(&mut world, player, 1, 64, 1);
-        let event = world.resource_mut::<EventBuffer>().drain().pop().unwrap();
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block(1, 64, 1, *blocks::DIRT);
+        world.entity_mut(player).insert(BreakingState::default());
+        let action = |kind| jolyne::valentine::PlayerBlockActionData {
+            player_action_type: kind,
+            position: BlockPos { x: 1, y: 64, z: 1 },
+            facing: 1,
+        };
+        let breaks = |world: &mut World| {
+            world
+                .resource_mut::<EventBuffer>()
+                .drain()
+                .into_iter()
+                .filter(|event| matches!(event, ServerEvent::BlockBreak { .. }))
+                .collect::<Vec<_>>()
+        };
+        process_auth_input_block_actions(
+            &mut world,
+            player,
+            &[action(EnumsPlayerActionType::Startdestroyblock)],
+        );
+        for _ in 0..6 {
+            process_auth_input_block_actions(
+                &mut world,
+                player,
+                &[action(EnumsPlayerActionType::Continuedestroyblock)],
+            );
+        }
+        process_auth_input_block_actions(
+            &mut world,
+            player,
+            &[action(EnumsPlayerActionType::Predictdestroyblock)],
+        );
+        assert!(breaks(&mut world).is_empty(), "the 8th input is early");
+        let state = world.get::<BreakingState>(player).unwrap().clone();
+        assert_eq!(state.position, Some((1, 64, 1)), "the break goes on");
+        assert!((state.progress - 8.0 / 15.0).abs() < 1e-9);
+        for _ in 0..6 {
+            process_auth_input_block_actions(&mut world, player, &[]);
+        }
+        assert!(breaks(&mut world).is_empty(), "14 inputs are not enough");
+        process_auth_input_block_actions(&mut world, player, &[]);
+        let event = breaks(&mut world)
+            .pop()
+            .expect("the server completes the break");
+        let state = world.get::<BreakingState>(player).unwrap();
+        assert_eq!(
+            (state.position, state.progress),
+            (Some((1, 64, 1)), 0.0),
+            "BDS goes on breaking that position from zero"
+        );
         commit_block_event(&mut world, &event);
         assert_eq!(
             world
@@ -1850,6 +2010,83 @@ mod tests {
                 .inner
                 .get_block(1, 64, 1),
             *blocks::AIR
+        );
+    }
+
+    /// The face picks a LevelEvent (3603 + face), so a breaking action with
+    /// a face outside 0..=5 is ignored rather than turned into another event
+    /// (or an overflow).
+    #[test]
+    fn breaking_actions_without_a_valid_face_are_ignored() {
+        let eye = DVec3::new(1.5, 63.0 + crate::entity::PLAYER_EYE_HEIGHT, 1.5);
+        let (mut world, player, chunk) = block_world(GameMode::Survival, eye);
+        floor_under(&mut world, chunk);
+        world
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block(1, 64, 1, *blocks::DIRT);
+        world.entity_mut(player).insert(BreakingState::default());
+        for (kind, facing) in [
+            (EnumsPlayerActionType::Startdestroyblock, -602),
+            (EnumsPlayerActionType::Continuedestroyblock, 6),
+            (EnumsPlayerActionType::Predictdestroyblock, i32::MAX),
+        ] {
+            process_auth_input_block_actions(
+                &mut world,
+                player,
+                &[jolyne::valentine::PlayerBlockActionData {
+                    player_action_type: kind,
+                    position: BlockPos { x: 1, y: 64, z: 1 },
+                    facing,
+                }],
+            );
+        }
+        assert!(!world.get::<BreakingState>(player).unwrap().is_breaking());
+        assert!(
+            world
+                .resource_mut::<EventBuffer>()
+                .drain()
+                .iter()
+                .all(|event| !matches!(event, ServerEvent::BlockBreak { .. }))
+        );
+    }
+
+    /// A survival client cannot skip its break with a creative destroy.
+    #[test]
+    fn survival_creative_destroy_is_refused() {
+        let eye = DVec3::new(1.5, 63.0 + crate::entity::PLAYER_EYE_HEIGHT, 1.5);
+        let (mut world, player, chunk) = block_world(GameMode::Survival, eye);
+        floor_under(&mut world, chunk);
+        world
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block(1, 64, 1, *blocks::DIRT);
+        world.entity_mut(player).insert(BreakingState::default());
+        process_auth_input_block_actions(
+            &mut world,
+            player,
+            &[jolyne::valentine::PlayerBlockActionData {
+                player_action_type: EnumsPlayerActionType::Creativedestroyblock,
+                position: BlockPos { x: 1, y: 64, z: 1 },
+                facing: 1,
+            }],
+        );
+        assert!(
+            world
+                .resource_mut::<EventBuffer>()
+                .drain()
+                .iter()
+                .all(|event| !matches!(event, ServerEvent::BlockBreak { .. }))
+        );
+        assert_eq!(
+            world
+                .get::<ChunkData>(chunk)
+                .unwrap()
+                .inner
+                .get_block(1, 64, 1),
+            *blocks::DIRT
         );
     }
 

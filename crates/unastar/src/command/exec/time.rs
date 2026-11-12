@@ -170,3 +170,19 @@ mod tests {
         );
     }
 }
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::Replay;
+
+    #[test]
+    fn time_matches_the_bds_capture() {
+        let differ = [
+            // BDS keeps a signed clock and accepts it; unastar's clock starts at 0.
+            "/time set -5",
+        ];
+        Replay::new().assert_segment("time", &differ);
+    }
+}

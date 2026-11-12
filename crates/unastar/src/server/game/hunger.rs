@@ -16,7 +16,6 @@
 //! * otherwise the 80-tick timer resets every tick.
 
 use bevy_ecs::prelude::*;
-use jolyne::valentine::types::{EnumsSharedTypesLegacyDifficulty, GameRuleRuleValue};
 use serde::Deserialize;
 use unastar_data::actor_components::body::ActorDamageCause;
 
@@ -24,6 +23,7 @@ use crate::entity::components::{GameMode, Health, Hunger};
 use crate::entity::mob::combat::Hit;
 use crate::entity::mob::components::KnockbackPower;
 use crate::entity::player_life::hurt_player;
+use crate::world::rules::GameRules;
 
 /// Ticks between natural regeneration or starvation steps.
 pub const FOOD_TICK_INTERVAL: u32 = 80;
@@ -72,15 +72,11 @@ pub struct FoodTimer {
     pub regeneration: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Difficulty {
-    Peaceful,
-    Easy,
-    Normal,
-    Hard,
-}
+pub use crate::world::rules::Difficulty;
 
-/// The rules the food tick reads from the announced level settings.
+/// The rules the food tick reads: the live difficulty and
+/// `naturalregeneration` game rule, so `/difficulty` and `/gamerule` act on
+/// the next tick.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FoodRules {
     pub difficulty: Difficulty,
@@ -88,30 +84,17 @@ pub struct FoodRules {
 }
 
 impl FoodRules {
+    /// The world's current rules (normal difficulty and natural
+    /// regeneration in a world without them).
     pub fn of(world: &World) -> Self {
-        let Some(template) = world.get_resource::<super::types::ServerWorldTemplate>() else {
-            return Self {
-                difficulty: Difficulty::Normal,
-                natural_regeneration: true,
-            };
-        };
-        let settings = &template.0.start_game_template.settings;
-        let difficulty = match settings.game_difficulty {
-            EnumsSharedTypesLegacyDifficulty::Peaceful => Difficulty::Peaceful,
-            EnumsSharedTypesLegacyDifficulty::Easy => Difficulty::Easy,
-            EnumsSharedTypesLegacyDifficulty::Hard => Difficulty::Hard,
-            _ => Difficulty::Normal,
-        };
-        // An unannounced rule has its vanilla default (true).
-        let natural_regeneration = settings
-            .rule_data
-            .rules_list
-            .iter()
-            .find(|rule| rule.rule_name.eq_ignore_ascii_case("naturalregeneration"))
-            .is_none_or(|rule| !matches!(rule.rule_value, GameRuleRuleValue::Bool(false)));
         Self {
-            difficulty,
-            natural_regeneration,
+            difficulty: world
+                .get_resource::<Difficulty>()
+                .copied()
+                .unwrap_or(Difficulty::Normal),
+            natural_regeneration: world
+                .get_resource::<GameRules>()
+                .is_none_or(|rules| rules.natural_regeneration),
         }
     }
 }

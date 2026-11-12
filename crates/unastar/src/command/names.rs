@@ -52,6 +52,18 @@ pub fn item_name(stack: &ItemStack) -> String {
     item_identifier_name(stack.item_id())
 }
 
+/// The translation key BDS names a block by in command feedback
+/// (`commands.testforblock.failed.tile`), measured per block
+/// (`unastar_data::block_names`; `minecraft:dirt` is
+/// `tile.dirt.default.name`). [INFERENCE] A block without a measured key
+/// (one the `Block` command enum refuses, so no command names it as
+/// expected) is `tile.<name>.name`, the form 871 of the 1,265 measured keys
+/// take.
+pub fn block_name_key(identifier: &str) -> String {
+    unastar_data::block_names::name_key(identifier)
+        .map_or_else(|| format!("tile.{}.name", short(identifier)), str::to_owned)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

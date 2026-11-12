@@ -6,9 +6,16 @@
    5.0,
    5.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:copper_axe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "copper_hoe": {
   "consistent": true,
@@ -17,9 +24,16 @@
    4.0,
    4.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:copper_hoe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "copper_pickaxe": {
   "consistent": true,
@@ -28,9 +42,16 @@
    4.0,
    4.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:copper_pickaxe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "copper_shovel": {
   "consistent": true,
@@ -39,9 +60,34 @@
    3.0,
    3.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:copper_shovel"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
+ },
+ "copper_spear": {
+  "consistent": true,
+  "damage": [
+   3.0,
+   3.0,
+   3.0
+  ],
+  "gamemode": "survival",
+  "tool_item": {
+   "item": "minecraft:copper_spear"
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "copper_sword": {
   "consistent": true,
@@ -50,9 +96,16 @@
    6.0,
    6.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:copper_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "diamond_axe": {
   "consistent": true,
@@ -61,9 +114,16 @@
    7.0,
    7.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:diamond_axe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "diamond_hoe": {
   "consistent": true,
@@ -72,9 +132,16 @@
    6.0,
    6.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:diamond_hoe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "diamond_pickaxe": {
   "consistent": true,
@@ -83,9 +150,16 @@
    6.0,
    6.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:diamond_pickaxe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "diamond_shovel": {
   "consistent": true,
@@ -94,9 +168,34 @@
    5.0,
    5.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:diamond_shovel"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
+ },
+ "diamond_spear": {
+  "consistent": true,
+  "damage": [
+   5.0,
+   5.0,
+   5.0
+  ],
+  "gamemode": "survival",
+  "tool_item": {
+   "item": "minecraft:diamond_spear"
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "diamond_sword": {
   "consistent": true,
@@ -105,9 +204,16 @@
    8.0,
    8.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:diamond_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "diamond_sword+sharpness1": {
   "consistent": true,
@@ -116,12 +222,19 @@
    9.0,
    9.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "enchants": {
     "minecraft:sharpness": 1
    },
    "item": "minecraft:diamond_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "diamond_sword+sharpness2": {
   "consistent": true,
@@ -130,12 +243,19 @@
    10.0,
    10.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "enchants": {
     "minecraft:sharpness": 2
    },
    "item": "minecraft:diamond_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "diamond_sword+sharpness3": {
   "consistent": true,
@@ -144,12 +264,19 @@
    11.0,
    11.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "enchants": {
     "minecraft:sharpness": 3
    },
    "item": "minecraft:diamond_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "diamond_sword+sharpness4": {
   "consistent": true,
@@ -158,12 +285,19 @@
    13.0,
    13.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "enchants": {
     "minecraft:sharpness": 4
    },
    "item": "minecraft:diamond_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "diamond_sword+sharpness5": {
   "consistent": true,
@@ -172,12 +306,19 @@
    14.0,
    14.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "enchants": {
     "minecraft:sharpness": 5
    },
    "item": "minecraft:diamond_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "golden_axe": {
   "consistent": true,
@@ -186,9 +327,16 @@
    4.0,
    4.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:golden_axe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "golden_hoe": {
   "consistent": true,
@@ -197,9 +345,16 @@
    3.0,
    3.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:golden_hoe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "golden_pickaxe": {
   "consistent": true,
@@ -208,9 +363,16 @@
    3.0,
    3.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:golden_pickaxe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "golden_shovel": {
   "consistent": true,
@@ -219,9 +381,34 @@
    2.0,
    2.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:golden_shovel"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
+ },
+ "golden_spear": {
+  "consistent": true,
+  "damage": [
+   2.0,
+   2.0,
+   2.0
+  ],
+  "gamemode": "survival",
+  "tool_item": {
+   "item": "minecraft:golden_spear"
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "golden_sword": {
   "consistent": true,
@@ -230,9 +417,16 @@
    5.0,
    5.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:golden_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "hand": {
   "consistent": true,
@@ -241,6 +435,7 @@
    1.0,
    1.0
   ],
+  "gamemode": "survival",
   "tool_item": null
  },
  "iron_axe": {
@@ -250,9 +445,16 @@
    6.0,
    6.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:iron_axe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "iron_hoe": {
   "consistent": true,
@@ -261,9 +463,16 @@
    5.0,
    5.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:iron_hoe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "iron_pickaxe": {
   "consistent": true,
@@ -272,9 +481,16 @@
    5.0,
    5.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:iron_pickaxe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "iron_shovel": {
   "consistent": true,
@@ -283,9 +499,34 @@
    4.0,
    4.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:iron_shovel"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
+ },
+ "iron_spear": {
+  "consistent": true,
+  "damage": [
+   4.0,
+   4.0,
+   4.0
+  ],
+  "gamemode": "survival",
+  "tool_item": {
+   "item": "minecraft:iron_spear"
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "iron_sword": {
   "consistent": true,
@@ -294,9 +535,16 @@
    7.0,
    7.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:iron_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "mace": {
   "consistent": true,
@@ -305,9 +553,16 @@
    6.0,
    6.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:mace"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "netherite_axe": {
   "consistent": true,
@@ -316,9 +571,16 @@
    8.0,
    8.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:netherite_axe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "netherite_hoe": {
   "consistent": true,
@@ -327,9 +589,16 @@
    7.0,
    7.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:netherite_hoe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "netherite_pickaxe": {
   "consistent": true,
@@ -338,9 +607,16 @@
    7.0,
    7.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:netherite_pickaxe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "netherite_shovel": {
   "consistent": true,
@@ -349,9 +625,34 @@
    6.0,
    6.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:netherite_shovel"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
+ },
+ "netherite_spear": {
+  "consistent": true,
+  "damage": [
+   6.0,
+   6.0,
+   6.0
+  ],
+  "gamemode": "survival",
+  "tool_item": {
+   "item": "minecraft:netherite_spear"
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "netherite_sword": {
   "consistent": true,
@@ -360,9 +661,16 @@
    9.0,
    9.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:netherite_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "stone_axe": {
   "consistent": true,
@@ -371,9 +679,16 @@
    5.0,
    5.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:stone_axe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "stone_hoe": {
   "consistent": true,
@@ -382,9 +697,16 @@
    4.0,
    4.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:stone_hoe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "stone_pickaxe": {
   "consistent": true,
@@ -393,9 +715,16 @@
    4.0,
    4.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:stone_pickaxe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "stone_shovel": {
   "consistent": true,
@@ -404,9 +733,34 @@
    3.0,
    3.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:stone_shovel"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
+ },
+ "stone_spear": {
+  "consistent": true,
+  "damage": [
+   3.0,
+   3.0,
+   3.0
+  ],
+  "gamemode": "survival",
+  "tool_item": {
+   "item": "minecraft:stone_spear"
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "stone_sword": {
   "consistent": true,
@@ -415,9 +769,16 @@
    6.0,
    6.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:stone_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "trident": {
   "consistent": true,
@@ -426,9 +787,16 @@
    9.0,
    9.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:trident"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "wooden_axe": {
   "consistent": true,
@@ -437,9 +805,16 @@
    4.0,
    4.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:wooden_axe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "wooden_hoe": {
   "consistent": true,
@@ -448,9 +823,16 @@
    3.0,
    3.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:wooden_hoe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "wooden_pickaxe": {
   "consistent": true,
@@ -459,9 +841,16 @@
    3.0,
    3.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:wooden_pickaxe"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
  },
  "wooden_shovel": {
   "consistent": true,
@@ -470,9 +859,34 @@
    2.0,
    2.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:wooden_shovel"
-  }
+  },
+  "wear": [
+   0,
+   2,
+   2,
+   2
+  ]
+ },
+ "wooden_spear": {
+  "consistent": true,
+  "damage": [
+   2.0,
+   2.0,
+   2.0
+  ],
+  "gamemode": "survival",
+  "tool_item": {
+   "item": "minecraft:wooden_spear"
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  },
  "wooden_sword": {
   "consistent": true,
@@ -481,8 +895,15 @@
    5.0,
    5.0
   ],
+  "gamemode": "survival",
   "tool_item": {
    "item": "minecraft:wooden_sword"
-  }
+  },
+  "wear": [
+   0,
+   1,
+   1,
+   1
+  ]
  }
 }

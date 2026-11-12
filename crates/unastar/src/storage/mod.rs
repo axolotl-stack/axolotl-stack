@@ -5,7 +5,10 @@
 //! - `PlayerProvider` - player data persistence
 //!
 //! Implementations:
-//! - LevelDB (default) - standard Bedrock-compatible storage
+//! - LevelDB (default) - Bedrock's key layout and table format; loads worlds BDS
+//!   saved, but saves sub-chunk palettes as runtime ids, which BDS reads as air,
+//!   so a BDS world should be served from a copy (OpenSpec change
+//!   `persist-block-states-by-name`)
 //! - BlazeDB - high-performance with spatial indexing
 
 mod keys;

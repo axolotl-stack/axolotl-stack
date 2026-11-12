@@ -60,6 +60,11 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SetBlockArgs) -> CommandResult {
     };
     let block = BlockSpec::resolve(&tile_name, states.as_ref())?.state();
     let pos = ctx.block_position(Some(position));
+    // Measured: a position below the world answers `noChange`; [INFERENCE]
+    // above it too, and an unloaded chunk is out of the world.
+    if !in_height(pos.y) {
+        return failure!("commands.setblock.noChange");
+    }
     let Some(old) = block_at(ctx.world, (pos.x, pos.y, pos.z)) else {
         return failure!("commands.setblock.outOfWorld");
     };
@@ -114,7 +119,7 @@ impl BlockSpec {
             else {
                 return Err(CommandOutput::failure(
                     "commands.blockstate.stateError",
-                    vec![name.clone(), tile_name.to_owned()],
+                    vec![name.clone(), identifier.clone()],
                 ));
             };
             let value = property
@@ -138,7 +143,7 @@ impl BlockSpec {
                 None if type_matches => {
                     return Err(CommandOutput::failure(
                         "commands.blockstate.valueError",
-                        vec![name.clone()],
+                        vec![name.clone(), identifier.clone()],
                     ));
                 }
                 None => {
@@ -177,6 +182,11 @@ impl BlockSpec {
             .expect("resolve checked the state combination")
     }
 
+    /// Whether `state` is a state of this block, whatever its values.
+    pub(super) fn is_block(&self, state: u32) -> bool {
+        (self.entry.min_state_id..=self.entry.max_state_id).contains(&state)
+    }
+
     /// Whether `state` is this block with the named states (any value for
     /// the states not named), as fill/clone filters match.
     pub(super) fn matches(&self, state: u32) -> bool {
@@ -186,6 +196,13 @@ impl BlockSpec {
                 .iter()
                 .all(|(name, value)| self.entry.state_value(state, name) == Some(*value))
     }
+}
+
+/// Whether `y` is inside the world height.
+pub(super) fn in_height(y: i32) -> bool {
+    let bottom = crate::world::chunk::MIN_Y;
+    let top = bottom + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16;
+    (bottom..top).contains(&y)
 }
 
 /// Whether every block of the box `min..=max` is inside the world height and
@@ -300,14 +317,14 @@ pub(super) mod tests {
             h.run(op, r#"/setblock 1 64 1 oak_stairs ["color"="red"]"#),
             CommandOutput::failure(
                 "commands.blockstate.stateError",
-                vec!["color".into(), "oak_stairs".into()]
+                vec!["color".into(), "minecraft:oak_stairs".into()]
             )
         );
         assert_eq!(
             h.run(op, r#"/setblock 1 64 1 oak_stairs ["weirdo_direction"=9]"#),
             CommandOutput::failure(
                 "commands.blockstate.valueError",
-                vec!["weirdo_direction".into()]
+                vec!["weirdo_direction".into(), "minecraft:oak_stairs".into()]
             )
         );
         assert_eq!(
@@ -340,7 +357,7 @@ pub(super) mod tests {
         );
         assert_eq!(
             h.run(op, "/setblock 0 400 0 stone"),
-            CommandOutput::failure("commands.setblock.outOfWorld", vec![])
+            CommandOutput::failure("commands.setblock.noChange", vec![])
         );
     }
 
@@ -426,5 +443,17 @@ pub(super) mod tests {
         );
         assert_eq!(block(&mut h, 5, 64, 5), state("minecraft:stone"));
         assert_eq!(drops(&mut h), [("minecraft:oak_planks".to_owned(), 1)]);
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::Replay;
+
+    #[test]
+    fn setblock_matches_the_bds_capture() {
+        Replay::new().assert_segment("setblock", &[]);
     }
 }

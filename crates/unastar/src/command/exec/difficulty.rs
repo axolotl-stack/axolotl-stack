@@ -1,5 +1,7 @@
 //! `/difficulty <name|0-3>`: sets the level difficulty and broadcasts
-//! `SetDifficulty`; answers `commands.difficulty.success ["HARD"]` (measured).
+//! `SetDifficulty`; answers `commands.difficulty.success ["HARD"]`, and a
+//! number outside 0-3 `commands.generic.parameter.invalid [number]`
+//! (measured).
 
 use crate::command::prelude::*;
 use crate::world::rules::Difficulty;
@@ -35,7 +37,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: DifficultyArgs) -> CommandResult 
             1 => Difficulty::Easy,
             2 => Difficulty::Normal,
             3 => Difficulty::Hard,
-            _ => return failure!("commands.difficulty.usage"),
+            other => return failure!("commands.generic.parameter.invalid", other),
         },
     };
     *ctx.world.resource_mut::<Difficulty>() = difficulty;
@@ -73,8 +75,21 @@ mod tests {
         );
         assert_eq!(
             h.run(op, "/difficulty 7"),
-            CommandOutput::failure("commands.difficulty.usage", vec![])
+            CommandOutput::failure("commands.generic.parameter.invalid", vec!["7".into()])
         );
         assert_eq!(*h.world().resource::<Difficulty>(), Difficulty::Peaceful);
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::{Replay, assert_same_packets};
+
+    #[test]
+    fn difficulty_matches_the_bds_capture() {
+        let steps = Replay::new().assert_segment("difficulty", &[]);
+        assert_same_packets(&steps, &["SetDifficultyPacket"], &[]);
     }
 }

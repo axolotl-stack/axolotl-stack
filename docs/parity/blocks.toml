@@ -39,7 +39,7 @@
 
 # banners (2)
 "minecraft:standing_banner" = { status = "partial", owner = "blocks", tests = ["crates/unastar/src/server/game/block_update/tests.rs::blocks_fall_off_when_their_support_goes_like_bds", "crates/unastar/src/server/game/block_update/tests.rs::attached_blocks_stay_on_the_holders_bds_keeps_them_on"], gaps = "no banner block actor (colour, patterns); placement not compared with a BDS capture" }
-"minecraft:wall_banner" = { status = "partial", owner = "blocks", gaps = "no banner block actor (colour, patterns); no support check (stays when the block holding it is removed); placement not compared with a BDS capture" }
+"minecraft:wall_banner" = { status = "partial", owner = "blocks", gaps = "no banner block actor (colour, patterns); its support check (the measured wall-banner holders) is not replayed against the support sweep; placement not compared with a BDS capture" }
 
 # beds (2)
 "minecraft:bed" = { status = "partial", owner = "blocks", tests = ["crates/unastar/src/server/game/placement_capture_tests.rs::survival_clicks_answer_like_bds"], gaps = "no sleeping, spawn point or explosion outside the Overworld" }

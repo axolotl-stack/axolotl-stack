@@ -15,10 +15,11 @@ fn measured_dir() -> PathBuf {
 /// README, and the capture-derived tables that record their source capture's
 /// SHA-256 inside the file, or that a test re-derives from a tracked capture
 /// (see `data/measured/README.md`).
-const NOT_SWEPT: [&str; 6] = [
+const NOT_SWEPT: [&str; 7] = [
     "README.md",
     "manifest.json",
     "block_actor_defaults.json",
+    "block_name_keys.json",
     "builtin_recipes.json",
     "potion_types.json",
     "recipe_legacy_identities.json",

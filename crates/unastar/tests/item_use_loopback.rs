@@ -237,7 +237,9 @@ fn eat_mine_and_shoot_over_loopback() {
         .await;
         assert!(eaten >= food + 4.0, "food {food} -> {eaten}");
 
-        // Mine the platform stone under the spawn with the iron pickaxe.
+        // Mine the platform stone under the spawn with the iron pickaxe: start,
+        // then keep breaking an input per tick like a client; the server
+        // completes the break itself on the 8th input (6 / 1.5 / 30 per input).
         send(&mut client, select(runtime_id, 1)).await;
         let stone = BlockPos { x: 0, y: 15, z: 1 };
         let action = |kind| PlayerBlockActionData {
@@ -254,16 +256,18 @@ fn eat_mine_and_shoot_over_loopback() {
             ),
         )
         .await;
-        tokio::time::sleep(Duration::from_millis(1500)).await;
-        send(
-            &mut client,
-            auth_input(
-                32,
-                60.0,
-                vec![action(EnumsPlayerActionType::Stopdestroyblock)],
-            ),
-        )
-        .await;
+        for tick in 3..14 {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            send(
+                &mut client,
+                auth_input(
+                    tick,
+                    60.0,
+                    vec![action(EnumsPlayerActionType::Continuedestroyblock)],
+                ),
+            )
+            .await;
+        }
         let worn = recv_until(&mut client, "pickaxe slot update", |data| match data {
             McpePacketData::InventorySlotPacket(slot)
                 if slot.container_id == 0 && slot.slot == 1 =>

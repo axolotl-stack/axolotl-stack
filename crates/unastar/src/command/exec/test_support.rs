@@ -4,7 +4,7 @@ use crate::command::{CommandOutput, CommandSource, Operator, execute};
 use crate::entity::PLAYER_EYE_HEIGHT;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, Experience, GameMode, HeldSlot, MainInventory, OffhandSlot, Player,
+    ArmourInventory, Experience, GameMode, Health, HeldSlot, MainInventory, OffhandSlot, Player,
     PlayerName, PlayerSession, PlayerUi, PlayerUuid, RuntimeEntityId,
 };
 use crate::server::game::{GameServer, ServerConfig};
@@ -48,7 +48,8 @@ impl Harness {
         self.server.ecs.world_mut()
     }
 
-    /// A survival player with empty inventories, feet at (3.5, 64, 3.5).
+    /// A survival player with full health and empty inventories, feet at
+    /// (3.5, 64, 3.5).
     pub fn player(&mut self, name: &str, operator: bool) -> Entity {
         self.player_at(name, operator, DVec3::new(3.5, 64.0, 3.5))
     }
@@ -76,6 +77,7 @@ impl Harness {
                 OffhandSlot::default(),
                 PlayerUi::default(),
                 HeldSlot(0),
+                Health::default(),
             ))
             .id();
         if operator {

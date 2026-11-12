@@ -6,6 +6,8 @@
 use bytes::{BufMut, BytesMut};
 use std::ops::Range;
 
+mod persistent;
+
 use crate::registry::BlockRegistry;
 use crate::world::block_entity::BlockEntity;
 use crate::world::generator::{NativeBiome, QuartBiomes};
@@ -689,6 +691,13 @@ impl Chunk {
         self.bounds.clone()
     }
 
+    /// Y indices of the subchunks inside [`Self::block_bounds`]: the sections
+    /// a provider stores for this chunk's dimension.
+    pub fn section_y_indices(&self) -> impl Iterator<Item = i8> + use<> {
+        ((self.bounds.start >> 4)..(self.bounds.end >> 4))
+            .map(|y| i8::try_from(y).expect("bounds are asserted inside physical storage"))
+    }
+
     fn assert_bounds(bounds: &Range<i32>) {
         assert!(
             bounds.start >= MIN_Y
@@ -1083,7 +1092,7 @@ impl Chunk {
         let mut rest = data;
         let mut sections = Vec::with_capacity(SUBCHUNK_COUNT as usize);
         for index in 0..SUBCHUNK_COUNT {
-            let (section, used) = PalettedStorage::decode(rest)
+            let (section, used) = PalettedStorage::decode_runtime(rest)
                 .map_err(|e| format!("network biome section {index}: {e}"))?;
             rest = &rest[used..];
             sections.push(section);
@@ -1444,12 +1453,14 @@ impl Chunk {
         let storage = if storage_count == 0 {
             PalettedStorage::single_block(*blocks::AIR)
         } else {
-            let (storage, consumed) = PalettedStorage::decode(&data[offset..])?;
+            let (storage, consumed) = PalettedStorage::decode_block_storage(&data[offset..])
+                .map_err(|error| format!("block storage: {error}"))?;
             offset += consumed;
             storage
         };
         let secondary = if storage_count == 2 {
-            let (storage, _) = PalettedStorage::decode(&data[offset..])?;
+            let (storage, _) = PalettedStorage::decode_block_storage(&data[offset..])
+                .map_err(|error| format!("liquid storage: {error}"))?;
             SecondaryStorage::decoded(storage)?
         } else {
             None
@@ -1925,73 +1936,129 @@ impl PalettedStorage {
         }
     }
 
-    /// Decode a paletted storage from bytes.
-    /// Returns (storage, bytes_consumed).
-    fn decode(data: &[u8]) -> Result<(Self, usize), String> {
-        if data.is_empty() {
-            return Err("Empty storage data".to_string());
+    /// Decode one block storage of a sub-chunk record; returns (storage, bytes used).
+    ///
+    /// The header byte is `bits << 1 | form`. Form 0 is the persistent form BDS
+    /// saves: palette entries are block names and states (see [`persistent`]).
+    /// Form 1 is the runtime form: palette entries are runtime ids, as unastar
+    /// saves sub-chunks and as the network carries them. Either way every
+    /// palette entry is a canonical block state.
+    fn decode_block_storage(data: &[u8]) -> Result<(Self, usize), String> {
+        match data.first() {
+            None => Err("missing storage header".to_owned()),
+            Some(header) if header & 1 == 0 => Self::decode_persistent(data),
+            Some(_) => {
+                let (storage, used) = Self::decode_runtime(data)?;
+                let registry = BlockRegistry::vanilla();
+                if let Some(id) = storage
+                    .palette
+                    .iter()
+                    .find(|&&id| registry.get_by_runtime_id(id).is_none())
+                {
+                    return Err(format!("runtime id {id} is not a block state"));
+                }
+                Ok((storage, used))
+            }
         }
+    }
 
-        let header = data[0];
+    /// Header bit width and index words; returns (size, words, bytes used).
+    fn decode_words(data: &[u8]) -> Result<(PaletteSize, Vec<u32>, usize), String> {
+        let header = *data.first().ok_or("missing storage header")?;
         let bits = header >> 1;
-        let mut offset = 1;
+        let size =
+            PaletteSize::from_bits(bits).ok_or_else(|| format!("unsupported bit width {bits}"))?;
+        let word_bytes = size.word_count() * 4;
+        let words = data
+            .get(1..1 + word_bytes)
+            .ok_or_else(|| format!("truncated {bits}-bit index words"))?;
+        let indices = words
+            .chunks_exact(4)
+            .map(|w| u32::from_le_bytes([w[0], w[1], w[2], w[3]]))
+            .collect();
+        Ok((size, indices, 1 + word_bytes))
+    }
 
-        let size = PaletteSize::from_bits(bits)
-            .ok_or_else(|| format!("Unsupported bit width: {}", bits))?;
-
-        if bits == 0 {
-            // Single-value palette
-            let (value, consumed) =
-                read_signed_varint32(&data[offset..]).ok_or("Failed to read palette value")?;
-            offset += consumed;
-
-            return Ok((
-                Self {
-                    palette: vec![value as u32],
-                    size: PaletteSize::Bits0,
-                    indices: vec![],
-                },
-                offset,
-            ));
+    /// Decode a runtime-form storage (palette entries are runtime ids as
+    /// signed varints, the length too); returns (storage, bytes used).
+    fn decode_runtime(data: &[u8]) -> Result<(Self, usize), String> {
+        let (size, indices, mut offset) = Self::decode_words(data)?;
+        let len = if size == PaletteSize::Bits0 {
+            1
+        } else {
+            let (len, used) =
+                read_signed_varint32(&data[offset..]).ok_or("truncated runtime palette length")?;
+            offset += used;
+            palette_len(len)?
+        };
+        let mut palette = Vec::with_capacity(len.min(BLOCKS_PER_SUBCHUNK));
+        for _ in 0..len {
+            let (id, used) =
+                read_signed_varint32(&data[offset..]).ok_or("truncated runtime palette entry")?;
+            offset += used;
+            palette.push(id as u32);
         }
+        Ok((Self::checked(palette, size, indices)?, offset))
+    }
 
-        // Multi-value: read packed indices
-        let word_count = size.word_count();
-        let word_bytes = word_count * 4;
-
-        if data.len() < offset + word_bytes {
-            return Err("Not enough data for indices".to_string());
+    /// Decode a persistent-form storage, as BDS saves it: the palette length
+    /// as i32 LE (absent when `bits` is 0, where the palette is one entry),
+    /// then one NBT block state per entry; returns (storage, bytes used).
+    fn decode_persistent(data: &[u8]) -> Result<(Self, usize), String> {
+        let (size, indices, mut offset) = Self::decode_words(data)?;
+        let len = if size == PaletteSize::Bits0 {
+            1
+        } else {
+            palette_len(read_i32_le(data, &mut offset)?)?
+        };
+        let mut palette = Vec::with_capacity(len.min(BLOCKS_PER_SUBCHUNK));
+        for entry in 0..len {
+            palette.push(
+                persistent::read_palette_entry(data, &mut offset)
+                    .map_err(|error| format!("palette entry {entry}: {error}"))?,
+            );
         }
+        Ok((Self::checked(palette, size, indices)?, offset))
+    }
 
-        let mut indices = Vec::with_capacity(word_count);
-        for i in 0..word_count {
-            let wo = offset + i * 4;
-            let word = u32::from_le_bytes([data[wo], data[wo + 1], data[wo + 2], data[wo + 3]]);
-            indices.push(word);
+    /// A decoded storage whose 4096 indices all name palette entries.
+    ///
+    /// Entries past what `size` can index are read (BDS reads such a palette
+    /// too) but dropped, since no index reaches them and edits must never
+    /// write an index the bit width cannot hold.
+    fn checked(
+        mut palette: Vec<u32>,
+        size: PaletteSize,
+        indices: Vec<u32>,
+    ) -> Result<Self, String> {
+        palette.truncate(1 << (size as u8));
+        let storage = Self {
+            palette,
+            size,
+            indices,
+        };
+        storage.check_indices()?;
+        Ok(storage)
+    }
+
+    /// Every one of the 4096 indices must name a palette entry. BDS reads an
+    /// index past its palette as the palette's first entry; it never writes
+    /// one, so here it marks a corrupt record (see `docs/solutions/storage/`).
+    fn check_indices(&self) -> Result<(), String> {
+        if self.size == PaletteSize::Bits0 {
+            return Ok(());
         }
-        offset += word_bytes;
-
-        // Read palette
-        let (palette_len, consumed) =
-            read_signed_varint32(&data[offset..]).ok_or("Failed to read palette length")?;
-        offset += consumed;
-
-        let mut palette = Vec::with_capacity(palette_len as usize);
-        for _ in 0..palette_len {
-            let (value, consumed) =
-                read_signed_varint32(&data[offset..]).ok_or("Failed to read palette entry")?;
-            offset += consumed;
-            palette.push(value as u32);
+        for index in 0..BLOCKS_PER_SUBCHUNK {
+            let (x, z, y) = (index >> 8, (index >> 4) & 0xF, index & 0xF);
+            let palette_index = self.get_palette_index(x, y, z);
+            if usize::from(palette_index) >= self.palette.len() {
+                return Err(format!(
+                    "index {palette_index} at block {index} is outside the palette of {}",
+                    self.palette.len()
+                ));
+            }
         }
-
-        Ok((
-            Self {
-                palette,
-                size,
-                indices,
-            },
-            offset,
-        ))
+        Ok(())
     }
 
     /// Append this storage in the Data3D biome format (see [`Chunk::encode_biomes_disk`]).
@@ -2076,6 +2143,15 @@ fn same_bedrock_block(old: u32, new: u32) -> bool {
         (Some(old), Some(new)) => old.id == new.id,
         _ => false,
     }
+}
+
+/// A block storage's palette length: at least one entry. More entries than the
+/// bit width can index are allowed, as BDS reads them.
+fn palette_len(len: i32) -> Result<usize, String> {
+    usize::try_from(len)
+        .ok()
+        .filter(|&len| len >= 1)
+        .ok_or_else(|| format!("palette length {len} is not positive"))
 }
 
 /// Read an i32 LE at `offset`, advancing it.
@@ -2533,11 +2609,152 @@ mod tests {
         let mut buf = BytesMut::new();
         storage.encode(&mut buf, |id| id);
 
-        let (decoded, _) = PalettedStorage::decode(&buf).unwrap();
+        let (decoded, _) = PalettedStorage::decode_runtime(&buf).unwrap();
 
         assert_eq!(decoded.get_block(0, 0, 0), *blocks::AIR);
         assert_eq!(decoded.get_block(5, 5, 5), *blocks::STONE);
         assert_eq!(decoded.get_block(10, 10, 10), *blocks::DIRT);
+    }
+
+    /// The loader crashed counting blocks of a storage whose indices named
+    /// entries past the end of its palette. Such a storage is a decode error
+    /// in either palette form, and the section keeps its previous blocks.
+    #[test]
+    fn indices_outside_the_palette_are_errors_not_panics() {
+        let mut storage = PalettedStorage::single_block(*blocks::AIR);
+        for (x, block) in [*blocks::STONE, *blocks::DIRT, *blocks::GRASS_BLOCK]
+            .into_iter()
+            .enumerate()
+        {
+            storage.set_block(x, 0, 0, block);
+        }
+        assert_eq!(storage.size, PaletteSize::Bits2);
+        storage.palette.truncate(2);
+        let mut record = BytesMut::from(&[9u8, 1, 0][..]);
+        storage.encode(&mut record, |id| id);
+
+        let mut chunk = Chunk::new(0, 0);
+        chunk.fill_subchunk_solid(4, *blocks::BEDROCK);
+        let error = chunk.decode_subchunk(0, &record).unwrap_err();
+        assert_eq!(
+            error,
+            "block storage: index 2 at block 256 is outside the palette of 2"
+        );
+        assert_eq!(chunk.get_block(0, 0, 0), *blocks::BEDROCK);
+
+        // The same indices with the 2-bit persistent (BDS) header and palette.
+        let mut persistent = vec![9u8, 1, 0, 2 << 1];
+        for word in &storage.indices {
+            persistent.extend_from_slice(&word.to_le_bytes());
+        }
+        persistent.extend_from_slice(&2i32.to_le_bytes());
+        for name in ["minecraft:air", "minecraft:stone"] {
+            persistent.extend_from_slice(&[10, 0, 0, 8, 4, 0]);
+            persistent.extend_from_slice(b"name");
+            persistent.extend_from_slice(&(name.len() as u16).to_le_bytes());
+            persistent.extend_from_slice(name.as_bytes());
+            persistent.extend_from_slice(&[10, 6, 0]);
+            persistent.extend_from_slice(b"states");
+            persistent.extend_from_slice(&[0, 0]);
+        }
+        let error = chunk.decode_subchunk(0, &persistent).unwrap_err();
+        assert_eq!(
+            error,
+            "block storage: index 2 at block 256 is outside the palette of 2"
+        );
+        assert_eq!(chunk.get_block(0, 0, 0), *blocks::BEDROCK);
+    }
+
+    /// A palette length below one is an error. A palette longer than the bit
+    /// width can index reads like BDS reads it: the extra entries are consumed
+    /// (the next storage starts after them) and dropped, since no index
+    /// reaches them. A huge length allocates nothing up front.
+    #[test]
+    fn palette_lengths_are_positive_and_may_exceed_the_bit_width() {
+        let runtime = |len: i32, ids: &[u32]| {
+            let mut wire = BytesMut::new();
+            wire.put_u8((1 << 1) | 1);
+            wire.put_bytes(0, PaletteSize::Bits1.word_count() * 4);
+            write_signed_varint32(&mut wire, len);
+            for &id in ids {
+                write_signed_varint32(&mut wire, id as i32);
+            }
+            wire
+        };
+        let persistent = |len: i32| {
+            let mut storage = vec![1 << 1];
+            storage.resize(1 + PaletteSize::Bits1.word_count() * 4, 0);
+            storage.extend_from_slice(&len.to_le_bytes());
+            storage
+        };
+        for len in [-1, 0] {
+            let expected = format!("palette length {len} is not positive");
+            assert_eq!(
+                PalettedStorage::decode_block_storage(&runtime(len, &[])).unwrap_err(),
+                expected
+            );
+            assert_eq!(
+                PalettedStorage::decode_block_storage(&persistent(len)).unwrap_err(),
+                expected
+            );
+        }
+        assert_eq!(
+            PalettedStorage::decode_block_storage(&runtime(i32::MAX, &[])).unwrap_err(),
+            "truncated runtime palette entry"
+        );
+        assert!(
+            PalettedStorage::decode_block_storage(&persistent(i32::MAX))
+                .unwrap_err()
+                .contains("palette entry 0: palette entry is truncated")
+        );
+
+        let ids = [*blocks::STONE, *blocks::DIRT, *blocks::GRASS_BLOCK];
+        let wire = runtime(3, &ids);
+        let (storage, used) = PalettedStorage::decode_block_storage(&wire).unwrap();
+        assert_eq!(used, wire.len());
+        assert_eq!(storage.palette, ids[..2]);
+        assert_eq!(storage.get_block(15, 15, 15), *blocks::STONE);
+    }
+
+    /// Record framing as BDS reads it: the section goes where the caller's Y
+    /// (the LevelDB key) says whatever the version 9 Y byte holds, version 8
+    /// has no Y byte, and bytes after the last storage are not read.
+    #[test]
+    fn record_framing_follows_the_key_not_the_y_byte() {
+        let mut storage = PalettedStorage::single_block(*blocks::AIR);
+        storage.set_block(0, 3, 0, *blocks::STONE);
+        let mut body = BytesMut::new();
+        storage.encode(&mut body, |id| id);
+
+        let mut record = vec![9, 1, 5];
+        record.extend_from_slice(&body);
+        record.extend_from_slice(&[0xAB; 8]);
+        let mut chunk = Chunk::new(0, 0);
+        chunk.decode_subchunk(0, &record).unwrap();
+        assert_eq!(chunk.get_block(0, 3, 0), *blocks::STONE);
+        assert_eq!(chunk.get_block(0, 83, 0), *blocks::AIR);
+
+        let mut version_8 = vec![8, 1];
+        version_8.extend_from_slice(&body);
+        let mut chunk = Chunk::new(0, 0);
+        chunk.decode_subchunk(-2, &version_8).unwrap();
+        assert_eq!(chunk.get_block(0, -29, 0), *blocks::STONE);
+    }
+
+    /// A runtime-form block palette may only hold canonical states: anything
+    /// else would load and then fail wherever the state is looked up, such as
+    /// when the section is sent to a client.
+    #[test]
+    fn runtime_palette_ids_must_be_block_states() {
+        let unknown = BlockRegistry::vanilla().len() as u32 * 1000;
+        let mut record = BytesMut::from(&[9u8, 1, 0][..]);
+        PalettedStorage::single_block(unknown).encode(&mut record, |id| id);
+        let mut chunk = Chunk::new(0, 0);
+        assert_eq!(
+            chunk.decode_subchunk(0, &record).unwrap_err(),
+            format!("block storage: runtime id {unknown} is not a block state")
+        );
+        assert_eq!(chunk.get_block(0, 0, 0), *blocks::AIR);
     }
 
     #[test]

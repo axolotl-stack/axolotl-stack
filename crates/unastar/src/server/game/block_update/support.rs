@@ -8,8 +8,10 @@
 //! `soils.json` which blocks each plant stays on (derived:
 //! `plant_soils.json`); `halves.json` how doors and tall plants come apart.
 //!
-//! BDS checks a block only when a neighbour changes, never when the block
-//! itself is placed. Blocks with the native `falling` flag are left to
+//! BDS checks a plant or a door half only when a neighbour changes, never
+//! when the block itself is placed (a dandelion set on stone stays); an
+//! attached block is also checked when it is placed (a torch set against air
+//! drops at once). Blocks with the native `falling` flag are left to
 //! gravity (`server::game::falling`). Blocks this module does not list stay:
 //! candles, end rods, chains and hanging signs fixed to a wall never fall in
 //! BDS when the block holding them goes. Attached blocks in an orientation no

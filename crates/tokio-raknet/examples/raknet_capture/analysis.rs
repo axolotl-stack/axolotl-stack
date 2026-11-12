@@ -101,9 +101,15 @@ pub struct Side {
     pub ack_interval: Stats,
     /// Delay from receiving a data datagram to the first ACK naming it.
     pub ack_delay: Stats,
-    /// The same delays, only for datagrams without split fragments received
-    /// after this side got its first ACK (Mojang ACKs at once until it has
-    /// an RTT sample, and when a split message completes).
+    /// Per ACK sent after this side got its first ACK: time since the oldest
+    /// peer datagram the ACK names for the first time. Mojang RakNet ACKs
+    /// everything pending once the oldest unacknowledged datagram is 10 ms
+    /// old, so a datagram arriving just then leaves in the same ACK at once
+    /// (BDS and the client do it in the real-client captures); timing every
+    /// datagram would count it as an early ACK. An ACK naming a datagram
+    /// received before that first ACK or one carrying a split fragment is
+    /// left out: Mojang ACKs at once until it has an RTT sample, and when a
+    /// split message completes.
     pub ack_delays_after_rtt: Vec<f64>,
     /// NAK datagrams sent, with their records.
     pub naks: Vec<(f64, Vec<(u32, u32)>)>,
@@ -174,8 +180,8 @@ struct Walk {
     /// Sequence → (time, relay action) of the sender's data datagrams.
     sent: HashMap<u32, (f64, Action)>,
     /// Peer data datagrams the sender received: sequence → (time, carried a
-    /// split fragment).
-    received: HashMap<u32, (f64, bool)>,
+    /// split fragment, arrived after the sender's first ACK from the peer).
+    received: HashMap<u32, (f64, bool, bool)>,
     acked_received: HashSet<u32>,
     acked_sent: HashSet<u32>,
     /// Sequence → when a NAK naming it arrived.
@@ -275,6 +281,10 @@ impl Walk {
                 self.out.acks += 1;
                 self.ack_times.push(t);
                 self.ack_records.push(ranges.len() as f64);
+                // The oldest datagram this ACK names first, and whether every
+                // datagram it names first counts (`ack_delays_after_rtt`).
+                let mut oldest: Option<f64> = None;
+                let mut counts = true;
                 for &(start, end) in ranges {
                     for seq in start..=end {
                         if self.peer_disconnect_seq == Some(seq) && !self.peer_disconnected {
@@ -282,14 +292,18 @@ impl Walk {
                             self.out.peer_disconnect_acked = Some(t);
                         }
                         if self.acked_received.insert(seq)
-                            && let Some(&(at, split)) = self.received.get(&seq)
+                            && let Some(&(at, split, after_rtt)) = self.received.get(&seq)
                         {
                             self.ack_delays.push(t - at);
-                            if self.rtt_known && !split {
-                                self.out.ack_delays_after_rtt.push(t - at);
-                            }
+                            counts &= after_rtt && !split;
+                            oldest = Some(oldest.map_or(at, |oldest| oldest.min(at)));
                         }
                     }
+                }
+                if let Some(oldest) = oldest
+                    && counts
+                {
+                    self.out.ack_delays_after_rtt.push(t - oldest);
                 }
             }
             Body::Nak { records: ranges } => {
@@ -311,7 +325,9 @@ impl Walk {
         match &record.body {
             Body::Data { seq, frames, .. } => {
                 let split = frames.iter().any(|frame| frame.split.is_some());
-                self.received.entry(*seq).or_insert((t, split));
+                self.received
+                    .entry(*seq)
+                    .or_insert((t, split, self.rtt_known));
                 self.last_peer_data = Some(t);
                 if frames.iter().any(|frame| frame.head == "15") {
                     self.peer_disconnect_seq.get_or_insert(*seq);
@@ -453,7 +469,7 @@ fn render_side(out: &mut String, name: &str, side: &Side) {
     );
     let _ = writeln!(
         out,
-        "- ACKs: {} (records/ACK {}), interval ms {}, delay ms {}, delay after RTT ms {}",
+        "- ACKs: {} (records/ACK {}), interval ms {}, delay ms {}, delay after RTT (per ACK, from its oldest datagram) ms {}",
         side.acks,
         side.ack_records,
         side.ack_interval,
