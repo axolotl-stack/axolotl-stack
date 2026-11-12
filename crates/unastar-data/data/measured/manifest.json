@@ -6338,6 +6338,176 @@
     }
    ]
   },
+  "liquids": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "liquids/blocks.json",
+     "rows": 1472,
+     "sha256": "373ebc76406242bbbe69b82d6dacb65fb5b1bd575538bf10fd3855d38ad3b1b7"
+    },
+    {
+     "path": "liquids/liquids_chunks.json",
+     "rows": 64,
+     "sha256": "63fbf0e783462f4ec4f6ff7becfff851a8058d54ef19112e8fc1fd1be45e00a2"
+    },
+    {
+     "path": "liquids/liquids_flow.json",
+     "rows": 26,
+     "sha256": "0f80ad461228373302adbc242583024fc034d27f8b43780b4466a2cd739144e8"
+    },
+    {
+     "path": "liquids/liquids_logged.json",
+     "rows": 26,
+     "sha256": "fa9286054e9f05af89786c90fe524645e44adaeaeee4a0205295f14912786344"
+    },
+    {
+     "path": "liquids/liquids_nether.json",
+     "rows": 14,
+     "sha256": "74fff1316f7f05a43aca5781a01e0728cd1ff2ad6374beb084cd22cf9428c6a6"
+    },
+    {
+     "path": "liquids/liquids_order.json",
+     "rows": 16,
+     "sha256": "f36b7622efc96478d8208c98ef1b925f308dac895b3e2c8bcd72b2a1617a0fb9"
+    },
+    {
+     "path": "liquids/liquids_order2.json",
+     "rows": 24,
+     "sha256": "3566960c52134b75168749f98f50ee6a5f1c0bbc180a6db00a3318dc17b2c48b"
+    },
+    {
+     "path": "liquids/liquids_pilot.json",
+     "rows": 23,
+     "sha256": "cfd70a817138d9d4369b25c4cbd4fa6a93f63469f85c0830f331e2709dd80bd8"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 3062a24422bc3e70591e25990866088dc32535a6",
+   "method": "liquid flow replayed tick by tick: sweep.py scenarios --family <liquid family> (tools/bds-sweep/liquids.py): each cell is laid out on the superflat floor (the floor at y=-1) at `base`; `steps` are the job steps (offsets from `base`; `start` sets a liquid without a block update and a stone on it with one, since BDS leaves a liquid set by a command still until a neighbour changes); in a `timeline` every `watch` position is read once per tick after the tick's events and `trace` keeps [tick, index, block, states] for the first read and each change (the read at tick t shows the world after game tick t - 1). `packets` are the UpdateBlock (`block`) and UpdateSubChunkBlocks (`subchunk`) packets the scripted player was sent in each tick, per entry [dx, dy, dz, layer, flags, block, states] relative to `base`, in packet and entry order.",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "liquids-pilot2",
+     "items": 23,
+     "runs": [
+      {
+       "items": 23,
+       "seconds": 93.5,
+       "started": "20261111T174001Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "liquids-r2-liquids_order",
+     "items": 16,
+     "runs": [
+      {
+       "items": 16,
+       "seconds": 30.4,
+       "started": "20261111T174938Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "liquids-r2-liquids_order2",
+     "items": 24,
+     "runs": [
+      {
+       "items": 24,
+       "seconds": 84.0,
+       "started": "20261111T175937Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "liquids-r2-liquids_flow",
+     "items": 26,
+     "runs": [
+      {
+       "items": 26,
+       "seconds": 65.5,
+       "started": "20261111T175008Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "liquids-r2-liquids_logged",
+     "items": 26,
+     "runs": [
+      {
+       "items": 26,
+       "seconds": 48.9,
+       "started": "20261111T175114Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "liquids-r2-liquids_chunks",
+     "items": 64,
+     "runs": [
+      {
+       "items": 64,
+       "seconds": 12.6,
+       "started": "20261111T175203Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "liquids-r2-liquids_nether",
+     "items": 14,
+     "runs": [
+      {
+       "items": 14,
+       "seconds": 39.5,
+       "started": "20261111T175216Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "liquids-r2-liquid_blocks_water",
+     "items": 1472,
+     "runs": [
+      {
+       "items": 1472,
+       "seconds": 27.4,
+       "started": "20261111T175256Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "liquids-r2-liquid_blocks_lava",
+     "items": 1472,
+     "runs": [
+      {
+       "items": 1472,
+       "seconds": 75.9,
+       "started": "20261111T175324Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "liquids-r2-liquid_holders",
+     "items": 1472,
+     "runs": [
+      {
+       "items": 1472,
+       "seconds": 49.6,
+       "started": "20261111T180212Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "mining_ticks": {
    "bds_version": "1.26.51",
    "files": [

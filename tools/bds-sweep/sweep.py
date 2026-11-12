@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import circuits  # noqa: E402
 import coral  # noqa: E402
+import liquids  # noqa: E402
 import native  # noqa: E402
 import placements  # noqa: E402
 import random_ticks  # noqa: E402
@@ -64,7 +65,12 @@ ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 
 # long redstone circuit cells of `circuits.py`, with the server properties
 # each needs (circuits reach farther from the player than tick distance 4).
 ARENAS = {'cells': (ARENA['scenarios'], {}), 'circuits': (circuits.LAYOUT, circuits.PROPERTIES),
-          'fields': (random_ticks.LAYOUT, random_ticks.PROPERTIES), 'coral': (coral.LAYOUT, coral.PROPERTIES)}
+          'fields': (random_ticks.LAYOUT, random_ticks.PROPERTIES), 'coral': (coral.LAYOUT, coral.PROPERTIES),
+          'liquids': (liquids.LAYOUT, liquids.PROPERTIES),
+          'liquid_blocks': (liquids.BLOCKS_LAYOUT, liquids.BLOCKS_PROPERTIES),
+          'liquids_nether': (liquids.NETHER_LAYOUT, liquids.PROPERTIES),
+          'liquids_chunks': (liquids.CHUNK_LAYOUT, liquids.PROPERTIES),
+          'liquids_world': (liquids.WORLD_LAYOUT, liquids.WORLD_PROPERTIES)}
 SETUP = [
     'gamerule domobspawning false',
     'gamerule dodaylightcycle false',
@@ -327,12 +333,13 @@ def main() -> int:
     world = bds_runtime.SERVER / 'worlds' / LEVEL
     if world.exists():
         shutil.rmtree(world)
-    distances = {'view_distance': 6, 'tick_distance': 4}
+    # A layout's properties may also replace the level type (a natural world).
+    overrides = {'view_distance': 6, 'tick_distance': 4, 'level_type': 'FLAT'}
     if args.kind == 'scenarios':
-        distances.update(ARENAS[scenarios.layout(args.family)][1])
+        overrides.update(ARENAS[scenarios.layout(args.family)][1])
     properties = bds_runtime.base_properties(
-        LEVEL, level_type='FLAT', gamemode='creative', force_gamemode='true', difficulty='peaceful',
-        default_player_permission_level='operator', **distances)
+        LEVEL, gamemode='creative', force_gamemode='true', difficulty='peaceful',
+        default_player_permission_level='operator', **overrides)
     env = {'BDS_SWEEP_JOB': str(job_path),
            # One capture folder per run: the capture plugin stops BDS when its
            # files exist, which would end every resumed run.
@@ -346,7 +353,7 @@ def main() -> int:
     # Earlier runs of a resumed sweep wrote to the same log.
     log_start = (out / 'bds.log').stat().st_size if (out / 'bds.log').exists() else 0
     client_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', PLAYER]
-    if args.kind in ('placements', 'item-blocks'):
+    if args.kind in ('placements', 'item-blocks') or job['arena'].get('scenarios', {}).get('tick_marks'):
         # The client records both directions: BDS's answer to every click,
         # the stack descriptors BDS sends.
         client_command += ['--capture-dir', str(out / 'client-capture')]

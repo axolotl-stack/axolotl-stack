@@ -21,6 +21,7 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `circuits.py` | Round 3: redstone circuit families for the `scenarios` job (`redstone_*`, `MEASURED`; the `circuits_pilot*` families are the pilots): a circuit built in a 22 x 6 cell, a timeline of inputs at known ticks and a read of every position every tick |
 | `random_ticks.py` | Round 3: random tick families (`random_*`): 16 x 16 fields of crops, sugar cane, cacti, copper, leaves and farmland at a set `randomtickspeed`, read every 100 ticks |
 | `coral.py` | Round 3: coral death families (`coral_water`, `coral_timing`; round 2's `coral_death` also runs on this layout): cells 16 blocks apart so the water a cell brings reaches no other, coral set, `/setblock`ed, clicked into place or losing its water, read every 10 ticks or every tick |
+| `liquids.py` | Liquids (`liquids_*`, `liquid_blocks_*`, `liquid_holders`): a liquid set and woken by a stone set on it (BDS leaves a liquid set by a command still), spread, falling, drops, sources, receding, mixing, chunk crossings and same-tick order read every tick; every block against water and lava, and which blocks keep water set into them. Layouts `liquids` (18 apart), `liquids_chunks` (chunk centres), `liquid_blocks` (6 apart, walled), `liquids_nether` (a ticking area in the nether, `dimension`/`setup`) and `liquids_world` (a natural world, `level_type`); `tick_marks` layouts turn the client capture on and mark every timeline tick (`bds-sweep:tick <wave> <tick>`) so the liquid layer and the per-tick packets can be cut per cell |
 | `placements.py` | The survival clicks of the `placements` job in case groups (`GROUPS`: round 1's `blocks`, then signs, door hinges, uses, coral, skulls, directions, mushrooms, bells, multi-face blocks, candles, crops, plants and stacks, block actors, follow-up; round 3's `leftovers`: flower pot plants, cave vine ages, cake slices, string): blocks set around the click, the stack in hand, the player's feet and look, `before` commands, the click, follow-up steps, the positions read back |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
 
@@ -118,6 +119,8 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 & $py tools/bds-sweep/sweep.py scenarios --family random_crops,random_copper          # random_ticks.FAMILIES, ~3 min per wave
 & $py tools/bds-sweep/summarize.py circuits <dir> [<dir> ...]   # -> data/measured/redstone/ and redstone/blocks.json
 & $py tools/bds-sweep/summarize.py random-ticks <dir>           # -> data/measured/random_ticks/
+& $py tools/bds-sweep/sweep.py scenarios --family liquids_pilot  # liquids.FAMILIES; one layout per run
+& $py tools/bds-sweep/summarize.py liquids <dir> [<dir> ...]     # -> data/measured/liquids/
 & $py tools/bds-sweep/summarize.py placements <dir>   # -> crates/unastar/src/server/game/testdata/bds-placements.json
 & $py tools/bds-sweep/summarize.py item-blocks <dir>  # -> data/measured/item_blocks.json
 ```

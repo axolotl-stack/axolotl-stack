@@ -10,6 +10,7 @@ range.
 from __future__ import annotations
 
 import json
+import time
 from collections import Counter
 from pathlib import Path
 
@@ -555,8 +556,20 @@ def scenarios(ctx: Context, job: dict):
 
     # Cells own the box from `center` - half a spacing to + half a spacing.
     center = arena.get('center', [0, 0])
+    # A layout may run in another dimension (kept loaded by its `setup`
+    # commands, a ticking area) and send per-tick chat markers.
+    overworld = ctx.dimension
+    if arena.get('dimension'):
+        ctx.dimension = ctx.server.level.get_dimension(arena['dimension'])
+    for line in arena.get('setup', []):
+        ctx.cmd(line)
+    if arena.get('setup'):
+        yield 100
+    tick_marks = bool(arena.get('tick_marks'))
     sweep_all()
     while pending:
+        # Unique across resumed runs, which append to the same capture.
+        wave_number = time.time_ns() // 1_000_000
         wave = [pending.pop(0)]
         signature = step_signature(wave[0])
         while pending and len(wave) < wave_size and step_signature(pending[0]) == signature:
@@ -588,6 +601,10 @@ def scenarios(ctx: Context, job: dict):
                                                                              {'redstone_signal': 0}), True)
                 start_tick = ctx.plugin.ticks
                 for tick in range(int(step[1])):
+                    # The packets the player is sent after this marker and
+                    # before the next are this tick's.
+                    if tick_marks:
+                        ctx.player.send_message(f'bds-sweep:tick {wave_number} {tick}')
                     if witness and tick == 0:
                         ctx.block(tuple(witness)).set_data(
                             ctx.server.create_block_data('minecraft:redstone_block', {}), True)
@@ -612,6 +629,8 @@ def scenarios(ctx: Context, job: dict):
                                 trace.append([tick, k, data.type, data.block_states])
                                 last[i][k] = value
                     yield 1
+                if tick_marks:
+                    ctx.player.send_message(f'bds-sweep:tick {wave_number} end')
                 for i in range(len(wave)):
                     timings[i] = {'start_tick': start_tick, 'witness_tick': witness_tick}
                 if witness:
@@ -650,6 +669,9 @@ def scenarios(ctx: Context, job: dict):
             if traces[i]:
                 row['traces'] = traces[i]
                 row['timing'] = timings[i]
+                row['base'] = list(base)
+                if tick_marks:
+                    row['wave'] = wave_number
                 row['actors'] = sorted(kind for kind, _ in mine
                                        if kind not in ('minecraft:item', 'minecraft:falling_block'))
             ctx.record(row)
@@ -668,6 +690,7 @@ def scenarios(ctx: Context, job: dict):
                     ctx.cmd(f'fill {x0} {y} {z0} {x1} {y} {z1} {layer}')
         yield 1
         sweep_all()
+    ctx.dimension = overworld
 
 
 def placements(ctx: Context, job: dict):

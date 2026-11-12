@@ -8,6 +8,7 @@
     python tools/bds-sweep/summarize.py placements SWEEP_DIR
     python tools/bds-sweep/summarize.py circuits SWEEP_DIR [SWEEP_DIR ...]
     python tools/bds-sweep/summarize.py random-ticks SWEEP_DIR [SWEEP_DIR ...]
+    python tools/bds-sweep/summarize.py liquids SWEEP_DIR [SWEEP_DIR ...]
 
 Writes into `crates/unastar-data/data/measured/` and records every artefact
 (SHA-256, sweep parameters, sample counts, run times) in `manifest.json`
@@ -1368,6 +1369,225 @@ def summarize_random_ticks(sweeps: list[Path]) -> None:
         print(f['path'], f.get('rows', ''), f['sha256'][:12])
 
 
+# ---------------------------------------------------------------- liquids
+
+LIQUID_METHOD = (
+    'sweep.py scenarios --family <liquid family> (tools/bds-sweep/liquids.py): each cell is laid out on the '
+    'superflat floor (the floor at y=-1) at `base`; `steps` are the job steps (offsets from `base`; `start` sets '
+    'a liquid without a block update and a stone on it with one, since BDS leaves a liquid set by a command '
+    'still until a neighbour changes); in a `timeline` every `watch` position is read once per tick after the '
+    "tick's events and `trace` keeps [tick, index, block, states] for the first read and each "
+    'change (the read at tick t shows the world after game tick t - 1). `packets` are the UpdateBlock (`block`) '
+    'and UpdateSubChunkBlocks (`subchunk`) packets the scripted player was sent in each tick, per entry '
+    '[dx, dy, dz, layer, flags, block, states] relative to `base`, in packet and entry order.'
+)
+LIQUID_ROW = '[name, base, steps, trace, packets]'
+LIQUID_TRACE_FAMILIES = ('liquids_pilot', 'liquids_order', 'liquids_order2', 'liquids_flow', 'liquids_logged',
+                         'liquids_chunks', 'liquids_nether', 'liquids_shapes')
+
+
+def _uvarint(data: bytes, i: int) -> tuple[int, int]:
+    value = shift = 0
+    while True:
+        byte = data[i]
+        i += 1
+        value |= (byte & 0x7F) << shift
+        shift += 7
+        if not byte & 0x80:
+            return value, i
+
+
+def _zigzag(value: int) -> int:
+    return (value >> 1) ^ -(value & 1)
+
+
+def tick_packets(capture: Path, hashes: dict) -> dict[tuple[str, int], list]:
+    """(wave, tick) -> the block packets the player was sent after the
+    `bds-sweep:tick <wave> <tick>` marker and before the next one:
+    [kind, [[x, y, z, layer, flags, block, states], ...]]."""
+    out: dict[tuple[str, int], list] = defaultdict(list)
+    current = None
+    if not capture.exists():
+        return out
+    for line in capture.read_text(encoding='utf-8').splitlines():
+        record = json.loads(line)
+        if record['dir'] != 's2c':
+            continue
+        data = bytes.fromhex(record['hex'])
+        if record['name'] == 'TextPacket':
+            text = data.decode('utf-8', 'replace')
+            if 'bds-sweep:tick ' in text:
+                wave, tick = text.split('bds-sweep:tick ', 1)[1].strip('\x00 ').split()[:2]
+                tick = ''.join(ch for ch in tick if ch.isalnum())
+                current = None if tick == 'end' else (wave, int(tick))
+            continue
+        if current is None or record['name'] not in ('UpdateBlockPacket', 'UpdateSubChunkBlocksPacket'):
+            continue
+        i = _uvarint(data, 0)[1]
+        entries = []
+        if record['name'] == 'UpdateBlockPacket':
+            x, i = _uvarint(data, i)
+            y, i = _uvarint(data, i)
+            z, i = _uvarint(data, i)
+            rid, i = _uvarint(data, i)
+            flags, i = _uvarint(data, i)
+            layer, i = _uvarint(data, i)
+            block, states = hashes.get(rid, (f'#{rid}', {}))
+            entries.append([_zigzag(x), _zigzag(y), _zigzag(z), layer, flags, short(block), states])
+            kind = 'block'
+        else:
+            for _ in range(3):
+                i = _uvarint(data, i)[1]
+            for layer in (0, 1):
+                count, i = _uvarint(data, i)
+                for _ in range(count):
+                    x, i = _uvarint(data, i)
+                    y, i = _uvarint(data, i)
+                    z, i = _uvarint(data, i)
+                    rid, i = _uvarint(data, i)
+                    flags, i = _uvarint(data, i)
+                    i = _uvarint(data, i)[1]
+                    i = _uvarint(data, i)[1]
+                    block, states = hashes.get(rid, (f'#{rid}', {}))
+                    entries.append([_zigzag(x), _zigzag(y), _zigzag(z), layer, flags, short(block), states])
+            kind = 'subchunk'
+        out[current].append([kind, entries])
+    return out
+
+
+def liquid_cell_packets(packets: dict, wave: str, base: list, half: int, ticks: int) -> list:
+    """The packets of one cell: [tick, kind, entries] for every packet with
+    an entry within `half` blocks (x and z) of `base`, entries outside the
+    cell left out, positions relative to `base`."""
+    out = []
+    for tick in range(ticks):
+        for kind, entries in packets.get((wave, tick), []):
+            mine = [[x - base[0], y - base[1], z - base[2], *rest] for x, y, z, *rest in entries
+                    if abs(x - base[0]) <= half and abs(z - base[2]) <= half]
+            if mine:
+                out.append([tick, kind, mine])
+    return out
+
+
+def liquid_trace(row: dict) -> list:
+    return [[t, k, short(b), st] for t, k, b, st in row['traces']['trace']]
+
+
+def liquid_block_table(water: list[dict], lava: list[dict], holders: list[dict], logged_water: dict) -> dict:
+    """Per block (first palette state): what spreading water and lava do to
+    it (`breaks` with what it drops, `fills` its liquid layer, `blocks`, or
+    `becomes` another block), and whether it keeps water it is set into and
+    through which sides that water spreads (`holds`, -x +x -z +z)."""
+    rows: dict[str, dict] = defaultdict(dict)
+    for liquid, cells in (('water', water), ('lava', lava)):
+        for row in cells:
+            name = json.loads(row['key'].split('|', 1)[1])
+            if row.get('crashed'):
+                rows[short(name)][liquid] = 'crashed'
+                continue
+            target = [x for x in row['traces']['trace'] if x[1] == 1]
+            final = target[-1]
+            if final[2] in ('minecraft:water', 'minecraft:lava'):
+                outcome = {'breaks': sorted(short(item) for item, _data, count in row['items'] for _ in range(count))}
+            elif liquid == 'water' and short(name) in logged_water:
+                outcome = 'fills'
+            elif len(target) > 1 and short(final[2]) != short(name):
+                outcome = {'becomes': short(final[2])}
+            else:
+                outcome = 'blocks'
+            rows[short(name)][liquid] = outcome
+    for row in holders:
+        name = short(json.loads(row['key'].split('|', 1)[1]))
+        if row.get('crashed'):
+            rows[name]['holds'] = 'crashed'
+            continue
+        trace = row['traces']['trace']
+        here = [x for x in trace if x[1] == 0]
+        final = short(here[-1][2])
+        sides = [any(x[1] == k and x[2] == 'minecraft:water' for x in trace) for k in (1, 2, 3, 4)]
+        if final == name and any(sides):
+            rows[name]['holds'] = {'sides': sides}
+        elif final == 'water':
+            # Popped once set (no support) and left the water as a source.
+            rows[name]['holds'] = 'popped'
+        else:
+            rows[name]['holds'] = 'no'
+    return {name: rows[name] for name in sorted(rows)}
+
+
+def summarize_liquids(sweeps: list[Path]) -> None:
+    """Liquid sweeps to `liquids/<family>.json` (trace families, one row per
+    line, with the packets of each tick) and `liquids/blocks.json` (the
+    per-block table from `liquid_blocks_water`, `liquid_blocks_lava` and
+    `liquid_holders`)."""
+    hashes = block_hashes()
+    by_family: dict[str, list] = defaultdict(list)
+    tables: dict[str, list] = defaultdict(list)
+    logged_water: set[str] = set()
+    for sweep in sweeps:
+        job = json.loads((sweep / 'job.json').read_text(encoding='utf-8'))
+        items = {item['key']: item for item in job['items']}
+        arena = job['arena']['scenarios']
+        spacing = arena['spacing']
+        half = (spacing if isinstance(spacing, int) else min(spacing)) // 2
+        packets = tick_packets(sweep / 'client-capture' / 'packets.jsonl', hashes)
+        rows = results(sweep)
+        # Older rows lack `base`: a wave's rows are recorded in cell order.
+        in_wave: Counter = Counter()
+        for row in rows:
+            if 'base' not in row and 'timing' in row:
+                index = in_wave[row['timing']['start_tick']]
+                in_wave[row['timing']['start_tick']] += 1
+                columns, origin = arena['columns'], arena['origin']
+                space_x, space_z = (spacing, spacing) if isinstance(spacing, int) else spacing
+                row['base'] = [origin[0] + (index % columns) * space_x, origin[1],
+                               origin[2] + (index // columns) * space_z]
+        for row in rows:
+            family, rest = row['key'].split('|', 1)
+            if family in ('liquid_blocks_water', 'liquid_blocks_lava', 'liquid_holders'):
+                tables[family].append(row)
+                if family == 'liquid_blocks_water' and not row.get('crashed'):
+                    # Water spreading into the block's liquid layer: a layer-1
+                    # water entry at the block (1 east of the cell) after tick 0.
+                    cell = liquid_cell_packets(packets, str(row['wave']), row['base'], half, 12)
+                    if any(layer == 1 and (dx, dy, dz) == (1, 0, 0) and block == 'water' and tick > 0
+                           for tick, _, entries in cell for dx, dy, dz, layer, _f, block, _s in entries):
+                        logged_water.add(short(json.loads(rest)))
+                continue
+            if family not in LIQUID_TRACE_FAMILIES:
+                continue
+            steps = items[row['key']]['steps']
+            ticks = next(step[1] for step in steps if step[0] == 'timeline')
+            cell = liquid_cell_packets(packets, str(row.get('wave')), row['base'], half, ticks) \
+                if 'wave' in row else []
+            name = [short(p) if isinstance(p, str) else p for p in json.loads(f'[{rest.replace("|", ",")}]')]
+            by_family[family].append([name, row['base'], short_steps(steps), liquid_trace(row), cell])
+    files = []
+    for family, rows in sorted(by_family.items()):
+        rows.sort(key=lambda r: json.dumps(r[0], sort_keys=True))
+        header = {'family': family, 'method': LIQUID_METHOD, 'row': LIQUID_ROW}
+        files.append(write_rows(f'liquids/{family}.json', header, rows))
+    if tables:
+        table = liquid_block_table(tables['liquid_blocks_water'], tables['liquid_blocks_lava'],
+                                   tables['liquid_holders'], logged_water)
+        header = {'method': (
+            'Per block, its first palette state set without a block update: `water` and `lava` say what a '
+            'source woken beside it (the cell walled in with stone) did to it within 12 (water) or 40 (lava) '
+            'ticks: `{"breaks": [items it dropped]}` (the liquid took its place), `"fills"` (water entered its '
+            'liquid layer: a layer-1 UpdateBlock), `"blocks"` (nothing reached it), `{"becomes": block}` (it '
+            'turned into another block) or `"crashed"` (setting it crashed the harness). `holds` says whether it '
+            'kept a still water source it was set into with a block update: `{"sides": [-x, +x, -z, +z]}` '
+            '(the sides that water spread through once woken), `"popped"` (the block broke on its own and left '
+            'the source), `"no"` or `"crashed"`.'),
+            'row': '[block, {water, lava, holds}]'}
+        files.append(write_rows('liquids/blocks.json', header, [[name, value] for name, value in table.items()]))
+    entry = {**provenance('scenarios', sweeps), 'files': files,
+             'method': 'liquid flow replayed tick by tick: ' + LIQUID_METHOD}
+    update_manifest('liquids', merge_manifest_files('liquids', entry))
+    for f in files:
+        print(f['path'], f.get('rows', ''), f['sha256'][:12])
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         print(__doc__)
@@ -1395,6 +1615,8 @@ def main() -> int:
         summarize_circuits(dirs)
     elif kind == 'random-ticks':
         summarize_random_ticks(dirs)
+    elif kind == 'liquids':
+        summarize_liquids(dirs)
     elif kind == 'item-blocks':
         summarize_item_blocks(dirs[0])
     elif kind == 'placements':
