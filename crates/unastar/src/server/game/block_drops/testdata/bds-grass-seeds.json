@@ -1,10 +1,10 @@
 {
- "//": "BDS 1.26.51 drops sweep (tools/bds-sweep/sweep.py drops --blocks minecraft:short_grass,minecraft:fern,minecraft:tall_grass,minecraft:large_fern --samples 20000, 2026-11-11): /loot spawn <p> mine <block> mainhand per sample, outcomes keyed as in data/measured/block_drops (\"\" for nothing, stacks joined by \";\")",
+ "//": "BDS 1.26.51 drops sweep (tools/bds-sweep/sweep.py drops --blocks minecraft:short_grass,minecraft:fern,minecraft:tall_grass,minecraft:large_fern --samples 20000, 2026-11-11): /loot spawn <p> mine <block> mainhand per sample, the held tool (null for the hand), outcomes keyed as in data/measured/block_drops (\"\" for nothing, stacks joined by \";\")",
  "cells": [
   {
    "block": "minecraft:short_grass",
    "states": {},
-   "tool": "hand",
+   "tool": null,
    "samples": 20000,
    "outcomes": {
     "": 17422,
@@ -14,7 +14,10 @@
   {
    "block": "minecraft:short_grass",
    "states": {},
-   "tool": "diamond_pickaxe",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {}
+   },
    "samples": 20000,
    "outcomes": {
     "": 17608,
@@ -24,7 +27,10 @@
   {
    "block": "minecraft:short_grass",
    "states": {},
-   "tool": "shears",
+   "tool": {
+    "item": "minecraft:shears",
+    "enchantments": {}
+   },
    "samples": 20000,
    "outcomes": {
     "minecraft:short_grass@0x1": 20000
@@ -33,7 +39,12 @@
   {
    "block": "minecraft:short_grass",
    "states": {},
-   "tool": "diamond_pickaxe+silk_touch1",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:silk_touch": 1
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17478,
@@ -43,7 +54,12 @@
   {
    "block": "minecraft:short_grass",
    "states": {},
-   "tool": "diamond_pickaxe+fortune1",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 1
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17523,
@@ -53,7 +69,12 @@
   {
    "block": "minecraft:short_grass",
    "states": {},
-   "tool": "diamond_pickaxe+fortune2",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 2
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17453,
@@ -63,7 +84,12 @@
   {
    "block": "minecraft:short_grass",
    "states": {},
-   "tool": "diamond_pickaxe+fortune3",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 3
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17538,
@@ -73,7 +99,7 @@
   {
    "block": "minecraft:fern",
    "states": {},
-   "tool": "hand",
+   "tool": null,
    "samples": 20000,
    "outcomes": {
     "": 17556,
@@ -83,7 +109,10 @@
   {
    "block": "minecraft:fern",
    "states": {},
-   "tool": "diamond_pickaxe",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {}
+   },
    "samples": 20000,
    "outcomes": {
     "": 17436,
@@ -93,7 +122,10 @@
   {
    "block": "minecraft:fern",
    "states": {},
-   "tool": "shears",
+   "tool": {
+    "item": "minecraft:shears",
+    "enchantments": {}
+   },
    "samples": 20000,
    "outcomes": {
     "minecraft:fern@0x1": 20000
@@ -102,7 +134,12 @@
   {
    "block": "minecraft:fern",
    "states": {},
-   "tool": "diamond_pickaxe+silk_touch1",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:silk_touch": 1
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17524,
@@ -112,7 +149,12 @@
   {
    "block": "minecraft:fern",
    "states": {},
-   "tool": "diamond_pickaxe+fortune1",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 1
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17529,
@@ -122,7 +164,12 @@
   {
    "block": "minecraft:fern",
    "states": {},
-   "tool": "diamond_pickaxe+fortune2",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 2
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17444,
@@ -132,7 +179,12 @@
   {
    "block": "minecraft:fern",
    "states": {},
-   "tool": "diamond_pickaxe+fortune3",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 3
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17583,
@@ -144,7 +196,7 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "hand",
+   "tool": null,
    "samples": 20000,
    "outcomes": {
     "": 17531,
@@ -156,7 +208,10 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "diamond_pickaxe",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {}
+   },
    "samples": 20000,
    "outcomes": {
     "": 17522,
@@ -168,7 +223,10 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "shears",
+   "tool": {
+    "item": "minecraft:shears",
+    "enchantments": {}
+   },
    "samples": 20000,
    "outcomes": {
     "minecraft:short_grass@0x1;minecraft:short_grass@0x1": 20000
@@ -179,7 +237,12 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "diamond_pickaxe+silk_touch1",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:silk_touch": 1
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17496,
@@ -191,7 +254,12 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "diamond_pickaxe+fortune1",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 1
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17435,
@@ -203,7 +271,12 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "diamond_pickaxe+fortune2",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 2
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17473,
@@ -215,7 +288,12 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "diamond_pickaxe+fortune3",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 3
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17505,
@@ -227,7 +305,7 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "hand",
+   "tool": null,
    "samples": 20000,
    "outcomes": {
     "": 17520,
@@ -239,7 +317,10 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "diamond_pickaxe",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {}
+   },
    "samples": 20000,
    "outcomes": {
     "": 17499,
@@ -251,7 +332,10 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "shears",
+   "tool": {
+    "item": "minecraft:shears",
+    "enchantments": {}
+   },
    "samples": 20000,
    "outcomes": {
     "minecraft:fern@0x1;minecraft:fern@0x1": 20000
@@ -262,7 +346,12 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "diamond_pickaxe+silk_touch1",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:silk_touch": 1
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17480,
@@ -274,7 +363,12 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "diamond_pickaxe+fortune1",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 1
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17571,
@@ -286,7 +380,12 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "diamond_pickaxe+fortune2",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 2
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17416,
@@ -298,7 +397,12 @@
    "states": {
     "upper_block_bit": 0
    },
-   "tool": "diamond_pickaxe+fortune3",
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 3
+    }
+   },
    "samples": 20000,
    "outcomes": {
     "": 17560,

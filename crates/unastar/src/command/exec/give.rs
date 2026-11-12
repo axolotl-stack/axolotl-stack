@@ -123,41 +123,56 @@ fn given_stack(world: &World, name: &str, data: i32) -> Result<ItemStack, Comman
     ))
 }
 
-/// User data BDS 1.26.51 writes into a stack it gives (capture of
-/// `tools/bds-sweep/scripts/give.txt`, `testdata/bds-give.json`): these items
-/// get an NBT compound, everything else the default user data.
-const GIVEN_USER_DATA: [(&str, &str); 4] = [
-    (
-        "minecraft:banner",
-        "ffff010a00000304005479706500000000000000000000000000",
-    ),
-    (
-        "minecraft:filled_map",
-        "ffff010a00000408006d61705f7575696408000000ffffffff000000000000000000",
-    ),
-    (
-        "minecraft:firework_rocket",
-        "ffff010a00000a090046697265776f726b73090a004578706c6f73696f6e730000000000010600466c696768740100000000000000000000",
-    ),
-    (
-        "minecraft:firework_star",
-        "ffff010a00000a0d0046697265776f726b734974656d070d0046697265776f726b436f6c6f720100000000070c0046697265776f726b4661646500000000010f0046697265776f726b466c69636b657200010d0046697265776f726b547261696c00010c0046697265776f726b547970650000030b00637573746f6d436f6c6f72211d1dff000000000000000000",
-    ),
-];
+/// The NBT compound BDS 1.26.51 writes into a stack it gives, beyond
+/// `Damage` (capture of `tools/bds-sweep/scripts/give.txt`,
+/// `testdata/bds-give.json`).
+fn given_tag(item_id: &str) -> Option<tag::Compound> {
+    let compound = |entries: Vec<(&str, NBTTag)>| {
+        tag::Compound(
+            entries
+                .into_iter()
+                .map(|(name, value)| (name.to_owned(), value))
+                .collect(),
+        )
+    };
+    let byte = |value: u8| NBTTag::Byte(tag::Byte(value));
+    Some(match item_id {
+        "minecraft:banner" => compound(vec![("Type", NBTTag::Int(tag::Int(0)))]),
+        "minecraft:firework_rocket" => compound(vec![(
+            "Fireworks",
+            NBTTag::Compound(compound(vec![
+                ("Explosions", NBTTag::List(tag::List(Vec::new()))),
+                ("Flight", byte(1)),
+            ])),
+        )]),
+        "minecraft:firework_star" => compound(vec![
+            (
+                "FireworksItem",
+                NBTTag::Compound(compound(vec![
+                    ("FireworkColor", NBTTag::ByteArray(tag::ByteArray(vec![0]))),
+                    (
+                        "FireworkFade",
+                        NBTTag::ByteArray(tag::ByteArray(Vec::new())),
+                    ),
+                    ("FireworkFlicker", byte(0)),
+                    ("FireworkTrail", byte(0)),
+                    ("FireworkType", byte(0)),
+                ])),
+            ),
+            // ARGB 0xff1d1d21, the black dye's firework colour.
+            ("customColor", NBTTag::Int(tag::Int(0xff1d_1d21_u32 as i32))),
+        ]),
+        _ => return None,
+    })
+}
 
 /// A given stack as BDS writes it: an item with durability carries
 /// `Damage` 0 (the flint and steel, every tool, weapon and armour piece, the
-/// shield...), and the banner, filled map and fireworks their measured tags.
+/// shield...), and the banner and fireworks their measured tags. (BDS also
+/// gives a filled map a new `map_uuid`; maps are not implemented.)
 fn with_given_user_data(stack: ItemStack, durable: bool) -> ItemStack {
-    if let Some((_, hex)) = GIVEN_USER_DATA
-        .iter()
-        .find(|(item, _)| *item == stack.item_id())
-    {
-        let bytes: Vec<u8> = (0..hex.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).expect("hex user data"))
-            .collect();
-        return stack.with_nbt(bytes);
+    if let Some(compound) = given_tag(stack.item_id()) {
+        return with_item_tag(&stack, compound);
     }
     if durable || UNDECLARED_DURABLE.contains(&stack.item_id()) {
         return with_durability_damage(&stack, 0);
@@ -510,13 +525,27 @@ mod tests {
         // (doors, beds, cake, ...) and another state for some blocks.
         let mut other = 0;
         for (name, bds) in &table.given {
+            // A new map id each time; maps are not implemented.
+            if name == "minecraft:filled_map" {
+                continue;
+            }
             let short = name.trim_start_matches("minecraft:");
             let Ok(stack) = given_stack(world, short, 0) else {
                 wrong.push(format!("{name}: refused, BDS gives it"));
                 continue;
             };
             let ours = crate::server::game::item_descriptor(&stack, &items, block_ids).unwrap();
-            if hex(&ours.user_data_buffer) != bds.user_data {
+            // Compared as NBT (a compound's key order is not kept) and as
+            // the bytes after it.
+            let bds_bytes: Vec<u8> = (0..bds.user_data.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&bds.user_data[i..i + 2], 16).unwrap())
+                .collect();
+            let bds_stack = stack.clone().with_nbt(bds_bytes.clone());
+            let tail = |bytes: &[u8]| bytes[bytes.len().saturating_sub(10)..].to_vec();
+            if item_tag(&stack) != item_tag(&bds_stack)
+                || tail(&ours.user_data_buffer) != tail(&bds_bytes)
+            {
                 wrong.push(format!(
                     "{name}: user data BDS {}, ours {}",
                     bds.user_data,

@@ -31,7 +31,7 @@ struct Break {
 }
 
 /// The stack a table's tool key names (`netherite_pickaxe+efficiency5`).
-pub(super) fn tool(key: &str) -> Option<ItemStack> {
+fn tool(key: &str) -> Option<ItemStack> {
     let mut parts = key.split('+');
     let item = parts.next()?;
     if item == "hand" {

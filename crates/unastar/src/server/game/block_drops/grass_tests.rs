@@ -14,8 +14,8 @@
 
 use serde::Deserialize;
 
-use super::experience_tests::tool;
 use super::*;
+use crate::item::enchant::{Enchantment, with_enchantments};
 use crate::registry::{BlockRegistry, ItemRegistry};
 use crate::server::game::types::ItemRegistryResource;
 use std::collections::BTreeMap;
@@ -27,9 +27,34 @@ struct Table {
 }
 
 #[derive(Deserialize)]
+struct Tool {
+    item: String,
+    /// Enchantment identifier to level.
+    enchantments: BTreeMap<String, u8>,
+}
+
+impl Tool {
+    fn stack(&self) -> ItemStack {
+        let levels: Vec<(Enchantment, u8)> = self
+            .enchantments
+            .iter()
+            .map(|(name, level)| {
+                let name = name.trim_start_matches("minecraft:");
+                (
+                    Enchantment::from_name(name).unwrap_or_else(|| panic!("{name}")),
+                    *level,
+                )
+            })
+            .collect();
+        with_enchantments(&crate::item::test_support::stack(&self.item, 1), &levels)
+    }
+}
+
+#[derive(Deserialize)]
 struct Cell {
     block: String,
-    tool: String,
+    /// `None`: the hand.
+    tool: Option<Tool>,
     samples: u32,
     outcomes: BTreeMap<String, u32>,
 }
@@ -61,14 +86,18 @@ fn grass_and_fern_drops_match_the_bds_sweep() {
         let state = BlockRegistry::vanilla()
             .default_state_id_by_name(&cell.block)
             .unwrap();
-        let held = tool(&cell.tool);
+        let held = cell.tool.as_ref().map(Tool::stack);
         let mut ours: BTreeMap<String, u32> = BTreeMap::new();
         for _ in 0..cell.samples {
             *ours
                 .entry(outcome(&block_drops(&mut world, state, held.as_ref())))
                 .or_default() += 1;
         }
-        let name = format!("{} {}", cell.block, cell.tool);
+        let name = format!(
+            "{} {}",
+            cell.block,
+            cell.tool.as_ref().map_or("hand", |tool| tool.item.as_str())
+        );
         if ours.keys().ne(cell.outcomes.keys()) {
             wrong.push(format!("{name}: BDS {:?}, ours {ours:?}", cell.outcomes));
             continue;
