@@ -1,7 +1,7 @@
-# movement-diff: BDS, unastar and bedsim, tick by tick
+# movement-diff: BDS, unastar, bedsim and acacia-physics, tick by tick
 
-A three-way differential harness for Bedrock player movement. One scenario corpus
-([`corpus.json`](corpus.json)) is played by three implementations, and every input's resulting
+A differential harness for Bedrock player movement. One scenario corpus
+([`corpus.json`](corpus.json)) is played by four implementations, and every input's resulting
 state is compared bit for bit:
 
 1. **BDS 1.26.51** (protocol 2193), the reference, measured with the scripted sweep client;
@@ -11,6 +11,11 @@ state is compared bit for bit:
    [`bedsim-runner/go.mod`](bedsim-runner/go.mod) to commit
    `9c12b344afdea7939b983fa15a762592aa179351` (2026-10-07). None of its source is in this
    repository.
+4. **[acacia-physics](https://github.com/acacia-rs/acacia)** (`crates/acacia-physics`), a
+   Rust port of bedsim with its own changes. MIT licensed. It is a git dependency of
+   [`acacia-runner`](acacia-runner/Cargo.toml), pinned to commit
+   `97ec4c7ce23e5abb7cde1e66026363d3c2e6fbf0` (2026-11-11; the crates.io 0.1.0 of 2026-10-03
+   is older). None of its source is in this repository.
 
 ## The corpus
 
@@ -52,8 +57,10 @@ target/debug/movement-diff resolve --corpus tools/movement-diff/corpus.json --ou
 (cd tools/movement-diff/bedsim-runner && go run . -corpus ../../../resolved.json -out ../../../bedsim.json)
 # BDS, on one locked slot (tools/bds-sweep/README.md, "Parallel slots")
 BDS_RUNTIME=.../bds-slots/slotN BDS_PORT=... python tools/movement-diff/bds_run.py [--only NAME ...]
+# acacia-physics (its own Cargo project and toolchain, outside the workspace)
+(cd tools/movement-diff/acacia-runner && CARGO_BUILD_JOBS=4 cargo run --release -- --corpus ../../../resolved.json --out ../../../acacia.json)
 # compare
-python tools/movement-diff/compare.py RUN/bds.json unastar.json bedsim.json --report report.md [--scenario NAME --ticks]
+python tools/movement-diff/compare.py RUN/bds.json unastar.json bedsim.json acacia.json --report report.md [--scenario NAME --ticks]
 ```
 
 A full BDS run of the corpus takes about 6 minutes (one scenario after another, about 30 setup
@@ -119,6 +126,22 @@ The runner calls `Simulator.Simulate` once per input in passive mode with
 vanilla client derives them from its prediction: `StartJumping` on ground with no jump delay,
 `StartSprinting` and `StopSprinting` by the sprint rule, and the sneak edges. The movement
 attribute includes speed and slowness as `0.1 × (1 + 0.2 × speed) × (1 − 0.15 × slowness)`.
+
+## The acacia runner
+
+`acacia-runner` is a separate Cargo project with its own `[workspace]`, lockfile and
+`rust-toolchain.toml` (1.99.0). acacia-physics declares `rust-version` 1.98, newer than the
+workspace's pinned nightly, and the workspace pin stays untouched. The block shapes are BDS's
+(`movement-diff resolve` writes each block's collision boxes). The block physics are acacia's
+own: its `TestBlock` definitions, and its `BlockPhysics` constructors for glass, fences and
+bubble columns. The runner holds the controls and lets `tick` derive the start and stop
+edges. `want_down` follows sneak, as a vanilla client sends it. `swim` is the sprint key while
+the box touches water. The glide is requested from its press on. The effects go on
+`state.effects`, and the movement attribute (with speed and slowness) through
+`set_movement_attribute`.
+
+`report.md` ends with a hand-written assessment of acacia against BDS ("How close is
+acacia-physics to BDS?"). Regenerating the table does not rewrite it.
 
 ## Known gaps
 

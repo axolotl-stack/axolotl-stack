@@ -146,6 +146,20 @@ impl BlockSpec {
 }
 
 impl BlockState {
+    /// Its collision boxes in block-local coordinates, as
+    /// `[min_x, min_y, min_z, max_x, max_y, max_z]` (BDS 1.26.51's shapes).
+    pub fn collision_boxes(&self) -> Result<Vec<[f32; 6]>> {
+        let block = crate::world::Block {
+            state: self.state,
+            data: self.data,
+        };
+        Ok(block
+            .boxes([0, 0, 0])?
+            .into_iter()
+            .map(|b| [b.min[0], b.min[1], b.min[2], b.max[0], b.max[1], b.max[2]])
+            .collect())
+    }
+
     /// Every state of the block, as the corpus writes them (bytes as
     /// booleans).
     pub fn states(&self) -> BTreeMap<String, StateJson> {

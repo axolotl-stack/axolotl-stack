@@ -1,11 +1,11 @@
-"""Compare movement traces of BDS, unastar and bedsim tick by tick.
+"""Compare movement traces of BDS, unastar, bedsim and acacia-physics tick by tick.
 
-    python tools/movement-diff/compare.py BDS.json UNASTAR.json BEDSIM.json [--report OUT.md]
+    python tools/movement-diff/compare.py BDS.json UNASTAR.json BEDSIM.json [ACACIA.json] [--report OUT.md]
                                           [--scenario NAME] [--ticks]
 
 Every trace file is one implementation's states after every input of every
 scenario (`movement-diff simulate`, `movement-diff extract`, the bedsim
-runner). Values are compared bit for bit through their `bits`:
+runner, the acacia runner). Values are compared bit for bit through their `bits`:
 
 * the wire position on every tick (BDS has it on every tick);
 * the velocity where both traces have it (BDS: the ticks it corrected);
@@ -27,8 +27,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 AXES = 'xyz'
-ORDER = ['bds', 'unastar', 'bedsim']
-PAIRS = [('unastar', 'bds'), ('bedsim', 'bds'), ('unastar', 'bedsim')]
+ORDER = ['bds', 'unastar', 'bedsim', 'acacia']
+PAIRS = [('unastar', 'bds'), ('bedsim', 'bds'), ('acacia', 'bds'), ('unastar', 'bedsim'),
+         ('acacia', 'bedsim'), ('acacia', 'unastar')]
 
 
 def bits_to_float(bits: str) -> float:
@@ -124,21 +125,26 @@ def report(traces: dict[str, dict], only: str | None, ticks: bool) -> str:
     for implementation in ORDER:
         if implementation in traces:
             lines.append(f'- **{implementation}**: {traces[implementation]["source"]}')
-    lines += ['', '| scenario | ticks | unastar = BDS | bedsim = BDS | unastar = bedsim |',
-              '|---|---|---|---|---|']
+    pairs = [(a, b) for a, b in PAIRS if a in traces and b in traces]
+    label = {'bds': 'BDS'}
+    lines += ['', '| scenario | ticks | '
+              + ' | '.join(f'{label.get(a, a)} = {label.get(b, b)}' for a, b in pairs) + ' |',
+              '|---|---|' + '---|' * len(pairs)]
+    totals = {pair: 0 for pair in pairs}
     details = []
     for name in names:
         row = [name]
         lengths = {len(t['scenarios'][name]['ticks']) for t in traces.values() if name in t['scenarios']}
         row.append('/'.join(str(n) for n in sorted(lengths)))
-        for left, right in PAIRS:
-            if left not in traces or right not in traces \
-                    or name not in traces[left]['scenarios'] or name not in traces[right]['scenarios']:
+        for left, right in pairs:
+            if name not in traces[left]['scenarios'] or name not in traces[right]['scenarios']:
                 row.append('n/a')
                 continue
             diffs, compared = differences(traces[left]['scenarios'][name]['ticks'],
                                           traces[right]['scenarios'][name]['ticks'])
             row.append(verdict(diffs, compared))
+            if compared and not diffs:
+                totals[(left, right)] += 1
             if diffs:
                 largest = max((d for d in diffs if d.size is not None), key=lambda d: d.size, default=None)
                 ticks_off = len({d.tick for d in diffs})
@@ -149,6 +155,7 @@ def report(traces: dict[str, dict], only: str | None, ticks: bool) -> str:
                 if ticks:
                     details += [f'  - {d.describe()}' for d in diffs]
         lines.append('| ' + ' | '.join(row) + ' |')
+    lines.append(f'| **equal** | {len(names)} | ' + ' | '.join(str(totals[pair]) for pair in pairs) + ' |')
     if details:
         lines += ['', '## Divergences', ''] + details
     return '\n'.join(lines) + '\n'

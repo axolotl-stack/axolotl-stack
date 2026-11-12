@@ -6,8 +6,9 @@
 //! movement-diff resolve  --corpus CORPUS --out resolved.json
 //! ```
 //!
-//! `resolve` writes the corpus with every block state spelled out (BDS
-//! 1.26.51's states, from `unastar-data`), for the bedsim runner.
+//! `resolve` writes the corpus with every block state spelled out and each
+//! block's collision boxes (BDS 1.26.51's states and shapes, from
+//! `unastar-data`), for the bedsim and acacia runners.
 //! `simulate` plays every scenario through `unastar_rules::movement`.
 //! `extract` reads a BDS run (`tools/movement-diff/bds_run.py`): the
 //! viewer's capture holds BDS's copy of the subject after every input (one
@@ -44,7 +45,7 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
     },
-    /// Write the corpus with every block's full state.
+    /// Write the corpus with every block's full state and collision boxes.
     Resolve {
         #[arg(long)]
         corpus: PathBuf,
@@ -94,7 +95,9 @@ fn main() -> Result<()> {
                     .context("world is not a list")?
                 {
                     let spec: BlockSpec = serde_json::from_value(fill["block"].clone())?;
-                    fill["block"]["states"] = serde_json::to_value(spec.resolve()?.states())?;
+                    let state = spec.resolve()?;
+                    fill["block"]["states"] = serde_json::to_value(state.states())?;
+                    fill["block"]["collision"] = serde_json::to_value(state.collision_boxes()?)?;
                 }
             }
             std::fs::write(
