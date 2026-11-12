@@ -53,6 +53,8 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
     if holding {
         send_actor_event(world, attacker, EnumsActorEvent::StartAttacking, 0);
     }
+    // An angry mob stays angry for its full span after every swing.
+    crate::entity::mob::life::anger::restart_on_attack(world, attacker);
 
     let damage = attack_damage(world, attacker, &attack);
     let hit = Hit {

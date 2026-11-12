@@ -651,12 +651,13 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Environment sensors, then timers. Their group changes apply at the
-        // next tick's definition barrier (`PhysicsSet`).
+        // Environment sensors, timers, then anger. Their group changes apply
+        // at the next tick's definition barrier (`PhysicsSet`).
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::life::sensors::tick_environment_sensors,
                 crate::entity::mob::life::sensors::tick_timers,
+                crate::entity::mob::life::anger::tick_anger,
             )
                 .chain()
                 .in_set(EntityLogicSet)
