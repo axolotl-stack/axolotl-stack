@@ -5,7 +5,7 @@ use bevy_ecs::prelude::*;
 use glam::{IVec3, Vec3};
 use zuri_nbt::tag;
 
-use super::plates::{PlateKind, Plates, Presser};
+use super::plates::{Plates, Presser};
 use super::{Circuit, Redstone};
 use crate::entity::systems::BlockSource;
 use crate::registry::BlockRegistry;
@@ -184,12 +184,10 @@ pub(crate) fn push_actors(world: &mut World) {
     };
     let mut actors = world.query_filtered::<(&mut Position, &PhysicsBody), Without<Player>>();
     for (mut position, body) in actors.iter_mut(world) {
-        for push in &pushes {
-            let aabb = Aabb::from_feet(position.0, body.width, body.height);
-            let moved = super::piston_actors::displacement(&aabb, push);
-            if moved != glam::DVec3::ZERO {
-                position.0 += moved;
-            }
+        let aabb = Aabb::from_feet(position.0, body.width, body.height);
+        let moved = super::piston_actors::moved(&aabb, &pushes);
+        if moved != glam::DVec3::ZERO {
+            position.0 += moved;
         }
     }
 }
@@ -201,7 +199,6 @@ pub(crate) fn press_plates(world: &mut World) {
         .get_resource::<crate::ecs::resources::TickCounter>()
         .map_or(0, |ticks| ticks.current);
     let pressers = pressers(world);
-    let registry = world.registry().clone();
     let mut candidates: std::collections::HashSet<IVec3> = world
         .get_resource::<Plates>()
         .map(|plates| plates.pressed().collect())
@@ -217,53 +214,16 @@ pub(crate) fn press_plates(world: &mut World) {
             }
         }
     }
-    let mut plates = Vec::new();
-    for pos in candidates {
-        let Some(state) = world.block_at(pos) else {
-            continue;
-        };
-        let Some(entry) = registry.get_by_runtime_id(state) else {
-            continue;
-        };
-        match PlateKind::of(&entry.string_id) {
-            Some(kind) => plates.push((pos, kind, kind.stored(entry, state), state)),
-            None => {
-                if let Some(mut tracked) = world.get_resource_mut::<Plates>() {
-                    tracked.removed(pos);
-                }
-            }
-        }
-    }
-    if plates.is_empty() {
-        return;
-    }
-    let listed: Vec<(IVec3, PlateKind, u8)> = plates
-        .iter()
-        .map(|(pos, kind, stored, _)| (*pos, *kind, *stored))
-        .collect();
-    let changes = world
-        .get_resource_or_init::<Plates>()
-        .tick(now, &listed, &pressers);
-    let mut strings = Vec::new();
-    for (pos, signal) in changes {
-        let Some((_, kind, _, state)) = plates.iter().find(|(at, ..)| *at == pos) else {
-            continue;
-        };
-        let Some(next) = registry
-            .get_by_runtime_id(*state)
-            .and_then(|entry| kind.with_signal(entry, *state, signal))
-        else {
-            continue;
-        };
-        changed_by_actors(world, pos, next);
-        if !kind.is_plate() {
-            strings.push(pos);
-        }
-    }
-    // The hooks of pressed or released string follow in the same tick.
-    for (pos, next) in super::tripwire::hook_power(&*world, &strings) {
-        changed_by_actors(world, pos, next);
-    }
+    let mut plates = world.remove_resource::<Plates>().unwrap_or_default();
+    super::plates::press(
+        world,
+        &mut plates,
+        now,
+        candidates,
+        &pressers,
+        changed_by_actors,
+    );
+    world.insert_resource(plates);
 }
 
 /// A plate, string or hook actors changed: stored and announced, with the

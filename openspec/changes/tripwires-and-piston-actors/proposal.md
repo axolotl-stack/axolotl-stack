@@ -10,17 +10,20 @@ engine (`redstone/plates.rs`) and the piston moves of
 
 ## What Changes
 
-- Tripwires (`server/game/redstone/tripwire.rs`): a placed hook or string that completes a line
-  attaches it; string links to the hooks facing it; string is pressed like a plate (kind
-  `Tripwire`: every actor, a check every 10 ticks, `powered_bit`); a line's hooks follow its
-  string in the same tick.
+- Tripwires (`server/game/redstone/tripwire.rs`): a line is brought up to date when a hook or
+  string of it is placed and when its string's power changes (complete: attached, hooks powered
+  by its string; broken: detached and unpowered); string links to the hooks facing it; string is
+  pressed like a plate (kind `Tripwire`: every actor, 2.5/16 high, a check every 10 ticks,
+  `powered_bit`).
 - Actors moved by pistons (`server/game/redstone/piston_actors.rs`): per move tick, the head
-  pushes, the landed blocks push in the second tick, and sideways moves carry riders once per
-  carrier in the first tick. A system after the circuit step moves every actor but players.
+  pushes, the landed blocks push in the second tick, and sideways moves carry riders (half a block
+  per carrier in the first tick, a whole block for a pull, half a block once in the second). A
+  system after the circuit step moves every actor but players.
 - New measurements (`tools/bds-sweep`): `plates_tripwire_more` (string height, hooks placed last,
   no hooks, one hook, stepping on a cut line), `pistons_riding` (riders over the head, one or two
   blocks, pulled back, lifted) and `infested_break` (a survival player breaking infested blocks;
-  the scenarios job gains the player's `mine` and `stop` events).
+  the scenarios job gains the player's `mine` and `stop` events). Infested blocks are handed
+  over: the silverfish release belongs to the entities lane (PR #109, not in this base).
 
 Affected crates: `unastar`; harness `tools/bds-sweep`.
 

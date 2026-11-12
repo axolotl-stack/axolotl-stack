@@ -12,12 +12,15 @@
 //!   only in the second tick, from where they land. So an actor just in
 //!   front of a pushed block does not move in the first tick and jumps the
 //!   whole way in the second.
-//! - **Carrying**: in the first tick of a sideways move, an actor standing
-//!   on the head or on a moving block (its box's bottom on the top of the
-//!   carrier's half-way box) is carried half a block, once for every carrier
-//!   under it: an armour stand over both the head and the pushed block moves
-//!   a whole block. Moving blocks hold nothing up, so the actor then falls,
-//!   and the second tick's push sends it out of the landed block.
+//! - **Carrying** (sideways moves): in the first tick an actor standing on
+//!   the head (at half-way) or on a moving block (anywhere from where it
+//!   started to half-way) is carried half a block once for every one of them
+//!   under it, so an armour stand over the head and a pushed block, or over
+//!   two pushed blocks, moves a whole block; a block a sticky piston pulls
+//!   back carries a whole block in that tick. In the second tick an actor
+//!   still standing on the move is carried half a block once. A rider that
+//!   lands off the moving blocks falls (they hold up only what is over where
+//!   they were), and the second tick's push sends it out of the landed block.
 //!
 //! Several pushers moving one actor: it takes the farthest push.
 
@@ -35,8 +38,11 @@ pub(crate) struct ActorPush {
     pub dir: IVec3,
     /// Boxes that push what they overlap out ahead of them.
     pub pushers: Vec<Aabb>,
-    /// Boxes that carry what stands on them half a block each.
+    /// Boxes that carry what stands on them `carry` (each, or once in all
+    /// with `carry_once`).
     pub carriers: Vec<Aabb>,
+    pub carry: f64,
+    pub carry_once: bool,
 }
 
 /// One piston move as actors feel it.
@@ -58,6 +64,13 @@ fn moving_box(dest: IVec3, dir: IVec3, progress: f64) -> Aabb {
     Aabb::new(min, min + DVec3::ONE)
 }
 
+/// The space a block landing at `dest` sweeps from `from` to `to` of the
+/// way there.
+fn swept_box(dest: IVec3, dir: IVec3, from: f64, to: f64) -> Aabb {
+    let (a, b) = (moving_box(dest, dir, from), moving_box(dest, dir, to));
+    Aabb::new(a.min.min(b.min), a.max.max(b.max))
+}
+
 impl Motion {
     /// What the move does to actors at `now`, if it is one of its two ticks.
     pub(crate) fn push(&self, now: u64) -> Option<ActorPush> {
@@ -73,22 +86,39 @@ impl Motion {
             .map(|head| moving_box(*head, self.dir, progress))
             .collect();
         let mut carriers = Vec::new();
+        let sideways = self.dir.y == 0;
         if first {
-            if self.dir.y == 0 {
+            if sideways {
+                carriers.extend(self.head.iter().map(|at| moving_box(*at, self.dir, 0.5)));
                 carriers.extend(
-                    self.head
+                    self.blocks
                         .iter()
-                        .chain(&self.blocks)
-                        .map(|at| moving_box(*at, self.dir, progress)),
+                        .map(|at| swept_box(*at, self.dir, 0.0, 0.5)),
                 );
             }
         } else {
             pushers.extend(self.blocks.iter().map(|at| moving_box(*at, self.dir, 1.0)));
+            if sideways {
+                carriers.extend(
+                    self.head
+                        .iter()
+                        .chain(&self.blocks)
+                        .map(|at| swept_box(*at, self.dir, 0.5, 1.0)),
+                );
+            }
         }
+        // A pull (no head) carries a whole block in its first tick.
+        let carry = if first && self.head.is_none() {
+            1.0
+        } else {
+            0.5
+        };
         Some(ActorPush {
             dir: self.dir,
             pushers,
             carriers,
+            carry,
+            carry_once: !first,
         })
     }
 }
@@ -111,14 +141,14 @@ fn stands_on(actor: &Aabb, carrier: &Aabb) -> bool {
 }
 
 /// How far `push` moves an actor with box `actor`.
-pub(crate) fn displacement(actor: &Aabb, push: &ActorPush) -> DVec3 {
+fn displacement(actor: &Aabb, push: &ActorPush) -> DVec3 {
     let dir = push.dir.as_dvec3();
-    let carried = push
+    let under = push
         .carriers
         .iter()
         .filter(|carrier| stands_on(actor, carrier))
-        .count() as f64
-        * 0.5;
+        .count();
+    let carried = if push.carry_once { under.min(1) } else { under } as f64 * push.carry;
     // Along `dir`: the actor's back face and each pusher's front face.
     let back = if dir.element_sum() > 0.0 {
         actor.min.dot(dir)
@@ -139,4 +169,12 @@ pub(crate) fn displacement(actor: &Aabb, push: &ActorPush) -> DVec3 {
         })
         .fold(0.0, f64::max);
     dir * (carried + pushed)
+}
+
+/// How far the moves `pushes` of one tick move an actor with box `actor`,
+/// one after the other (each from where the last left it).
+pub(crate) fn moved(actor: &Aabb, pushes: &[ActorPush]) -> DVec3 {
+    pushes.iter().fold(DVec3::ZERO, |total, push| {
+        total + displacement(&actor.offset(total), push)
+    })
 }

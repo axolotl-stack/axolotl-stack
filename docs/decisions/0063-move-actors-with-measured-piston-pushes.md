@@ -37,8 +37,9 @@ and the replay compares them with every measured actor.
 - Good, because actor physics stays unaware of pistons.
 - Bad, because players are not moved (their client is authoritative; pushing them needs a motion
   packet, not measured).
-- Bad, because cases the sweep did not try (several pistons moving one actor in one tick, riders
-  in the second tick) follow the rules as written, unmeasured.
+- Bad, because cases the sweep did not try (several pistons moving one actor in one tick, pushes
+  along other axes than east and up, pushes down into blocks) follow the rules as written,
+  unmeasured; pushed actors are not checked against the blocks they are pushed into.
 
 ### Confirmation
 

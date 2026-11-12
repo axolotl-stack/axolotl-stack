@@ -24,6 +24,7 @@ use std::collections::HashMap;
 
 use glam::{DVec3, IVec3};
 
+use crate::entity::systems::BlockSource;
 use crate::registry::block::{BlockEntry, StateValue};
 use crate::registry::collision::Aabb;
 
@@ -44,8 +45,9 @@ pub(crate) enum PlateKind {
 }
 
 /// How high string reaches: the box over string is the whole block this
-/// high. BDS 1.26.51 pressed string under an item whose box bottom was 0.055
-/// above it and not at 0.218 (`plates_tripwire.json`).
+/// high. BDS 1.26.51 pressed string under armour stands standing 0.125
+/// above it and not 0.1875 (`plates_tripwire_more.json`); the value between
+/// is not measured, 2.5/16 is chosen.
 pub(crate) const TRIPWIRE_HEIGHT: f64 = 2.5 / 16.0;
 
 impl PlateKind {
@@ -216,5 +218,54 @@ impl Plates {
     /// Forget a plate that is gone.
     pub(crate) fn removed(&mut self, pos: IVec3) {
         self.checks.remove(&pos);
+    }
+}
+
+/// One tick of the plates and string at `candidates` in `world` under
+/// `pressers`: every changed plate or string, then the tripwire lines of
+/// changed string (`super::tripwire`), is handed to `write` (which stores it
+/// as a change with its block updates) in that order.
+pub(crate) fn press<W: BlockSource>(
+    world: &mut W,
+    plates: &mut Plates,
+    now: u64,
+    candidates: impl IntoIterator<Item = IVec3>,
+    pressers: &[Presser],
+    mut write: impl FnMut(&mut W, IVec3, u32),
+) {
+    let mut listed = Vec::new();
+    for pos in candidates {
+        let found = world.block_at(pos).and_then(|state| {
+            let entry = world.registry().get_by_runtime_id(state)?;
+            let kind = PlateKind::of(&entry.string_id)?;
+            Some((pos, kind, kind.stored(entry, state)))
+        });
+        match found {
+            Some(plate) => listed.push(plate),
+            None => plates.removed(pos),
+        }
+    }
+    if listed.is_empty() {
+        return;
+    }
+    let mut strings = Vec::new();
+    for (pos, signal) in plates.tick(now, &listed, pressers) {
+        let Some((_, kind, _)) = listed.iter().find(|(at, ..)| *at == pos) else {
+            continue;
+        };
+        let Some(next) = world.block_at(pos).and_then(|state| {
+            let entry = world.registry().get_by_runtime_id(state)?;
+            kind.with_signal(entry, state, signal)
+        }) else {
+            continue;
+        };
+        write(world, pos, next);
+        if !kind.is_plate() {
+            strings.push(pos);
+        }
+    }
+    // The lines of pressed or released string follow in the same tick.
+    for (pos, next) in super::tripwire::update_lines(&*world, &strings) {
+        write(world, pos, next);
     }
 }

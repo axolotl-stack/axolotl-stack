@@ -285,7 +285,10 @@ fn apply(
         "cmd" => {
             let text = event[1].as_str().unwrap();
             if text.starts_with("tp ")
-                || recorded_actors && (text.starts_with("summon ") || text.starts_with("kill "))
+                || recorded_actors
+                    && (text.starts_with("summon ")
+                        || text.starts_with("kill ")
+                        || text.starts_with("execute as @e"))
             {
                 return Ok(());
             }
@@ -988,13 +991,6 @@ fn plates_press_like_bds_under_the_measured_actors() {
 fn tripwires_follow_bds_under_the_measured_actors() {
     let mut replayed = 0;
     for family in ["plates_tripwire", "plates_tripwire_more"] {
-        let path = format!(
-            "{}/../unastar-data/data/measured/redstone/{family}.json",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        if family != "plates_tripwire" && !std::path::Path::new(&path).exists() {
-            continue;
-        }
         for row in rows(family) {
             let actors = row[5].as_array().unwrap().clone();
             let mut pressing = tripwire_pressing(actors);
@@ -1008,38 +1004,18 @@ fn tripwires_follow_bds_under_the_measured_actors() {
     assert!(replayed >= 5, "{replayed}");
 }
 
-/// The string and hooks the recorded `actors` press each tick, as the live
-/// server's `press_plates` does.
+/// The string and hooks the recorded `actors` press each tick, through the
+/// live server's `plates::press`.
 fn tripwire_pressing(actors: Vec<Value>) -> impl FnMut(&mut Cell, u64, bool) {
-    use super::plates::{PlateKind, Plates};
+    use super::plates::Plates;
     let mut plates = Plates::default();
     move |cell: &mut Cell, t: u64, stepped: bool| {
         if stepped {
             return;
         }
         let seen = pressers_in_tick(&actors, t);
-        let strings: Vec<(IVec3, PlateKind, u8)> = cell
-            .blocks
-            .iter()
-            .filter_map(|(pos, state)| {
-                let entry = registry().get_by_runtime_id(*state)?;
-                let kind = PlateKind::of(&entry.string_id).filter(|kind| !kind.is_plate())?;
-                Some((*pos, kind, kind.stored(entry, *state)))
-            })
-            .collect();
-        let mut changed = Vec::new();
-        for (pos, signal) in plates.tick(t, &strings, &seen) {
-            let state = cell.block_at(pos).unwrap();
-            let entry = registry().get_by_runtime_id(state).unwrap();
-            let next = PlateKind::Tripwire
-                .with_signal(entry, state, signal)
-                .unwrap();
-            cell.change(pos, next);
-            changed.push(pos);
-        }
-        for (pos, next) in super::tripwire::hook_power(cell, &changed) {
-            cell.change(pos, next);
-        }
+        let candidates: Vec<IVec3> = cell.blocks.keys().copied().collect();
+        super::plates::press(cell, &mut plates, t, candidates, &seen, Cell::change);
     }
 }
 
@@ -1052,15 +1028,23 @@ fn tripwire_pressing(actors: Vec<Value>) -> impl FnMut(&mut Cell, u64, bool) {
 fn pistons_move_actors_like_bds() {
     let mut compared = 0;
     for family in ["pistons_entities", "pistons_riding"] {
-        let path = format!(
-            "{}/../unastar-data/data/measured/pistons/{family}.json",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        if family != "pistons_entities" && !std::path::Path::new(&path).exists() {
-            continue;
-        }
         for row in piston_rows(family) {
             let actors = row[5].as_array().unwrap().clone();
+            // Ticks a command moves the actors itself (a `tp`).
+            let moved_by_command: Vec<u64> = row[2]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|step| step[0] == "timeline")
+                .flat_map(|step| step[2].as_array().unwrap().iter())
+                .filter(|event| {
+                    event[1][0] == "cmd"
+                        && event[1][1]
+                            .as_str()
+                            .is_some_and(|text| text.contains(" run tp "))
+                })
+                .filter_map(|event| event[0].as_u64())
+                .collect();
             let mut failures = Vec::new();
             let mut check = |cell: &mut Cell, t: u64, stepped: bool| {
                 if !stepped {
@@ -1082,11 +1066,11 @@ fn pistons_move_actors_like_bds() {
                     let axis = pushes
                         .first()
                         .map_or(DVec3::X, |push| push.dir.abs().as_dvec3());
-                    let moved: DVec3 = pushes
-                        .iter()
-                        .map(|push| super::piston_actors::displacement(&aabb, push))
-                        .sum();
+                    let moved = super::piston_actors::moved(&aabb, &pushes);
                     let own = (after - *feet - moved).dot(axis);
+                    if moved_by_command.contains(&(t + 1)) {
+                        continue;
+                    }
                     compared += 1;
                     if [velocity, *velocity_before]
                         .iter()

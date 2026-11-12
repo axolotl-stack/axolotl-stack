@@ -4,16 +4,17 @@
 //! `redstone/tests.rs`).
 //!
 //! - A line is a hook, string straight ahead of it and a hook facing back.
-//!   Placing a hook or string that completes a line attaches the line: both
-//!   hooks and all its string take `attached_bit`. Removing string does not
-//!   detach anything (BDS keeps the hooks and the rest of the string
-//!   attached after the string between them is set to air).
+//!   A line is brought up to date when a hook or string of it is placed and
+//!   when its string's power changes: complete, both hooks and all its
+//!   string take `attached_bit` and the hooks power while any of its string
+//!   is powered; broken, the hooks (a hook finds the far hook across a gap)
+//!   and the string between them lose `attached_bit` and the hooks their
+//!   power. Setting string to air brings nothing up to date: a cut line
+//!   stays attached until its string is next pressed or released.
 //! - String is pressed like a pressure plate (`super::plates`, kind
-//!   [`super::plates::PlateKind::Tripwire`]): only the string an actor
-//!   touches stores `powered_bit`.
-//! - A hook stores `powered_bit` (and powers like a switch) while any string
-//!   straight ahead of it, up to the next hook, is powered; it changes in the
-//!   tick the string does.
+//!   [`super::plates::PlateKind::Tripwire`]), with or without hooks: only
+//!   the string an actor touches stores `powered_bit`; the hooks change in
+//!   the tick the string does.
 
 use glam::IVec3;
 
@@ -80,24 +81,25 @@ pub(crate) fn links_to(blocks: &impl BlockSource, pos: IVec3, side: IVec3) -> bo
     is_string(blocks, pos + side) || hook_facing(blocks, pos + side) == Some(-side)
 }
 
-/// The string straight ahead of the hook at `hook` facing `dir`, and the hook
-/// facing back that ends it, if there is one within [`MAX_STRING`].
+/// What lies ahead of the hook at `hook` facing `dir`: the positions up to
+/// the next hook within [`MAX_STRING`] + 1 (scanning across anything but
+/// hooks, BDS 1.26.51: a hook finds the far hook of a cut line), and that
+/// hook if it faces back.
 fn line(blocks: &impl BlockSource, hook: IVec3, dir: IVec3) -> (Vec<IVec3>, Option<IVec3>) {
-    let mut string = Vec::new();
+    let mut between = Vec::new();
     for step in 1..=MAX_STRING + 1 {
         let at = hook + dir * step;
-        if is_string(blocks, at) {
-            string.push(at);
-            continue;
+        // The scan ends at the first hook: the far hook only if it faces back.
+        if let Some(facing) = hook_facing(blocks, at) {
+            return (between, (facing == -dir).then_some(at));
         }
-        let end = (hook_facing(blocks, at) == Some(-dir)).then_some(at);
-        return (string, end);
+        between.push(at);
     }
-    (string, None)
+    (between, None)
 }
 
 /// The hooks whose line `pos` (a hook or string) is part of: each with its
-/// facing.
+/// facing. From string, along each side over string only.
 fn hooks_of(blocks: &impl BlockSource, pos: IVec3) -> Vec<(IVec3, IVec3)> {
     if let Some(dir) = hook_facing(blocks, pos) {
         return vec![(pos, dir)];
@@ -118,47 +120,55 @@ fn hooks_of(blocks: &impl BlockSource, pos: IVec3) -> Vec<(IVec3, IVec3)> {
     hooks
 }
 
-/// The writes that attach a line `pos` (a hook or string just placed)
-/// completes: both hooks and the string between them take `attached_bit`.
-pub(crate) fn attach(blocks: &impl BlockSource, pos: IVec3) -> Vec<(IVec3, u32)> {
-    let mut writes = Vec::new();
-    for (hook, dir) in hooks_of(blocks, pos) {
-        let (string, Some(end)) = line(blocks, hook, dir) else {
-            continue;
-        };
-        for at in [hook, end].into_iter().chain(string) {
-            let Some((entry, state)) = entry_at(blocks, at) else {
-                continue;
-            };
-            let next = with_byte(entry, state, "attached_bit", true);
-            if next != state && !writes.iter().any(|(done, _)| *done == at) {
-                writes.push((at, next));
-            }
-        }
-    }
-    writes
-}
-
-/// The hooks to change after the string at `changed` changed its power:
-/// each hook of those lines powered while any string ahead of it is.
-pub(crate) fn hook_power(blocks: &impl BlockSource, changed: &[IVec3]) -> Vec<(IVec3, u32)> {
+/// The writes that bring the lines of `changed` (hooks and string just
+/// placed, or string whose power changed) up to date. A line with string
+/// all the way to the far hook is attached (both hooks and the string),
+/// and its hooks are powered while any of its string is. Otherwise the hook,
+/// the far hook it found and the string between are detached and the hooks
+/// unpowered (BDS 1.26.51: stepping on a line cut by setting its middle
+/// string to air detaches it, `plates_tripwire_more.json`).
+pub(crate) fn update_lines(blocks: &impl BlockSource, changed: &[IVec3]) -> Vec<(IVec3, u32)> {
     let mut writes: Vec<(IVec3, u32)> = Vec::new();
+    let mut set = |at: IVec3, attached: bool, powered: Option<bool>| {
+        if writes.iter().any(|(done, _)| *done == at) {
+            return;
+        }
+        let Some((entry, state)) = entry_at(blocks, at) else {
+            return;
+        };
+        let mut next = with_byte(entry, state, "attached_bit", attached);
+        if let Some(powered) = powered {
+            next = with_byte(entry, next, "powered_bit", powered);
+        }
+        if next != state {
+            writes.push((at, next));
+        }
+    };
     for pos in changed {
+        // Only hooks and string: string set to air updates nothing.
+        if !is_string(blocks, *pos) && hook_facing(blocks, *pos).is_none() {
+            continue;
+        }
         for (hook, dir) in hooks_of(blocks, *pos) {
-            if writes.iter().any(|(done, _)| *done == hook) {
-                continue;
+            let (between, end) = line(blocks, hook, dir);
+            let strings: Vec<IVec3> = between
+                .iter()
+                .copied()
+                .filter(|at| is_string(blocks, *at))
+                .collect();
+            let complete = end.is_some() && strings.len() == between.len();
+            let powered = complete
+                && strings.iter().any(|at| {
+                    entry_at(blocks, *at)
+                        .is_some_and(|(entry, state)| byte(entry, state, "powered_bit"))
+                });
+            for at in [Some(hook), end].into_iter().flatten() {
+                set(at, complete, Some(powered));
             }
-            let (string, _) = line(blocks, hook, dir);
-            let powered = string.iter().any(|at| {
-                entry_at(blocks, *at)
-                    .is_some_and(|(entry, state)| byte(entry, state, "powered_bit"))
-            });
-            let Some((entry, state)) = entry_at(blocks, hook) else {
-                continue;
-            };
-            let next = with_byte(entry, state, "powered_bit", powered);
-            if next != state {
-                writes.push((hook, next));
+            if end.is_some() {
+                for at in strings {
+                    set(at, complete, None);
+                }
             }
         }
     }

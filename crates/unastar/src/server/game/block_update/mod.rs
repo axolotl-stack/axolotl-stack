@@ -112,8 +112,8 @@ pub(crate) fn changed<T: UpdateTarget>(target: &mut T, pos: IVec3, placed: bool)
         if let Some(state) = shape::placed_tripwire(target, pos) {
             target.write(pos, state);
         }
-        // Hooks and string that complete a line attach it.
-        for (at, state) in crate::server::game::redstone::tripwire::attach(target, pos) {
+        // A placed hook or string brings its tripwire line up to date.
+        for (at, state) in crate::server::game::redstone::tripwire::update_lines(target, &[pos]) {
             target.write(at, state);
         }
         queue.push_back((pos, Update::Placed));
