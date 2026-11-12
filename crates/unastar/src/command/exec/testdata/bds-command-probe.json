@@ -100,7 +100,7 @@
    "records": [
     {
      "level": "INFO",
-     "text": "Diagnostics capture stopped - saved to '<home>/AppData/Roaming/Minecraft Bedrock Server/logs/diagnostics/diagnostics_2026-11-10_21-57-43.mcstats'        "
+     "text": "Diagnostics capture stopped - saved to '<home>/AppData/Roaming/Minecraft Bedrock Server/logs/diagnostics/diagnostics_2026-11-12_14-53-40.mcstats'        "
     }
    ]
   },
@@ -331,10 +331,8 @@
    },
    "messages": [
     {
-     "key": "commands.ride.startRiding.failure",
-     "params": [
-      "BDSExtractor"
-     ],
+     "key": "commands.ride.startRiding.notRideable",
+     "params": [],
      "success": false
     }
    ]
@@ -468,6 +466,1400 @@
      "success": false
     }
    ]
+  },
+  {
+   "command": "/give @s chemistry_table",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.give.item.notFound",
+     "params": [
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/give @s colored_torch_bp",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.give.item.notFound",
+     "params": [
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/give @s colored_torch_rg",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.give.item.notFound",
+     "params": [
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/give @s element_0",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "/give @s ",
+      "element_0",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/give @s acacia_double_slab",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "/give @s ",
+      "acacia_double_slab",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/give @s air",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.give.success",
+     "params": [
+      "Air",
+      "1",
+      "BDSExtractor"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/give @s minecraft:air",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.give.success",
+     "params": [
+      "Air",
+      "1",
+      "BDSExtractor"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {bad json",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "w @s {bad ",
+      "json",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {bad json more words",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "w @s {bad ",
+      "json",
+      " more word"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s [1]",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "llraw @s [",
+      "1",
+      "]"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s [1,2,3]",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "llraw @s [",
+      "1",
+      ",2,3]"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s [{\"text\":\"x\"}]",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "llraw @s [",
+      "{",
+      "\"text\":\"x\""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s []",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "llraw @s [",
+      "]",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s [ ]",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "lraw @s [ ",
+      "]",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "llraw @s {",
+      "",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s [",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "llraw @s [",
+      "",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.tellraw.error.noData",
+     "params": [],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s x",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "ellraw @s ",
+      "x",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "\"rawtext\":",
+      "",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "rawtext\":[",
+      "}",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"a\" \"b\"}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "w @s {\"a\" ",
+      "\"b\"",
+      "}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"a\":1 \"b\":2}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "@s {\"a\":1 ",
+      "\"b\"",
+      ":2}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {1}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "llraw @s {",
+      "1",
+      "}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {:1}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "llraw @s {",
+      ":",
+      "1}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s { bad }",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      " @s { bad ",
+      "}",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {'a':1}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "llraw @s {",
+      "'a':1}",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"x\":1,}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "@s {\"x\":1,",
+      "}",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\" [{\"text\":\"x\"}]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "\"rawtext\" ",
+      "[",
+      "{\"text\":\"x"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"x\"]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "\"text\":\"x\"",
+      "]",
+      "}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":x}]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      ":[{\"text\":",
+      "x",
+      "}]}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"x\"}]",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "ext\":\"x\"}]",
+      "",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":tru}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "\"rawtext\":",
+      "tru",
+      "}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":null}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "\"rawtext\":",
+      "null",
+      "}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":1x}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "\"rawtext\":",
+      "1x",
+      "}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":1.5e3}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "\"rawtext\":",
+      "1.5e3",
+      "}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[.5]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "rawtext\":[",
+      ".5",
+      "]}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[1 2]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "wtext\":[1 ",
+      "2",
+      "]}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[]]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "awtext\":[]",
+      "]",
+      "}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":\"unterminated}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "\"rawtext\":",
+      "\"unterminated}",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"x\",}]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "text\":\"x\",",
+      "}",
+      "]}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"x\"}],}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "xt\":\"x\"}],",
+      "}",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"a b c d e f g h\"} oops]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "e f g h\"} ",
+      "oops",
+      "]}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"x\"}]}}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "xt\":\"x\"}]}",
+      "}",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"x\"}]} junk",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "t\":\"x\"}]} ",
+      "junk",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"x\"}]}{",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "xt\":\"x\"}]}",
+      "{",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"x\"}]}:",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "xt\":\"x\"}]}",
+      ":",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"x\"}]} ]",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "t\":\"x\"}]} ",
+      "]",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {} {}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "raw @s {} ",
+      "{",
+      "}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":true}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.tellraw.error.notArray",
+     "params": [],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":-1}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.tellraw.error.notArray",
+     "params": [],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":\"a\\\"b\"}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.tellraw.error.notArray",
+     "params": [],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":{}}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.tellraw.error.notArray",
+     "params": [],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[true]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.tellraw.error.itemIsNotObject",
+     "params": [],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[1.]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.tellraw.error.itemIsNotObject",
+     "params": [],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {bad:1}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {a1:1}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {1a:1}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {true:1}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"a\":}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 6\n  Syntax error: value, object or array expected.\n* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[1,]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 15\n  Syntax error: value, object or array expected.\n* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[,]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 13\n  Syntax error: value, object or array expected.\n* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[1,,2]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 15\n  Syntax error: value, object or array expected.\n* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":\"x\"},]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 26\n  Syntax error: value, object or array expected.\n* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{text:\"x\"}]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 14\n  Missing '}' or object member name\n* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tellraw @s {\"rawtext\":[{\"text\":[1,]}]}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.json.invalid",
+     "params": [
+      "* Line 1, Column 24\n  Syntax error: value, object or array expected.\n* Line 1, Column 14\n  Missing '}' or object member name\n* Line 1, Column 2\n  Missing '}' or object member name\n"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/testfor @e[type=cow,bogus=1]",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "[type=cow,",
+      "bogus",
+      "=1]"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/kill @e[typ=cow]",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "/kill @e[",
+      "typ",
+      "=cow]"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/give @s stone{x}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "e @s stone",
+      "{",
+      "x}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/give @s stone[",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "e @s stone",
+      "[",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/give @s stone,",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "e @s stone",
+      ",",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/give @s {stone}",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "/give @s ",
+      "{",
+      "stone}"
+     ],
+     "success": false
+    }
+   ]
+  },
+  {
+   "command": "/setblock 0 -60 0 stone [\"a\"=1]x",
+   "output": {
+    "type": "alloutput",
+    "success_count": 0
+   },
+   "messages": [
+    {
+     "key": "commands.generic.syntax",
+     "params": [
+      "ne [\"a\"=1]",
+      "x",
+      ""
+     ],
+     "success": false
+    }
+   ]
+  }
+ ],
+ "execute_depth": [
+  {
+   "prefix": "",
+   "repeat": "execute run",
+   "count": 640,
+   "end": "testforblock 0 -64 0 bedrock",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Successfully found the block at 0,-64,0."
+    }
+   ],
+   "exited": false
+  },
+  {
+   "prefix": "",
+   "repeat": "execute run",
+   "count": 641,
+   "end": "testforblock 0 -64 0 bedrock",
+   "records": [],
+   "exited": true
+  },
+  {
+   "prefix": "",
+   "repeat": "execute run",
+   "count": 642,
+   "end": "testforblock 0 -64 0 bedrock",
+   "records": [],
+   "exited": true
+  },
+  {
+   "prefix": "",
+   "repeat": "execute run",
+   "count": 643,
+   "end": "testforblock 0 -64 0 bedrock",
+   "records": [],
+   "exited": true
+  },
+  {
+   "prefix": "execute ",
+   "repeat": "positioned ~ ~ ~",
+   "count": 710,
+   "end": "run testforblock 0 -64 0 bedrock",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Successfully found the block at 0,-64,0."
+    }
+   ],
+   "exited": false
+  },
+  {
+   "prefix": "execute ",
+   "repeat": "positioned ~ ~ ~",
+   "count": 712,
+   "end": "run testforblock 0 -64 0 bedrock",
+   "records": [],
+   "exited": true
+  },
+  {
+   "prefix": "execute ",
+   "repeat": "align x",
+   "count": 700,
+   "end": "run testforblock 0 -64 0 bedrock",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Successfully found the block at 0,-64,0."
+    }
+   ],
+   "exited": false
+  },
+  {
+   "prefix": "execute ",
+   "repeat": "align x",
+   "count": 725,
+   "end": "run testforblock 0 -64 0 bedrock",
+   "records": [],
+   "exited": true
+  },
+  {
+   "prefix": "execute ",
+   "repeat": "if block 0 -64 0 bedrock",
+   "count": 700,
+   "end": "run testforblock 0 -64 0 bedrock",
+   "records": [
+    {
+     "level": "INFO",
+     "text": "Successfully found the block at 0,-64,0."
+    }
+   ],
+   "exited": false
+  },
+  {
+   "prefix": "execute ",
+   "repeat": "if block 0 -64 0 bedrock",
+   "count": 750,
+   "end": "run testforblock 0 -64 0 bedrock",
+   "records": [],
+   "exited": true
+  },
+  {
+   "prefix": "execute ",
+   "repeat": "positioned ~ ~ ~",
+   "count": 2000,
+   "end": "bogus",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Syntax error: Unexpected \"bogus\": at \"ned ~ ~ ~ >>bogus<<\""
+    }
+   ],
+   "exited": false
+  },
+  {
+   "prefix": "",
+   "repeat": "execute run",
+   "count": 800,
+   "end": "bogus",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Syntax error: Unexpected \"bogus\": at \"ecute run >>bogus<<\""
+    }
+   ],
+   "exited": false
+  },
+  {
+   "prefix": "execute as @e[type=pig] ",
+   "repeat": "positioned ~ ~ ~",
+   "count": 800,
+   "end": "run testforblock 0 -64 0 bedrock",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "No targets matched selector"
+    }
+   ],
+   "exited": false
+  },
+  {
+   "prefix": "execute if block 0 -64 0 air ",
+   "repeat": "positioned ~ ~ ~",
+   "count": 800,
+   "end": "run testforblock 0 -64 0 bedrock",
+   "records": [
+    {
+     "level": "ERROR",
+     "text": "Execute subcommand if block test failed."
+    }
+   ],
+   "exited": false
   }
  ]
 }

@@ -112,7 +112,9 @@ fn parsed_values_keep_their_meaning() {
         Some(&ArgValue::Enum("minecraft:wheat"))
     );
     assert_eq!(args.raw("amount"), Some(&ArgValue::Int(64)));
-    assert!(matches!(args.raw("components"), Some(ArgValue::Json(v)) if v.is_object()));
+    assert!(
+        matches!(args.raw("components"), Some(ArgValue::Json(crate::command::parser::JsonArg::Valid(v))) if v.is_object())
+    );
     assert!(matches!(
         args.raw("player"),
         Some(ArgValue::Target(Target::Selector(_)))

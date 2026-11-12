@@ -25,7 +25,7 @@ use std::sync::LazyLock;
 
 /// One record BDS printed on its console (`[… INFO] text`), timestamp
 /// dropped; a multi-line message is one record.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub struct ConsoleRecord {
     /// `INFO` or `ERROR`.
     pub level: String,

@@ -17,7 +17,7 @@ mod enchant;
 mod event;
 #[cfg(test)]
 pub(crate) mod evidence;
-mod execute;
+pub(crate) mod execute;
 mod fill;
 mod function;
 mod gamemode;

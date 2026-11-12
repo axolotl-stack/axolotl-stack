@@ -64,6 +64,10 @@ pub struct CommandSource {
     /// (the feet) unless `/execute anchored eyes` moved it to the eyes.
     pub anchor: f64,
     pub dimension: Dimension,
+    /// `/execute` subcommands this context has come through, counting those
+    /// of the `/execute` lines that ran it (bounded by
+    /// [`crate::command::exec::execute::MAX_DEPTH`]).
+    pub depth: u32,
 }
 
 impl CommandSource {
@@ -90,6 +94,7 @@ impl CommandSource {
             name,
             anchor: 0.0,
             dimension: Dimension::Overworld,
+            depth: 0,
         })
     }
 
@@ -103,6 +108,7 @@ impl CommandSource {
             name: "Server".into(),
             anchor: 0.0,
             dimension: Dimension::Overworld,
+            depth: 0,
         }
     }
 
@@ -145,6 +151,11 @@ impl<'w> CommandContext<'w> {
     /// (`/execute … run`), with its own permission check and parse.
     pub fn run(&mut self, source: CommandSource, line: &str) -> CommandOutput {
         super::dispatch(self.world, self.registry, source, line)
+    }
+
+    /// Runs a line [`super::prepare`] parsed for `source`.
+    pub fn run_args(&mut self, source: CommandSource, args: &super::args::Args) -> CommandOutput {
+        super::run_args(self.world, self.registry, source, args)
     }
 
     /// Resolves a target parameter to entities; an omitted optional target is

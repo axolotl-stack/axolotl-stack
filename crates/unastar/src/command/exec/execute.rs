@@ -33,7 +33,7 @@ use super::setblock::BlockSpec;
 use super::testfor::compare_regions;
 use crate::command::args::{Comparison, Overloads};
 use crate::command::context::{CommandSource, Dimension, SourceKind, entity_name};
-use crate::command::parser::parse_overloads;
+use crate::command::parser::parse_checked_overloads;
 use crate::command::prelude::*;
 use crate::entity::components::Player;
 use crate::server::game::blocks::block_at;
@@ -163,17 +163,189 @@ overloads! {
     }
 }
 
+/// The most subcommands a chain runs through, counting the subcommands of
+/// the `/execute` lines it runs (`execute run execute run …`).
+///
+/// Measured on BDS 1.26.51 (console and an operator player,
+/// `tools/bds-sweep/command_probe.py`): BDS has no limit, and a chain whose
+/// contexts reach about 640 nested `execute run` (or about 711
+/// `positioned ~ ~ ~`) subcommands exits the server; every measured chain of
+/// up to 640 subcommands answers. A chain that leaves no context early, or
+/// whose line does not parse, answers as usual at any length. unastar
+/// answers [`too_deep`] instead of exiting (decision 0058).
+pub const MAX_DEPTH: u32 = 640;
+
+/// Runs the chain without recursion: its subcommands one after the other,
+/// and an `/execute` line that `run` runs as a chain of its own on a stack
+/// of [`RunFrame`]s, so chains of any length keep the thread's stack.
 pub fn run(ctx: &mut CommandContext<'_>, args: ExecuteArgs) -> CommandResult {
-    let contexts = vec![ctx.source.clone()];
-    step(ctx, contexts, args)
+    let mut frames: Vec<RunFrame> = Vec::new();
+    let mut end = run_chain(ctx, vec![ctx.source.clone()], args);
+    loop {
+        match end {
+            ChainEnd::Run(frame) => frames.push(frame),
+            ChainEnd::TooDeep => {
+                if let Some(frame) = frames.into_iter().next() {
+                    ctx.source = frame.source;
+                }
+                return Err(too_deep());
+            }
+            ChainEnd::Done(result) => match frames.last_mut() {
+                Some(frame) => frame.add(result.unwrap_or_else(|failure| failure)),
+                None => return result,
+            },
+        }
+        // The top frame runs its command for its next context.
+        end = loop {
+            let Some(mut frame) = frames.pop() else {
+                unreachable!("a frame was pushed or answered above");
+            };
+            let Some(context) = frame.contexts.next() else {
+                ctx.source = frame.source;
+                break ChainEnd::Done(run_result(frame.output));
+            };
+            frame.executor = context.name.clone();
+            if context.dimension != Dimension::Overworld
+                && !RUN_IN_EMPTY_DIMENSIONS.contains(&frame.name.as_str())
+            {
+                frame.add(other_dimension());
+                frames.push(frame);
+                continue;
+            }
+            match crate::command::prepare(&ctx.schema, &context, &frame.command) {
+                Ok(args) if args.command().name == "execute" => {
+                    // A nested `/execute` runs as a chain of this loop.
+                    frames.push(frame);
+                    ctx.source = context.clone();
+                    break run_chain(ctx, vec![context], ExecuteArgs::from_args(&args));
+                }
+                Ok(args) => {
+                    let output = ctx.run_args(context, &args);
+                    frame.add(output);
+                }
+                Err(failure) => frame.add(failure),
+            }
+            frames.push(frame);
+        };
+    }
 }
 
-/// One subcommand over every context, then the rest of the chain.
+/// How a chain ended.
+enum ChainEnd {
+    Done(CommandResult),
+    /// Deeper than [`MAX_DEPTH`]: the whole command is refused, as BDS
+    /// answers nothing at all.
+    TooDeep,
+    /// At `run`: the command still runs for each context.
+    Run(RunFrame),
+}
+
+/// A `run` subcommand running its command for one context after another.
+struct RunFrame {
+    contexts: std::vec::IntoIter<CommandSource>,
+    command: String,
+    /// The command's name, as `commands.execute.failed` shows it.
+    name: String,
+    /// The context running it now.
+    executor: String,
+    output: CommandOutput,
+    /// The command source to restore when the frame ends.
+    source: CommandSource,
+}
+
+impl RunFrame {
+    /// The command's answer for the current context: its messages, then
+    /// `commands.execute.failed` when it failed.
+    fn add(&mut self, result: CommandOutput) {
+        let failed = result.success_count == 0 && !result.messages.is_empty();
+        self.output.success_count += result.success_count;
+        self.output.messages.extend(result.messages);
+        if failed {
+            self.output.add_failure(
+                "commands.execute.failed",
+                vec![self.name.clone(), self.executor.clone()],
+            );
+        }
+    }
+}
+
+/// A `run` answer: failed when nothing succeeded and something was said.
+fn run_result(output: CommandOutput) -> CommandResult {
+    if output.success_count == 0 && !output.messages.is_empty() {
+        Err(output)
+    } else {
+        Ok(output)
+    }
+}
+
+/// The subcommands of one chain, one after the other.
+fn run_chain(
+    ctx: &mut CommandContext<'_>,
+    mut contexts: Vec<CommandSource>,
+    mut args: ExecuteArgs,
+) -> ChainEnd {
+    loop {
+        let depth = contexts.first().map_or(0, |c| c.depth) + 1;
+        if !contexts.is_empty() && depth > MAX_DEPTH {
+            return ChainEnd::TooDeep;
+        }
+        for context in &mut contexts {
+            context.depth = depth;
+        }
+        match step(ctx, contexts, args) {
+            Err(failure) => return ChainEnd::Done(Err(failure)),
+            Ok(Flow::Done(output)) => return ChainEnd::Done(Ok(output)),
+            Ok(Flow::Run(contexts, command)) => {
+                let name = crate::command::parser::command_name(&command)
+                    .trim_start_matches('/')
+                    .to_owned();
+                return ChainEnd::Run(RunFrame {
+                    contexts: contexts.into_iter(),
+                    command: String::from(&*command),
+                    name,
+                    executor: String::new(),
+                    output: CommandOutput::default(),
+                    source: ctx.source.clone(),
+                });
+            }
+            Ok(Flow::Next(next, chained)) => match next_subcommand(ctx, &chained) {
+                Ok(next_args) => {
+                    contexts = next;
+                    args = next_args;
+                }
+                Err(failure) => return ChainEnd::Done(Err(failure)),
+            },
+        }
+    }
+}
+
+/// What unastar answers where BDS 1.26.51 exits: a chain deeper than
+/// [`MAX_DEPTH`].
+pub fn too_deep() -> CommandOutput {
+    CommandOutput::failure(
+        format!(
+            "/execute chains deeper than {MAX_DEPTH} subcommands are refused by unastar (BDS 1.26.51 exits)"
+        ),
+        vec![],
+    )
+}
+
+/// Where a subcommand leaves the chain.
+enum Flow {
+    /// The chain ended with this answer.
+    Done(CommandOutput),
+    /// The rest of the chain runs for these contexts.
+    Next(Vec<CommandSource>, Chained),
+    /// `run`: the command runs once for each of these contexts.
+    Run(Vec<CommandSource>, CommandLine),
+}
+
+/// One subcommand over every context.
 fn step(
     ctx: &mut CommandContext<'_>,
     contexts: Vec<CommandSource>,
     args: ExecuteArgs,
-) -> CommandResult {
+) -> Result<Flow, CommandOutput> {
     use ExecuteArgs as E;
     match args {
         E::As {
@@ -189,7 +361,7 @@ fn step(
                 context.name = entity_name(world, entity);
                 context
             })?;
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::At {
             origin, chained, ..
@@ -207,7 +379,7 @@ fn step(
                 context.pitch = rotation.pitch;
                 context
             })?;
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::In {
             dimension, chained, ..
@@ -224,7 +396,7 @@ fn step(
                     context
                 })
                 .collect();
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::Positioned {
             position, chained, ..
@@ -237,7 +409,7 @@ fn step(
                     context
                 })
                 .collect();
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::PositionedAs {
             origin, chained, ..
@@ -247,7 +419,7 @@ fn step(
                 move_to(world, &mut context, entity);
                 context
             })?;
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::Rotated {
             yaw,
@@ -263,7 +435,7 @@ fn step(
                     context
                 })
                 .collect();
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::RotatedAs {
             origin, chained, ..
@@ -278,7 +450,7 @@ fn step(
                 context.pitch = rotation.pitch;
                 context
             })?;
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::Facing {
             position, chained, ..
@@ -291,7 +463,7 @@ fn step(
                     context
                 })
                 .collect();
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::FacingEntity {
             origin,
@@ -310,7 +482,7 @@ fn step(
                 }
                 context
             })?;
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::Align { axes, chained, .. } => {
             let axes = &*axes;
@@ -340,7 +512,7 @@ fn step(
                     context
                 })
                 .collect();
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::Anchored {
             anchored, chained, ..
@@ -355,7 +527,7 @@ fn step(
                     context
                 })
                 .collect();
-            chain(ctx, next, &chained)
+            Ok(Flow::Next(next, chained))
         }
         E::IfBlock {
             condition,
@@ -503,48 +675,19 @@ fn step(
                 Err(missing) => missing,
             },
         ),
-        E::Run { command, .. } => {
-            let name = crate::command::parser::command_name(&command)
-                .trim_start_matches('/')
-                .to_owned();
-            let mut output = CommandOutput::default();
-            for context in contexts {
-                let executor = context.name.clone();
-                let result = if context.dimension == Dimension::Overworld
-                    || RUN_IN_EMPTY_DIMENSIONS.contains(&name.as_str())
-                {
-                    ctx.run(context, &command)
-                } else {
-                    other_dimension()
-                };
-                let failed = result.success_count == 0 && !result.messages.is_empty();
-                output.success_count += result.success_count;
-                output.messages.extend(result.messages);
-                if failed {
-                    output.add_failure("commands.execute.failed", vec![name.clone(), executor]);
-                }
-            }
-            if output.success_count == 0 && !output.messages.is_empty() {
-                return Err(output);
-            }
-            Ok(output)
-        }
+        E::Run { command, .. } => Ok(Flow::Run(contexts, command)),
     }
 }
 
-/// Parses the rest of the chain (validated with the whole line) and runs it.
-fn chain(
-    ctx: &mut CommandContext<'_>,
-    contexts: Vec<CommandSource>,
-    chained: &str,
-) -> CommandResult {
+/// The next subcommand of a chain the whole line was checked with.
+fn next_subcommand(ctx: &CommandContext<'_>, chained: &str) -> Result<ExecuteArgs, CommandOutput> {
     let definition = ctx
         .schema
         .command("execute")
-        .expect("/execute is in the captured syntax");
-    let args = parse_overloads(&ctx.schema, definition, chained, 0)
-        .expect("the parser validated the chain with the whole line");
-    step(ctx, contexts, ExecuteArgs::from_args(&args))
+        .ok_or_else(|| CommandOutput::not_implemented("execute"))?;
+    let args = parse_checked_overloads(&ctx.schema, definition, chained)
+        .map_err(crate::command::parser::ParseError::into_output)?;
+    Ok(ExecuteArgs::from_args(&args))
 }
 
 /// Commands whose answers in a dimension where nothing is loaded are
@@ -626,7 +769,7 @@ fn test(
     kind: &str,
     chained: Option<Chained>,
     mut check: impl FnMut(&mut CommandContext<'_>, &CommandSource) -> Check,
-) -> CommandResult {
+) -> Result<Flow, CommandOutput> {
     let wanted = condition == Condition::If;
     let mut passed = Vec::new();
     let mut errors = CommandOutput::default();
@@ -654,14 +797,14 @@ fn test(
         return Err(errors);
     }
     match chained {
-        Some(chained) => chain(ctx, passed, &chained),
-        None => Ok(match count {
+        Some(chained) => Ok(Flow::Next(passed, chained)),
+        None => Ok(Flow::Done(match count {
             Some(count) if wanted => CommandOutput::success(
                 "commands.execute.trueConditionWithCount",
                 vec![count.to_string()],
             ),
             _ => CommandOutput::success("commands.execute.trueCondition", vec![]),
-        }),
+        })),
     }
 }
 
@@ -924,5 +1067,83 @@ mod bds_capture {
         let world = replay.h.world();
         let mut query = world.query_filtered::<Entity, bevy_ecs::prelude::With<MobKind>>();
         query.iter(world).collect()
+    }
+}
+
+/// Long chains (`testdata/bds-command-probe.json`, `execute_depth`).
+#[cfg(test)]
+mod depth {
+    use super::{MAX_DEPTH, too_deep};
+    use crate::command::exec::evidence::console_records;
+    use crate::command::exec::probe::{Probe, chains};
+    use crate::command::{CommandSource, execute};
+
+    /// The probe's world: the flat world's bedrock under the origin.
+    fn bedrock_at_the_origin() -> Probe {
+        let mut probe = Probe::new();
+        let output = execute(
+            probe.h.world(),
+            CommandSource::server(),
+            "setblock 0 -64 0 bedrock",
+        );
+        assert!(output.is_success(), "{output:?}");
+        probe
+    }
+
+    /// Every chain BDS answered is answered the same, at any length, unless
+    /// it runs through more than [`MAX_DEPTH`] subcommands; every chain BDS
+    /// exited on is refused.
+    #[test]
+    fn long_chains_answer_like_bds() {
+        let mut probe = bedrock_at_the_origin();
+        for chain in chains() {
+            let line = chain.line();
+            let output = execute(probe.h.world(), CommandSource::server(), &line);
+            let label = format!("{} x{} {}", chain.repeat, chain.count, chain.end);
+            if chain.exited {
+                assert_eq!(output, too_deep(), "{label}");
+            } else if chain.prefix == "execute " && chain.end.starts_with("run ") {
+                // `positioned`, `align` and `if block` chains BDS still
+                // answers past 640 (decision 0058): refused here.
+                assert!(chain.count + 1 > MAX_DEPTH as usize, "{label}");
+                assert_eq!(output, too_deep(), "{label}");
+            } else {
+                assert_eq!(console_records(&output), chain.records, "{label}");
+            }
+        }
+    }
+
+    /// At the limit a chain runs; one subcommand more is refused.
+    #[test]
+    fn the_limit_counts_every_subcommand() {
+        let mut probe = bedrock_at_the_origin();
+        let test = "testforblock 0 -64 0 bedrock";
+        let found = "Successfully found the block at 0,-64,0.";
+        let at = |n: usize| format!("execute {}run {test}", "positioned ~ ~ ~ ".repeat(n));
+        let output = execute(
+            probe.h.world(),
+            CommandSource::server(),
+            &at(MAX_DEPTH as usize - 1),
+        );
+        assert_eq!(output.to_text(), [found]);
+        let output = execute(
+            probe.h.world(),
+            CommandSource::server(),
+            &at(MAX_DEPTH as usize),
+        );
+        assert_eq!(output, too_deep());
+        // Mixed: nested `/execute` lines count on from the chain that ran them.
+        let half = MAX_DEPTH as usize / 2;
+        let mixed = |extra: usize| {
+            format!(
+                "execute {}run {}{test}",
+                "align x ".repeat(half - 1),
+                "execute run ".repeat(half + extra)
+            )
+        };
+        let output = execute(probe.h.world(), CommandSource::server(), &mixed(0));
+        assert_eq!(output.to_text(), [found]);
+        let output = execute(probe.h.world(), CommandSource::server(), &mixed(1));
+        assert_eq!(output, too_deep());
     }
 }
