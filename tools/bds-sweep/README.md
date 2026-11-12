@@ -69,7 +69,8 @@ same BDS 1.26.51 build; the launcher checks `version.txt` either way.
 
 ## Scripted client controls
 
-The plugin sends these chat orders to `bds-sweep-client`:
+The plugin sends these chat orders to `bds-sweep-client` (plain BDS scripts
+send the same text with `tellraw <player> {"rawtext":[{"text":"bds-sweep:..."}]}`):
 
 | Order | Behaviour |
 |---|---|
@@ -82,6 +83,11 @@ The plugin sends these chat orders to `bds-sweep-client`:
 | `bds-sweep:drop hotbar SLOT COUNT` | Closed-screen Drop from hotbar index 0..8; count 1 is Q, a full stack is ctrl-Q |
 | `bds-sweep:drop inventory SLOT COUNT` | Open the inventory, wait for its server-allocated window ID, then Drop from native inventory index 0..35 |
 | `bds-sweep:close-inventory` | Close the tracked native inventory window |
+| `bds-sweep:press FLAG...` | Add these `PlayerAuthInput` input flags (lower-case names: `startsneaking`, `sneaking`, `startsprinting`, `startswimming`, `startcrawling`, ...) to the next input only |
+| `bds-sweep:hold FLAG...` / `bds-sweep:release FLAG...` | Add the flags to every input from the next one on, until released (`sneaking sneakdown` while a sneak lasts) |
+| `bds-sweep:use` | Use the held item in the air (`InventoryTransaction` item use); BDS rejects it for armour and resends the whole inventory, which refreshes stack net IDs |
+| `bds-sweep:equip-head SLOT` | Open the inventory and move one item from hotbar index SLOT to the head armour slot (`ItemStackRequest` place) |
+| `bds-sweep:quit` | Close the connection and exit (BDS still keeps the player about 10 s, until its connection times out) |
 | `bds-sweep:use X Y Z FACE CX CY CZ TARGET` | Click block face `FACE` of `X Y Z` with the selected hotbar stack (an `ItemUse` place transaction; click position `C*`/1000 inside the block; `TARGET` the clicked block's runtime id), as a survival player's right click |
 
 `bds-sweep-client --script FILE` plays timed orders without the plugin: one `TICK ORDER` line per
@@ -90,7 +96,10 @@ step at that client input tick, an order above without its `bds-sweep:` prefix, 
 
 Drop references come only from server `InventoryContent`/`InventorySlot`
 updates; missing/empty/idless slots and invalid counts fail rather than invent
-a stack net ID. Requests use negative odd IDs. `--capture-dir DIR` records
+a stack net ID. `/enchant` updates a slot through a legacy transaction the
+client does not track, so send `use` (or another full resync) before an
+`equip-head` of an enchanted item. `--uuid UUID` logs in with a fixed identity,
+so a player that leaves and rejoins gets its saved data back. Requests use negative odd IDs. `--capture-dir DIR` records
 both directions, including unhandled actor packets, to `DIR/packets.jsonl`;
 records are flushed individually and the recorder closes on normal/error exit.
 Windows debug startup uses the same enlarged codec stack as `bds-extractor`.
