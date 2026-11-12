@@ -62,8 +62,7 @@
 //!
 //! Exits successfully when the server closes the session.
 
-mod physics;
-mod world;
+use bds_sweep::{physics, scenario, world};
 
 use anyhow::{Context, Result, ensure};
 use clap::Parser;
@@ -74,8 +73,9 @@ use jolyne::{
     stream::{Handshake, transport::Transport},
     valentine::{
         ActorRuntimeId, BlockPos, CerealizerNetworkItemStackDescriptorSerializedData,
-        ContainerClosePacket, DataItemEntryPayload, EnumsClientPlayMode, EnumsContainerEnumName,
-        EnumsInputMode, EnumsInteractPacketPayloadAction, EnumsItemStackRequestActionType,
+        CommandOriginDatajson, CommandRequestPacket, ContainerClosePacket, DataItemEntryPayload,
+        EnumsClientPlayMode, EnumsContainerEnumName, EnumsInputMode,
+        EnumsInteractPacketPayloadAction, EnumsItemStackRequestActionType,
         EnumsItemUseInventoryTransactionActionType,
         EnumsItemUseInventoryTransactionPredictedResult,
         EnumsItemUseInventoryTransactionTriggerType,
@@ -117,6 +117,13 @@ struct Args {
     /// rejoining player keeps its saved data.
     #[arg(long)]
     uuid: Option<uuid::Uuid>,
+    /// Play this movement corpus (`tools/movement-diff/corpus.json`) when
+    /// the `scenarios` order arrives.
+    #[arg(long)]
+    scenarios: Option<PathBuf>,
+    /// Where to write each scenario's runtime id and first input tick.
+    #[arg(long, requires = "scenarios")]
+    scenario_log: Option<PathBuf>,
 }
 
 /// A mining order in progress.
@@ -192,6 +199,8 @@ enum Order {
     Offset([i64; 3]),
     /// Grow the offset by this much (thousandths of a block) every input.
     Drift([i64; 3]),
+    /// Play the movement corpus given with `--scenarios`.
+    Scenarios,
 }
 
 /// How the client takes a server teleport (`MovePlayer`, a respawn's
@@ -394,6 +403,9 @@ fn parse_order(text: &str) -> Option<Order> {
             }))
         }
         "close-inventory" | "close-inventory\"" => Some(Order::CloseInventory),
+        word if word.starts_with("scenarios") && !word[9..].starts_with(char::is_alphanumeric) => {
+            Some(Order::Scenarios)
+        }
         "press" => Some(Order::Press(input_flags(words)?)),
         "hold" => Some(Order::Hold(input_flags(words)?)),
         "release" => Some(Order::Release(input_flags(words)?)),
@@ -524,6 +536,175 @@ struct Player {
     /// per input.
     offset: [f32; 3],
     drift: [f32; 3],
+    /// The movement corpus being played (`--scenarios`).
+    script: Option<Script>,
+    /// The login identity, the origin of the commands this client sends.
+    uuid: uuid::Uuid,
+}
+
+/// How far from its own simulation a scripted scenario reports the player,
+/// on every axis: over BDS's acceptance threshold, so BDS's copy is never
+/// moved towards the reported position and moves by its own simulation
+/// alone. Offsetting only the height is not enough: BDS takes a reported
+/// horizontal position within 0.1 of its copy on each horizontal axis even
+/// when the height is 3 blocks off.
+const SCENARIO_OFFSET: [f32; 3] = [3.0, 3.0, 3.0];
+/// Inputs to wait after a scenario's setup commands for their blocks.
+const SCENARIO_SETTLE: u32 = 20;
+/// Where the player waits while a scenario is built.
+const LOBBY: &str = "/tp @s -14.5 100 10.5 0 0";
+
+/// The movement corpus as the scripted client plays it, one scenario after
+/// the other: build it from the lobby, teleport to the start, and from the
+/// second input after the teleport (BDS rests the first) play its inputs.
+struct Script {
+    scenarios: Vec<scenario::Scenario>,
+    next: usize,
+    stage: Stage,
+    runs: Vec<scenario::ScenarioRun>,
+    log: Option<PathBuf>,
+}
+
+enum Stage {
+    /// Waiting for the `scenarios` order.
+    Waiting,
+    /// One command per input, then `settle` inputs for the blocks.
+    Setup {
+        commands: VecDeque<String>,
+        settle: u32,
+    },
+    /// The start teleport was sent `waited` inputs ago.
+    Teleport { waited: u32 },
+    /// Teleported: the scenario's first input is input `first`.
+    Arrived { first: u64 },
+    Play {
+        first: u64,
+        inputs: Vec<scenario::TickInput>,
+    },
+    /// All played; quit after `linger` idle inputs (BDS relays the last
+    /// scenario input only if the player is still there).
+    Done { linger: u32 },
+}
+
+/// What the script does with one input.
+#[derive(Default)]
+struct ScriptTick {
+    /// A scenario input: play it, reporting the far position.
+    input: Option<scenario::TickInput>,
+    /// Commands to send after the input.
+    commands: Vec<String>,
+}
+
+impl Script {
+    fn load(path: &std::path::Path, log: Option<PathBuf>) -> Result<Self> {
+        let text =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        Ok(Self {
+            scenarios: scenario::Corpus::parse(&text)?.scenarios,
+            next: 0,
+            stage: Stage::Waiting,
+            runs: Vec::new(),
+            log,
+        })
+    }
+
+    fn start(&mut self) -> Result<()> {
+        ensure!(
+            matches!(self.stage, Stage::Waiting),
+            "the scenarios already started"
+        );
+        self.setup_next()
+    }
+
+    /// Build the next scenario, or finish.
+    fn setup_next(&mut self) -> Result<()> {
+        let Some(scenario) = self.scenarios.get(self.next) else {
+            self.stage = Stage::Done { linger: 20 };
+            if let Some(log) = &self.log {
+                std::fs::write(log, serde_json::to_string_pretty(&self.runs)? + "\n")
+                    .with_context(|| format!("writing {}", log.display()))?;
+            }
+            info!(scenarios = self.runs.len(), "scenarios done");
+            return Ok(());
+        };
+        let mut commands = VecDeque::from([LOBBY.to_owned()]);
+        commands.extend(scenario.setup_commands()?);
+        info!(scenario = scenario.name, "setting up");
+        self.stage = Stage::Setup {
+            commands,
+            settle: SCENARIO_SETTLE,
+        };
+        Ok(())
+    }
+
+    fn done(&self) -> bool {
+        matches!(self.stage, Stage::Done { linger: 0 })
+    }
+
+    /// A teleport of this player after input `tick`.
+    fn teleported(&mut self, tick: u64) {
+        if let Stage::Teleport { .. } = self.stage {
+            // BDS rests the input after the teleport and simulates the next.
+            self.stage = Stage::Arrived { first: tick + 2 };
+        }
+    }
+
+    /// The script's part of input `tick`.
+    fn tick(&mut self, tick: u64, runtime_id: u64) -> Result<ScriptTick> {
+        let mut out = ScriptTick::default();
+        match &mut self.stage {
+            Stage::Waiting => {}
+            Stage::Done { linger } => *linger = linger.saturating_sub(1),
+            Stage::Setup { commands, settle } => {
+                if let Some(command) = commands.pop_front() {
+                    out.commands.push(command);
+                } else if *settle > 0 {
+                    *settle -= 1;
+                } else {
+                    out.commands.push(self.scenarios[self.next].start_command());
+                    self.stage = Stage::Teleport { waited: 0 };
+                }
+            }
+            Stage::Teleport { waited } => {
+                *waited += 1;
+                ensure!(*waited < 100, "no teleport to the scenario start");
+            }
+            Stage::Arrived { first } => {
+                // Inputs already on their way when the teleport arrived went
+                // out idle; every scenario starts with idle inputs for them.
+                if tick >= *first {
+                    let first = *first;
+                    let scenario = &self.scenarios[self.next];
+                    info!(scenario = scenario.name, first, tick, "playing");
+                    self.runs.push(scenario::ScenarioRun {
+                        name: scenario.name.clone(),
+                        runtime_id,
+                        first_input: first,
+                        ticks: scenario.ticks(),
+                    });
+                    self.stage = Stage::Play {
+                        first,
+                        inputs: scenario.tick_inputs(),
+                    };
+                    return self.tick(tick, runtime_id);
+                }
+            }
+            Stage::Play { first, inputs } => {
+                let index = usize::try_from(tick - *first)?;
+                out.input = Some(inputs[index]);
+                let number = u32::try_from(index + 1)?;
+                let last = index + 1 == inputs.len();
+                let scenario = &self.scenarios[self.next];
+                out.commands
+                    .extend(scenario.commands_after(number).map(str::to_owned));
+                if last {
+                    self.next += 1;
+                    self.setup_next()?;
+                }
+            }
+        }
+        Ok(out)
+    }
 }
 
 /// The input flags a vanilla client sets for this tick's keys and move.
@@ -589,7 +770,7 @@ fn block_action(action: EnumsPlayerActionType, mining: &Mining) -> PlayerBlockAc
 }
 
 impl Player {
-    fn new(runtime_id: u64, position: Vec3, rotation: Vec2) -> Self {
+    fn new(runtime_id: u64, position: Vec3, rotation: Vec2, uuid: uuid::Uuid) -> Self {
         let mut body = Body::at([0.0; 3]);
         body.feet = body.feet_from_network([position.x, position.y, position.z]);
         Self {
@@ -626,7 +807,23 @@ impl Player {
             follow_corrections: true,
             offset: [0.0; 3],
             drift: [0.0; 3],
+            script: None,
+            uuid,
         }
+    }
+
+    /// A command this player runs (`CommandRequest`).
+    fn command(&self, text: String) -> McpePacket {
+        McpePacket::from(CommandRequestPacket {
+            command: text.into(),
+            origin: CommandOriginDatajson {
+                type_: "player".into(),
+                uuid: self.uuid,
+                ..Default::default()
+            },
+            is_internal: false,
+            version: "latest".into(),
+        })
     }
 
     /// The wire position (the eyes of a standing player), moved by the
@@ -692,6 +889,13 @@ impl Player {
                 self.drift = [0.0; 3];
             }
             Order::Drift(drift) => self.drift = drift.map(|v| v as f32 / 1000.0),
+            Order::Scenarios => {
+                let script = self
+                    .script
+                    .as_mut()
+                    .context("the scenarios order needs --scenarios")?;
+                script.start()?;
+            }
             Order::CloseInventory => {
                 ensure!(
                     self.pending_drop.is_none(),
@@ -1027,6 +1231,28 @@ impl Player {
         for (offset, drift) in self.offset.iter_mut().zip(self.drift) {
             *offset += drift;
         }
+        let script = match &mut self.script {
+            Some(script) => Some(script.tick(self.tick, self.runtime_id)?),
+            None => None,
+        };
+        if let Some(script) = &script {
+            match script.input {
+                Some(input) => {
+                    self.controls = input.controls;
+                    self.jump_ticks = u32::from(input.controls.jump);
+                    self.glide |= input.glide;
+                    self.offset = SCENARIO_OFFSET;
+                }
+                None => {
+                    self.controls = Controls {
+                        yaw: self.controls.yaw,
+                        pitch: self.controls.pitch,
+                        ..Default::default()
+                    };
+                    self.offset = [0.0; 3];
+                }
+            }
+        }
         self.follow_late_teleport();
         let walk = self.walk_input();
         let controls = self.tick_controls();
@@ -1148,6 +1374,12 @@ impl Player {
                 .into_iter()
                 .map(McpePacket::from),
         );
+        for command in script.into_iter().flat_map(|s| s.commands) {
+            packets.push(self.command(command));
+        }
+        if self.script.as_ref().is_some_and(Script::done) {
+            self.quit = true;
+        }
         Ok(packets)
     }
 
@@ -1283,6 +1515,9 @@ impl Player {
                     probe = ?self.teleport_mode,
                     "server teleport"
                 );
+                if let Some(script) = &mut self.script {
+                    script.teleported(packet.tick.inputtick);
+                }
                 match self.teleport_mode {
                     TeleportMode::Follow => {
                         self.teleport(packet.tick.inputtick, position, packet.on_ground)?;
@@ -1503,6 +1738,12 @@ async fn run(args: Args) -> Result<()> {
     if let Some(uuid) = args.uuid {
         config.uuid = uuid;
     }
+    let uuid = config.uuid;
+    let script = args
+        .scenarios
+        .as_deref()
+        .map(|path| Script::load(path, args.scenario_log.clone()))
+        .transpose()?;
     let recorder = args
         .capture_dir
         .as_ref()
@@ -1527,7 +1768,7 @@ async fn run(args: Args) -> Result<()> {
             .context("login timed out")?
             .context("login")?;
             info!("spawned as {}", args.name);
-            run_session(play, game).await
+            run_session(play, game, uuid, script).await
         } else {
             let (play, game) = tokio::time::timeout(Duration::from_secs(args.timeout), async {
                 BedrockStream::connect(args.addr).await?.join(config).await
@@ -1536,7 +1777,7 @@ async fn run(args: Args) -> Result<()> {
             .context("login timed out")?
             .context("login")?;
             info!("spawned as {}", args.name);
-            run_session(play, game).await
+            run_session(play, game, uuid, script).await
         }
     }
     .await;
@@ -1559,18 +1800,27 @@ async fn run(args: Args) -> Result<()> {
 async fn run_session<T: Transport>(
     mut play: BedrockStream<Play, Client, T>,
     game: GameData,
+    uuid: uuid::Uuid,
+    script: Option<Script>,
 ) -> Result<()> {
     let mut player = Player::new(
         game.start_game.runtime_id.actor_runtime_id,
         game.start_game.position.clone(),
         game.start_game.rotation.clone(),
+        uuid,
     );
+    player.script = script;
     let mut ticker = tokio::time::interval(Duration::from_millis(50));
     loop {
         tokio::select! {
             _ = ticker.tick() => {
                 for packet in player.auth_input()? {
                     play.send_packet(packet).await?;
+                }
+                if player.quit {
+                    info!(corrections = player.corrections, "quitting");
+                    play.close().await?;
+                    return Ok(());
                 }
             }
             packet = play.recv_packet_raw() => {
@@ -1631,7 +1881,7 @@ mod tests {
     };
 
     fn player() -> Player {
-        Player::new(1, Vec3::default(), Vec2::default())
+        Player::new(1, Vec3::default(), Vec2::default(), uuid::Uuid::nil())
     }
 
     #[test]
@@ -2235,7 +2485,15 @@ mod tests {
     /// sub-chunks around it known.
     fn standing_player() -> Player {
         let mut player = player();
-        player.world = world::tests_support::flat_stone_world();
+        // Stone from y -64 up to -61 (the floor's top at -60) around the
+        // origin, air above.
+        let stone = unastar_data::blocks::get("minecraft:stone")
+            .unwrap()
+            .min_state_id;
+        let floor = (-32..32).flat_map(|x| {
+            (-32..32).flat_map(move |z| (-64..-60).map(move |y| ([x, y, z], stone, 0)))
+        });
+        player.world = world::World::with_blocks(floor, 2).unwrap();
         player.body.feet = [0.5, -60.0, 0.5];
         player.body.on_ground = true;
         player

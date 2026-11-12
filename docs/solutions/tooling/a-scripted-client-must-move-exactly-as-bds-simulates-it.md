@@ -54,6 +54,9 @@ simulation, so the client has to simulate the same physics in `f32`.
     never corrected, but BDS's exhaustion (charged on its own move) differs
     (`swim_exhaustion`, ticks 608 to 619);
   - lava is not simulated.
+- A run without corrections only shows agreement within BDS's 0.1 acceptance. The movement-diff
+  harness later found ULP-level and 2 % errors in such "matching" runs:
+  `docs/solutions/tooling/read-bds-movement-from-a-far-reporting-client.md`.
 
 ## Where it lives
 

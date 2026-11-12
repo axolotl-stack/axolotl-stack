@@ -1,0 +1,3 @@
+# acacia-physics declares rust-version 1.98; the workspace's nightly is older.
+[toolchain]
+channel = "1.99.0"

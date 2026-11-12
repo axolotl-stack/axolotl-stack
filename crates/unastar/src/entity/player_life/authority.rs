@@ -42,8 +42,8 @@ use jolyne::valentine::types::{
 use jolyne::valentine::{CorrectPlayerMovePredictionPacket, PlayerAuthInputPacket};
 use unastar_rules::movement::authority::{self, Authority, TINY, Verdict};
 use unastar_rules::movement::{
-    self as sim, Aabb, Block, BlockKind, Body, Controls, JUMP_DELAY, NETWORK_OFFSET, Pose,
-    SPRINT_MULTIPLIER, Terrain, WALK_SPEED, WIDTH,
+    self as sim, Aabb, Block, BlockKind, Body, Controls, JUMP_DELAY, NETWORK_OFFSET, Pose, Terrain,
+    WIDTH,
 };
 
 use crate::entity::PLAYER_EYE_HEIGHT;
@@ -194,10 +194,10 @@ impl<B: LayeredBlocks> WorldTerrain<'_, B> {
         !self.every_block(area, 0, |pos| !self.block(pos.to_array()).water)
     }
 
-    /// Whether a block of `kind` is in or around `area` (and the layer
-    /// under it).
-    fn kind_near(&self, area: &Aabb, kind: BlockKind) -> bool {
-        !self.every_block(area, 1, |pos| self.block(pos.to_array()).kind != kind)
+    /// Whether a block whose family passes `test` is in or around `area`
+    /// (and the layer under it).
+    fn kind_near(&self, area: &Aabb, test: impl Fn(BlockKind) -> bool) -> bool {
+        !self.every_block(area, 1, |pos| !test(self.block(pos.to_array()).kind))
     }
 
     /// Whether `test` holds for every block position of `area`, reaching
@@ -701,7 +701,10 @@ impl PlayerMotion {
             Some(Trust::Block)
         } else if (gear.swift_sneak && sneaking)
             || (gear.depth_strider && terrain.water_near(&search))
-            || (gear.soul_speed && terrain.kind_near(&search, BlockKind::Soul))
+            || (gear.soul_speed
+                && terrain.kind_near(&search, |kind| {
+                    matches!(kind, BlockKind::SoulSand | BlockKind::SoulSoil)
+                }))
         {
             Some(Trust::Gear)
         } else if terrain.crawl_space(self.body.feet) == Some(true) {
@@ -888,11 +891,7 @@ impl PlayerMotion {
         // sprint starts. A stopping sprint moved this tick as a sprint.
         body.sprinting = has(Flag::Sprinting);
         body.moved_sprinting = body.sprinting || has(Flag::Stopsprinting);
-        body.movement_speed = if body.sprinting {
-            WALK_SPEED * SPRINT_MULTIPLIER
-        } else {
-            WALK_SPEED
-        };
+        body.set_walk_speed(body.walk_speed);
         if has(Flag::Startswimming) {
             body.swimming = true;
         }

@@ -10,8 +10,9 @@
 //! movements checked that way.
 //!
 //! One tick on land: friction and acceleration from the block under the feet
-//! (`0.91 × friction` on the ground, where the input accelerates by
-//! `speed × 0.16277136 / friction³`; 0.02 in the air, 0.026 sprinting), the
+//! (`0.91 × friction` on the ground, where the input accelerates by the
+//! speed times `(0.546 / f)³`, rounded after each factor; 0.02 in the air,
+//! 0.026 sprinting), the
 //! move vector × 0.98 turned by the yaw, the jump (0.42 up, 0.2 forward when
 //! sprinting, then a 10-tick delay while the key stays down), the sneak's
 //! edge avoidance, collisions on y, then x, then z with a 0.5625 step, the
@@ -36,15 +37,26 @@ pub const SLOW_FALLING_GRAVITY: f32 = 0.01;
 const VERTICAL_DRAG: f32 = 0.98;
 /// Horizontal friction in the air (times the block's friction on ground).
 const AIR_FRICTION: f32 = 0.91;
-/// Input acceleration on the ground is `speed × GROUND_FACTOR / f³`, `f`
-/// the ground friction (0.546 on ordinary blocks, where it is the speed).
-const GROUND_FACTOR: f32 = 0.162_771_36;
+/// Friction of ordinary ground (0.6) in the air's 0.91: the reference of the
+/// ground acceleration.
+const BASE_GROUND_FRICTION: f32 = AIR_FRICTION * 0.6;
 /// Input acceleration in the air, and while sprinting.
 const AIR_SPEED: f32 = 0.02;
 const AIR_SPEED_SPRINTING: f32 = 0.026;
 /// Jump velocity, and per jump boost level.
 const JUMP_VELOCITY: f32 = 0.42;
 const JUMP_BOOST_STEP: f32 = 0.1;
+/// Climbing speed on ladders and vines, and their slowest fall.
+const CLIMB_SPEED: f32 = 0.2;
+/// The slowest fall onto slime that bounces (just over a standing player's
+/// 0.0784).
+const SLIME_MIN_BOUNCE: f32 = 0.080_000_12;
+/// Soul sand's friction is scaled by this for the acceleration only.
+const SOUL_SAND_ACCELERATION: f32 = 1.225;
+/// Levitation's pull per level each tick: a fifth of its 0.05 speed.
+const LEVITATION_LIFT: f32 = 0.01;
+/// A jump from honey is this much of a jump.
+const HONEY_JUMP: f32 = 0.6;
 /// Forward push of a sprinting jump.
 const SPRINT_JUMP: f32 = 0.2;
 /// Ticks before a held jump key jumps again.
@@ -53,7 +65,7 @@ pub const JUMP_DELAY: u8 = 10;
 pub const STEP_HEIGHT: f32 = 0.5625;
 /// The move vector is scaled by this before it accelerates the player.
 const IMPULSE_SCALE: f32 = 0.98;
-/// Largest move-vector component while sneaking.
+/// The move vector's factor while sneaking.
 const SNEAK_IMPULSE: f32 = 0.3;
 /// Default `minecraft:movement`, and its sprinting value (×1.3).
 pub const WALK_SPEED: f32 = 0.1;
@@ -143,7 +155,8 @@ impl Aabb {
     /// `velocity` on `axis` clipped so this box does not move into `block`.
     fn clip(&self, block: &Aabb, axis: usize, velocity: f32) -> f32 {
         if velocity == 0.0 {
-            return 0.0;
+            // Keeps the sign: BDS carries a stopped backward slide as -0.
+            return velocity;
         }
         for other in 0..3 {
             if other == axis {
@@ -256,9 +269,15 @@ pub enum BlockKind {
     Cobweb,
     /// Powder snow: scales the move while the feet are in it.
     PowderSnow,
-    /// Soul sand and soul soil, where soul speed acts (moved as plain
-    /// blocks: soul speed is not simulated).
-    Soul,
+    /// Ladders and vines: climbed at 0.2 a tick.
+    Climbable,
+    /// Soul sand: accelerates as if its friction were 1.225 times higher.
+    SoulSand,
+    /// Honey: slows like slime underfoot, and jumps lower.
+    Honey,
+    /// Soul soil: moved as a plain block, but soul speed acts on it (as on
+    /// soul sand); soul speed is not simulated.
+    SoulSoil,
 }
 
 impl BlockKind {
@@ -270,16 +289,19 @@ impl BlockKind {
             "minecraft:air" => Self::Air,
             "minecraft:web" => Self::Cobweb,
             "minecraft:powder_snow" => Self::PowderSnow,
-            "minecraft:soul_sand" | "minecraft:soul_soil" => Self::Soul,
+            "minecraft:ladder" | "minecraft:vine" => Self::Climbable,
+            "minecraft:soul_sand" => Self::SoulSand,
+            "minecraft:honey_block" => Self::Honey,
+            "minecraft:soul_soil" => Self::SoulSoil,
             _ => Self::Plain,
         }
     }
 
     /// Whether BDS runs of the sweep client confirmed how this family
-    /// moves a player (slime and bed bounces, powder snow and cobwebs are
-    /// simulated, but not yet confirmed).
+    /// moves a player (slime and bed bounces, powder snow, cobwebs,
+    /// climbing, soul sand and honey are simulated, but not yet confirmed).
     pub fn confirmed(self) -> bool {
-        matches!(self, Self::Plain | Self::Air | Self::Soul)
+        matches!(self, Self::Plain | Self::Air | Self::SoulSoil)
     }
 }
 
@@ -344,13 +366,22 @@ pub struct Body {
     pub in_water: bool,
     /// `minecraft:movement` as last set (0.1, 0.13 sprinting).
     pub movement_speed: f32,
+    /// `minecraft:movement` without the sprint: 0.1 with the speed and
+    /// slowness effects ([`walk_speed`]); a sprint multiplies it by 1.3.
+    pub walk_speed: f32,
     /// The last tick moved as a sprinter.
     pub moved_sprinting: bool,
     pub jump_boost: u8,
     pub slow_falling: bool,
+    /// The levitation effect's level (1-based, 0 for none).
+    pub levitation: u8,
     /// The last tick's move collided horizontally / vertically.
     pub horizontal_collision: bool,
     pub vertical_collision: bool,
+    /// The box the last move left, with the feet and pose it was left at.
+    /// Moves translate the box and the feet are its centre, so a box rebuilt
+    /// from the rounded feet differs by an ULP; BDS keeps the box.
+    swept: Option<(Aabb, [f32; 3], Pose)>,
 }
 
 impl Body {
@@ -366,12 +397,31 @@ impl Body {
             gliding: false,
             in_water: false,
             movement_speed: WALK_SPEED,
+            walk_speed: WALK_SPEED,
             moved_sprinting: false,
             jump_boost: 0,
             slow_falling: false,
+            levitation: 0,
             horizontal_collision: false,
             vertical_collision: false,
+            swept: None,
         }
+    }
+
+    /// `minecraft:movement` while sprinting.
+    pub fn sprint_speed(&self) -> f32 {
+        self.walk_speed * SPRINT_MULTIPLIER
+    }
+
+    /// Set the speed without the sprint (an effect started or ended); the
+    /// current speed follows, sprinting or not.
+    pub fn set_walk_speed(&mut self, speed: f32) {
+        self.walk_speed = speed;
+        self.movement_speed = if self.sprinting {
+            self.sprint_speed()
+        } else {
+            speed
+        };
     }
 
     pub fn pose(&self) -> Pose {
@@ -384,8 +434,13 @@ impl Body {
         }
     }
 
+    /// The collision box: the one the last move left while the feet and
+    /// pose are unchanged since, else rebuilt at the feet.
     pub fn aabb(&self) -> Aabb {
-        Aabb::from_feet(self.feet, WIDTH, self.pose().height())
+        match self.swept {
+            Some((aabb, feet, pose)) if feet == self.feet && pose == self.pose() => aabb,
+            _ => Aabb::from_feet(self.feet, WIDTH, self.pose().height()),
+        }
     }
 
     /// The wire position.
@@ -413,6 +468,13 @@ impl Body {
         let shrink_y = ((bb.max[1] - bb.min[1]) / 2.0 - 0.001).min(0.4);
         bb.inflate([-0.001, -shrink_y, -0.001])
     }
+}
+
+/// `minecraft:movement` without the sprint under speed level `speed` and
+/// slowness level `slowness` (1-based, 0 for none): BDS 1.26.51 sends 0.14
+/// for speed II and 0.07 for slowness II, and 1.3 times that sprinting.
+pub fn walk_speed(speed: u8, slowness: u8) -> f32 {
+    WALK_SPEED * (1.0 + 0.2 * f32::from(speed)) * (1.0 - 0.15 * f32::from(slowness))
 }
 
 /// What a tick changed that the input flags report.
@@ -452,7 +514,7 @@ pub fn update_state(body: &mut Body, controls: &Controls, changes: &mut Changes)
     let mut stop = false;
     if want_sprint && !body.sprinting {
         body.sprinting = true;
-        body.movement_speed = WALK_SPEED * SPRINT_MULTIPLIER;
+        body.movement_speed = body.sprint_speed();
         changes.started_sprinting = true;
     } else if !want_sprint && body.sprinting {
         changes.stopped_sprinting = true;
@@ -510,7 +572,7 @@ fn finish_sprint(body: &mut Body, stop: bool, changes: &Changes) {
     body.moved_sprinting = body.sprinting;
     if stop {
         body.sprinting = false;
-        body.movement_speed = WALK_SPEED;
+        body.movement_speed = body.walk_speed;
     }
     if changes.stopped_swimming {
         body.swimming = false;
@@ -519,28 +581,86 @@ fn finish_sprint(body: &mut Body, stop: bool, changes: &Changes) {
 
 /// The move vector's acceleration at `speed`, turned by the yaw.
 fn move_relative(body: &mut Body, controls: &Controls, speed: f32) {
-    let limit = if body.sneaking { SNEAK_IMPULSE } else { 1.0 };
-    let forward = controls.forward.clamp(-limit, limit) * IMPULSE_SCALE;
-    let strafe = controls.strafe.clamp(-limit, limit) * IMPULSE_SCALE;
+    let [strafe, forward] = impulse(body, controls);
     let force = forward * forward + strafe * strafe;
     if force < 1.0e-4 {
         return;
     }
     let scale = speed / force.sqrt().max(1.0);
-    let (forward, strafe) = (forward * scale, strafe * scale);
-    let yaw = controls.yaw * std::f32::consts::PI / 180.0;
-    let (sin, cos) = (table_sin(yaw), table_cos(yaw));
+    // The input turns by the exact sine and cosine (the sine table is only
+    // the sprint jump's): yaw 37.5 matches BDS only this way.
+    let (sin, cos) = controls.yaw.to_radians().sin_cos();
+    let (strafe, forward) = (strafe * scale, forward * scale);
     body.velocity[0] += strafe * cos - forward * sin;
-    body.velocity[2] += forward * cos + strafe * sin;
+    body.velocity[2] += strafe * sin + forward * cos;
+}
+
+/// The move vector as the move uses it, `[strafe, forward]`: the keys as
+/// sent, brought onto the unit circle when longer, slowed by the sneak
+/// (a factor, so a diagonal stays diagonal), then scaled by 0.98.
+fn impulse(body: &Body, controls: &Controls) -> [f32; 2] {
+    let (mut strafe, mut forward) = (controls.strafe, controls.forward);
+    let length_sq = forward * forward + strafe * strafe;
+    if length_sq > 1.0 {
+        let length = length_sq.sqrt();
+        strafe /= length;
+        forward /= length;
+    }
+    if body.sneaking {
+        strafe *= SNEAK_IMPULSE;
+        forward *= SNEAK_IMPULSE;
+    }
+    [strafe * IMPULSE_SCALE, forward * IMPULSE_SCALE]
+}
+
+/// The input acceleration on ground of friction `friction` (with the air's
+/// 0.91): the speed times the cube of `0.546 / friction`, the cube rounded
+/// before the speed multiplies it (BDS 1.26.51 accelerates exactly `speed`
+/// on stone, where a precomputed 0.16277136 / f³ is an ULP off, and a sprint
+/// on ice matches only this way).
+fn ground_acceleration(speed: f32, friction: f32) -> f32 {
+    let ratio = BASE_GROUND_FRICTION / friction;
+    speed * (ratio * ratio * ratio)
+}
+
+/// A horizontal velocity after friction: one no larger than `f32::EPSILON`
+/// stops, keeping its sign (a slide ends at 1.06e-7, not 5.8e-8, on BDS,
+/// and a backward one at -0).
+fn damp(velocity: f32, friction: f32) -> f32 {
+    if velocity.abs() <= f32::EPSILON {
+        0.0f32.copysign(velocity)
+    } else {
+        velocity * friction
+    }
+}
+
+/// Whether the jump starts from honey: the block the feet are in, or the one
+/// below when the feet rest on its top.
+fn on_honey(body: &Body, terrain: &impl Terrain) -> bool {
+    let [x, y, z] = body.feet.map(|v| v.floor() as i32);
+    let honey = |y| terrain.block([x, y, z]).kind == BlockKind::Honey;
+    honey(y) || (body.feet[1] == body.feet[1].floor() && honey(y - 1))
+}
+
+/// Whether the block the feet are in is climbable (a ladder or vines).
+fn climbable(body: &Body, terrain: &impl Terrain) -> bool {
+    terrain.block(body.feet.map(|v| v.floor() as i32)).kind == BlockKind::Climbable
 }
 
 /// The block under the feet that sets friction (half a block down).
+/// Air there (the feet over an edge) counts as ordinary ground, not air's own
+/// friction.
 fn friction_block(body: &Body, terrain: &impl Terrain) -> Block {
-    terrain.block([
+    let block = terrain.block([
         body.feet[0].floor() as i32,
         (body.feet[1] - 0.5).floor() as i32,
         body.feet[2].floor() as i32,
-    ])
+    ]);
+    if block.kind == BlockKind::Air {
+        Block::AIR
+    } else {
+        block
+    }
 }
 
 /// The block the feet rest on after a move.
@@ -563,13 +683,25 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
         AIR_SPEED
     };
     if body.on_ground {
-        friction *= friction_block(body, terrain).friction;
-        speed = body.movement_speed * (GROUND_FACTOR / (friction * friction * friction));
+        let ground = friction_block(body, terrain);
+        friction *= ground.friction;
+        let pull = if ground.kind == BlockKind::SoulSand {
+            ground.friction * SOUL_SAND_ACCELERATION * AIR_FRICTION
+        } else {
+            friction
+        };
+        speed = ground_acceleration(body.movement_speed, pull);
     }
-    move_relative(body, controls, speed);
-    if controls.jump && body.on_ground && body.jump_delay == 0 {
-        body.velocity[1] =
-            body.velocity[1].max(JUMP_VELOCITY + JUMP_BOOST_STEP * f32::from(body.jump_boost));
+    let climbing = climbable(body, terrain);
+    // The jump comes before the input's acceleration: a sprint jump's push
+    // is added to the velocity first (a sprint jump on ice matches BDS only
+    // this way).
+    if controls.jump && !climbing && body.on_ground && body.jump_delay == 0 {
+        let mut jump = JUMP_VELOCITY + JUMP_BOOST_STEP * f32::from(body.jump_boost);
+        if on_honey(body, terrain) {
+            jump *= HONEY_JUMP;
+        }
+        body.velocity[1] = body.velocity[1].max(jump);
         body.jump_delay = JUMP_DELAY;
         if body.sprinting {
             let yaw = controls.yaw * 0.017_453_292;
@@ -577,6 +709,19 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
             body.velocity[2] += table_cos(yaw) * SPRINT_JUMP;
         }
         changes.jumped = true;
+    }
+    move_relative(body, controls, speed);
+    if controls.jump && climbing {
+        // The jump key climbs instead of jumping, also on the ground.
+        body.velocity[1] = CLIMB_SPEED;
+    }
+    if climbing {
+        // A climbable block holds the fall to 0.2 a tick, and a sneaking
+        // climber in place.
+        body.velocity[1] = body.velocity[1].max(-CLIMB_SPEED);
+        if body.sneaking && body.velocity[1] < 0.0 {
+            body.velocity[1] = 0.0;
+        }
     }
     if body.sneaking && body.on_ground && body.velocity[1] <= 0.0 {
         avoid_edges(body, terrain);
@@ -595,20 +740,18 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
         body.velocity = [0.0; 3];
     }
     let ground = landing_block(body, terrain);
-    if body.on_ground && !body.sneaking && ground.kind == BlockKind::Slime {
-        let vertical = body.velocity[1].abs();
-        if vertical < 0.1 {
-            let slow = 0.4 + vertical * 0.2;
-            body.velocity[0] *= slow;
-            body.velocity[2] *= slow;
-        }
-    }
     if body.vertical_collision {
         body.velocity[1] = if !was_on_ground && before[1] < 0.0 && !controls.sneak {
             match ground.kind {
+                // Slime returns the speed at impact: the speed the tick
+                // started with, accelerated by gravity over the distance
+                // fallen before the floor stopped the move (BDS bounces 0.8585
+                // from 0.8439 after falling 0.1555); slower falls do not
+                // bounce.
+                BlockKind::Slime if -before[1] < SLIME_MIN_BOUNCE => 0.0,
                 BlockKind::Slime => {
-                    let bounce = -before[1];
-                    if bounce.abs() < 1.0e-4 { 0.0 } else { bounce }
+                    let fallen = -body.velocity[1];
+                    (before[1] * before[1] + 2.0 * GRAVITY * fallen).sqrt()
                 }
                 BlockKind::Bed => (-0.66 * before[1]).min(1.0),
                 _ => 0.0,
@@ -617,14 +760,42 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
             0.0
         };
     }
-    let gravity = if body.slow_falling {
-        SLOW_FALLING_GRAVITY
+    if body.horizontal_collision && climbable(body, terrain) {
+        // Pushing into a wall from a climbable block climbs, with no gravity
+        // or drag this tick.
+        body.velocity[1] = CLIMB_SPEED;
+    } else if body.levitation > 0 {
+        // Levitation replaces gravity: the vertical velocity moves a fifth of
+        // the way to 0.05 a level each tick, rounded as 0.8 v + 0.01 a level
+        // (the only form that gives BDS's bits on all eleven measured
+        // ticks), then drags.
+        let lift = LEVITATION_LIFT * f32::from(body.levitation);
+        body.velocity[1] = (body.velocity[1] * 0.8 + lift) * VERTICAL_DRAG;
     } else {
-        GRAVITY
-    };
-    body.velocity[1] = (body.velocity[1] - gravity) * VERTICAL_DRAG;
-    body.velocity[0] *= friction;
-    body.velocity[2] *= friction;
+        // Slow falling lightens gravity only while falling: a body at rest
+        // in the air takes a full 0.08 first.
+        let gravity = if body.slow_falling && body.velocity[1] < 0.0 {
+            SLOW_FALLING_GRAVITY
+        } else {
+            GRAVITY
+        };
+        body.velocity[1] = (body.velocity[1] - gravity) * VERTICAL_DRAG;
+    }
+    body.velocity[0] = damp(body.velocity[0], friction);
+    body.velocity[2] = damp(body.velocity[2], friction);
+    // Standing on slime or honey slows the horizontal velocity by the
+    // vertical one after gravity (so 0.4 + 0.0784 x 0.2 on the ground).
+    if body.on_ground
+        && !body.sneaking
+        && matches!(ground.kind, BlockKind::Slime | BlockKind::Honey)
+    {
+        let vertical = body.velocity[1].abs();
+        if vertical < 0.1 {
+            let slow = 0.4 + vertical * 0.2;
+            body.velocity[0] *= slow;
+            body.velocity[2] *= slow;
+        }
+    }
 }
 
 /// One tick in water: the swimmer's pitch, the jump's lift, 0.02
@@ -800,6 +971,7 @@ fn move_and_collide(body: &mut Body, terrain: &impl Terrain) {
         }
     }
     body.feet = bb.feet();
+    body.swept = Some((bb, body.feet, body.pose()));
     let x_hit = hit(0, &moved);
     let y_hit = hit(1, &moved);
     let z_hit = hit(2, &moved);
