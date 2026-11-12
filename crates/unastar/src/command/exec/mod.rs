@@ -239,6 +239,7 @@ mod bds_capture {
     fn a_second_player_sees_what_bds_sends_it() {
         use super::evidence::assert_same_client_packets;
         let steps = Replay::new().assert_segment("players", &[]);
+        super::evidence::assert_same_score_tags(&steps);
         assert_same_client_packets(
             &steps,
             "Alice",

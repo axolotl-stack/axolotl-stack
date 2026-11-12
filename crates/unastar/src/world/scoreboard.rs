@@ -395,6 +395,77 @@ impl Scoreboard {
     }
 }
 
+/// The score shown under a player's name: `"<score> <display name>"` of the
+/// objective in the `belowname` slot, or empty when the slot is clear or the
+/// player has no score there.
+pub fn score_tag(scoreboard: &Scoreboard, player: Entity) -> String {
+    scoreboard
+        .display(DisplaySlot::BelowName)
+        .and_then(|display| scoreboard.objective(&display.objective))
+        .and_then(|objective| {
+            let score = scoreboard.score(&ScoreHolder::Entity(player), &objective.name)?;
+            Some(format!("{score} {}", objective.display_name))
+        })
+        .unwrap_or_default()
+}
+
+/// The score tag a player's viewers last heard of (empty at join).
+#[derive(Component, Debug, Clone, Default, PartialEq, Eq)]
+pub struct SentScoreTag(pub String);
+
+/// System: tell every player whose score tag changed, and its viewers, with
+/// a `SetActorData` of the `SCORE` row, as BDS 1.26.51 does (command capture,
+/// segments `scoreboard` and `players`: after a player's score in the shown
+/// objective changes, after `setdisplay belowname`, and with an empty tag
+/// after a reset or the objective's removal). Only players carry the tag (a
+/// cow's score sends nothing), and an unchanged tag is not sent again.
+pub fn sync_score_tags(world: &mut World) {
+    use crate::entity::components::{Player, RuntimeEntityId};
+    use jolyne::valentine::actor_data_i_ds as actor_data_ids;
+    use jolyne::valentine::types::{
+        ActorRuntimeId, DataItemEntry, DataItemEntryPayload, DataItemStringPayload,
+        EnumsDataItemType, PropertySyncData, SynchedActorDataCopyableDataList,
+    };
+    let players: Vec<Entity> = world
+        .query_filtered::<Entity, With<Player>>()
+        .iter(world)
+        .collect();
+    for player in players {
+        let tag = world
+            .get_resource::<Scoreboard>()
+            .map(|scoreboard| score_tag(scoreboard, player))
+            .unwrap_or_default();
+        if world
+            .get::<SentScoreTag>(player)
+            .map_or("", |sent| sent.0.as_str())
+            == tag
+        {
+            continue;
+        }
+        world.entity_mut(player).insert(SentScoreTag(tag.clone()));
+        let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
+            continue;
+        };
+        let packet = jolyne::valentine::McpePacket::from(jolyne::valentine::SetActorDataPacket {
+            target_runtime_id: ActorRuntimeId {
+                actor_runtime_id: runtime_id as u64,
+            },
+            actor_data: SynchedActorDataCopyableDataList {
+                data: vec![DataItemEntry {
+                    id: actor_data_ids::SCORE,
+                    payload: DataItemEntryPayload::DataItemStringPayload(DataItemStringPayload {
+                        type_: EnumsDataItemType::String,
+                        value: tag.into(),
+                    }),
+                }],
+            },
+            synched_properties: PropertySyncData::default(),
+            tick: crate::entity::components::input_tick_of(world, player),
+        });
+        crate::entity::player_life::send_to_player_and_viewers(world, player, &packet);
+    }
+}
+
 /// Observer: a player came online with its saved id; it gets its scores back.
 pub fn player_joined(
     added: On<Insert, PlayerUniqueId>,
