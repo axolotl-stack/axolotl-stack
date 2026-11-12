@@ -37,8 +37,9 @@ const WATCHER: u64 = 8;
 
 /// Every case of every fixture file (`testdata/bds-placements*.json`, one
 /// file per case group of `tools/bds-sweep/placements.py`), with the group.
-/// The `pistons` group is not a placement: its lever clicks drive pistons
-/// that `redstone/piston_packets.rs` replays in a live world.
+/// The `pistons` and `tnt` groups are not placements: their lever clicks
+/// drive pistons and TNT that `redstone/piston_packets.rs` and
+/// `explosion/tests.rs` replay in a live world.
 fn cases() -> Vec<Value> {
     let dir = format!("{}/src/server/game/testdata", env!("CARGO_MANIFEST_DIR"));
     let mut files: Vec<_> = std::fs::read_dir(&dir)
@@ -50,7 +51,10 @@ fn cases() -> Vec<Value> {
                 .is_some_and(|name| {
                     name.starts_with("bds-placements")
                         && name.ends_with(".json")
-                        && name != "bds-placements-pistons.json"
+                        && !matches!(
+                            name,
+                            "bds-placements-pistons.json" | "bds-placements-tnt.json"
+                        )
                 })
         })
         .collect();

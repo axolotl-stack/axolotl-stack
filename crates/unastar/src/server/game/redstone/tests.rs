@@ -445,9 +445,6 @@ fn replay(row: &Value, ignored: &[usize]) -> Result<Result<(), Skip>, String> {
 fn skip_reason(name: &Value) -> Option<&'static str> {
     let text = name.to_string();
     let has = |part: &str| text.contains(part);
-    if has("\"tnt\"") {
-        return Some("primed TNT is an actor unastar cannot spawn yet");
-    }
     if has("daylight_detector") {
         return Some("daylight detectors do not measure daylight yet");
     }

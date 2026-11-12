@@ -61,6 +61,10 @@ impl Circuit for Live<'_> {
         }
     }
 
+    fn prime_tnt(&mut self, pos: IVec3) {
+        crate::server::game::explosion::prime_tnt(self.0, pos, None);
+    }
+
     fn sound(&mut self, sound: &str, pos: Vec3) {
         use jolyne::valentine::{LevelSoundEventPacket, McpePacket};
         let packet = McpePacket::from(LevelSoundEventPacket {

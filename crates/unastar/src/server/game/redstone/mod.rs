@@ -87,6 +87,8 @@ pub(crate) trait Circuit: BlockSource {
     fn put_actor(&mut self, _pos: IVec3, _actor: tag::Compound) {}
     /// Play `sound` at `pos` for the players near it.
     fn sound(&mut self, _sound: &str, _pos: Vec3) {}
+    /// Spawn a primed TNT at `pos` (its block was just written as air).
+    fn prime_tnt(&mut self, _pos: IVec3) {}
 }
 
 /// The circuit's state between ticks.
@@ -822,7 +824,17 @@ impl Redstone {
                         world.note_block(pos);
                     }
                 }
-                Consumer::Tnt => {}
+                // Power reaching TNT primes it in the update (BDS 1.26.51,
+                // `explosions/tnt_prime.json`).
+                Consumer::Tnt => {
+                    if powered && !was {
+                        let air = registry
+                            .get_by_name("minecraft:air")
+                            .map_or(0, |entry| entry.default_state_id);
+                        self.write(world, table, pos, air);
+                        world.prime_tnt(pos);
+                    }
+                }
                 Consumer::Piston { facing, .. } => {
                     self.pistons
                         .powered(&*world, table, pos, facing, powered, now);

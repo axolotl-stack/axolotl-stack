@@ -21,6 +21,7 @@ pub mod damage_sensor;
 pub mod despawn;
 pub mod doors;
 pub mod equipment;
+pub mod explode;
 pub mod goals;
 pub mod hostile;
 pub mod hurt_on_condition;
@@ -153,6 +154,7 @@ pub fn register_component_kinds(
     body::register_component_kinds(builder)?;
     hurt_on_condition::register_component_kinds(builder)?;
     despawn::register_component_kinds(builder)?;
+    explode::register_component_kinds(builder)?;
     doors::register_component_kinds(builder)?;
     breeding::register_component_kinds(builder)?;
     loot::register_component_kinds(builder)?;

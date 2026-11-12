@@ -1,0 +1,4744 @@
+{
+ "source": "BDS 1.26.51, tools/bds-sweep placements job at 2b85f57b9818479da9f8017f7b73954c6bfdd7de, sweep r4-tnt-clicks, group tnt: the scripted player (survival) clicks with the stack in hotbar slot 0; packets are the client capture between the case marker and its end marker; watcher_packets are the capture of a second scripted player standing outside the arena",
+ "cases": [
+  {
+   "key": "tnt_lever",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:lever",
+     {
+      "lever_direction": "up_east_west",
+      "open_bit": false
+     }
+    ],
+    [
+     1,
+     0,
+     0,
+     "minecraft:tnt",
+     {
+      "explode_bit": false
+     }
+    ],
+    [
+     2,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     1,
+     0,
+     1,
+     "minecraft:dirt",
+     {}
+    ],
+    [
+     1,
+     1,
+     0,
+     "minecraft:dirt",
+     {}
+    ]
+   ],
+   "hand": null,
+   "player": [
+    0.5,
+    0,
+    -6.5,
+    0,
+    10
+   ],
+   "click": [
+    0,
+    0,
+    0,
+    1,
+    500,
+    100,
+    500
+   ],
+   "read": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     1,
+     0,
+     0
+    ],
+    [
+     2,
+     0,
+     0
+    ],
+    [
+     3,
+     0,
+     0
+    ]
+   ],
+   "after": [
+    [
+     "wait",
+     100
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       0,
+       0
+      ],
+      "minecraft:air",
+      {}
+     ],
+     [
+      [
+       1,
+       0,
+       0
+      ],
+      "minecraft:air",
+      {}
+     ],
+     [
+      [
+       2,
+       0,
+       0
+      ],
+      "minecraft:air",
+      {}
+     ],
+     [
+      [
+       3,
+       0,
+       0
+      ],
+      "minecraft:air",
+      {}
+     ]
+    ],
+    "held": null,
+    "items": [
+     [
+      "minecraft:cobblestone",
+      0,
+      1
+     ],
+     [
+      "minecraft:dirt",
+      0,
+      15
+     ],
+     [
+      "minecraft:dirt",
+      0,
+      16
+     ],
+     [
+      "minecraft:dirt",
+      0,
+      16
+     ],
+     [
+      "minecraft:dirt",
+      0,
+      16
+     ],
+     [
+      "minecraft:dirt",
+      0,
+      16
+     ],
+     [
+      "minecraft:dirt",
+      0,
+      16
+     ],
+     [
+      "minecraft:lever",
+      0,
+      1
+     ]
+    ],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 110
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8809
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8855
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010877080100000000000000000000000090401c8569c2000020c00000003fcdcccc3d0000003f9bf78689080100",
+     "t_ms": 8904
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8904
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+     "t_ms": 8951
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "t_ms": 8951
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "t_ms": 8951
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "t_ms": 8951
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000",
+     "t_ms": 8951
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8951
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708d090ec91040300",
+     "t_ms": 9010
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b0f627574746f6e2e636c69636b5f6f6e0000904000006ec200009040a0a1d8a308000000ffffffffffffffff00",
+     "t_ms": 9010
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9010
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelEventPacket",
+     "hex": "19da0f0000b040000070c20000904000",
+     "t_ms": 9057
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9057
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a082d1df0d0300",
+     "t_ms": 9100
+    },
+    {
+     "dir": "s2c",
+     "name": "AddActorPacket",
+     "hex": "0df9ffffff1f030d6d696e6563726166743a746e740000b0403d0a6ec200009040f4c996b9cdcc4c3eb4d2a33c000000000000000000000000000000000040000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e02020035030348e17a3f36030348e17a3f37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c0707ffffffffffffffffff01650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c01030300008042000000",
+     "t_ms": 9100
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9100
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27033c000707809080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e02020035030348e17a3f36030348e17a3f3702029e01390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff520000005c0707ffffffffffffffffff01650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 9100
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0301a5fdaf4001c2f56dc201ec5190400000000000000000",
+     "t_ms": 9100
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029c01000000",
+     "t_ms": 9152
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f030107fcaf40013d0a6ec2000000000100000000",
+     "t_ms": 9152
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9152
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029a01000000",
+     "t_ms": 9199
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9200
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029801000000",
+     "t_ms": 9263
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9263
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029601000000",
+     "t_ms": 9309
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9310
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029401000000",
+     "t_ms": 9357
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9357
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029201000000",
+     "t_ms": 9404
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9405
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029001000000",
+     "t_ms": 9452
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9452
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028e01000000",
+     "t_ms": 9499
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9499
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9555
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028c01000000",
+     "t_ms": 9555
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028a01000000",
+     "t_ms": 9605
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9605
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028801000000",
+     "t_ms": 9652
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9652
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028601000000",
+     "t_ms": 9700
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9700
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028401000000",
+     "t_ms": 9763
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9763
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9795
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028201000000",
+     "t_ms": 9811
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9843
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028001000000",
+     "t_ms": 9859
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702027e000000",
+     "t_ms": 9906
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9907
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702027c000000",
+     "t_ms": 9954
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9954
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702027a000000",
+     "t_ms": 10001
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10001
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020278000000",
+     "t_ms": 10049
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10049
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020276000000",
+     "t_ms": 10116
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10116
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10148
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020274000000",
+     "t_ms": 10148
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020272000000",
+     "t_ms": 10211
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10211
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020270000000",
+     "t_ms": 10259
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10259
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702026e000000",
+     "t_ms": 10306
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10306
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702026c000000",
+     "t_ms": 10353
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10354
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702026a000000",
+     "t_ms": 10401
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10401
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020268000000",
+     "t_ms": 10448
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10448
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10496
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020266000000",
+     "t_ms": 10512
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10543
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020264000000",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020262000000",
+     "t_ms": 10617
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10617
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10652
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020260000000",
+     "t_ms": 10652
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702025e000000",
+     "t_ms": 10699
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10699
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702025c000000",
+     "t_ms": 10762
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10762
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10793
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702025a000000",
+     "t_ms": 10808
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020258000000",
+     "t_ms": 10855
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10855
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020256000000",
+     "t_ms": 10903
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10903
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020254000000",
+     "t_ms": 10951
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10951
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020252000000",
+     "t_ms": 11014
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11014
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020250000000",
+     "t_ms": 11062
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11062
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11108
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702024e000000",
+     "t_ms": 11108
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11140
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702024c000000",
+     "t_ms": 11157
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702024a000000",
+     "t_ms": 11204
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11204
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020248000000",
+     "t_ms": 11251
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11251
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020246000000",
+     "t_ms": 11315
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11315
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020244000000",
+     "t_ms": 11362
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11362
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11393
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020242000000",
+     "t_ms": 11409
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020240000000",
+     "t_ms": 11456
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11457
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702023e000000",
+     "t_ms": 11504
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11504
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702023c000000",
+     "t_ms": 11551
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11551
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702023a000000",
+     "t_ms": 11613
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11613
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020238000000",
+     "t_ms": 11663
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11663
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020236000000",
+     "t_ms": 11701
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11701
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020234000000",
+     "t_ms": 11764
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11764
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020232000000",
+     "t_ms": 11811
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11811
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020230000000",
+     "t_ms": 11859
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11859
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702022e000000",
+     "t_ms": 11906
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11907
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11939
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702022c000000",
+     "t_ms": 11954
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702022a000000",
+     "t_ms": 12001
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12001
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020228000000",
+     "t_ms": 12049
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12049
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020226000000",
+     "t_ms": 12111
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12112
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12143
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020224000000",
+     "t_ms": 12159
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12184
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020222000000",
+     "t_ms": 12200
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020220000000",
+     "t_ms": 12252
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12252
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702021e000000",
+     "t_ms": 12300
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12300
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12347
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702021c000000",
+     "t_ms": 12363
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12394
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702021a000000",
+     "t_ms": 12410
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020218000000",
+     "t_ms": 12457
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12457
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020216000000",
+     "t_ms": 12504
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12504
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020214000000",
+     "t_ms": 12552
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12552
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020212000000",
+     "t_ms": 12599
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12600
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020210000000",
+     "t_ms": 12662
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12662
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702020e000000",
+     "t_ms": 12709
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12709
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702020c000000",
+     "t_ms": 12753
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12753
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702020a000000",
+     "t_ms": 12800
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12800
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020208000000",
+     "t_ms": 12864
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12864
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020206000000",
+     "t_ms": 12912
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12912
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020204000000",
+     "t_ms": 12960
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 12960
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020202000000",
+     "t_ms": 13007
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13007
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020200000000",
+     "t_ms": 13055
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13055
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2801f89d7ebc59d05dbd1150dfbdd301",
+     "t_ms": 13099
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelEventPacket",
+     "hex": "19d21f7ff8af4047c16fc2ec51904008",
+     "t_ms": 13099
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelEventGenericPacket",
+     "hex": "7cd41f05076f726967696e587ff8af4005076f726967696e5947c16fc205076f726967696e5aec5190400505706f7330780000e0400505706f73307900007cc20505706f73307a0000a0400505706f733178000080400505706f733179000078c20505706f73317a0000a0400505706f733278000080400505706f73327900007cc20505706f73327a000080400505706f733378000080400505706f733379000074c20505706f73337a0000c0400505706f7334780000c0400505706f73347900007cc20505706f73347a000040400505706f733578000080400505706f733579000074c20505706f73357a0000803f0505706f7336780000c0400505706f73367900007cc20505706f73367a0000a0400505706f7337780000e0400505706f733779000074c20505706f73377a0000803f0505706f7338780000e0400505706f733879000074c20505706f73387a00008040050672616469757300008040030473697a651200",
+     "t_ms": 13099
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13099
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateSubChunkBlocksPacket",
+     "hex": "ac01007f0061087b08a082d1df0d03ffffffffffffffffff01000a7908a082d1df0d03ffffffffffffffffff0100087906a082d1df0d03ffffffffffffffffff0100087708a082d1df0d03ffffffffffffffffff0100067b06a082d1df0d03ffffffffffffffffff01000a7b04a082d1df0d03ffffffffffffffffff0100087d04a082d1df0d03ffffffffffffffffff0100087908a082d1df0d03ffffffffffffffffff010006790aa082d1df0d03ffffffffffffffffff0100087b06a082d1df0d03ffffffffffffffffff01000e7d0aa082d1df0d03ffffffffffffffffff01000a7d0aa082d1df0d03ffffffffffffffffff0100067d06a082d1df0d03ffffffffffffffffff010004790aa082d1df0d03ffffffffffffffffff0100067b04a082d1df0d03ffffffffffffffffff0100067906a082d1df0d03ffffffffffffffffff0100067b08a082d1df0d03ffffffffffffffffff0100087b0aa082d1df0d03ffffffffffffffffff0100067d08a082d1df0d03ffffffffffffffffff01000a7b06a082d1df0d03ffffffffffffffffff010008790aa082d1df0d03ffffffffffffffffff01000c7b06a082d1df0d03ffffffffffffffffff0100067b0aa082d1df0d03ffffffffffffffffff0100087b0ca082d1df0d03ffffffffffffffffff010006790ca082d1df0d03ffffffffffffffffff0100067b0ca082d1df0d03ffffffffffffffffff0100067d04a082d1df0d03ffffffffffffffffff0100067908a082d1df0d03ffffffffffffffffff0100087d08a082d1df0d03ffffffffffffffffff0100067904a082d1df0d03ffffffffffffffffff0100047b0aa082d1df0d03ffffffffffffffffff0100047906a082d1df0d03ffffffffffffffffff01000a7b0ca082d1df0d03ffffffffffffffffff0100087d0ca082d1df0d03ffffffffffffffffff0100047908a082d1df0d03ffffffffffffffffff01000a7906a082d1df0d03ffffffffffffffffff01000a7d06a082d1df0d03ffffffffffffffffff0100067d0aa082d1df0d03ffffffffffffffffff01000a7508a082d1df0d03ffffffffffffffffff01000a790aa082d1df0d03ffffffffffffffffff0100087b04a082d1df0d03ffffffffffffffffff0100087904a082d1df0d03ffffffffffffffffff010008790ca082d1df0d03ffffffffffffffffff0100087b02a082d1df0d03ffffffffffffffffff010006790ea082d1df0d03ffffffffffffffffff0100087d0aa082d1df0d03ffffffffffffffffff01000a770aa082d1df0d03ffffffffffffffffff0100067902a082d1df0d03ffffffffffffffffff01000c7b04a082d1df0d03ffffffffffffffffff01000e790ea082d1df0d03ffffffffffffffffff01000a7b0ea082d1df0d03ffffffffffffffffff0100087d06a082d1df0d03ffffffffffffffffff01000a7b0aa082d1df0d03ffffffffffffffffff01000c7d06a082d1df0d03ffffffffffffffffff010008790ea082d1df0d03ffffffffffffffffff0100087902a082d1df0d03ffffffffffffffffff01000a7b08a082d1df0d03ffffffffffffffffff01000a7d04a082d1df0d03ffffffffffffffffff01000a7d08a082d1df0d03ffffffffffffffffff01000a7904a082d1df0d03ffffffffffffffffff01000a790ca082d1df0d03ffffffffffffffffff01000c790ea082d1df0d03ffffffffffffffffff01000a790ea082d1df0d03ffffffffffffffffff01000c7902a082d1df0d03ffffffffffffffffff01000a7902a082d1df0d03ffffffffffffffffff01000a7d0ca082d1df0d03ffffffffffffffffff01000c7d08a082d1df0d03ffffffffffffffffff01000c7d0aa082d1df0d03ffffffffffffffffff01000c7d04a082d1df0d03ffffffffffffffffff01000c7b08a082d1df0d03ffffffffffffffffff01000e7d06a082d1df0d03ffffffffffffffffff01000c7b0aa082d1df0d03ffffffffffffffffff01000c7b0ca082d1df0d03ffffffffffffffffff01000c7d0ca082d1df0d03ffffffffffffffffff01000c7904a082d1df0d03ffffffffffffffffff01000c790ca082d1df0d03ffffffffffffffffff01000c7906a082d1df0d03ffffffffffffffffff01000c790aa082d1df0d03ffffffffffffffffff01000c7b0ea082d1df0d03ffffffffffffffffff01000c7908a082d1df0d03ffffffffffffffffff01000e7902a082d1df0d03ffffffffffffffffff01000e7d08a082d1df0d03ffffffffffffffffff01000e7904a082d1df0d03ffffffffffffffffff01000e790ca082d1df0d03ffffffffffffffffff01000c7708a082d1df0d03ffffffffffffffffff01000e7b06a082d1df0d03ffffffffffffffffff01000e7b08a082d1df0d03ffffffffffffffffff01000e7b0aa082d1df0d03ffffffffffffffffff01000e7b0ca082d1df0d03ffffffffffffffffff01000e7b04a082d1df0d03ffffffffffffffffff01000e7906a082d1df0d03ffffffffffffffffff01000e7908a082d1df0d03ffffffffffffffffff0100107b08a082d1df0d03ffffffffffffffffff01000e790aa082d1df0d03ffffffffffffffffff0100107908a082d1df0d03ffffffffffffffffff010010790aa082d1df0d03ffffffffffffffffff0100107906a082d1df0d03ffffffffffffffffff010000",
+     "t_ms": 13162
+    },
+    {
+     "dir": "s2c",
+     "name": "RemoveActorPacket",
+     "hex": "0ef9ffffff1f",
+     "t_ms": 13163
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0ff7ffffff1f0403001000000086dfbb92080a00000000000000000000523b9040d8a976c2bdee8e40e2e82abdcdcc4c3edaa5503d40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 13163
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0ff5ffffff1f0545000100000090be99c60b0a000000000000000000001df18b404b736cc2e4468940b69597bdcdcc4c3e00600c3a40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 13163
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0ff3ffffff1f0603001000000086dfbb92080a0000000000000000000094678a40885c76c23001bb409166843dcdcc4c3eace814bd40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 13163
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0ff1ffffff1f0703001000000086dfbb92080a0000000000000000000081759540d3ee78c23747c9409ff2c8bdcdcc4c3e2742c33d40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 13163
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0fefffffff1f0803001000000086dfbb92080a0000000000000000000035a7f0408e4470c2b505eb40e00dd3bbcdcc4c3e272d9d3d40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 13163
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0fedffffff1f0903001000000086dfbb92080a000000000000000000003476a7400d1979c2f494c940cac4a8bdcdcc4c3e340471bd40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 13163
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0febffffff1f0a03000f00000086dfbb92080a0000000000000000000043ccef40402079c2005691404de3b83dcdcc4c3e28d4b6bc40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 13163
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0fe9ffffff1f0b040001000000aedcc5be060a00000000000000000000894dd74090246cc2a5388640d878fdbccdcc4c3ecaea88bd40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 13163
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b076578706c6f64657ff8af4047c16fc2ec51904001000000ffffffffffffffff00",
+     "t_ms": 13163
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270b3b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270a3b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27093b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27083b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27073b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27063b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27053b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27043b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f040180e58e4001010676c201099090400000000000000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f06012e798c4001b1b875c2015fd7b9400000000000000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501c69289400174cf6bc201474b89400000000000000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0701b751924001fc4a78c2014054cc400000000000000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2807c5edc4bd2e90203e6e5abf3d00",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08017272f04001b7a06fc2016a7aed400000000000000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f090121d3a44001367578c201ecb2c7400000000000000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a01d0aff24001697c78c2012c9f90400000000000000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b011050d64001b9806bc201fa1484400000000000000000",
+     "t_ms": 13164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2701010007078080c080808380030000d401",
+     "t_ms": 13165
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13165
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13194
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270b010007078080808080818003000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270a010007078080808080818003000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2709010007078080808080818003000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2708010007078080808080818003000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2707010007078080808080818003000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2706010007078080808080818003000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2705010007078080808080818003000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2704010007078080808080818003000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f040184968d4001678e75c201fc2892400000000000000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05019040874001da576bc201944f89400000000000000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f060131808e4001174175c20182b3b8400000000000000001",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0701003e8f400162d377c201aa51cf400000000000000001",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801bd3ef040011d296fc2018ce2ef400000000000000001",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f09018e3da240019cfd77c20188dac5400000000000000001",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a019384f54001cf0478c20100ec8f400000000000000001",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01a957d540011f096bc20143fc81400000000000000000",
+     "t_ms": 13210
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f04013b4e8c4001274275c201c1b993400000000000000000",
+     "t_ms": 13254
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05013cfa8440019a0b6bc201cb5389400000000000000000",
+     "t_ms": 13254
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601d27c904001d7f474c2017c95b7400000000000000001",
+     "t_ms": 13255
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f07010a3a8c4001228777c201c53fd2400000000000000001",
+     "t_ms": 13255
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801100cf04001dddc6ec2015b3ef2400000000000000001",
+     "t_ms": 13255
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f090136b59f40015cb177c201960bc4400000000000000001",
+     "t_ms": 13255
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a01d74af840018fb877c201693c8f400000000000000001",
+     "t_ms": 13255
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b013a64d44001dfbc6ac20190dc7f400000000000000000",
+     "t_ms": 13255
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2701010007078080c080808280030000d601",
+     "t_ms": 13255
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13255
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401830c8b4001632075c201824295400000000000000000",
+     "t_ms": 13306
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05018dbf824001d6e96ac201ec5789400000000000000000",
+     "t_ms": 13306
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601476f92400113d374c2012e7db6400000000000000001",
+     "t_ms": 13306
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f070184458940015e6577c201df1ed5400000000000000001",
+     "t_ms": 13306
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f080167daef400119bb6ec201178ef4400000000000000001",
+     "t_ms": 13306
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901d6399d4001988f77c201e745c2400000000000000001",
+     "t_ms": 13306
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a01e602fb4001cb9677c20155908e400000000000000001",
+     "t_ms": 13306
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01a975d340011b9b6ac201a4d57b400000000000000000",
+     "t_ms": 13306
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13306
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f04013ad1894001422875c20168c396400000000000000000",
+     "t_ms": 13353
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05014890804001b5f16ac201f85b89400000000000000000",
+     "t_ms": 13353
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601c457944001f2da74c2017b6ab5400000000000000001",
+     "t_ms": 13354
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f070120608640013d6d77c20146efd7400000000000000001",
+     "t_ms": 13354
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801bca9ef4001f8c26ec201fdd1f6400000000000000001",
+     "t_ms": 13354
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f09012bcb9a4001779777c2014a89c0400000000000000001",
+     "t_ms": 13354
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a010000fc4001aa9e77c201b2e78d400000000000000001",
+     "t_ms": 13354
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01de8bd24001faa26ac20156e377400000000000000000",
+     "t_ms": 13354
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13354
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401409c884001ee5875c2019c3c98400000000000000001",
+     "t_ms": 13401
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f050167d87c400161226bc201ef5f89400000000000000000",
+     "t_ms": 13401
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f06017c369640019e0b75c201475db4400000000000000001",
+     "t_ms": 13401
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f07010000844001e99d77c20144b1da400000000000000001",
+     "t_ms": 13401
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "28070000000025cb3ebddcf7ac3d00",
+     "t_ms": 13401
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08010a7aef4001a4f36ec2014a0af9400000000000000001",
+     "t_ms": 13401
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901f46898400123c877c20192d5be400000000000000001",
+     "t_ms": 13401
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a000156cf77c2016f428d400000000000000001",
+     "t_ms": 13401
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01c0a6d14001a6d36ac2013d0574400000000000000000",
+     "t_ms": 13401
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13401
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401746d87400197b175c20145ae99400000000000000001",
+     "t_ms": 13449
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f050129a67840010a7b6bc201d26389400000000000000000",
+     "t_ms": 13449
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601a10b984001476475c2017555b3400000000000000001",
+     "t_ms": 13449
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f07000192f677c2010000dc400000000000000001",
+     "t_ms": 13449
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08014d4bef40014d4c6fc2013937fb400000000000000001",
+     "t_ms": 13449
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901f112964001cc2078c201912abd400000000000000001",
+     "t_ms": 13449
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0001ff2778c2017aa08c400000000000000001",
+     "t_ms": 13449
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b0137c6d040014f2c6bc201f13a70400000000000000000",
+     "t_ms": 13449
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13449
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401b6448640016f3176c20189189b400000000000000001",
+     "t_ms": 13512
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05016789744001e2fa6bc201a16789400000000000000000",
+     "t_ms": 13512
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f060164d79940011fe475c201ea52b2400000000000000001",
+     "t_ms": 13512
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0700016a7678c2000000000000000001",
+     "t_ms": 13512
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08017f1def400125cc6fc2010000fc400000000000000001",
+     "t_ms": 13512
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901e4c8934001a4a078c2011a88bb400000000000000001",
+     "t_ms": 13512
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0001d7a778c201c2018c400000000000000001",
+     "t_ms": 13512
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b012beacf400127ac6bc2010d846c400000000000000000",
+     "t_ms": 13512
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13512
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13544
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401e721854001afd776c2018e7b9c400000000000000001",
+     "t_ms": 13559
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501b38170400122a16cc2015c6b89400000000000000000",
+     "t_ms": 13559
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601f5999b40015f8a76c2018b55b1400000000000000001",
+     "t_ms": 13559
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f070001aa1c79c2000000000000000001",
+     "t_ms": 13559
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08019bf0ee4001657270c2000000000000000001",
+     "t_ms": 13559
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901908a914001e44679c20101eeb9400000000000000001",
+     "t_ms": 13559
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0001174e79c20137668b400000000000000001",
+     "t_ms": 13559
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b018612cf400167526cc2012ee068400000000000000000",
+     "t_ms": 13559
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13591
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401e90484400191a377c20179d79d400000000000000001",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "28044ba50bbd42ce47be037b2a3d00",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501a28e6c4001046d6dc201046f89400000000000000000",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280530b677bd42ce47beac64e53900",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f060183539d4001415677c2013d5db0400000000000000001",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2806ab5c583d42ce47bebb56f3bc00",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0700018ce879c2000000000000000001",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08019dc4ee4001473e71c2000000000000000001",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901b8578f4001c6127ac2011c5cb8400000000000000001",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280976e589bd42ce47be91ed44bd00",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0001f9197ac201c8cd8a400000000000000001",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01313fce4001491e6dc201f24e65400000000000000000",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280bea1acfbc42ce47be1bbe5fbd00",
+     "t_ms": 13606
+    },
+    {
+     "dir": "s2c",
+     "name": "CorrectPlayerMovePredictionPacket",
+     "t_ms": 13607
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13638
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f04019eed824001559478c2016f2c9f400000000000000001",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501c9af684001c85d6ec2019a7289400000000000000000",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f06013c049f4001054778c201e669af400000000000000001",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f07000150d97ac2000000000000000001",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2807000000004cf36bbe0000000000",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08018099ee40010b2f72c2000000000000000001",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "28086dffa8bb4cf36bbe0000000000",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f090122308d40018a037bc20141d2b6400000000000000001",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0001bd0a7bc20166388a400000000000000001",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280a000000004cf36bbe906592bc00",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b011670cd40010d0f6ec201facf61400000000000000000",
+     "t_ms": 13654
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401eadb8140013ea979c201937aa0400000000000000001",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501c1e4644001b1726fc2011d7689400000000000000000",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f06014eaca04001ee5b79c2016d7bae400000000000000001",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f07000100807bc2000000000100000000",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280700000000000000000000000000",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801406fee4001f44373c2000000000000000001",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f090194138b400100807bc2014650b5400000000100000000",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a000100807bc20100a689400000000100000000",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280a00000000000000009e292cbc00",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b011fa5cc4001f6236fc201e8625e400000000000000000",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13701
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401aecf80400193e17ac20108c2a1400000000000000001",
+     "t_ms": 13765
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501252d61400106ab70c2018e7989400000000000000000",
+     "t_ms": 13765
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601e54ba2400143947ac201b991ad400000000000000001",
+     "t_ms": 13765
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801d845ee4001008073c2000000000100000000",
+     "t_ms": 13765
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "28083dc442bb000000000000000000",
+     "t_ms": 13765
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901bcd589400001516db4400000000100000001",
+     "t_ms": 13765
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2809aae4babc000000002e7385bc00",
+     "t_ms": 13765
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a000001eb4f89400000000100000001",
+     "t_ms": 13765
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b0138decb40014b5c70c20160075b400000000000000000",
+     "t_ms": 13765
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13765
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270a010007078080808080808003000000",
+     "t_ms": 13806
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2707010007078080808080808003000000",
+     "t_ms": 13806
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401a1917f400100807bc201f102a3400000000100000000",
+     "t_ms": 13806
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f050191885d4001120672c201ee7c89400000000000000000",
+     "t_ms": 13806
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f06012ce3a3400100807bc201b2acac400000000100000000",
+     "t_ms": 13806
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901d71a89400001dee7b3400000000100000001",
+     "t_ms": 13806
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b014b1bcb400157b771c20109bd57400000000000000000",
+     "t_ms": 13806
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13806
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13838
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2709010007078080808080808003000000",
+     "t_ms": 13854
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2708010007078080808080808003000000",
+     "t_ms": 13854
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f04017f5c7e400001a3bfa3400000000100000001",
+     "t_ms": 13854
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501a4f6594001238373c2013c8089400000000000000000",
+     "t_ms": 13854
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601a6d2a44000010726ac400000000100000001",
+     "t_ms": 13854
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901f2ac884000016699b3400000000100000001",
+     "t_ms": 13854
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01445cca4001683473c2018b8354400000000000000000",
+     "t_ms": 13854
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2704010007078080808080808003000000",
+     "t_ms": 13901
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401baa67d400001972ea4400000000100000001",
+     "t_ms": 13901
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501fe765640018a2175c201798389400000000000000000",
+     "t_ms": 13901
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2805fb6e5bbdc00ecbbecf34cb3900",
+     "t_ms": 13901
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601765fa5400001d8d6ab400000000100000001",
+     "t_ms": 13901
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2806b898253c00000000663ebabb00",
+     "t_ms": 13901
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b010fa1c94001cfd274c2018f5a51400000000000000000",
+     "t_ms": 13901
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280b6876b7bcc00ecbbe623346bd00",
+     "t_ms": 13901
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13902
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2706010007078080808080808003000000",
+     "t_ms": 13964
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401d93b7d400001d46fa4400000000100000001",
+     "t_ms": 13964
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2804f2617bbb00000000e571993b00",
+     "t_ms": 13964
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f050142095340019de076c201a68689400000000000000000",
+     "t_ms": 13964
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f060142b2a540000148a8ab400000000100000001",
+     "t_ms": 13964
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b0199e9c84001e29176c201c1414e400000000000000000",
+     "t_ms": 13964
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13964
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 13996
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f050114ad4f4001b5bf78c201c38989400000000000000001",
+     "t_ms": 14012
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01ce35c84001fa7078c201cf384b400000000000000000",
+     "t_ms": 14012
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05011a624c40012ebe7ac201d08c89400000000000000001",
+     "t_ms": 14060
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b019b85c74001736f7ac201673f48400000000000000000",
+     "t_ms": 14060
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 14060
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501fc2749400100807bc201cd8f89400000000100000000",
+     "t_ms": 14119
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2805d3e0f2bc00000000d1ea603900",
+     "t_ms": 14119
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01efd8c6400100807bc201395545400000000100000000",
+     "t_ms": 14119
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280b64104bbc000000007a60dbbc00",
+     "t_ms": 14119
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 14119
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501ffff474000018f9189400000000100000001",
+     "t_ms": 14150
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f09015546884000012150b3400000000100000001",
+     "t_ms": 14151
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b016773c6400001789e43400000000100000000",
+     "t_ms": 14151
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 14151
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270b010007078080808080808003000000",
+     "t_ms": 14214
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2705010007078080808080808003000000",
+     "t_ms": 14214
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01b437c64000017b9c42400000000100000000",
+     "t_ms": 14214
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 14214
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b019914c6400001c90442400000000100000000",
+     "t_ms": 14262
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 14262
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 14304
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f060192ffa5400001ce7cab400000000100000001",
+     "t_ms": 14350
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801c316ee4000000000000100000001",
+     "t_ms": 14350
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0000010aee88400000000100000001",
+     "t_ms": 14350
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 14351
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 5763
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 5810
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 5857
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 5905
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708d090ec91040300",
+     "t_ms": 5964
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b0f627574746f6e2e636c69636b5f6f6e0000904000006ec200009040a0a1d8a308000000ffffffffffffffff00",
+     "t_ms": 5964
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 5964
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelEventPacket",
+     "hex": "19da0f0000b040000070c20000904000",
+     "t_ms": 6011
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6011
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a082d1df0d0300",
+     "t_ms": 6054
+    },
+    {
+     "dir": "s2c",
+     "name": "AddActorPacket",
+     "hex": "0df9ffffff1f030d6d696e6563726166743a746e740000b0403d0a6ec200009040f4c996b9cdcc4c3eb4d2a33c000000000000000000000000000000000040000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e02020035030348e17a3f36030348e17a3f37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c0707ffffffffffffffffff01650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c01030300008042000000",
+     "t_ms": 6054
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27033c000707809080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e02020035030348e17a3f36030348e17a3f3702029e01390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff520000005c0707ffffffffffffffffff01650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 6054
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0301a5fdaf4001c2f56dc201ec5190400000000000000000",
+     "t_ms": 6054
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6054
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029c01000000",
+     "t_ms": 6106
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f030107fcaf40013d0a6ec2000000000100000000",
+     "t_ms": 6106
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6106
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029a01000000",
+     "t_ms": 6153
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6154
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029801000000",
+     "t_ms": 6217
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6217
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029601000000",
+     "t_ms": 6264
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6264
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029401000000",
+     "t_ms": 6311
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6311
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029201000000",
+     "t_ms": 6358
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6359
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702029001000000",
+     "t_ms": 6406
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6406
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028e01000000",
+     "t_ms": 6453
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6453
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6509
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028c01000000",
+     "t_ms": 6509
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028a01000000",
+     "t_ms": 6559
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6559
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028801000000",
+     "t_ms": 6606
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6606
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028601000000",
+     "t_ms": 6654
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6654
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028401000000",
+     "t_ms": 6717
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6717
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6749
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028201000000",
+     "t_ms": 6765
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6797
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702028001000000",
+     "t_ms": 6813
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702027e000000",
+     "t_ms": 6861
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6861
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702027c000000",
+     "t_ms": 6908
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6908
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702027a000000",
+     "t_ms": 6955
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 6955
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020278000000",
+     "t_ms": 7003
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7003
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020276000000",
+     "t_ms": 7070
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7070
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7102
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020274000000",
+     "t_ms": 7102
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020272000000",
+     "t_ms": 7165
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7165
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020270000000",
+     "t_ms": 7213
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7213
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702026e000000",
+     "t_ms": 7260
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7260
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702026c000000",
+     "t_ms": 7307
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7308
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702026a000000",
+     "t_ms": 7355
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7356
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020268000000",
+     "t_ms": 7402
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7403
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7450
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020266000000",
+     "t_ms": 7466
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7498
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020264000000",
+     "t_ms": 7514
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020262000000",
+     "t_ms": 7571
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7571
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020260000000",
+     "t_ms": 7606
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7606
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702025e000000",
+     "t_ms": 7653
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7653
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702025c000000",
+     "t_ms": 7716
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7716
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7747
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702025a000000",
+     "t_ms": 7763
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020258000000",
+     "t_ms": 7809
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7809
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020256000000",
+     "t_ms": 7857
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7857
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020254000000",
+     "t_ms": 7905
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7905
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020252000000",
+     "t_ms": 7968
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 7968
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020250000000",
+     "t_ms": 8016
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8016
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8062
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702024e000000",
+     "t_ms": 8062
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702024c000000",
+     "t_ms": 8111
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8111
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702024a000000",
+     "t_ms": 8158
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8158
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020248000000",
+     "t_ms": 8205
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8205
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020246000000",
+     "t_ms": 8269
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8269
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020244000000",
+     "t_ms": 8316
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8316
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8348
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020242000000",
+     "t_ms": 8363
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020240000000",
+     "t_ms": 8411
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8411
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702023e000000",
+     "t_ms": 8458
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8458
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702023c000000",
+     "t_ms": 8505
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8505
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702023a000000",
+     "t_ms": 8567
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8567
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020238000000",
+     "t_ms": 8617
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8617
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020236000000",
+     "t_ms": 8655
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8655
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020234000000",
+     "t_ms": 8718
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8718
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020232000000",
+     "t_ms": 8765
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8765
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020230000000",
+     "t_ms": 8813
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8813
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702022e000000",
+     "t_ms": 8861
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8861
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8893
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702022c000000",
+     "t_ms": 8908
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702022a000000",
+     "t_ms": 8955
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 8955
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020228000000",
+     "t_ms": 9003
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9003
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020226000000",
+     "t_ms": 9065
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9066
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9097
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020224000000",
+     "t_ms": 9113
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020222000000",
+     "t_ms": 9154
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9154
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020220000000",
+     "t_ms": 9206
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9206
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702021e000000",
+     "t_ms": 9254
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9254
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9301
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702021c000000",
+     "t_ms": 9317
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9348
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702021a000000",
+     "t_ms": 9364
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020218000000",
+     "t_ms": 9411
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9411
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020216000000",
+     "t_ms": 9458
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9458
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020214000000",
+     "t_ms": 9506
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9506
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020212000000",
+     "t_ms": 9553
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9554
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020210000000",
+     "t_ms": 9616
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9616
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702020e000000",
+     "t_ms": 9663
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9663
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702020c000000",
+     "t_ms": 9707
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9707
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2703013702020a000000",
+     "t_ms": 9754
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9754
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020208000000",
+     "t_ms": 9818
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9818
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020206000000",
+     "t_ms": 9866
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9866
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020204000000",
+     "t_ms": 9914
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9914
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020202000000",
+     "t_ms": 9961
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 9962
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27030137020200000000",
+     "t_ms": 10009
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10009
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2801f89d7ebc59d05dbd1150dfbdd301",
+     "t_ms": 10053
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelEventPacket",
+     "hex": "19d21f7ff8af4047c16fc2ec51904008",
+     "t_ms": 10053
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelEventGenericPacket",
+     "hex": "7cd41f05076f726967696e587ff8af4005076f726967696e5947c16fc205076f726967696e5aec5190400505706f7330780000e0400505706f73307900007cc20505706f73307a0000a0400505706f733178000080400505706f733179000078c20505706f73317a0000a0400505706f733278000080400505706f73327900007cc20505706f73327a000080400505706f733378000080400505706f733379000074c20505706f73337a0000c0400505706f7334780000c0400505706f73347900007cc20505706f73347a000040400505706f733578000080400505706f733579000074c20505706f73357a0000803f0505706f7336780000c0400505706f73367900007cc20505706f73367a0000a0400505706f7337780000e0400505706f733779000074c20505706f73377a0000803f0505706f7338780000e0400505706f733879000074c20505706f73387a00008040050672616469757300008040030473697a651200",
+     "t_ms": 10053
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10053
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateSubChunkBlocksPacket",
+     "hex": "ac01007f0061087b08a082d1df0d03ffffffffffffffffff01000a7908a082d1df0d03ffffffffffffffffff0100087906a082d1df0d03ffffffffffffffffff0100087708a082d1df0d03ffffffffffffffffff0100067b06a082d1df0d03ffffffffffffffffff01000a7b04a082d1df0d03ffffffffffffffffff0100087d04a082d1df0d03ffffffffffffffffff0100087908a082d1df0d03ffffffffffffffffff010006790aa082d1df0d03ffffffffffffffffff0100087b06a082d1df0d03ffffffffffffffffff01000e7d0aa082d1df0d03ffffffffffffffffff01000a7d0aa082d1df0d03ffffffffffffffffff0100067d06a082d1df0d03ffffffffffffffffff010004790aa082d1df0d03ffffffffffffffffff0100067b04a082d1df0d03ffffffffffffffffff0100067906a082d1df0d03ffffffffffffffffff0100067b08a082d1df0d03ffffffffffffffffff0100087b0aa082d1df0d03ffffffffffffffffff0100067d08a082d1df0d03ffffffffffffffffff01000a7b06a082d1df0d03ffffffffffffffffff010008790aa082d1df0d03ffffffffffffffffff01000c7b06a082d1df0d03ffffffffffffffffff0100067b0aa082d1df0d03ffffffffffffffffff0100087b0ca082d1df0d03ffffffffffffffffff010006790ca082d1df0d03ffffffffffffffffff0100067b0ca082d1df0d03ffffffffffffffffff0100067d04a082d1df0d03ffffffffffffffffff0100067908a082d1df0d03ffffffffffffffffff0100087d08a082d1df0d03ffffffffffffffffff0100067904a082d1df0d03ffffffffffffffffff0100047b0aa082d1df0d03ffffffffffffffffff0100047906a082d1df0d03ffffffffffffffffff01000a7b0ca082d1df0d03ffffffffffffffffff0100087d0ca082d1df0d03ffffffffffffffffff0100047908a082d1df0d03ffffffffffffffffff01000a7906a082d1df0d03ffffffffffffffffff01000a7d06a082d1df0d03ffffffffffffffffff0100067d0aa082d1df0d03ffffffffffffffffff01000a7508a082d1df0d03ffffffffffffffffff01000a790aa082d1df0d03ffffffffffffffffff0100087b04a082d1df0d03ffffffffffffffffff0100087904a082d1df0d03ffffffffffffffffff010008790ca082d1df0d03ffffffffffffffffff0100087b02a082d1df0d03ffffffffffffffffff010006790ea082d1df0d03ffffffffffffffffff0100087d0aa082d1df0d03ffffffffffffffffff01000a770aa082d1df0d03ffffffffffffffffff0100067902a082d1df0d03ffffffffffffffffff01000c7b04a082d1df0d03ffffffffffffffffff01000e790ea082d1df0d03ffffffffffffffffff01000a7b0ea082d1df0d03ffffffffffffffffff0100087d06a082d1df0d03ffffffffffffffffff01000a7b0aa082d1df0d03ffffffffffffffffff01000c7d06a082d1df0d03ffffffffffffffffff010008790ea082d1df0d03ffffffffffffffffff0100087902a082d1df0d03ffffffffffffffffff01000a7b08a082d1df0d03ffffffffffffffffff01000a7d04a082d1df0d03ffffffffffffffffff01000a7d08a082d1df0d03ffffffffffffffffff01000a7904a082d1df0d03ffffffffffffffffff01000a790ca082d1df0d03ffffffffffffffffff01000c790ea082d1df0d03ffffffffffffffffff01000a790ea082d1df0d03ffffffffffffffffff01000c7902a082d1df0d03ffffffffffffffffff01000a7902a082d1df0d03ffffffffffffffffff01000a7d0ca082d1df0d03ffffffffffffffffff01000c7d08a082d1df0d03ffffffffffffffffff01000c7d0aa082d1df0d03ffffffffffffffffff01000c7d04a082d1df0d03ffffffffffffffffff01000c7b08a082d1df0d03ffffffffffffffffff01000e7d06a082d1df0d03ffffffffffffffffff01000c7b0aa082d1df0d03ffffffffffffffffff01000c7b0ca082d1df0d03ffffffffffffffffff01000c7d0ca082d1df0d03ffffffffffffffffff01000c7904a082d1df0d03ffffffffffffffffff01000c790ca082d1df0d03ffffffffffffffffff01000c7906a082d1df0d03ffffffffffffffffff01000c790aa082d1df0d03ffffffffffffffffff01000c7b0ea082d1df0d03ffffffffffffffffff01000c7908a082d1df0d03ffffffffffffffffff01000e7902a082d1df0d03ffffffffffffffffff01000e7d08a082d1df0d03ffffffffffffffffff01000e7904a082d1df0d03ffffffffffffffffff01000e790ca082d1df0d03ffffffffffffffffff01000c7708a082d1df0d03ffffffffffffffffff01000e7b06a082d1df0d03ffffffffffffffffff01000e7b08a082d1df0d03ffffffffffffffffff01000e7b0aa082d1df0d03ffffffffffffffffff01000e7b0ca082d1df0d03ffffffffffffffffff01000e7b04a082d1df0d03ffffffffffffffffff01000e7906a082d1df0d03ffffffffffffffffff01000e7908a082d1df0d03ffffffffffffffffff0100107b08a082d1df0d03ffffffffffffffffff01000e790aa082d1df0d03ffffffffffffffffff0100107908a082d1df0d03ffffffffffffffffff010010790aa082d1df0d03ffffffffffffffffff0100107906a082d1df0d03ffffffffffffffffff010000",
+     "t_ms": 10117
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0fedffffff1f0903001000000086dfbb92080a000000000000000000003476a7400d1979c2f494c940cac4a8bdcdcc4c3e340471bd40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 10117
+    },
+    {
+     "dir": "s2c",
+     "name": "RemoveActorPacket",
+     "hex": "0ef9ffffff1f",
+     "t_ms": 10117
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0ff7ffffff1f0403001000000086dfbb92080a00000000000000000000523b9040d8a976c2bdee8e40e2e82abdcdcc4c3edaa5503d40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 10117
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0ff5ffffff1f0545000100000090be99c60b0a000000000000000000001df18b404b736cc2e4468940b69597bdcdcc4c3e00600c3a40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 10117
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0ff3ffffff1f0603001000000086dfbb92080a0000000000000000000094678a40885c76c23001bb409166843dcdcc4c3eace814bd40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 10117
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0ff1ffffff1f0703001000000086dfbb92080a0000000000000000000081759540d3ee78c23747c9409ff2c8bdcdcc4c3e2742c33d40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 10117
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0fefffffff1f0803001000000086dfbb92080a0000000000000000000035a7f0408e4470c2b505eb40e00dd3bbcdcc4c3e272d9d3d40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 10117
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0febffffff1f0a03000f00000086dfbb92080a0000000000000000000043ccef40402079c2005691404de3b83dcdcc4c3e28d4b6bc40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 10117
+    },
+    {
+     "dir": "s2c",
+     "name": "AddItemActorPacket",
+     "hex": "0fe9ffffff1f0b040001000000aedcc5be060a00000000000000000000894dd74090246cc2a5388640d878fdbccdcc4c3ecaea88bd40000707808080808080800301020202020202000300000004040400050707010701012c0116000000250707002603030000803f270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201380808000000000000000000000000390000003a0303000000003b0000003c030300000000460000004704040048040400490000014a0000004b0202004c0202004d0202004e020201510000ff520000005c070700650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018b010707008c0103030000804200",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b076578706c6f64657ff8af4047c16fc2ec51904001000000ffffffffffffffff00",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270b3b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270a3b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27093b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27083b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27073b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27063b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27053b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "27043b000707808080808080800301020202020202000300000004040400050707010701012c011600000025070700270000002a01012c012b0202002c0000002d0202002e0202003503030000803e3603030000803e37020201390000003a0303000000003b0000003c030300000000460000004704040048040400490000014b0202004c0202004d0202004e020201510000ff52000000650202006602020067020200680202006a0202066b0000016c0303000000416d0303000080416e040407616d6269656e746f03030000803f720202007302020074020200750202007605050a000077000000780303000000007c03030000803f7d0202287e0202cc09840104040086010303000000008701030300000000880102020189010202018a010202018c01030300008042000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f040180e58e4001010676c201099090400000000000000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f06012e798c4001b1b875c2015fd7b9400000000000000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501c69289400174cf6bc201474b89400000000000000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0701b751924001fc4a78c2014054cc400000000000000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2807c5edc4bd2e90203e6e5abf3d00",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08017272f04001b7a06fc2016a7aed400000000000000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f090121d3a44001367578c201ecb2c7400000000000000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a01d0aff24001697c78c2012c9f90400000000000000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b011050d64001b9806bc201fa1484400000000000000000",
+     "t_ms": 10118
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2701010007078080c080808380030000d401",
+     "t_ms": 10119
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10119
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10148
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270b010007078080808080818003000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270a010007078080808080818003000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2709010007078080808080818003000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2708010007078080808080818003000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2707010007078080808080818003000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2706010007078080808080818003000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2705010007078080808080818003000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2704010007078080808080818003000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f040184968d4001678e75c201fc2892400000000000000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05019040874001da576bc201944f89400000000000000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f060131808e4001174175c20182b3b8400000000000000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0701003e8f400162d377c201aa51cf400000000000000000",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801bd3ef040011d296fc2018ce2ef400000000000000001",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f09018e3da240019cfd77c20188dac5400000000000000001",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a019384f54001cf0478c20100ec8f400000000000000001",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01a957d540011f096bc20143fc81400000000000000001",
+     "t_ms": 10164
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f04013b4e8c4001274275c201c1b993400000000000000000",
+     "t_ms": 10208
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05013cfa8440019a0b6bc201cb5389400000000000000000",
+     "t_ms": 10209
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601d27c904001d7f474c2017c95b7400000000000000000",
+     "t_ms": 10209
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f07010a3a8c4001228777c201c53fd2400000000000000000",
+     "t_ms": 10209
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801100cf04001dddc6ec2015b3ef2400000000000000001",
+     "t_ms": 10209
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f090136b59f40015cb177c201960bc4400000000000000001",
+     "t_ms": 10209
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a01d74af840018fb877c201693c8f400000000000000001",
+     "t_ms": 10209
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b013a64d44001dfbc6ac20190dc7f400000000000000001",
+     "t_ms": 10209
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2701010007078080c080808280030000d601",
+     "t_ms": 10209
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10209
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401830c8b4001632075c201824295400000000000000000",
+     "t_ms": 10260
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05018dbf824001d6e96ac201ec5789400000000000000000",
+     "t_ms": 10260
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601476f92400113d374c2012e7db6400000000000000000",
+     "t_ms": 10260
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f070184458940015e6577c201df1ed5400000000000000000",
+     "t_ms": 10260
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f080167daef400119bb6ec201178ef4400000000000000001",
+     "t_ms": 10260
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901d6399d4001988f77c201e745c2400000000000000001",
+     "t_ms": 10260
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a01e602fb4001cb9677c20155908e400000000000000001",
+     "t_ms": 10260
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01a975d340011b9b6ac201a4d57b400000000000000001",
+     "t_ms": 10260
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10260
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f04013ad1894001422875c20168c396400000000000000000",
+     "t_ms": 10307
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05014890804001b5f16ac201f85b89400000000000000000",
+     "t_ms": 10308
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601c457944001f2da74c2017b6ab5400000000000000000",
+     "t_ms": 10308
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f070120608640013d6d77c20146efd7400000000000000000",
+     "t_ms": 10308
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801bca9ef4001f8c26ec201fdd1f6400000000000000001",
+     "t_ms": 10308
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f09012bcb9a4001779777c2014a89c0400000000000000001",
+     "t_ms": 10308
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a010000fc4001aa9e77c201b2e78d400000000000000001",
+     "t_ms": 10308
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01de8bd24001faa26ac20156e377400000000000000001",
+     "t_ms": 10308
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10308
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401409c884001ee5875c2019c3c98400000000000000000",
+     "t_ms": 10355
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f050167d87c400161226bc201ef5f89400000000000000000",
+     "t_ms": 10355
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f06017c369640019e0b75c201475db4400000000000000000",
+     "t_ms": 10355
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f07010000844001e99d77c20144b1da400000000000000000",
+     "t_ms": 10355
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "28070000000025cb3ebddcf7ac3d00",
+     "t_ms": 10355
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08010a7aef4001a4f36ec2014a0af9400000000000000001",
+     "t_ms": 10355
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901f46898400123c877c20192d5be400000000000000001",
+     "t_ms": 10355
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a000156cf77c2016f428d400000000000000001",
+     "t_ms": 10355
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01c0a6d14001a6d36ac2013d0574400000000000000001",
+     "t_ms": 10355
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10356
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10403
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401746d87400197b175c20145ae99400000000000000000",
+     "t_ms": 10403
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f050129a67840010a7b6bc201d26389400000000000000000",
+     "t_ms": 10403
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601a10b984001476475c2017555b3400000000000000000",
+     "t_ms": 10403
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f07000192f677c2010000dc400000000000000000",
+     "t_ms": 10403
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08014d4bef40014d4c6fc2013937fb400000000000000001",
+     "t_ms": 10403
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901f112964001cc2078c201912abd400000000000000001",
+     "t_ms": 10403
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0001ff2778c2017aa08c400000000000000001",
+     "t_ms": 10403
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b0137c6d040014f2c6bc201f13a70400000000000000001",
+     "t_ms": 10403
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401b6448640016f3176c20189189b400000000000000000",
+     "t_ms": 10466
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05016789744001e2fa6bc201a16789400000000000000000",
+     "t_ms": 10466
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f060164d79940011fe475c201ea52b2400000000000000000",
+     "t_ms": 10466
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0700016a7678c2000000000000000000",
+     "t_ms": 10466
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08017f1def400125cc6fc2010000fc400000000000000001",
+     "t_ms": 10466
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901e4c8934001a4a078c2011a88bb400000000000000001",
+     "t_ms": 10466
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0001d7a778c201c2018c400000000000000001",
+     "t_ms": 10466
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b012beacf400127ac6bc2010d846c400000000000000001",
+     "t_ms": 10466
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10466
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10498
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401e721854001afd776c2018e7b9c400000000000000000",
+     "t_ms": 10513
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501b38170400122a16cc2015c6b89400000000000000000",
+     "t_ms": 10513
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601f5999b40015f8a76c2018b55b1400000000000000001",
+     "t_ms": 10513
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f070001aa1c79c2000000000000000000",
+     "t_ms": 10513
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08019bf0ee4001657270c2000000000000000001",
+     "t_ms": 10513
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901908a914001e44679c20101eeb9400000000000000001",
+     "t_ms": 10513
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0001174e79c20137668b400000000000000001",
+     "t_ms": 10513
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b018612cf400167526cc2012ee068400000000000000001",
+     "t_ms": 10513
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401e90484400191a377c20179d79d400000000000000000",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "28044ba50bbd42ce47be037b2a3d00",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501a28e6c4001046d6dc201046f89400000000000000000",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280530b677bd42ce47beac64e53900",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f060183539d4001415677c2013d5db0400000000000000001",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2806ab5c583d42ce47bebb56f3bc00",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0700018ce879c2000000000000000000",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08019dc4ee4001473e71c2000000000000000001",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901b8578f4001c6127ac2011c5cb8400000000000000001",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280976e589bd42ce47be91ed44bd00",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0001f9197ac201c8cd8a400000000000000001",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01313fce4001491e6dc201f24e65400000000000000001",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280bea1acfbc42ce47be1bbe5fbd00",
+     "t_ms": 10560
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10561
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f04019eed824001559478c2016f2c9f400000000000000000",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501c9af684001c85d6ec2019a7289400000000000000000",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f06013c049f4001054778c201e669af400000000000000001",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f07000150d97ac2000000000000000000",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2807000000004cf36bbe0000000000",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f08018099ee40010b2f72c2000000000000000001",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "28086dffa8bb4cf36bbe0000000000",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f090122308d40018a037bc20141d2b6400000000000000001",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0001bd0a7bc20166388a400000000000000001",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280a000000004cf36bbe906592bc00",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b011670cd40010d0f6ec201facf61400000000000000001",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10608
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401eadb8140013ea979c201937aa0400000000000000000",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501c1e4644001b1726fc2011d7689400000000000000000",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f06014eaca04001ee5b79c2016d7bae400000000000000001",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f07000100807bc2000000000100000000",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280700000000000000000000000000",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801406fee4001f44373c2000000000000000001",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f090194138b400100807bc2014650b5400000000100000000",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a000100807bc20100a689400000000100000000",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280a00000000000000009e292cbc00",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b011fa5cc4001f6236fc201e8625e400000000000000001",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10655
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401aecf80400193e17ac20108c2a1400000000000000000",
+     "t_ms": 10719
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501252d61400106ab70c2018e7989400000000000000000",
+     "t_ms": 10719
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601e54ba2400143947ac201b991ad400000000000000001",
+     "t_ms": 10719
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801d845ee4001008073c2000000000100000000",
+     "t_ms": 10719
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "28083dc442bb000000000000000000",
+     "t_ms": 10719
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901bcd589400001516db4400000000100000001",
+     "t_ms": 10719
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2809aae4babc000000002e7385bc00",
+     "t_ms": 10719
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a000001eb4f89400000000100000001",
+     "t_ms": 10719
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b0138decb40014b5c70c20160075b400000000000000001",
+     "t_ms": 10719
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10719
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270a010007078080808080808003000000",
+     "t_ms": 10760
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2707010007078080808080808003000000",
+     "t_ms": 10760
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401a1917f400100807bc201f102a3400000000100000000",
+     "t_ms": 10760
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f050191885d4001120672c201ee7c89400000000000000000",
+     "t_ms": 10760
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f06012ce3a3400100807bc201b2acac400000000100000000",
+     "t_ms": 10760
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901d71a89400001dee7b3400000000100000001",
+     "t_ms": 10760
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b014b1bcb400157b771c20109bd57400000000000000001",
+     "t_ms": 10760
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10760
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2709010007078080808080808003000000",
+     "t_ms": 10808
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2708010007078080808080808003000000",
+     "t_ms": 10808
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f04017f5c7e400001a3bfa3400000000100000001",
+     "t_ms": 10808
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501a4f6594001238373c2013c8089400000000000000000",
+     "t_ms": 10808
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601a6d2a44000010726ac400000000100000001",
+     "t_ms": 10808
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0901f2ac884000016699b3400000000100000001",
+     "t_ms": 10808
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01445cca4001683473c2018b8354400000000000000001",
+     "t_ms": 10808
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10808
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2704010007078080808080808003000000",
+     "t_ms": 10855
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401baa67d400001972ea4400000000100000000",
+     "t_ms": 10855
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501fe765640018a2175c201798389400000000000000000",
+     "t_ms": 10855
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2805fb6e5bbdc00ecbbecf34cb3900",
+     "t_ms": 10855
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0601765fa5400001d8d6ab400000000100000001",
+     "t_ms": 10855
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2806b898253c00000000663ebabb00",
+     "t_ms": 10855
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b010fa1c94001cfd274c2018f5a51400000000000000001",
+     "t_ms": 10855
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280b6876b7bcc00ecbbe623346bd00",
+     "t_ms": 10856
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10856
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2706010007078080808080808003000000",
+     "t_ms": 10918
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0401d93b7d400001d46fa4400000000100000000",
+     "t_ms": 10918
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2804f2617bbb00000000e571993b00",
+     "t_ms": 10918
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f050142095340019de076c201a68689400000000000000000",
+     "t_ms": 10918
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f060142b2a540000148a8ab400000000100000001",
+     "t_ms": 10918
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b0199e9c84001e29176c201c1414e400000000000000001",
+     "t_ms": 10918
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10918
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 10950
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f050114ad4f4001b5bf78c201c38989400000000000000000",
+     "t_ms": 10966
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01ce35c84001fa7078c201cf384b400000000000000001",
+     "t_ms": 10966
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f05011a624c40012ebe7ac201d08c89400000000000000000",
+     "t_ms": 11014
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b019b85c74001736f7ac201673f48400000000000000001",
+     "t_ms": 11014
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11014
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501fc2749400100807bc201cd8f89400000000100000000",
+     "t_ms": 11073
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "2805d3e0f2bc00000000d1ea603900",
+     "t_ms": 11073
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01efd8c6400100807bc201395545400000000100000000",
+     "t_ms": 11073
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorMotionPacket",
+     "hex": "280b64104bbc000000007a60dbbc00",
+     "t_ms": 11073
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11073
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0501ffff474000018f9189400000000100000000",
+     "t_ms": 11104
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f09015546884000012150b3400000000100000001",
+     "t_ms": 11105
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b016773c6400001789e43400000000100000001",
+     "t_ms": 11105
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11105
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "270b010007078080808080808003000000",
+     "t_ms": 11168
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket",
+     "hex": "2705010007078080808080808003000000",
+     "t_ms": 11168
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b01b437c64000017b9c42400000000100000001",
+     "t_ms": 11168
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11168
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0b019914c6400001c90442400000000100000001",
+     "t_ms": 11216
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11216
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11258
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f060192ffa5400001ce7cab400000000100000001",
+     "t_ms": 11305
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0801c316ee4000000000000100000001",
+     "t_ms": 11305
+    },
+    {
+     "dir": "s2c",
+     "name": "MoveActorDeltaPacket",
+     "hex": "6f0a0000010aee88400000000100000001",
+     "t_ms": 11305
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket",
+     "t_ms": 11305
+    }
+   ]
+  }
+ ]
+}

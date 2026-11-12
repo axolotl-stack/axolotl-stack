@@ -16,6 +16,7 @@ mod commands;
 mod containers;
 pub mod durability;
 pub mod effects;
+pub(crate) mod explosion;
 mod falling;
 mod flower_pots;
 pub mod hunger;
@@ -571,6 +572,7 @@ impl GameServer {
                 crate::entity::mob::combat::hurt_on_condition,
                 crate::entity::mob::combat::fire::burn_in_daylight,
                 crate::entity::mob::combat::fire::burn_mobs,
+                crate::entity::mob::combat::explode::tick_fuses,
                 crate::entity::mob::combat::death::die_at_zero_health,
                 crate::entity::mob::combat::death::tick_dying,
                 crate::entity::xp_orb::tick_xp_orbs,

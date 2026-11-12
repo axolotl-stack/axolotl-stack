@@ -427,7 +427,7 @@ fn apply(
 
 /// Set one actor flag and mirror the flag words into the metadata the
 /// viewers receive.
-fn set_flag(mob: &mut EntityWorldMut<'_>, flag: u32, on: bool) {
+pub(crate) fn set_flag(mob: &mut EntityWorldMut<'_>, flag: u32, on: bool) {
     use jolyne::valentine::actor_data_i_ds as ids;
     let Some(mut flags) = mob.get_mut::<ActorFlags>() else {
         return;

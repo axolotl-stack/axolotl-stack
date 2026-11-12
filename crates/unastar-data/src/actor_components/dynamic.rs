@@ -56,6 +56,20 @@ macro_rules! defaults {
 }
 
 defaults! {
+    explode_allow_underwater -> bool = p::EXPLODE_ALLOW_UNDERWATER;
+    explode_breaks_blocks -> bool = p::EXPLODE_BREAKS_BLOCKS;
+    explode_causes_fire -> bool = p::EXPLODE_CAUSES_FIRE;
+    explode_damage_scaling -> f32 = p::EXPLODE_DAMAGE_SCALING;
+    explode_destroy_affected_by_griefing -> bool = p::EXPLODE_DESTROY_AFFECTED_BY_GRIEFING;
+    explode_fire_affected_by_griefing -> bool = p::EXPLODE_FIRE_AFFECTED_BY_GRIEFING;
+    explode_fuse_lit -> bool = p::EXPLODE_FUSE_LIT;
+    explode_knockback_scaling -> f32 = p::EXPLODE_KNOCKBACK_SCALING;
+    explode_max_resistance -> f32 = p::EXPLODE_MAX_RESISTANCE;
+    explode_negates_fall_damage -> bool = p::EXPLODE_NEGATES_FALL_DAMAGE;
+    explode_particle_effect -> String = p::EXPLODE_PARTICLE_EFFECT.to_owned();
+    explode_power -> f32 = p::EXPLODE_POWER;
+    explode_sound_effect -> String = p::EXPLODE_SOUND_EFFECT.to_owned();
+    explode_toggles_blocks -> bool = p::EXPLODE_TOGGLES_BLOCKS;
     ageable_duration -> f32 = p::AGEABLE_DURATION;
     ambient_event_name -> String = p::AMBIENT_SOUND_INTERVAL_EVENT_NAME.to_owned();
     ambient_range -> f32 = p::AMBIENT_SOUND_INTERVAL_RANGE;
@@ -618,6 +632,53 @@ pub enum DealsDamageMode {
     No,
     NoButSideEffectsApply,
     NoButEntityEffectsApply,
+}
+
+/// `minecraft:explode`: a fuse that ends in an explosion.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Explode {
+    /// The explosion also affects blocks and actors under water.
+    #[serde(default = "explode_allow_underwater")]
+    pub allow_underwater: bool,
+    #[serde(default = "explode_breaks_blocks")]
+    pub breaks_blocks: bool,
+    #[serde(default = "explode_causes_fire")]
+    pub causes_fire: bool,
+    /// Factor on the damage actors take.
+    #[serde(default = "explode_damage_scaling")]
+    pub damage_scaling: f32,
+    /// `breaks_blocks` only applies while the `mobGriefing` game rule is on.
+    #[serde(default = "explode_destroy_affected_by_griefing")]
+    pub destroy_affected_by_griefing: bool,
+    /// `causes_fire` only applies while the `mobGriefing` game rule is on.
+    #[serde(default = "explode_fire_affected_by_griefing")]
+    pub fire_affected_by_griefing: bool,
+    /// Seconds the fuse burns (fixed or random); absent explodes at once.
+    pub fuse_length: Option<ValueOrRange<f32>>,
+    /// The fuse is lit as soon as the component is added.
+    #[serde(default = "explode_fuse_lit")]
+    pub fuse_lit: bool,
+    /// Factor on the knockback actors take.
+    #[serde(default = "explode_knockback_scaling")]
+    pub knockback_scaling: f32,
+    /// Cap on a block's explosion resistance.
+    #[serde(default = "explode_max_resistance")]
+    pub max_resistance: f32,
+    #[serde(default = "explode_negates_fall_damage")]
+    pub negates_fall_damage: bool,
+    /// `explosion`, `wind_burst` or `breeze_wind_burst`.
+    #[serde(default = "explode_particle_effect")]
+    pub particle_effect: String,
+    #[serde(default = "explode_power")]
+    pub power: f32,
+    /// The level sound played when the explosion happens.
+    #[serde(default = "explode_sound_effect")]
+    pub sound_effect: String,
+    /// The explosion toggles blocks (doors, trapdoors) instead of breaking
+    /// them.
+    #[serde(default = "explode_toggles_blocks")]
+    pub toggles_blocks: bool,
 }
 
 /// `minecraft:despawn`.
@@ -1330,6 +1391,7 @@ dynamic_bodies!(
     EnvironmentSensor,
     EquipItem,
     Equipment,
+    Explode,
     Health,
     HurtOnCondition,
     IsDyeable,
