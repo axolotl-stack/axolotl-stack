@@ -23,6 +23,7 @@ use crate::entity::components::{
     ActorViewers, GameMode, Player, PlayerInput, PlayerName, PlayerSession, PlayerState,
     PlayerUuid, Position, Rotation, RuntimeEntityId,
 };
+use crate::entity::player_life::actor_data::PlayerActorData;
 use crate::server::game::packet_queues::{MovementInput, MovementPacketQueue};
 use crate::server::game::{GameServer, ServerConfig};
 use crate::world::ChunkManager;
@@ -58,6 +59,7 @@ fn player(world: &mut World, id: i64, eye: DVec3) -> (Entity, mpsc::Receiver<Mcp
                 PlayerState::default(),
                 PlayerInput::default(),
                 ActorViewers::default(),
+                PlayerActorData::joined(id as i32),
             ),
         ))
         .id();

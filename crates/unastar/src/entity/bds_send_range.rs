@@ -23,6 +23,7 @@ use crate::entity::components::{
     RuntimeEntityId, RuntimeId,
 };
 use crate::entity::mob::{SpawnCause, spawn_mob};
+use crate::entity::player_life::actor_data::PlayerActorData;
 use crate::entity::{EntityRandom, PLAYER_EYE_HEIGHT};
 use crate::server::game::{GameServer, ServerConfig};
 
@@ -54,6 +55,7 @@ fn player(world: &mut World, id: i64, feet: DVec3) -> (Entity, mpsc::Receiver<Mc
             PlayerName(format!("player{id}")),
             PlayerSession::new(id as u64, format!("player{id}"), None, None, tx),
             ActorViewers::default(),
+            PlayerActorData::joined(id as i32),
         ))
         .id();
     (entity, rx)
