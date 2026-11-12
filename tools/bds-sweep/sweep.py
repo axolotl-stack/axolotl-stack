@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import math
 import re
 import shutil
 import subprocess
@@ -872,6 +873,157 @@ def creeper_items(args) -> list[dict]:
     return chosen
 
 
+def pick(kind: str, items: list[dict], choice: str) -> list[dict]:
+    """`slice` / `all` keep every item; otherwise a comma-separated list of
+    item-name prefixes (`approach,wall`) keeps the items whose name (after
+    `<mob>|`) starts with one of them."""
+    if choice in ('slice', 'all'):
+        return items
+    prefixes = tuple(choice.split(','))
+    chosen = [row for row in items if row['key'].split('|')[1].startswith(prefixes)]
+    if not chosen:
+        raise SystemExit(f'{kind} --items must be slice or name prefixes among {[row["key"] for row in items]}')
+    return chosen
+
+
+def spider_items(args) -> list[dict]:
+    """`spider`: the spider and the cave spider against the survival sweep
+    player, who lives through the hits on Health Boost X and Regeneration V
+    (no Resistance, so a cave spider's hit still poisons); every tick
+    sampled, run with `--client-capture` for the mob's `TARGET`, its
+    `WALLCLIMBING` flag and the player's `MobEffect`s. Items (`--items`
+    takes name prefixes): `approach` (a spider walks in from 6 blocks to the
+    player, ten times: targeting, leaps, hits), `wall` (the player on top of a 3 × 3 stone block 3 tall: the
+    spider climbs it), `climb` (a 5-tall stone wall 21 wide between them,
+    the spider hurt by the player on tick 5: it climbs over), `day` (noon:
+    the spider stays neutral until the player hurts it on tick 60, then
+    stays angry 10 ± 3 s), `dusk` (a frozen spider from time 11000, the
+    clock 100 later every 40 ticks: when the darkening sky turns it
+    hostile), `cave` (a cave spider walks in; run once per
+    `--difficulty` for the poison) and `leap` (a frozen spider 1.5 to 5.5
+    blocks away, hurt every 50 ticks and put back: when it leaps)."""
+    target = f'"{PLAYER}"'
+    protect = [f'gamemode survival {target}', f'effect {target} health_boost 100000 9 true',
+               f'effect {target} regeneration 100000 4 true']
+    heal = {'t': 0, 'commands': [f'effect {target} instant_health 1 9 true']}
+    restore = [f'effect {target} clear', f'gamemode creative {target}', 'time set 18000',
+               'kill @e[type=minecraft:spider]', 'kill @e[type=minecraft:cave_spider]']
+    pen = ['fill -1 -60 -1 -1 -58 1 barrier', 'fill 0 -60 -1 1 -58 -1 barrier', 'fill 0 -60 1 1 -58 1 barrier']
+    unpen = [line.replace(' barrier', ' air') for line in pen]
+    home = [0.5, -60, 0.5, -90]
+    hurt = f'damage @e[type=minecraft:spider] 1 entity_attack entity {target}'
+
+    def item(key, at, ticks, actions=(), setup=(), cleanup=(), frozen=False, player=home, mob='spider'):
+        return {'key': f'{mob}|{key}', 'mob': f'minecraft:{mob}', 'at': at, 'player': player, 'frozen': frozen,
+                'ticks': ticks, 'setup': list(setup) + protect, 'cleanup': restore + list(cleanup),
+                'actions': [heal] + list(actions)}
+
+    items = [item(f'approach-{n}', [6.5, -60, 0.5, 90], 200) for n in range(10)]
+    block = ['fill -1 -60 -1 1 -58 1 stone']
+    items += [item(f'wall-{n}', [7.5, -60, 0.5, 90], 200, setup=block, cleanup=['fill -1 -60 -1 1 -58 1 air'],
+                   player=[0.5, -57, 0.5, -90]) for n in range(3)]
+    wall = 'fill 3 -60 -10 3 -56 10 stone'
+    items += [item(f'climb-{n}', [7.5, -60, 0.5, 90], 300, actions=[{'t': 5, 'commands': [hurt]}],
+                   setup=pen + [wall], cleanup=unpen + [wall.replace(' stone', ' air')]) for n in range(2)]
+    items += [item(f'day-{n}', [4.5, -60, 0.5, 90], 500, actions=[{'t': 60, 'commands': [hurt]}],
+                   setup=['time set 6000']) for n in range(3)]
+    steps = [{'t': 40 * (n + 1), 'commands': ['time add 100']} for n in range(30)]
+    items += [item(f'dusk-{n}', [4.5, -60, 0.5, 90], 1240, actions=steps, setup=pen + ['time set 11000'],
+                   cleanup=unpen, frozen=True) for n in range(2)]
+    items += [item(f'cave-{n}', [6.5, -60, 0.5, 90], 200, mob='cave_spider')
+              for n in range(3)]
+    # A frozen spider kept angry by a hit every 50 ticks, put back where it
+    # started 3 ticks after each hit (the knockback has moved it) and healed:
+    # how often it leaps at the player from each distance, and how.
+    for d in (1.5, 2.5, 3.5, 4.5, 5.5):
+        back = f'tp @e[type=minecraft:spider] {0.5 + d} -60 0.5 90 0'
+        mend = 'effect @e[type=minecraft:spider] instant_health 1 4 true'
+        cycles = []
+        for k in range(20):
+            cycles += [{'t': 5 + 50 * k, 'commands': [hurt]}, {'t': 8 + 50 * k, 'commands': [back, mend]}]
+        items.append(item(f'leap-{d}', [0.5 + d, -60, 0.5, 90], 1000, actions=cycles, frozen=True))
+    return pick('spider', items, args.items)
+
+
+def enderman_items(args) -> list[dict]:
+    """`enderman`: a frozen enderman (Slowness 255; it still teleports) and
+    the sweep player, every tick sampled; run with `--client-capture` for
+    its `TARGET`, flags, carried block, sounds and every teleport. Items
+    (`--items` takes name prefixes): `gaze` (the protected survival player 8
+    blocks west turns on tick 10 to look at a height on the enderman,
+    from its feet to its top; at other distances up to 66 blocks, a few
+    degrees off, for 3 or 6 ticks only, with a carved pumpkin on, and in
+    creative), `hurt` (`/damage` on tick 20 with entity_attack, magic or
+    projectile, the player creative and far: where it teleports to),
+    `arrow` (a dispenser shoots an arrow at it), `water` (water at its feet on
+    tick 20), `rain`, `random` (1200 quiet ticks at midnight), `light` (600
+    ticks at noon) and `take` (a ring of one kind of block around it at its
+    feet: which blocks it takes, with mobGriefing off, and what a killed
+    enderman drops)."""
+    target = f'"{PLAYER}"'
+    protect = [f'gamemode survival {target}', f'effect {target} resistance 100000 4 true',
+               f'effect {target} regeneration 100000 4 true']
+    restore = [f'effect {target} clear', f'gamemode creative {target}', 'time set 18000', 'weather clear',
+               'gamerule mobgriefing true', f'replaceitem entity {target} slot.armor.head 0 air',
+               'kill @e[type=minecraft:enderman]', 'kill @e[type=minecraft:item]', 'kill @e[type=minecraft:arrow]']
+    far = [0.5, -60, -24.5, 0]
+    at = [4.5, -60, 0.5, 90]
+
+    def item(key, ticks, actions=(), setup=(), cleanup=(), player=far, spot=at, frozen=True):
+        return {'key': f'enderman|{key}', 'mob': 'minecraft:enderman', 'at': list(spot), 'player': list(player),
+                'frozen': frozen, 'ticks': ticks, 'setup': list(setup), 'cleanup': restore + list(cleanup),
+                'actions': list(actions)}
+
+    def look(distance: float, height: float, yaw_off: float = 0.0) -> str:
+        # The player's eyes are 1.62 above its feet; a negative pitch looks up.
+        pitch = -math.degrees(math.atan2(height - 1.62, distance))
+        return f'tp {target} 0.5 -60 0.5 {-90 + yaw_off:.3f} {pitch:.3f}'
+
+    def gaze(key, distance, height, yaw_off=0.0, away_at=None, setup=(), extra=()):
+        actions = [{'t': 10, 'commands': [look(distance, height, yaw_off)]}]
+        if away_at is not None:
+            actions.append({'t': away_at, 'commands': [f'tp {target} 0.5 -60 0.5 90 0']})
+        return item(f'gaze-{key}', 100, actions + list(extra), setup=list(setup) + protect,
+                    player=[0.5, -60, 0.5, 90], spot=[0.5 + distance, -60, 0.5, 90])
+
+    items = [gaze(f'h{h}-8', 8, h) for h in (0.5, 1.45, 2.0, 2.55, 2.9)]
+    items += [gaze(f'd{d}', d, 2.55) for d in (4, 16, 32, 63, 66)]
+    items += [gaze(f'yaw{y}-8', 8, 2.55, yaw_off=y) for y in (3, 6)]
+    items += [gaze(f'short{n}-8', 8, 2.55, away_at=10 + n) for n in (3, 6)]
+    items += [gaze('pumpkin-8', 8, 2.55, setup=[f'replaceitem entity {target} slot.armor.head 0 carved_pumpkin'])]
+    creative = gaze('creative-8', 8, 2.55)
+    creative['setup'] = []
+    items.append(creative)
+    for cause, count in (('entity_attack', 10), ('magic', 3), ('projectile', 3)):
+        items += [item(f'hurt-{cause}-{n}', 60, [{'t': 20, 'commands': [
+            f'damage @e[type=minecraft:enderman] 1 {cause}']}]) for n in range(count)]
+    # A dispenser two blocks west of the enderman, at its chest, facing east.
+    dispenser = ['setblock 2 -59 0 dispenser ["facing_direction"=5]',
+                 'replaceitem block 2 -59 0 slot.container 0 arrow 8']
+    fire = {'t': 20, 'commands': ['setblock 2 -58 0 redstone_block']}
+    off = {'t': 25, 'commands': ['setblock 2 -58 0 air']}
+    items += [item(f'arrow-{n}', 80, [fire, off], setup=dispenser,
+                   cleanup=['setblock 2 -58 0 air', 'setblock 2 -59 0 air']) for n in range(5)]
+    items += [item(f'water-{n}', 120, [{'t': 20, 'commands': ['setblock 4 -60 0 water']}],
+                   cleanup=['fill -12 -60 -12 20 -57 12 air']) for n in range(3)]
+    items += [item(f'rain-{n}', 400, setup=['weather rain']) for n in range(3)]
+    items += [item(f'random-{n}', 1200) for n in range(4)]
+    items += [item(f'light-{n}', 600, setup=['time set 6000']) for n in range(3)]
+    ring = [(x, z) for x in range(2, 7) for z in range(-2, 3) if (x, z) != (4, 0)]
+
+    def take(key, block, setup=(), actions=()):
+        place = [f'setblock {x} -60 {z} {block}' for x, z in ring]
+        clear = [f'setblock {x} -60 {z} air' for x, z in ring]
+        return item(f'take-{key}', 400, actions, setup=list(setup) + place, cleanup=clear)
+
+    items += [take(f'grass_block-{n}', 'grass_block') for n in range(3)]
+    items += [take(block, block) for block in ('dirt', 'sand', 'gravel', 'tnt', 'pumpkin', 'melon_block', 'clay',
+                                                'poppy', 'red_mushroom', 'stone', 'netherrack', 'oak_planks')]
+    items.append(take('nogrief', 'grass_block', setup=['gamerule mobgriefing false']))
+    items.append(take('kill', 'grass_block', actions=[{'t': 300, 'commands': ['kill @e[type=minecraft:enderman]']}]))
+    return pick('enderman', items, args.items)
+
+
 def melee_effect_items(args) -> list[dict]:
     """`melee-effects`: a husk spawned two blocks east of the sweep player
     (survival) walks up and hits it for 200 ticks; the player lives through
@@ -979,14 +1131,15 @@ def build_job(args, out: Path) -> dict:
         # Zombies need a difficulty above peaceful and burn in daylight.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = effect_items(args)
-    elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish', 'creeper'):
+    elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish', 'creeper', 'spider', 'enderman'):
         # The generic per-tick job of `effects`; hostile mobs need a
         # difficulty above peaceful and skeletons burn in daylight.
         job['kind'] = 'effects'
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = {'ranged': ranged_items, 'mooshroom': mooshroom_items,
                         'melee-effects': melee_effect_items, 'silverfish': silverfish_items,
-                        'creeper': creeper_items}[args.kind](args)
+                        'creeper': creeper_items, 'spider': spider_items,
+                        'enderman': enderman_items}[args.kind](args)
     elif args.kind == 'entity-loot':
         # Hostile mobs need a difficulty above peaceful.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
@@ -1012,7 +1165,7 @@ def main() -> int:
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
                                          'knockback', 'knockback-reload', 'range', 'bonus', 'walk',
                                          'effects', 'entity-loot', 'ranged', 'mooshroom', 'melee-effects',
-                                         'silverfish', 'creeper'])
+                                         'silverfish', 'creeper', 'spider', 'enderman'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
