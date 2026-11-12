@@ -121,6 +121,11 @@ PLAYER = [
     '/give @s stone,',
     '/give @s {stone}',
     '/setblock 0 -60 0 stone ["a"=1]x',
+    # Where locate biome looks first: from several blocks and heights.
+    *(line for x, y, z in [(10, -60, 10), (31, -60, 31), (32, -60, 32), (-1, -60, -1), (100, -60, 37),
+                           (-100, -50, 250), (500, -60, -500), (15, -60, 15), (17, -60, 17)]
+      for line in (f'/tp @s {x} {y} {z}', '/locate biome minecraft:plains')),
+    '/execute positioned 40 -60 40 run locate biome minecraft:plains',
 ]
 
 # Long /execute chains, `prefix + (repeat + ' ') * count + end`. BDS exits

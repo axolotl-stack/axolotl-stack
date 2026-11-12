@@ -100,7 +100,7 @@
    "records": [
     {
      "level": "INFO",
-     "text": "Diagnostics capture stopped - saved to '<home>/AppData/Roaming/Minecraft Bedrock Server/logs/diagnostics/diagnostics_2026-11-12_14-53-40.mcstats'        "
+     "text": "Diagnostics capture stopped - saved to '<home>/AppData/Roaming/Minecraft Bedrock Server/logs/diagnostics/diagnostics_2026-11-12_15-54-54.mcstats'        "
     }
    ]
   },
@@ -331,8 +331,10 @@
    },
    "messages": [
     {
-     "key": "commands.ride.startRiding.notRideable",
-     "params": [],
+     "key": "commands.ride.startRiding.failure",
+     "params": [
+      "BDSExtractor"
+     ],
      "success": false
     }
    ]
@@ -351,33 +353,20 @@
    "command": "/ride @s summon_ride horse",
    "output": {
     "type": "alloutput",
-    "success_count": 1
+    "success_count": 0
    },
    "messages": [
     {
-     "key": "commands.ride.summonRide.success",
-     "params": [
-      "BDSExtractor"
-     ],
-     "success": true
+     "key": "commands.ride.summonRide.notRideable",
+     "params": [],
+     "success": false
     }
    ]
   },
   {
    "command": "/ride @s stop_riding",
-   "output": {
-    "type": "alloutput",
-    "success_count": 1
-   },
-   "messages": [
-    {
-     "key": "commands.ride.stopRiding.success",
-     "params": [
-      "BDSExtractor"
-     ],
-     "success": true
-    }
-   ]
+   "output": null,
+   "messages": []
   },
   {
    "command": "/packstack server",
@@ -1704,6 +1693,377 @@
       ""
      ],
      "success": false
+    }
+   ]
+  },
+  {
+   "command": "/tp @s 10 -60 10",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.tp.success.coordinates",
+     "params": [
+      "BDSExtractor",
+      "10.50",
+      "-60.00",
+      "10.50"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "-22",
+      "-60",
+      "-22",
+      "45"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/tp @s 31 -60 31",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.tp.success.coordinates",
+     "params": [
+      "BDSExtractor",
+      "31.50",
+      "-60.00",
+      "31.50"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "-1",
+      "-60",
+      "-1",
+      "45"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/tp @s 32 -60 32",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.tp.success.coordinates",
+     "params": [
+      "BDSExtractor",
+      "32.50",
+      "-60.00",
+      "32.50"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "0",
+      "-60",
+      "0",
+      "45"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/tp @s -1 -60 -1",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.tp.success.coordinates",
+     "params": [
+      "BDSExtractor",
+      "-0.50",
+      "-60.00",
+      "-0.50"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "-33",
+      "-60",
+      "-33",
+      "45"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/tp @s 100 -60 37",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.tp.success.coordinates",
+     "params": [
+      "BDSExtractor",
+      "100.50",
+      "-60.00",
+      "37.50"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "68",
+      "-60",
+      "5",
+      "45"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/tp @s -100 -50 250",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.tp.success.coordinates",
+     "params": [
+      "BDSExtractor",
+      "-99.50",
+      "-50.00",
+      "250.50"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "-132",
+      "-60",
+      "218",
+      "45"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/tp @s 500 -60 -500",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.tp.success.coordinates",
+     "params": [
+      "BDSExtractor",
+      "500.50",
+      "-60.00",
+      "-499.50"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "468",
+      "-60",
+      "-532",
+      "45"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/tp @s 15 -60 15",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.tp.success.coordinates",
+     "params": [
+      "BDSExtractor",
+      "15.50",
+      "-60.00",
+      "15.50"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "-17",
+      "-60",
+      "-17",
+      "45"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/tp @s 17 -60 17",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.tp.success.coordinates",
+     "params": [
+      "BDSExtractor",
+      "17.50",
+      "-60.00",
+      "17.50"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "-15",
+      "-60",
+      "-15",
+      "45"
+     ],
+     "success": true
+    }
+   ]
+  },
+  {
+   "command": "/execute positioned 40 -60 40 run locate biome minecraft:plains",
+   "output": {
+    "type": "alloutput",
+    "success_count": 1
+   },
+   "messages": [
+    {
+     "key": "commands.locate.biome.success",
+     "params": [
+      "minecraft:plains",
+      "8",
+      "-60",
+      "8",
+      "45"
+     ],
+     "success": true
     }
    ]
   }

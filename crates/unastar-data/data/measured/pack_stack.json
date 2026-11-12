@@ -1,6 +1,6 @@
 {
  "//": "BDS 1.26.51 pack stacks as /packstack server verbose (console) and /packstack client verbose (operator player) list them, in order; cut from crates/unastar/src/command/exec/testdata/bds-command-probe.json (tools/bds-sweep/command_probe.py). Every pack is vanilla (exclude-vanilla lists none).",
- "source_sha256": "1b2bd3d8e0a719d499ac94c60633484ec8bf1ed187aae5aecc075a14596b7f20",
+ "source_sha256": "8ee46359fd430155f83a161a70277e92a449bc7ae968fadd818769548e12e496",
  "server": [
   {
    "name": "@minecraft/server TS Library",

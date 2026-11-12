@@ -58,9 +58,27 @@ pub fn player_commands(prefix: &str) -> Vec<String> {
         .collect()
 }
 
+/// The operator player's probe commands and BDS's answers, in order (a
+/// command may repeat).
+pub fn player_steps() -> Vec<(String, Vec<CommandMessage>)> {
+    probe()["player"]
+        .as_array()
+        .expect("steps")
+        .iter()
+        .map(|step| {
+            let command = step["command"].as_str().expect("command").to_owned();
+            (command, messages(step))
+        })
+        .collect()
+}
+
 /// The messages BDS answered the operator player's `command` with.
 pub fn captured_player(command: &str) -> Vec<CommandMessage> {
-    step("player", command)["messages"]
+    messages(step("player", command))
+}
+
+fn messages(step: &serde_json::Value) -> Vec<CommandMessage> {
+    step["messages"]
         .as_array()
         .expect("messages")
         .iter()
