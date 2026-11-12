@@ -26,20 +26,20 @@ Evidence: crates/unastar-rules/build/enchantments.rs (`write`), crates/unastar-r
 
 Evidence: crates/unastar-rules/src/ids.rs (`UnknownEnchantment`; tests `unknown_ids_and_names_are_typed_errors`, `vanilla_aliases_parse`, `serde_uses_the_identifier`)
 
-## MODIFIED Requirements
-
-### Requirement: Loot decoding keeps everything
-`loot::decode_table` SHALL decode a Bedrock loot table into typed pools, entries, conditions and functions while keeping the full source JSON in `LootTable::canonical`. A condition or function it does not model MUST become an explicit `Other { name, json }` value, never be dropped. A non-object table, non-object pool or unknown entry type MUST be a `ParseError`. Enchantment names in `match_tool`, `table_bonus`, `apply_bonus` and `specific_enchants` MUST decode to `Enchantment` values, and an unknown name MUST be a `ParseError` whose path starts with the table name. `LootTables` MUST accept rows by name before it is shared.
-
-#### Scenario: Unmodelled clause retained
-- **WHEN** a function guard uses `entity_properties` with a property other than `on_fire`
-- **THEN** the table decodes and the clause is kept for evaluation to reject
+### Requirement: Loot enchantment names are typed at load
+`loot::decode_table` SHALL decode the enchantment names in `match_tool`, `table_bonus`, `apply_bonus` and `specific_enchants` to `Enchantment` values. An unknown name MUST be a `ParseError` whose path starts with the table name, so a bad name in the embedded vanilla tables fails the `unastar-data` build.
 
 #### Scenario: Unknown enchantment rejected at load
 - **WHEN** a table's `apply_bonus` names `speed`, its `specific_enchants` names `foo:fortune`, or its `match_tool` names `speed`
 - **THEN** decoding fails with a `ParseError` naming the table and the unknown enchantment
 
-Evidence: crates/unastar-rules/src/loot/decode.rs (`decode_table`), crates/unastar-rules/src/loot/mod.rs (`LootTable`, `LootTables::insert`, `LootCondition::Other`, `LootFunctionKind::Other`), crates/unastar-rules/src/loot/tests.rs (`additional_entity_predicates_are_not_silently_discarded`, `enchantment_names_are_typed_at_decode`, `an_unknown_enchantment_rejects_the_table_naming_it`), crates/unastar-data/src/loot.rs (`vanilla`)
+#### Scenario: Known names decode
+- **WHEN** a table's `apply_bonus` names `minecraft:fortune` and its `specific_enchants` lists `swift_sneak` at `[1, 3]` and `protection` at 4
+- **THEN** the decoded function holds `Enchantment::Fortune`, and the enchants hold `SwiftSneak` 1..=3 and `Protection` 4..=4
+
+Evidence: crates/unastar-rules/src/loot/decode.rs (`enchantment`, `specific_enchant`), crates/unastar-rules/src/loot/tests.rs (`enchantment_names_are_typed_at_decode`, `an_unknown_enchantment_rejects_the_table_naming_it`), crates/unastar-data/build/loot.rs
+
+## MODIFIED Requirements
 
 ### Requirement: Random enchanting without an item registry
 `enchanting` SHALL select and add enchantments from the caller's `ItemEnchanting` (slot mask and enchantability) and the caller's RNG, with no item registry. `select_enchantments` MUST return nothing for an item without slots or enchantability, else only discoverable enchantments that fit the item (treasure only when allowed), at levels the rolled cost reaches, never two that conflict. `add_enchantment` MUST refuse an enchantment that fits no slot or conflicts with the list.
@@ -53,4 +53,4 @@ Evidence: crates/unastar-rules/src/loot/decode.rs (`decode_table`), crates/unast
 - **THEN** compatible ones are added, a repeat raises the level, and an exclusive-group conflict or wrong slot is refused
 
 Evidence: crates/unastar-rules/src/enchanting.rs (`select_enchantments`, `add_enchantment`, `ItemEnchanting`, `EnchantmentInstance`; tests `selected_enchantments_fit_the_item_and_never_conflict`, `levels_follow_the_minimum_costs`, `unenchantable_items_stay_plain`, `adding_respects_slots_lists_and_exclusive_groups`, `generated_rows_keep_the_measured_table`), crates/unastar-rules/src/ids.rs (`Enchantment::max_level`)
-Verified by: parity row `crafting.enchantments` in [systems.toml](../../../docs/parity/systems.toml)
+Verified by: parity row `crafting.enchantments` in [systems.toml](../../../../../../docs/parity/systems.toml)

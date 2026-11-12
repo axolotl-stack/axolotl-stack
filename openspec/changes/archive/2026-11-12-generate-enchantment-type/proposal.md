@@ -8,9 +8,9 @@ table, the loot decoder's and loot adapter's id switches, and the drop-sweep tes
 match. Open lanes kept extending the hand enum separately. Loot tables kept unknown enchantment
 names as strings and only failed when a roll reached them.
 
-Prior work: [decision 0021](../../../docs/decisions/0021-shared-rules-engines-in-bevy-free-crate.md)
-put shared rules in `unastar-rules`; [0013](../../../docs/decisions/0013-copy-bds-behaviour-exactly.md)
-and [0014](../../../docs/decisions/0014-measure-built-in-facts-from-bds.md) set the data and
+Prior work: [decision 0021](../../../../docs/decisions/0021-shared-rules-engines-in-bevy-free-crate.md)
+put shared rules in `unastar-rules`; [0013](../../../../docs/decisions/0013-copy-bds-behaviour-exactly.md)
+and [0014](../../../../docs/decisions/0014-measure-built-in-facts-from-bds.md) set the data and
 provenance rules. Nothing in `docs/solutions` or `docs/quirks` covers enchantments.
 
 ## What Changes
@@ -31,7 +31,7 @@ converting the drop and mining sweep fixtures' `+fortune3` tool keys to structur
 
 ## Capabilities
 
-- Modified: `rules-engine` (loot decoding types enchantment names; new generated enchantment type).
+- Modified: `rules-engine` (new generated enchantment type; loot enchantment names typed at load; random-enchanting evidence).
 
 ## Impact
 
