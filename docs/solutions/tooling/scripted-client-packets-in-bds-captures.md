@@ -39,11 +39,11 @@ them, so the first captures only showed what BDS sends on its own.
   the sessions up.
 - `/op` and `/deop` from an operator player fail with a permissions error.
   Only the console can run them.
-- The extractor never sends `PlayerAuthInput`. BDS still relays its emotes,
-  swings and picks, but `BookEdit` changed nothing (the book stayed an empty
-  writable book after edits and signing, as `/replaceitem` on another slot
-  revealed). Book editing needs a client that sends input before it can be
-  measured.
+- Without `--input` the extractor sends no `PlayerAuthInput`. BDS still
+  relays its emotes, swings and picks. `BookEdit` changed nothing in these
+  runs because the book was never opened (an item use on air), not for want
+  of input: see
+  [driving-a-live-client-in-bds-captures.md](driving-a-live-client-in-bds-captures.md).
 - A persona with one unknown piece type (`persona_hands` is one) refuses the
   whole login, so skin variants with unknown values go in separate sessions.
 

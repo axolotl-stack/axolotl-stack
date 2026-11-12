@@ -1,0 +1,27 @@
+/gamerule domobspawning false
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/gamerule randomtickspeed 0
+/kill @e[type=!player]
+/replaceitem entity @s slot.hotbar 0 writable_book
+!wait 1000
+!equip 0
+!use-item 0
+!book 0 replace 0 first page
+!book 0 add 1 second page
+/replaceitem entity @s slot.hotbar 8 stone
+!book 0 replace 3 fourth page
+/replaceitem entity @s slot.hotbar 8 dirt
+!book 0 add 6 far page
+/replaceitem entity @s slot.hotbar 8 stone
+!book 0 swap 0 1
+/replaceitem entity @s slot.hotbar 8 dirt
+!book 0 delete 1
+/replaceitem entity @s slot.hotbar 8 stone
+!book 3 replace 0 no book here
+/replaceitem entity @s slot.hotbar 8 dirt
+!book 0 sign ProbeTitle ProbeAuthor
+/replaceitem entity @s slot.hotbar 8 stone
+!book 0 replace 0 after signing
+/replaceitem entity @s slot.hotbar 8 dirt
+!wait 1000

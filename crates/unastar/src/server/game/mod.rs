@@ -6,6 +6,7 @@
 pub mod attributes;
 mod block_drops;
 pub(crate) mod blocks;
+pub(crate) mod books;
 mod chunks;
 mod client_packets;
 #[cfg(test)]
@@ -333,6 +334,8 @@ impl GameServer {
         ecs.world_mut().insert_resource(world_time);
         ecs.world_mut().insert_resource(start_game_state);
         ecs.world_mut()
+            .insert_resource(roster::OnlineRoster::default());
+        ecs.world_mut()
             .init_resource::<crate::world::clock::ClockSync>();
         ecs.world_mut()
             .init_resource::<crate::command::CommandRegistry>();
@@ -659,6 +662,16 @@ impl GameServer {
         ecs.schedule_mut()
             .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
 
+        ecs.world_mut().insert_resource(
+            books::BookItems::resolve(&items).expect("vanilla book and quill and written book"),
+        );
+        ecs.world_mut().insert_resource(
+            inventory::actor_pick::ActorPickItems::resolve(
+                unastar_data::actor_picks::vanilla(),
+                &items,
+            )
+            .expect("measured actor pick items are registered"),
+        );
         ecs.world_mut()
             .insert_resource(types::ItemRegistryResource(items));
         ecs.world_mut()
@@ -932,22 +945,21 @@ impl GameServer {
             session_map.insert(data.session_id, entity);
         }
 
-        let roster_entry = {
-            let world = self.ecs.world_mut();
-            let taken: Vec<u32> = world
-                .query::<&roster::RosterEntry>()
-                .iter(world)
-                .map(roster::RosterEntry::colour)
-                .collect();
-            roster::RosterEntry::new(
-                player_uuid,
-                runtime_id,
-                &player_name_for_roster,
-                player_xuid.as_deref(),
-                client_data.unwrap_or(&jolyne::auth::ClientData::default()),
-                roster::free_colour(taken),
-            )
-        };
+        // The colour reserved when the join reached StartGame (a player
+        // spawned without a connection task reserves its place here).
+        let (colour, _) = self
+            .ecs
+            .world()
+            .resource::<roster::OnlineRoster>()
+            .join(data.session_id);
+        let roster_entry = roster::RosterEntry::new(
+            player_uuid,
+            runtime_id,
+            &player_name_for_roster,
+            player_xuid.as_deref(),
+            client_data.unwrap_or(&jolyne::auth::ClientData::default()),
+            colour,
+        );
         self.ecs.world_mut().entity_mut(entity).insert(roster_entry);
 
         self.ecs.world_mut().write_message(PlayerSpawnedEvent {
@@ -969,8 +981,13 @@ impl GameServer {
                 None
             }
         };
+        let remaining = self
+            .ecs
+            .world()
+            .resource::<roster::OnlineRoster>()
+            .leave(session_id);
         if let Some(entity) = entity {
-            self.announce_leave(entity);
+            self.announce_leave(entity, remaining);
             self.ecs.world_mut().despawn(entity);
             info!(session_id, "Player despawned");
         }

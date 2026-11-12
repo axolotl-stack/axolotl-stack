@@ -1,0 +1,36 @@
+{
+  "bds_version": "26.51",
+  "server": "bedrock_server.exe (no Endstone)",
+  "server_properties": {
+    "server-name": "bds-sweep bds-extractor-1.26.51",
+    "server-port": 19150,
+    "server-portv6": 19151,
+    "online-mode": "false",
+    "enable-lan-visibility": "false",
+    "allow-cheats": "true",
+    "level-name": "bds-extractor-1.26.51",
+    "max-players": 2,
+    "content-log-file-enabled": "false",
+    "default-player-permission-level": "operator",
+    "level-seed": 12345,
+    "gamemode": "survival",
+    "difficulty": "easy"
+  },
+  "extractor_command": [
+    "bds-extractor",
+    "--addr",
+    "127.0.0.1:19150",
+    "--name",
+    "BDSExtractor",
+    "--timeout",
+    "120",
+    "--capture-dir",
+    "C:\\Users\\jvigu\\.t3\\worktrees\\axolotl-stack\\t3-a4c006b1\\.cache\\round3\\pick-recheck2\\pick-actors",
+    "--log",
+    "info",
+    "--commands",
+    "C:\\Users\\jvigu\\.t3\\worktrees\\axolotl-stack\\t3-a4c006b1\\.cache\\round3\\pick-recheck2\\pick-actors-commands.txt",
+    "--input"
+  ],
+  "started_unix": 1794506812.626
+}

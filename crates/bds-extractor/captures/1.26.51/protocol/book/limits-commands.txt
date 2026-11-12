@@ -1,0 +1,28 @@
+/gamerule domobspawning false
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/gamerule randomtickspeed 0
+/kill @e[type=!player]
+/replaceitem entity @s slot.hotbar 0 writable_book
+!wait 1000
+!equip 0
+!use-item 0
+!book 0 replace 0 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+/replaceitem entity @s slot.hotbar 8 stone
+!book 0 replace 1 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+/replaceitem entity @s slot.hotbar 8 dirt
+!book 0 replace 49 page fifty
+/replaceitem entity @s slot.hotbar 8 stone
+!book 0 replace 50 page fifty-one
+/replaceitem entity @s slot.hotbar 8 dirt
+!book 0 add 0 inserted first
+/replaceitem entity @s slot.hotbar 8 stone
+!book 0 delete 60
+/replaceitem entity @s slot.hotbar 8 dirt
+!book 0 swap 0 55
+/replaceitem entity @s slot.hotbar 8 stone
+!book 0 sign TTTTTTTTTTTTTTTTT ProbeAuthor
+/replaceitem entity @s slot.hotbar 8 dirt
+!book 0 sign UUUUUUUUUUUUUUUU ProbeAuthor
+/replaceitem entity @s slot.hotbar 8 stone
+!wait 1000

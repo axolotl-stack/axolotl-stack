@@ -1,0 +1,92 @@
+/gamerule domobspawning false
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/gamerule randomtickspeed 0
+/kill @e[type=!player]
+/gamemode creative @s
+/clear @s
+!wait 1000
+/summon cow ~ ~ ~1
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~2
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~3
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~4
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~5
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~6
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~7
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~8
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~10
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~12
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~14
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~16
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~20
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon cow ~ ~ ~24
+!wait 200
+!pick-actor actor
+/kill @e[type=!player]
+/clear @s
+!wait 200

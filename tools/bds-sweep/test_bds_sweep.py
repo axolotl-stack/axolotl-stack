@@ -16,6 +16,7 @@ import bds_runtime  # noqa: E402
 import capture  # noqa: E402
 import commit_protocol_fixtures  # noqa: E402
 import native  # noqa: E402
+import pick_table  # noqa: E402
 import protocol_probe  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
@@ -169,6 +170,11 @@ class ProtocolProbeTest(unittest.TestCase):
                                             blob_cache=True)
         self.assertEqual(command[command.index('--client-data') + 1], 'skin.json')
         self.assertIn('--blob-cache', command)
+        self.assertNotIn('--input', command)
+
+    def test_extractor_command_sends_input_on_request(self):
+        command = capture.extractor_command(Path('x.exe'), Path('out'), player_input=True)
+        self.assertIn('--input', command)
 
     def test_fixture_timelines_start_after_the_join(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -192,3 +198,43 @@ class ProtocolProbeTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class PickTable(unittest.TestCase):
+    @staticmethod
+    def slot(item_id, user_data='00000000000000000000'):
+        return {'id': item_id, 'auxvalue': 0, 'user_data_buffer': user_data}
+
+    def test_summons_become_items_data_and_actors_without_one(self):
+        def row(name, packet):
+            return {'name': name, 'packet': packet}
+        empty = {'id': 0, 'auxvalue': 0, 'user_data_buffer': ''}
+        rows = [
+            row('CommandRequestPacket', {'command': '/summon cow ~ ~ ~3'}),
+            row('AddActorPacket', {'actor_type': 'minecraft:cow'}),
+            row('ActorPickRequestPacket', {'with_data': False}),
+            row('GuiDataPickItemPacket', {'item_name': 'item.spawn_egg.entity.cow.name', 'slot': 0}),
+            row('InventoryContentPacket', {'container_id': 0, 'slots': [self.slot(440)]}),
+            row('ActorPickRequestPacket', {'with_data': True}),
+            row('GuiDataPickItemPacket', {'item_name': 'item.spawn_egg.entity.cow.name', 'slot': 0}),
+            row('InventoryContentPacket', {'container_id': 0, 'slots': [self.slot(440)]}),
+            row('CommandRequestPacket', {'command': '/summon chest_minecart ~ ~ ~3'}),
+            row('AddActorPacket', {'actor_type': 'minecraft:chest_minecart'}),
+            row('ActorPickRequestPacket', {'with_data': False}),
+            row('GuiDataPickItemPacket', {'item_name': 'item.chest_minecart.name', 'slot': 0}),
+            row('InventoryContentPacket', {'container_id': 0, 'slots': [self.slot(9)]}),
+            row('ActorPickRequestPacket', {'with_data': True}),
+            row('GuiDataPickItemPacket', {'item_name': 'item.chest_minecart.name', 'slot': 1}),
+            row('InventoryContentPacket', {'container_id': 0, 'slots': [self.slot(9), self.slot(9, 'ffff')]}),
+            row('CommandRequestPacket', {'command': '/summon tnt ~ ~ ~3'}),
+            row('AddActorPacket', {'actor_type': 'minecraft:tnt'}),
+            row('ActorPickRequestPacket', {'with_data': False}),
+            row('InventoryContentPacket', {'container_id': 120, 'slots': [empty]}),
+            row('CommandRequestPacket', {'command': '/summon painting ~ ~ ~3'}),
+        ]
+        actors, no_item = pick_table.table(pick_table.summons(rows),
+                                           {440: 'minecraft:cow_spawn_egg', 9: 'minecraft:chest_minecart'})
+        self.assertEqual(actors['minecraft:cow'],
+                         {'item': 'minecraft:cow_spawn_egg', 'aux': 0, 'name': 'item.spawn_egg.entity.cow.name'})
+        self.assertEqual(actors['minecraft:chest_minecart']['item'], 'minecraft:chest_minecart')
+        self.assertEqual(actors['minecraft:chest_minecart']['data_user_data'], 'ffff')
+        self.assertEqual(no_item, ['minecraft:tnt'])

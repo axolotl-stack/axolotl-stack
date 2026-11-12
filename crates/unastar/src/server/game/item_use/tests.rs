@@ -21,6 +21,7 @@ impl Harness {
         let mut world = World::new();
         let mut items = ItemRegistry::new();
         items.load_vanilla();
+        world.insert_resource(crate::server::game::books::BookItems::resolve(&items).unwrap());
         world.insert_resource(ItemRegistryResource(Arc::new(items)));
         world.init_resource::<ItemUseQueue>();
         world.insert_resource(crate::server::game::types::ServerConfigResource(

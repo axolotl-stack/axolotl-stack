@@ -9,8 +9,8 @@ use crate::valentine::{
     EnumsGeneratorType, EnumsPlayerPermissionLevel, EnumsServerEditorConnectionPolicy,
     EnumsSharedTypesLegacyDifficulty, EnumsSocialGamePublishSetting, Experiments,
     GameRulesChangedPacketData, ItemRegistryPacket, JigsawStructureDataPacket, LevelSettings,
-    NetworkPermissions, SocialEventsServerTelemetryData, SpawnSettings, StartGamePacket,
-    SyncedPlayerMovementSettings, Vec2, Vec3, VoxelShapesPacket,
+    McpePacket, NetworkPermissions, SocialEventsServerTelemetryData, SpawnSettings,
+    StartGamePacket, SyncedPlayerMovementSettings, Vec2, Vec3, VoxelShapesPacket,
 };
 use bytes::Bytes;
 use std::sync::Arc;
@@ -70,11 +70,18 @@ pub struct WorldTemplate {
 /// Per-player parameters for `start_game`.
 ///
 /// The server sends, in one batch and in vanilla order (gophertunnel
-/// conn.go `startGame`, BDS captures): `DimensionData` (when set),
-/// `JigsawStructureData`, `VoxelShapes`, `StartGame`, `ItemRegistry`, then
-/// the definition lists.
+/// conn.go `startGame`, BDS captures): the application's
+/// [`before_start_game`](Self::before_start_game) packets, `DimensionData`
+/// (when set), `JigsawStructureData`, `VoxelShapes`, `StartGame`,
+/// `ItemRegistry`, then the definition lists.
 #[derive(Debug)]
 pub struct WorldJoinParams {
+    /// Game packets sent first, in this order, in the `StartGame` batch.
+    /// BDS 1.26.51 sends the joining player the sleeping-player
+    /// `LevelEventGeneric`, its own `PlayerList` entry and the world clock
+    /// state here; jolyne leaves their content to the application. Default:
+    /// none.
+    pub before_start_game: Vec<McpePacket>,
     /// `DimensionData` sent first; `None` sends no `DimensionData`.
     pub dimension_data: Option<Arc<DimensionDataPacket>>,
     /// `JigsawStructureData` sent before `StartGame`.
@@ -111,6 +118,7 @@ impl WorldTemplate {
         };
 
         WorldJoinParams {
+            before_start_game: Vec::new(),
             dimension_data: self.dimension_data.clone(),
             jigsaw_structures: self.jigsaw_structures.clone(),
             voxel_shapes: self.voxel_shapes.clone(),

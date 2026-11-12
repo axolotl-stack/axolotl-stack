@@ -100,7 +100,11 @@ Java world radius 4, about 0.5 s / 3.0 s fresh and 0.16 s / 0.45 s when the area
 is already generated; radius 12, about 0.6 s / 17 s fresh and 0.14 s / 2.9 s
 generated (8 chunks per player per tick bound the generated case).
 
-After `StartGame` the player gets the rest of the BDS 1.26.51 join in BDS order
+The `StartGame` batch opens with the sleeping-player count, the player's own
+`PlayerList` entry and the clock state, as BDS 1.26.51 sends them: the
+connection task reserves the player's place and colour in the shared
+`OnlineRoster` first (decision 0044). After `StartGame` the player gets the rest
+of the BDS 1.26.51 join in BDS order
 (`server/game/join.rs`): the fixed packets byte-identical to the member join
 capture, then `SetHealth` right before `PlayStatus(PlayerSpawn)`. The game mode
 travels in `StartGame` only. Each player's `PlayerList` entry (skin, platform,

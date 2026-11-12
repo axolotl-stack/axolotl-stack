@@ -3,9 +3,12 @@
 //! Measured with `tools/bds-sweep/capture.py --pair` (fixtures under
 //! `crates/bds-extractor/captures/1.26.51/roster/`):
 //!
-//! - A joining player gets the sleeping-player `LevelEventGeneric` and a
-//!   `PlayerList` holding only itself first, and later in the join a
-//!   `PlayerList` holding every online player, itself included.
+//! - A joining player gets the sleeping-player `LevelEventGeneric`, a
+//!   `PlayerList` holding only itself and the world clock state before
+//!   `StartGame` (in its batch), and later in the join a `PlayerList`
+//!   holding every online player, itself included. A player counts as online
+//!   from that moment: [`OnlineRoster`] reserves its place and colour in the
+//!   connection task, before the game loop has spawned it.
 //! - Every player already online gets, in this order, the sleeping-player
 //!   event with the new count, a `PlayerList` adding the newcomer and an
 //!   `UpdateAdventureSettings` (the same settings the join sends), all before
@@ -21,7 +24,10 @@
 //! same players online listed them differently); unastar lists players in
 //! join order.
 
-use bevy_ecs::prelude::{Component, Entity, World};
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+use bevy_ecs::prelude::{Component, Entity, Resource, World};
 use bytes::{BufMut, Bytes, BytesMut};
 use jolyne::auth::ClientData;
 use jolyne::valentine::types::{
@@ -29,7 +35,10 @@ use jolyne::valentine::types::{
     PlayerListPacketEntriesItem, PlayerListPacketPayloadAddEntry,
     PlayerListPacketPayloadAddEntryAction, PlayerListPacketPayloadRemoveEntry,
 };
-use jolyne::valentine::{LevelEventGenericPacket, PlayerListPacket, UpdateAdventureSettingsPacket};
+use jolyne::valentine::{
+    LevelEventGenericPacket, McpePacket, PlayerListPacket, UpdateAdventureSettingsPacket,
+};
+use parking_lot::Mutex;
 use uuid::Uuid;
 use valentine::bedrock::codec::{BedrockCodec, NbtCompoundBody};
 
@@ -96,6 +105,7 @@ impl RosterEntry {
         self.0.actor_unique_id.actor_unique_id
     }
 
+    #[cfg(test)]
     pub fn colour(&self) -> u32 {
         self.0.player_color.color as u32
     }
@@ -109,6 +119,112 @@ pub fn free_colour(taken: impl IntoIterator<Item = u32>) -> u32 {
         .into_iter()
         .min_by_key(|colour| taken.iter().filter(|held| *held == colour).count())
         .expect("the palette is not empty")
+}
+
+/// Who counts as online, shared by the connection tasks and the game loop:
+/// each session's colour, from the moment its join reaches `StartGame` until
+/// the player leaves. BDS counts a joining player (and has given it a colour)
+/// before `StartGame`, so the place is reserved there, off the game thread.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct OnlineRoster(Arc<Mutex<BTreeMap<u64, u32>>>);
+
+impl OnlineRoster {
+    /// Reserves `session`'s place: the [`free_colour`] among everyone online
+    /// and the number online, `session` included. Dropping the reservation
+    /// before [`Reservation::keep`] gives the place back (a join that failed
+    /// before the game loop took it over).
+    pub fn reserve(&self, session: u64) -> Reservation {
+        let (colour, online) = self.join(session);
+        Reservation {
+            roster: self.clone(),
+            session,
+            colour,
+            online,
+            kept: false,
+        }
+    }
+
+    /// `session`'s colour and the number online, reserving its place when it
+    /// has none yet.
+    pub fn join(&self, session: u64) -> (u32, usize) {
+        let mut online = self.0.lock();
+        let colour = match online.get(&session) {
+            Some(colour) => *colour,
+            None => {
+                let colour = free_colour(online.values().copied());
+                online.insert(session, colour);
+                colour
+            }
+        };
+        (colour, online.len())
+    }
+
+    /// Gives `session`'s place and colour back (it left); returns how many
+    /// stay online.
+    pub fn leave(&self, session: u64) -> usize {
+        let mut online = self.0.lock();
+        online.remove(&session);
+        online.len()
+    }
+
+    /// How many players are online, joining ones included.
+    pub fn len(&self) -> usize {
+        self.0.lock().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+/// A place in the [`OnlineRoster`] held by a join in progress.
+#[derive(Debug)]
+pub struct Reservation {
+    roster: OnlineRoster,
+    session: u64,
+    colour: u32,
+    online: usize,
+    kept: bool,
+}
+
+impl Reservation {
+    pub fn colour(&self) -> u32 {
+        self.colour
+    }
+
+    /// How many were online when the place was reserved, this one included.
+    pub fn online(&self) -> usize {
+        self.online
+    }
+
+    /// The game loop has the player now; its leave gives the place back.
+    pub fn keep(mut self) {
+        self.kept = true;
+    }
+}
+
+impl Drop for Reservation {
+    fn drop(&mut self) {
+        if !self.kept {
+            self.roster.leave(self.session);
+        }
+    }
+}
+
+/// The packets BDS 1.26.51 sends a joining player before `StartGame`, in its
+/// order (member join fixtures `00011`-`00013`): the sleeping-player count
+/// with everyone online (the joining player included), the player's own
+/// `PlayerList` entry and the world clock state.
+pub fn before_start_game(
+    online: usize,
+    own: &RosterEntry,
+    time: crate::world::rules::WorldTime,
+) -> Vec<McpePacket> {
+    vec![
+        McpePacket::from(sleeping_players(online as i32, 0)),
+        McpePacket::from(add_packet([own])),
+        McpePacket::from(crate::world::clock::clock_state_packet(time)),
+    ]
 }
 
 /// Every online player with its entry, in join order (unique ids are

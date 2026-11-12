@@ -1,9 +1,11 @@
 //! Inventory domain system.
 //!
 //! Processes ItemStackRequest (through [`engine`]), ContainerClose,
-//! MobEquipment, Interact, BlockPickRequest (through [`pick`]) and
+//! MobEquipment, Interact, BlockPickRequest (through [`pick`]),
+//! ActorPickRequest (through [`actor_pick`]) and
 //! InventoryTransaction packets.
 
+pub(crate) mod actor_pick;
 pub mod containers;
 #[cfg(test)]
 mod creative_tests;
@@ -154,7 +156,12 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
             && crate::entity::item_drop::drop_thrower_id(world, entity).is_some();
         let position = world.get::<Position>(entity).map(|position| position.0);
         let picked = match &action {
-            InventoryAction::BlockPick(pk) => pick::picked_item(world, entity, pk),
+            InventoryAction::BlockPick(pk) => {
+                pick::picked_item(world, entity, pk).map(|item| (item, None))
+            }
+            InventoryAction::ActorPick(pk) => {
+                actor_pick::picked_item(world, entity, pk).map(|(item, name)| (item, Some(name)))
+            }
             _ => None,
         };
         // A block window's slots are copied out for the request and committed
@@ -219,9 +226,17 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                         &mut players,
                     );
                 }
-                InventoryAction::BlockPick(_) => {
-                    if let (Some(item), Ok(mut player)) = (picked, players.get_mut(entity)) {
-                        pick::select_item(entity, item, &mut player, &mut events, block_ids);
+                InventoryAction::BlockPick(_) | InventoryAction::ActorPick(_) => {
+                    if let (Some((item, name)), Ok(mut player)) = (picked, players.get_mut(entity))
+                    {
+                        pick::select_item(
+                            entity,
+                            item,
+                            name.as_deref(),
+                            &mut player,
+                            &mut events,
+                            block_ids,
+                        );
                     }
                 }
             }
@@ -658,7 +673,7 @@ pub(crate) fn wire_item(stack: &ItemStack, block_ids: BlockNetworkIds) -> Option
     })
 }
 
-fn validated_item(
+pub(crate) fn validated_item(
     wire: &WireItem,
     items: &ItemRegistry,
     block_ids: BlockNetworkIds,

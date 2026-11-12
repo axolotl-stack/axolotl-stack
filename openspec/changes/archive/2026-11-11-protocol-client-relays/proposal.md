@@ -11,7 +11,7 @@ cookies, interactions, actor picks and book edits.
 
 Prior work: [multi-client-bds-captures.md](../../../../docs/solutions/tooling/multi-client-bds-captures.md)
 (`capture.py --pair`), the roster fixtures and decision
-[0044](../../../../docs/decisions/0044-send-pre-start-game-roster-packets-after-start-game.md). No spec
+[0044](../../../../docs/decisions/0044-send-pre-start-game-roster-packets-before-start-game.md). No spec
 covers relays; the `server-authority` spec is untouched.
 
 ## What Changes

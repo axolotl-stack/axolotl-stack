@@ -18,7 +18,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
-| [Protocol](#protocol) | 231 | 118 | 26 | 44 | 28 | 15 | 33.3% |
+| [Protocol](#protocol) | 231 | 115 | 29 | 44 | 28 | 15 | 33.3% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
 | [Gameplay systems](#gameplay-systems) | 72 | 34 | 34 | 4 | 0 | 0 | 5.6% |
 
@@ -81,8 +81,8 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
-| clientbound | 89 | 77 | 12 |
-| bidirectional | 55 | 41 | 14 |
+| clientbound | 89 | 76 | 13 |
+| bidirectional | 55 | 39 | 16 |
 
 Nothing in this domain is claimed.
 
@@ -626,8 +626,8 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| bidirectional | 80 | 41 | 14 | 15 | 4 | 6 | 25.7% |
-| clientbound | 146 | 77 | 12 | 29 | 19 | 9 | 35.0% |
+| bidirectional | 80 | 39 | 16 | 15 | 4 | 6 | 25.7% |
+| clientbound | 146 | 76 | 13 | 29 | 19 | 9 | 35.0% |
 | serverbound | 5 | 0 | 0 | 0 | 5 | 0 | 100.0% |
 
 ### Protocol gaps
@@ -635,12 +635,12 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 **bidirectional**
 
 - `ActorEventPacket`: sent for hurt, death, respawn and mob events; client-sent actor events (eating particles, feeding) are ignored
+- `ActorPickRequestPacket`: a pick with data of a chest boat or chest minecart adds its contents as user data, which unastar ignores (no answer); a survival pick with the item already in the inventory is not measured (it selects it, like block picks)
 - `AnimatePacket`: client swings are relayed to nearby players (other client actions are not, as BDS); the server never originates animations (critical hits, wake up, rowing)
 - `BlockActorDataPacket`: sent for containers only (matches the BDS chest capture); client edits such as signs are not handled
-- `ClientCacheBlobStatusPacket`: answered with a ClientCacheMissResponse like BDS, but unastar holds no blobs because it never sends cached chunks (ClientCacheStatusPacket)
-- `InteractPacket`: only open-inventory is handled; leaving a vehicle while riding and NPC dialogue are not; BDS answers mouse-over, leave-vehicle when not riding and NPC-open on a player with nothing either (protocol/relay)
-- 9 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `ActorPickRequestPacket`, `AnvilDamagePacket`, `AutomationClientConnectPacket`, `BookEditPacket`, `BossEventPacket`, `ClientCacheStatusPacket`, `ClientCameraAimAssistPacket`, `ClientMovementPredictionSyncPacket`, `CommandBlockUpdatePacket`, `DebugInfoPacket`, `LecternUpdatePacket`, `MapCreateLockedCopyPacket` and 29 more
+- `BookEditPacket`: the interact-text SetActorData BDS sends when a book is held or signed, and the attribute and actor-data resend on opening, are not sent; text longer than 257 characters per page is not measured
+- 11 more partial rows with other gaps (see [protocol.toml](protocol.toml))
+- missing: `AnvilDamagePacket`, `AutomationClientConnectPacket`, `BossEventPacket`, `ClientCacheStatusPacket`, `ClientCameraAimAssistPacket`, `ClientMovementPredictionSyncPacket`, `CommandBlockUpdatePacket`, `DebugInfoPacket`, `LecternUpdatePacket`, `MapCreateLockedCopyPacket`, `MapInfoRequestPacket`, `ModalFormResponsePacket` and 27 more
 
 **clientbound**
 
@@ -649,8 +649,8 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 - `ClientCacheMissResponsePacket`: always empty: unastar never sends cached chunks, so it has no blobs to answer with
 - `CompletedUsingItemPacket`: sent when food is eaten, milk is drunk and a crossbow finishes loading; potions cannot be drunk, so no completion is sent for them
 - `ContainerSetDataPacket`: furnace-family progress only; brewing stands and other data-bearing containers missing
-- 7 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraShakePacket`, `ChangeDimensionPacket`, `ChangeMobPropertyPacket` and 65 more
+- 8 more partial rows with other gaps (see [protocol.toml](protocol.toml))
+- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraShakePacket`, `ChangeDimensionPacket`, `ChangeMobPropertyPacket` and 64 more
 
 ## World generation
 

@@ -1,0 +1,24 @@
+/gamerule domobspawning false
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/gamerule randomtickspeed 0
+/kill @e[type=!player]
+/replaceitem entity @s slot.hotbar 0 writable_book
+/replaceitem entity @s slot.hotbar 1 writable_book
+!wait 1000
+!equip 0
+!use-item 0
+!book 0 replace 0 opened
+!equip 1
+!book 0 replace 0 other slot selected
+!book 1 replace 0 never opened
+!equip 0
+!book 0 replace 0 selected again
+!book 0 sign GateTitle GateAuthor
+/replaceitem entity @s slot.hotbar 0 writable_book
+!book 0 replace 0 new book
+!equip 1
+!use-item 1
+!book 1 replace 0 opened second
+!book 0 replace 0 first after second opened
+!wait 1000

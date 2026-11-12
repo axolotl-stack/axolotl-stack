@@ -12,11 +12,12 @@ holding a `packets.jsonl`), writes under
 - `sent/<seq>-<Packet>.bin`: every client-to-server packet of `SENT` (the
   scripted actions and the login's cache status);
 - `timeline.json`: `[seq, t_ms, dir, packet]` of every packet recorded after
-  the join (the commands phase, from `manifest.json`), so a test can show
+  the join (the commands phase, from `manifest.json`) except the client's
+  `PlayerAuthInput` stream, so a test can show
   what BDS did not send after an action;
 - `session.json`.
 
-The run's scripts, `console.json` and (unless `--no-client-data`) ClientData
+The run's scripts (`commands.txt`, `<session>-commands.txt`), `console.json` and (unless `--no-client-data`) ClientData
 files are copied beside the sessions. `--packets` limits both packet sets to
 the names given, for the runs after it. Chunks, actors and payloads of other
 packets stay in the capture directory.
@@ -34,13 +35,15 @@ DEST = REPO / 'crates' / 'bds-extractor' / 'captures' / '1.26.51' / 'protocol'
 RECEIVED = {
     'PlayerListPacket', 'UpdateAbilitiesPacket', 'UpdatePlayerGameTypePacket', 'UpdateAdventureSettingsPacket',
     'EmotePacket', 'EmoteListPacket', 'AnimatePacket', 'GuiDataPickItemPacket', 'PlayerHotbarPacket',
-    'ClientCacheMissResponsePacket', 'PacketViolationWarningPacket',
+    'ClientCacheMissResponsePacket', 'PacketViolationWarningPacket', 'InventoryTransactionPacket',
+    'InventoryContentPacket', 'InventorySlotPacket',
 }
 SENT = {
     'InteractPacket', 'ActorPickRequestPacket', 'EmotePacket', 'EmoteListPacket', 'AnimatePacket',
     'BookEditPacket', 'PartyChangedPacket', 'ResourcePacksReadyForValidationPacket',
     'ServerboundDataDrivenScreenClosedPacket', 'ServerboundDataStorePacket',
     'PartyDestinationCookieResponsePacket', 'ClientCacheBlobStatusPacket', 'ClientCacheStatusPacket',
+    'InventoryTransactionPacket', 'MobEquipmentPacket', 'BlockPickRequestPacket',
 }
 SCRIPTS = ['commands.txt', 'guest-commands.txt', 'console.json']
 CLIENT_DATA = ['client-data.json', 'guest-client-data.json', 'floats-client-data.json', 'odd-client-data.json']
@@ -65,7 +68,8 @@ def copy_session(session: Path, target: Path, packets: set[str] | None, client_d
     with (session / 'packets.jsonl').open(encoding='utf-8') as lines:
         for line in lines:
             record = json.loads(line)
-            if record['seq'] >= start:
+            # The client's own input stream (`--input`) is left out.
+            if record['seq'] >= start and record['name'] != 'PlayerAuthInputPacket':
                 timeline.append([record['seq'], record['t_ms'], record['dir'], record['name']])
             if packets is not None and record['name'] not in packets:
                 continue
@@ -113,6 +117,9 @@ def main() -> int:
         for file in SCRIPTS + (CLIENT_DATA if client_data else []):
             if (capture_dir / file).exists():
                 shutil.copyfile(capture_dir / file, target / file)
+        # `protocol_probe.single` names each session's script `<session>-commands.txt`.
+        for script in sorted(capture_dir.glob('*-commands.txt')):
+            shutil.copyfile(script, target / script.name)
         copied = 0
         for session in sorted(path for path in capture_dir.iterdir() if (path / 'packets.jsonl').exists()
                               and (sessions is None or path.name in sessions)):

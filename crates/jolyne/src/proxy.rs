@@ -134,6 +134,9 @@ where
         let start = reasoned(packs.negotiate_packs_with(upstream_pack_set(&upstream))).await?;
         reasoned(
             start.start_game(WorldJoinParams {
+                // Game packets the upstream sent before its StartGame reach the
+                // client through the relay.
+                before_start_game: Vec::new(),
                 // The upstream's pre-StartGame packets must precede the proxy's
                 // own StartGame; a server that sent none gets gophertunnel's
                 // empty definitions, which the client still requires.

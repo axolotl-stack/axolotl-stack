@@ -1,0 +1,183 @@
+/gamerule domobspawning false
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/gamerule randomtickspeed 0
+/kill @e[type=!player]
+/gamemode creative @s
+/clear @s
+!wait 1000
+/summon minecraft:armor_stand ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:arrow ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:chicken ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:cod ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:cushion ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:egg ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:elder_guardian_ghost ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:ender_dragon ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:evocation_fang ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:fireworks_rocket ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:leash_knot ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:lightning_bolt ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:pufferfish ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:rabbit ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:salmon ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:silverfish ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:snowball ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:splash_potion ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:tnt ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:wind_charge_projectile ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:xp_bottle ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:xp_orb ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:iron_golem ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:snow_golem ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200
+/summon minecraft:cow ~ ~ ~3
+!wait 1500
+!pick-actor actor
+!pick-actor actor 9 data
+/kill @e[type=!player]
+/clear @s
+!wait 200

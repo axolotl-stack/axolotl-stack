@@ -344,6 +344,11 @@ impl StartGameWorldState {
         }
     }
 
+    /// The world clock as last published.
+    pub fn time(&self) -> WorldTime {
+        self.0.lock().time
+    }
+
     /// Write the clock, difficulty and game rules into a player's StartGame.
     pub fn apply(&self, start: &mut StartGamePacket) {
         let snapshot = self.0.lock();

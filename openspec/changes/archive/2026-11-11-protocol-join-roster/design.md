@@ -29,7 +29,7 @@ Chosen (b). The joining player's own `PlayerList` entry is available before `Sta
 sleeping-player count needs the set of online players, which lives in the ECS world the connection
 task cannot reach. The client accepts both after `StartGame` (BDS repeats the list there anyway), and
 (b) keeps jolyne's API unchanged. The deviation is listed in the parity gaps. Recorded as
-[decision 0044](../../../../docs/decisions/0044-send-pre-start-game-roster-packets-after-start-game.md)
+[decision 0044](../../../../docs/decisions/0044-send-pre-start-game-roster-packets-before-start-game.md)
 (proposed).
 
 ### D2: the full player list in join order

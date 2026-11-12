@@ -20,7 +20,9 @@
 //!   its name fields have not been captured from BDS yet.
 
 use bevy_ecs::prelude::*;
-use jolyne::valentine::{BlockPickRequestPacket, McpePacket, PlayerHotbarPacket};
+use jolyne::valentine::{
+    BlockPickRequestPacket, GuiDataPickItemPacket, McpePacket, PlayerHotbarPacket,
+};
 use zuri_nbt::NBTTag;
 
 use super::super::packet_queues::InventoryEvents;
@@ -32,7 +34,7 @@ use crate::world::chunk::blocks;
 use crate::world::ecs::{ChunkData, ChunkManager, world_to_chunk_coords};
 
 const HOTBAR: usize = 9;
-const CREATIVE_PICK_DISTANCE: f64 = 14.0;
+pub(super) const CREATIVE_PICK_DISTANCE: f64 = 14.0;
 const PICK_DISTANCE: f64 = 8.7;
 
 /// The item a valid pick request selects, or `None` when BDS ignores it.
@@ -122,10 +124,13 @@ fn item_locked(stack: &ItemStack) -> bool {
 }
 
 /// Put a picked `item` in the player's hand under the module rules (select,
-/// swap or, in Creative, create); nothing is sent when it fails.
+/// swap or, in Creative, create); nothing is sent when it fails. With a
+/// `name`, `GuiDataPickItem` announces it first (BDS order: the name, the
+/// inventory, the hotbar; measured for actor picks).
 pub(super) fn select_item(
     entity: Entity,
     item: ItemStack,
+    name: Option<&str>,
     player: &mut PlayerInventoryItem<'_, '_>,
     events: &mut ResMut<InventoryEvents>,
     block_ids: crate::registry::block::BlockNetworkIds,
@@ -173,6 +178,13 @@ pub(super) fn select_item(
             old_slot,
             new_slot,
         });
+    }
+    if let Some(name) = name {
+        let _ = player.session.send(McpePacket::from(GuiDataPickItemPacket {
+            item_name: name.into(),
+            item_effect_name: "".into(),
+            slot: i32::from(new_slot),
+        }));
     }
     send_inventory(main, player.session, block_ids);
     let _ = player.session.send(McpePacket::from(PlayerHotbarPacket {
@@ -237,6 +249,7 @@ mod tests {
             select_item(
                 self.entity,
                 item,
+                None,
                 &mut player,
                 &mut events,
                 crate::registry::block::BlockNetworkIds::Hashed,
