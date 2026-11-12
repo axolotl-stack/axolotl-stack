@@ -23,34 +23,34 @@ At startup the server SHALL open exactly one world provider chosen by `world.sto
 Evidence: crates/unastar/src/server/runtime.rs (`UnastarServer::new`, `open_world_provider`, tests `a_locked_world_leveldb_fails_to_open`, `an_unopenable_world_blazedb_fails_to_open`), crates/unastar/src/world/mod.rs (`StorageProvider`, `WorldConfig`), crates/unastar/src/config/tests.rs (`storage_settings_reach_runtime_configuration`), crates/unastar/tests/startup_storage.rs (`startup_fails_when_the_world_database_cannot_be_opened`), crates/unastar/tests/startup_player_storage.rs (`startup_fails_when_the_player_database_cannot_be_opened`)
 
 ### Requirement: Chunks load from storage before they are generated
-Every path that creates a chunk entity (the synchronous `ChunkManager::load_or_generate_chunk`, behind `get_or_create` and `get_or_create_chunk`, and the asynchronous `request_generation` pool) SHALL ask the provider first and MUST generate terrain only when the provider answers `Ok(None)`. A column loaded from storage MUST NOT be replaced by generated terrain.
+Every path that creates a chunk entity (background streaming loads in `ColumnLoads`, and the synchronous `ChunkManager::load_or_generate_chunk` behind `World::get_or_create_chunk`) SHALL ask the provider first and MUST generate terrain only when the provider answers `Ok(None)`. The generation pool MUST be given only storage misses. A column loaded from storage MUST NOT be replaced by generated terrain.
 
 #### Scenario: Stored column survives the asynchronous path
-- **WHEN** a column with a diamond ore block is saved, then requested through `request_generation` with a Java generator configured
+- **WHEN** a column with a diamond ore block is saved, then loaded in the background (`ColumnLoads`) with a Java generator and its generation pool configured
 - **THEN** the resulting chunk entity holds the stored diamond ore, not generated terrain
 
 #### Scenario: Stored column survives the synchronous path
 - **WHEN** a stored column is requested through `World::get_or_create_chunk`
 - **THEN** the entity holds the stored blocks
 
-Evidence: crates/unastar/src/world/ecs/manager.rs (`load_or_generate_chunk`, `request_generation`, `get_or_create_chunk`), crates/unastar/src/world/ecs/generation_worker.rs (`run_worker`), crates/unastar/tests/persistence.rs (`async_stored_chunks_survive_save_cycle_for_both_providers`, `synchronous_world_extension_does_not_replace_stored_column`)
+Evidence: crates/unastar/src/world/ecs/streaming.rs (`ColumnLoads::start_read`, `ColumnLoads::start_generation`), crates/unastar/src/world/ecs/manager.rs (`load_or_generate_chunk`, `get_or_create_chunk`), crates/unastar/src/world/ecs/generation_worker.rs (`run_worker`), crates/unastar/tests/persistence.rs (`async_stored_chunks_survive_save_cycle_for_both_providers`, `synchronous_world_extension_does_not_replace_stored_column`)
 
 ### Requirement: Storage read errors never become generated terrain
-A provider read error SHALL stop that chunk from being created; it MUST NOT be treated as a miss and MUST NOT panic. On both the asynchronous and the synchronous path the server MUST log one error naming the column's coordinates and dimension and saying the stored column is kept on disk untouched, then drop the request without spawning a chunk.
+A provider read error SHALL stop that chunk from being created; it MUST NOT be treated as a miss and MUST NOT panic. On the streaming path and the synchronous path the server MUST log one error naming the column's coordinates and dimension and saying the stored column is kept on disk untouched, then drop the request without spawning a chunk.
 
 #### Scenario: Unreadable column on the generation pool
-- **WHEN** a provider whose `load_column` always fails is attached and a chunk is requested through the generation pool
-- **THEN** the request resolves to `Err(StorageError::Database(_))` and `save_column` is never called
+- **WHEN** a provider whose `load_column` always fails is attached to a world with a generation pool and a column is read in the background (`ColumnLoads`)
+- **THEN** the load is reported failed, no column is ready to spawn, the pool is never asked and `save_column` is never called
 
 #### Scenario: Unreadable column on the synchronous path
-- **WHEN** a void world (synchronous path) with an unreadable provider and a spawned player is ticked
-- **THEN** nothing panics, no chunk entity is spawned, the column is not in `loaded` and no `LevelChunk` is sent
+- **WHEN** a void world (inline generation, no pool) with an unreadable provider and a spawned player is ticked until its loads finish
+- **THEN** nothing panics, no chunk entity is spawned, the column is not loaded for the player and no `LevelChunk` is sent
 
 #### Scenario: Synchronous API
 - **WHEN** `World::get_or_create_chunk` is called against an unreadable provider
 - **THEN** it returns the storage error and creates no chunk
 
-Evidence: crates/unastar/src/world/ecs/systems.rs (`process_completed_generations`, `process_chunk_load_queues`, `log_unloadable_column`, test `an_unloadable_column_message_names_it_and_says_it_is_kept`), crates/unastar/src/world/ecs/manager.rs (`load_or_generate_chunk`, `get_or_create`), crates/unastar/src/server/game/mod.rs (test `a_storage_read_error_on_the_sync_load_path_drops_the_request`), crates/unastar/tests/persistence.rs (`storage_read_errors_never_generate_replacement_terrain`, `synchronous_storage_read_error_creates_no_chunk_and_does_not_panic`)
+Evidence: crates/unastar/src/world/ecs/streaming.rs (`LoadFailure`, `ColumnLoads::drain`, test `an_unloadable_column_message_names_it_and_says_it_is_kept`), crates/unastar/src/world/ecs/manager.rs (`load_or_generate_chunk`, `get_or_create_chunk`), crates/unastar/src/server/game/mod.rs (test `a_storage_read_error_drops_the_request`), crates/unastar/tests/persistence.rs (`storage_read_errors_never_generate_replacement_terrain`, `synchronous_storage_read_error_creates_no_chunk_and_does_not_panic`)
 
 ### Requirement: Dirty tracking decides what is saved
 A chunk entity created from a loaded column SHALL start clean, and one created from generated terrain MUST start dirty. Block edits MUST mark the chunk dirty. A chunk MUST be written only when it is dirty, holds mobs, or had actors stored with it earlier; a successful write MUST clear the dirty flag.
@@ -62,11 +62,11 @@ A chunk entity created from a loaded column SHALL start clean, and one created f
 Evidence: crates/unastar/src/world/ecs/manager.rs (`chunk_entity_components`), crates/unastar/src/world/ecs/components.rs (`ChunkStateFlags::new_generated`), crates/unastar/src/entity/mob/persistence/mod.rs (`snapshot_chunks`, `mark_saved`), crates/unastar/tests/persistence.rs (`async_stored_chunks_survive_save_cycle_for_both_providers`, `synchronous_world_extension_does_not_replace_stored_column`)
 
 ### Requirement: Chunks are saved on unload
-A chunk whose unload grace period expires SHALL be saved (when it has something to write) together with the mobs standing in it, and then removed with those mobs. If that save fails, the chunk and its mobs MUST stay loaded and dirty, and the unload MUST be retried after a backoff. There is no periodic autosave; shutdown is covered by "Shutdown saves everything, then closes storage".
+A chunk whose unload grace period expires SHALL be written in the background (when it has something to write) with the mobs standing in it, and removed from the world with those mobs; its column MUST NOT be read again until the write has finished. If the write fails, the column MUST come back with its edits and mobs, dirty, and its unload MUST be retried after a backoff. Unloading MUST pause while 64 writes are in flight. There is no periodic autosave.
 
 #### Scenario: Failed save before unload
-- **WHEN** a chunk's save before unload fails
-- **THEN** its terrain is put back on the entity, the chunk and its mobs stay loaded with their edits, and the unload is retried after the grace period doubled per failure in a row, capped at 64 grace periods
+- **WHEN** a chunk's write before unload fails
+- **THEN** the chunk is loaded again at the same position with its edits and its mobs, dirty, and the unload is retried after the grace period doubled per failure in a row, capped at 64 grace periods
 
 #### Scenario: Held chunks are summarised
 - **WHEN** chunks are held in memory because their saves keep failing
@@ -80,7 +80,11 @@ A chunk whose unload grace period expires SHALL be saved (when it has something 
 - **WHEN** cows are saved through LevelDB and the server is rebuilt on the same directory
 - **THEN** the cows load back with their saved state
 
-Evidence: crates/unastar/src/world/ecs/systems.rs (`process_chunk_unloads`, `HeldChunkReport`, test `held_chunk_summary_is_rate_limited`), crates/unastar/src/world/ecs/components.rs (`ChunkPendingUnload::after_failed_save`, test `failed_unload_saves_back_off_exponentially_up_to_the_cap`), crates/unastar/src/entity/mob/persistence/tests.rs (`unloading_saves_and_removes_the_cow_and_reloading_restores_it`, `cows_round_trip_through_leveldb_across_a_restart`, `a_dead_cow_is_deleted_from_storage_on_the_next_save`, `unknown_stored_actors_are_kept_and_written_back`, `a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits`, `a_held_chunk_backs_off_between_save_attempts`)
+#### Scenario: Shutdown with writes in flight
+- **WHEN** the server shuts down while unload writes are in flight
+- **THEN** "Shutdown saves everything, then closes storage" first waits for them, and saves again any column whose write failed
+
+Evidence: crates/unastar/src/world/ecs/systems.rs (`process_chunk_unloads`, `HeldChunkReport`, `MAX_SAVES_IN_FLIGHT`, test `held_chunk_summary_is_rate_limited`), crates/unastar/src/world/ecs/streaming.rs (`ColumnLoads::start_save`, `HeldColumn`), crates/unastar/src/world/ecs/manager.rs (`restore_held_columns`), crates/unastar/src/world/ecs/components.rs (`ChunkPendingUnload::after_failed_save`, test `failed_unload_saves_back_off_exponentially_up_to_the_cap`), crates/unastar/src/entity/mob/persistence/tests.rs (`unloading_saves_and_removes_the_cow_and_reloading_restores_it`, `cows_round_trip_through_leveldb_across_a_restart`, `a_dead_cow_is_deleted_from_storage_on_the_next_save`, `unknown_stored_actors_are_kept_and_written_back`, `a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits`, `a_held_chunk_backs_off_between_save_attempts`)
 
 ### Requirement: Shutdown saves everything, then closes storage
 On shutdown or `/stop`, after plugins have seen every online player quit and `on-unload` has run, the server SHALL save all players, then every loaded chunk that has something to write, then close the world provider and then the player provider. Shutdown MUST return an error, so the process exits non-zero, when any player save, chunk save or provider close fails.
