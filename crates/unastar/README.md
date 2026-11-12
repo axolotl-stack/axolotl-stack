@@ -194,8 +194,12 @@ The cave-boundary regression fails before the fix and passes after it.
 Native biome ties are history-dependent, including across chunk calls on a worker.
 Request-order and parallel checks must match the reference's worker/query context
 or report that dependency; resetting tie history to force seed-only determinism
-would change native behavior. Bedrock keeps its current independent-nearest policy
-until a BDS reference establishes a different rule.
+would change native behavior. A fill whose every search found a unique nearest
+leaf is the same from any history, so `JavaGenerator` computes it once per chunk
+and replays it for the other eight surfaces that read it (sharing its biomes and
+restoring the history its last search leaves); fills that met a tie run every time.
+Bedrock keeps its current independent-nearest policy until a BDS reference
+establishes a different rule.
 
 `JavaGenerationOptions::dimension` selects the native preset. Java states, native
 biome identities and actor recipes remain intact through
