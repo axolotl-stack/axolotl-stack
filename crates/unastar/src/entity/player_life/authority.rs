@@ -20,15 +20,18 @@
 //! knockback is the copy's velocity from the next input on.
 //!
 //! **Fail safe.** The copy only judges what the simulation covers and BDS
-//! runs of the sweep client confirmed. Any other input is trusted (the copy
-//! takes the client's position and velocity, as the server did before):
-//! flight in a game mode that can fly, a spectator, movement effects, an
-//! item in use, a sprint too hungry to sprint, movement enchantments where
-//! they act, a riptide spin, crawling, and blocks whose movement the
-//! simulation does not reproduce yet ([`MotionTable`]); see [`Trust`]. A
-//! trusted input more than [`MAX_TRUSTED_MOVE`] blocks from the copy is
-//! rejected whole, and a teleport is still enforced. A client must never be
-//! corrected where BDS would not correct it.
+//! runs of the sweep client confirmed; any other input is trusted, the copy
+//! taking the client's position and velocity ([`Trust`]). How far a trusted
+//! input may move the copy depends on who brings the trust about: the
+//! server grants flight and effects (up to [`MAX_TRUSTED_MOVE`], beyond it
+//! the input is rejected whole), while the blocks, gear, crawl spaces and
+//! riptide spins a client can seek out only cover about one tick of vanilla
+//! movement (beyond it the copy judges the input). A client that is only
+//! slower than the copy's own simulation of an input (an item in use, a
+//! sprint its food level forbids: slowdowns the simulation does not model)
+//! is taken too, except while a knockback must play out. A teleport is
+//! enforced whatever the trust. A client must never be corrected where BDS
+//! would not correct it.
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
@@ -37,7 +40,7 @@ use jolyne::valentine::types::{
     Vec3,
 };
 use jolyne::valentine::{CorrectPlayerMovePredictionPacket, PlayerAuthInputPacket};
-use unastar_rules::movement::authority::{self, Authority, Verdict};
+use unastar_rules::movement::authority::{self, Authority, TINY, Verdict};
 use unastar_rules::movement::{
     self as sim, Aabb, Block, BlockKind, Body, Controls, JUMP_DELAY, NETWORK_OFFSET, Pose,
     SPRINT_MULTIPLIER, Terrain, WALK_SPEED, WIDTH,
@@ -45,16 +48,15 @@ use unastar_rules::movement::{
 
 use crate::entity::PLAYER_EYE_HEIGHT;
 use crate::entity::components::{ArmourInventory, EffectType, Effects};
-use crate::entity::systems::BlockSource;
 use crate::entity::systems::physics::collect_block_boxes;
+use crate::entity::systems::{BlockSource, LayeredBlocks, chunk_layer};
 use crate::item::ItemStack;
 use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::BlockRegistry;
 use crate::registry::block::LiquidKind;
 use crate::registry::collision;
 use crate::world::ChunkManager;
-use crate::world::chunk::{MIN_Y, SUBCHUNK_COUNT};
-use crate::world::ecs::{ChunkData, world_to_chunk_coords, world_to_local_coords};
+use crate::world::ecs::{ChunkData, world_to_chunk_coords};
 
 /// The loaded chunks' blocks, for the movement system.
 pub struct LoadedBlocks<'a, 'w, 's> {
@@ -63,11 +65,17 @@ pub struct LoadedBlocks<'a, 'w, 's> {
     pub registry: &'a BlockRegistry,
 }
 
+impl LoadedBlocks<'_, '_, '_> {
+    /// The loaded chunk holding `pos`.
+    fn chunk(&self, pos: IVec3) -> Option<&ChunkData> {
+        let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+        self.chunks.get(self.manager.get_by_coords(cx, cz)?).ok()
+    }
+}
+
 impl BlockSource for LoadedBlocks<'_, '_, '_> {
     fn block_at(&self, pos: IVec3) -> Option<u32> {
-        let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
-        let chunk = self.chunks.get(self.manager.get_by_coords(cx, cz)?).ok()?;
-        Some(chunk_layer(chunk, pos, 0))
+        Some(chunk_layer(self.chunk(pos)?, pos, 0))
     }
 
     fn registry(&self) -> &BlockRegistry {
@@ -75,38 +83,10 @@ impl BlockSource for LoadedBlocks<'_, '_, '_> {
     }
 }
 
-/// Blocks with their second layer, where a waterlogged block keeps its
-/// water (seagrass, kelp, waterlogged stairs).
-pub trait LayeredBlocks: BlockSource {
-    /// Runtime ID of the second-layer block at `pos`; `None` if the chunk
-    /// is not loaded.
-    fn second_layer_at(&self, pos: IVec3) -> Option<u32>;
-}
-
 impl LayeredBlocks for LoadedBlocks<'_, '_, '_> {
     fn second_layer_at(&self, pos: IVec3) -> Option<u32> {
-        let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
-        let chunk = self.chunks.get(self.manager.get_by_coords(cx, cz)?).ok()?;
-        Some(chunk_layer(chunk, pos, 1))
+        Some(chunk_layer(self.chunk(pos)?, pos, 1))
     }
-}
-
-impl LayeredBlocks for World {
-    fn second_layer_at(&self, pos: IVec3) -> Option<u32> {
-        let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
-        let entity = self.get_resource::<ChunkManager>()?.get_by_coords(cx, cz)?;
-        Some(chunk_layer(self.get::<ChunkData>(entity)?, pos, 1))
-    }
-}
-
-/// The block in `layer` at `pos` of a loaded chunk; air above and below
-/// the world.
-fn chunk_layer(chunk: &ChunkData, pos: IVec3, layer: u8) -> u32 {
-    if !(MIN_Y..MIN_Y + i32::from(SUBCHUNK_COUNT) * 16).contains(&pos.y) {
-        return *crate::world::chunk::blocks::AIR;
-    }
-    let (x, y, z) = world_to_local_coords(pos.x, pos.y, pos.z);
-    chunk.inner.get_block_layer(x, y, z, layer)
 }
 
 /// What a block is to the simulation, per runtime id, and whether the
@@ -116,13 +96,13 @@ pub struct MotionTable {
     blocks: Vec<(Block, bool)>,
 }
 
-/// Blocks whose movement the simulation does not reproduce yet: a player
-/// touching one is trusted. Climbing (ladders, vines, scaffolding), sticky
-/// or slowing blocks (honey, soul sand, sweet berries), lava and bubble
-/// columns have rules of their own; slime and bed bounces, powder snow and
-/// cobwebs are simulated but not yet confirmed against BDS. Lava, flowing
-/// water (whose current pushes) and blocks whose friction is not
-/// [`CONFIRMED_FRICTION`] (ice) are not supported either.
+/// Blocks with movement rules of their own the simulation does not
+/// reproduce yet: a player near one is trusted. Climbing (ladders, vines,
+/// scaffolding), sticky or slowing blocks (honey, soul sand, sweet berries)
+/// and bubble columns. Families the simulation has but no BDS run has
+/// confirmed ([`BlockKind::confirmed`]), lava, flowing water (whose current
+/// pushes) and friction other than [`CONFIRMED_FRICTION`] (ice) are not
+/// supported either.
 const UNSUPPORTED: &[&str] = &[
     "minecraft:ladder",
     "minecraft:vine",
@@ -136,10 +116,6 @@ const UNSUPPORTED: &[&str] = &[
     "minecraft:soul_sand",
     "minecraft:sweet_berry_bush",
     "minecraft:bubble_column",
-    "minecraft:slime",
-    "minecraft:bed",
-    "minecraft:powder_snow",
-    "minecraft:web",
 ];
 
 /// The ground friction BDS runs of the sweep client confirmed (every block
@@ -164,7 +140,8 @@ impl MotionTable {
                     .is_none_or(|liquid| liquid.kind == LiquidKind::Water && liquid.depth == 0);
                 let friction_supported = kind == BlockKind::Air
                     || (entry.data.friction - CONFIRMED_FRICTION).abs() < 1.0e-6;
-                let supported = !UNSUPPORTED.contains(&entry.string_id.as_str())
+                let supported = kind.confirmed()
+                    && !UNSUPPORTED.contains(&entry.string_id.as_str())
                     && liquid_supported
                     && friction_supported;
                 blocks[index] = (
@@ -215,6 +192,12 @@ impl<B: LayeredBlocks> WorldTerrain<'_, B> {
     /// Whether water is in or around `area`.
     fn water_near(&self, area: &Aabb) -> bool {
         !self.every_block(area, 0, |pos| !self.block(pos.to_array()).water)
+    }
+
+    /// Whether a block of `kind` is in or around `area` (and the layer
+    /// under it).
+    fn kind_near(&self, area: &Aabb, kind: BlockKind) -> bool {
+        !self.every_block(area, 1, |pos| self.block(pos.to_array()).kind != kind)
     }
 
     /// Whether `test` holds for every block position of `area`, reaching
@@ -289,40 +272,98 @@ impl<B: LayeredBlocks> Terrain for WorldTerrain<'_, B> {
     }
 }
 
-/// Why an input is trusted instead of simulated.
+/// Why an input was not judged: the copy took the client's state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trust {
-    /// The simulation judges the input.
-    No,
     /// Flying in a game mode that can fly, or a spectator: flight is not
     /// simulated.
     Flight,
     /// A movement effect the simulation does not apply, or applies without
     /// a BDS run confirming it.
     Effect,
-    /// An item in use (eating, drawing a bow) slows the player.
-    UsingItem,
-    /// Sprinting with food at 6 or below, where the sprint key does not
-    /// sprint.
-    Hungry,
-    /// A movement enchantment where it acts (depth strider in water, swift
-    /// sneak sneaking, soul speed), or a riptide trident's spin.
-    Gear,
-    /// The copy or the client in a space only a crawling player fits.
-    Crawl,
+    /// A riptide trident's spin, started in water, launches the player.
+    Riptide,
     /// A block the simulation does not reproduce is near.
     Block,
+    /// A movement enchantment where it acts: depth strider near water,
+    /// swift sneak sneaking, soul speed near soul sand or soil.
+    Gear,
+    /// The copy is in a space only a crawling player fits.
+    Crawl,
+    /// Only slower than the copy's own simulation of the input, which does
+    /// not model every slowdown (an item in use, a sprint the food level
+    /// forbids): no farther, level with it, so never an advantage.
+    Slowed,
     /// The first input after joining or respawning, close to the spawn
     /// point: the copy starts where the client does.
     Spawn,
+    /// The player has no copy (no world to simulate in).
+    Unsimulated,
+}
+
+/// How far a trusted input may move the copy.
+enum Reach {
+    /// Up to [`MAX_TRUSTED_MOVE`]; beyond it the input is rejected whole.
+    Far,
+    /// Each axis within these bounds; beyond them the copy judges the input.
+    Near([f32; 3]),
+}
+
+impl Trust {
+    /// How far the client may be from the copy for this trust to hold: the
+    /// server grants flight and effects, while a client can seek out the
+    /// rest, which only cover about one tick of vanilla movement.
+    fn reach(self) -> Reach {
+        match self {
+            Trust::Riptide => Reach::Near(RIPTIDE_REACH),
+            Trust::Block | Trust::Gear | Trust::Crawl => Reach::Near(NEAR_REACH),
+            // Slowed, Spawn and Unsimulated are bounded where they are
+            // decided.
+            Trust::Flight | Trust::Effect | Trust::Slowed | Trust::Spawn | Trust::Unsimulated => {
+                Reach::Far
+            }
+        }
+    }
+}
+
+/// How the copy took an input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Judgement {
+    /// Simulated and judged.
+    Judged(Verdict),
+    /// The client's state was taken.
+    Trusted(Trust),
+    /// Trusted, but farther from the copy than the trust reaches: rejected
+    /// whole.
+    Refused(Trust),
 }
 
 /// How far from the spawn point the first input may put the copy.
 const SPAWN_SETTLE: f32 = 2.0;
 
-/// The farthest a trusted input may move the copy: farther, it is rejected
-/// whole and the copy stays.
+/// The farthest a trust the server grants (flight, effects) may move the
+/// copy: farther, the input is rejected whole and the copy stays.
 pub const MAX_TRUSTED_MOVE: f32 = 64.0;
+
+/// The per-axis bounds (x, y, z) of a trust a client can seek out (blocks,
+/// gear, crawl spaces): about one tick of the fastest vanilla movement
+/// there, a fall at the terminal 3.92 a tick or a sprint-jump on ice. Not a
+/// BDS measurement: the limit of what this server takes unjudged.
+const NEAR_REACH: [f32; 3] = [1.5, 4.0, 1.5];
+
+/// The same for a riptide spin, which launches the player.
+const RIPTIDE_REACH: [f32; 3] = [4.0, 4.0, 4.0];
+
+/// The inputs a riptide spin is trusted for at most.
+const RIPTIDE_INPUTS: u8 = 20;
+
+/// The fastest velocity, per axis, a trusted input gives the copy (falling
+/// tops out at 3.92 a tick).
+const MAX_TRUSTED_SPEED: f32 = 4.0;
+
+/// The inputs after a knockback during which a client slower than the
+/// copy is judged, not taken: the knockback must play out as BDS's.
+const PUSH_SETTLE: u8 = 20;
 
 /// A player's movement effects as the simulation reads them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -330,9 +371,9 @@ pub struct MovementEffects {
     /// Jump boost level (amplifier + 1), 0 without.
     pub jump_boost: u8,
     pub slow_falling: bool,
-    /// An effect the input is trusted under: speed, slowness, levitation
-    /// and blindness (no sprint) are not simulated; jump boost and slow
-    /// falling are, but no BDS run has confirmed them yet.
+    /// An effect the input is trusted under: speed, slowness and
+    /// levitation are not simulated; jump boost and slow falling are, but no
+    /// BDS run has confirmed them yet.
     pub unsupported: bool,
 }
 
@@ -359,10 +400,6 @@ pub struct Situation {
     pub glide: bool,
     pub effects: MovementEffects,
     pub gear: MovementGear,
-    /// An item is in use.
-    pub using_item: bool,
-    /// Food at 6 or below in a game mode that cannot fly.
-    pub hungry: bool,
 }
 
 /// A player's movement effects as the simulation reads them (the one place
@@ -381,7 +418,6 @@ pub fn movement_effects_of(effects: Option<&Effects>) -> MovementEffects {
             EffectType::SPEED,
             EffectType::SLOWNESS,
             EffectType::LEVITATION,
-            EffectType::BLINDNESS,
             EffectType::JUMP_BOOST,
             EffectType::SLOW_FALLING,
         ]
@@ -417,14 +453,14 @@ pub struct PlayerMotion {
     /// A velocity the server gave the player (a knockback): the copy's
     /// velocity from the next input on.
     pub push: Option<[f32; 3]>,
-    /// A riptide spin is under way (from `StartSpinAttack` with a riptide
-    /// trident in hand until `StopSpinAttack`).
-    pub spinning: bool,
     /// Corrections sent.
     pub corrections: u32,
-    /// How the last input was taken: its verdict (none when trusted) and
-    /// why it was trusted.
-    pub last: (Option<Verdict>, Trust),
+    /// How the last input was taken.
+    pub last: Option<Judgement>,
+    /// Inputs left after a knockback in which a slower client is judged.
+    pushed: u8,
+    /// Inputs left of a riptide spin.
+    spin: u8,
     /// No input since joining or respawning yet.
     settling: bool,
 }
@@ -440,13 +476,12 @@ pub struct Outcome {
     pub jumped: bool,
     /// The correction to send.
     pub correction: Option<CorrectPlayerMovePredictionPacket>,
-    pub verdict: Option<Verdict>,
-    pub trust: Trust,
+    pub judgement: Judgement,
 }
 
 impl Outcome {
     /// An input of a player without a copy (no world to simulate in): the
-    /// reported position and ground contact, trusted.
+    /// reported position and ground contact.
     pub fn reported(input: &PlayerAuthInputPacket) -> Self {
         let has = |flag| input.input_data.contains(&flag);
         Self {
@@ -458,8 +493,7 @@ impl Outcome {
             on_ground: has(Flag::Verticalcollision),
             jumped: has(Flag::Startjumping),
             correction: None,
-            verdict: None,
-            trust: Trust::Flight,
+            judgement: Judgement::Trusted(Trust::Unsimulated),
         }
     }
 }
@@ -489,8 +523,21 @@ fn feet_of_reported(position: &Vec3) -> [f32; 3] {
     [position.x, position.y - NETWORK_OFFSET, position.z]
 }
 
+/// `to - from`, per axis.
+fn offset(from: [f32; 3], to: [f32; 3]) -> [f32; 3] {
+    [0, 1, 2].map(|axis| to[axis] - from[axis])
+}
+
+/// The horizontal distance between `a` and `b`.
+fn horizontal(a: [f32; 3], b: [f32; 3]) -> f32 {
+    (a[0] - b[0]).hypot(a[2] - b[2])
+}
+
 /// The controls an input reports: move vector as pressed (x strafe, y
-/// forward), rotation, and the jump, sneak and sprint keys.
+/// forward), rotation, and the jump, sneak and sprint keys. A sprint the
+/// client starts without the sprint key (a double tap) counts as pressed:
+/// whether BDS starts sprints so is unmeasured, and sprinting where the copy
+/// would not is the lenient way to be wrong.
 pub fn controls(input: &PlayerAuthInputPacket) -> Controls {
     let has = |flag| input.input_data.contains(&flag);
     Controls {
@@ -500,7 +547,7 @@ pub fn controls(input: &PlayerAuthInputPacket) -> Controls {
         pitch: input.player_rotation.x,
         jump: has(Flag::Jumping),
         sneak: has(Flag::Sneaking),
-        sprint: has(Flag::Sprintdown),
+        sprint: has(Flag::Sprintdown) || has(Flag::Startsprinting),
     }
 }
 
@@ -513,9 +560,10 @@ impl PlayerMotion {
             body,
             authority: Authority::default(),
             push: None,
-            spinning: false,
             corrections: 0,
-            last: (None, Trust::No),
+            last: None,
+            pushed: 0,
+            spin: 0,
             settling: true,
         }
     }
@@ -550,6 +598,8 @@ impl PlayerMotion {
         self.body.gliding = false;
         self.body.swimming = false;
         self.push = None;
+        self.pushed = 0;
+        self.spin = 0;
     }
 
     /// The server pushed the player (a knockback).
@@ -558,7 +608,7 @@ impl PlayerMotion {
     }
 
     /// One input, in `situation`. `None` when the input is trusted but
-    /// more than [`MAX_TRUSTED_MOVE`] from the copy: it is rejected whole
+    /// farther from the copy than the trust reaches: it is rejected whole
     /// and the copy does not change.
     pub fn input(
         &mut self,
@@ -566,81 +616,101 @@ impl PlayerMotion {
         terrain: &WorldTerrain<'_, impl LayeredBlocks>,
         situation: &Situation,
     ) -> Option<Outcome> {
-        let outcome = self.judge_input(input, terrain, situation)?;
-        self.last = (outcome.verdict, outcome.trust);
-        if outcome.trust != Trust::No {
-            tracing::trace!(trust = ?outcome.trust, tick = input.client_tick.inputtick, "Trusted PlayerAuthInput");
+        let judged = self.judge_input(input, terrain, situation);
+        let judgement = match &judged {
+            Ok(outcome) => outcome.judgement,
+            Err(trust) => Judgement::Refused(*trust),
+        };
+        self.last = Some(judgement);
+        if let Judgement::Trusted(trust) = judgement {
+            tracing::trace!(
+                trust = ?trust,
+                tick = input.client_tick.inputtick,
+                "Trusted PlayerAuthInput"
+            );
         }
-        Some(outcome)
+        judged.ok()
+    }
+
+    /// The blocks this input's move can reach: the copy's box stretched by
+    /// its velocity and grown by a block.
+    fn search_box(&self) -> Aabb {
+        self.body
+            .aabb()
+            .expand(self.body.velocity)
+            .inflate([1.0, 1.0, 1.0])
     }
 
     /// Why `input` is trusted, if it is: the player's `situation`, the
-    /// blocks around the copy and a crawl space at either end.
+    /// blocks around the copy, a riptide spin or a crawl space.
     fn trust(
         &self,
         input: &PlayerAuthInputPacket,
-        claim: [f32; 3],
         terrain: &WorldTerrain<'_, impl LayeredBlocks>,
         situation: &Situation,
-        spinning: bool,
-    ) -> Trust {
-        let has = |flag| input.input_data.contains(&flag);
-        let search = self
-            .body
-            .aabb()
-            .expand(self.body.velocity)
-            .inflate([1.0, 1.0, 1.0]);
+    ) -> Option<Trust> {
+        let search = self.search_box();
         let gear = situation.gear;
-        let sneaking = has(Flag::Sneaking) || self.body.sneaking;
-        let sprinting = has(Flag::Sprintdown) || self.body.sprinting;
+        let sneaking = input.input_data.contains(&Flag::Sneaking) || self.body.sneaking;
         if situation.flight {
-            Trust::Flight
+            Some(Trust::Flight)
         } else if situation.effects.unsupported {
-            Trust::Effect
-        } else if situation.using_item {
-            Trust::UsingItem
-        } else if situation.hungry && sprinting {
-            Trust::Hungry
+            Some(Trust::Effect)
+        } else if self.spin > 0 {
+            Some(Trust::Riptide)
         } else if !terrain.supported(&search) {
-            Trust::Block
-        } else if spinning
-            || gear.soul_speed
-            || (gear.swift_sneak && sneaking)
+            Some(Trust::Block)
+        } else if (gear.swift_sneak && sneaking)
             || (gear.depth_strider && terrain.water_near(&search))
+            || (gear.soul_speed && terrain.kind_near(&search, BlockKind::Soul))
         {
-            Trust::Gear
-        } else if [self.body.feet, claim]
-            .into_iter()
-            .any(|feet| terrain.crawl_space(feet) == Some(true))
-        {
-            Trust::Crawl
+            Some(Trust::Gear)
+        } else if terrain.crawl_space(self.body.feet) == Some(true) {
+            Some(Trust::Crawl)
         } else {
-            Trust::No
+            None
         }
     }
 
+    /// Follow the riptide spin `input` starts, goes on with or ends: it
+    /// starts in water (this server has no rain) with a riptide trident in
+    /// hand and lasts at most [`RIPTIDE_INPUTS`] inputs.
+    fn follow_spin(
+        &mut self,
+        input: &PlayerAuthInputPacket,
+        terrain: &WorldTerrain<'_, impl LayeredBlocks>,
+        situation: &Situation,
+    ) {
+        let has = |flag| input.input_data.contains(&flag);
+        self.spin = if !situation.gear.riptide || has(Flag::Stopspinattack) {
+            0
+        } else if has(Flag::Startspinattack) && terrain.water_near(&self.search_box()) {
+            RIPTIDE_INPUTS
+        } else {
+            self.spin.saturating_sub(1)
+        };
+    }
+
+    /// The input, judged, trusted, or `Err` with the trust it was refused
+    /// under.
     fn judge_input(
         &mut self,
         input: &PlayerAuthInputPacket,
         terrain: &WorldTerrain<'_, impl LayeredBlocks>,
         situation: &Situation,
-    ) -> Option<Outcome> {
+    ) -> Result<Outcome, Trust> {
         let tick = input.client_tick.inputtick;
         let claim = feet_of_reported(&input.position);
-        let has = |flag| input.input_data.contains(&flag);
-        let spinning = situation.gear.riptide
-            && (self.spinning || has(Flag::Startspinattack))
-            && !has(Flag::Stopspinattack);
+        self.follow_spin(input, terrain, situation);
         if std::mem::take(&mut self.settling) {
             // The spawn point is the server's choice (a configured location
             // can sit inside a block); a client that joined or respawned
             // there starts the copy where it is. Farther off, the input is
             // simulated from the spawn and judged, as BDS judges the first
             // input after a respawn.
-            let d = [0, 1, 2].map(|axis| claim[axis] - self.body.feet[axis]);
+            let d = offset(self.body.feet, claim);
             if d.iter().map(|v| v * v).sum::<f32>() <= SPAWN_SETTLE * SPAWN_SETTLE {
-                self.spinning = spinning;
-                return Some(self.trusted(input, claim, Trust::Spawn, situation.glide));
+                return Ok(self.trusted(input, claim, Trust::Spawn, situation.glide));
             }
         }
         if self.authority.resting() {
@@ -651,34 +721,53 @@ impl PlayerMotion {
                 self.corrections += 1;
                 correction_packet(&self.body, [0.0; 3], tick)
             });
-            self.spinning = spinning;
-            return Some(Outcome {
+            return Ok(Outcome {
                 position: eyes(self.body.feet),
                 on_ground: true,
                 jumped: false,
                 correction,
-                verdict: Some(verdict),
-                trust: Trust::No,
+                judgement: Judgement::Judged(verdict),
             });
         }
-        let trust = self.trust(input, claim, terrain, situation, spinning);
-        if trust != Trust::No {
-            let d = [0, 1, 2].map(|axis| claim[axis] - self.body.feet[axis]);
-            if d.iter().map(|v| v * v).sum::<f32>() > MAX_TRUSTED_MOVE * MAX_TRUSTED_MOVE {
-                return None;
+        if let Some(trust) = self.trust(input, terrain, situation) {
+            let d = offset(self.body.feet, claim);
+            match trust.reach() {
+                Reach::Far
+                    if d.iter().map(|v| v * v).sum::<f32>()
+                        > MAX_TRUSTED_MOVE * MAX_TRUSTED_MOVE =>
+                {
+                    return Err(trust);
+                }
+                // Out of a near trust's reach: the copy judges the input.
+                Reach::Near(bounds) if d.iter().zip(bounds).any(|(d, bound)| d.abs() > bound) => {}
+                _ => return Ok(self.trusted(input, claim, trust, situation.glide)),
             }
-            self.spinning = spinning;
-            return Some(self.trusted(input, claim, trust, situation.glide));
         }
-        self.spinning = spinning;
+        Ok(self.simulate(input, claim, terrain, situation))
+    }
+
+    /// Simulate `input` on the copy and judge `claim` against it.
+    fn simulate(
+        &mut self,
+        input: &PlayerAuthInputPacket,
+        claim: [f32; 3],
+        terrain: &WorldTerrain<'_, impl LayeredBlocks>,
+        situation: &Situation,
+    ) -> Outcome {
         let controls = controls(input);
         if let Some(push) = self.push.take() {
             self.body.velocity = push;
+            self.pushed = PUSH_SETTLE;
+        } else {
+            self.pushed = self.pushed.saturating_sub(1);
         }
         let pull = self.authority.take_pull();
         for (velocity, pull) in self.body.velocity.iter_mut().zip(pull) {
             *velocity += pull;
         }
+        // Only a move the keys drive can be slowed: a pull, or momentum
+        // after the keys are let go, moves the copy as BDS's.
+        let driven = pull == [0.0; 3] && (controls.forward != 0.0 || controls.strafe != 0.0);
         self.body.jump_boost = situation.effects.jump_boost;
         self.body.slow_falling = situation.effects.slow_falling;
         if situation.glide
@@ -689,23 +778,40 @@ impl PlayerMotion {
         {
             self.body.gliding = true;
         }
-        let before = self.body.feet;
+        let start = self.body.feet;
         let changes = sim::step(&mut self.body, &controls, terrain);
-        let moved = self.body.feet[0] != before[0] || self.body.feet[2] != before[2];
+        let moved = self.body.feet[0] != start[0] || self.body.feet[2] != start[2];
         let free = !authority::inside_blocks(terrain, claim, self.body.pose().height());
+        if driven && free && self.slowed(start, claim) {
+            return self.trusted(input, claim, Trust::Slowed, situation.glide);
+        }
         let verdict = self.authority.judge(&mut self.body, claim, moved, free);
         let correction = (verdict == Verdict::Correct).then(|| {
             self.corrections += 1;
-            correction_packet(&self.body, self.body.velocity, tick)
+            correction_packet(&self.body, self.body.velocity, input.client_tick.inputtick)
         });
-        Some(Outcome {
+        Outcome {
             position: eyes(self.body.feet),
             on_ground: self.body.on_ground,
             jumped: changes.jumped,
             correction,
-            verdict: Some(verdict),
-            trust: Trust::No,
-        })
+            judgement: Judgement::Judged(verdict),
+        }
+    }
+
+    /// Whether `claim` is only slower than the copy's simulation of the
+    /// input from `start`: apart from it, but no farther horizontally and
+    /// level with it. Not while a knockback plays out, nor after a teleport
+    /// until a correction was sent.
+    fn slowed(&self, start: [f32; 3], claim: [f32; 3]) -> bool {
+        let simulated = self.body.feet;
+        let reach = horizontal(simulated, start);
+        self.pushed == 0
+            && self.authority.trusting()
+            && reach > TINY
+            && horizontal(claim, simulated) > TINY
+            && horizontal(claim, start) <= reach
+            && (claim[1] - simulated[1]).abs() <= TINY
     }
 
     /// Take the client's position and velocity (the fail-safe), and the
@@ -722,7 +828,8 @@ impl PlayerMotion {
         let has = |flag| input.input_data.contains(&flag);
         let body = &mut self.body;
         body.feet = claim;
-        body.velocity = [input.pos_delta.x, input.pos_delta.y, input.pos_delta.z];
+        body.velocity = [input.pos_delta.x, input.pos_delta.y, input.pos_delta.z]
+            .map(|v| v.clamp(-MAX_TRUSTED_SPEED, MAX_TRUSTED_SPEED));
         // The landing a trusted client reports, as the server took it before
         // it simulated movement.
         body.on_ground = has(Flag::Verticalcollision);
@@ -730,9 +837,9 @@ impl PlayerMotion {
         body.horizontal_collision = has(Flag::Horizontalcollision);
         body.sneaking = has(Flag::Sneaking);
         // A sprint with its speed: the simulation sets the speed only when a
-        // sprint starts.
+        // sprint starts. A stopping sprint moved this tick as a sprint.
         body.sprinting = has(Flag::Sprinting);
-        body.moved_sprinting = body.sprinting;
+        body.moved_sprinting = body.sprinting || has(Flag::Stopsprinting);
         body.movement_speed = if body.sprinting {
             WALK_SPEED * SPRINT_MULTIPLIER
         } else {
@@ -766,8 +873,7 @@ impl PlayerMotion {
             on_ground: self.body.on_ground,
             jumped: has(Flag::Startjumping),
             correction: None,
-            verdict: None,
-            trust,
+            judgement: Judgement::Trusted(trust),
         }
     }
 }

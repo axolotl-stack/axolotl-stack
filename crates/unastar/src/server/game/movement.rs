@@ -30,8 +30,8 @@ use super::packet_queues::{
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, Effects, GameMode, HeldSlot, Hunger, MainInventory, PlayerInput,
-    PlayerSession, PlayerState,
+    ArmourInventory, Effects, GameMode, HeldSlot, MainInventory, PlayerInput, PlayerSession,
+    PlayerState,
 };
 use crate::entity::player_life::authority::{
     LoadedBlocks, MAX_TRUSTED_MOVE, MotionTable, Outcome, PlayerMotion, Situation, WorldTerrain,
@@ -39,24 +39,22 @@ use crate::entity::player_life::authority::{
 };
 use crate::entity::player_life::environment::PlayerFall;
 use crate::entity::player_life::motion::{Move, PlayerMoves, Toggles, has_elytra};
-use crate::server::game::item_use::ItemUsing;
 use crate::server::game::types::BlockRegistryResource;
 use crate::world::ChunkManager;
 use crate::world::ecs::ChunkData;
 use jolyne::valentine::types::{EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData};
 use jolyne::valentine::{CorrectPlayerMovePredictionPacket, McpePacket};
 
-/// What the simulation reads about a player besides its movement: its game
-/// mode, effects, armour (an elytra, movement enchantments), food, the item
-/// it is using and the one in its hand.
-type Condition = (
-    &'static GameMode,
-    Option<&'static Effects>,
-    Option<&'static ArmourInventory>,
-    Option<&'static Hunger>,
-    Has<ItemUsing>,
-    Option<(&'static MainInventory, &'static HeldSlot)>,
-);
+/// What the simulation reads about a player besides its movement.
+#[derive(QueryData)]
+pub(crate) struct Condition {
+    mode: &'static GameMode,
+    effects: Option<&'static Effects>,
+    /// An elytra, movement enchantments.
+    armour: Option<&'static ArmourInventory>,
+    /// The held item (a riptide trident).
+    hand: Option<(&'static MainInventory, &'static HeldSlot)>,
+}
 
 /// The player state the movement packets write.
 type MovingPlayers<'w, 's> = Query<
@@ -216,7 +214,7 @@ fn process_auth_input(
     use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
     let may_fly = condition
         .as_ref()
-        .is_some_and(|(mode, ..)| mode.allows_flight());
+        .is_some_and(|condition| condition.mode.allows_flight());
     let flying = may_fly && (state.flying || has(Flag::Startflying)) && !has(Flag::Stopflying);
 
     let old_pos = pos.0;
@@ -349,31 +347,30 @@ fn judge_position(
 
 /// What the movement authority reads about a player besides its movement;
 /// `flying` is the flight the input asks for, in a game mode that can fly.
-fn situation_of(
-    (mode, effects, armour, hunger, using_item, hand): &<Condition as QueryData>::Item<'_, '_>,
-    flying: bool,
-) -> Situation {
+fn situation_of(condition: &ConditionItem<'_, '_>, flying: bool) -> Situation {
     Situation {
-        flight: flying || **mode == GameMode::Spectator,
-        glide: armour.is_some_and(has_elytra),
-        effects: movement_effects_of(*effects),
+        flight: flying || *condition.mode == GameMode::Spectator,
+        glide: condition.armour.is_some_and(has_elytra),
+        effects: movement_effects_of(condition.effects),
         gear: movement_gear_of(
-            *armour,
-            hand.and_then(|(inventory, held)| inventory.hotbar(held.0)),
+            condition.armour,
+            condition
+                .hand
+                .and_then(|(inventory, held)| inventory.hotbar(held.0)),
         ),
-        using_item: *using_item,
-        // Food at 6 or below stops a sprint, in a game mode with hunger.
-        hungry: !mode.allows_flight() && hunger.is_some_and(|hunger| hunger.food_level <= 6),
     }
 }
 
 /// Whether every value the server takes from a `PlayerAuthInput` (position, rotation,
-/// head yaw and move vector) is finite.
+/// head yaw, move vector and the velocity a trusted input reports) is finite.
 fn auth_input_is_finite(pk: &jolyne::valentine::PlayerAuthInputPacket) -> bool {
     [
         pk.position.x,
         pk.position.y,
         pk.position.z,
+        pk.pos_delta.x,
+        pk.pos_delta.y,
+        pk.pos_delta.z,
         pk.player_rotation.x,
         pk.player_rotation.y,
         pk.player_head_rotation,
@@ -556,12 +553,17 @@ mod tests {
             ..Default::default()
         };
         moving.move_vector.x = f32::NAN;
-        let (pos, _) = apply(
-            &mut world,
-            player,
-            MovementInput::AuthInput(Box::new(moving)),
-        );
-        assert_eq!(pos, START);
+        let mut falling = moving.clone();
+        falling.move_vector.x = 0.0;
+        falling.pos_delta.y = f32::NAN;
+        for input in [moving, falling] {
+            let (pos, _) = apply(
+                &mut world,
+                player,
+                MovementInput::AuthInput(Box::new(input)),
+            );
+            assert_eq!(pos, START);
+        }
         assert!(world.resource::<MovementEvents>().0.is_empty());
     }
 }

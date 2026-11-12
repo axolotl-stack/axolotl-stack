@@ -33,13 +33,26 @@ pub trait BlockSource {
     fn registry(&self) -> &BlockRegistry;
 }
 
+/// Block sources that also read the second block layer, where a
+/// waterlogged block keeps its water (seagrass, kelp, waterlogged stairs).
+pub trait LayeredBlocks: BlockSource {
+    /// Runtime ID of the second-layer block at `pos`; `None` if the chunk
+    /// is not loaded.
+    fn second_layer_at(&self, pos: IVec3) -> Option<u32>;
+}
+
 fn in_world_height(y: i32) -> bool {
     (MIN_Y..MIN_Y + i32::from(SUBCHUNK_COUNT) * 16).contains(&y)
 }
 
-fn chunk_block(chunk: &ChunkData, pos: IVec3) -> u32 {
+/// The block in `layer` (0, or 1 for a waterlogged block's water) at `pos`
+/// of a loaded chunk; air above and below the world.
+pub fn chunk_layer(chunk: &ChunkData, pos: IVec3, layer: u8) -> u32 {
+    if !in_world_height(pos.y) {
+        return *crate::world::chunk::blocks::AIR;
+    }
     let (x, y, z) = world_to_local_coords(pos.x, pos.y, pos.z);
-    chunk.inner.get_block(x, y, z)
+    chunk.inner.get_block_layer(x, y, z, layer)
 }
 
 /// [`BlockSource`] for systems: the chunk manager plus chunk data components.
@@ -54,10 +67,7 @@ impl BlockSource for WorldBlocks<'_, '_> {
     fn block_at(&self, pos: IVec3) -> Option<u32> {
         let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
         let chunk = self.chunks.get(self.manager.get_by_coords(cx, cz)?).ok()?;
-        if !in_world_height(pos.y) {
-            return Some(*crate::world::chunk::blocks::AIR);
-        }
-        Some(chunk_block(chunk, pos))
+        Some(chunk_layer(chunk, pos, 0))
     }
 
     fn registry(&self) -> &BlockRegistry {
@@ -65,19 +75,28 @@ impl BlockSource for WorldBlocks<'_, '_> {
     }
 }
 
+/// The loaded chunk of `world` holding `pos`.
+fn world_chunk(world: &World, pos: IVec3) -> Option<&ChunkData> {
+    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+    let entity = world
+        .get_resource::<ChunkManager>()?
+        .get_by_coords(cx, cz)?;
+    world.get::<ChunkData>(entity)
+}
+
 impl BlockSource for World {
     fn block_at(&self, pos: IVec3) -> Option<u32> {
-        let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
-        let entity = self.get_resource::<ChunkManager>()?.get_by_coords(cx, cz)?;
-        let chunk = self.get::<ChunkData>(entity)?;
-        if !in_world_height(pos.y) {
-            return Some(*crate::world::chunk::blocks::AIR);
-        }
-        Some(chunk_block(chunk, pos))
+        Some(chunk_layer(world_chunk(self, pos)?, pos, 0))
     }
 
     fn registry(&self) -> &BlockRegistry {
         &self.resource::<BlockRegistryResource>().0
+    }
+}
+
+impl LayeredBlocks for World {
+    fn second_layer_at(&self, pos: IVec3) -> Option<u32> {
+        Some(chunk_layer(world_chunk(self, pos)?, pos, 1))
     }
 }
 

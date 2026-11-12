@@ -63,29 +63,44 @@ Options considered:
   ground.
 - Trust input by input.
 
-Chosen: trust input by input (`Trust`, decided from a per-input `Situation`). An input is
-trusted when:
-- the player flies in a game mode that can fly, or is a spectator. A client's own
-  `StartFlying` counts for nothing in survival, or it could make itself trusted;
-- the player has a movement effect. Speed, slowness, levitation and blindness are not
-  simulated; jump boost and slow falling are, but no BDS run has confirmed them;
-- an item is in use (it slows the player), or the sprint key is held at 6 food or less (no
-  sprint);
-- a movement enchantment acts: depth strider near water, swift sneak while sneaking, soul
-  speed; or a riptide trident's spin is under way;
-- the copy or the client is in a crawl space;
-- the search box contains a block the motion table marks unsupported. That covers unsupported
-  identifiers, lava, flowing water (its current pushes), and friction other than the
-  confirmed 0.6 (ice), in either block layer. The box is the copy's box stretched by its
-  velocity, grown by a block and reaching one layer below.
+Chosen: trust input by input (`Trust`, decided from a per-input `Situation`), with each
+trust bounded by who brings it about.
 
-A trusted input sets the copy to the client's position and velocity, and to the state the
-simulation carries between inputs as the client's flags report it: the sprint with its speed,
-sneak, swim, glide, jump delay and collisions. Judging then resumes where the client is. A
-trusted input more than 64 blocks from the copy is rejected whole and leaves the copy unchanged,
-so trust cannot be used to move the copy far away. Teleports are enforced even for trusted
-inputs. Effects are read through one accessor (`movement_effects_of`), so the entities lane's
-effect state plugs in at one place.
+The server grants two trusts. A trusted input more than 64 blocks from the copy is rejected
+whole:
+- the player flies in a game mode that can fly, or is a spectator. A client's own
+  `StartFlying` counts for nothing in survival;
+- the player has a movement effect. Speed, slowness and levitation are not simulated; jump
+  boost and slow falling are, but no BDS run has confirmed them.
+
+A client can seek out the rest, so each covers about one tick of vanilla movement, per axis.
+Beyond that the copy judges the input:
+- the search box contains a block the motion table marks unsupported (1.5 horizontally, 4
+  vertically). That covers unsupported identifiers, families the simulation has but no run
+  confirmed, lava, flowing water (its current pushes), and friction other than the confirmed
+  0.6 (ice), in either block layer. The box is the copy's box stretched by its velocity,
+  grown by a block and reaching one layer below;
+- a movement enchantment acts (same bounds): depth strider near water, swift sneak while
+  sneaking, soul speed near soul sand or soil;
+- a riptide trident's spin, started in water (this server has no rain), for at most 20
+  inputs (4 per axis);
+- the copy is in a crawl space. Only the copy's own position counts: a claimed crawl space
+  would let a client make itself trusted anywhere.
+
+Slowdowns get no trust reason. A client that is only slower than the copy's own simulation
+of its keys is taken: horizontally no farther from the start of the input, vertically level,
+on a move the keys drive (not a pull, nor momentum after the keys are let go). That covers
+every slowdown the simulation does not model, such as an item in use (including ones the
+server does not implement, like a spyglass or a trident) or a sprint the food level forbids.
+It never gives an advantage. It is off for 20 inputs after a knockback, so a client that
+refuses its knockback is still corrected as BDS corrects it.
+
+A trusted input sets the copy to the client's position and velocity (capped at 4 a tick per
+axis, the terminal falling speed), and to the state the simulation carries between inputs as
+the client's flags report it: the sprint with its speed, sneak, swim, glide, jump delay and
+collisions. Judging then resumes where the client is. A non-finite reported value rejects the
+input. Teleports are enforced even for trusted inputs. Effects are read through one accessor
+(`movement_effects_of`), so the entities lane's effect state plugs in at one place.
 
 ### Teleports rest the next input; a respawn does not
 

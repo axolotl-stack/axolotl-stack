@@ -47,10 +47,14 @@ the simulation does not reproduce vanilla, or no BDS run has confirmed it, the c
 client's position and velocity, as the server did before:
 - blocks: climbing, honey, soul sand, lava, flowing water, bubble columns, slime and bed
   bounces, powder snow, cobwebs, ice;
-- movement effects, items in use, low food, movement enchantments, riptide spins, crawl spaces;
+- movement effects, movement enchantments, riptide spins, crawl spaces;
 - flight in a game mode that can fly.
 
-A trusted input farther than 64 blocks from the copy is rejected whole.
+The trusts the server grants (flight, effects) reach 64 blocks; beyond that an input is
+rejected whole. The ones a client can seek out reach about one tick of movement; beyond that
+the copy judges the input. A client that is only slower than the copy's simulation of its keys
+(an item in use, a sprint the food level forbids) is taken, except while a knockback plays
+out.
 
 ### Consequences
 

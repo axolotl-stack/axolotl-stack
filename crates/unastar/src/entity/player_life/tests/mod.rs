@@ -326,6 +326,8 @@ impl Harness {
         let changes = unastar_rules::movement::step(body, controls, &terrain);
         let flags = [
             (controls.forward > 0.0, Flag::Up),
+            (controls.jump, Flag::Jumping),
+            (changes.jumped, Flag::Startjumping),
             (controls.sprint, Flag::Sprintdown),
             (changes.started_sprinting, Flag::Startsprinting),
             (body.sprinting, Flag::Sprinting),
@@ -438,7 +440,6 @@ fn actor_events(packets: &[McpePacketData], runtime_id: u64) -> Vec<EnumsActorEv
         .collect()
 }
 
-/// The `minecraft:health` values of the `UpdateAttributes` sent.
 /// The `CorrectPlayerMovePrediction`s among `packets`.
 fn corrections(
     packets: Vec<McpePacketData>,
@@ -452,6 +453,7 @@ fn corrections(
         .collect()
 }
 
+/// The `minecraft:health` values of the `UpdateAttributes` sent.
 fn health_updates(packets: &[McpePacketData]) -> Vec<f32> {
     attribute_updates(packets, "minecraft:health")
 }

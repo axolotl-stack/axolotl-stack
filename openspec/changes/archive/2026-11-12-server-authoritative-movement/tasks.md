@@ -33,10 +33,18 @@
 - [x] 5.5 Trust items in use, a sprint at 6 food or less, unconfirmed effects, movement enchantments, riptide spins and crawl spaces (`::situations_the_simulation_does_not_cover_are_trusted`)
 - [x] 5.6 One crawl test and one set of box sizes for the actor data and the copy; one block-family mapping for the server and the sweep client; one elytra check
 
-## 6. Validate
+## 6. Second review fixes
 
-- [x] 6.1 `cargo fmt --all -- --check`
-- [x] 6.2 `cargo clippy -p unastar -p unastar-rules -p bds-sweep --all-targets -- -D warnings`
-- [x] 6.3 `cargo test -p unastar --lib --tests`, `cargo test -p unastar-rules -p bds-sweep -p parity`
-- [x] 6.4 `python -m unittest discover -s tools/bds-sweep -p "test_*.py"`
-- [x] 6.5 `openspec validate --all --strict`, `bun tools/agents/check-links.ts`; run `review-change`
+- [x] 6.1 A non-finite reported velocity rejects the input; a trusted velocity is capped at 4 a tick per axis (`player_life/tests/authority.rs::a_trusted_velocity_is_bounded`, `server/game/movement.rs::non_finite_positions_and_rotations_are_rejected`)
+- [x] 6.2 Trusts a client can seek out (blocks, gear, crawl spaces, riptide) reach about one tick of movement and are judged beyond it; crawl spaces count only at the copy (`::near_trusts_do_not_reach_far`)
+- [x] 6.3 A riptide spin is trusted only from water and for at most 20 inputs; soul speed only near soul blocks (`::a_riptide_spin_is_trusted_for_twenty_inputs`, `::situations_the_simulation_does_not_cover_are_trusted`)
+- [x] 6.4 A client only slower than the copy's simulation of its keys is taken, except after a knockback; item use and low food need no trust reason (`::a_slower_client_is_taken`, `::a_knockback_must_be_followed`)
+- [x] 6.5 One `Judgement` (judged, trusted, refused) instead of a verdict and a trust; one layer reader for blocks; `Condition` as a query struct; the swim start reads both block layers; a sprint started without the key counts
+
+## 7. Validate
+
+- [x] 7.1 `cargo fmt --all -- --check`
+- [x] 7.2 `cargo clippy -p unastar -p unastar-rules -p bds-sweep --all-targets -- -D warnings`
+- [x] 7.3 `cargo test -p unastar --lib --tests`, `cargo test -p unastar-rules -p bds-sweep -p parity`
+- [x] 7.4 `python -m unittest discover -s tools/bds-sweep -p "test_*.py"`
+- [x] 7.5 `openspec validate --all --strict`, `bun tools/agents/check-links.ts`; run `review-change`

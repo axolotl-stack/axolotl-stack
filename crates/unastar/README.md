@@ -106,24 +106,37 @@ a knockback becomes its velocity. Every other server-side move of a player must
 update the copy too (`PlayerMotion::teleported`), or the client's next input is
 corrected back.
 
-The simulation does not reproduce everything yet. These inputs are trusted
-(`Trust`): the copy takes the client's position, velocity and flags. A trusted
-input more than 64 blocks from the copy is rejected whole.
+The simulation does not reproduce everything yet. Inputs it does not cover
+are trusted (`Trust`): the copy takes the client's position, its velocity
+(capped at 4 blocks a tick per axis) and its flags. How far a trusted input may
+move the copy depends on who brings the trust about.
 
+The server grants these; a trusted input more than 64 blocks from the copy is
+rejected whole:
+- flying in a game mode that can fly, and spectators (a survival client's
+  `StartFlying` is ignored);
+- inputs under a movement effect: speed, slowness, levitation, jump boost or
+  slow falling.
+
+A client can seek these out, so they cover about one tick of movement (1.5
+blocks horizontally, 4 vertically); beyond that the copy judges the input:
 - inputs near blocks with movement rules of their own: climbing, honey, soul
   sand, sweet berries, lava, flowing water, bubble columns, slime, beds, powder
   snow, cobwebs, and ice, whose friction is unconfirmed (`MotionTable`, both
   block layers);
-- inputs under a movement effect: speed, slowness, levitation, blindness, jump
-  boost or slow falling;
-- inputs while an item is in use, or with the sprint key held at 6 food or less;
-- depth strider near water, swift sneak while sneaking, soul speed, and a
-  riptide trident's spin;
-- a crawl space at the copy's or the client's feet;
-- flying in a game mode that can fly, and spectators (a survival client's
-  `StartFlying` is ignored);
-- the first input after joining or respawning, when it is within 2 blocks of the
-  spawn point.
+- depth strider near water, swift sneak while sneaking, soul speed near soul
+  sand or soil;
+- a riptide trident's spin started in water, for at most 20 inputs (up to 4
+  blocks per axis);
+- a crawl space at the copy's feet.
+
+Two more cases are covered:
+- A client only slower than the copy's simulation of its keys is taken (no
+  farther horizontally, level vertically). This covers an item in use and a
+  sprint key held at 6 food or less. It does not apply while a knockback plays
+  out, so refusing knockback is still corrected.
+- The first input after joining or respawning is trusted when it is within 2
+  blocks of the spawn point.
 
 A situation leaves the trusted list only with a BDS run of the sweep client that
 covers it without corrections. The movement replays in `entity/player_life/tests/` assert

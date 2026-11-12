@@ -35,20 +35,22 @@ Nothing earlier measured corrections, the acceptance rules or how a teleport is 
   next input rests at the destination and is corrected there if it is far off, so it cannot undo
   the teleport. A respawn places the copy at the spawn point and simulates the next input from
   there. A knockback becomes the copy's velocity.
-- **Fail safe.** Some inputs are trusted: the copy takes the client's state, and a trusted input
-  more than 64 blocks from the copy is rejected whole. This covers what the simulation does not
-  reproduce, or no BDS run has confirmed yet:
-  - flight in a game mode that can fly, and spectators (a client's own `StartFlying` counts
-    for nothing in survival);
-  - movement effects;
-  - an item in use;
-  - a sprint at 6 food or less;
-  - depth strider, swift sneak and soul speed where they act;
-  - a riptide spin;
-  - crawl spaces;
-  - blocks with movement rules of their own (climbing, honey, soul sand, lava, flowing water,
-    bubble columns, slime, beds, powder snow, cobwebs, ice);
-  - the first input after joining or respawning near the spawn point.
+- **Fail safe.** Some inputs are trusted, and the copy takes the client's state. This covers
+  what the simulation does not reproduce, or no BDS run has confirmed yet.
+  - Granted by the server (up to 64 blocks, then rejected whole):
+    - flight in a game mode that can fly, and spectators (a client's own `StartFlying`
+      counts for nothing in survival);
+    - movement effects.
+  - Sought out by the client (about one tick of movement, then judged):
+    - blocks with movement rules of their own (climbing, honey, soul sand, lava, flowing
+      water, bubble columns, slime, beds, powder snow, cobwebs, ice);
+    - depth strider, swift sneak and soul speed where they act;
+    - a riptide spin started in water;
+    - the copy in a crawl space.
+  - Also taken:
+    - a client only slower than the copy's simulation of its keys (any item in use, a
+      sprint the food level forbids), except while a knockback plays out;
+    - the first input after joining or respawning near the spawn point.
 
   A replay of every BDS movement capture produces only the corrections BDS sent.
 - **Sweep client probes.** New probe orders measure the rules: `teleports`, `corrections`,

@@ -114,6 +114,12 @@ impl Authority {
         self.rest
     }
 
+    /// Whether the client's position may be taken: not after a teleport
+    /// until a correction was sent.
+    pub fn trusting(&self) -> bool {
+        !self.distrust
+    }
+
     /// An input that was not judged: the copy took the client's state, so
     /// nothing is left to pull and no disagreement is counted. The inputs
     /// still count towards the quiet and cooldown periods.

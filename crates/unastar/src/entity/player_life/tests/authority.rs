@@ -17,8 +17,9 @@ use jolyne::valentine::types::EnumsRewindType;
 
 use super::*;
 use crate::entity::components::PlayerState;
-use crate::entity::player_life::authority::{PlayerMotion, Trust};
+use crate::entity::player_life::authority::{Judgement, PlayerMotion, Trust};
 use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+use unastar_rules::movement::authority::Verdict;
 
 /// BDS's floor top is y -60, the platform's 16.
 const DY: f64 = GROUND + 60.0;
@@ -355,16 +356,16 @@ fn copy_feet(h: &mut Harness) -> DVec3 {
     DVec3::new(f64::from(x), f64::from(y), f64::from(z))
 }
 
-/// Why the copy took the last input as it did.
-fn last_trust(h: &mut Harness) -> Trust {
+/// How the copy took the last input.
+fn judgement(h: &mut Harness) -> Judgement {
     let player = h.player;
-    h.world().get::<PlayerMotion>(player).unwrap().last.1
+    h.world().get::<PlayerMotion>(player).unwrap().last.unwrap()
 }
 
 /// Flight is not simulated, so a player flying in a game mode that can fly
 /// is trusted: its copy takes the position it reports, without a
 /// correction, unless that is more than 64 blocks from the copy. Such an
-/// input is rejected whole and leaves the copy where it was, so repeating
+/// input is refused whole and leaves the copy where it was, so repeating
 /// it does not move the player either.
 #[test]
 fn flight_is_trusted_within_64_blocks() {
@@ -375,7 +376,9 @@ fn flight_is_trusted_within_64_blocks() {
     let start = h.feet();
     let up = start + DVec3::new(0.0, 10.0, 0.0);
     let far = start + DVec3::new(100.0, 10.0, 0.0);
-    for (to, expected) in [(up, up), (far, up), (far, up)] {
+    let taken = Judgement::Trusted(Trust::Flight);
+    let refused = Judgement::Refused(Trust::Flight);
+    for (to, expected, judged) in [(up, up, taken), (far, up, refused), (far, up, refused)] {
         assert_eq!(stand(&mut h, to, Vec::new()), 0, "{to}");
         assert!(
             h.feet().distance(expected) < 1.0e-4,
@@ -387,8 +390,38 @@ fn flight_is_trusted_within_64_blocks() {
             "{to}: copy at {}",
             copy_feet(&mut h)
         );
-        assert_eq!(last_trust(&mut h), Trust::Flight);
+        assert_eq!(judgement(&mut h), judged, "{to}");
     }
+}
+
+/// A trusted input's velocity is bounded: a flying client reporting one of
+/// 1e30 blocks a tick leaves the copy at the fastest a player moves.
+#[test]
+fn a_trusted_velocity_is_bounded() {
+    let mut h = harness(Difficulty::Easy);
+    h.set_mode(GameMode::Creative);
+    let player = h.player;
+    h.world().get_mut::<PlayerState>(player).unwrap().flying = true;
+    let start = h.feet();
+    h.put(start);
+    let position = reported(start + DVec3::Y);
+    h.route(PlayerAuthInputPacket {
+        position: Vec3 {
+            x: position.x as f32,
+            y: position.y as f32,
+            z: position.z as f32,
+        },
+        pos_delta: Vec3 {
+            x: 0.0,
+            y: 1.0e30,
+            z: -1.0e30,
+        },
+        ..Default::default()
+    });
+    h.tick();
+    assert_eq!(judgement(&mut h), Judgement::Trusted(Trust::Flight));
+    let velocity = h.world().get::<PlayerMotion>(player).unwrap().body.velocity;
+    assert_eq!(velocity, [0.0, 4.0, -4.0]);
 }
 
 /// A client cannot make itself trusted by claiming flight: in a game mode
@@ -403,7 +436,7 @@ fn a_survival_client_cannot_fly() {
     h.drain();
     let corrections = stand(&mut h, start + DVec3::Y * 5.0, vec![Flag::Startflying]);
     assert_eq!(corrections, 1);
-    assert_eq!(last_trust(&mut h), Trust::No);
+    assert_eq!(judgement(&mut h), Judgement::Judged(Verdict::Correct));
     assert!(!h.world().get::<PlayerState>(player).unwrap().flying);
     assert!(h.feet().distance(start) < 1.0e-4, "at {}", h.feet());
 }
@@ -437,8 +470,15 @@ fn a_sprint_goes_on_after_trusted_inputs() {
         let input = h.predict(&mut client, &controls, tick);
         h.route(input);
         h.tick();
-        let expected = if tick < 10 { Trust::Effect } else { Trust::No };
-        assert_eq!(last_trust(&mut h), expected, "input {tick}");
+        let judged = judgement(&mut h);
+        if tick < 10 {
+            assert_eq!(judged, Judgement::Trusted(Trust::Effect), "input {tick}");
+        } else {
+            assert!(
+                matches!(judged, Judgement::Judged(_)),
+                "input {tick}: {judged:?}"
+            );
+        }
         sent += corrections(h.drain()).len();
     }
     assert_eq!(sent, 0);
@@ -452,54 +492,197 @@ fn a_sprint_goes_on_after_trusted_inputs() {
     );
 }
 
+/// A client only slower than the copy's simulation is taken: one eating
+/// while it walks (it scales its move, the copy, which does not model that,
+/// does not), and one holding the sprint key at 6 food (it cannot sprint,
+/// the copy would). Neither is corrected, and the copy ends where it does.
+#[test]
+fn a_slower_client_is_taken() {
+    for (case, forward, sprint_key) in [("eating", 0.2, false), ("hungry", 1.0, true)] {
+        let mut h = harness_sized(Difficulty::Easy, 4, 4);
+        let start = h.feet();
+        h.put(start);
+        let mut client = unastar_rules::movement::Body::at(start.as_vec3().to_array());
+        client.on_ground = true;
+        let controls = unastar_rules::movement::Controls {
+            forward,
+            ..Default::default()
+        };
+        let (mut sent, mut slowed) = (0, 0);
+        for tick in 1..=30 {
+            let mut input = h.predict(&mut client, &controls, tick);
+            // The keys as pressed: the slowdown is the client's own.
+            input.move_vector.y = 1.0;
+            if sprint_key {
+                input.input_data.push(Flag::Sprintdown);
+            }
+            h.route(input);
+            h.tick();
+            if judgement(&mut h) == Judgement::Trusted(Trust::Slowed) {
+                slowed += 1;
+            }
+            sent += corrections(h.drain()).len();
+        }
+        assert_eq!(sent, 0, "{case}");
+        assert!(slowed > 0, "{case}");
+        let [x, y, z] = client.feet;
+        let client_feet = DVec3::new(f64::from(x), f64::from(y), f64::from(z));
+        assert!(
+            client_feet.distance(start) > 1.0,
+            "{case}: the client walked"
+        );
+        assert!(
+            copy_feet(&mut h).distance(client_feet) < 1.0e-4,
+            "{case}: copy at {}, client at {client_feet}",
+            copy_feet(&mut h)
+        );
+    }
+}
+
+/// A client that does not follow a knockback is not taken as slower: the
+/// push plays out on the copy and the client is corrected, as BDS corrects
+/// a client that applies its knockback late.
+#[test]
+fn a_knockback_must_be_followed() {
+    let mut h = harness(Difficulty::Easy);
+    let player = h.player;
+    let start = h.feet();
+    h.step(start, true);
+    h.drain();
+    h.world()
+        .get_mut::<PlayerMotion>(player)
+        .unwrap()
+        .pushed(DVec3::new(0.6, 0.0, 0.0));
+    let mut sent = 0;
+    for _ in 0..12 {
+        sent += stand(&mut h, start, vec![Flag::Verticalcollision]);
+        assert!(
+            matches!(judgement(&mut h), Judgement::Judged(_)),
+            "{:?}",
+            judgement(&mut h)
+        );
+    }
+    assert!(sent > 0);
+}
+
+/// The trusts a client can seek out reach about one tick of movement: next
+/// to a ladder, a claim 10 blocks away is judged and corrected, and so is a
+/// claim in a crawl space the copy is not in.
+#[test]
+fn near_trusts_do_not_reach_far() {
+    let ladder = |h: &mut Harness| {
+        let id = h
+            .world()
+            .resource::<crate::server::game::types::BlockRegistryResource>()
+            .0
+            .default_state_id_by_name("minecraft:ladder")
+            .unwrap();
+        h.set_block(HOME.floor().as_ivec3() + IVec3::X, id);
+        DVec3::new(10.0, 0.0, 0.0)
+    };
+    let crawl_space = |h: &mut Harness| {
+        let away = DVec3::new(5.0, 0.0, 0.0);
+        h.set_block((HOME + away).floor().as_ivec3() + IVec3::Y, *blocks::STONE);
+        away
+    };
+    type Setup = fn(&mut Harness) -> DVec3;
+    let cases: [(&str, Setup); 2] = [("a ladder", ladder), ("a crawl space", crawl_space)];
+    for (case, setup) in cases {
+        let mut h = harness(Difficulty::Easy);
+        let start = h.feet();
+        h.put(start);
+        let away = setup(&mut h);
+        let corrections = stand(&mut h, start + away, vec![Flag::Verticalcollision]);
+        assert_eq!(corrections, 1, "{case}");
+        assert_eq!(
+            judgement(&mut h),
+            Judgement::Judged(Verdict::Correct),
+            "{case}"
+        );
+        assert!(
+            copy_feet(&mut h).distance(start) < 0.1,
+            "{case}: copy at {}",
+            copy_feet(&mut h)
+        );
+    }
+}
+
+/// Give `h`'s player a riptide trident in hand and still water beside it.
+fn riptide_by_water(h: &mut Harness) {
+    use crate::entity::components::{HeldSlot, MainInventory};
+    use crate::item::enchant::{Enchantment, with_enchantments};
+    use crate::item::test_support::stack;
+    let player = h.player;
+    let trident = with_enchantments(&stack("minecraft:trident", 1), &[(Enchantment::Riptide, 3)]);
+    let slot = h.world().get::<HeldSlot>(player).unwrap().0;
+    *h.world()
+        .get_mut::<MainInventory>(player)
+        .unwrap()
+        .hotbar_mut(slot)
+        .unwrap() = trident;
+    h.set_block(HOME.floor().as_ivec3() + IVec3::X, *blocks::WATER);
+}
+
+/// A riptide spin started in water is trusted for at most 20 inputs.
+#[test]
+fn a_riptide_spin_is_trusted_for_twenty_inputs() {
+    let mut h = harness(Difficulty::Easy);
+    let start = h.feet();
+    h.put(start);
+    riptide_by_water(&mut h);
+    for input in 1..=21 {
+        let mut flags = vec![Flag::Verticalcollision];
+        if input == 1 {
+            flags.push(Flag::Startspinattack);
+        }
+        assert_eq!(stand(&mut h, start, flags), 0);
+        let judged = judgement(&mut h);
+        if input <= 20 {
+            assert_eq!(judged, Judgement::Trusted(Trust::Riptide), "input {input}");
+        } else {
+            assert!(
+                matches!(judged, Judgement::Judged(_)),
+                "input {input}: {judged:?}"
+            );
+        }
+    }
+}
+
 /// Inputs the simulation does not reproduce are trusted, each for its
-/// reason, and only where it applies: an item in use, a sprint key held
-/// with food at 6, a movement effect, swift sneak sneaking, depth strider
-/// next to water, a riptide trident's spin, a block at eye height (a crawl
+/// reason, and only where it applies: a movement effect, swift sneak
+/// sneaking, depth strider next to water, soul speed on soul soil, a
+/// riptide trident's spin started in water, a block at eye height (a crawl
 /// space), ice underfoot (its friction is unconfirmed).
 #[test]
 fn situations_the_simulation_does_not_cover_are_trusted() {
     use crate::entity::components::{
-        ArmourInventory, EffectType, Effects, HeldSlot, Hunger, MainInventory,
+        ArmourInventory, EffectType, Effects, HeldSlot, MainInventory,
     };
     use crate::item::enchant::{Enchantment, with_enchantments};
     use crate::item::test_support::stack;
-    use crate::server::game::item_use::ItemUsing;
+
+    fn wear(h: &mut Harness, item: &str, enchantment: Enchantment) {
+        let player = h.player;
+        let stack = with_enchantments(&stack(item, 1), &[(enchantment, 3)]);
+        let mut armour = h.world().get_mut::<ArmourInventory>(player).unwrap();
+        if item.ends_with("leggings") {
+            armour.set_leggings(stack).unwrap();
+        } else {
+            armour.set_boots(stack).unwrap();
+        }
+    }
+    fn block_named(h: &mut Harness, name: &str) -> u32 {
+        h.world()
+            .resource::<crate::server::game::types::BlockRegistryResource>()
+            .0
+            .default_state_id_by_name(name)
+            .unwrap()
+    }
 
     type Setup = fn(&mut Harness) -> Vec<Flag>;
-    let cases: [(&str, Setup, Trust); 12] = [
-        ("nothing", |_| Vec::new(), Trust::No),
-        (
-            "an item in use",
-            |h| {
-                let player = h.player;
-                h.world().entity_mut(player).insert(ItemUsing {
-                    slot: 0,
-                    item: 0,
-                    since: 0,
-                });
-                Vec::new()
-            },
-            Trust::UsingItem,
-        ),
-        (
-            "food 6 with the sprint key",
-            |h| {
-                let player = h.player;
-                h.world().get_mut::<Hunger>(player).unwrap().food_level = 6;
-                vec![Flag::Sprintdown]
-            },
-            Trust::Hungry,
-        ),
-        (
-            "food 6 without it",
-            |h| {
-                let player = h.player;
-                h.world().get_mut::<Hunger>(player).unwrap().food_level = 6;
-                Vec::new()
-            },
-            Trust::No,
-        ),
+    type Case = (&'static str, Setup, Option<Trust>);
+    let cases: [Case; 13] = [
+        ("nothing", |_| Vec::new(), None),
         (
             "jump boost",
             |h| {
@@ -509,75 +692,67 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
                 h.world().entity_mut(player).insert(effects);
                 Vec::new()
             },
-            Trust::Effect,
+            Some(Trust::Effect),
         ),
         (
             "swift sneak sneaking",
             |h| {
-                let player = h.player;
-                let leggings = with_enchantments(
-                    &stack("minecraft:iron_leggings", 1),
-                    &[(Enchantment::SwiftSneak, 1)],
-                );
-                h.world()
-                    .get_mut::<ArmourInventory>(player)
-                    .unwrap()
-                    .set_leggings(leggings)
-                    .unwrap();
+                wear(h, "minecraft:iron_leggings", Enchantment::SwiftSneak);
                 vec![Flag::Sneaking]
             },
-            Trust::Gear,
+            Some(Trust::Gear),
         ),
         (
             "swift sneak standing",
             |h| {
-                let player = h.player;
-                let leggings = with_enchantments(
-                    &stack("minecraft:iron_leggings", 1),
-                    &[(Enchantment::SwiftSneak, 1)],
-                );
-                h.world()
-                    .get_mut::<ArmourInventory>(player)
-                    .unwrap()
-                    .set_leggings(leggings)
-                    .unwrap();
+                wear(h, "minecraft:iron_leggings", Enchantment::SwiftSneak);
                 Vec::new()
             },
-            Trust::No,
+            None,
         ),
         (
             "depth strider by water",
             |h| {
-                let player = h.player;
-                let boots = with_enchantments(
-                    &stack("minecraft:iron_boots", 1),
-                    &[(Enchantment::DepthStrider, 3)],
-                );
-                h.world()
-                    .get_mut::<ArmourInventory>(player)
-                    .unwrap()
-                    .set_boots(boots)
-                    .unwrap();
+                wear(h, "minecraft:iron_boots", Enchantment::DepthStrider);
                 h.set_block(HOME.floor().as_ivec3() + IVec3::X, *blocks::WATER);
                 Vec::new()
             },
-            Trust::Gear,
+            Some(Trust::Gear),
         ),
         (
-            "a riptide spin",
+            "soul speed on soul soil",
             |h| {
-                let player = h.player;
-                let trident =
-                    with_enchantments(&stack("minecraft:trident", 1), &[(Enchantment::Riptide, 3)]);
-                let slot = h.world().get::<HeldSlot>(player).unwrap().0;
-                *h.world()
-                    .get_mut::<MainInventory>(player)
-                    .unwrap()
-                    .hotbar_mut(slot)
-                    .unwrap() = trident;
+                wear(h, "minecraft:iron_boots", Enchantment::SoulSpeed);
+                let soil = block_named(h, "minecraft:soul_soil");
+                h.set_block(HOME.floor().as_ivec3() - IVec3::Y, soil);
+                Vec::new()
+            },
+            Some(Trust::Gear),
+        ),
+        (
+            "soul speed on stone",
+            |h| {
+                wear(h, "minecraft:iron_boots", Enchantment::SoulSpeed);
+                Vec::new()
+            },
+            None,
+        ),
+        (
+            "a riptide spin by water",
+            |h| {
+                riptide_by_water(h);
                 vec![Flag::Startspinattack]
             },
-            Trust::Gear,
+            Some(Trust::Riptide),
+        ),
+        (
+            "a riptide spin on land",
+            |h| {
+                riptide_by_water(h);
+                h.set_block(HOME.floor().as_ivec3() + IVec3::X, *blocks::AIR);
+                vec![Flag::Startspinattack]
+            },
+            None,
         ),
         (
             "a spin without riptide",
@@ -589,9 +764,10 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
                     .unwrap()
                     .hotbar_mut(slot)
                     .unwrap() = stack("minecraft:trident", 1);
+                h.set_block(HOME.floor().as_ivec3() + IVec3::X, *blocks::WATER);
                 vec![Flag::Startspinattack]
             },
-            Trust::No,
+            None,
         ),
         (
             "a block at eye height",
@@ -599,21 +775,31 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
                 h.set_block(HOME.floor().as_ivec3() + IVec3::Y, *blocks::STONE);
                 Vec::new()
             },
-            Trust::Crawl,
+            Some(Trust::Crawl),
         ),
         (
             "ice underfoot",
             |h| {
-                let ice = h
-                    .world()
-                    .resource::<crate::server::game::types::BlockRegistryResource>()
-                    .0
-                    .default_state_id_by_name("minecraft:ice")
-                    .unwrap();
+                let ice = block_named(h, "minecraft:ice");
                 h.set_block(HOME.floor().as_ivec3() - IVec3::Y, ice);
                 Vec::new()
             },
-            Trust::Block,
+            Some(Trust::Block),
+        ),
+        (
+            "an item in use (judged: standing, nothing slows)",
+            |h| {
+                let player = h.player;
+                h.world()
+                    .entity_mut(player)
+                    .insert(crate::server::game::item_use::ItemUsing {
+                        slot: 0,
+                        item: 0,
+                        since: 0,
+                    });
+                Vec::new()
+            },
+            None,
         ),
     ];
     for (case, setup, expected) in cases {
@@ -623,7 +809,11 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
         let mut flags = setup(&mut h);
         flags.push(Flag::Verticalcollision);
         let corrections = stand(&mut h, start, flags);
-        assert_eq!(last_trust(&mut h), expected, "{case}");
+        let judged = judgement(&mut h);
+        match expected {
+            Some(trust) => assert_eq!(judged, Judgement::Trusted(trust), "{case}"),
+            None => assert!(matches!(judged, Judgement::Judged(_)), "{case}: {judged:?}"),
+        }
         assert_eq!(corrections, 0, "{case}");
     }
 }

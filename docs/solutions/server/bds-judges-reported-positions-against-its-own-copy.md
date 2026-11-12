@@ -58,8 +58,16 @@ else. The client being judged cannot see most of what BDS does.
   which let a trusted input move the copy 1000 blocks; the next input was then in sync there.
   A trusted client still sets state: it must leave the copy's carried state (sprint speed,
   jump delay) consistent, or the first judged input after it is corrected.
-- **Trust only what the server can check.** A survival client's `StartFlying`, or a spin without
-  a riptide trident in hand, would otherwise make the client trusted.
+- **Trust only what the server can check, and bound each trust by who brings it about.** A
+  survival client's `StartFlying`, a spin without a riptide trident, a claimed crawl space or
+  a huge reported velocity each let a client trust itself. Trusts the server grants (game mode,
+  effects) can reach far. Ones a client can seek out (blocks, gear, crawl spaces) should cover
+  only one tick of vanilla movement and be judged beyond it.
+- **Slower is never an advantage, except against knockback.** Rather than listing every slowdown
+  (item use, low food, items the server does not implement), take a client that is only slower
+  than the copy's simulation of its keys. Only keys count: a pull, or momentum after the keys
+  are let go, moves the copy as BDS's own, and taking it there broke the BDS replays. Keep the
+  rule off while a knockback plays out.
 
 ## Where it lives
 

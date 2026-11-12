@@ -16,7 +16,7 @@ use jolyne::valentine::types::DataItemEntryPayload;
 
 use super::*;
 use crate::entity::components::{ArmourInventory, Hunger, PlayerState};
-use crate::entity::player_life::authority::{PlayerMotion, Trust};
+use crate::entity::player_life::authority::{Judgement, PlayerMotion};
 use crate::entity::player_life::environment::PlayerFall;
 use crate::item::test_support::stack;
 
@@ -280,7 +280,10 @@ fn replay_with(
         });
         h.tick();
         let player = h.player;
-        if h.world().get::<PlayerMotion>(player).unwrap().last.1 != Trust::No {
+        if matches!(
+            h.world().get::<PlayerMotion>(player).unwrap().last,
+            Some(Judgement::Trusted(_))
+        ) {
             trusted.push(tick);
         }
         // BDS's teleports after this input (the inputs the client had sent

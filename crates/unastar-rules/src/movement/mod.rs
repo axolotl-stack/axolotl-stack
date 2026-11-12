@@ -256,6 +256,9 @@ pub enum BlockKind {
     Cobweb,
     /// Powder snow: scales the move while the feet are in it.
     PowderSnow,
+    /// Soul sand and soul soil, where soul speed acts (moved as plain
+    /// blocks: soul speed is not simulated).
+    Soul,
 }
 
 impl BlockKind {
@@ -267,8 +270,16 @@ impl BlockKind {
             "minecraft:air" => Self::Air,
             "minecraft:web" => Self::Cobweb,
             "minecraft:powder_snow" => Self::PowderSnow,
+            "minecraft:soul_sand" | "minecraft:soul_soil" => Self::Soul,
             _ => Self::Plain,
         }
+    }
+
+    /// Whether BDS runs of the sweep client confirmed how this family
+    /// moves a player (slime and bed bounces, powder snow and cobwebs are
+    /// simulated, but not yet confirmed).
+    pub fn confirmed(self) -> bool {
+        matches!(self, Self::Plain | Self::Air | Self::Soul)
     }
 }
 
