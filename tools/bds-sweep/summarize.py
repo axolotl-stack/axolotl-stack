@@ -1111,12 +1111,18 @@ PLACEMENT_NOISE = {'PlayerAuthInputPacket', 'LevelChunkPacket', 'NetworkStackLat
 PLACEMENT_DECODED = {'InventoryTransactionPacket', 'UpdateBlockPacket', 'UpdateSubChunkBlocksPacket',
                      'LevelSoundEventPacket', 'BlockActorDataPacket', 'OpenSignPacket', 'PlayerHotbarPacket',
                      'LevelEventPacket', 'BlockEventPacket', 'AnimatePacket'}
-# Groups whose cases also keep the player's attributes (hunger after eating).
-PLACEMENT_ATTRIBUTE_GROUPS = {'leftovers'}
+# Groups whose cases also keep the bytes of further packets: the player's
+# attributes (hunger after eating), the primed TNT actor and what an
+# explosion sends. Their packets also keep the capture time (`t_ms`).
+PLACEMENT_GROUP_DECODED = {
+    'leftovers': frozenset({'UpdateAttributesPacket'}),
+    'tnt': frozenset({'AddActorPacket', 'SetActorDataPacket', 'SetActorMotionPacket', 'RemoveActorPacket',
+                      'AddItemActorPacket', 'LevelEventGenericPacket', 'MoveActorDeltaPacket'}),
+}
 
 
-def placement_decoded(record: dict, attributes: bool = False) -> bool:
-    if attributes and record['name'] == 'UpdateAttributesPacket':
+def placement_decoded(record: dict, extra: frozenset = frozenset()) -> bool:
+    if record['name'] in extra:
         return True
     if record['name'] == 'InventoryContentPacket':
         # Packet id 0x31, then the container id: 0 is the main inventory.
@@ -1124,11 +1130,12 @@ def placement_decoded(record: dict, attributes: bool = False) -> bool:
     return record['name'] in PLACEMENT_DECODED
 
 
-def capture_by_marker(path: Path, attributes: frozenset = frozenset()) -> dict[str, list]:
+def capture_by_marker(path: Path, extra: dict | None = None) -> dict[str, list]:
     """A client capture cut at the `bds-sweep:mark <key>` / `bds-sweep:mark
     end` chat markers: key -> the packets in between (noise left out, hex
-    kept for the packets the test decodes, and for `UpdateAttributes` in the
-    cases whose key is in `attributes`)."""
+    kept for the packets the test decodes and, for the cases in `extra`
+    (key -> packet names), for those packets too, with their capture time)."""
+    extra = extra or {}
     packets: dict[str, list] = {}
     current = None
     if not path.exists():
@@ -1144,10 +1151,13 @@ def capture_by_marker(path: Path, attributes: frozenset = frozenset()) -> dict[s
                 if current:
                     packets[current] = []
                 continue
-        if current and record['name'] not in PLACEMENT_NOISE:
+        names = extra.get(current, frozenset())
+        if current and (record['name'] not in PLACEMENT_NOISE or record['name'] in names):
             packet = {'dir': record['dir'], 'name': record['name']}
-            if placement_decoded(record, current in attributes):
+            if placement_decoded(record, names):
                 packet['hex'] = record['hex']
+            if names:
+                packet['t_ms'] = record['t_ms']
             packets[current].append(packet)
     return packets
 
@@ -1168,10 +1178,11 @@ def summarize_placements(sweep: Path) -> None:
     when the sweep had one, the watching player."""
     rows = {row['key']: row for row in results(sweep)}
     job = json.loads((sweep / 'job.json').read_text(encoding='utf-8'))
-    attributes = frozenset(item['key'] for item in job['items']
-                           if item.get('group') in PLACEMENT_ATTRIBUTE_GROUPS)
-    clicker = capture_by_marker(sweep / 'client-capture' / 'packets.jsonl', attributes)
-    watcher = capture_by_marker(sweep / 'watcher-capture' / 'packets.jsonl')
+    extra = {item['key']: PLACEMENT_GROUP_DECODED[item['group']] for item in job['items']
+             if item.get('group') in PLACEMENT_GROUP_DECODED}
+    clicker = capture_by_marker(sweep / 'client-capture' / 'packets.jsonl', extra)
+    watcher = capture_by_marker(sweep / 'watcher-capture' / 'packets.jsonl',
+                                {key: names for key, names in extra.items() if 'UpdateAttributesPacket' not in names})
     arena = job['arena']['placements']
     groups: dict[str, list] = defaultdict(list)
     for item in job['items']:
@@ -1330,7 +1341,7 @@ ROUND4_METHOD = CIRCUIT_METHOD + (
 )
 ROUND4_ROW = '[name, witness, steps, trace, items, actors]'
 # Families of `pistons.py` and the directory their rows go to.
-ROUND4_PREFIXES = {'pistons_': 'pistons', 'tnt_': 'explosions'}
+ROUND4_PREFIXES = {'pistons_': 'pistons', 'tnt_': 'explosions', 'plates_': 'redstone'}
 # Actor types left out of the TNT families' actor traces (items thrown by explosions).
 ROUND4_NOISE = {'minecraft:item'}
 BLAST_ROW = '[material, sample, witness, destroyed offsets, dropped items {item: count}]'

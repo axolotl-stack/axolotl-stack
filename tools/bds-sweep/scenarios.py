@@ -720,7 +720,8 @@ def _coral_families() -> dict:
 
 def _piston_families() -> dict:
     import pistons
-    return pistons.FAMILIES
+    import plates
+    return {**pistons.FAMILIES, **plates.FAMILIES}
 
 
 def _tnt_families() -> dict:
