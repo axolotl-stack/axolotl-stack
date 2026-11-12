@@ -106,20 +106,27 @@ a knockback becomes its velocity. Every other server-side move of a player must
 update the copy too (`PlayerMotion::teleported`), or the client's next input is
 corrected back.
 
-The simulation does not reproduce everything yet. These inputs are trusted (the
-copy takes the client's position and velocity, if it is within 64 blocks of the
-tracked one):
+The simulation does not reproduce everything yet. These inputs are trusted
+(`Trust`): the copy takes the client's position, velocity and flags. A trusted
+input more than 64 blocks from the copy is rejected whole.
 
-- inputs near blocks with movement rules of their own (climbing, honey, soul
-  sand, sweet berries, lava, bubble columns, slime, beds, powder snow, cobwebs;
-  `MotionTable`);
-- inputs under speed, slowness or levitation;
-- inputs while flying or in spectator mode;
+- inputs near blocks with movement rules of their own: climbing, honey, soul
+  sand, sweet berries, lava, flowing water, bubble columns, slime, beds, powder
+  snow, cobwebs, and ice, whose friction is unconfirmed (`MotionTable`, both
+  block layers);
+- inputs under a movement effect: speed, slowness, levitation, blindness, jump
+  boost or slow falling;
+- inputs while an item is in use, or with the sprint key held at 6 food or less;
+- depth strider near water, swift sneak while sneaking, soul speed, and a
+  riptide trident's spin;
+- a crawl space at the copy's or the client's feet;
+- flying in a game mode that can fly, and spectators (a survival client's
+  `StartFlying` is ignored);
 - the first input after joining or respawning, when it is within 2 blocks of the
   spawn point.
 
-Moving a block out of the trusted list needs a BDS run of the sweep client
-without corrections. The movement replays in `entity/player_life/tests/` assert
+A situation leaves the trusted list only with a BDS run of the sweep client that
+covers it without corrections. The movement replays in `entity/player_life/tests/` assert
 that the server sends exactly BDS's corrections and none that BDS did not send.
 
 ## Joining

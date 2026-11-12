@@ -191,14 +191,7 @@ fn the_copy_of_the_player_respawns_with_it() {
             ..Default::default()
         });
         h.tick();
-        let corrections: Vec<_> = h
-            .drain()
-            .into_iter()
-            .filter_map(|packet| match packet {
-                McpePacketData::CorrectPlayerMovePredictionPacket(c) => Some(c),
-                _ => None,
-            })
-            .collect();
+        let corrections = corrections(h.drain());
         if follows {
             assert!(corrections.is_empty(), "{corrections:?}");
             assert!(h.feet().distance(spawn) < 1.0e-4, "{}", h.feet());

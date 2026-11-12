@@ -42,29 +42,37 @@ simulates the same way; a correction BDS sends that client marks a simulation ga
 before the server judges that block or effect. The server keeps a per-player copy
 (`player_life::authority`): each input is simulated (`unastar_rules::movement::step`) and judged
 (`unastar_rules::movement::authority`), the copy is the player's position for viewers, falls,
-`MOVING` and exhaustion, and a teleport makes the next input rest at the destination. Near a
-block or under an effect the simulation does not cover (climbing, honey, soul sand, lava,
-bubble columns, slime and bed bounces, powder snow, cobwebs, speed, slowness, levitation, flight)
-the copy takes the client's position and velocity, as the server did before.
+`MOVING` and exhaustion, and a teleport makes the next input rest at the destination. Where
+the simulation does not reproduce vanilla, or no BDS run has confirmed it, the copy takes the
+client's position and velocity, as the server did before:
+- blocks: climbing, honey, soul sand, lava, flowing water, bubble columns, slime and bed
+  bounces, powder snow, cobwebs, ice;
+- movement effects, items in use, low food, movement enchantments, riptide spins, crawl spaces;
+- flight in a game mode that can fly.
+
+A trusted input farther than 64 blocks from the copy is rejected whole.
 
 ### Consequences
 
-- Good, because cheats BDS stops are stopped the same way (verified input by input against BDS's
-  own copy), and a teleport can no longer be undone by inputs sent before it.
+- Good, because outside the trusted situations, cheats BDS stops are stopped the same way
+  (verified input by input against BDS's own copy), and a teleport can no longer be undone by
+  inputs sent before it.
 - Good, because every new movement rule is measured once and serves both the server and the
   measuring client.
 - Bad, because `unastar-rules` gains `f32` physics with its own `Terrain` trait, adapted to the
   server's chunks and to the client's sub-chunks.
-- Bad, because the trusted blocks and effects stay client-authoritative until each is measured,
-  and BDS's acceptance of steady drifts is not fully known: unastar takes positions within 0.1
-  where BDS sometimes keeps its own copy.
+- Bad, because the trusted situations stay client-authoritative until each is measured, and the
+  list of them is kept by hand: anything vanilla play does that is neither replayed nor listed
+  would be judged by an incomplete simulation.
+- Bad, because BDS's acceptance of steady drifts is not fully known: unastar takes positions
+  within 0.1 where BDS sometimes keeps its own copy.
 
 ### Confirmation
 
 `crates/unastar/src/entity/player_life/tests/authority.rs` replays the authority probes and
-requires BDS's copy and corrections; the movement replays (`tests/movement.rs`) require BDS's
-corrections and never one BDS did not send; `review-change` checks that new movement rules come
-with a BDS run of the sweep client.
+requires BDS's copy and corrections, and checks that each trusted situation is trusted. The
+movement replays (`tests/movement.rs`) require BDS's corrections and never one BDS did not send.
+A situation leaves the trusted list only with a BDS run of the sweep client that covers it.
 
 ## More Information
 

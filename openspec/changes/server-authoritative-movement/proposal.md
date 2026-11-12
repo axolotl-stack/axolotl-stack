@@ -35,12 +35,22 @@ Nothing earlier measured corrections, the acceptance rules or how a teleport is 
   next input rests at the destination and is corrected there if it is far off, so it cannot undo
   the teleport. A respawn places the copy at the spawn point and simulates the next input from
   there. A knockback becomes the copy's velocity.
-- **Fail safe.** Some inputs are trusted: the copy takes the client's position and velocity, and
-  the 64-block rule still applies. This covers inputs the simulation does not reproduce yet:
-  flight, spectators, speed, slowness and levitation, and contact with blocks that have movement
-  rules of their own (climbing, honey, soul sand, lava, bubble columns, slime, beds, powder snow,
-  cobwebs). It also covers the first input after joining or respawning when it is near the spawn
-  point. A replay of every BDS movement capture produces only the corrections BDS sent.
+- **Fail safe.** Some inputs are trusted: the copy takes the client's state, and a trusted input
+  more than 64 blocks from the copy is rejected whole. This covers what the simulation does not
+  reproduce, or no BDS run has confirmed yet:
+  - flight in a game mode that can fly, and spectators (a client's own `StartFlying` counts
+    for nothing in survival);
+  - movement effects;
+  - an item in use;
+  - a sprint at 6 food or less;
+  - depth strider, swift sneak and soul speed where they act;
+  - a riptide spin;
+  - crawl spaces;
+  - blocks with movement rules of their own (climbing, honey, soul sand, lava, flowing water,
+    bubble columns, slime, beds, powder snow, cobwebs, ice);
+  - the first input after joining or respawning near the spawn point.
+
+  A replay of every BDS movement capture produces only the corrections BDS sent.
 - **Sweep client probes.** New probe orders measure the rules: `teleports`, `corrections`,
   `offset`, `drift`. `tools/bds-sweep/authority_fixture.py` distils the runs into a value-only
   fixture.

@@ -114,6 +114,17 @@ impl Authority {
         self.rest
     }
 
+    /// An input that was not judged: the copy took the client's state, so
+    /// nothing is left to pull and no disagreement is counted. The inputs
+    /// still count towards the quiet and cooldown periods.
+    pub fn synced(&mut self) {
+        self.pull = [0.0; 3];
+        self.count = 0;
+        self.accepted = false;
+        self.quiet = self.quiet.saturating_sub(1);
+        self.cooldown = self.cooldown.saturating_sub(1);
+    }
+
     /// The pull to add to the copy's velocity before this input's move;
     /// nothing during the inputs after a correction.
     pub fn take_pull(&mut self) -> [f32; 3] {

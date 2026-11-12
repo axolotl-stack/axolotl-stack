@@ -48,7 +48,7 @@ const JUMP_BOOST_STEP: f32 = 0.1;
 /// Forward push of a sprinting jump.
 const SPRINT_JUMP: f32 = 0.2;
 /// Ticks before a held jump key jumps again.
-const JUMP_DELAY: u8 = 10;
+pub const JUMP_DELAY: u8 = 10;
 /// Highest step the player walks up.
 pub const STEP_HEIGHT: f32 = 0.5625;
 /// The move vector is scaled by this before it accelerates the player.
@@ -197,7 +197,7 @@ pub enum Pose {
 }
 
 impl Pose {
-    pub fn height(self) -> f32 {
+    pub const fn height(self) -> f32 {
         match self {
             Pose::Standing => 1.8,
             Pose::Sneaking => 1.49,
@@ -256,6 +256,20 @@ pub enum BlockKind {
     Cobweb,
     /// Powder snow: scales the move while the feet are in it.
     PowderSnow,
+}
+
+impl BlockKind {
+    /// The family of the block named `identifier` (any of its states).
+    pub fn of(identifier: &str) -> Self {
+        match identifier {
+            "minecraft:slime" => Self::Slime,
+            "minecraft:bed" => Self::Bed,
+            "minecraft:air" => Self::Air,
+            "minecraft:web" => Self::Cobweb,
+            "minecraft:powder_snow" => Self::PowderSnow,
+            _ => Self::Plain,
+        }
+    }
 }
 
 /// What movement needs from the world.

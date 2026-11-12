@@ -50,6 +50,16 @@ else. The client being judged cannot see most of what BDS does.
   the server sends exactly BDS's corrections (same inputs, position and velocity) and none that
   BDS did not send. Near a block the simulation does not cover yet, trust the client. Allow a
   missed correction only within 20 inputs of a trusted one.
+- **A replay covers only what was captured.** The first version judged every situation the
+  probes never visited. That meant correcting players eating while walking, sprinting at low
+  food, in waterlogged blocks or currents, on ice, with depth strider, or crawling. List what
+  vanilla play does and trust each case until a run covers it.
+- **A trusted input must not move the copy before the reach check.** The first version did,
+  which let a trusted input move the copy 1000 blocks; the next input was then in sync there.
+  A trusted client still sets state: it must leave the copy's carried state (sprint speed,
+  jump delay) consistent, or the first judged input after it is corrected.
+- **Trust only what the server can check.** A survival client's `StartFlying`, or a spin without
+  a riptide trident in hand, would otherwise make the client trusted.
 
 ## Where it lives
 

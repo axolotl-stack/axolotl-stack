@@ -24,10 +24,19 @@
 - [x] 4.3 Update `player.movement` and `player.damage_sources` in `docs/parity/systems.toml`, and `CorrectPlayerMovePredictionPacket`, `PlayerAuthInputPacket` and `MovePlayerPacket` in `docs/parity/protocol.toml`; `cargo run -p parity -- generate` and `-- check`
 - [x] 4.4 Solution note on watching BDS's copy; `crates/unastar/README.md` and `tools/bds-sweep/README.md`
 
-## 5. Validate
+## 5. Review fixes
 
-- [x] 5.1 `cargo fmt --all -- --check`
-- [x] 5.2 `cargo clippy -p unastar -p unastar-rules -p bds-sweep --all-targets -- -D warnings`
-- [x] 5.3 `cargo test -p unastar --lib --tests`, `cargo test -p unastar-rules -p bds-sweep -p parity`
-- [x] 5.4 `python -m unittest discover -s tools/bds-sweep -p "test_*.py"`
-- [x] 5.5 `openspec validate --all --strict`, `bun tools/agents/check-links.ts`; run `review-change`
+- [x] 5.1 A trusted input more than 64 blocks from the copy is rejected before it changes the copy (`player_life/tests/authority.rs::flight_is_trusted_within_64_blocks`)
+- [x] 5.2 Flight is trusted only in a game mode that can fly, and a client's flight toggles count only there (`::a_survival_client_cannot_fly`)
+- [x] 5.3 A trusted input leaves the copy's carried state (sprint speed, sneak, swim, glide, jump delay, collisions) as the client reports it, and clears the pull and count (`::a_sprint_goes_on_after_trusted_inputs`, `unastar-rules` `movement::tests::a_synced_input_clears_the_pull_and_the_count`)
+- [x] 5.4 Both block layers are read (waterlogged water); flowing water, ice and unnamed ids are trusted; unloaded blocks add no collision (`::waterlogged_blocks_are_water_and_flowing_water_is_trusted`)
+- [x] 5.5 Trust items in use, a sprint at 6 food or less, unconfirmed effects, movement enchantments, riptide spins and crawl spaces (`::situations_the_simulation_does_not_cover_are_trusted`)
+- [x] 5.6 One crawl test and one set of box sizes for the actor data and the copy; one block-family mapping for the server and the sweep client; one elytra check
+
+## 6. Validate
+
+- [x] 6.1 `cargo fmt --all -- --check`
+- [x] 6.2 `cargo clippy -p unastar -p unastar-rules -p bds-sweep --all-targets -- -D warnings`
+- [x] 6.3 `cargo test -p unastar --lib --tests`, `cargo test -p unastar-rules -p bds-sweep -p parity`
+- [x] 6.4 `python -m unittest discover -s tools/bds-sweep -p "test_*.py"`
+- [x] 6.5 `openspec validate --all --strict`, `bun tools/agents/check-links.ts`; run `review-change`

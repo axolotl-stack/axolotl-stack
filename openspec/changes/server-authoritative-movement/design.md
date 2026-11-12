@@ -63,16 +63,29 @@ Options considered:
   ground.
 - Trust input by input.
 
-Chosen: trust input by input. An input is trusted when:
-- the player flies or is a spectator;
-- the player has speed, slowness or levitation;
-- the search box contains a block the motion table marks unsupported. The box is the copy's box
-  stretched by its velocity, grown by a block and reaching one layer below.
+Chosen: trust input by input (`Trust`, decided from a per-input `Situation`). An input is
+trusted when:
+- the player flies in a game mode that can fly, or is a spectator. A client's own
+  `StartFlying` counts for nothing in survival, or it could make itself trusted;
+- the player has a movement effect. Speed, slowness, levitation and blindness are not
+  simulated; jump boost and slow falling are, but no BDS run has confirmed them;
+- an item is in use (it slows the player), or the sprint key is held at 6 food or less (no
+  sprint);
+- a movement enchantment acts: depth strider near water, swift sneak while sneaking, soul
+  speed; or a riptide trident's spin is under way;
+- the copy or the client is in a crawl space;
+- the search box contains a block the motion table marks unsupported. That covers unsupported
+  identifiers, lava, flowing water (its current pushes), and friction other than the
+  confirmed 0.6 (ice), in either block layer. The box is the copy's box stretched by its
+  velocity, grown by a block and reaching one layer below.
 
-A trusted input sets the copy to the client's position and velocity, so judging resumes as soon
-as the player leaves. The 64-block rejection still applies to trusted inputs. Teleports are
-enforced even then. Effects are read through one accessor (`movement_effects_of`), so the
-entities lane's effect state plugs in at one place.
+A trusted input sets the copy to the client's position and velocity, and to the state the
+simulation carries between inputs as the client's flags report it: the sprint with its speed,
+sneak, swim, glide, jump delay and collisions. Judging then resumes where the client is. A
+trusted input more than 64 blocks from the copy is rejected whole and leaves the copy unchanged,
+so trust cannot be used to move the copy far away. Teleports are enforced even for trusted
+inputs. Effects are read through one accessor (`movement_effects_of`), so the entities lane's
+effect state plugs in at one place.
 
 ### Teleports rest the next input; a respawn does not
 
@@ -103,9 +116,11 @@ wire offset (`NETWORK_OFFSET`), and server positions with the eye height.
 
 ## Risks / Trade-offs
 
-- **The unsupported list is kept by hand.** A new block with movement rules of its own would be
-  judged as a plain block. The movement replays (every BDS phase must produce only BDS's
-  corrections) and `review-change` are the guard. Each new rule needs a BDS run.
+- **The trust list is kept by hand.** A new block, effect or item with movement rules of its own
+  would be judged as plain until it is added. The movement replays catch this for what they
+  cover, since every BDS phase must produce only BDS's corrections. Anything else vanilla play
+  does has to be listed. Each situation leaves the list only after a BDS run of the sweep client
+  covers it without corrections.
 - **Trusted areas stay open to cheats.** Near trusted blocks, and under trusted effects, a
   cheating client is believed as it was before this change.
 - **Some differences from BDS remain.** BDS sometimes keeps its own copy of a client drifting

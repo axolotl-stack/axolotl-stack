@@ -437,3 +437,27 @@ fn the_input_after_a_teleport_rests_and_is_judged_against_the_destination() {
         "a teleported client's position is not taken"
     );
 }
+
+/// An input the copy did not judge (it took the client's state) leaves
+/// nothing to pull and no disagreement counted: ten pulls, then a synced
+/// input, and the next disagreement is the first again.
+#[test]
+fn a_synced_input_clears_the_pull_and_the_count() {
+    let mut authority = Authority::default();
+    let mut copy = Body::at([0.0, 0.0, 0.5]);
+    for _ in 0..10 {
+        copy.feet = [0.0, 0.0, 0.5];
+        assert_eq!(
+            authority.judge(&mut copy, [0.0, 0.0, 0.7], false, true),
+            Verdict::Pulled
+        );
+    }
+    authority.synced();
+    assert_eq!(authority.take_pull(), [0.0; 3]);
+    copy.feet = [0.0, 0.0, 0.5];
+    assert_eq!(
+        authority.judge(&mut copy, [0.0, 0.0, 0.7], false, true),
+        Verdict::Pulled,
+        "the count started again"
+    );
+}

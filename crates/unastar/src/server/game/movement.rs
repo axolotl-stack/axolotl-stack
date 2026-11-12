@@ -7,6 +7,7 @@
 //! judged against it, as BDS 1.26.51 does (`player_life::authority`, which
 //! answers with `CorrectPlayerMovePrediction`); inputs the simulation does
 //! not cover are trusted within [`MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK`].
+//! A client's flight toggles count only in a game mode that can fly.
 //! Each input's move (the copy's) and the sprint, swim and glide toggles it
 //! asks for go to [`PlayerMoves`], which `player_life::motion::settle_moves`
 //! applies right after (acceptance, `MOVING`, food exhaustion). Forwards
@@ -14,12 +15,14 @@
 //! respawn is routed to `player_life::respawn` instead.)
 
 use bevy_ecs::prelude::*;
+use bevy_ecs::query::QueryData;
 use glam::DVec3;
 use tracing::trace;
 
 /// Farthest one trusted `PlayerAuthInput` may move a player from its
-/// server-tracked position.
-const MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK: f64 = 64.0;
+/// server-tracked position (from the server's copy, for a player that has
+/// one: [`MAX_TRUSTED_MOVE`]).
+const MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK: f64 = MAX_TRUSTED_MOVE as f64;
 
 use super::packet_queues::{
     BlockAction, BlockPacketQueue, MovementEvents, MovementInput, MovementPacketQueue,
@@ -27,13 +30,16 @@ use super::packet_queues::{
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, Effects, GameMode, PlayerInput, PlayerSession, PlayerState,
+    ArmourInventory, Effects, GameMode, HeldSlot, Hunger, MainInventory, PlayerInput,
+    PlayerSession, PlayerState,
 };
 use crate::entity::player_life::authority::{
-    LoadedBlocks, MotionTable, Outcome, PlayerMotion, Trust, WorldTerrain, movement_effects_of,
+    LoadedBlocks, MAX_TRUSTED_MOVE, MotionTable, Outcome, PlayerMotion, Situation, WorldTerrain,
+    movement_effects_of, movement_gear_of,
 };
 use crate::entity::player_life::environment::PlayerFall;
-use crate::entity::player_life::motion::{Move, PlayerMoves, Toggles};
+use crate::entity::player_life::motion::{Move, PlayerMoves, Toggles, has_elytra};
+use crate::server::game::item_use::ItemUsing;
 use crate::server::game::types::BlockRegistryResource;
 use crate::world::ChunkManager;
 use crate::world::ecs::ChunkData;
@@ -41,11 +47,15 @@ use jolyne::valentine::types::{EnumsPlayerActionType, EnumsPlayerAuthInputPacket
 use jolyne::valentine::{CorrectPlayerMovePredictionPacket, McpePacket};
 
 /// What the simulation reads about a player besides its movement: its game
-/// mode, effects and armour (an elytra).
+/// mode, effects, armour (an elytra, movement enchantments), food, the item
+/// it is using and the one in its hand.
 type Condition = (
     &'static GameMode,
     Option<&'static Effects>,
     Option<&'static ArmourInventory>,
+    Option<&'static Hunger>,
+    Has<ItemUsing>,
+    Option<(&'static MainInventory, &'static HeldSlot)>,
 );
 
 /// The player state the movement packets write.
@@ -88,9 +98,10 @@ impl<'a, 'w, 's> MovementWorld<'a, 'w, 's> {
 
 /// ECS system: drain movement packet queue and apply state changes.
 ///
-/// Runs in `PacketApplySet`. Can execute in parallel with inventory, chat, and chunks
-/// because it writes disjoint components (Position, Rotation, PlayerState, PlayerInput,
-/// PlayerFall, PlayerMoves).
+/// Runs in `PacketApplySet`. Writes the movement components (Position, Rotation,
+/// PlayerState, PlayerInput, PlayerFall, PlayerMoves, PlayerMotion), reads the loaded
+/// chunks the movement simulation collides with, and sends each correction through
+/// the player's session.
 #[allow(clippy::too_many_arguments)]
 pub fn apply_movement(
     mut queue: ResMut<MovementPacketQueue>,
@@ -129,6 +140,12 @@ pub fn apply_movement(
                 if let Some(correction) = correction
                     && let Ok(session) = sessions.get(entity)
                 {
+                    tracing::debug!(
+                        entity = ?entity,
+                        tick = correction.tick.inputtick,
+                        position = ?correction.pos,
+                        "Sent CorrectPlayerMovePrediction"
+                    );
                     let _ = session.send(McpePacket::from(correction));
                 }
                 // Every accepted input is relayed to the player's viewers.
@@ -192,59 +209,26 @@ fn process_auth_input(
         return None;
     }
 
-    // The flight toggles first: a flying player's input is trusted.
+    // The flight this input asks for, in a game mode that can fly (applied
+    // once the input is accepted): a flying player's input is trusted.
     let input_data = &pk.input_data;
     let has = |flag| input_data.contains(&flag);
     use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
-    if has(Flag::Startflying) {
-        state.flying = true;
-    }
-    if has(Flag::Stopflying) {
-        state.flying = false;
-    }
+    let may_fly = condition
+        .as_ref()
+        .is_some_and(|(mode, ..)| mode.allows_flight());
+    let flying = may_fly && (state.flying || has(Flag::Startflying)) && !has(Flag::Stopflying);
 
-    // The position: the server's copy, or the client's within reason.
-    let reported = DVec3::new(
-        pk.position.x as f64,
-        pk.position.y as f64,
-        pk.position.z as f64,
-    );
     let old_pos = pos.0;
-    let within_reach = old_pos.distance(reported) <= MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK;
-    let outcome = match (motion, world.terrain_parts()) {
-        (Some(mut motion), Some((blocks, table))) => {
-            let (mode, effects, armour) = match condition {
-                Some((mode, effects, armour)) => (Some(mode), effects, armour),
-                None => (None, None, None),
-            };
-            motion.effects = movement_effects_of(effects);
-            let trust = if state.flying || mode == Some(&GameMode::Spectator) {
-                Trust::Flight
-            } else {
-                Trust::No
-            };
-            let glide =
-                armour.is_some_and(|armour| armour.chestplate().item_id() == "minecraft:elytra");
-            let terrain = WorldTerrain {
-                blocks: &blocks,
-                table,
-            };
-            let outcome = motion.input(pk, &terrain, trust, glide);
-            (outcome.trust == Trust::No || within_reach).then_some(outcome)
-        }
-        _ => within_reach.then(|| Outcome::reported(pk)),
-    };
-    let Some(outcome) = outcome else {
-        tracing::warn!(
-            entity = ?entity,
-            from = ?old_pos,
-            to = ?reported,
-            "Rejected implausible PlayerAuthInput movement delta"
-        );
-        return None;
-    };
+    let situation = condition
+        .as_ref()
+        .map_or_else(Situation::default, |condition| {
+            situation_of(condition, flying)
+        });
+    let outcome = judge_position(entity, pk, old_pos, motion, &situation, world)?;
     let new_pos = outcome.position;
     pos.0 = new_pos;
+    state.flying = flying;
 
     // Update rotation
     rot.pitch = pk.player_rotation.x;
@@ -322,6 +306,65 @@ fn process_auth_input(
         });
     }
     Some(outcome.correction)
+}
+
+/// The input's outcome: the server's copy judges it, or, for a player
+/// without one (no world to simulate in), the reported position is taken
+/// within [`MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK`] of `old_pos`. `None`
+/// rejects the input whole.
+fn judge_position(
+    entity: Entity,
+    pk: &jolyne::valentine::PlayerAuthInputPacket,
+    old_pos: DVec3,
+    motion: Option<Mut<PlayerMotion>>,
+    situation: &Situation,
+    world: &MovementWorld<'_, '_, '_>,
+) -> Option<Outcome> {
+    let reported = DVec3::new(
+        f64::from(pk.position.x),
+        f64::from(pk.position.y),
+        f64::from(pk.position.z),
+    );
+    let outcome = match (motion, world.terrain_parts()) {
+        (Some(mut motion), Some((blocks, table))) => {
+            let terrain = WorldTerrain {
+                blocks: &blocks,
+                table,
+            };
+            motion.input(pk, &terrain, situation)
+        }
+        _ => (old_pos.distance(reported) <= MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK)
+            .then(|| Outcome::reported(pk)),
+    };
+    if outcome.is_none() {
+        tracing::warn!(
+            entity = ?entity,
+            from = ?old_pos,
+            to = ?reported,
+            "Rejected implausible PlayerAuthInput movement delta"
+        );
+    }
+    outcome
+}
+
+/// What the movement authority reads about a player besides its movement;
+/// `flying` is the flight the input asks for, in a game mode that can fly.
+fn situation_of(
+    (mode, effects, armour, hunger, using_item, hand): &<Condition as QueryData>::Item<'_, '_>,
+    flying: bool,
+) -> Situation {
+    Situation {
+        flight: flying || **mode == GameMode::Spectator,
+        glide: armour.is_some_and(has_elytra),
+        effects: movement_effects_of(*effects),
+        gear: movement_gear_of(
+            *armour,
+            hand.and_then(|(inventory, held)| inventory.hotbar(held.0)),
+        ),
+        using_item: *using_item,
+        // Food at 6 or below stops a sprint, in a game mode with hunger.
+        hungry: !mode.allows_flight() && hunger.is_some_and(|hunger| hunger.food_level <= 6),
+    }
 }
 
 /// Whether every value the server takes from a `PlayerAuthInput` (position, rotation,

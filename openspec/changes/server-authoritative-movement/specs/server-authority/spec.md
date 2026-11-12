@@ -54,18 +54,30 @@ When the server moves a player (a command, a plugin, an ender pearl or chorus fr
 Evidence: crates/unastar/src/entity/player_life/authority.rs (`PlayerMotion::teleported`, `PlayerMotion::respawned`), crates/unastar/src/command/exec/teleport.rs, crates/unastar/src/server/game/item_use/mod.rs (`teleport`), crates/unastar/src/server/game/plugins.rs, crates/unastar/src/entity/player_life/respawn.rs, crates/unastar/src/server/game/command_tests.rs (`a_teleport_cannot_be_undone_by_the_input_already_on_its_way`), crates/unastar/src/entity/player_life/tests/authority.rs (`the_copy_moves_and_corrects_like_bds`), crates/unastar/src/entity/player_life/tests/respawn.rs (`the_copy_of_the_player_respawns_with_it`)
 
 ### Requirement: Movement the simulation does not cover is trusted
-The server SHALL NOT correct an input the simulation does not reproduce: one from a flying or spectator player, one under speed, slowness or levitation, one whose copy is near a block with movement rules of its own (climbing, honey, soul sand, lava, bubble columns, slime, beds, powder snow, cobwebs), and the first input after a join or respawn within 2 blocks of the spawn point. The copy MUST take such an input's position and velocity unless it is more than 64 blocks away.
+The server SHALL NOT correct an input the simulation does not reproduce: flight in a game mode that can fly, a spectator, a movement effect, an item in use, a sprint at 6 food or less, a movement enchantment where it acts, a riptide spin, a crawl space, a nearby block with movement rules of its own, or the first input after a join or respawn within 2 blocks of the spawn point. The copy MUST take such an input's state; one over 64 blocks from the copy MUST be rejected whole.
 
 #### Scenario: Replayed vanilla movement
 - **WHEN** the BDS movement capture's phases (walking, sprinting, sneaking, jumps, swims, glides, falls onto slime, beds, hay, water and powder snow, fire, lava, knockback) are replayed
 - **THEN** the server sends no correction BDS did not send, and every correction it sends carries BDS's position and velocity
 
 #### Scenario: Flying
-- **WHEN** a flying player reports a position 10 blocks above the tracked one
+- **WHEN** a flying creative player reports a position 10 blocks above the copy
 - **THEN** the copy takes it and no correction is sent
 
 #### Scenario: Teleport-sized jump while flying
-- **WHEN** a flying player reports a position 100 blocks from the tracked one
-- **THEN** the update is rejected with the warning `Rejected implausible PlayerAuthInput movement delta`, no move event is produced and no correction is sent
+- **WHEN** a flying creative player reports a position 100 blocks from the copy, twice
+- **THEN** both inputs are rejected with the warning `Rejected implausible PlayerAuthInput movement delta`, the copy stays where it was and no correction is sent
 
-Evidence: crates/unastar/src/entity/player_life/authority.rs (`MotionTable`, `Trust`, `movement_effects_of`), crates/unastar/src/server/game/movement.rs (`MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK`, test `moves_within_the_delta_are_accepted_and_larger_ones_rejected`), crates/unastar/src/entity/player_life/tests/authority.rs (`flight_is_trusted_within_64_blocks`), crates/unastar/src/entity/player_life/tests/movement.rs (`assert_corrections_like_bds`), docs/parity/systems.toml (`player.movement`)
+#### Scenario: Claimed flight
+- **WHEN** a survival client sends `StartFlying` with a position 5 blocks above the copy
+- **THEN** the flag is ignored and the input is judged and corrected
+
+#### Scenario: Situations the simulation does not cover
+- **WHEN** a standing player sends an input while using an item, with food at 6 holding the sprint key, under jump boost, sneaking in swift sneak leggings, next to water in depth strider boots, spinning with a riptide trident, under a block at eye height or on ice
+- **THEN** the input is trusted and no correction is sent
+
+#### Scenario: Judging resumes where the client is
+- **WHEN** a client starts sprinting during trusted inputs and keeps sprinting after they end
+- **THEN** the copy follows it exactly, at sprint speed, without a correction
+
+Evidence: crates/unastar/src/entity/player_life/authority.rs (`MotionTable`, `Trust`, `Situation`, `PlayerMotion::input`), crates/unastar/src/server/game/movement.rs (`MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK`, `situation_of`, test `moves_within_the_delta_are_accepted_and_larger_ones_rejected`), crates/unastar/src/entity/player_life/tests/authority.rs (`flight_is_trusted_within_64_blocks`, `a_survival_client_cannot_fly`, `situations_the_simulation_does_not_cover_are_trusted`, `a_sprint_goes_on_after_trusted_inputs`, `waterlogged_blocks_are_water_and_flowing_water_is_trusted`), crates/unastar/src/entity/player_life/tests/movement.rs (`assert_corrections_like_bds`), docs/parity/systems.toml (`player.movement`)

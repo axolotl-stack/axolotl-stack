@@ -129,9 +129,12 @@ fn in_water(world: &World, feet: DVec3) -> bool {
 
 /// Whether `player` wears an elytra.
 fn wears_elytra(world: &World, player: Entity) -> bool {
-    world
-        .get::<ArmourInventory>(player)
-        .is_some_and(|armour| armour.chestplate().item_id() == ELYTRA)
+    world.get::<ArmourInventory>(player).is_some_and(has_elytra)
+}
+
+/// Whether `armour` has an elytra in the chest slot: a glide may start.
+pub fn has_elytra(armour: &ArmourInventory) -> bool {
+    armour.chestplate().item_id() == ELYTRA
 }
 
 /// The exhaustion of one move.

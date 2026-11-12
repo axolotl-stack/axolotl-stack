@@ -391,17 +391,9 @@ impl Terrain for World {
         let Some(block) = self.block(pos) else {
             return Motion::AIR;
         };
-        let kind = match block.identifier() {
-            "minecraft:slime" => BlockKind::Slime,
-            "minecraft:bed" => BlockKind::Bed,
-            "minecraft:air" => BlockKind::Air,
-            "minecraft:web" => BlockKind::Cobweb,
-            "minecraft:powder_snow" => BlockKind::PowderSnow,
-            _ => BlockKind::Plain,
-        };
         Motion {
             friction: block.data.friction,
-            kind,
+            kind: BlockKind::of(block.identifier()),
             water: self.water_at(pos).unwrap_or(false),
         }
     }

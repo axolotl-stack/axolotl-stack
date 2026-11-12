@@ -295,36 +295,65 @@ impl Harness {
     /// (the shared movement simulation from the server's copy), then a
     /// tick. Returns whether the move ended on the ground.
     fn idle(&mut self) -> bool {
-        use crate::entity::player_life::authority::{MotionTable, PlayerMotion, WorldTerrain};
         let player = self.player;
+        let mut body = self
+            .world()
+            .get::<crate::entity::player_life::authority::PlayerMotion>(player)
+            .unwrap()
+            .body;
+        let input = self.predict(&mut body, &unastar_rules::movement::Controls::default(), 0);
+        self.route(input);
+        self.tick();
+        body.on_ground && body.vertical_collision
+    }
+
+    /// What a vanilla client whose body is `body` reports for input `tick`
+    /// of `controls`: its own prediction with the shared movement
+    /// simulation, and the flags it sends with it.
+    fn predict(
+        &mut self,
+        body: &mut unastar_rules::movement::Body,
+        controls: &unastar_rules::movement::Controls,
+        tick: u64,
+    ) -> PlayerAuthInputPacket {
+        use crate::entity::player_life::authority::{MotionTable, WorldTerrain};
+        use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
         let world = self.world();
-        let mut body = world.get::<PlayerMotion>(player).unwrap().body;
         let terrain = WorldTerrain {
             blocks: &*world,
             table: world.resource::<MotionTable>(),
         };
-        unastar_rules::movement::step(
-            &mut body,
-            &unastar_rules::movement::Controls::default(),
-            &terrain,
-        );
+        let changes = unastar_rules::movement::step(body, controls, &terrain);
+        let flags = [
+            (controls.forward > 0.0, Flag::Up),
+            (controls.sprint, Flag::Sprintdown),
+            (changes.started_sprinting, Flag::Startsprinting),
+            (body.sprinting, Flag::Sprinting),
+            (body.vertical_collision, Flag::Verticalcollision),
+        ];
         let [x, y, z] = body.network_position();
-        self.route(PlayerAuthInputPacket {
+        PlayerAuthInputPacket {
             position: Vec3 { x, y, z },
             pos_delta: Vec3 {
                 x: body.velocity[0],
                 y: body.velocity[1],
                 z: body.velocity[2],
             },
-            input_data: if body.vertical_collision {
-                vec![EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision]
-            } else {
-                Vec::new()
+            move_vector: jolyne::valentine::types::Vec2 {
+                x: controls.strafe,
+                y: controls.forward,
             },
+            player_rotation: jolyne::valentine::types::Vec2 {
+                x: controls.pitch,
+                y: controls.yaw,
+            },
+            input_data: flags
+                .into_iter()
+                .filter_map(|(on, flag)| on.then_some(flag))
+                .collect(),
+            client_tick: jolyne::valentine::types::PlayerInputTick { inputtick: tick },
             ..Default::default()
-        });
-        self.tick();
-        body.on_ground && body.vertical_collision
+        }
     }
 
     /// An adult cow with its feet two blocks west of the player.
@@ -410,6 +439,19 @@ fn actor_events(packets: &[McpePacketData], runtime_id: u64) -> Vec<EnumsActorEv
 }
 
 /// The `minecraft:health` values of the `UpdateAttributes` sent.
+/// The `CorrectPlayerMovePrediction`s among `packets`.
+fn corrections(
+    packets: Vec<McpePacketData>,
+) -> Vec<jolyne::valentine::CorrectPlayerMovePredictionPacket> {
+    packets
+        .into_iter()
+        .filter_map(|packet| match packet {
+            McpePacketData::CorrectPlayerMovePredictionPacket(correction) => Some(correction),
+            _ => None,
+        })
+        .collect()
+}
+
 fn health_updates(packets: &[McpePacketData]) -> Vec<f32> {
     attribute_updates(packets, "minecraft:health")
 }
