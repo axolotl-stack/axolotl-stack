@@ -9,6 +9,7 @@ use crate::server::game::inventory::validated_item;
 use crate::server::game::item_use::{ItemUseQueue, UseRequest, apply_item_use};
 use crate::server::game::types::{ItemRegistryResource, block_network_ids};
 use crate::server::game::{GameServer, PlayerSpawnData, ServerConfig};
+use bevy_ecs::system::RunSystemOnce;
 use jolyne::valentine::{InventoryContentPacket, McpePacketData};
 use tokio::sync::mpsc;
 
@@ -287,4 +288,150 @@ fn pages_pad_and_cap_at_fifty() {
         swap_with_index: 1,
     });
     assert_eq!(edit_pages(vec![Page::default()], &swap), None);
+}
+
+/// The player's own interact text updates of the `book-held` session, in
+/// order: (fixture, text).
+fn native_interact_texts() -> Vec<(String, String)> {
+    use jolyne::valentine::types::DataItemEntryPayload;
+    files("book-held/held", "SetActorDataPacket")
+        .into_iter()
+        .filter_map(|file| {
+            let packet: SetActorDataPacket = decode(&file);
+            match &packet.actor_data.data[..] {
+                [entry] if entry.id == actor_data_ids::INTERACT_TEXT => {
+                    let DataItemEntryPayload::DataItemStringPayload(text) = &entry.payload else {
+                        panic!("{file}: interact text is not a string");
+                    };
+                    Some((file, text.value.to_string()))
+                }
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+/// The `book-held` session: holding a book and quill, another item, the
+/// signed book, and the held slot replaced by command. unastar sends the
+/// same texts in the same order, byte for byte, and nothing when the text
+/// does not change.
+#[test]
+fn the_interact_text_follows_the_held_book_like_bds() {
+    let native = native_interact_texts();
+    let mut server = server();
+    let (player, mut rx) = spawn(&mut server);
+    let stone = {
+        let world = server.ecs.world();
+        let items = &world.resource::<ItemRegistryResource>().0;
+        ItemStack::new(items.item_type("minecraft:stone").unwrap(), 1).into_slot()
+    };
+    let mut ours = Vec::new();
+    let mut step = |server: &mut GameServer, change: &dyn Fn(&mut World)| {
+        change(server.ecs.world_mut());
+        drain(&mut rx);
+        server
+            .ecs
+            .world_mut()
+            .run_system_once(sync_interact_text)
+            .unwrap();
+        for packet in drain(&mut rx) {
+            let McpePacketData::SetActorDataPacket(packet) = packet else {
+                continue;
+            };
+            ours.push(packet);
+        }
+    };
+    let select = |slot: u8| {
+        move |world: &mut World| {
+            world.entity_mut(player).insert(HeldSlot(slot));
+        }
+    };
+    let set = |slot: usize, stack: ItemStack| {
+        move |world: &mut World| {
+            let mut inventory = world.get_mut::<MainInventory>(player).unwrap();
+            inventory.0.set_item(slot, stack.clone()).unwrap();
+        }
+    };
+    step(&mut server, &set(1, stone.clone()));
+    step(&mut server, &select(1));
+    put_book(&mut server, player, 0);
+    step(&mut server, &select(1));
+    step(&mut server, &select(0));
+    step(&mut server, &select(1));
+    step(&mut server, &select(0));
+    use_book(&mut server, player, 0);
+    apply_book_edit(
+        server.ecs.world_mut(),
+        player,
+        &book_edit(0, replace("held")),
+    );
+    apply_book_edit(
+        server.ecs.world_mut(),
+        player,
+        &book_edit(
+            0,
+            Operation::Finalize(jolyne::valentine::types::BookEditActionFinalize {
+                title: "HeldTitle".into(),
+                author: "HeldAuthor".into(),
+                xuid: "".into(),
+            }),
+        ),
+    );
+    step(&mut server, &|_| {});
+    step(&mut server, &select(1));
+    step(&mut server, &select(0));
+    step(&mut server, &set(0, stone.clone()));
+    let book = {
+        let world = server.ecs.world();
+        ItemStack::new(world.resource::<BookItems>().writable.clone(), 1).into_slot()
+    };
+    step(&mut server, &set(0, book));
+
+    assert_eq!(ours.len(), native.len());
+    for (packet, (file, _)) in ours.iter_mut().zip(&native) {
+        let expected: SetActorDataPacket = decode(file);
+        packet.target_runtime_id = expected.target_runtime_id.clone();
+        packet.tick = expected.tick.clone();
+        assert_eq!(encode(packet), payload(file), "{file}");
+    }
+}
+
+/// Pages past the client's 256 characters, up to BDS's 768-character read
+/// limit (`size` probe: `book`, `book-limit`, `book-two-byte`,
+/// `book-four-byte`): every page BDS read was written and answered like
+/// BDS, byte for byte. Longer pages never reach the book (refused unread,
+/// `crate::network::packet_limits`).
+#[test]
+fn long_pages_are_written_like_bds() {
+    let server = server();
+    let world = server.ecs.world();
+    let books = world.resource::<BookItems>();
+    let items = &world.resource::<ItemRegistryResource>().0;
+    let block_ids = block_network_ids(world);
+    let sessions: [(&str, &str, &[usize]); 4] = [
+        ("book", "p", &[258, 300, 520, 540, 560, 600]),
+        ("book-limit", "p", &[765, 766, 767, 768]),
+        ("book-two-byte", "é", &[383, 384, 385, 767, 768]),
+        ("book-four-byte", "\u{1F600}", &[384, 385, 768]),
+    ];
+    for (session, fill, lengths) in sessions {
+        let answers = files(&format!("size/{session}"), "InventoryTransactionPacket");
+        assert_eq!(answers.len(), lengths.len(), "{session}");
+        for (page, (answer, length)) in answers.iter().zip(lengths).enumerate() {
+            let native: InventoryTransactionPacket = decode(answer);
+            let slot_action = &actions(&native)[0];
+            let before = validated_item(&slot_action.from_item, items, block_ids).unwrap();
+            let operation =
+                Operation::ReplacePage(jolyne::valentine::types::BookEditActionReplacePage {
+                    page_index: page as i32,
+                    page_text: fill.repeat(*length).into(),
+                    photo_name: "".into(),
+                });
+            let after = edit(books, &before, &operation)
+                .unwrap_or_else(|| panic!("{answer} refused"))
+                .with_net_id(slot_action.to_item.net_id_variant.unwrap());
+            let ours = edit_transaction(slot_action.slot, &before, &after, block_ids).unwrap();
+            assert_eq!(encode(&ours), payload(answer), "{answer}");
+        }
+    }
 }

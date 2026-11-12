@@ -635,10 +635,10 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 **bidirectional**
 
 - `ActorEventPacket`: sent for hurt, death, respawn and mob events; client-sent actor events (eating particles, feeding) are ignored
-- `ActorPickRequestPacket`: a pick with data of a chest boat or chest minecart adds its contents as user data, which unastar ignores (no answer); a survival pick with the item already in the inventory is not measured (it selects it, like block picks)
+- `ActorPickRequestPacket`: a pick with data of a chest boat or chest minecart adds its 27 slots as user data; unastar cannot spawn those actors, so the pick is ignored; the survival reach is not measured (the creative 14 blocks is used)
 - `AnimatePacket`: client swings are relayed to nearby players (other client actions are not, as BDS); the server never originates animations (critical hits, wake up, rowing)
 - `BlockActorDataPacket`: sent for containers only (matches the BDS chest capture); client edits such as signs are not handled
-- `BookEditPacket`: the interact-text SetActorData BDS sends when a book is held or signed, and the attribute and actor-data resend on opening, are not sent; text longer than 257 characters per page is not measured
+- `BookEditPacket`: the attribute and full actor-data resend BDS sends on every use of a book on air is not sent (unastar's player actor data does not match BDS's whole list)
 - 11 more partial rows with other gaps (see [protocol.toml](protocol.toml))
 - missing: `AnvilDamagePacket`, `AutomationClientConnectPacket`, `BossEventPacket`, `ClientCacheStatusPacket`, `ClientCameraAimAssistPacket`, `ClientMovementPredictionSyncPacket`, `CommandBlockUpdatePacket`, `DebugInfoPacket`, `LecternUpdatePacket`, `MapCreateLockedCopyPacket`, `MapInfoRequestPacket`, `ModalFormResponsePacket` and 27 more
 

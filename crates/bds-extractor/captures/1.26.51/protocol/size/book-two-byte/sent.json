@@ -1,0 +1,19 @@
+[
+[1288, "CommandRequestPacket", 71],
+[1346, "CommandRequestPacket", 73],
+[1413, "CommandRequestPacket", 72],
+[1485, "CommandRequestPacket", 69],
+[1528, "CommandRequestPacket", 64],
+[1640, "CommandRequestPacket", 92],
+[1783, "BookEditPacket", 773],
+[1816, "CommandRequestPacket", 83],
+[1860, "BookEditPacket", 775],
+[1893, "CommandRequestPacket", 84],
+[1939, "BookEditPacket", 777],
+[1973, "CommandRequestPacket", 83],
+[2017, "BookEditPacket", 1541],
+[2049, "CommandRequestPacket", 84],
+[2094, "BookEditPacket", 1543],
+[2126, "CommandRequestPacket", 83],
+[2172, "BookEditPacket", 1545]
+]

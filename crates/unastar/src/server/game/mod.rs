@@ -8,7 +8,7 @@ mod block_drops;
 pub(crate) mod blocks;
 pub(crate) mod books;
 mod chunks;
-mod client_packets;
+pub(crate) mod client_packets;
 #[cfg(test)]
 mod command_tests;
 mod commands;
@@ -589,6 +589,7 @@ impl GameServer {
             (
                 effects::sync_player_effects,
                 attributes::sync_player_attributes,
+                books::sync_interact_text,
             )
                 .chain()
                 .in_set(NetworkSendSet),
@@ -933,6 +934,7 @@ impl GameServer {
             attributes::SentAttributes::sent(&health_sent, &hunger_sent, 0.0),
             crate::entity::components::Effects::default(),
             effects::SentEffects::default(),
+            books::InteractText::default(),
         ));
         if operator {
             self.ecs

@@ -1,0 +1,51 @@
+/gamerule domobspawning false
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/gamerule randomtickspeed 0
+/kill @e[type=!player]
+/gamemode creative @s
+/clear @s
+!wait 1000
+/setblock ~2 ~ ~0 chest
+/setblock ~-2 ~ ~0 chest
+/setblock ~0 ~ ~2 furnace
+/setblock ~0 ~ ~-2 barrel
+/setblock ~2 ~ ~2 standing_sign
+/setblock ~-2 ~ ~-2 flower_pot
+/replaceitem block ~2 ~ ~ slot.container 0 diamond 5
+/replaceitem block ~2 ~ ~ slot.container 26 oak_log 64
+/replaceitem block ~ ~ ~2 slot.container 0 iron_ore 3
+/replaceitem block ~ ~ ~-2 slot.container 4 apple 2
+!wait 500
+!pick-block ~2 ~ ~0 9 data
+!pick-block ~2 ~ ~0 9 data
+/clear @s
+!pick-block ~-2 ~ ~0 9 data
+!pick-block ~-2 ~ ~0 9 data
+/clear @s
+!pick-block ~0 ~ ~2 9 data
+!pick-block ~0 ~ ~2 9 data
+/clear @s
+!pick-block ~0 ~ ~-2 9 data
+!pick-block ~0 ~ ~-2 9 data
+/clear @s
+!pick-block ~2 ~ ~2 9 data
+!pick-block ~2 ~ ~2 9 data
+/clear @s
+!pick-block ~-2 ~ ~-2 9 data
+!pick-block ~-2 ~ ~-2 9 data
+/clear @s
+/gamemode survival @s
+/summon cow ~ ~ ~2
+!wait 300
+/replaceitem entity @s slot.hotbar 4 cow_spawn_egg
+!pick-actor actor
+!pick-actor actor 9 data
+/clear @s
+/replaceitem entity @s slot.inventory 3 cow_spawn_egg
+!pick-actor actor
+/clear @s
+/replaceitem entity @s slot.hotbar 2 chest
+!pick-block ~2 ~ ~ 9 data
+!pick-block ~2 ~ ~
+!wait 1000

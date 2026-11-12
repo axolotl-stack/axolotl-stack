@@ -250,6 +250,17 @@ macro_rules! packet_recv {
         /// The next packet as a borrowed view (no payload allocation).
         pub async fn recv_packet_borrowed(&mut self) -> Result<BorrowedMcpePacket, JolyneError> {
             let packet = self.recv_packet_raw().await?;
+            self.decode_borrowed(packet)
+        }
+
+        /// Decodes a packet [`Self::recv_packet_raw`] returned as a borrowed
+        /// view, counting a decode failure in the connection metrics as
+        /// [`Self::recv_packet_borrowed`] does (for callers that check the
+        /// raw packet first).
+        pub fn decode_borrowed(
+            &mut self,
+            packet: RawPacket,
+        ) -> Result<BorrowedMcpePacket, JolyneError> {
             let result = packet.decode_borrowed();
             if result
                 .as_ref()

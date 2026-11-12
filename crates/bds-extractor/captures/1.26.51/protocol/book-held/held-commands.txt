@@ -1,0 +1,34 @@
+/gamerule domobspawning false
+/gamerule dodaylightcycle false
+/gamerule doweathercycle false
+/gamerule randomtickspeed 0
+/kill @e[type=!player]
+/replaceitem entity @s slot.hotbar 1 stone
+!wait 500
+!equip 1
+/replaceitem entity @s slot.hotbar 0 writable_book
+!wait 500
+!equip 0
+!wait 500
+!equip 1
+!wait 500
+!equip 0
+!wait 500
+!use-item 0
+!wait 500
+!use-item 0
+!wait 500
+!book 0 replace 0 held
+!wait 500
+!book 0 sign HeldTitle HeldAuthor
+!wait 500
+!equip 1
+!wait 500
+!equip 0
+!wait 500
+!use-item 0
+!wait 500
+/replaceitem entity @s slot.hotbar 0 stone
+!wait 500
+/replaceitem entity @s slot.hotbar 0 writable_book
+!wait 1000

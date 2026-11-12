@@ -15,9 +15,9 @@
 //! - `ReplacePage` and `AddPage` past the last page pad the book with empty
 //!   pages; a book holds at most [`MAX_PAGES`] pages, so an index of 50 or
 //!   more, or adding to a full book, is refused. `DeletePage` and `SwapPages`
-//!   need existing pages. Page text and the title longer than the client
-//!   allows are kept (257 and 17 characters were; longer was not tried), up
-//!   to the NBT string limit.
+//!   need existing pages. Page text, titles and authors longer than the
+//!   client allows are kept up to 768 characters; longer ones never get
+//!   here (`crate::network::packet_limits` refuses the packet unread).
 //! - Signing keeps the `author` and `xuid` the client sent.
 //! - Signing makes a written book with the pages, `title`, `author` and
 //!   `xuid` from the packet and `generation` 0.
@@ -25,17 +25,32 @@
 //!   ([`edit_transaction`]): the slot goes from the old book to the new one
 //!   (with a new stack network id), and two creative-inventory actions move
 //!   the old book in and the new one out.
+//! - The player's interact text (`SetActorData`, actor data 100) follows the
+//!   held item: `action.interact.write` for a book and quill, `Read` (not a
+//!   translation key) for a written book, empty for anything else. BDS sends
+//!   it only when it changes: on selecting a slot, on a command replacing the
+//!   held item and on signing the held book (`book/held` session,
+//!   [`sync_interact_text`]).
 
 use bevy_ecs::prelude::*;
+use jolyne::valentine::types::{
+    ActorRuntimeId, DataItemEntry, DataItemEntryPayload, DataItemStringPayload, EnumsDataItemType,
+    PropertySyncData, SynchedActorDataCopyableDataList,
+};
 use jolyne::valentine::types::{
     BookEditPacketOperation as Operation, EnumsInventorySourceType, InventoryAction,
     InventorySource, InventoryTransaction, InventoryTransactionPacketTransaction,
     NormalTransactionData,
 };
-use jolyne::valentine::{BookEditPacket, InventoryTransactionPacket, McpePacket};
+use jolyne::valentine::{
+    BookEditPacket, InventoryTransactionPacket, McpePacket, SetActorDataPacket,
+    actor_data_i_ds as actor_data_ids,
+};
 use zuri_nbt::{NBTTag, tag};
 
-use crate::entity::components::{MainInventory, PlayerSession};
+use crate::entity::components::{
+    HeldSlot, MainInventory, PlayerInput, PlayerSession, RuntimeEntityId,
+};
 use crate::item::ItemStack;
 use crate::item::enchant::{item_tag, try_with_item_tag};
 use crate::registry::{ItemRegistry, item::ItemType};
@@ -72,6 +87,90 @@ impl BookItems {
         stack
             .item()
             .is_some_and(|entry| entry.id == self.writable.id)
+    }
+
+    /// The interact text of a player holding `held` (module docs).
+    pub fn interact_text(&self, held: &ItemStack) -> InteractText {
+        match held.item().map(|entry| entry.id) {
+            Some(id) if id == self.writable.id => InteractText::Write,
+            Some(id) if id == self.written.id => InteractText::Read,
+            _ => InteractText::None,
+        }
+    }
+}
+
+/// The interact text BDS shows a player for its held item.
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum InteractText {
+    #[default]
+    None,
+    /// A book and quill.
+    Write,
+    /// A written book.
+    Read,
+}
+
+impl InteractText {
+    pub fn text(self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Write => "action.interact.write",
+            Self::Read => "Read",
+        }
+    }
+}
+
+/// The `SetActorData` that gives a player its interact text.
+pub fn interact_text_packet(
+    runtime_id: RuntimeEntityId,
+    text: InteractText,
+    tick: jolyne::valentine::types::PlayerInputTick,
+) -> SetActorDataPacket {
+    SetActorDataPacket {
+        target_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id.0 as u64,
+        },
+        actor_data: SynchedActorDataCopyableDataList {
+            data: vec![DataItemEntry {
+                id: actor_data_ids::INTERACT_TEXT,
+                payload: DataItemEntryPayload::DataItemStringPayload(DataItemStringPayload {
+                    type_: EnumsDataItemType::String,
+                    value: text.text().into(),
+                }),
+            }],
+        },
+        synched_properties: PropertySyncData::default(),
+        tick,
+    }
+}
+
+/// System: sends each player its interact text when its held item changed
+/// it (the component holds the text last sent; a joining player starts with
+/// none).
+pub fn sync_interact_text(
+    books: Option<Res<BookItems>>,
+    mut players: Query<(
+        &RuntimeEntityId,
+        &PlayerSession,
+        &PlayerInput,
+        &MainInventory,
+        &HeldSlot,
+        &mut InteractText,
+    )>,
+) {
+    let Some(books) = books else {
+        return;
+    };
+    for (runtime_id, session, input, inventory, held, mut sent) in &mut players {
+        let text = inventory
+            .0
+            .item(usize::from(held.0))
+            .map_or(InteractText::None, |stack| books.interact_text(stack));
+        if text == *sent {
+            continue;
+        }
+        *sent = text;
+        let _ = session.send(interact_text_packet(*runtime_id, text, input.wire_tick()).into());
     }
 }
 

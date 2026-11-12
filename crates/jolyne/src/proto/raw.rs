@@ -150,6 +150,17 @@ impl RawPacket {
         self.header
     }
 
+    /// The packet's size as its length prefix states it: header varint and
+    /// body (the size a server checks against a per-packet limit).
+    pub fn payload_len(&self) -> usize {
+        let prefix = self
+            .frame
+            .iter()
+            .position(|byte| byte & 0x80 == 0)
+            .map_or(0, |last| last + 1);
+        self.frame.len() - prefix
+    }
+
     /// The body (payload after the header varint).
     #[inline]
     pub fn body(&self) -> &[u8] {
@@ -424,6 +435,18 @@ mod tests {
             (raw.header().from_subclient, raw.header().to_subclient),
             (3, 3)
         );
+    }
+
+    #[test]
+    fn payload_len_counts_header_and_body_without_the_prefix() {
+        // A one-byte header and a 200-byte body: a two-byte length prefix.
+        let mut cursor = frame(77, 0, 0, &[7; 200]);
+        let raw = decode_packet_raw(&mut cursor).unwrap();
+        assert_eq!(raw.inner_frame().len(), 203);
+        assert_eq!(raw.payload_len(), 201);
+        // A two-byte header (sub-client bits) and an empty body.
+        let mut cursor = frame(193, 3, 3, &[]);
+        assert_eq!(decode_packet_raw(&mut cursor).unwrap().payload_len(), 2);
     }
 
     #[test]
