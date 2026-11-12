@@ -8,16 +8,21 @@ import struct
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
+import commit_fixtures  # noqa: E402
 import knockback_fixture  # noqa: E402
 import replication_fixture  # noqa: E402
+import leveldb_read  # noqa: E402
 import native  # noqa: E402
 import player_relay_fixture  # noqa: E402
 import range_fixture  # noqa: E402
 import spawn_bonus_fixture  # noqa: E402
+import subchunk_fixture  # noqa: E402
+import subchunk_roundtrip  # noqa: E402
 import summarize  # noqa: E402
 import sweep  # noqa: E402
 
@@ -115,6 +120,123 @@ class ToolSets(unittest.TestCase):
         self.assertEqual(sweep.state_key('minecraft:oak_log', {'pillar_axis': 'y', 'a': 1, 'b': False}),
                          'minecraft:oak_log[a=1,b=false,pillar_axis="y"]')
 
+
+class CommandFeedback(unittest.TestCase):
+    def test_commands_take_the_last_segment_above_them(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / 'commands.txt'
+            lines = ['# intro', '/a', '# segment: one', '', '/b', '#note', '/c', '# segment: two', '/d']
+            script.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+            self.assertEqual(commit_fixtures.script_segments(script),
+                             [('', '/a'), ('one', '/b'), ('one', '/c'), ('two', '/d')])
+
+    def test_world_packets_count_only_on_the_platform_or_at_the_origin(self):
+        relevance = commit_fixtures.Relevance.__new__(commit_fixtures.Relevance)
+        relevance.player_runtime, relevance.player_unique = 1, -5
+        relevance.runtime, relevance.unique = {1}, {-5}
+        event = {'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'event_id': 3001, 'data': 65535}
+        self.assertTrue(relevance.keep('/weather rain', 'LevelEventPacket', event, 30))
+        far = dict(event, position={'x': 100.5, 'y': 64.0, 'z': -28.5})
+        self.assertFalse(relevance.keep('/weather rain', 'LevelEventPacket', far, 30))
+        other = {'target_runtime_id': {'actor_runtime_id': 9}}
+        self.assertFalse(relevance.keep('/time query day', 'SetActorDataPacket', other, 30))
+        added = {'target_runtime_id': {'actor_runtime_id': 9}, 'target_actor_id': {'actor_unique_id': -9}}
+        self.assertTrue(relevance.keep('/execute align xyz run summon pig ~ ~ ~', 'AddActorPacket', added, 50))
+        self.assertTrue(relevance.keep('/damage @e 1', 'SetActorDataPacket', other, 30))
+        self.assertFalse(relevance.keep('/damage @e 1', 'SetActorDataPacket', other, 400))
+        self.assertFalse(relevance.keep('/say hi', 'UnlockedRecipesPacket', {}, 30))
+class HeldAndEffectVariants(unittest.TestCase):
+    def args(self, **overrides):
+        import argparse
+        values = dict(kind='mining', variants='tools', items='slice', blocks='slice', trials=1, mine_ticks=600,
+                      gap=0, gamemode=None)
+        values.update(overrides)
+        return argparse.Namespace(**values)
+
+    def test_non_tool_diggers_are_the_mining_class_items_without_a_digger_tag(self):
+        names = sweep.non_tool_diggers()
+        for expected in ('minecraft:apple', 'minecraft:bow', 'minecraft:iron_chestplate', 'minecraft:wooden_spear',
+                         'minecraft:music_disc_13', 'minecraft:bundle'):
+            self.assertIn(expected, names)
+        for tool in ('minecraft:iron_pickaxe', 'minecraft:shears', 'minecraft:iron_sword', 'minecraft:dirt',
+                     'minecraft:glow_stick'):
+            self.assertNotIn(tool, names)
+
+    def test_held_items_follow_a_three_trial_hand_reference_per_block(self):
+        items = sweep.mining_items(self.args(variants='held', items='minecraft:apple,minecraft:bow',
+                                             blocks='minecraft:dirt'))
+        self.assertEqual([(i['key'], i['repeats']) for i in items], [
+            ('minecraft:dirt[]|hand', 3), ('minecraft:dirt[]|apple', 1), ('minecraft:dirt[]|bow', 1)])
+        self.assertEqual(items[2]['tool'], {'item': 'minecraft:bow'})
+
+    def test_the_default_held_set_adds_every_tool_off_the_slice_blocks(self):
+        items = sweep.mining_items(self.args(variants='held'))
+        keys = {i['key'] for i in items}
+        self.assertIn('minecraft:dirt[]|wooden_pickaxe', keys)
+        self.assertIn('minecraft:netherrack[]|mace', keys)
+        self.assertNotIn('minecraft:oak_leaves[persistent_bit=false,update_bit=false]|wooden_hoe', keys)
+        self.assertIn('minecraft:oak_leaves[persistent_bit=false,update_bit=false]|apple', keys)
+
+    def test_effect_levels_are_zero_based_amplifiers_on_the_hand(self):
+        items = sweep.mining_items(self.args(variants='effects', trials=3))
+        keys = {i['key']: i['commands'] for i in items}
+        self.assertEqual(keys['minecraft:stone[]|hand+haste3'], ['effect {player} haste 1000 2 true'])
+        self.assertEqual(keys['minecraft:dirt[]|hand+mining_fatigue2'],
+                         ['effect {player} mining_fatigue 1000 1 true'])
+        self.assertTrue(all(i['tool'] is None and i['repeats'] == 3 for i in items))
+
+    def test_capture_cells_cover_every_breaking_situation_once(self):
+        items = {i['key']: i for i in sweep.mining_items(self.args(variants='capture', mine_ticks=600))}
+        self.assertEqual(len(items), 9)
+        self.assertTrue(all(i['repeats'] == 1 for i in items.values()))
+        self.assertEqual(items['minecraft:dirt[]|hand+predict10']['predict_after'], 10)
+        self.assertEqual(items['minecraft:dirt[]|hand+abort5']['max_ticks'], 5)
+        self.assertEqual(items['minecraft:dirt[]|hand+stone_above']['cleanup'], ['setblock 1 -58 0 air'])
+        self.assertEqual(items['minecraft:stone[]|diamond_pickaxe']['tool'], {'item': 'minecraft:diamond_pickaxe'})
+
+    def test_spears_join_the_attack_list_with_their_gap(self):
+        items = sweep.attack_items(self.args(kind='attack', items='spears', gap=20))
+        self.assertEqual(items[0], {'key': 'hand', 'tool': None})
+        spears = [i for i in items if 'gap' in i]
+        self.assertEqual([i['key'] for i in spears], [f'{tier}_spear' for tier in sweep.TIERS])
+        self.assertTrue(all(i['gap'] == 20 for i in spears))
+
+
+class ArmorWear(unittest.TestCase):
+    def test_every_armour_piece_in_its_measured_slot(self):
+        import argparse
+        items = sweep.armor_wear_items(argparse.Namespace(items='slice'))
+        slots = {item['item']: item['slot'] for item in items}
+        self.assertEqual(slots['minecraft:iron_chestplate'], 'chest')
+        self.assertEqual(slots['minecraft:turtle_helmet'], 'head')
+        self.assertNotIn(None, slots)
+
+    def test_summary_keys_wear_by_damage_amount(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            sweep_dir = Path(tmp) / 'wear'
+            sweep_dir.mkdir()
+            (sweep_dir / 'job.json').write_text(json.dumps({'items': [{'key': 'minecraft:iron_boots'}]}))
+            row = {'key': 'minecraft:iron_boots', 'item': 'minecraft:iron_boots', 'slot': 'feet',
+                   'hits': [{'damage': 4, 'before': 0, 'after': 1, 'wear': 1},
+                            {'damage': 8, 'before': 1, 'after': 3, 'wear': 2}]}
+            (sweep_dir / 'results.jsonl').write_text(json.dumps(row) + '\n')
+            (sweep_dir / 'runs.jsonl').write_text(json.dumps({'status': 'done'}) + '\n')
+            written = {}
+            with (mock.patch.object(summarize, 'write', lambda relative, value: written.setdefault(relative, value)),
+                  mock.patch.object(summarize, 'update_manifest', lambda family, entry: None),
+                  mock.patch.object(summarize, 'harness_revision', lambda: 'test')):
+                summarize.summarize_armor_wear(sweep_dir)
+        self.assertEqual(written['armor_wear.json'],
+                         {'minecraft:iron_boots': {'slot': 'feet', 'wear': {'4': 1, '8': 2}}})
+
+
+class Wear(unittest.TestCase):
+    def test_wear_is_the_damage_each_trial_added_and_none_once_broken(self):
+        trials = [{'held_after': {'item': 'minecraft:golden_sword', 'damage': 1}},
+                  {'held_after': {'item': 'minecraft:golden_sword', 'damage': 3}},
+                  {'held_after': None}]
+        self.assertEqual(summarize.wear_per_trial({'item': 'minecraft:golden_sword', 'damage': 0}, trials),
+                         [1, 2, None])
 
 
 class RuntimeSlotTest(unittest.TestCase):
@@ -271,6 +393,107 @@ class ReplicationFixture(unittest.TestCase):
         self.assertEqual(wire[0]['add'], {'pos': [0.5, -40.0, 0.5], 'vel': [0.0, -1e-05, 0.0]})
         self.assertEqual(wire[1]['rot'], [None, 5, None])
         self.assertEqual(wire[1]['ticks'], 3)
+def nbt_string(text: str) -> bytes:
+    return struct.pack('<H', len(text)) + text.encode()
+
+
+def palette_entry(name: str, states: bytes = b'') -> bytes:
+    """`{name, states, version}` as BDS 1.26.51 saves a palette entry."""
+    return (b'\x0a' + nbt_string('') + b'\x08' + nbt_string('name') + nbt_string(name)
+            + b'\x0a' + nbt_string('states') + states + b'\x00'
+            + b'\x03' + nbt_string('version') + struct.pack('<i', 18168865) + b'\x00')
+
+
+class SubchunkRecords(unittest.TestCase):
+    def test_two_bit_persistent_storage_decodes_in_xzy_order(self):
+        words = b''.join(struct.pack('<I', sum(((w * 16 + i) % 3) << (2 * i) for i in range(16)))
+                         for w in range(256))
+        axis = b'\x08' + nbt_string('pillar_axis') + nbt_string('x')
+        value = (bytes([9, 1, 0xFC, 2 << 1]) + words + struct.pack('<i', 3) + palette_entry('minecraft:air')
+                 + palette_entry('minecraft:stone') + palette_entry('minecraft:oak_log', axis))
+        (layer,) = subchunk_fixture.subchunk(value)
+        self.assertEqual(layer['bits'], 2)
+        cells = subchunk_fixture.layer_states(layer)
+        self.assertEqual(cells[0], ('minecraft:air', ()))
+        self.assertEqual(cells[4095], ('minecraft:air', ()))  # 4095 % 3 == 0
+        self.assertEqual(subchunk_fixture.cell(cells[2]), 'minecraft:oak_log|pillar_axis=sx')
+        with self.assertRaises(ValueError):
+            subchunk_fixture.subchunk(value + b'\x00')  # bytes after the last storage
+
+    def test_zero_bit_storage_has_no_palette_length(self):
+        (layer,) = subchunk_fixture.subchunk(bytes([9, 1, 1, 0]) + palette_entry('minecraft:end_stone'))
+        self.assertEqual(layer['palette'], [('minecraft:end_stone', ())])
+        self.assertEqual(set(layer['indices']), {0})
+
+    def test_runtime_form_and_out_of_palette_indices_are_rejected(self):
+        with self.assertRaises(ValueError):
+            subchunk_fixture.subchunk(bytes([9, 1, 0, 1, 2]))
+        words = struct.pack('<I', 1) + bytes(4 * 127)
+        with self.assertRaises(ValueError):
+            subchunk_fixture.subchunk(bytes([9, 1, 0, 2]) + words + struct.pack('<i', 1)
+                                      + palette_entry('minecraft:air'))
+
+    def test_keys_name_dimension_chunk_and_y(self):
+        key = subchunk_fixture.chunk_key(1, -2, 3, -4)
+        self.assertEqual(len(key), 14)
+        self.assertEqual(subchunk_fixture.parse_key(key), (1, -2, 3, -4))
+        self.assertEqual(subchunk_fixture.parse_key(subchunk_fixture.chunk_key(0, 5, 6, 7)), (0, 5, 6, 7))
+
+
+class LevelDbLog(unittest.TestCase):
+    def test_newest_write_and_deletions_win(self):
+        def batch(sequence: int, writes: list) -> bytes:
+            body = struct.pack('<QI', sequence, len(writes))
+            for key, value in writes:
+                body += bytes([0 if value is None else 1, len(key)]) + key
+                if value is not None:
+                    body += bytes([len(value)]) + value
+            return struct.pack('<IHB', 0, len(body), 1) + body  # one FULL record
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / '000003.log'
+            log.write_bytes(batch(1, [(b'a', b'old'), (b'b', b'gone')]) + batch(3, [(b'a', b'new'), (b'b', None)]))
+            self.assertEqual(leveldb_read.read_db(tmp), {b'a': b'new'})
+
+
+class SubchunkRoundTrip(unittest.TestCase):
+    def test_writes_follow_setblock_layers(self):
+        water = subchunk_roundtrip.WATER
+        source = {}  # the section has no record: air
+        plan = [
+            {'dim': 0, 'pos': [1, 1, 1], 'state': water, 'measure': False},
+            {'dim': 0, 'pos': [1, 1, 1], 'state': subchunk_roundtrip.SLAB, 'measure': False},
+            {'dim': 0, 'pos': [2, 1, 1], 'state': water, 'measure': False},
+            {'dim': 0, 'pos': [2, 1, 1], 'state': subchunk_roundtrip.GLASS, 'measure': False},
+            {'dim': 0, 'pos': [3, 1, 1], 'state': subchunk_roundtrip.STONE, 'measure': True},
+        ]
+        sections, writes = subchunk_roundtrip.apply_plan(source, plan, include_measure=False)
+        first, liquid = sections[(0, 0, 0, 0)]
+        slab, glass = subchunk_roundtrip.index(1, 1, 1), subchunk_roundtrip.index(2, 1, 1)
+        self.assertEqual((first[slab], liquid[slab]), (subchunk_roundtrip.SLAB, water))
+        self.assertEqual((first[glass], liquid[glass]), (subchunk_roundtrip.GLASS, subchunk_fixture.AIR))
+        self.assertEqual([w[0] for w in writes], [0, 1, 2, 3])  # the measure-only edit is BDS's alone
+        plan.append({'dim': 0, 'pos': [1, 1, 1], 'state': subchunk_roundtrip.STONE, 'measure': False})
+        sections, _ = subchunk_roundtrip.apply_plan(source, plan, include_measure=False)
+        self.assertEqual(sections[(0, 0, 0, 0)][1][slab], subchunk_fixture.AIR)
+
+    def test_sparse_records_rebuild_from_placements_in_palette_order(self):
+        # Cells 0 and 300 hold entry 2, cell 5 entry 1, the rest air.
+        indices = [0] * 4096
+        indices[0], indices[300], indices[5] = 2, 2, 1
+        words = b''.join(struct.pack('<I', sum(indices[w * 16 + i] << (2 * i) for i in range(16)))
+                         for w in range(256))
+        value = (bytes([9, 1, 0, 2 << 1]) + words + struct.pack('<i', 3) + palette_entry('minecraft:air')
+                 + palette_entry('minecraft:stone') + palette_entry('minecraft:dirt'))
+        self.assertEqual(subchunk_roundtrip.sparse_build(value), [(5, 1), (0, 2), (300, 2)])
+        unused = (bytes([9, 1, 0, 2 << 1]) + words + struct.pack('<i', 4) + palette_entry('minecraft:air')
+                  + palette_entry('minecraft:stone') + palette_entry('minecraft:dirt')
+                  + palette_entry('minecraft:gold_block'))
+        self.assertIsNone(subchunk_roundtrip.sparse_build(unused))
+
+    def test_fill_edits_cover_their_box(self):
+        edit = {'dim': 0, 'fill': [[0, 0, 0], [1, 2, 0]], 'state': subchunk_fixture.AIR, 'measure': False}
+        self.assertEqual(len(subchunk_roundtrip.plan_cells(edit)), 6)
+        self.assertEqual(subchunk_roundtrip.plan_column({'dim': 2, 'pos': [-1, 5, 17], 'state': None}), (2, -1, 1))
 
 
 class VehicleWireOffset(unittest.TestCase):

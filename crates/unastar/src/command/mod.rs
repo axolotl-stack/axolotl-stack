@@ -35,6 +35,7 @@ pub mod format;
 pub mod names;
 pub mod output;
 pub mod parser;
+pub mod rawtext;
 pub mod registry;
 pub mod schema;
 pub mod selector;
@@ -112,7 +113,7 @@ fn dispatch(
     let Some(handler) = registry.handler(&definition.name) else {
         return CommandOutput::not_implemented(&definition.name);
     };
-    let mut context = CommandContext::new(world, source, schema.clone());
+    let mut context = CommandContext::new(world, source, registry);
     handler
         .run(&mut context, &args)
         .unwrap_or_else(|failure| failure)

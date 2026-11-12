@@ -1,0 +1,78 @@
+{
+  "description": "Zombie pigman anger spreading. Four adult zombie pigmen are summoned around a survival operator (offsets in blocks from the player's feet); the player hurts A with `/damage @e[type=zombie_pigman,name=A] 1 entity_attack entity @s`. `targets_attacker` and `angry` say whether the pigman's TARGET actor data became the player and its ANGRY actor flag was set; all changes happened within two ticks of the hit and lasted until the player turned creative 51 s later (a second hit 16.6 s after the first changed nothing). The pigman's `minecraft:angry` has broadcast_anger, broadcast_range 20, duration 25. `calm` is a second run: pigmen A and B (offsets [4,0,0] and [4,0,6]) fight the player for 4.5 s after A is hurt, then the player turns creative and both drop it; each pigman cleared ANGRY 24.95 s after its own last StartAttacking swing (the swings did no damage: the player had full resistance), not 25 s after the anger started or after the target was dropped.",
+  "server": "BDS 1.26.51 (plain bedrock_server, no Endstone), seed 12345 harness world, difficulty normal, midnight",
+  "source": [
+    {
+      "capture": "tools/bds-sweep/capture.py --commands, 2026-11-10 (ent-anger2-20261110), operator-commands/command-outputs.json",
+      "command_outputs_sha256": "6df9d97761557576271c7a390416a4f7117e81e0dbdf1fe6abdb40de6a04b158"
+    },
+    {
+      "capture": "tools/bds-sweep/capture.py --commands, 2026-11-10 (ent-calm-jockey-20261110); the client stopped on a later oversized batch, so the calm run was decoded from the per-record operator-commands/packets.jsonl",
+      "packets_jsonl_sha256": "ca837e691c8e7bce4fa9ed179a6d5b7c76fe87ff756ac4ff27a2660de06f59bd"
+    }
+  ],
+  "pigmen": [
+    {
+      "name": "A",
+      "offset": [
+        4,
+        0,
+        0
+      ],
+      "hit": true,
+      "targets_attacker": true,
+      "angry": true
+    },
+    {
+      "name": "B",
+      "offset": [
+        4,
+        0,
+        6
+      ],
+      "hit": false,
+      "targets_attacker": true,
+      "angry": true
+    },
+    {
+      "name": "C",
+      "offset": [
+        4,
+        0,
+        -12
+      ],
+      "hit": false,
+      "targets_attacker": true,
+      "angry": true
+    },
+    {
+      "name": "E",
+      "offset": [
+        4,
+        0,
+        -27
+      ],
+      "hit": false,
+      "targets_attacker": false,
+      "angry": false
+    }
+  ],
+  "calm": {
+    "duration_seconds": 25,
+    "pigmen": [
+      {
+        "name": "A",
+        "last_swing_s": 4.13,
+        "target_dropped_s": 4.62,
+        "calm_s": 29.08
+      },
+      {
+        "name": "B",
+        "last_swing_s": 4.44,
+        "target_dropped_s": 4.62,
+        "calm_s": 29.38
+      }
+    ],
+    "times": "seconds after the hit, from packet timestamps (\u00b11 tick)"
+  }
+}

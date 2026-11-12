@@ -130,3 +130,15 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SummonArgs) -> CommandResult {
     }
     success!("commands.summon.success")
 }
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::Replay;
+
+    #[test]
+    fn summon_and_kill_match_the_bds_capture() {
+        Replay::new().assert_segment("summon", &[]);
+    }
+}

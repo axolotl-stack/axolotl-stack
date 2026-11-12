@@ -72,8 +72,6 @@ pub struct EventCompileError<E: std::error::Error + 'static> {
 pub enum EventCompileReason<E: std::error::Error + 'static> {
     #[error("component definition belongs to another actor identifier")]
     ForeignDefinition,
-    #[error("trigger references undeclared self event {0}")]
-    UndeclaredEvent(String),
     #[error(transparent)]
     Property(#[from] PropertyError),
     /// The caller cannot bind a filter or an external event.
@@ -422,24 +420,32 @@ impl<B: EventBindings> Compiler<'_, B> {
                 binding,
             });
         }
+        // A self trigger naming an event the definition does not declare
+        // dispatches nothing; its node keeps its weight and other effects.
+        // Measured on BDS 1.26.51: the vanilla zombie pigman's spawn
+        // randomizer draws the undeclared `spawn_baby_jockey` by its weight
+        // and that pigman spawns with no component group.
         let trigger = source
             .trigger
             .as_ref()
-            .map(|trigger| {
-                let event = if trigger.target == Subject::Self_ {
-                    let index = *self.names.get(trigger.event.as_str()).ok_or_else(|| {
-                        error(EventCompileReason::UndeclaredEvent(trigger.event.clone()))
-                    })?;
-                    TriggerEvent::Internal(EventHandle {
+            .and_then(|trigger| {
+                if trigger.target != Subject::Self_ {
+                    return Some((trigger, None));
+                }
+                let index = *self.names.get(trigger.event.as_str())?;
+                Some((trigger, Some(index)))
+            })
+            .map(|(trigger, internal)| {
+                let event = match internal {
+                    Some(index) => TriggerEvent::Internal(EventHandle {
                         owner: Arc::clone(self.owner),
                         index,
-                    })
-                } else {
-                    TriggerEvent::External(
+                    }),
+                    None => TriggerEvent::External(
                         self.bindings
                             .external_event(trigger.target, &trigger.event)
                             .map_err(binding)?,
-                    )
+                    ),
                 };
                 let filter = trigger
                     .filters

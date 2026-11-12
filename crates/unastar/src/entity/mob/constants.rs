@@ -23,7 +23,8 @@ pub const MOVE_ARRIVAL_FLOOR: f32 = 0.5;
 pub const MOVE_DESCEND_CAP: f32 = 0.25;
 /// The travel step's forward input is the move control's speed × this
 /// (BDS 1.26.51: a walking cow at speed `s` gains `0.98 s²` per tick on
-/// grass, through every step of its 10 %/tick speed ramp).
+/// grass, through every step of its 10 %/tick speed ramp). Measured on
+/// land and in the air only; it is applied in liquids too, unmeasured.
 pub const MOVE_INPUT_DECAY: f32 = 0.98;
 /// Vertical velocity of a living mob with gravity when it spawns or is born
 /// (80 of the 112 BDS 1.26.51 summon captures: every living actor with
@@ -234,6 +235,15 @@ pub const DAYLIGHT_BURN_TICKS: u64 = 160;
 /// (the check is confirmed; the block is provisional: Java Edition, where
 /// powder snow keeps undead from burning).
 pub const DAYLIGHT_BURN_BLOCKER: &str = "minecraft:powder_snow";
+/// The damage causes an actor with the `FIRE_IMMUNE` flag
+/// (`minecraft:fire_immune`) does not take (measured: `/damage` with these
+/// fails on the fire-immune zombie pigman and wither skeleton and succeeds on
+/// the zombie and skeleton; every other cause, campfire and soul campfire
+/// included, hurts all four; `testdata/bds-1.26.51-fire-immune-causes.json`).
+pub const FIRE_IMMUNE_CAUSES: &[unastar_data::actor_components::body::ActorDamageCause] = {
+    use unastar_data::actor_components::body::ActorDamageCause as Cause;
+    &[Cause::Fire, Cause::FireTick, Cause::Lava, Cause::Magma]
+};
 
 // --- Entity pushing ---------------------------------------------------------------
 

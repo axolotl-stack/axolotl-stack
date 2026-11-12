@@ -70,7 +70,8 @@ with a BDS-shaped advertisement naming the relay's port.
 `-Commit` copies the capture to `crates/tokio-raknet/tests/captures/real-client/`,
 which `cargo test -p tokio-raknet --test capture_diff` compares
 with `RaknetStream` (Vanilla): MTU probe sizes and cadence, ConnectionRequest
-and NewIncomingConnection reliability, ACK delay, ping period, fragment sizes.
+and NewIncomingConnection reliability, ACK delay (per ACK, from the oldest
+datagram it names), ping period, fragment sizes.
 Only run it with a person at the machine: the game must be installed and
 signed in, and must not already be running.
 

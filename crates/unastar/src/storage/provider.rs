@@ -122,6 +122,11 @@ pub struct PlayerData {
     pub exhaustion: f32,
     #[serde(default)]
     pub experience_progress: f32,
+    /// Air supply in ticks (below zero while drowning, down to
+    /// [`LOWEST_AIR`]). BDS 1.26.51 keeps it across a rejoin; records saved
+    /// before it have full air.
+    #[serde(default = "default_air")]
+    pub air: i16,
 }
 
 impl Default for PlayerData {
@@ -145,6 +150,7 @@ impl Default for PlayerData {
             saturation: default_saturation(),
             exhaustion: 0.0,
             experience_progress: 0.0,
+            air: default_air(),
         }
     }
 }
@@ -155,6 +161,16 @@ fn default_max_health() -> f32 {
 fn default_saturation() -> f32 {
     5.0
 }
+/// A player's full air supply: the vanilla player's `minecraft:breathable`
+/// `total_supply` of 15 s (`player_life::rules::BreathRules` compiles the
+/// same value from the definition).
+pub fn default_air() -> i16 {
+    300
+}
+
+/// The lowest air a player can be saved with: one tick above its
+/// `suffocate_time` of -1 s, where the drowning hit resets it to 0.
+pub const LOWEST_AIR: i16 = -19;
 
 /// Stable persistence representation, independent of ECS inventory internals.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -226,6 +242,7 @@ impl PlayerData {
             || !self.saturation.is_finite()
             || !self.exhaustion.is_finite()
             || !(0.0..=1.0).contains(&self.experience_progress)
+            || !(LOWEST_AIR..=default_air()).contains(&self.air)
         {
             return Err(StorageError::Deserialization("invalid player state".into()));
         }
@@ -246,9 +263,33 @@ pub trait PlayerProvider: Send + Sync + 'static {
     /// Save player data.
     async fn save(&self, uuid: Uuid, data: &PlayerData) -> StorageResult<()>;
 
-    /// Delete player data.
-    async fn delete(&self, uuid: Uuid) -> StorageResult<()>;
-
     /// Close the provider.
     async fn close(&self) -> StorageResult<()>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn air_outside_the_supply_is_invalid() {
+        let uuid = Uuid::from_u128(7);
+        let record = |air| PlayerData {
+            uuid: uuid.to_string(),
+            air,
+            ..PlayerData::default()
+        };
+        for air in [LOWEST_AIR, 0, default_air()] {
+            assert!(record(air).validate(uuid).is_ok(), "{air}");
+        }
+        for air in [LOWEST_AIR - 1, default_air() + 1] {
+            assert!(record(air).validate(uuid).is_err(), "{air}");
+        }
+        // Records saved before the air supply have full air.
+        let old: PlayerData = serde_json::from_str(&format!(
+            r#"{{"uuid":"{uuid}","position":[0.5,17.0,0.5],"rotation":[0.0,0.0],"dimension":0,"game_mode":0,"health":20.0,"food":20,"experience":0}}"#
+        ))
+        .unwrap();
+        assert_eq!(old.air, default_air());
+    }
 }

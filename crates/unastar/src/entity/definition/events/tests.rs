@@ -620,7 +620,6 @@ fn unknown_action_invalidates_known_siblings_and_descendants_without_binding_the
 #[test]
 fn missing_names_and_unsupported_recognized_bindings_fail_compilation() {
     for event in [
-        json!({"trigger": "missing"}),
         json!({"set_property": {"missing": true}}),
         json!({"run_command": {"command": "say unsupported"}}),
         json!({"filters": {"test": "is_on_ground", "value": true}}),
@@ -641,6 +640,28 @@ fn missing_names_and_unsupported_recognized_bindings_fail_compilation() {
             .is_err()
         );
     }
+}
+
+/// A self trigger naming an undeclared event (the vanilla zombie pigman's
+/// `spawn_baby_jockey`) compiles; its randomize branch keeps its weight and
+/// dispatches nothing.
+#[test]
+fn an_undeclared_self_trigger_keeps_its_branch_and_dispatches_nothing() {
+    let source = control(json!({
+        "root": {"randomize": [
+            {"weight": 1, "trigger": "missing"},
+            {"weight": 1, "add": {"component_groups": ["small"]}}
+        ]}
+    }));
+    let (_, _, events) = compile(&source);
+    let jockey = evaluate(&events, "root", &Context::default(), 0.0);
+    assert!(jockey.effects.is_empty());
+    assert!(jockey.triggers.is_empty());
+    let small = evaluate(&events, "root", &Context::default(), 0.75);
+    assert!(matches!(
+        small.effects.as_slice(),
+        [EventEffect::AddGroup(_)]
+    ));
 }
 
 #[test]
@@ -688,24 +709,8 @@ fn runtime_binding_failure_restores_appended_output_and_scratch() {
 
 #[test]
 fn undeclared_groups_in_add_and_remove_are_skipped_like_bds() {
-    // An undeclared self event is still a compile error.
-    let source = control(json!({"broken": {"trigger": "missing"}}));
-    let definition = CompiledDefinition::compile(&source, control_kinds()).unwrap();
-    let properties = Arc::new(PropertyLayout::compile(&source.description).unwrap());
-    let error = CompiledEvents::compile(
-        &source,
-        &definition,
-        &properties,
-        QueryRegistry::vanilla(),
-        &mut Bindings,
-    )
-    .err()
-    .expect("undeclared trigger target");
-    assert!(matches!(
-        &error.reason,
-        EventCompileReason::UndeclaredEvent(name) if name == "missing"
-    ));
-
+    // Undeclared self trigger targets: see
+    // `an_undeclared_self_trigger_keeps_its_branch_and_dispatches_nothing`.
     let source = control(json!({
         "grow": {
             "add": {"component_groups": ["minecraft:on_foot", "large"]},

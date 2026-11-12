@@ -34,7 +34,10 @@ impl Lang {
             .filter_map(|line| {
                 let (key, value) = line.split_once('=')?;
                 let value = value.split_once("\t#").map_or(value, |(v, _)| v);
-                Some((key.trim(), value.trim_end()))
+                // Trailing spaces are part of the value: BDS keeps them when
+                // it formats text itself (`commands.inputpermission.mount` is
+                // "Mount ", so its answer reads "Mount  input disabled …").
+                Some((key.trim(), value.trim_end_matches(['\r', '\t'])))
             })
             .collect();
         Self { entries }

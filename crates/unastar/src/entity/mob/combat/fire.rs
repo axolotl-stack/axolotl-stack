@@ -24,7 +24,7 @@ use glam::IVec3;
 use jolyne::valentine::actor_flags;
 use unastar_data::actor_components::body::ActorDamageCause;
 
-use super::{Hit, hurt_mob};
+use super::{Hit, fire_immune, hurt_mob};
 use crate::ecs::resources::TickCounter;
 use crate::entity::components::{PhysicsBody, Position};
 use crate::entity::definition::flags::ActorFlags;
@@ -57,12 +57,6 @@ pub struct Burning {
 /// Whether `mob` is burning.
 pub fn is_burning(world: &World, mob: Entity) -> bool {
     world.get::<Burning>(mob).is_some()
-}
-
-fn fire_immune(world: &World, mob: Entity) -> bool {
-    world
-        .get::<ActorFlags>(mob)
-        .is_some_and(|flags| flags.get(actor_flags::FIRE_IMMUNE).unwrap_or(false))
 }
 
 fn set_on_fire_flag(world: &mut World, mob: Entity, on_fire: bool) {
