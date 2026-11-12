@@ -224,6 +224,10 @@ pub struct ChunkNetCache {
     encoded: Option<Arc<EncodedColumn>>,
     /// The revision being encoded in the background.
     encoding: Option<ChunkRevision>,
+    /// A background encode finished since the encoding was last current. If
+    /// the chunk changed again meanwhile, it changes faster than encodes
+    /// land, so the next request encodes on the calling thread instead.
+    landed: bool,
 }
 
 impl ChunkNetCache {
@@ -231,11 +235,14 @@ impl ChunkNetCache {
         Self {
             encoded: Some(encoded),
             encoding: None,
+            landed: false,
         }
     }
 
     /// The encoding of `chunk`'s current contents, or `None` while it is
     /// being encoded; a stale encoding starts a background encode of a copy.
+    /// A chunk edited again before its background encode landed is encoded
+    /// here, so a chunk that changes every tick is still sent and answered.
     pub fn current(
         &mut self,
         pos: (i32, i32),
@@ -248,7 +255,17 @@ impl ChunkNetCache {
         if let Some(encoded) = &self.encoded
             && encoded.is_current(chunk)
         {
+            self.landed = false;
             return Some(encoded.clone());
+        }
+        if self.landed {
+            let started = Instant::now();
+            let encoded = Arc::new(EncodedColumn::encode(chunk, ids));
+            stats.reencoded.record(started.elapsed());
+            self.encoded = Some(encoded.clone());
+            self.encoding = None;
+            self.landed = false;
+            return Some(encoded);
         }
         let revision = chunk.revision();
         if self.encoding != Some(revision) {
@@ -258,12 +275,17 @@ impl ChunkNetCache {
         None
     }
 
-    /// A background encode finished.
+    /// A background encode finished. Only the encode of the revision last
+    /// asked for replaces the encoding (an older one landing late never
+    /// overwrites a newer encoding).
     pub fn install(&mut self, encoded: Arc<EncodedColumn>) {
+        self.landed = true;
         if self.encoding == Some(encoded.revision) {
             self.encoding = None;
+            self.encoded = Some(encoded);
+        } else if self.encoded.is_none() {
+            self.encoded = Some(encoded);
         }
-        self.encoded = Some(encoded);
     }
 }
 
@@ -530,6 +552,12 @@ pub enum LoadState {
     Ready,
     /// Unloaded and being written; read again only once the write is done.
     Saving,
+    /// Its unload write failed; the column waits to come back into the world
+    /// and is never read from storage meanwhile (storage holds older data).
+    Held,
+    /// Its load failed; not asked for again while a player still wants it
+    /// (see [`ColumnLoads::forget_unwanted`]).
+    Failed,
 }
 
 /// A loaded column ready to become a chunk entity.
@@ -643,6 +671,7 @@ impl ColumnLoads {
                 LoadEvent::Failed(pos, failure) => {
                     failure.log(pos, dimension);
                     self.finish(pos);
+                    self.state.insert(pos, LoadState::Failed);
                     drained.failed.push(pos);
                 }
                 LoadEvent::Saved(pos, result) => self.saved(pos, result),
@@ -656,7 +685,9 @@ impl ColumnLoads {
     /// The next finished column to spawn, oldest first.
     pub fn next_ready(&mut self) -> Option<LoadedColumn> {
         let loaded = self.ready.pop_front()?;
-        self.state.remove(&loaded.pos);
+        if self.state.get(&loaded.pos) == Some(&LoadState::Ready) {
+            self.state.remove(&loaded.pos);
+        }
         Some(loaded)
     }
 
@@ -669,7 +700,14 @@ impl ColumnLoads {
         match self.state.remove(&pos) {
             Some(LoadState::Reading) => self.reads -= 1,
             Some(LoadState::Saving) => self.saves -= 1,
-            Some(LoadState::Generating | LoadState::Missing | LoadState::Ready) | None => {}
+            Some(
+                LoadState::Generating
+                | LoadState::Missing
+                | LoadState::Ready
+                | LoadState::Held
+                | LoadState::Failed,
+            )
+            | None => {}
         }
     }
 
@@ -715,45 +753,58 @@ impl ColumnLoads {
             return;
         };
         let dimension = manager.dimension();
-        let tx = self.tx.clone();
         self.state.insert(pos, LoadState::Saving);
         self.saves += 1;
+        let mut job = SaveJob {
+            tx: self.tx.clone(),
+            held: Some(HeldColumn {
+                pos,
+                column,
+                failed_saves: failed_saves.saturating_add(1),
+            }),
+        };
         spawn_job(manager.runtime(), async move {
+            let Some(held) = job.held.as_ref() else {
+                return;
+            };
             let result = provider
-                .save_column(ChunkPos::new(pos.0, pos.1), dimension, &column)
+                .save_column(ChunkPos::new(pos.0, pos.1), dimension, &held.column)
                 .await;
-            let result = result.map_err(|error| {
-                debug!(
-                    chunk = ?pos,
-                    %error,
-                    failed_saves = failed_saves + 1,
-                    "Failed to save chunk before unload; keeping it loaded"
-                );
-                Box::new(HeldColumn {
-                    pos,
-                    column,
-                    failed_saves: failed_saves.saturating_add(1),
-                })
-            });
-            let _ = tx.send(LoadEvent::Saved(pos, result));
+            match result {
+                Ok(()) => job.finish(true),
+                Err(error) => {
+                    debug!(
+                        chunk = ?pos,
+                        %error,
+                        failed_saves = held.failed_saves,
+                        "Failed to save chunk before unload; keeping it loaded"
+                    );
+                    job.finish(false);
+                }
+            }
         });
     }
 
     fn saved(&mut self, pos: (i32, i32), result: Result<(), Box<HeldColumn>>) {
         self.finish(pos);
         if let Err(held) = result {
+            self.state.insert(pos, LoadState::Held);
             self.held.push(*held);
         }
     }
 
     /// Columns whose unload write failed, for the world to take back.
     pub fn take_held(&mut self) -> Vec<HeldColumn> {
+        for held in &self.held {
+            self.state.remove(&held.pos);
+        }
         std::mem::take(&mut self.held)
     }
 
     /// Takes back `pos` if its unload write failed.
     pub fn take_held_at(&mut self, pos: (i32, i32)) -> Option<HeldColumn> {
         let index = self.held.iter().position(|held| held.pos == pos)?;
+        self.state.remove(&pos);
         Some(self.held.swap_remove(index))
     }
 
@@ -792,10 +843,12 @@ impl ColumnLoads {
         }
     }
 
-    /// Forgets storage misses no player wants any more.
-    pub fn retain_missing(&mut self, mut wanted: impl FnMut((i32, i32)) -> bool) {
-        self.state
-            .retain(|&pos, state| *state != LoadState::Missing || wanted(pos));
+    /// Forgets storage misses and failed loads no player wants any more, so a
+    /// failed column is asked for again only after it left every view.
+    pub fn forget_unwanted(&mut self, mut wanted: impl FnMut((i32, i32)) -> bool) {
+        self.state.retain(|&pos, state| {
+            !matches!(state, LoadState::Missing | LoadState::Failed) || wanted(pos)
+        });
     }
 
     /// Starts loading `pos`: read from storage when the world has one, else
@@ -883,6 +936,39 @@ impl ColumnLoads {
             let _ = tx.send(event);
         });
         true
+    }
+}
+
+/// One unload write in flight. It always reports back: when the write ends,
+/// or, if the job is dropped first (its task panicked or the runtime shut
+/// down), from `Drop` with the column handed back as held, so
+/// [`ColumnLoads::finish_saves`] never waits for a write that will not come
+/// and the column's edits are not lost.
+struct SaveJob {
+    tx: mpsc::UnboundedSender<LoadEvent>,
+    /// The column until the write's outcome is reported.
+    held: Option<HeldColumn>,
+}
+
+impl SaveJob {
+    /// Reports the outcome once; unless `saved`, the column goes back to the
+    /// world.
+    fn finish(&mut self, saved: bool) {
+        let Some(held) = self.held.take() else {
+            return;
+        };
+        let pos = held.pos;
+        let result = if saved { Ok(()) } else { Err(Box::new(held)) };
+        let _ = self.tx.send(LoadEvent::Saved(pos, result));
+    }
+}
+
+impl Drop for SaveJob {
+    fn drop(&mut self) {
+        if let Some(held) = &self.held {
+            error!(chunk = ?held.pos, "Unload write ended without a result; keeping the chunk loaded");
+        }
+        self.finish(false);
     }
 }
 
@@ -1377,6 +1463,87 @@ mod tests {
                 .as_deref(),
             chunk.encode_subchunk(sub_y, ids).as_deref()
         );
+    }
+
+    /// A chunk edited again before its background encode landed is encoded
+    /// on the caller, so a chunk that changes every tick is still served.
+    #[test]
+    fn a_chunk_edited_faster_than_encodes_land_is_encoded_on_the_caller() {
+        let stats = StreamStats::default();
+        let ids = BlockNetworkIds::Hashed;
+        let mut loads = ColumnLoads::default();
+        let mut chunk = sample_chunk();
+        let mut cache = ChunkNetCache::new(Arc::new(EncodedColumn::encode(&chunk, ids)));
+
+        chunk.set_block(4, 70, 9, *blocks::AIR);
+        assert!(
+            cache
+                .current((3, -7), &chunk, &mut loads, None, ids, &stats)
+                .is_none()
+        );
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let (_, landed) = loop {
+            if let Some(done) = loads.drain(0).reencoded.pop() {
+                break done;
+            }
+            assert!(Instant::now() < deadline, "the re-encode never finished");
+            std::thread::sleep(ms(1));
+        };
+        // Edited again before the encode landed: it lands out of date.
+        chunk.set_block(5, 70, 9, *blocks::STONE);
+        cache.install(landed);
+        let served = cache
+            .current((3, -7), &chunk, &mut loads, None, ids, &stats)
+            .expect("encoded on the caller instead of waiting again");
+        assert!(served.is_current(&chunk));
+    }
+
+    /// A failed load is not asked for again while it is wanted, and is
+    /// forgotten once no view or prefetch wants it.
+    #[test]
+    fn a_failed_load_is_not_retried_until_it_leaves_every_view() {
+        let mut loads = ColumnLoads::default();
+        loads.state.insert((2, 2), LoadState::Reading);
+        loads.reads += 1;
+        loads
+            .tx
+            .send(LoadEvent::Failed(
+                (2, 2),
+                LoadFailure::Generation("test".into()),
+            ))
+            .unwrap();
+        assert_eq!(loads.drain(0).failed, [(2, 2)]);
+        assert_eq!(loads.state((2, 2)), Some(LoadState::Failed));
+        assert!(loads.is_idle());
+        loads.forget_unwanted(|pos| pos == (2, 2));
+        assert_eq!(loads.state((2, 2)), Some(LoadState::Failed));
+        loads.forget_unwanted(|_| false);
+        assert_eq!(loads.state((2, 2)), None);
+    }
+
+    /// An unload write whose job ends without a result (its task panicked)
+    /// still reports back and hands the column back, so shutdown never waits
+    /// for it and its edits are not lost; while held, it is not read.
+    #[test]
+    fn a_dropped_unload_write_hands_its_column_back() {
+        let mut loads = ColumnLoads::default();
+        loads.state.insert((1, 1), LoadState::Saving);
+        loads.saves += 1;
+        let job = SaveJob {
+            tx: loads.tx.clone(),
+            held: Some(HeldColumn {
+                pos: (1, 1),
+                column: ChunkColumn::new(sample_chunk()),
+                failed_saves: 1,
+            }),
+        };
+        drop(job);
+        loads.wait_for_saves();
+        assert_eq!(loads.saves_in_flight(), 0);
+        assert_eq!(loads.state((1, 1)), Some(LoadState::Held));
+        let held = loads.take_held_at((1, 1)).expect("handed back");
+        assert_eq!(held.failed_saves, 1);
+        assert_eq!(loads.state((1, 1)), None);
     }
 
     #[test]

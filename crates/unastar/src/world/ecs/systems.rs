@@ -515,14 +515,14 @@ pub fn stream_chunks(
     let left = start_loads(&manager, &mut loads, &stats, ids, &wishes, budget);
     start_loads(&manager, &mut loads, &stats, ids, &prefetches, left);
 
-    // Now and then, forget storage misses no player wants any more.
+    // Now and then, forget storage misses and failed loads no player wants.
     *ticks += 1;
     if (*ticks).is_multiple_of(200) {
         let wanted: HashSet<(i32, i32)> = players
             .iter()
             .flat_map(|(_, _, loader, _)| loader.queue().iter().copied().chain(loader.prefetch()))
             .collect();
-        loads.retain_missing(|pos| wanted.contains(&pos));
+        loads.forget_unwanted(|pos| wanted.contains(&pos));
     }
 }
 

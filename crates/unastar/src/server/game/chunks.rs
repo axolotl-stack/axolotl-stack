@@ -59,6 +59,8 @@ pub fn apply_chunk_requests(
             ChunkAction::RadiusRequest(req) => {
                 handle_chunk_radius_request(entity, &req, &config, &sessions, &mut chunk_radii);
             }
+            // A player that left has nobody to answer.
+            ChunkAction::SubchunkRequest(_) if sessions.get(entity).is_err() => {}
             ChunkAction::SubchunkRequest(req) => {
                 let rest = if waiting.contains(&entity) {
                     Some(req)
@@ -252,9 +254,16 @@ fn handle_subchunk_request(
             continue;
         }
         let entry = match &columns[&target] {
+            // The height was checked above, so the column always has the
+            // entry; outside it, the answer is the out-of-range one.
             ColumnLookup::Ready(encoded) => encoded
                 .subchunk_entry(sub_y, offset.clone())
-                .expect("sub-chunk index checked against the column height"),
+                .unwrap_or_else(|| {
+                    empty_entry(
+                        offset.clone(),
+                        EnumsSubChunkPacketPayloadSubChunkRequestResult::Indexoutofbounds,
+                    )
+                }),
             ColumnLookup::Loading => {
                 trace!(chunk = ?target, "SubChunkRequest for loading chunk");
                 empty_entry(
