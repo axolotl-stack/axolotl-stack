@@ -1,0 +1,362 @@
+{
+ "//": "BDS 1.26.51 pack stacks as /packstack server verbose (console) and /packstack client verbose (operator player) list them, in order; cut from crates/unastar/src/command/exec/testdata/bds-command-probe.json (tools/bds-sweep/command_probe.py). Every pack is vanilla (exclude-vanilla lists none).",
+ "source_sha256": "8ee46359fd430155f83a161a70277e92a449bc7ae968fadd818769548e12e496",
+ "server": [
+  {
+   "name": "@minecraft/server TS Library",
+   "uuid": "37ca4282-69e9-4402-b40b-0b07de579f02",
+   "type": "Behavior",
+   "version": "0.0.1"
+  },
+  {
+   "name": "@minecraft/server-ui TS Library",
+   "uuid": "f53f490f-9d47-45ca-86de-0946b6d1c366",
+   "type": "Behavior",
+   "version": "0.0.1"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.26.51"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.26.50"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.26.40"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.26.30"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.26.20"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.26.10"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.26.0"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.130"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.120"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.110"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.100"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.90"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.80"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.70"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.60"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.50"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.40"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.30"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.20"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.10"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.21.0"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.20.80"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.20.70"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.20.60"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.20.50"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.20.40"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.20.30"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.20.20"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.20.10"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.20.0"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.19.80"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.19.70"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.19.60"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.19.50"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.19.40"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.19.30"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.19.20"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.19.10"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.19.0"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.18.30"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.18.20"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.18.10"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.18.0"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.17.40"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.17.30"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.17.20"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.17.10"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.17.0"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.16.220"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.16.210"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.16.200"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.16.100"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.16.0"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.15.0"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "1.14.0"
+  },
+  {
+   "name": "resourcePack.vanilla_server.name",
+   "uuid": "fe9f8597-5454-481a-8730-8d070a8e2e58",
+   "type": "Behavior",
+   "version": "0.0.1"
+  }
+ ],
+ "client": [
+  {
+   "name": "Minecraft Texture Pack",
+   "uuid": "0575c61f-a5da-4b7f-9961-ffda2908861e",
+   "type": "Resources",
+   "version": "0.0.1"
+  }
+ ]
+}

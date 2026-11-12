@@ -10,6 +10,13 @@ use crate::world::{ChunkPos, WorldBounds};
 #[derive(Debug, Default, Clone, Copy)]
 pub struct FlatGenerator;
 
+impl FlatGenerator {
+    /// The first air above the grass, in every column.
+    pub const SURFACE_Y: i32 = 4;
+    /// The one biome of the world.
+    pub const BIOME: u32 = DEFAULT_BIOME_ID;
+}
+
 impl Generator for FlatGenerator {
     fn seed(&self) -> i64 {
         0
@@ -44,7 +51,11 @@ impl Generator for FlatGenerator {
         _chunk_at: &dyn Fn(ChunkPos) -> Chunk,
         _bounds: WorldBounds,
     ) -> SpawnPoint {
-        SpawnPoint { x: 0, y: 4, z: 0 }
+        SpawnPoint {
+            x: 0,
+            y: Self::SURFACE_Y,
+            z: 0,
+        }
     }
 }
 

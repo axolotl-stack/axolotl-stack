@@ -14,11 +14,13 @@ fn measured_dir() -> PathBuf {
 /// Files in `data/measured` that are not sweep artefacts: the manifest, its
 /// README, and the capture-derived tables that record their source capture's
 /// SHA-256 inside the file (see `data/measured/README.md`).
-const NOT_SWEPT: [&str; 6] = [
+const NOT_SWEPT: [&str; 8] = [
     "README.md",
     "manifest.json",
     "block_name_keys.json",
     "builtin_recipes.json",
+    "give_items.json",
+    "pack_stack.json",
     "potion_types.json",
     "recipe_legacy_identities.json",
 ];

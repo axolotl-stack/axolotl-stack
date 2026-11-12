@@ -52,13 +52,46 @@ mod bds_capture {
 
     #[test]
     fn tellraw_matches_the_bds_capture() {
-        let differ = [
-            // BDS points the syntax error inside malformed JSON.
-            "/tellraw @s {bad json",
-            // BDS refuses a JSON array as a syntax error inside it.
-            "/tellraw @s [1]",
-        ];
-        let steps = Replay::new().assert_segment("tellraw", &differ);
+        let steps = Replay::new().assert_segment("tellraw", &[]);
         assert_same_packets(&steps, &["TextPacket"], &[]);
+    }
+}
+
+/// Malformed and odd JSON messages of the BDS 1.26.51 command probe
+/// (`testdata/bds-command-probe.json`): where the syntax error points, the
+/// JSON reader's errors, and the message's own refusals.
+#[cfg(test)]
+mod probe {
+    use crate::command::exec::probe::{Probe, captured_player, player_commands};
+
+    #[test]
+    fn json_messages_answer_like_bds() {
+        let mut probe = Probe::new();
+        let player = probe.player();
+        let commands = player_commands("/tellraw @s ");
+        assert!(commands.len() > 50, "the probe's /tellraw lines");
+        for command in commands {
+            let output = probe.h.run(player, &command);
+            assert_eq!(output.messages, captured_player(&command), "{command}");
+        }
+    }
+
+    /// Syntax errors outside JSON: `{ } [ ] , =` are tokens of their own.
+    #[test]
+    fn syntax_errors_point_at_the_token_bds_shows() {
+        let mut probe = Probe::new();
+        let player = probe.player();
+        for command in [
+            "/testfor @e[type=cow,bogus=1]",
+            "/kill @e[typ=cow]",
+            "/give @s stone{x}",
+            "/give @s stone[",
+            "/give @s stone,",
+            "/give @s {stone}",
+            "/setblock 0 -60 0 stone [\"a\"=1]x",
+        ] {
+            let output = probe.h.run(player, command);
+            assert_eq!(output.messages, captured_player(command), "{command}");
+        }
     }
 }

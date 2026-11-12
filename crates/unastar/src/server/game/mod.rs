@@ -610,6 +610,7 @@ impl GameServer {
             (
                 effects::sync_player_effects,
                 effects::sync_visible_effects,
+                crate::world::scoreboard::sync_score_tags,
                 attributes::sync_player_attributes,
             )
                 .chain()

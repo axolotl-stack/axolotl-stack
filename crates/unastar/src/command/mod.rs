@@ -115,37 +115,57 @@ fn dispatch(
     source: CommandSource,
     line: &str,
 ) -> CommandOutput {
-    let schema = registry.schema();
+    match prepare(registry.schema(), &source, line) {
+        Ok(args) => run_args(world, registry, source, &args),
+        Err(failure) => failure,
+    }
+}
+
+/// Parses `line` (with or without its leading `/`) for `source` and checks
+/// the source may run it; a failure is the answer.
+pub(crate) fn prepare(
+    schema: &schema::CommandSchema,
+    source: &CommandSource,
+    line: &str,
+) -> Result<args::Args, CommandOutput> {
     let line = line.trim_start();
     let line = line.strip_prefix('/').unwrap_or(line).trim_end();
     let name = parser::command_name(line);
     let unknown = || CommandOutput::failure("commands.generic.unknown", vec![name.to_owned()]);
     let Some(definition) = schema.command(name) else {
-        return unknown();
+        return Err(unknown());
     };
     // Measured: the line is parsed before the permission is checked (an
     // operator typing `/place feature` with a feature that does not exist
     // gets `commands.generic.syntax`, with a valid line
     // `commands.generic.error.permissions`, as for `/op`;
     // `tools/bds-sweep/command_probe.py`).
-    let args = match parser::parse(schema, line) {
-        Ok(args) => args,
-        Err(ParseError::Unknown(_)) => return unknown(),
-        Err(ParseError::Syntax(error)) => {
-            return CommandOutput::failure("commands.generic.syntax", error.params());
-        }
-    };
+    let args = parser::parse(schema, line).map_err(|error| match error {
+        ParseError::Unknown(_) => unknown(),
+        error => error.into_output(),
+    })?;
     if definition.permission > source.permission {
-        return CommandOutput::failure(
+        return Err(CommandOutput::failure(
             "commands.generic.error.permissions",
             vec![definition.name.clone()],
-        );
+        ));
     }
+    Ok(args)
+}
+
+/// Runs parsed `args` for `source`.
+fn run_args(
+    world: &mut World,
+    registry: &CommandRegistry,
+    source: CommandSource,
+    args: &args::Args,
+) -> CommandOutput {
+    let definition = args.command();
     let Some(handler) = registry.handler(&definition.name) else {
         return CommandOutput::not_implemented(&definition.name);
     };
     let mut context = CommandContext::new(world, source, registry);
     handler
-        .run(&mut context, &args)
+        .run(&mut context, args)
         .unwrap_or_else(|failure| failure)
 }

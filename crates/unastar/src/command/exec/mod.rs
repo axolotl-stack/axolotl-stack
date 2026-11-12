@@ -17,7 +17,7 @@ mod enchant;
 mod event;
 #[cfg(test)]
 pub(crate) mod evidence;
-mod execute;
+pub(crate) mod execute;
 mod fill;
 mod function;
 mod gamemode;
@@ -32,6 +32,7 @@ mod loot;
 mod mobevent;
 mod music;
 mod op;
+mod packstack;
 mod place;
 #[cfg(test)]
 pub(crate) mod probe;
@@ -120,6 +121,7 @@ pub fn register_vanilla(registry: &mut CommandRegistry) {
         .register(music::run)
         .register(op::run_op)
         .register(op::run_permission)
+        .register(packstack::run)
         .register(place::run_place)
         .register(place::run_locate)
         .register(server_tools::run_reloadconfig)
@@ -239,6 +241,7 @@ mod bds_capture {
     fn a_second_player_sees_what_bds_sends_it() {
         use super::evidence::assert_same_client_packets;
         let steps = Replay::new().assert_segment("players", &[]);
+        super::evidence::assert_same_score_tags(&steps);
         assert_same_client_packets(
             &steps,
             "Alice",

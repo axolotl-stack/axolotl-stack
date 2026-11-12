@@ -30,7 +30,8 @@
 //!   or `…list.player.empty [name]` for a holder without scores.
 //!
 //! A name that is not an online player is a fake player. The score shown
-//! under player names (`belowname`) is not sent as actor data yet.
+//! under player names (`belowname`) is sent as each player's `SCORE` actor
+//! data ([`crate::world::scoreboard::sync_score_tags`]).
 
 use crate::command::args::Operation;
 use crate::command::prelude::*;
@@ -144,6 +145,12 @@ overloads! {
 }
 
 pub fn run(ctx: &mut CommandContext<'_>, args: ScoreboardArgs) -> CommandResult {
+    let result = run_subcommand(ctx, args);
+    crate::world::scoreboard::sync_score_tags(ctx.world);
+    result
+}
+
+fn run_subcommand(ctx: &mut CommandContext<'_>, args: ScoreboardArgs) -> CommandResult {
     ctx.world.get_resource_or_insert_with(Scoreboard::default);
     use ScoreboardArgs as S;
     match args {
@@ -832,7 +839,9 @@ fn change_entry(
 /// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
 #[cfg(test)]
 mod bds_capture {
-    use crate::command::exec::evidence::{Replay, assert_same_packets, packet_name};
+    use crate::command::exec::evidence::{
+        Replay, assert_same_packets, assert_same_score_tags, packet_name,
+    };
     use jolyne::valentine::McpePacketData;
     use jolyne::valentine::types::SetScorePacketScoreInfoItem;
 
@@ -914,6 +923,8 @@ mod bds_capture {
             ],
             &[],
         );
+        // The score under the player's name (`belowname`).
+        assert_same_score_tags(&steps);
         for step in &steps {
             let theirs: Vec<McpePacketData> = step
                 .captured

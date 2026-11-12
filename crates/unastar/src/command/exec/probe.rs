@@ -46,9 +46,39 @@ pub fn captured_console(command: &str) -> Vec<ConsoleRecord> {
         .collect()
 }
 
+/// The operator player's probe commands that start with `prefix`.
+pub fn player_commands(prefix: &str) -> Vec<String> {
+    probe()["player"]
+        .as_array()
+        .expect("steps")
+        .iter()
+        .filter_map(|step| step["command"].as_str())
+        .filter(|command| command.starts_with(prefix))
+        .map(str::to_owned)
+        .collect()
+}
+
+/// The operator player's probe commands and BDS's answers, in order (a
+/// command may repeat).
+pub fn player_steps() -> Vec<(String, Vec<CommandMessage>)> {
+    probe()["player"]
+        .as_array()
+        .expect("steps")
+        .iter()
+        .map(|step| {
+            let command = step["command"].as_str().expect("command").to_owned();
+            (command, messages(step))
+        })
+        .collect()
+}
+
 /// The messages BDS answered the operator player's `command` with.
 pub fn captured_player(command: &str) -> Vec<CommandMessage> {
-    step("player", command)["messages"]
+    messages(step("player", command))
+}
+
+fn messages(step: &serde_json::Value) -> Vec<CommandMessage> {
+    step["messages"]
         .as_array()
         .expect("messages")
         .iter()
@@ -63,6 +93,36 @@ pub fn captured_player(command: &str) -> Vec<CommandMessage> {
             success: m["success"].as_bool().expect("success"),
         })
         .collect()
+}
+
+/// A long `/execute` chain the probe ran on the console:
+/// `prefix + (repeat + " ") * count + end`.
+#[derive(Debug, serde::Deserialize)]
+pub struct Chain {
+    pub prefix: String,
+    pub repeat: String,
+    pub count: usize,
+    pub end: String,
+    /// What BDS printed (nothing when it exited).
+    pub records: Vec<ConsoleRecord>,
+    /// BDS exited on the chain.
+    pub exited: bool,
+}
+
+impl Chain {
+    pub fn line(&self) -> String {
+        format!(
+            "{}{}{}",
+            self.prefix,
+            format!("{} ", self.repeat).repeat(self.count),
+            self.end
+        )
+    }
+}
+
+/// The probe's long `/execute` chains, in the order BDS ran them.
+pub fn chains() -> Vec<Chain> {
+    serde_json::from_value(probe()["execute_depth"].clone()).expect("the probe's chains")
 }
 
 /// A harness for the probe's commands.

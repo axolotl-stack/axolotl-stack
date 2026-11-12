@@ -10,15 +10,22 @@
 //!   `commands.locate.structure.fail.nostructurefound` in a world whose
 //!   generator places no structures; the name needs no namespace.
 //!
+//! - `locate biome` in the flat world, all plains, names the column 32
+//!   blocks west and north of the source's block (`-32, -32` from `0.5,
+//!   0.5`; `68, 5` from `100, 37`; `8, 8` from `/execute positioned 40 -60
+//!   40`), at the flat world's surface whatever the source's height, `45`
+//!   blocks away (the horizontal distance, 45.25, cut); any other biome
+//!   answers `commands.locate.biome.fail [biome]`.
+//!
 //! unastar does not place jigsaw structures, features or feature rules on
 //! command, does not search for structures in generated terrain, and does
-//! not search biomes (BDS's search order is not measured: in the flat world
-//! the first plains it named was 32 blocks west and north of the origin);
-//! those answer the not-implemented failure.
+//! not search biomes in generated terrain (BDS's search order past its first
+//! candidate is not measured); those answer the not-implemented failure.
 
 use crate::command::prelude::*;
 use crate::server::game::ServerConfigResource;
 use crate::world::WorldGenerator;
+use crate::world::generator::FlatGenerator;
 
 overloads! {
     pub enum PlaceArgs for "place" {
@@ -85,17 +92,22 @@ overloads! {
     }
 }
 
+/// Measured: where `locate biome` looks first, from the source's block.
+const FIRST_BIOME_CANDIDATE: IVec3 = IVec3::new(-32, 0, -32);
+
 pub fn run_locate(ctx: &mut CommandContext<'_>, args: LocateArgs) -> CommandResult {
-    let structureless = ctx
+    let generator = ctx
         .world
         .get_resource::<ServerConfigResource>()
-        .is_some_and(|config| {
-            matches!(
-                config.0.world.generator,
-                WorldGenerator::SuperFlat | WorldGenerator::VoidSpawnPlatform { .. }
-            )
-        });
+        .map(|config| config.0.world.generator);
+    let structureless = matches!(
+        generator,
+        Some(WorldGenerator::SuperFlat | WorldGenerator::VoidSpawnPlatform { .. })
+    );
     match args {
+        LocateArgs::Biome { biome, .. } if generator == Some(WorldGenerator::SuperFlat) => {
+            locate_flat_biome(ctx, &biome)
+        }
         LocateArgs::Structure { structure, .. }
             if structureless && soft_enum_has("StructureFeature", &structure) =>
         {
@@ -103,6 +115,33 @@ pub fn run_locate(ctx: &mut CommandContext<'_>, args: LocateArgs) -> CommandResu
         }
         _ => Err(CommandOutput::not_implemented("locate")),
     }
+}
+
+/// `locate biome` in the flat world, where every column is
+/// [`FlatGenerator::BIOME`]: its first candidate holds it.
+fn locate_flat_biome(ctx: &mut CommandContext<'_>, biome: &str) -> CommandResult {
+    let wanted = unastar_data::biomes::vanilla()
+        .iter()
+        .find(|b| b.identifier == biome)
+        .map(|b| b.id);
+    if wanted != Some(FlatGenerator::BIOME) {
+        return failure!("commands.locate.biome.fail", biome);
+    }
+    let source = ctx.source.position.floor().as_ivec3();
+    let found = IVec3::new(
+        source.x + FIRST_BIOME_CANDIDATE.x,
+        FlatGenerator::SURFACE_Y,
+        source.z + FIRST_BIOME_CANDIDATE.z,
+    );
+    let distance = f64::from(FIRST_BIOME_CANDIDATE.x).hypot(f64::from(FIRST_BIOME_CANDIDATE.z));
+    success!(
+        "commands.locate.biome.success",
+        biome,
+        found.x,
+        found.y,
+        found.z,
+        distance as i32
+    )
 }
 
 #[cfg(test)]
@@ -138,5 +177,39 @@ mod tests {
             let output = probe.h.run(player, command);
             assert_eq!(output.messages, captured_player(command), "{command}");
         }
+    }
+
+    /// Every `locate biome minecraft:plains` of the probe, from where its
+    /// `/tp` (or `/execute positioned`) put the source: the same column and
+    /// distance, at unastar's flat surface (BDS's flat world is lower).
+    #[test]
+    fn locate_biome_finds_the_flat_worlds_plains_where_bds_does() {
+        use crate::command::exec::probe::player_steps;
+        use crate::world::generator::FlatGenerator;
+        let mut probe = Probe::new();
+        probe
+            .h
+            .world()
+            .resource_mut::<crate::server::game::ServerConfigResource>()
+            .0
+            .world
+            .generator = crate::world::WorldGenerator::SuperFlat;
+        let player = probe.player();
+        let desert = "/locate biome minecraft:desert";
+        assert_eq!(
+            probe.h.run(player, desert).messages,
+            captured_player(desert)
+        );
+        let mut compared = 0;
+        for (line, mut bds) in player_steps() {
+            if line.starts_with("/tp @s ") {
+                assert!(probe.h.run(player, &line).is_success(), "{line}");
+            } else if line.contains("locate biome minecraft:plains") {
+                bds[0].params[2] = FlatGenerator::SURFACE_Y.to_string();
+                assert_eq!(probe.h.run(player, &line).messages, bds, "{line}");
+                compared += 1;
+            }
+        }
+        assert!(compared >= 10, "{compared}");
     }
 }

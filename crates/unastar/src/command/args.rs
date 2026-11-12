@@ -20,7 +20,7 @@
 //! and in the registry test, and executors `match` exhaustively over the
 //! overloads instead of probing names.
 
-use super::parser::{ArgValue, CommandPosition, IntRange, StateLiteral, Target};
+use super::parser::{ArgValue, CommandPosition, IntRange, JsonArg, StateLiteral, Target};
 use unastar_data::commands::{BasicType, CommandDefinition, ParamKind};
 
 /// The raw arguments of the overload a command line matched, by parameter
@@ -48,6 +48,14 @@ impl Args {
     }
 
     /// The value of the overload's parameter `index`, if the line supplied it.
+    /// The reader's errors for a `json` argument it refused.
+    pub fn invalid_json(&self) -> Option<&str> {
+        self.values.iter().flatten().find_map(|value| match value {
+            ArgValue::Json(JsonArg::Invalid(errors)) => Some(errors.as_str()),
+            _ => None,
+        })
+    }
+
     pub fn at(&self, index: usize) -> Option<&ArgValue> {
         self.values.get(index).and_then(Option::as_ref)
     }
@@ -155,7 +163,7 @@ from_arg!(
     serde_json::Value,
     |kind| basic(kind, &[BasicType::Json]),
     |value| match value {
-        ArgValue::Json(v) => Some(v.clone()),
+        ArgValue::Json(JsonArg::Valid(v)) => Some(v.clone()),
         _ => None,
     }
 );

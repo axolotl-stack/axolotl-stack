@@ -15,6 +15,9 @@ use super::schema::CommandSchema;
 use super::selector::{Selector, parse_selector};
 use unastar_data::commands::{BasicType, CommandDefinition, CommandParam, ParamKind};
 
+mod json;
+pub use json::JsonArg;
+
 /// A position on the line the parser could not get past (byte offset).
 pub type ErrorAt = usize;
 
@@ -245,7 +248,7 @@ pub enum ArgValue {
     /// The rest of the line, as typed.
     Message(String),
     RawText(String),
-    Json(serde_json::Value),
+    Json(JsonArg),
     BlockStates(Vec<(String, StateLiteral)>),
     /// A nested command line (without `/`).
     Command(String),
@@ -269,6 +272,25 @@ pub enum ParseError {
     Unknown(String),
     /// The line does not fit any overload.
     Syntax(SyntaxError),
+    /// A JSON argument passed the syntax check but not the JSON reader
+    /// (`commands.generic.json.invalid` with these errors).
+    Json(String),
+}
+
+impl ParseError {
+    /// BDS's answer to a line that does not parse.
+    pub fn into_output(self) -> crate::command::CommandOutput {
+        use crate::command::CommandOutput;
+        match self {
+            Self::Unknown(name) => CommandOutput::failure("commands.generic.unknown", vec![name]),
+            Self::Syntax(error) => {
+                CommandOutput::failure("commands.generic.syntax", error.params())
+            }
+            Self::Json(errors) => {
+                CommandOutput::failure("commands.generic.json.invalid", vec![errors])
+            }
+        }
+    }
 }
 
 /// How many characters before the offending token a syntax error shows.
@@ -286,13 +308,7 @@ pub struct SyntaxError {
 impl SyntaxError {
     fn at(line: &str, at: usize) -> Self {
         let rest = &line[at..];
-        // Measured: `/` is a token of its own (`loot entities/wither_boss`
-        // is wrong at "/", followed by "wither_boss").
-        let end = if rest.starts_with('/') {
-            1
-        } else {
-            rest.find(char::is_whitespace).unwrap_or(rest.len())
-        };
+        let end = token_len(rest);
         // Measured: BDS shows at most the last ten characters before the token
         // (`/scoreboard objectives add bad deathCount` → "s add bad ").
         let before = format!("/{}", &line[..at]);
@@ -312,6 +328,35 @@ impl SyntaxError {
     }
 }
 
+/// The length of the token `rest` starts with, as BDS shows it in a syntax
+/// error. Measured (command capture and `tools/bds-sweep/command_probe.py`):
+/// `/` and each of `{ } [ ] , : =` are tokens of their own (`loot
+/// entities/wither_boss` is wrong at "/", `@e[typ=cow]` at "typ" followed by
+/// "=cow]", `{} {}` at "{" followed by "}"); a `"` string runs to its closing
+/// quote and a `'` to the end of the line; a word ends at whitespace, a quote
+/// or one of those but `/` and `:` (`minecraft:nothing` is one token).
+fn token_len(rest: &str) -> usize {
+    match rest.chars().next() {
+        Some('/' | '{' | '}' | '[' | ']' | ',' | ':' | '=') => 1,
+        Some('"') => {
+            let mut escaped = false;
+            for (i, c) in rest.char_indices().skip(1) {
+                match (escaped, c) {
+                    (true, _) => escaped = false,
+                    (false, '\\') => escaped = true,
+                    (false, '"') => return i + 1,
+                    _ => {}
+                }
+            }
+            rest.len()
+        }
+        Some('\'') => rest.len(),
+        _ => rest
+            .find(|c: char| c.is_whitespace() || "{}[],=\"".contains(c))
+            .unwrap_or(rest.len()),
+    }
+}
+
 /// Splits off the command name (`line` has no leading `/`).
 pub fn command_name(line: &str) -> &str {
     let line = line.trim_start();
@@ -320,6 +365,12 @@ pub fn command_name(line: &str) -> &str {
 }
 
 /// Parses a command line (without its leading `/`).
+///
+/// The whole line is checked, including the rest of an `/execute` chain and
+/// the command after `run` (measured on BDS 1.26.51: `execute run bogus` and
+/// a chain of 2000 subcommands ending in `bogus` both answer
+/// `commands.generic.syntax` at `bogus`, before anything runs). The check
+/// keeps its own stack, so a line of any length cannot overflow the thread's.
 pub fn parse(schema: &CommandSchema, line: &str) -> Result<Args, ParseError> {
     let name = command_name(line);
     let definition = schema
@@ -329,81 +380,219 @@ pub fn parse(schema: &CommandSchema, line: &str) -> Result<Args, ParseError> {
     parse_overloads(schema, definition, line, name_end)
 }
 
-/// Matches `line[start..]` against the overloads of `definition`.
+/// Matches `line[start..]` against the overloads of `definition`, checking
+/// the rest of the line a chained subcommand or nested command holds.
 pub fn parse_overloads(
     schema: &CommandSchema,
     definition: &'static CommandDefinition,
     line: &str,
     start: usize,
 ) -> Result<Args, ParseError> {
-    match_overloads(schema, definition, line, start)
-        .map_err(|furthest| ParseError::Syntax(SyntaxError::at(line, furthest.min(line.len()))))
+    let syntax = |at: ErrorAt| ParseError::Syntax(SyntaxError::at(line, at.min(line.len())));
+    let mut furthest = start;
+    for overload in 0..definition.overloads.len() {
+        let args = match match_overload(schema, definition, overload, line, start) {
+            Ok((args, None)) => args,
+            Ok((args, Some(tail))) => match check_tails(schema, line, tail) {
+                Ok(()) => args,
+                Err(at) => {
+                    furthest = furthest.max(at);
+                    continue;
+                }
+            },
+            Err(at) => {
+                furthest = furthest.max(at);
+                continue;
+            }
+        };
+        return match args.invalid_json() {
+            Some(errors) => Err(ParseError::Json(errors.to_owned())),
+            None => Ok(args),
+        };
+    }
+    Err(syntax(furthest))
 }
 
-/// [`parse_overloads`], failing with the furthest position any overload reached.
-fn match_overloads(
+/// [`parse_overloads`] for the rest of a chain the whole line was already
+/// checked with: the rest it holds is not checked again.
+pub fn parse_checked_overloads(
     schema: &CommandSchema,
     definition: &'static CommandDefinition,
     line: &str,
+) -> Result<Args, ParseError> {
+    let mut furthest = 0;
+    for overload in 0..definition.overloads.len() {
+        match match_overload(schema, definition, overload, line, 0) {
+            Ok((args, _)) => return Ok(args),
+            Err(at) => furthest = furthest.max(at),
+        }
+    }
+    Err(ParseError::Syntax(SyntaxError::at(
+        line,
+        furthest.min(line.len()),
+    )))
+}
+
+/// The rest of a line that a last parameter hands on: the next subcommand
+/// of the same command, or a whole nested command line.
+#[derive(Debug, Clone, Copy)]
+enum Tail {
+    Chained(&'static CommandDefinition, usize),
+    Command(usize),
+}
+
+/// One command's overloads being tried at `start` by [`check_tails`].
+struct Frame {
+    definition: &'static CommandDefinition,
     start: usize,
-) -> Result<Args, ErrorAt> {
-    let mut furthest = start;
-    'overloads: for (overload, o) in definition.overloads.iter().enumerate() {
-        let mut cursor = Cursor {
-            text: line,
-            pos: start,
-        };
-        let mut args = Args::new(definition, overload);
-        for (index, param) in o.params.iter().enumerate() {
-            let before = cursor.pos;
-            cursor.skip_whitespace();
-            if cursor.at_end() {
-                // The line may stop here only if nothing after is required
-                // (`/summon` has an optional position before required ones).
-                if o.params[index..].iter().all(|p| p.optional) {
-                    break;
-                }
-                // A missing final `message` is not a syntax error on BDS: `/me`
-                // and `/tell @s` reach the command, which answers
-                // `commands.generic.invalidMessage`.
-                if index + 1 == o.params.len() && param.kind == ParamKind::Basic(BasicType::Message)
-                {
-                    args.insert(index, ArgValue::Message(String::new()));
-                    break;
-                }
-                furthest = furthest.max(cursor.pos);
-                continue 'overloads;
-            }
-            // Parameters are separated by whitespace, except a block-state list
-            // may follow its block name directly (`wool["color"="red"]`).
-            if cursor.pos == before
-                && before != start
-                && !matches!(param.kind, ParamKind::Basic(BasicType::BlockStates))
-            {
-                furthest = furthest.max(cursor.pos);
-                continue 'overloads;
-            }
-            match parse_param(schema, definition, param, &mut cursor) {
-                Ok(value) => args.insert(index, value),
-                Err(at) => {
-                    furthest = furthest.max(at);
-                    continue 'overloads;
-                }
+    next: usize,
+    furthest: usize,
+}
+
+/// Whether the rest `tail` hands on parses, without recursion: an overload
+/// that ends in another tail is tried by pushing a frame. Any frame that
+/// matches the line to its end makes the whole line valid (a tail is always
+/// the last parameter); a frame whose overloads all fail hands its furthest
+/// position to the frame below, which tries its next overload.
+fn check_tails(schema: &CommandSchema, line: &str, tail: Tail) -> Result<(), ErrorAt> {
+    // Tails already known to fail, by (command, start): a frame is tried once.
+    let mut failed: std::collections::HashMap<(usize, usize), usize> = Default::default();
+    let mut stack = vec![frame(schema, line, tail)?];
+    let mut pending = None;
+    loop {
+        if let Some(tail) = pending.take() {
+            match frame(schema, line, tail) {
+                Ok(frame) => match failed.get(&key(&frame)) {
+                    Some(&at) => fail(&mut stack, at),
+                    None => stack.push(frame),
+                },
+                Err(at) => fail(&mut stack, at),
             }
         }
-        cursor.skip_whitespace();
-        if !cursor.at_end() {
-            furthest = furthest.max(cursor.pos);
+        // The bottom frame's failure returns, so a frame is always on top.
+        let Some(top) = stack.last_mut() else {
+            return Err(line.len());
+        };
+        if top.next == top.definition.overloads.len() {
+            let (key, furthest) = (key(top), top.furthest);
+            stack.pop();
+            failed.insert(key, furthest);
+            match stack.last_mut() {
+                Some(below) => below.furthest = below.furthest.max(furthest),
+                None => return Err(furthest),
+            }
             continue;
         }
-        return Ok(args);
+        let overload = top.next;
+        top.next += 1;
+        match match_overload(schema, top.definition, overload, line, top.start) {
+            Ok((_, None)) => return Ok(()),
+            Ok((_, Some(tail))) => pending = Some(tail),
+            Err(at) => top.furthest = top.furthest.max(at),
+        }
     }
-    Err(furthest)
+
+    fn key(frame: &Frame) -> (usize, usize) {
+        (std::ptr::from_ref(frame.definition) as usize, frame.start)
+    }
+
+    fn fail(stack: &mut [Frame], at: usize) {
+        if let Some(top) = stack.last_mut() {
+            top.furthest = top.furthest.max(at);
+        }
+    }
+}
+
+/// The frame that tries the overloads `tail` hands on to; a nested command
+/// that does not exist fails at its name.
+fn frame(schema: &CommandSchema, line: &str, tail: Tail) -> Result<Frame, ErrorAt> {
+    let (definition, start) = match tail {
+        Tail::Chained(definition, start) => (definition, start),
+        Tail::Command(at) => {
+            let at = at + usize::from(line[at..].starts_with('/'));
+            let name = command_name(&line[at..]);
+            (schema.command(name).ok_or(at)?, at + name.len())
+        }
+    };
+    Ok(Frame {
+        definition,
+        start,
+        next: 0,
+        furthest: start,
+    })
+}
+
+/// Matches `line[start..]` against one overload; a last parameter that hands
+/// the rest of the line on returns it unchecked as a [`Tail`].
+fn match_overload(
+    schema: &CommandSchema,
+    definition: &'static CommandDefinition,
+    overload: usize,
+    line: &str,
+    start: usize,
+) -> Result<(Args, Option<Tail>), ErrorAt> {
+    let o = &definition.overloads[overload];
+    let mut cursor = Cursor {
+        text: line,
+        pos: start,
+    };
+    let mut args = Args::new(definition, overload);
+    for (index, param) in o.params.iter().enumerate() {
+        let before = cursor.pos;
+        cursor.skip_whitespace();
+        if cursor.at_end() {
+            // The line may stop here only if nothing after is required
+            // (`/summon` has an optional position before required ones).
+            if o.params[index..].iter().all(|p| p.optional) {
+                break;
+            }
+            // A missing final `message` is not a syntax error on BDS: `/me`
+            // and `/tell @s` reach the command, which answers
+            // `commands.generic.invalidMessage`.
+            if index + 1 == o.params.len() && param.kind == ParamKind::Basic(BasicType::Message) {
+                args.insert(index, ArgValue::Message(String::new()));
+                break;
+            }
+            return Err(cursor.pos);
+        }
+        // Parameters are separated by whitespace, except a block-state list
+        // may follow its block name directly (`wool["color"="red"]`).
+        if cursor.pos == before
+            && before != start
+            && !matches!(param.kind, ParamKind::Basic(BasicType::BlockStates))
+        {
+            return Err(cursor.pos);
+        }
+        // The rest of the line is the next subcommand of the same command
+        // (`/execute as @s at @s run …`) or a nested command line (`run …`):
+        // checked by the caller, so errors point into the whole line.
+        let tail = match param.kind {
+            ParamKind::Chained(_) => Some(Tail::Chained(definition, cursor.pos)),
+            ParamKind::Basic(BasicType::Command) => Some(Tail::Command(cursor.pos)),
+            _ => None,
+        };
+        if let Some(tail) = tail {
+            let rest = cursor.rest().trim_end().to_owned();
+            args.insert(
+                index,
+                match tail {
+                    Tail::Chained(..) => ArgValue::Chained(rest),
+                    Tail::Command(_) => ArgValue::Command(rest),
+                },
+            );
+            return Ok((args, Some(tail)));
+        }
+        args.insert(index, parse_param(schema, param, &mut cursor)?);
+    }
+    cursor.skip_whitespace();
+    if !cursor.at_end() {
+        return Err(cursor.pos);
+    }
+    Ok((args, None))
 }
 
 fn parse_param(
     schema: &CommandSchema,
-    definition: &'static CommandDefinition,
     param: &CommandParam,
     cursor: &mut Cursor<'_>,
 ) -> Result<ArgValue, ErrorAt> {
@@ -411,7 +600,9 @@ fn parse_param(
     match &param.kind {
         ParamKind::Basic(basic) => parse_basic(*basic, cursor),
         ParamKind::Enum(name) => {
-            let word = cursor.word(&['[']);
+            // Measured: an enum word ends at a bracket, brace, comma or `=`
+            // (`/give @s stone{x}` is wrong at "{").
+            let word = cursor.word(&['[', ']', '{', '}', ',', '=']);
             schema
                 .enum_value(name, word)
                 .map(ArgValue::Enum)
@@ -431,15 +622,8 @@ fn parse_param(
             let number = lower.strip_suffix(postfix.as_str()).ok_or(start)?;
             parse_int(number).map(ArgValue::Postfix).ok_or(start)
         }
-        // The rest of the line is the next subcommand of the same command
-        // (`/execute as @s at @s run …`): it must parse as one of the
-        // command's own overloads, so errors point into the whole line.
-        ParamKind::Chained(_) => {
-            let rest = cursor.rest().trim_end().to_owned();
-            match_overloads(schema, definition, cursor.text, cursor.pos)?;
-            cursor.pos = cursor.text.len();
-            Ok(ArgValue::Chained(rest))
-        }
+        // A chained subcommand is a tail, handed on by `match_overload`.
+        ParamKind::Chained(_) => Err(start),
     }
 }
 
@@ -565,11 +749,9 @@ fn parse_basic(basic: BasicType, cursor: &mut Cursor<'_>) -> Result<ArgValue, Er
         BasicType::RawText => ArgValue::RawText(rest_of_line(cursor)?),
         BasicType::Command => ArgValue::Command(rest_of_line(cursor)?),
         BasicType::Json => {
-            if !matches!(cursor.peek(), Some('{' | '[')) {
-                return Err(start);
-            }
-            let text = cursor.balanced()?;
-            ArgValue::Json(serde_json::from_str(text).map_err(|_| start)?)
+            let (end, read) = json::parse(cursor.text, cursor.pos)?;
+            cursor.pos = end;
+            ArgValue::Json(read)
         }
         BasicType::BlockStates => ArgValue::BlockStates(parse_block_states(cursor)?),
     })
