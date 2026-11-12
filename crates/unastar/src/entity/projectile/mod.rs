@@ -5,7 +5,10 @@
 //! stopped by blocks) and sent along the thrower's view direction (pitch
 //! plus `angle_offset × cos(pitch)`) at `power` blocks per tick; the
 //! thrower's own velocity is not added. Every projectile actor starts
-//! invisible and shows from its second tick of flight.
+//! invisible and shows at the end of its second tick of flight; each change
+//! sets `INVISIBLE` and the opposite `CAN_SHOW_NAME` and plays the
+//! synchronised `disappeared` / `reappeared` sound at the centre of its box
+//! (measured on BDS 1.26.51 xp bottles).
 //!
 //! Flight ([`tick_projectiles`]): each tick the segment from the position to
 //! position + velocity is tested against block collision boxes and against
@@ -17,19 +20,24 @@
 //! scaled by `inertia` (`liquid_inertia` in water) and loses `gravity`, and
 //! its rotation turns 20 % of the way to its heading.
 //!
-//! On a hit the `on_hit` effects run in alphabetical order:
+//! On a hit the `on_hit` effects run in alphabetical order, at the point
+//! where the flight segment meets the target:
+//! - `grant_xp`: the potion-splash level event in the default potion
+//!   colour, then `minXP + random(maxXP - minXP)` experience as orbs.
 //! - `impact_damage`: a hit mob takes the rolled damage (cause projectile,
-//!   even 0), pushed away from the projectile by the projectile's knockback
-//!   rules; players have no hurt path on this server and only stop the
-//!   projectile.
-//! - `particle_on_hit`: level events at the projectile.
+//!   even 0), pushed away from where the projectile flew from this tick by
+//!   the projectile's knockback rules; players have no hurt path on this
+//!   server and only stop the projectile.
+//! - `particle_on_hit`: level events at the hit.
 //! - `remove_on_hit`.
 //! - `spawn_chance`: one roll for the first group and, only when that
-//!   succeeded, one for the second; the spawns appear at the projectile
-//!   (raised out of a block it is inside, turned to its yaw) and get the
+//!   succeeded, one for the second; the spawns appear at the hit (raised
+//!   out of a block it is inside, turned to its yaw) and get the
 //!   `on_spawn` events whose filters pass, with the projectile as `other`.
+//! - `stick_in_ground`: the projectile stays at the hit.
 //!
-//! Then the hit sound plays and a removed projectile despawns.
+//! Then the hit sound plays (on the next tick, attributed to no actor) and
+//! a removed projectile despawns.
 //!
 //! Layout: [`config`] compiles the component, [`launch`] throws,
 //! [`flight`] moves and collides, [`hit`] runs the `on_hit` effects.

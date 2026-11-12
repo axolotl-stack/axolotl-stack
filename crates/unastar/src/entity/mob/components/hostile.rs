@@ -292,14 +292,20 @@ fn compile_melee_box_attack(
 /// `behavior.hurt_by_target` entries. The published default is an empty
 /// list, which vanilla relies on to retaliate against any attacker (the
 /// wither skeleton and the zombie pigman author no `entity_types`): an empty
-/// list is one entry with the published descriptor defaults (no filter,
-/// within 16 blocks).
+/// list is one entry with no filter and no distance limit, leaving only the
+/// goal's own `must_see` (measured: BDS zombie pigmen 12, 24 and 40 blocks
+/// from the player that hit them all took it as their target).
 fn retaliation_entries(types: &EntityTypes) -> Result<Arc<[TargetEntry]>, HostileError> {
     match types {
         EntityTypes::List(list) if list.is_empty() => {
             let any: MobDescriptor = serde_json::from_value(serde_json::json!({}))
                 .expect("every descriptor field has a published default");
-            entries(&EntityTypes::MobDescriptor(any))
+            let mut entries = entries(&EntityTypes::MobDescriptor(any))?.to_vec();
+            for entry in &mut entries {
+                entry.max_dist = f32::INFINITY;
+                entry.must_see = None;
+            }
+            Ok(entries.into())
         }
         _ => entries(types),
     }

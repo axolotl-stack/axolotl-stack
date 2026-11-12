@@ -675,7 +675,8 @@ impl GameServer {
                 .before(tick_block_breaking),
         );
         // Environment sensors, timers, then anger. Their group changes apply
-        // at the next tick's definition barrier (`PhysicsSet`).
+        // at the next tick's definition barrier (`PhysicsSet`), which is when
+        // anger that spread this tick starts on its receivers.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::life::sensors::tick_environment_sensors,
@@ -687,9 +688,14 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Natural despawning of mobs far from every player.
+        // Natural despawning of mobs far from every player, then by
+        // despawn filters.
         ecs.schedule_mut().add_systems(
-            crate::entity::mob::life::despawn::despawn_mobs
+            (
+                crate::entity::mob::life::despawn::despawn_mobs,
+                crate::entity::mob::life::despawn::despawn_mobs_by_filters,
+            )
+                .chain()
                 .in_set(EntityLogicSet)
                 .after(despawn_dead),
         );
@@ -697,7 +703,7 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             crate::entity::spawning::natural_spawning
                 .in_set(EntityLogicSet)
-                .after(crate::entity::mob::life::despawn::despawn_mobs),
+                .after(crate::entity::mob::life::despawn::despawn_mobs_by_filters),
         );
         // The world clock advances before anything reads the time of day.
         ecs.schedule_mut().add_systems(
@@ -712,6 +718,7 @@ impl GameServer {
                 crate::server::player_view::sync_player_viewers,
                 broadcast_block_updates,
                 sync_actor_viewers,
+                crate::entity::mob::net::sound::flush_synced_sounds,
                 crate::entity::mob::net::network::sync_mob_viewers,
             )
                 .chain()

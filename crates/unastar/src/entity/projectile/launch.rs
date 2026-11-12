@@ -53,8 +53,10 @@ pub fn thrown_by(item: &str) -> Option<(ActorType, Option<&'static str>)> {
 }
 
 /// Spawn-time derived state of a projectile actor (it has no living body):
-/// the physics flags, scale and collision box in its actor data.
+/// invisible until its second flight tick, and the physics flags, scale and
+/// collision box in its actor data.
 pub(crate) fn derive_projectile(world: &mut World, entity: Entity) {
+    super::flight::set_invisible(world, entity, true);
     let physics = world.get::<PhysicsConfig>(entity).copied();
     let scale = world.get::<ScaleConfig>(entity).map_or(1.0, |s| s.value);
     let (width, height) = world

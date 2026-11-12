@@ -24,6 +24,16 @@ pub struct LastHurt {
     pub by_player: bool,
 }
 
+/// The last melee hit the mob dealt that hurt its target. Written by
+/// `mob::combat::melee`; read by anger (`broadcast_anger_on_attack`).
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct LastAttack {
+    /// Server tick (`TickCounter::current`) of the hit.
+    pub tick: u64,
+    pub target: Entity,
+}
+
 /// The mob has died and is playing its death animation (see
 /// `mob::combat::death`). Written by combat when health reaches zero; AI,
 /// movement, interaction and despawn systems skip mobs carrying it. The

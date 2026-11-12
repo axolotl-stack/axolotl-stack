@@ -463,3 +463,9 @@ pub const SHAREABLES_AMOUNT: i32 = -1;
 pub const SHAREABLES_FLAG: bool = false;
 /// Per-item `priority` 0 (the most wanted).
 pub const SHAREABLES_PRIORITY: i32 = 0;
+
+// minecraft:spell_effects
+
+/// ML `minecraftcomponent_spell_effects`: an added effect without an
+/// `amplifier` is level I (amplifier 0).
+pub const SPELL_EFFECTS_AMPLIFIER: i32 = 0;
