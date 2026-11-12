@@ -7,8 +7,11 @@
 //! - **Far off:** a reported position whose squared distance from BDS's copy
 //!   exceeds the threshold (0.5, so about 0.71 blocks) is corrected:
 //!   `CorrectPlayerMovePrediction` with BDS's state after that input. At most
-//!   one correction every [`COOLDOWN`] inputs; the copy is never moved
-//!   towards such a position.
+//!   one correction every [`COOLDOWN`] inputs; the copy is not pulled towards
+//!   such a position. Its horizontal position is still taken when x and z are
+//!   each within [`ACCEPT`] of the copy, however far off the height is: the
+//!   copy keeps its own height and velocity, and a correction carries the
+//!   taken x and z.
 //! - **Close:** when every axis is within [`ACCEPT`] of the copy (and the
 //!   distance is more than [`TINY`]), the copy takes the client's position,
 //!   keeping its own velocity. Not into a block, not right after such a take
@@ -164,16 +167,27 @@ impl Authority {
 
     /// Judge `claim` (the client's feet) against `copy`, BDS's body after
     /// simulating the input; `moved` is whether the copy moved horizontally
-    /// this input, `free` whether the client's box at `claim` is clear of
-    /// blocks. An accepted position is written to `copy`, keeping its
-    /// velocity.
-    pub fn judge(&mut self, copy: &mut Body, claim: [f32; 3], moved: bool, free: bool) -> Verdict {
+    /// this input, `free(feet)` whether a box standing at `feet` is clear of
+    /// blocks. A taken position is written to `copy`, keeping its velocity.
+    pub fn judge(
+        &mut self,
+        copy: &mut Body,
+        claim: [f32; 3],
+        moved: bool,
+        free: impl Fn([f32; 3]) -> bool,
+    ) -> Verdict {
         self.cooldown = self.cooldown.saturating_sub(1);
         let d = sub(claim, copy.feet);
         let distance_sq = length_sq(d);
         if distance_sq > self.threshold {
             self.count = 0;
             self.accepted = false;
+            // The horizontal position alone, at the copy's own height: the
+            // height is what is far off.
+            let beside = [claim[0], copy.feet[1], claim[2]];
+            if d[0].abs() < ACCEPT && d[2].abs() < ACCEPT && !self.distrust && free(beside) {
+                copy.feet = beside;
+            }
             if self.cooldown == 0 {
                 return self.correct();
             }
@@ -185,7 +199,7 @@ impl Authority {
             return Verdict::InSync;
         }
         let distance = distance_sq.sqrt();
-        let close = d.iter().all(|axis| axis.abs() < ACCEPT) && distance > TINY && free;
+        let close = d.iter().all(|axis| axis.abs() < ACCEPT) && distance > TINY && free(claim);
         let take = close && !self.distrust && !(self.accepted && moved);
         self.accepted = take;
         if take {

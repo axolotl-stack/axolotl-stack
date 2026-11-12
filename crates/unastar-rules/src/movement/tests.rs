@@ -350,7 +350,7 @@ fn judge_standing(claims: &[f32]) -> Vec<(f32, Verdict)> {
             let before = copy.feet;
             step(&mut copy, &Controls::default(), &terrain);
             let moved = (copy.feet[0] - before[0]).abs() + (copy.feet[2] - before[2]).abs() > 0.0;
-            let verdict = authority.judge(&mut copy, [0.5, 0.0, z], moved, true);
+            let verdict = authority.judge(&mut copy, [0.5, 0.0, z], moved, |_| true);
             (copy.feet[2], verdict)
         })
         .collect()
@@ -432,7 +432,7 @@ fn the_input_after_a_teleport_rests_and_is_judged_against_the_destination() {
     assert!((pull[2] + 0.005).abs() < 1e-7);
     copy.feet[2] += pull[2];
     assert_eq!(
-        authority.judge(&mut copy, [0.5, 0.0, 0.55], true, true),
+        authority.judge(&mut copy, [0.5, 0.0, 0.55], true, |_| true),
         Verdict::Pulled,
         "a teleported client's position is not taken"
     );
@@ -448,7 +448,7 @@ fn a_synced_input_clears_the_pull_and_the_count() {
     for _ in 0..10 {
         copy.feet = [0.0, 0.0, 0.5];
         assert_eq!(
-            authority.judge(&mut copy, [0.0, 0.0, 0.7], false, true),
+            authority.judge(&mut copy, [0.0, 0.0, 0.7], false, |_| true),
             Verdict::Pulled
         );
     }
@@ -456,8 +456,33 @@ fn a_synced_input_clears_the_pull_and_the_count() {
     assert_eq!(authority.take_pull(), [0.0; 3]);
     copy.feet = [0.0, 0.0, 0.5];
     assert_eq!(
-        authority.judge(&mut copy, [0.0, 0.0, 0.7], false, true),
+        authority.judge(&mut copy, [0.0, 0.0, 0.7], false, |_| true),
         Verdict::Pulled,
         "the count started again"
     );
+}
+
+/// Far off in height but within a tenth on x and z, the client's horizontal
+/// position is taken and the copy keeps its own height (split probe
+/// `x-0.05-up-3`); 0.11 off on x it is not (`x-0.11-up-3`), and neither is a
+/// horizontal position the copy would not fit in at its height.
+#[test]
+fn a_far_height_still_takes_a_close_horizontal_position() {
+    for (claim, fits, taken) in [
+        ([0.55, 3.0, 0.5], true, true),
+        ([0.58, 3.0, 0.58], true, true),
+        ([0.61, 3.0, 0.5], true, false),
+        ([0.55, 3.0, 0.5], false, false),
+    ] {
+        let mut authority = Authority::default();
+        let mut copy = Body::at([0.5, 0.0, 0.5]);
+        let verdict = authority.judge(&mut copy, claim, false, |_| fits);
+        assert_eq!(verdict, Verdict::Correct, "{claim:?}");
+        let expected = if taken {
+            [claim[0], 0.0, claim[2]]
+        } else {
+            [0.5, 0.0, 0.5]
+        };
+        assert_eq!(copy.feet, expected, "{claim:?}");
+    }
 }

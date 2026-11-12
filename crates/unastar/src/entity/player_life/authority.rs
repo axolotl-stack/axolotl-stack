@@ -828,8 +828,9 @@ impl PlayerMotion {
         let start = self.body.feet;
         let changes = sim::step(&mut self.body, &controls, terrain);
         let moved = self.body.feet[0] != start[0] || self.body.feet[2] != start[2];
-        let free = !authority::inside_blocks(terrain, claim, self.body.pose().height());
-        if driven && free && self.slowed(start, claim) {
+        let height = self.body.pose().height();
+        let free = |feet| !authority::inside_blocks(terrain, feet, height);
+        if driven && free(claim) && self.slowed(start, claim) {
             return self.trusted(input, claim, Trust::Slowed, situation.glide);
         }
         let verdict = self.authority.judge(&mut self.body, claim, moved, free);

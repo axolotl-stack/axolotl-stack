@@ -244,7 +244,9 @@ fn arena(shift: DVec3) -> Harness {
 /// followed and ignored (the input after one is simulated from the spawn
 /// point, so its correction carries that input's gravity); positions
 /// reported inside and outside the threshold, corrections followed and
-/// ignored; too fast, through a wall, hovering, a no-fall.
+/// ignored; too fast, through a wall, hovering, a no-fall; the horizontal
+/// position and the height off independently (a close horizontal position
+/// is taken however far off the height is).
 #[test]
 fn the_copy_moves_and_corrects_like_bds() {
     let shift = DVec3::new(4.0, 0.0, 4.0);
@@ -270,6 +272,12 @@ fn the_copy_moves_and_corrects_like_bds() {
         "tp_0_05",
         "tp_0_05_ignored",
         "tp_0_3_ignored",
+        "split_x_up_3",
+        "split_xz_up_3",
+        "split_x_0_11_up_3",
+        "split_x_down_3",
+        "split_x_0_3_up_3",
+        "split_walking_x_up_3",
     ] {
         let mut h = arena(shift);
         let replayed = replay(&mut h, phase, shift);
@@ -915,4 +923,37 @@ fn a_teleport_sized_jump_is_corrected() {
         [(at.x as f32, at.y as f32, at.z as f32)]
     );
     assert!(h.feet().distance(start) < 1.0e-4, "at {}", h.feet());
+}
+
+/// Inside the threshold BDS judges the height in a way this server does not
+/// model yet. Horizontally close, it takes a position 0.3 above and lets its
+/// copy fall back to the floor, again and again (never correcting a
+/// standing client, correcting a walking one every 16 inputs from 1022);
+/// and once the pulls bring x within reach, it takes x but never the
+/// height 0.05 above, correcting every 16 inputs. This server takes a
+/// height within a tenth with the rest of the position and pulls a farther
+/// one: it corrects the 0.3 hover every 16 inputs (earlier than BDS, or
+/// where BDS does not), and takes the 0.05 one.
+#[test]
+fn heights_off_inside_the_threshold_are_judged_unlike_bds() {
+    let shift = DVec3::new(4.0, 0.0, 4.0);
+    for (phase, first_apart, ours) in [
+        ("split_x_up_0_3", 309, &[319, 335, 351][..]),
+        (
+            "split_walking_x_up_0_3",
+            1008,
+            &[1018, 1034, 1050, 1066][..],
+        ),
+        ("split_x_0_3_up_0_05", 434, &[418][..]),
+    ] {
+        let mut h = arena(shift);
+        let replayed = replay(&mut h, phase, shift);
+        assert_eq!(
+            replayed.apart.first().map(|(tick, ..)| *tick),
+            Some(first_apart),
+            "{phase}"
+        );
+        let corrected: Vec<u64> = replayed.corrections.iter().map(|c| c.0).collect();
+        assert_eq!(corrected, ours, "{phase}");
+    }
 }
