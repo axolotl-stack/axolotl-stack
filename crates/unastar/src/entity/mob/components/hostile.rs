@@ -152,7 +152,7 @@ pub fn register_component_kinds(
         Ok::<_, HostileError>(HurtByTargetGoal {
             base: TargetGoalBase {
                 priority: b.priority,
-                entries: entries(&b.entity_types)?,
+                entries: retaliation_entries(&b.entity_types)?,
                 attack_owner: b.hurt_owner,
                 must_reach: false,
                 must_see: false,
@@ -287,6 +287,22 @@ fn compile_melee_box_attack(
         speed_multiplier: b.speed_multiplier,
         track_target: b.track_target,
     })
+}
+
+/// `behavior.hurt_by_target` entries. The published default is an empty
+/// list, which vanilla relies on to retaliate against any attacker (the
+/// wither skeleton and the zombie pigman author no `entity_types`): an empty
+/// list is one entry with the published descriptor defaults (no filter,
+/// within 16 blocks).
+fn retaliation_entries(types: &EntityTypes) -> Result<Arc<[TargetEntry]>, HostileError> {
+    match types {
+        EntityTypes::List(list) if list.is_empty() => {
+            let any: MobDescriptor = serde_json::from_value(serde_json::json!({}))
+                .expect("every descriptor field has a published default");
+            entries(&EntityTypes::MobDescriptor(any))
+        }
+        _ => entries(types),
+    }
 }
 
 fn entries(types: &EntityTypes) -> Result<Arc<[TargetEntry]>, HostileError> {

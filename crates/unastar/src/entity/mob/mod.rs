@@ -217,6 +217,9 @@ fn spawn_unattached(
         if let Some(kind) = archetype.native.aux_value {
             metadata.set_short(jolyne::valentine::actor_data_i_ds::AUX_VALUE_DATA, kind);
         }
+        if let Some(kind) = archetype.native.variant {
+            metadata.set_int(jolyne::valentine::actor_data_i_ds::VARIANT, kind);
+        }
         metadata
     };
     let launched_tick = world

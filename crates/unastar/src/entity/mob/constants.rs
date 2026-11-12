@@ -235,6 +235,15 @@ pub const DAYLIGHT_BURN_TICKS: u64 = 160;
 /// (the check is confirmed; the block is provisional: Java Edition, where
 /// powder snow keeps undead from burning).
 pub const DAYLIGHT_BURN_BLOCKER: &str = "minecraft:powder_snow";
+/// The damage causes an actor with the `FIRE_IMMUNE` flag
+/// (`minecraft:fire_immune`) does not take (measured: `/damage` with these
+/// fails on the fire-immune zombie pigman and wither skeleton and succeeds on
+/// the zombie and skeleton; every other cause, campfire and soul campfire
+/// included, hurts all four; `testdata/bds-1.26.51-fire-immune-causes.json`).
+pub const FIRE_IMMUNE_CAUSES: &[unastar_data::actor_components::body::ActorDamageCause] = {
+    use unastar_data::actor_components::body::ActorDamageCause as Cause;
+    &[Cause::Fire, Cause::FireTick, Cause::Lava, Cause::Magma]
+};
 
 // --- Entity pushing ---------------------------------------------------------------
 

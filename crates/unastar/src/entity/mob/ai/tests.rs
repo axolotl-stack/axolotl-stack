@@ -600,3 +600,35 @@ fn strolling_herd_never_stacks() {
     let worst = worst_overlap(terrain.world(), &cows);
     assert!(worst < 0.05, "the herd ended overlapping by {worst}");
 }
+
+/// `behavior.random_look_around`: an idle cow turns its head to random
+/// points within the goal's angle range of its body, without moving.
+#[test]
+fn idle_cow_looks_around_within_the_angle_range_without_moving() {
+    let mut terrain = Terrain::new(31, Terrain::grass());
+    let cow = terrain.cow(DVec3::new(8.5, SURFACE, 8.5));
+    terrain.without::<RandomStrollGoal>(cow);
+    let goal = terrain
+        .world()
+        .get::<RandomLookAroundGoal>(cow)
+        .cloned()
+        .expect("the vanilla cow looks around");
+    let (min, max) = goal.angle_range;
+    for _ in 0..5 {
+        terrain.tick();
+    }
+    let start = terrain.feet(cow);
+    let mut largest = 0.0f32;
+    for _ in 0..600 {
+        terrain.tick();
+        let rotation = *terrain.world().get::<Rotation>(cow).unwrap();
+        let off = (rotation.head_yaw - rotation.yaw + 540.0).rem_euclid(360.0) - 180.0;
+        assert!(
+            off >= min - 1e-3 && off <= max + 1e-3,
+            "head {off}° off the body, range {min}..{max}"
+        );
+        largest = largest.max(off.abs());
+    }
+    assert!(largest > 5.0, "the head never turned: {largest}°");
+    assert!(horizontal(terrain.feet(cow), start) < 1e-6);
+}

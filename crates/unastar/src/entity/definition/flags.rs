@@ -113,6 +113,9 @@ pub fn register_component_kinds(
     register_flag::<body::IsSaddled, { actor_flags::SADDLED }>(builder)?;
     register_flag::<body::UsesUniformAirDrag, { actor_flags::USES_UNIFORM_AIR_DRAG }>(builder)?;
     register_flag::<body::IsShaking, { actor_flags::SHAKING }>(builder)?;
+    // Fire never ignites the actor and fire causes do not hurt it; both
+    // read the flag (`mob::combat::{fire, hit}`).
+    register_flag::<body::FireImmune, { actor_flags::FIRE_IMMUNE }>(builder)?;
     // Only acts while riding (not implemented); viewers still see the flag.
     register_flag::<body::RotationLockedToVehicle, { actor_flags::ROTATION_LOCKED_TO_VEHICLE }>(
         builder,
