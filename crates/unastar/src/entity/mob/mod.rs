@@ -278,6 +278,10 @@ fn spawn_unattached(
         if let Some(kind) = archetype.native.variant {
             metadata.set_int(jolyne::valentine::actor_data_i_ds::VARIANT, kind);
         }
+        if archetype.native.slime.is_some() {
+            // The slime classes' summons carry it at 0 (nothing yet).
+            metadata.set_byte(jolyne::valentine::actor_data_i_ds::CLIENT_EVENT, 0);
+        }
         metadata
     };
     let launched_tick = world

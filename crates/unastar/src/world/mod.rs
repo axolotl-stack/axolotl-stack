@@ -1,5 +1,6 @@
 //! World module - chunk storage, generation, and ECS integration.
 
+pub mod bedrock_random;
 pub mod block_entity;
 pub mod chunk;
 pub mod clock;

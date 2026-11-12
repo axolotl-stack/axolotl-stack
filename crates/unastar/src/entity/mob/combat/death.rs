@@ -7,7 +7,8 @@
 //! animation, [`constants::DEATH_TICKS`] after the death tick (the native
 //! death counter is 1 on the death tick and the body goes once it passes
 //! 20); then the mob's `experience_reward.on_death` is spawned as
-//! experience orbs and the entity is removed (viewers get `RemoveActor`).
+//! experience orbs, a slime splits (`mob::life::split`) and the entity is
+//! removed (viewers get `RemoveActor`).
 
 use bevy_ecs::prelude::*;
 use jolyne::valentine::actor_flags;
@@ -185,6 +186,17 @@ impl MolangContext for RewardMolang<'_> {
             BuiltinQuery::IsOnGround => {
                 molang_bool(self.world.get::<OnGround>(self.mob).is_some_and(|g| g.0))
             }
+            BuiltinQuery::Variant => MolangValue::Num(
+                self.world
+                    .get::<crate::entity::definition::metadata::EntityMetadata>(self.mob)
+                    .and_then(|metadata| {
+                        crate::entity::mob::components::variant::appearance_id(
+                            metadata,
+                            jolyne::valentine::actor_data_i_ds::VARIANT,
+                        )
+                    })
+                    .unwrap_or(0) as f32,
+            ),
             BuiltinQuery::EquipmentCount => MolangValue::Num(
                 crate::entity::mob::gear::equipment_count(self.world, self.mob) as f32,
             ),
@@ -254,6 +266,9 @@ pub fn tick_dying(
         if let (Some(expr), Some(position)) = (reward, position) {
             let amount = experience_reward(world, mob, &expr);
             spawn_experience(world, position, amount);
+        }
+        if let Err(error) = crate::entity::mob::life::split::split(world, mob) {
+            warn!(%error, "A dying mob could not split");
         }
         world.despawn(mob);
     }

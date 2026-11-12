@@ -37,7 +37,7 @@ mod generator;
 mod geology;
 mod legacy_noise;
 pub mod molang_noise;
-pub mod rng;
+pub use crate::world::bedrock_random as rng;
 pub mod scatter;
 mod simplex;
 pub mod structures;

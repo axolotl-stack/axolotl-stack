@@ -19,7 +19,8 @@ use crate::entity::components::PhysicsBody;
 use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind, GoalSpec};
 use crate::entity::mob::components::{
     AvoidMobTypeGoal, BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FleeSunGoal,
-    FloatGoal, FollowParentGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal,
+    FloatGoal, FollowParentGoal, HopAttackGoal, HopFloatGoal, HopKeepJumpingGoal,
+    HopRandomDirectionGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal,
     MergeWithStoneGoal, NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal,
     RandomLookAroundGoal, RandomStrollGoal, RangedAttackGoal, SwellGoal, TemptGoal,
     WakeUpFriendsGoal, WalkNavigationConfig,
@@ -62,10 +63,14 @@ pub enum Goal {
     MergeWithStone,
     WakeUpFriends,
     Swell,
+    HopFloat,
+    HopAttack,
+    HopRandomDirection,
+    HopKeepJumping,
 }
 
 impl Goal {
-    const ALL: [Goal; 20] = [
+    const ALL: [Goal; 24] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -86,6 +91,10 @@ impl Goal {
         Goal::MergeWithStone,
         Goal::WakeUpFriends,
         Goal::Swell,
+        Goal::HopFloat,
+        Goal::HopAttack,
+        Goal::HopRandomDirection,
+        Goal::HopKeepJumping,
     ];
 
     pub fn id(self) -> GoalId {
@@ -116,6 +125,8 @@ impl Goal {
             Goal::RangedAttack => GoalControls::MOVE | GoalControls::LOOK,
             Goal::AvoidMobType | Goal::MergeWithStone | Goal::Swell => GoalControls::MOVE,
             Goal::WakeUpFriends => GoalControls::NONE,
+            Goal::HopFloat | Goal::HopKeepJumping => GoalControls::MOVE | GoalControls::JUMP,
+            Goal::HopAttack | Goal::HopRandomDirection => GoalControls::LOOK,
         }
     }
 }
@@ -263,6 +274,41 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls,
         });
     }
+    let hops = [
+        (
+            Goal::HopFloat,
+            entity
+                .get::<HopFloatGoal>()
+                .map(|g| (g.priority, g.controls)),
+        ),
+        (
+            Goal::HopAttack,
+            entity
+                .get::<HopAttackGoal>()
+                .map(|g| (g.priority, g.controls)),
+        ),
+        (
+            Goal::HopRandomDirection,
+            entity
+                .get::<HopRandomDirectionGoal>()
+                .map(|g| (g.priority, g.controls)),
+        ),
+        (
+            Goal::HopKeepJumping,
+            entity
+                .get::<HopKeepJumpingGoal>()
+                .map(|g| (g.priority, g.controls)),
+        ),
+    ];
+    out.extend(hops.into_iter().filter_map(|(goal, authored)| {
+        let (priority, controls) = authored?;
+        Some(GoalSpec {
+            id: goal.id(),
+            kind: GoalKind::Normal,
+            priority,
+            controls,
+        })
+    }));
 }
 
 /// World writes the goals request; applied after the mob's tick.
@@ -334,6 +380,7 @@ pub struct GoalStates {
     pub(super) avoid: super::avoid::AvoidState,
     pub(super) pickup: super::pickup::PickupState,
     pub(super) silverfish: super::silverfish::SilverfishState,
+    pub(super) hop: super::hop::HopState,
 }
 
 /// Everything a goal reads and writes during one mob's tick.
@@ -720,6 +767,10 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MergeWithStone => self.merge_can_start(),
             Goal::WakeUpFriends => self.wake_can_start(),
             Goal::Swell => self.config::<SwellGoal>().is_some() && self.lit(),
+            Goal::HopFloat => self.hop_float_can_start(),
+            Goal::HopAttack => self.hop_attack_can_start(),
+            Goal::HopRandomDirection => self.hop_direction_can_start(),
+            Goal::HopKeepJumping => self.config::<HopKeepJumpingGoal>().is_some(),
         }
     }
 
@@ -731,6 +782,10 @@ impl GoalCallbacks for GoalContext<'_> {
             }
             Goal::WakeUpFriends => self.config::<WakeUpFriendsGoal>().is_some(),
             Goal::Swell => self.lit(),
+            Goal::HopFloat => self.hop_float_can_start(),
+            Goal::HopAttack => self.hop_attack_can_continue(),
+            Goal::HopRandomDirection => self.hop_direction_can_start(),
+            Goal::HopKeepJumping => self.config::<HopKeepJumpingGoal>().is_some(),
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return false;
@@ -862,6 +917,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::AvoidMobType => self.avoid_start(),
             Goal::MergeWithStone => self.merge_start(),
             Goal::WakeUpFriends => self.wake_start(),
+            Goal::HopAttack => self.hop_attack_start(),
+            Goal::HopFloat | Goal::HopRandomDirection | Goal::HopKeepJumping => {}
             Goal::Swell => {
                 self.nav.stop(self.movement);
                 self.effects.swell_started = true;
@@ -875,7 +932,12 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::Panic | Goal::RandomStroll | Goal::FleeSun | Goal::MergeWithStone => {
                 self.nav.stop(self.movement)
             }
-            Goal::WakeUpFriends | Goal::Swell => {}
+            Goal::WakeUpFriends
+            | Goal::Swell
+            | Goal::HopFloat
+            | Goal::HopAttack
+            | Goal::HopRandomDirection
+            | Goal::HopKeepJumping => {}
             Goal::FollowParent => {
                 self.nav.stop(self.movement);
                 self.states.parent = None;
@@ -932,6 +994,10 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::RandomStroll | Goal::FleeSun | Goal::MergeWithStone => {}
             Goal::WakeUpFriends => self.wake_tick(),
             Goal::Swell => self.nav.stop(self.movement),
+            Goal::HopFloat => self.hop_float_tick(),
+            Goal::HopAttack => self.hop_attack_tick(),
+            Goal::HopRandomDirection => self.hop_direction_tick(),
+            Goal::HopKeepJumping => self.hop_keep_jumping_tick(),
             Goal::EatBlock => {
                 self.states.eat_ticks = self.states.eat_ticks.max(1) - 1;
                 if self.states.eat_ticks == 0 {

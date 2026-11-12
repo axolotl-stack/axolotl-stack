@@ -481,3 +481,19 @@ pub const SHOOTER_AUX_VAL: i32 = -1;
 pub const TARGET_NEARBY_INSIDE_RANGE: f32 = 1.0;
 /// `outside_range` 5 blocks.
 pub const TARGET_NEARBY_OUTSIDE_RANGE: f32 = 5.0;
+
+// minecraft:movement.jump (Mojang form `minecraft_movement_jump.form.json`)
+
+/// `max_turn` 30 degrees per tick.
+pub const MOVEMENT_JUMP_MAX_TURN: f32 = 30.0;
+
+// minecraft:area_attack (Mojang form `minecraft_area_attack.form.json`)
+
+/// `damage_per_tick` 2.
+pub const AREA_ATTACK_DAMAGE_PER_TICK: f32 = 2.0;
+/// `damage_range` 0.2 blocks.
+pub const AREA_ATTACK_DAMAGE_RANGE: f32 = 0.2;
+/// `damage_cooldown` 0 seconds.
+pub const AREA_ATTACK_DAMAGE_COOLDOWN: f32 = 0.0;
+/// `play_attack_sound` true.
+pub const AREA_ATTACK_PLAY_ATTACK_SOUND: bool = true;

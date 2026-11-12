@@ -38,6 +38,7 @@ fields that have no published schema). Status per group:
 | Look idle head turn | | Provisional: Java Edition |
 | Entity pushing | every mob and player each tick pushes the pushable actors touching its box grown 0.2 on x/z, and is pushed back when itself pushable (two pushes per mob pair per tick); each push is 0.05 × (dx, dz) / √m × min(1, 1/√m) with m = max(\|dx\|, \|dz\|) between positions, none when m < 0.1 | Confirmed (26.30 + 1.26.50.26) |
 | Combat | hurt timer 10 ticks with excess-only damage, knockback retain 0.5 + 0.4 horizontal + 0.4×1.2 vertical capped 0.4 along the attacker-to-mob position difference, push and lift × (1 − knockback resistance), zombie resistance U(0, 0.05) at spawn, saved as a `RandomSpawnBonus` modifier of `minecraft:knockback_resistance` and restored on load, death animation 20 ticks, loot at death, XP at removal, orb sizes 2477…1 | Confirmed (26.30); knockback re-measured on 1.26.51 (29 hits, knockback sweep); the saved resistance measured across a BDS restart (`mob/persistence/testdata/bds-1.26.51-zombie-reload.json`) |
+| Slimes and magma cubes | hop delay = `jump_delay` seconds × 20, drawn per hop, cut to whole ticks (calm slime 10–29, magma cube 40–119 ground ticks); turn only on the ground, `max_turn` 30°/tick; random direction every 40 + 0..60 running ticks, `0..360`°; magma cube jump 0.42 + 0.1 × size; `CLIENT_EVENT` 2 leaving the ground, 1 landing; split 2–4 children at the body's block centre + 0.5 up, `born` at 0.85 × the base 2.08 box; slime chunks: MT19937 seeded `cx × 0x1f1f1f1f ^ cz`, first output a multiple of 10; slime-chunk feet below y 40 | Measured on 1.26.51 (`sweep.py slime`, `slime-spawn`; `mob/ai/testdata/bds-1.26.51-slime.json`), except the y 40 bound: provisional (the sweep floor is far below it) |
 | Melee reach 6, last-hit-by-player window 100 ticks, XP orb lifetime/gravity/drag/follow | | Provisional: Java Edition / public client reach |
 | Breeding/ageing | love 600 ticks, `breed_cooldown` and `ageable.duration` in seconds ×20; every breed/ageable item use sends `ActorEvent` Feed (network id << 16 \| aux) to viewers; a feed item on a baby that is not paused then sends `ActorEvent` BabyAge (data 0); love hearts come from the in-love flag, no actor event | Confirmed (26.30) |
 | Feed growth 0.1, legacy bucket aux mapping, /summon whole-number centring | | Provisional: Microsoft Learn / Minecraft Wiki |
@@ -105,4 +106,5 @@ nothing but its target, the mooshroom's, runs). Removed when leads, riding, vibr
 lightning land. The endermite adds `block_climber` (scaffolding climbing is
 not implemented) and `can_stand_on_powder_snow` (powder snow has no sinking
 or freezing behaviour on the server); the skeleton and stray add
-`freezing_immune` (nothing freezes on the server).
+`freezing_immune` (nothing freezes on the server), and the magma cube
+`freezing_vulnerable` (for the same reason).

@@ -878,3 +878,40 @@ pub const SILVERFISH_WAKE_RANGE_Y: i32 = 5;
 /// moved this far along x (BDS 1.26.51: every released silverfish's
 /// `AddActor`).
 pub const SILVERFISH_RELEASE_OFFSET_X: f64 = -0.2;
+
+// --- Slimes and magma cubes (`mob::ai::hop`, `mob::life::split`) ------------------
+
+/// A dying slime or magma cube bigger than the smallest size leaves this
+/// many children at least and at most (BDS 1.26.51, `sweep.py slime
+/// --items split`: 18, 26 and 16 of 60 splits left 2, 3 and 4 children, and
+/// none any other number).
+pub const SPLIT_MIN_CHILDREN: u32 = 2;
+pub const SPLIT_MAX_CHILDREN: u32 = 4;
+/// Split children stand this far above the floor of the block the body
+/// ended in, at its centre on x and z (BDS 1.26.51: every child `AddActor`
+/// of the split sweeps).
+pub const SPLIT_CHILD_RISE: f64 = 0.5;
+/// A chunk's slime-chunk generator is seeded with
+/// `chunk_x × SLIME_CHUNK_SEED_MULTIPLIER ^ chunk_z`, and the chunk is a
+/// slime chunk when its first output is a multiple of
+/// [`SLIME_CHUNK_CHANCE`] (`entity::spawning::slime_chunk`; every slime of
+/// the BDS 1.26.51 `sweep.py slime-spawn` runs stood in such a chunk).
+pub const SLIME_CHUNK_SEED_MULTIPLIER: u32 = 0x1f1f_1f1f;
+pub const SLIME_CHUNK_CHANCE: u32 = 10;
+/// The slime's native spawn check passes in a slime chunk only for feet
+/// below this height (provisional: the superflat floor the spawn sweep
+/// measured is far below it; the bound itself is not measured).
+pub const SLIME_CHUNK_MAX_FEET_Y: i32 = 40;
+/// A magma cube's jump impulse grows by this per size step (`VARIANT`) above
+/// the authored `jump.static` power (BDS 1.26.51, `sweep.py slime --items
+/// hop`: first-tick rises 0.52, 0.62 and 0.82 for sizes 1, 2 and 4).
+pub const MAGMA_CUBE_JUMP_PER_SIZE: f64 = 0.1;
+/// `CLIENT_EVENT` values a slime class sends: on the tick it leaves the
+/// ground, and on the tick it lands (BDS 1.26.51: every hop of the hop
+/// sweeps; 0 in the summon).
+pub const SLIME_CLIENT_EVENT_LEFT_GROUND: i8 = 2;
+pub const SLIME_CLIENT_EVENT_LANDED: i8 = 1;
+/// The magma cube class starts with this `FALL_DAMAGE_MULTIPLIER` (BDS
+/// 1.26.51: the native magma cube summon; its definition's fall damage
+/// sensor deals none either way).
+pub const MAGMA_CUBE_FALL_DAMAGE_MULTIPLIER: f32 = 0.0;

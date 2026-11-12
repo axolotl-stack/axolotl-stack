@@ -531,6 +531,17 @@ The creeper's fuse (`sweep.py creeper`, distilled by
 creeper spawns once `minecraft:explode` (blocks round 4) and
 `behavior.melee_attack` exist.
 
+The slime and the magma cube (`sweep.py slime --client-capture`: calm hops of
+each size, attacks on a survival player, splits and floats, and
+`sweep.py slime-spawn`, distilled by `tools/bds-sweep/slime_fixture.py` into
+`src/entity/mob/ai/testdata/bds-1.26.51-slime.json`) are replayed by
+`src/entity/mob/tests/slime.rs`: their summons, a hop tick by tick (the magma
+cube jumping 0.42 + 0.1 × its size), the hop delays and random turns by
+distribution over seeded runs, contact damage (`minecraft:area_attack`),
+splitting into 2 to 4 children at the body's block centre, and slime chunks
+(every slime BDS spawned stood in one). They move through the hop control
+`mob::ai::hop` instead of the path follower (decision 0062).
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the

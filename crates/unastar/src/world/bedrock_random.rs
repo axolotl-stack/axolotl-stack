@@ -2,7 +2,9 @@
 //!
 //! Bedrock Edition's `Random` is MT19937 seeded with a 32-bit seed; bounded
 //! integers are `next_u32() % bound` and floats scale the 32-bit output by
-//! 2^-32. This is the generator decoration and built-in features draw from.
+//! 2^-32. This is the generator decoration and built-in features draw from
+//! (re-exported as `world::generator::bedrock::rng`), and the one the slime
+//! chunks are drawn with (`entity::spawning::slime_chunk`).
 //! Byte-exact decoration also needs BDS's per-chunk seeding and each
 //! feature's draw order (research W14); until then only the generator itself
 //! is pinned (reference vector from the MT19937 reference implementation).
