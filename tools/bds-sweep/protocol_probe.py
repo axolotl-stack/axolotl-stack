@@ -30,7 +30,8 @@ Probes:
   serverbound packets BDS may ignore). After it leaves, `BDSExtractor3` and
   `BDSExtractor4` join one after the other and settle.
 - `cache`: one session that claims a chunk blob cache (`--blob-cache`) and
-  answers nothing, to see what BDS does with it.
+  answers nothing, to see what BDS does with it; `cache-miss` reports every
+  blob its `LevelChunk`s named missing, to see the blobs BDS sends.
 - `abilities`: what every player receives when the console changes a
   player's permission in each game mode (`ABILITY_CONSOLE`), and the join
   abilities of players whose default game mode is creative, adventure or
@@ -47,7 +48,9 @@ Probes:
   selects and opens (uses) a writable book, edits and signs it (`BOOK`); the
   same in creative; the same without opening it (`unopened`); how long an
   opened book stays open (`BOOK_GATE`); then one that tries the page, text
-  and title limits (`BOOK_LIMITS`); `/replaceitem` on another
+  and title limits (`BOOK_LIMITS`); one that holds, opens, signs and holds again
+  a book (`BOOK_HELD`); `CASE_PREFIX` runs only the sessions whose name
+  starts with it; `/replaceitem` on another
   slot after each step shows what BDS sends back.
 - `pick`: one creative session with input: actor picks of many actor kinds
   with and without data, picks with a full hotbar and with the egg already
@@ -59,6 +62,15 @@ Probes:
   (comma-separated) to summon one block away and pick at once.
 - `pick-reach`: creative picks of a cow summoned 1 to 24 blocks away
   (`pick_reach_script`).
+- `pick-data`: creative block picks with data of blocks with a block
+  entity (a chest with items, an empty chest, a furnace, a barrel, a sign,
+  a flower pot), then survival picks of a cow with its egg already in the
+  hotbar or the main inventory (`pick_data_script`).
+- `size`: where BDS refuses a serverbound packet as too large: one
+  session per `size_scripts` entry, each sending ever longer packets of
+  one kind (commands with a short and a long request id, commands of
+  two-byte characters, chat, book pages) until BDS ends the connection.
+  `CASE_PREFIX` runs only the sessions whose name starts with it.
 """
 
 from __future__ import annotations
@@ -364,6 +376,40 @@ BOOK_GATE = QUIET + """/replaceitem entity @s slot.hotbar 0 writable_book
 !wait 1000
 """
 
+# What BDS sends the player as it holds, opens, signs and holds again a
+# book: selections by `MobEquipment` and by the server (`/replaceitem` into
+# the held slot).
+BOOK_HELD = QUIET + """/replaceitem entity @s slot.hotbar 1 stone
+!wait 500
+!equip 1
+/replaceitem entity @s slot.hotbar 0 writable_book
+!wait 500
+!equip 0
+!wait 500
+!equip 1
+!wait 500
+!equip 0
+!wait 500
+!use-item 0
+!wait 500
+!use-item 0
+!wait 500
+!book 0 replace 0 held
+!wait 500
+!book 0 sign HeldTitle HeldAuthor
+!wait 500
+!equip 1
+!wait 500
+!equip 0
+!wait 500
+!use-item 0
+!wait 500
+/replaceitem entity @s slot.hotbar 0 stone
+!wait 500
+/replaceitem entity @s slot.hotbar 0 writable_book
+!wait 1000
+"""
+
 # Actors picked in `pick`: spawn-egg mobs, mobs and objects without an egg,
 # vehicles and other objects with an item.
 PICK_ACTORS = ['cow', 'zombie', 'villager', 'sheep', 'armor_stand', 'minecart', 'chest_minecart',
@@ -401,6 +447,38 @@ def pick_script() -> str:
     return '\n'.join(lines) + '\n'
 
 
+# Blocks with a block entity picked with data in `pick-data`: (dx, dz,
+# setblock block, commands filling it).
+PICK_DATA_BLOCKS = [
+    (2, 0, 'chest', ['/replaceitem block ~2 ~ ~ slot.container 0 diamond 5',
+                     '/replaceitem block ~2 ~ ~ slot.container 26 oak_log 64']),
+    (-2, 0, 'chest', []),
+    (0, 2, 'furnace', ['/replaceitem block ~ ~ ~2 slot.container 0 iron_ore 3']),
+    (0, -2, 'barrel', ['/replaceitem block ~ ~ ~-2 slot.container 4 apple 2']),
+    (2, 2, 'standing_sign', []),
+    (-2, -2, 'flower_pot', []),
+]
+
+
+def pick_data_script() -> str:
+    """The `pick-data` script: creative block picks with data of blocks
+    with a block entity, full and empty; then survival actor picks of a cow
+    with its egg already in the hotbar and in the main inventory, and a
+    survival block pick with data of the full chest with a chest held."""
+    lines = [QUIET.rstrip('\n'), '/gamemode creative @s', '/clear @s', '!wait 1000']
+    lines += [f'/setblock ~{dx} ~ ~{dz} {block}' for dx, dz, block, _ in PICK_DATA_BLOCKS]
+    lines += [command for *_, fill in PICK_DATA_BLOCKS for command in fill]
+    lines += ['!wait 500']
+    for dx, dz, *_ in PICK_DATA_BLOCKS:
+        lines += [f'!pick-block ~{dx} ~ ~{dz} 9 data', f'!pick-block ~{dx} ~ ~{dz} 9 data', '/clear @s']
+    lines += ['/gamemode survival @s', '/summon cow ~ ~ ~2', '!wait 300',
+              '/replaceitem entity @s slot.hotbar 4 cow_spawn_egg', '!pick-actor actor', '!pick-actor actor 9 data',
+              '/clear @s', '/replaceitem entity @s slot.inventory 3 cow_spawn_egg', '!pick-actor actor', '/clear @s',
+              '/replaceitem entity @s slot.hotbar 2 chest', '!pick-block ~2 ~ ~ 9 data', '!pick-block ~2 ~ ~',
+              '!wait 1000']
+    return '\n'.join(lines) + '\n'
+
+
 def summonable_actors() -> list[str]:
     """Every actor BDS 1.26.51 lets `/summon` create, in capture order
     (`crates/unastar-data/output/actor_identifiers.json`)."""
@@ -430,6 +508,61 @@ def pick_reach_script() -> str:
     return '\n'.join(lines) + '\n'
 
 
+def say(length: int, fill: str = 'a') -> str:
+    """A `/say` command of exactly `length` UTF-8 bytes (with its `/`);
+    `fill` is one character of one or two bytes."""
+    count, rest = divmod(length - len('/say '), len(fill.encode()))
+    return '/say ' + fill * count + 'b' * rest
+
+
+def growing(lines: list[str], gap_ms: int = 300) -> str:
+    """A script sending `lines` one after the other, `gap_ms` apart."""
+    return '\n'.join(['!wait 1000', *(step for line in lines for step in (line, f'!wait {gap_ms}'))]) + '\n'
+
+
+def book_pages(texts: list[str]) -> str:
+    """A script opening a book and writing `texts` to pages 0, 1, ...;
+    `/replaceitem` on another slot after each shows what BDS answered."""
+    pages = ''.join(f'!book 0 replace {page} {text}\n'
+                    f'/replaceitem entity @s slot.hotbar 8 {"stone" if page % 2 else "dirt"}\n!wait 300\n'
+                    for page, text in enumerate(texts))
+    return (QUIET + '/replaceitem entity @s slot.hotbar 0 writable_book\n!wait 1000\n!equip 0\n!use-item 0\n'
+            + pages + '!wait 1000\n')
+
+
+def size_scripts() -> dict[str, str]:
+    """The `size` sessions: each sends packets of one kind, longer and
+    longer, so the first one BDS refuses ends it."""
+    lengths = range(480, 541)
+    return {
+        # Whole CommandRequest packets of 523 to 583 bytes.
+        'command': growing([say(length) for length in lengths]),
+        'two-byte': growing([say(length, 'é') for length in lengths]),
+        # A short command with a request id of 1 to 80 bytes, then longer.
+        'request-id': growing([f'!command-request {"r" * length} say hi'
+                               for length in [*range(1, 81), 100, 200, 400]]),
+        # The longest accepted request id with longer and longer commands,
+        # and request ids of two-byte characters.
+        'request-id-command': growing([f'!command-request {"r" * 39} {say(length)[1:]}'
+                                       for length in range(8, 489, 8)]),
+        'request-id-two-byte': growing([f'!command-request {"é" * length} say hi' for length in range(15, 46)]),
+        'chat': growing([f'!chat {"c" * length}' for length in
+                         [100, 256, 257, 300, 500, 512, 540, 550, 560, 600, 1000, 4000, 20000, 100000]], 500),
+        'chat-limit': growing([f'!chat {"c" * length}' for length in [65535, 65536, 65537]], 500),
+        'chat-two-byte': growing([f'!chat {"é" * length}' for length in [32768, 32769, 65536]], 500),
+        'book': book_pages(['p' * length for length in [258, 300, 520, 540, 560, 600, 1000, 4000, 20000, 100000]]),
+        'book-limit': book_pages(['p' * length for length in range(765, 772)]),
+        'book-two-byte': book_pages(['é' * length for length in [383, 384, 385, 767, 768, 769]]),
+        # Four-byte characters (two UTF-16 units each).
+        'book-four-byte': book_pages(['\U0001F600' * length for length in [384, 385, 768, 769]]),
+        # Signing with a longer and longer title, then author (no book open).
+        'book-title': growing([f'!book 0 sign {"t" * length} Author'
+                               for length in [100, 256, 512, 768, 769, 1000, 4000, 20000]]),
+        'book-author': growing([f'!book 0 sign Title {"a" * length}'
+                                for length in [100, 256, 512, 768, 769, 1000, 4000, 20000]]),
+    }
+
+
 def single(out: Path, extractor: Path, scripts: dict[str, str], timeout: int = 600) -> int:
     """One operator session per script, one after the other, each with a
     PlayerAuthInput stream and `timeout` seconds."""
@@ -444,6 +577,13 @@ def single(out: Path, extractor: Path, scripts: dict[str, str], timeout: int = 6
 CACHE = """\
 !wait 5000
 !blob-status missing=1 found=2
+!wait 5000
+"""
+
+# `cache-miss`: every blob the cached LevelChunks named, reported missing.
+CACHE_MISS = """\
+!wait 5000
+!blob-status missing=seen
 !wait 5000
 """
 
@@ -668,7 +808,8 @@ def skins(out: Path, extractor: Path, only: str = '') -> int:
 
 def main() -> int:
     if len(sys.argv) not in (3, 4) or sys.argv[1] not in ('relay', 'cache', 'skins', 'abilities', 'ddui',
-                                                           'book', 'pick', 'pick-actors', 'pick-reach'):
+                                                           'book', 'pick', 'pick-actors', 'pick-reach',
+                                                           'size', 'pick-data', 'cache-miss'):
         print(__doc__)
         return 2
     probe, out = sys.argv[1], Path(sys.argv[2]).resolve()
@@ -685,9 +826,22 @@ def main() -> int:
         elif probe == 'abilities':
             code = abilities(out, extractor)
         elif probe == 'book':
-            code = single(out, extractor, {'book': BOOK, 'creative': '/gamemode creative @s\n' + BOOK,
-                                           'unopened': BOOK.replace('!use-item 0\n', ''), 'gate': BOOK_GATE,
-                                           'limits': BOOK_LIMITS})
+            books = {'book': BOOK, 'creative': '/gamemode creative @s\n' + BOOK,
+                     'unopened': BOOK.replace('!use-item 0\n', ''), 'gate': BOOK_GATE,
+                     'limits': BOOK_LIMITS, 'held': BOOK_HELD}
+            prefix = sys.argv[3] if len(sys.argv) == 4 else ''
+            code = single(out, extractor, {name: script for name, script in books.items()
+                                           if name.startswith(prefix)})
+        elif probe == 'size':
+            prefix = sys.argv[3] if len(sys.argv) == 4 else ''
+            # Every session ends with a refused packet, so each runs whatever
+            # the previous one's exit code.
+            for name, script in size_scripts().items():
+                if name.startswith(prefix):
+                    single(out, extractor, {name: script}, timeout=180)
+            code = 0
+        elif probe == 'pick-data':
+            code = single(out, extractor, {'pick-data': pick_data_script()})
         elif probe == 'pick':
             code = single(out, extractor, {'pick': pick_script()})
         elif probe == 'pick-reach':
@@ -704,8 +858,9 @@ def main() -> int:
         elif probe == 'skins':
             code = skins(out, extractor, sys.argv[3] if len(sys.argv) == 4 else '')
         else:
+            script = CACHE_MISS if probe == 'cache-miss' else CACHE
             code = capture.session(out / 'host', extractor, 'operator', False, 600,
-                                   commands=write(out / 'commands.txt', CACHE),
+                                   commands=write(out / 'commands.txt', script),
                                    client_data=write_json(out / 'client-data.json', client_data('classic')),
                                    blob_cache=True)
     except subprocess.TimeoutExpired:

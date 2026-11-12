@@ -21,12 +21,14 @@
 //! | `!book SLOT replace\|add PAGE TEXT...` | `BookEdit` replacing or adding a page |
 //! | `!book SLOT delete PAGE` / `!book SLOT swap A B` | `BookEdit` deleting or swapping pages |
 //! | `!book SLOT sign TITLE AUTHOR` | `BookEdit` signing the book (empty XUID) |
-//! | `!blob-status [missing=ID,..] [found=ID,..]` | `ClientCacheBlobStatus` |
+//! | `!blob-status [missing=ID,..] [found=ID,..]` | `ClientCacheBlobStatus`; `missing=seen` lists every blob id the session's `LevelChunk`s named |
 //! | `!party-changed [PARTY_ID LEADER]` | `PartyChanged`, without party info when no id is given |
 //! | `!packs-ready` | `ResourcePacksReadyForValidation` |
 //! | `!ddui-closed FORM_ID REASON` | `ServerboundDataDrivenScreenClosed` |
 //! | `!data-store NAME PROPERTY PATH VALUE` | `ServerboundDataStore`; `VALUE` is `true`, `false`, a number or a string |
 //! | `!cookie COOKIE true\|false` | `PartyDestinationCookieResponse` |
+//! | `!chat TEXT...` | `Text` chat from the player (its name, empty XUID) |
+//! | `!command-request REQUEST_ID COMMAND...` | `CommandRequest` for `/COMMAND` with a chosen request id |
 //!
 //! `TARGET` is `self`, `peer` (the last other player an `AddPlayer`
 //! announced), `actor` (the last actor an `AddActor` announced) or a runtime
@@ -37,19 +39,21 @@ use jolyne::valentine::types::{
     ActorRuntimeId, BedrockDduiDataStoreUpdate, BedrockDduiDataStoreUpdateData, BlockPos,
     BookEditActionAddPage, BookEditActionDeletePage, BookEditActionFinalize,
     BookEditActionReplacePage, BookEditActionSwapPages, BookEditPacketOperation,
-    CerealizerNetworkItemStackDescriptorSerializedData, EnumsAnimatePacketPayloadAction,
-    EnumsHandSlot, EnumsInteractPacketPayloadAction, EnumsItemUseInventoryTransactionActionType,
-    EnumsItemUseInventoryTransactionPredictedResult, EnumsItemUseInventoryTransactionTriggerType,
-    EnumsRewindType, InventoryTransactionPacketTransaction, ItemUseInventoryTransaction,
-    PlayerPartyInfo, Vec3,
+    CerealizerNetworkItemStackDescriptorSerializedData, CommandOriginDatajson,
+    EnumsAnimatePacketPayloadAction, EnumsHandSlot, EnumsInteractPacketPayloadAction,
+    EnumsItemUseInventoryTransactionActionType, EnumsItemUseInventoryTransactionPredictedResult,
+    EnumsItemUseInventoryTransactionTriggerType, EnumsRewindType,
+    InventoryTransactionPacketTransaction, ItemUseInventoryTransaction, PlayerPartyInfo,
+    TextPacketBody, TextPacketPayloadAuthorAndMessage,
+    TextPacketPayloadAuthorAndMessageMessageType, Vec3,
 };
 use jolyne::valentine::{
     ActorPickRequestPacket, AnimatePacket, BlockPickRequestPacket, BookEditPacket,
-    ClientCacheBlobStatusPacket, EmoteListPacket, EmotePacket, InteractPacket,
-    InventoryTransactionPacket, McpePacket, McpePacketData, McpePacketName, MobEquipmentPacket,
-    PartyChangedPacket, PartyDestinationCookieResponsePacket,
+    ClientCacheBlobStatusPacket, CommandRequestPacket, EmoteListPacket, EmotePacket,
+    InteractPacket, InventoryTransactionPacket, McpePacket, McpePacketData, McpePacketName,
+    MobEquipmentPacket, PartyChangedPacket, PartyDestinationCookieResponsePacket,
     ResourcePacksReadyForValidationPacket, ServerboundDataDrivenScreenClosedPacket,
-    ServerboundDataStorePacket,
+    ServerboundDataStorePacket, TextPacket,
 };
 
 /// One line of a command script.
@@ -125,6 +129,8 @@ pub enum ActionKind {
     BlobStatus {
         missing: Vec<u64>,
         found: Vec<u64>,
+        /// `missing=seen`: every blob id seen so far is missing.
+        missing_seen: bool,
     },
     PartyChanged(Option<PlayerPartyInfo>),
     PacksReady,
@@ -136,6 +142,11 @@ pub enum ActionKind {
     Cookie {
         cookie: String,
         accepted: bool,
+    },
+    Chat(String),
+    CommandRequest {
+        request_id: String,
+        command: String,
     },
 }
 
@@ -178,6 +189,10 @@ pub struct Actors {
     pub inventory: Vec<CerealizerNetworkItemStackDescriptorSerializedData>,
     /// The player's position (eye height) as the server last set it.
     pub position: Vec3,
+    /// The player's name, for chat.
+    pub name: String,
+    /// Every blob id the session's cached `LevelChunk`s named, in order.
+    pub blobs: Vec<u64>,
 }
 
 impl Actors {
@@ -232,6 +247,10 @@ impl Actors {
                 if moved.player_runtime_id.actor_runtime_id == self.me.0 =>
             {
                 self.position = moved.position.clone();
+            }
+            McpePacketData::LevelChunkPacket(chunk) => {
+                self.blobs
+                    .extend(chunk.cache_metadata.iter().map(|blob| blob.blob_id));
             }
             McpePacketData::CorrectPlayerMovePredictionPacket(corrected)
                 if corrected.prediction_type == EnumsRewindType::Player =>
@@ -414,15 +433,20 @@ fn parse_action(verb: &str, args: &[&str]) -> Result<ActionKind> {
             ActionKind::Book { slot, operation }
         }
         "blob-status" => {
-            let (mut missing, mut found) = (Vec::new(), Vec::new());
+            let (mut missing, mut found, mut missing_seen) = (Vec::new(), Vec::new(), false);
             for arg in args {
                 match arg.split_once('=') {
+                    Some(("missing", "seen")) => missing_seen = true,
                     Some(("missing", list)) => missing = ids(list)?,
                     Some(("found", list)) => found = ids(list)?,
                     _ => bail!("expected missing=ID,.. or found=ID,.."),
                 }
             }
-            ActionKind::BlobStatus { missing, found }
+            ActionKind::BlobStatus {
+                missing,
+                found,
+                missing_seen,
+            }
         }
         "party-changed" => ActionKind::PartyChanged(match args {
             [] => None,
@@ -459,6 +483,16 @@ fn parse_action(verb: &str, args: &[&str]) -> Result<ActionKind> {
         "cookie" => ActionKind::Cookie {
             cookie: arg(args, 0, "cookie")?.to_owned(),
             accepted: number(arg(args, 1, "accepted flag")?, "accepted flag")?,
+        },
+        "chat" => ActionKind::Chat(args.join(" ")),
+        "command-request" => ActionKind::CommandRequest {
+            request_id: arg(args, 0, "request id")?.to_owned(),
+            command: format!(
+                "/{}",
+                args.get(1..)
+                    .map(|words| words.join(" "))
+                    .unwrap_or_default()
+            ),
         },
         other => bail!("unknown action `{other}`"),
     })
@@ -573,9 +607,17 @@ impl ActionKind {
                 }
                 .into(),
             ],
-            ActionKind::BlobStatus { missing, found } => vec![
+            ActionKind::BlobStatus {
+                missing,
+                found,
+                missing_seen,
+            } => vec![
                 ClientCacheBlobStatusPacket {
-                    missing_ids: missing.clone(),
+                    missing_ids: if *missing_seen {
+                        actors.blobs.clone()
+                    } else {
+                        missing.clone()
+                    },
                     found_ids: found.clone(),
                 }
                 .into(),
@@ -604,6 +646,36 @@ impl ActionKind {
                 PartyDestinationCookieResponsePacket {
                     cookie: cookie.as_str().into(),
                     accepted: *accepted,
+                }
+                .into(),
+            ],
+            ActionKind::Chat(message) => vec![
+                TextPacket {
+                    localize: false,
+                    body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
+                        message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
+                        player_name: actors.name.as_str().into(),
+                        message: message.as_str().into(),
+                    }),
+                    senders_xuid: "".into(),
+                    platform_id: "".into(),
+                    filtered_message: None,
+                }
+                .into(),
+            ],
+            ActionKind::CommandRequest {
+                request_id,
+                command,
+            } => vec![
+                CommandRequestPacket {
+                    command: command.as_str().into(),
+                    origin: CommandOriginDatajson {
+                        type_: "player".into(),
+                        request_id: request_id.as_str().into(),
+                        ..Default::default()
+                    },
+                    is_internal: false,
+                    version: "latest".into(),
                 }
                 .into(),
             ],
@@ -659,12 +731,15 @@ mod tests {
             "!book 0 replace 0 hello there",
             "!book 0 sign Title Author",
             "!blob-status missing=1,2 found=3",
+            "!blob-status missing=seen",
             "!party-changed",
             "!party-changed abc true",
             "!packs-ready",
             "!ddui-closed 3 closed by user",
             "!data-store store prop path 1.5",
             "!cookie abc true",
+            "!chat hello there",
+            "!command-request probe-id say hi",
         ] {
             let Step::Action(action) = parse_line(line).unwrap() else {
                 panic!("{line} is not an action");

@@ -225,6 +225,8 @@ pub async fn run(options: &Options) -> Result<()> {
                 actor: None,
                 inventory: Vec::new(),
                 position: game.start_game.position.clone(),
+                name: options.name.clone(),
+                blobs: Vec::new(),
             },
             input: options.input.then(|| {
                 InputStream::new(
@@ -436,6 +438,7 @@ impl<T: jolyne::stream::transport::Transport> Session<'_, T> {
             || packet.is(McpePacketName::CorrectPlayerMovePredictionPacket)
             || packet.is(McpePacketName::InventoryContentPacket)
             || packet.is(McpePacketName::InventorySlotPacket)
+            || packet.is(McpePacketName::LevelChunkPacket)
         {
             let data = packet.clone().decode()?.data;
             self.actors.follow(&data);

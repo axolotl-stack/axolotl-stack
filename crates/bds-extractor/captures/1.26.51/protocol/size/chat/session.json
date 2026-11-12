@@ -1,0 +1,36 @@
+{
+  "bds_version": "26.51",
+  "server": "bedrock_server.exe (no Endstone)",
+  "server_properties": {
+    "server-name": "bds-sweep bds-extractor-1.26.51",
+    "server-port": 19160,
+    "server-portv6": 19161,
+    "online-mode": "false",
+    "enable-lan-visibility": "false",
+    "allow-cheats": "true",
+    "level-name": "bds-extractor-1.26.51",
+    "max-players": 2,
+    "content-log-file-enabled": "false",
+    "default-player-permission-level": "operator",
+    "level-seed": 12345,
+    "gamemode": "survival",
+    "difficulty": "easy"
+  },
+  "extractor_command": [
+    "bds-extractor",
+    "--addr",
+    "127.0.0.1:19160",
+    "--name",
+    "BDSExtractor",
+    "--timeout",
+    "120",
+    "--capture-dir",
+    "C:\\Users\\jvigu\\orca\\bds-slots\\slot2\\captures\\1.26.51\\r4-size-chat\\chat",
+    "--log",
+    "info",
+    "--commands",
+    "C:\\Users\\jvigu\\orca\\bds-slots\\slot2\\captures\\1.26.51\\r4-size-chat\\chat-commands.txt",
+    "--input"
+  ],
+  "started_unix": 1794519224.286
+}

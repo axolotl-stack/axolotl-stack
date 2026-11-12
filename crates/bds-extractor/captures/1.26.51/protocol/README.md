@@ -31,10 +31,15 @@ the join, to show what BDS did not send) and `session.json`
 | `pick-recheck`, `pick-recheck2` | `pick-actors ACTORS` | `pick-actors` | the actors the sweep missed, picked again (`pick-recheck`: 1.5 s after the summon, 3 blocks away; `pick-recheck2`: at once, 1 block away): moving mobs are only missed when they leave the reach |
 | `pick-reach` | `pick-reach` | `pick-reach` | creative picks of a cow 1 to 24 blocks away: answered up to 14 blocks, not from 16 |
 | `ddui` | `ddui` | `ddui.json` only | which of 15 screen close reasons BDS refused, with the violation |
+| `size` | `size` | one session per packet kind (`command`, `two-byte`, `request-id`, `request-id-command`, `request-id-two-byte`, `chat`, `chat-limit`, `chat-two-byte`, `book`, `book-limit`, `book-two-byte`, `book-four-byte`, `book-title`, `book-author`) | longer and longer packets of one kind until BDS refused one: `sent.json` (`[seq, packet, bytes]` of every command, chat and book packet sent; the packets are rebuilt from `size_scripts`), the violation, the book answers (2026-11-12) |
+| `book-held` | `book held` | `held` | the interact text `SetActorData` as the player selects, opens, signs and holds again a book, and the resync on each use (2026-11-12) |
+| `pick-data` | `pick-data` | `pick-data` | creative block picks with data of a chest (full and empty), furnace, barrel, sign and flower pot (the item user data); survival picks of a cow with its egg in the hotbar and in the main inventory (2026-11-12) |
+| `cache-miss` | `cache-miss` | `host` | a client claiming a blob cache that reports every blob of its `LevelChunk`s missing: the `ClientCacheMissResponse` with all 101 blobs (2026-11-12) |
 
 The tests in `crates/unastar/src/server/game/client_packets/tests.rs`,
 `crates/unastar/src/server/game/books/tests.rs`,
 `crates/unastar/src/server/game/inventory/actor_pick/tests.rs` and
-`crates/unastar/src/server/game/roster/probe_tests.rs` rebuild these packets
+`crates/unastar/src/server/game/roster/probe_tests.rs` and
+`crates/unastar/src/network/packet_limits/tests.rs` rebuild these packets
 and compare bytes, and read the timelines for packets BDS answers with
 nothing.

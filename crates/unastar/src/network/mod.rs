@@ -2,10 +2,11 @@
 
 pub mod events;
 pub mod inbound;
+pub mod packet_limits;
 
-use jolyne::BedrockStream;
 use jolyne::stream::{Play, Server as ServerRole};
 use jolyne::valentine::{EnumsPacketViolationSeverity, McpePacket, McpePacketArgs, McpePacketData};
+use jolyne::{BedrockStream, JolyneError};
 use tokio::sync::{broadcast, mpsc};
 use tracing::{info, trace, warn};
 
@@ -89,9 +90,21 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
             }
 
             // Priority 2: Inbound packets from client
-            result = stream.recv_packet_borrowed() => {
-                match result {
-                    Ok(packet) => {
+            result = stream.recv_packet_raw() => {
+                match result.and_then(|raw| packet_limits::admit(raw, |raw| stream.decode_borrowed(raw))) {
+                    // BDS refuses the packet and closes the connection.
+                    Ok(Err(violation)) => {
+                        warn!(
+                            session_id,
+                            context = %violation.violation_context,
+                            "Refused a client packet"
+                        );
+                        if let Err(e) = stream.send_packet(violation.into()).await {
+                            tracing::error!(session_id, "Send failed (violation): {:?}", e);
+                        }
+                        break;
+                    }
+                    Ok(Ok(packet)) => {
                         // This session's own queue: a full one means this client has
                         // outrun the per-tick budget for several ticks.
                         if let Err(e) = inbound_tx.try_send((McpePacketArgs, Box::new(packet))) {
@@ -110,7 +123,7 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
                             break;
                         }
                     }
-                    Err(jolyne::JolyneError::Disconnected(disconnect)) => {
+                    Err(JolyneError::Disconnected(disconnect)) => {
                         info!(
                             session_id,
                             reason = ?disconnect.reason,
@@ -121,7 +134,7 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
                     }
                     // Save and Quit closes the RakNet connection without a
                     // Bedrock Disconnect: a normal leave, not an error.
-                    Err(jolyne::JolyneError::ConnectionClosed) => {
+                    Err(JolyneError::ConnectionClosed) => {
                         info!(session_id, "Client closed the connection");
                         break;
                     }

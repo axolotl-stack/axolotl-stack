@@ -5,11 +5,17 @@
 //! `crates/bds-extractor/captures/1.26.51/protocol/pick`, `pick-actors`,
 //! `pick-recheck` and `pick-reach`):
 //!
-//! - A creative pick of an actor gives the item of the measured table
+//! - A pick of an actor gives the item of the measured table
 //!   (`unastar_data::actor_picks`): spawn eggs for most mobs, the item for
 //!   boats, minecarts and end crystals. Actors the table lists without an
-//!   item (TNT, XP orbs, armor stands, projectiles, ...), players, and picks
-//!   in survival get no answer.
+//!   item (TNT, XP orbs, armor stands, projectiles, ...) and players get no
+//!   answer.
+//! - In survival the item must already be in the inventory, as for block
+//!   picks: an egg in the hotbar is selected, one in the main inventory moves
+//!   to the first empty hotbar slot, and without one there is no answer
+//!   (`pick-data` run, 2026-11-12). Other game modes follow survival, as
+//!   block picks do (not measured), and the survival reach is not measured;
+//!   the creative one is used.
 //! - The actor must be within [`PICK_REACH`] blocks of the player, feet to
 //!   feet: a cow 14 blocks away was picked, one 16 blocks away was not (the
 //!   same reach as a creative block pick). Mobs that move away right after
@@ -97,13 +103,14 @@ fn picked_actor(world: &World, unique_id: i64) -> Option<(ActorType, glam::DVec3
 }
 
 /// The item a valid actor pick selects and its `GuiDataPickItem` name, or
-/// `None` when BDS ignores the request.
+/// `None` when BDS ignores the request (a survival pick then selects the
+/// item only if the player has it, `super::pick::select_item`).
 pub(super) fn picked_item(
     world: &World,
     entity: Entity,
     pk: &ActorPickRequestPacket,
 ) -> Option<(ItemStack, String)> {
-    if world.get::<GameMode>(entity) != Some(&GameMode::Creative)
+    if world.get::<GameMode>(entity).is_none()
         || !world
             .get::<Health>(entity)
             .is_some_and(|health| health.current > 0.0)

@@ -187,13 +187,90 @@ fn actors_beyond_the_creative_reach_are_not_picked_like_bds() {
     }
 }
 
-/// Survival players and picks of players get no answer (`protocol/relay-first`
-/// and the `pick` run).
+/// A survival pick without the egg and picks of players get no answer
+/// (`protocol/relay-first` and the `pick` run).
 #[test]
-fn survival_picks_and_player_picks_are_ignored_like_bds() {
+fn survival_picks_without_the_egg_and_player_picks_are_ignored_like_bds() {
     let mut survival = Pick::new(GameMode::Survival);
     let cow = survival.mob("minecraft:cow");
     assert!(survival.pick(cow, false).is_empty());
     let mut creative = Pick::new(GameMode::Creative);
     assert!(creative.pick(1, false).is_empty());
+}
+
+/// A survival pick of a cow whose egg the player has (`pick-data` run): an
+/// egg in hotbar slot 4 is selected, with or without data; an egg in main
+/// inventory slot 12 moves to the first empty hotbar slot and is selected.
+/// `GuiDataPickItem` and `PlayerHotbar` match BDS byte for byte.
+#[test]
+fn a_survival_pick_selects_the_egg_the_player_has_like_bds() {
+    const RUN: &str = "pick-data/pick-data";
+    let mut pick = Pick::new(GameMode::Survival);
+    let cow = pick.mob("minecraft:cow");
+    let egg = {
+        let items = &pick
+            .server
+            .ecs
+            .world()
+            .resource::<crate::server::game::types::ItemRegistryResource>()
+            .0;
+        ItemStack::new(items.item_type("minecraft:cow_spawn_egg").unwrap(), 1)
+    };
+    let put = |pick: &mut Pick, slot: usize| {
+        let world = pick.server.ecs.world_mut();
+        let mut inventory = world
+            .get_mut::<crate::entity::components::MainInventory>(pick.player)
+            .unwrap();
+        for index in 0..inventory.0.size() {
+            inventory.0.set_item(index, ItemStack::empty()).unwrap();
+        }
+        inventory.0.set_item(slot, egg.clone().into_slot()).unwrap();
+    };
+    let check = |sent: &[McpePacketData], gui: &str, hotbar: &str, slot: usize| {
+        let [
+            McpePacketData::GuiDataPickItemPacket(name),
+            McpePacketData::InventoryContentPacket(inventory),
+            McpePacketData::PlayerHotbarPacket(selected),
+        ] = sent
+        else {
+            panic!("{gui}: {sent:?}");
+        };
+        assert_eq!(encode(name), payload(&format!("{RUN}/{gui}")), "{gui}");
+        assert_eq!(
+            encode(selected),
+            payload(&format!("{RUN}/{hotbar}")),
+            "{hotbar}"
+        );
+        let held: Vec<usize> = inventory
+            .slots
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| item.id != 0)
+            .map(|(index, _)| index)
+            .collect();
+        assert_eq!(held, [slot], "{gui}");
+    };
+    put(&mut pick, 4);
+    let sent = pick.pick(cow, false);
+    check(
+        &sent,
+        "03127-GuiDataPickItemPacket.bin",
+        "03129-PlayerHotbarPacket.bin",
+        4,
+    );
+    let sent = pick.pick(cow, true);
+    check(
+        &sent,
+        "03169-GuiDataPickItemPacket.bin",
+        "03171-PlayerHotbarPacket.bin",
+        4,
+    );
+    put(&mut pick, 12);
+    let sent = pick.pick(cow, false);
+    check(
+        &sent,
+        "03352-GuiDataPickItemPacket.bin",
+        "03354-PlayerHotbarPacket.bin",
+        0,
+    );
 }

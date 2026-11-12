@@ -195,6 +195,30 @@ class ProtocolProbeTest(unittest.TestCase):
             timeline = json.loads((target / 'timeline.json').read_text(encoding='utf-8'))
             self.assertEqual([entry[0] for entry in timeline], [2, 3])
 
+    def test_sent_sizes_replace_the_sent_packets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            session, target = Path(tmp) / 'command', Path(tmp) / 'out'
+            session.mkdir()
+            records = [
+                {'seq': 1, 't_ms': 0, 'dir': 'c2s', 'name': 'CommandRequestPacket', 'hex': '4d0102'},
+                {'seq': 2, 't_ms': 1, 'dir': 's2c', 'name': 'PacketViolationWarningPacket', 'hex': '9c01'},
+            ]
+            (session / 'packets.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in records),
+                                                   encoding='utf-8')
+            copied = commit_protocol_fixtures.copy_session(session, target, None, False, sent_sizes=True)
+            self.assertEqual(copied, 1)
+            self.assertFalse((target / 'sent').exists())
+            sizes = json.loads((target / 'sent.json').read_text(encoding='utf-8'))
+            self.assertEqual(sizes, [[1, 'CommandRequestPacket', 3]])
+
+    def test_size_commands_have_the_exact_byte_length(self):
+        for length in (480, 507, 508, 540):
+            for fill in ('a', 'é'):
+                self.assertEqual(len(protocol_probe.say(length, fill).encode()), length)
+        scripts = protocol_probe.size_scripts()
+        self.assertIn('!command-request ' + 'r' * 40 + ' say hi', scripts['request-id'])
+        self.assertTrue(all(script.startswith(('!wait', '/gamerule')) for script in scripts.values()))
+
 
 if __name__ == '__main__':
     unittest.main()
