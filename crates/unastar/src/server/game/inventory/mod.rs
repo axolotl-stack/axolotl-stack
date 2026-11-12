@@ -658,7 +658,7 @@ pub(crate) fn wire_item(stack: &ItemStack, block_ids: BlockNetworkIds) -> Option
     })
 }
 
-fn validated_item(
+pub(crate) fn validated_item(
     wire: &WireItem,
     items: &ItemRegistry,
     block_ids: BlockNetworkIds,

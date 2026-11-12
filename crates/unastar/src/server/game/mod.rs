@@ -6,6 +6,7 @@
 pub mod attributes;
 mod block_drops;
 pub(crate) mod blocks;
+pub(crate) mod books;
 mod chunks;
 mod client_packets;
 #[cfg(test)]
@@ -661,6 +662,9 @@ impl GameServer {
         ecs.schedule_mut()
             .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
 
+        ecs.world_mut().insert_resource(
+            books::BookItems::resolve(&items).expect("vanilla book and quill and written book"),
+        );
         ecs.world_mut()
             .insert_resource(types::ItemRegistryResource(items));
         ecs.world_mut()

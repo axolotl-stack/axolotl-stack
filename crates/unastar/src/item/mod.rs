@@ -5,6 +5,7 @@
 pub mod enchant;
 pub mod enchanting;
 pub mod equipment;
+pub mod nbt;
 mod stack;
 pub mod user_data;
 

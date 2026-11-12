@@ -7,6 +7,7 @@
 mod actions;
 mod capture;
 mod debug_json;
+mod input;
 mod output;
 
 use anyhow::{Context, Result};
@@ -42,6 +43,15 @@ struct Args {
     /// Read and validate an existing extractor JSON fixture instead of connecting to BDS
     #[arg(long)]
     fixture: Option<PathBuf>,
+
+    /// Print the packets of a capture's `packets.jsonl` decoded, one JSON
+    /// object per line (`seq`, `dir`, `name`, `packet`), instead of connecting
+    #[arg(long, conflicts_with_all = ["fixture", "capture_dir"])]
+    dump: Option<PathBuf>,
+
+    /// Dump mode: only these packets (names as in `packets.jsonl`, comma-separated)
+    #[arg(long, value_delimiter = ',', requires = "dump")]
+    packets: Vec<String>,
 
     /// Record the whole session into this directory (packets.jsonl, per-packet
     /// .bin/.json fixtures, manifest.json) instead of writing extractor JSON
@@ -79,6 +89,11 @@ struct Args {
     /// Capture mode: claim a chunk blob cache in ClientCacheStatus
     #[arg(long, requires = "capture_dir")]
     blob_cache: bool,
+
+    /// Capture mode: send PlayerAuthInput every 50 ms after the spawn (a
+    /// player standing still), as a real client does
+    #[arg(long, requires = "capture_dir")]
+    input: bool,
 
     /// Log level filter
     #[arg(long, default_value = "info")]
@@ -124,6 +139,10 @@ async fn run(args: Args) -> Result<()> {
         return Ok(());
     }
 
+    if let Some(path) = args.dump.as_ref() {
+        return capture::dump(path, &args.packets);
+    }
+
     let addr: SocketAddr = args.addr.parse().context("Invalid server address format")?;
 
     info!("Connecting to BDS at {}...", addr);
@@ -159,6 +178,7 @@ async fn run(args: Args) -> Result<()> {
             command_wait: Duration::from_millis(args.command_wait),
             client_data,
             blob_cache: args.blob_cache,
+            input: args.input,
         })
         .await;
     }

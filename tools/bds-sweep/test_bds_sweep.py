@@ -169,6 +169,11 @@ class ProtocolProbeTest(unittest.TestCase):
                                             blob_cache=True)
         self.assertEqual(command[command.index('--client-data') + 1], 'skin.json')
         self.assertIn('--blob-cache', command)
+        self.assertNotIn('--input', command)
+
+    def test_extractor_command_sends_input_on_request(self):
+        command = capture.extractor_command(Path('x.exe'), Path('out'), player_input=True)
+        self.assertIn('--input', command)
 
     def test_fixture_timelines_start_after_the_join(self):
         with tempfile.TemporaryDirectory() as tmp:

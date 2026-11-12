@@ -132,4 +132,4 @@ pub fn screen_closed(
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

@@ -18,7 +18,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
-| [Protocol](#protocol) | 231 | 118 | 26 | 44 | 28 | 15 | 33.3% |
+| [Protocol](#protocol) | 231 | 117 | 26 | 44 | 29 | 15 | 33.8% |
 | [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
 | [Gameplay systems](#gameplay-systems) | 72 | 34 | 34 | 4 | 0 | 0 | 5.6% |
 
@@ -77,12 +77,12 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Commands | lane COMMANDS | 2026-10-29 | 65 |
 
-**Protocol**: 144 open rows free, 0 claimed.
+**Protocol**: 143 open rows free, 0 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | clientbound | 89 | 77 | 12 |
-| bidirectional | 55 | 41 | 14 |
+| bidirectional | 54 | 40 | 14 |
 
 Nothing in this domain is claimed.
 
@@ -626,7 +626,7 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| bidirectional | 80 | 41 | 14 | 15 | 4 | 6 | 25.7% |
+| bidirectional | 80 | 40 | 14 | 15 | 5 | 6 | 27.0% |
 | clientbound | 146 | 77 | 12 | 29 | 19 | 9 | 35.0% |
 | serverbound | 5 | 0 | 0 | 0 | 5 | 0 | 100.0% |
 
@@ -640,7 +640,7 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 - `ClientCacheBlobStatusPacket`: answered with a ClientCacheMissResponse like BDS, but unastar holds no blobs because it never sends cached chunks (ClientCacheStatusPacket)
 - `InteractPacket`: only open-inventory is handled; leaving a vehicle while riding and NPC dialogue are not; BDS answers mouse-over, leave-vehicle when not riding and NPC-open on a player with nothing either (protocol/relay)
 - 9 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `ActorPickRequestPacket`, `AnvilDamagePacket`, `AutomationClientConnectPacket`, `BookEditPacket`, `BossEventPacket`, `ClientCacheStatusPacket`, `ClientCameraAimAssistPacket`, `ClientMovementPredictionSyncPacket`, `CommandBlockUpdatePacket`, `DebugInfoPacket`, `LecternUpdatePacket`, `MapCreateLockedCopyPacket` and 29 more
+- missing: `ActorPickRequestPacket`, `AnvilDamagePacket`, `AutomationClientConnectPacket`, `BossEventPacket`, `ClientCacheStatusPacket`, `ClientCameraAimAssistPacket`, `ClientMovementPredictionSyncPacket`, `CommandBlockUpdatePacket`, `DebugInfoPacket`, `LecternUpdatePacket`, `MapCreateLockedCopyPacket`, `MapInfoRequestPacket` and 28 more
 
 **clientbound**
 

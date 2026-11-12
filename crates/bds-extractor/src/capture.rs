@@ -29,6 +29,7 @@
 
 use crate::actions::{self, Actors, Step};
 use crate::debug_json;
+use crate::input::InputStream;
 use anyhow::{Context, Result, bail, ensure};
 use client_diff::{
     Record,
@@ -97,6 +98,8 @@ pub struct Options {
     pub client_data: Option<serde_json::Map<String, Value>>,
     /// Claim a chunk blob cache in `ClientCacheStatus`.
     pub blob_cache: bool,
+    /// Send a `PlayerAuthInput` stream after the spawn ([`InputStream`]).
+    pub input: bool,
     /// Wait after each scripted command.
     pub command_wait: Duration,
 }
@@ -220,7 +223,17 @@ pub async fn run(options: &Options) -> Result<()> {
                 ),
                 peer: None,
                 actor: None,
+                inventory: Vec::new(),
+                position: game.start_game.position.clone(),
             },
+            input: options.input.then(|| {
+                InputStream::new(
+                    game.start_game.runtime_id.actor_runtime_id,
+                    game.start_game.position.clone(),
+                    game.start_game.rotation.clone(),
+                    Instant::now(),
+                )
+            }),
         };
         let mut identifiers = None;
         let mut seen = Vec::new();
@@ -375,6 +388,8 @@ struct Session<'a, T: jolyne::stream::transport::Transport> {
     recorder: &'a Mutex<Recorder>,
     timeout: Duration,
     actors: Actors,
+    /// The `PlayerAuthInput` stream, when `--input` is on.
+    input: Option<InputStream>,
 }
 
 impl<T: jolyne::stream::transport::Transport> Session<'_, T> {
@@ -386,9 +401,23 @@ impl<T: jolyne::stream::transport::Transport> Session<'_, T> {
             .next_seq())
     }
 
-    /// Receives one packet, answering server latency probes like a client.
+    /// Receives one packet, answering server latency probes like a client
+    /// and sending the input stream's packets as they fall due.
     async fn recv(&mut self) -> Result<RawPacket> {
-        let packet = match self.play.recv_packet_raw().await {
+        let received = loop {
+            let Some(input) = &mut self.input else {
+                break self.play.recv_packet_raw().await;
+            };
+            let due = input.due();
+            tokio::select! {
+                received = self.play.recv_packet_raw() => break received,
+                () = tokio::time::sleep_until(due) => {
+                    let packet = input.next_packet();
+                    self.play.send_packet(packet).await?;
+                }
+            }
+        };
+        let packet = match received {
             Ok(packet) => packet,
             Err(JolyneError::Disconnected(disconnect)) => {
                 bail!("server disconnected: {:?}", disconnect.packet.body())
@@ -402,6 +431,17 @@ impl<T: jolyne::stream::transport::Transport> Session<'_, T> {
         {
             latency.is_from_server = false;
             self.play.send_packet(McpePacket::from(latency)).await?;
+        }
+        if packet.is(McpePacketName::MovePlayerPacket)
+            || packet.is(McpePacketName::CorrectPlayerMovePredictionPacket)
+            || packet.is(McpePacketName::InventoryContentPacket)
+            || packet.is(McpePacketName::InventorySlotPacket)
+        {
+            let data = packet.clone().decode()?.data;
+            self.actors.follow(&data);
+            if let Some(input) = &mut self.input {
+                input.follow(&data);
+            }
         }
         if packet.is(McpePacketName::AddPlayerPacket)
             && let McpePacketData::AddPlayerPacket(player) = packet.clone().decode()?.data
@@ -584,6 +624,29 @@ pub fn decode_record(bytes: &[u8]) -> Result<McpePacketData> {
     let (_, data) = McpePacketData::decode_inner_bytes(&mut framed.into(), McpePacketArgs)
         .map_err(|error| anyhow::anyhow!("decode: {error:?}"))?;
     Ok(data)
+}
+
+/// Prints the records of `path` (a `packets.jsonl`) decoded, one JSON
+/// object per line, keeping only the packets named in `only` when it is not
+/// empty.
+pub fn dump(path: &Path, only: &[String]) -> Result<()> {
+    use std::io::Write;
+    let mut out = std::io::stdout().lock();
+    for record in read_records(path)? {
+        if !only.is_empty() && !only.contains(&record.name) {
+            continue;
+        }
+        let packet = decode_record(&hex::decode(&record.hex)?)
+            .with_context(|| format!("seq {} ({})", record.seq, record.name))?;
+        let line = json!({
+            "seq": record.seq,
+            "dir": record.dir,
+            "name": record.name,
+            "packet": packet_json(&packet)?,
+        });
+        writeln!(out, "{line}")?;
+    }
+    Ok(())
 }
 
 /// The normalised JSON of a decoded packet, without the outer

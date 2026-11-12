@@ -12,6 +12,9 @@
 //! | `!wait MS` | nothing; pumps packets for `MS` milliseconds |
 //! | `!interact ACTION TARGET [X Y Z]` | `Interact`; `ACTION` is `mouseover`, `stop-riding`, `npc-open`, `open-inventory`, `invalid` or a number |
 //! | `!pick-actor TARGET [MAX_SLOTS] [data]` | `ActorPickRequest` for the target's unique id |
+//! | `!pick-block X Y Z [MAX_SLOTS] [data]` | `BlockPickRequest` for the block at X Y Z |
+//! | `!equip SLOT` | `MobEquipment` selecting hotbar SLOT with the item the server last put there |
+//! | `!use-item SLOT` | `InventoryTransaction` item use on air (`Use`, player input) with hotbar SLOT's item, as a client opening a book |
 //! | `!emote EMOTE_ID [FLAGS] [TICKS]` | `Emote` for the player itself |
 //! | `!emote-list UUID...` | `EmoteList` for the player itself |
 //! | `!animate ACTION [DATA]` | `Animate` for the player itself; `ACTION` is `swing`, `wake-up`, `critical-hit`, `magic-critical-hit` or a number |
@@ -31,16 +34,22 @@
 
 use anyhow::{Context, Result, bail, ensure};
 use jolyne::valentine::types::{
-    ActorRuntimeId, BedrockDduiDataStoreUpdate, BedrockDduiDataStoreUpdateData,
+    ActorRuntimeId, BedrockDduiDataStoreUpdate, BedrockDduiDataStoreUpdateData, BlockPos,
     BookEditActionAddPage, BookEditActionDeletePage, BookEditActionFinalize,
     BookEditActionReplacePage, BookEditActionSwapPages, BookEditPacketOperation,
-    EnumsAnimatePacketPayloadAction, EnumsInteractPacketPayloadAction, PlayerPartyInfo, Vec3,
+    CerealizerNetworkItemStackDescriptorSerializedData, EnumsAnimatePacketPayloadAction,
+    EnumsHandSlot, EnumsInteractPacketPayloadAction, EnumsItemUseInventoryTransactionActionType,
+    EnumsItemUseInventoryTransactionPredictedResult, EnumsItemUseInventoryTransactionTriggerType,
+    EnumsRewindType, InventoryTransactionPacketTransaction, ItemUseInventoryTransaction,
+    PlayerPartyInfo, Vec3,
 };
 use jolyne::valentine::{
-    ActorPickRequestPacket, AnimatePacket, BookEditPacket, ClientCacheBlobStatusPacket,
-    EmoteListPacket, EmotePacket, InteractPacket, McpePacket, McpePacketName, PartyChangedPacket,
-    PartyDestinationCookieResponsePacket, ResourcePacksReadyForValidationPacket,
-    ServerboundDataDrivenScreenClosedPacket, ServerboundDataStorePacket,
+    ActorPickRequestPacket, AnimatePacket, BlockPickRequestPacket, BookEditPacket,
+    ClientCacheBlobStatusPacket, EmoteListPacket, EmotePacket, InteractPacket,
+    InventoryTransactionPacket, McpePacket, McpePacketData, McpePacketName, MobEquipmentPacket,
+    PartyChangedPacket, PartyDestinationCookieResponsePacket,
+    ResourcePacksReadyForValidationPacket, ServerboundDataDrivenScreenClosedPacket,
+    ServerboundDataStorePacket,
 };
 
 /// One line of a command script.
@@ -92,6 +101,13 @@ pub enum ActionKind {
         max_slots: u8,
         with_data: bool,
     },
+    PickBlock {
+        position: BlockPos,
+        max_slots: u8,
+        with_data: bool,
+    },
+    Equip(u8),
+    UseItem(u8),
     Emote {
         id: String,
         flags: u8,
@@ -123,8 +139,9 @@ pub enum ActionKind {
     },
 }
 
-/// The actors an action can resolve targets against.
-#[derive(Debug, Clone, Copy, Default)]
+/// What actions resolve targets and items against: actors the session saw,
+/// the player's inventory as the server last sent it and its position.
+#[derive(Debug, Clone, Default)]
 pub struct Actors {
     /// The player's own runtime and unique ids.
     pub me: (u64, i64),
@@ -132,6 +149,11 @@ pub struct Actors {
     pub peer: Option<(u64, i64)>,
     /// The last actor an `AddActor` announced.
     pub actor: Option<(u64, i64)>,
+    /// The player's inventory (container 0), as the last `InventoryContent`
+    /// and `InventorySlot` set it.
+    pub inventory: Vec<CerealizerNetworkItemStackDescriptorSerializedData>,
+    /// The player's position (eye height) as the server last set it.
+    pub position: Vec3,
 }
 
 impl Actors {
@@ -142,6 +164,42 @@ impl Actors {
             Target::Actor => self.actor.context("no actor has been announced"),
             // Players' unique ids equal their runtime ids in every BDS capture.
             Target::Runtime(id) => Ok((id, id as i64)),
+        }
+    }
+
+    /// The item the server last put in inventory slot `slot` (air if none).
+    fn item(&self, slot: u8) -> CerealizerNetworkItemStackDescriptorSerializedData {
+        self.inventory
+            .get(usize::from(slot))
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Follows a server packet that changes the player's inventory or
+    /// position.
+    pub fn follow(&mut self, packet: &McpePacketData) {
+        match packet {
+            McpePacketData::InventoryContentPacket(content) if content.container_id == 0 => {
+                self.inventory = content.slots.clone();
+            }
+            McpePacketData::InventorySlotPacket(update) if update.container_id == 0 => {
+                let slot = update.slot as usize;
+                if self.inventory.len() <= slot {
+                    self.inventory.resize(slot + 1, Default::default());
+                }
+                self.inventory[slot] = update.item.clone();
+            }
+            McpePacketData::MovePlayerPacket(moved)
+                if moved.player_runtime_id.actor_runtime_id == self.me.0 =>
+            {
+                self.position = moved.position.clone();
+            }
+            McpePacketData::CorrectPlayerMovePredictionPacket(corrected)
+                if corrected.prediction_type == EnumsRewindType::Player =>
+            {
+                self.position = corrected.pos.clone();
+            }
+            _ => {}
         }
     }
 }
@@ -183,6 +241,12 @@ fn target(text: &str) -> Result<Target> {
         "actor" => Target::Actor,
         id => Target::Runtime(number(id, "runtime id")?),
     })
+}
+
+fn hotbar_slot(text: &str) -> Result<u8> {
+    let slot: u8 = number(text, "hotbar slot")?;
+    ensure!(slot < 9, "hotbar slot {slot} is not 0..8");
+    Ok(slot)
 }
 
 fn ids(text: &str) -> Result<Vec<u64>> {
@@ -228,6 +292,21 @@ fn parse_action(verb: &str, args: &[&str]) -> Result<ActionKind> {
                 .unwrap_or(9),
             with_data: args.get(2) == Some(&"data"),
         },
+        "pick-block" => ActionKind::PickBlock {
+            position: BlockPos {
+                x: number(arg(args, 0, "x")?, "x")?,
+                y: number(arg(args, 1, "y")?, "y")?,
+                z: number(arg(args, 2, "z")?, "z")?,
+            },
+            max_slots: args
+                .get(3)
+                .map(|slots| number(slots, "max slots"))
+                .transpose()?
+                .unwrap_or(9),
+            with_data: args.get(4) == Some(&"data"),
+        },
+        "equip" => ActionKind::Equip(hotbar_slot(arg(args, 0, "slot")?)?),
+        "use-item" => ActionKind::UseItem(hotbar_slot(arg(args, 0, "slot")?)?),
         "emote" => ActionKind::Emote {
             id: arg(args, 0, "emote id")?.to_owned(),
             flags: args
@@ -380,6 +459,47 @@ impl ActionKind {
                 }
                 .into(),
             ],
+            ActionKind::PickBlock {
+                position,
+                max_slots,
+                with_data,
+            } => vec![
+                BlockPickRequestPacket {
+                    position: position.clone(),
+                    with_data: *with_data,
+                    max_slots: *max_slots,
+                }
+                .into(),
+            ],
+            ActionKind::Equip(slot) => vec![
+                MobEquipmentPacket {
+                    target_runtime_id: me.clone(),
+                    item: actors.item(*slot),
+                    slot: *slot,
+                    selected_slot: *slot,
+                    container_id: 0,
+                }
+                .into(),
+            ],
+            ActionKind::UseItem(slot) => vec![
+                InventoryTransactionPacket {
+                    transaction: InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
+                        Box::new(ItemUseInventoryTransaction {
+                            action_type: EnumsItemUseInventoryTransactionActionType::Use,
+                            trigger_type: EnumsItemUseInventoryTransactionTriggerType::Playerinput,
+                            slot: i32::from(*slot),
+                            hand: EnumsHandSlot::Mainhand,
+                            item: actors.item(*slot),
+                            from_position: actors.position.clone(),
+                            client_interact_prediction:
+                                EnumsItemUseInventoryTransactionPredictedResult::Success,
+                            ..Default::default()
+                        }),
+                    ),
+                    ..Default::default()
+                }
+                .into(),
+            ],
             ActionKind::Emote { id, flags, ticks } => vec![
                 EmotePacket {
                     actor_runtime_id: me,
@@ -474,7 +594,7 @@ mod tests {
         let actors = Actors {
             me: (1, 1),
             peer: Some((7, 7)),
-            actor: None,
+            ..Actors::default()
         };
         let packets = action.kind.packets(&actors).unwrap();
         let McpePacket {
@@ -489,6 +609,10 @@ mod tests {
         for line in [
             "!wait 500",
             "!pick-actor peer 9 data",
+            "!pick-block 0 -60 0",
+            "!pick-block 1 2 3 9 data",
+            "!equip 0",
+            "!use-item 8",
             "!emote 4c8ae710-df2e-47cd-814d-cc7bf21a3d67 1 40",
             "!emote-list 4c8ae710-df2e-47cd-814d-cc7bf21a3d67",
             "!animate swing",

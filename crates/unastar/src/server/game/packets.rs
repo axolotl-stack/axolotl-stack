@@ -224,6 +224,9 @@ impl GameServer {
             McpePacketData::EmoteListPacket(pk) => {
                 super::client_packets::relay_emote_list(world, entity, &pk);
             }
+            McpePacketData::BookEditPacket(pk) => {
+                super::books::apply_book_edit(world, entity, &pk);
+            }
             McpePacketData::ClientCacheBlobStatusPacket(pk) => {
                 super::client_packets::answer_blob_status(world, entity, &pk);
             }

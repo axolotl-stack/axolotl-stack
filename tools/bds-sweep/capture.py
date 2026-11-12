@@ -68,8 +68,10 @@ WORLD = dict(level_seed=12345, gamemode='survival', difficulty='easy')
 
 def extractor_command(extractor: Path, out: Path, name: str = PLAYER, summon: bool = False,
                       commands: Path | None = None, settle: int | None = None,
-                      client_data: Path | None = None, blob_cache: bool = False) -> list[str]:
-    """The `bds-extractor` capture-mode command line of one session."""
+                      client_data: Path | None = None, blob_cache: bool = False,
+                      player_input: bool = False) -> list[str]:
+    """The `bds-extractor` capture-mode command line of one session;
+    `player_input` sends a PlayerAuthInput stream (`--input`)."""
     command = [str(extractor), '--addr', bds_runtime.ADDR, '--name', name, '--timeout', '120',
                '--capture-dir', str(out), '--log', 'info']
     if summon:
@@ -82,6 +84,8 @@ def extractor_command(extractor: Path, out: Path, name: str = PLAYER, summon: bo
         command += ['--client-data', str(client_data)]
     if blob_cache:
         command.append('--blob-cache')
+    if player_input:
+        command.append('--input')
     return command
 
 
@@ -98,11 +102,13 @@ def describe(out: Path, properties: dict[str, object], command: list[str], **ext
 
 
 def session(out: Path, extractor: Path, permission: str, summon: bool, timeout: int,
-            commands: Path | None = None, client_data: Path | None = None, blob_cache: bool = False) -> int:
+            commands: Path | None = None, client_data: Path | None = None, blob_cache: bool = False,
+            player_input: bool = False) -> int:
     out.mkdir(parents=True)
     properties = bds_runtime.base_properties(LEVEL, default_player_permission_level=permission, **WORLD)
     command = extractor_command(extractor, out, summon=summon, commands=commands,
-                                client_data=client_data, blob_cache=blob_cache)
+                                client_data=client_data, blob_cache=blob_cache,
+                                player_input=player_input)
     describe(out, properties, command)
     with bds_runtime.Bds(properties, out / 'bds.log', endstone=False):
         with (out / 'extractor.log').open('w', encoding='utf-8') as log:

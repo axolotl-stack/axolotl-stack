@@ -1,5 +1,5 @@
 //! Using the held item in the air: eating, drinking, throwing, bows,
-//! crossbows and tridents.
+//! crossbows, tridents and opening a book and quill for writing.
 //!
 //! The client starts using an item with an `ItemUse` transaction of action
 //! `Use` (click air). Like BDS 1.26.51 (capture `item-use-20261029`), the
@@ -64,10 +64,15 @@ pub enum UseKind {
     Consume(food::Consumable),
     Draw(ranged::Drawn),
     Throw,
+    /// Open a book and quill for `BookEdit` ([`super::books::open`]).
+    OpenBook,
 }
 
 /// How an item is used in the air, from its data.
-pub fn use_kind(stack: &ItemStack) -> Option<UseKind> {
+pub fn use_kind(stack: &ItemStack, books: &super::books::BookItems) -> Option<UseKind> {
+    if books.is_writable(stack) {
+        return Some(UseKind::OpenBook);
+    }
     let entry = stack.item()?;
     if let Some(consumable) = food::consumable(entry) {
         return Some(UseKind::Consume(consumable));
@@ -297,7 +302,8 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
     if using.is_none() {
         stop_using(world, player);
     }
-    match (use_kind(&stack), request, using) {
+    let kind = use_kind(&stack, world.resource::<super::books::BookItems>());
+    match (kind, request, using) {
         (Some(UseKind::Consume(consumable)), UseRequest::UseAir, None) => {
             food::start(world, player, slot, &stack, consumable)
         }
@@ -314,6 +320,9 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
             ranged::release_drawn(world, player, slot, &stack, drawn, using)
         }
         (Some(UseKind::Throw), UseRequest::UseAir, _) => ranged::throw(world, player),
+        (Some(UseKind::OpenBook), UseRequest::UseAir, _) => {
+            super::books::open(world, player, slot, &stack)
+        }
         (_, UseRequest::Release | UseRequest::Consume, _) => stop_using(world, player),
         (None, UseRequest::UseAir, _) => {}
     }
@@ -394,7 +403,7 @@ pub fn tick_using(
             stop_using(world, player);
             continue;
         };
-        let consumable = match use_kind(&stack) {
+        let consumable = match use_kind(&stack, world.resource::<super::books::BookItems>()) {
             Some(UseKind::Consume(consumable)) => consumable,
             Some(UseKind::Draw(drawn)) => {
                 ranged::tick_drawn(world, player, drawn, &using);

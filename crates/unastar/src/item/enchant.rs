@@ -71,19 +71,30 @@ pub fn item_tag(stack: &ItemStack) -> Option<tag::Compound> {
 }
 
 /// `stack` with its NBT compound replaced by `compound`, keeping the rest of
-/// the user data.
-pub fn with_item_tag(stack: &ItemStack, compound: tag::Compound) -> ItemStack {
+/// the user data; keys are written sorted, as BDS writes them
+/// ([`super::nbt`]).
+pub fn try_with_item_tag(
+    stack: &ItemStack,
+    compound: &tag::Compound,
+) -> Result<ItemStack, super::nbt::NbtWriteError> {
     let default = super::user_data::network_user_data(stack.item_id(), None);
     let buffer = stack.nbt.as_deref().unwrap_or(&default);
     let tail = split_user_data(buffer).map_or(&default[2..], |(_, tail)| tail);
     let mut out = Vec::with_capacity(buffer.len() + 16);
     out.extend_from_slice(&NBT_PRESENT.to_le_bytes());
     out.push(NBT_VERSION);
-    NBTTag::Compound(compound)
-        .write(&mut out, LittleEndian)
-        .expect("writing NBT into a Vec cannot fail");
+    super::nbt::write_sorted(&mut out, compound)?;
     out.extend_from_slice(tail);
-    stack.clone().with_nbt(out)
+    Ok(stack.clone().with_nbt(out))
+}
+
+/// [`try_with_item_tag`] for compounds the server built; one that cannot be
+/// written (a string longer than 65535 bytes) leaves the stack unchanged.
+pub fn with_item_tag(stack: &ItemStack, compound: tag::Compound) -> ItemStack {
+    try_with_item_tag(stack, &compound).unwrap_or_else(|error| {
+        tracing::warn!(%error, item = stack.item_id(), "item NBT not written");
+        stack.clone()
+    })
 }
 
 /// Read one block-name list (`i32` count of u16-prefixed strings) from the
@@ -127,9 +138,11 @@ pub fn with_block_lists(
         Some(compound) => {
             out.extend_from_slice(&NBT_PRESENT.to_le_bytes());
             out.push(NBT_VERSION);
-            NBTTag::Compound(compound)
-                .write(&mut out, LittleEndian)
-                .expect("writing NBT into a Vec cannot fail");
+            // The compound was read from this buffer, so it can be written.
+            if let Err(error) = super::nbt::write_sorted(&mut out, &compound) {
+                tracing::warn!(%error, item = stack.item_id(), "item NBT not written");
+                return stack.clone();
+            }
         }
         None => out.extend_from_slice(&0i16.to_le_bytes()),
     }

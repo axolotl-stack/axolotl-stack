@@ -3,8 +3,9 @@
 What BDS 1.26.51 relays between players and how it answers client packets
 no command produces. Measured on 2026-11-11 on loopback, plain
 `bedrock_server.exe` (no Endstone), fresh world (seed 12345, survival,
-easy), every player an operator, all clients `bds-extractor`. None of the
-clients sends `PlayerAuthInput`.
+easy), every player an operator, all clients `bds-extractor`. Only the
+`book` sessions (2026-11-12) send `PlayerAuthInput` (`--input`); the others
+send none.
 
 Made with `tools/bds-sweep/protocol_probe.py` (scripts, ClientData files and
 console commands are copied into each run) and committed with
@@ -24,9 +25,11 @@ the join, to show what BDS did not send) and `session.json`
 | `cache` | `cache` | `host` | a client that claims a blob cache: cached `LevelChunk`s, the `ClientCacheMissResponse` |
 | `numbers` | `skins numbers` | `numbers` | how BDS writes 27 JSON number forms of a skin geometry |
 | `skins` | `skins` | `skins.json` only | which of 61 logins BDS refused (piece and tint types, colours, arm size), with the violation |
+| `book` | `book` | `book`, `creative`, `unopened`, `limits`, `gate` (one session each, with input) | editing and signing a book and quill after opening it (item use on air): BDS's `InventoryTransaction` answers, padding, the 50-page cap, no text or title limit, which book stays open (`gate`), nothing without opening it (`unopened`); `<session>-commands.txt` beside them |
 | `ddui` | `ddui` | `ddui.json` only | which of 15 screen close reasons BDS refused, with the violation |
 
-The tests in `crates/unastar/src/server/game/client_packets/tests.rs` and
+The tests in `crates/unastar/src/server/game/client_packets/tests.rs`,
+`crates/unastar/src/server/game/books/tests.rs` and
 `crates/unastar/src/server/game/roster/probe_tests.rs` rebuild these packets
 and compare bytes, and read the timelines for packets BDS answers with
 nothing.
