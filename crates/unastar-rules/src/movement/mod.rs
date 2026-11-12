@@ -50,6 +50,10 @@ const JUMP_BOOST_STEP: f32 = 0.1;
 const CLIMB_SPEED: f32 = 0.2;
 /// Soul sand's friction is scaled by this for the acceleration only.
 const SOUL_SAND_ACCELERATION: f32 = 1.225;
+/// Levitation's pull per level each tick: a fifth of its 0.05 speed.
+const LEVITATION_LIFT: f32 = 0.01;
+/// A jump from honey is this much of a jump.
+const HONEY_JUMP: f32 = 0.6;
 /// Forward push of a sprinting jump.
 const SPRINT_JUMP: f32 = 0.2;
 /// Ticks before a held jump key jumps again.
@@ -355,6 +359,8 @@ pub struct Body {
     pub moved_sprinting: bool,
     pub jump_boost: u8,
     pub slow_falling: bool,
+    /// The levitation effect's level (1-based, 0 for none).
+    pub levitation: u8,
     /// The last tick's move collided horizontally / vertically.
     pub horizontal_collision: bool,
     pub vertical_collision: bool,
@@ -381,6 +387,7 @@ impl Body {
             moved_sprinting: false,
             jump_boost: 0,
             slow_falling: false,
+            levitation: 0,
             horizontal_collision: false,
             vertical_collision: false,
             swept: None,
@@ -593,12 +600,13 @@ fn impulse(body: &Body, controls: &Controls) -> [f32; 2] {
 }
 
 /// The input acceleration on ground of friction `friction` (with the air's
-/// 0.91): the speed scaled by `0.546 / friction` three times, each product
-/// rounded to `f32` (BDS 1.26.51 accelerates exactly `speed` on stone; a
-/// precomputed cube is off by an ULP).
+/// 0.91): the speed times the cube of `0.546 / friction`, the cube rounded
+/// before the speed multiplies it (BDS 1.26.51 accelerates exactly `speed`
+/// on stone, where a precomputed 0.16277136 / f³ is an ULP off, and a sprint
+/// on ice matches only this way).
 fn ground_acceleration(speed: f32, friction: f32) -> f32 {
     let ratio = BASE_GROUND_FRICTION / friction;
-    speed * ratio * ratio * ratio
+    speed * (ratio * ratio * ratio)
 }
 
 /// A horizontal velocity after friction: one no larger than `f32::EPSILON`
@@ -610,6 +618,14 @@ fn damp(velocity: f32, friction: f32) -> f32 {
     } else {
         velocity * friction
     }
+}
+
+/// Whether the jump starts from honey: the block the feet are in, or the one
+/// below when the feet rest on its top.
+fn on_honey(body: &Body, terrain: &impl Terrain) -> bool {
+    let [x, y, z] = body.feet.map(|v| v.floor() as i32);
+    let honey = |y| terrain.block([x, y, z]).kind == BlockKind::Honey;
+    honey(y) || (body.feet[1] == body.feet[1].floor() && honey(y - 1))
 }
 
 /// Whether the block the feet are in is climbable (a ladder or vines).
@@ -662,14 +678,16 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
         };
         speed = ground_acceleration(body.movement_speed, pull);
     }
-    move_relative(body, controls, speed);
     let climbing = climbable(body, terrain);
-    if controls.jump && climbing {
-        // The jump key climbs instead of jumping, also on the ground.
-        body.velocity[1] = CLIMB_SPEED;
-    } else if controls.jump && body.on_ground && body.jump_delay == 0 {
-        body.velocity[1] =
-            body.velocity[1].max(JUMP_VELOCITY + JUMP_BOOST_STEP * f32::from(body.jump_boost));
+    // The jump comes before the input's acceleration: a sprint jump's push
+    // is added to the velocity first (a sprint jump on ice matches BDS only
+    // this way).
+    if controls.jump && !climbing && body.on_ground && body.jump_delay == 0 {
+        let mut jump = JUMP_VELOCITY + JUMP_BOOST_STEP * f32::from(body.jump_boost);
+        if on_honey(body, terrain) {
+            jump *= HONEY_JUMP;
+        }
+        body.velocity[1] = body.velocity[1].max(jump);
         body.jump_delay = JUMP_DELAY;
         if body.sprinting {
             let yaw = controls.yaw * 0.017_453_292;
@@ -677,6 +695,11 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
             body.velocity[2] += table_cos(yaw) * SPRINT_JUMP;
         }
         changes.jumped = true;
+    }
+    move_relative(body, controls, speed);
+    if controls.jump && climbing {
+        // The jump key climbs instead of jumping, also on the ground.
+        body.velocity[1] = CLIMB_SPEED;
     }
     if climbing {
         // A climbable block holds the fall to 0.2 a tick, and a sneaking
@@ -721,6 +744,13 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
         // Pushing into a wall from a climbable block climbs, with no gravity
         // or drag this tick.
         body.velocity[1] = CLIMB_SPEED;
+    } else if body.levitation > 0 {
+        // Levitation replaces gravity: the vertical velocity moves a fifth of
+        // the way to 0.05 a level each tick, rounded as 0.8 v + 0.01 a level
+        // (the only form that gives BDS's bits on all eleven measured
+        // ticks), then drags.
+        let lift = LEVITATION_LIFT * f32::from(body.levitation);
+        body.velocity[1] = (body.velocity[1] * 0.8 + lift) * VERTICAL_DRAG;
     } else {
         // Slow falling lightens gravity only while falling: a body at rest
         // in the air takes a full 0.08 first.

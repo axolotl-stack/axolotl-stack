@@ -14,7 +14,7 @@
 //! `MovePlayer` relay per input: position and ground contact), the subject's
 //! capture the corrections BDS sent it (position, velocity and ground
 //! contact, about one every six inputs because the subject reports a
-//! position 3 blocks off) and the `SetActorMotion` and movement-speed
+//! position 3 blocks off on every axis) and the `SetActorMotion` and movement-speed
 //! updates. Each correction is checked against the relay of its input.
 
 use anyhow::{Context, Result, bail, ensure};

@@ -19,75 +19,24 @@ const KNOWN_GAPS: &[(&str, u32, &str)] = &[
     (
         "elytra_glide",
         6,
-        "BDS's glide differs from the first gliding tick",
-    ),
-    (
-        "flat_sneak_diagonal",
-        22,
-        "a sneak stops at the floor's far corner later on BDS",
-    ),
-    (
-        "honey_walk_jump",
-        21,
-        "walking on honey speeds up on BDS mid-walk (bedsim too)",
-    ),
-    (
-        "ice_sprint_jump",
-        6,
-        "a sprint start on ice: BDS's velocity is an ULP off (bedsim too)",
+        "the glide differs from its first tick (bedsim too); not fitted yet",
     ),
     ("lava_walk", 6, "lava is not simulated"),
     (
-        "ledge_sneak",
-        52,
-        "a sneaking diagonal at a ledge corner (bedsim too)",
+        "levitation_float",
+        1,
+        "BDS reports a levitating player off the ground on the first input; positions and velocities match",
     ),
-    (
-        "ledge_walk_off",
-        24,
-        "the feet over air: BDS accelerates as in air (bedsim too)",
-    ),
-    ("levitation_float", 1, "levitation is not simulated"),
     ("scaffolding_climb", 6, "scaffolding is not simulated"),
     (
         "slime_bounce",
         14,
-        "BDS bounces about 1.7 % higher than the fall (bedsim too)",
-    ),
-    (
-        "slowness_walk",
-        27,
-        "BDS applies effect speeds to a starting sprint on its own tick",
-    ),
-    (
-        "speed_walk",
-        26,
-        "BDS applies effect speeds to a starting sprint on its own tick",
-    ),
-    (
-        "stairs_up",
-        23,
-        "the feet over air: BDS accelerates as in air (bedsim too)",
-    ),
-    (
-        "step_slab",
-        29,
-        "the feet over air: BDS accelerates as in air (bedsim too)",
-    ),
-    (
-        "wall_corner_diagonal",
-        21,
-        "sliding along a wall is faster on BDS (bedsim too)",
-    ),
-    (
-        "wall_walk_into",
-        27,
-        "sliding along a wall is faster on BDS (bedsim too)",
+        "BDS bounces higher than the impact speed (0.8585 from 0.8439, 0.7470 from 0.7298); bedsim agrees with unastar",
     ),
     (
         "water_sprint_swim",
         6,
-        "a swim's pitch steering differs from the first input",
+        "a swimmer's pitch steering differs from the first input (bedsim matches BDS to tick 10)",
     ),
 ];
 

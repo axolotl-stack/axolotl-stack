@@ -9,7 +9,7 @@ Run it on one BDS slot (`BDS_RUNTIME`, `BDS_PORT`; tools/bds-sweep/README.md,
 * `MoveSubject` plays the scenarios (`--scenarios`). For each one it builds
   the world with commands from the lobby, teleports to the start, and plays
   the inputs from the second input after the teleport while reporting a
-  position 3 blocks above its own simulation. BDS never moves its copy of
+  position 3 blocks off on every axis from its own simulation. BDS never moves its copy of
   the player towards a position that far off; it corrects the client at most
   every sixth input instead, so the copy moves by BDS's simulation alone.
 * `MoveViewer` stands 6 blocks from the lobby and records BDS's copy after

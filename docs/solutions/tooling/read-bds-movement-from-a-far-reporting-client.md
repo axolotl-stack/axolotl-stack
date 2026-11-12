@@ -18,12 +18,19 @@ bit for bit.
 
 ## What we learned
 
-- **Report a position 3 blocks off to see BDS simulate.** Past the acceptance threshold, BDS
-  never takes or pulls towards the reported position. It corrects at most every sixth input,
+- **Report a position 3 blocks off on every axis to see BDS simulate.** Past the acceptance
+  threshold, BDS never pulls towards the reported position. Offsetting only the height is not
+  enough: BDS takes the reported x and z on their own when each is within 0.1 of its copy. It corrects at most every sixth input,
   and its copy moves by its simulation alone. A viewer client gets the copy after every input in
   the `MovePlayer` relay (exact `f32`, stamped with the input). The corrections add the velocity
   on one input in six. Check each correction against the relay of the same input: in the first
-  run all 470 matched, which validates the method on every run.
+  run all corrections matched, which validates the method on every run.
+- **When two implementations agree against BDS, suspect the harness first.** In the first run
+  (height offset only) unastar and bedsim agreed with each other and not with BDS on walls,
+  ledges, stairs, diagonal sneaks and effect sprints. In every case BDS's copy had jumped to the
+  subject's reported x and z, which were exactly equal to the relayed ones on those ticks.
+  Diffing the claim against the relay per tick found it. All those cases matched after the
+  fix.
 - **Script the setup from the subject with `CommandRequest`.** Commands then land between known
   inputs. A command sent after input N runs before BDS simulates N, and its `SetActorMotion` is
   stamped N-1. The input after a `/tp` rests. Inputs already in flight when the teleport arrives
@@ -50,9 +57,6 @@ bit for bit.
   - water from tick 11 of a swim.
 
   Read its MIT code for the rule, write it in your own words, and re-verify against BDS.
-- **Effect speeds are not per input.** With speed or slowness, the first inputs of a sprint
-  accelerate irregularly on BDS. The attribute changes on BDS's tick. Neither simulation can
-  copy that per input.
 - **Shared-machine traps.** Other lanes' cargo runs hold the target lock, so a "fast" rebuild
   may still be waiting and a report silently uses the old binary. Write command output to a
   file and check the rebuild finished before trusting a report.

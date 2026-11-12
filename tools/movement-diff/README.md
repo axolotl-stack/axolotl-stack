@@ -68,8 +68,8 @@ BDS keeps its own copy of every player and simulates each `PlayerAuthInput` on i
 reports the right position hides that simulation: BDS takes any position within 0.1 of its copy,
 and pulls its copy towards one within the threshold
 (`docs/solutions/server/bds-judges-reported-positions-against-its-own-copy.md`). So the subject
-client (`bds-sweep-client --scenarios`) reports a position **3 blocks above** its own simulation
-on every scenario input. That is far over `player-position-acceptance-threshold`, so BDS never
+client (`bds-sweep-client --scenarios`) reports a position **3 blocks off on every axis** from its own
+simulation on every scenario input. That is far over `player-position-acceptance-threshold`, so BDS never
 moves its copy towards the reported position. It answers with a correction at most every sixth
 input, and the client ignores the reported position. BDS's copy then moves by BDS's
 simulation alone.
@@ -80,7 +80,7 @@ simulation alone.
 - **Velocity on about every sixth input**: each `CorrectPlayerMovePrediction` carries the copy's
   position, velocity and ground contact after the input it is stamped with. `movement-diff
   extract` checks that each correction's position and ground contact equal the relay of the same
-  input, bit for bit. In the 2026-11-12 run all 470 did.
+  input, bit for bit. In the committed run all 501 did.
 - **Knockback**: a command sent after input N runs before BDS simulates input N, and its
   `SetActorMotion` is stamped N-1. The copy takes the velocity with input N, so the corpus gives
   the velocity "after N-1".
@@ -103,9 +103,11 @@ idle, which is why every scenario starts idle.
 - The subject derives its input flags (`StartSprinting`, `StartJumping`...) from its own
   simulation, which is unastar's. When unastar and BDS disagree about ground contact, a flag can
   differ from what a vanilla client would have sent.
-- Status effects that change the movement attribute make BDS's per-input acceleration irregular
-  for a few inputs after a sprint starts (see "Known gaps"). BDS applies attribute changes on its
-  own tick, not per input, so those inputs depend on timing.
+- **Offset every axis.** A first run offset only the height. BDS still took the reported x and z
+  whenever both were within 0.1 of its copy (quirk "player horizontal take"), and its copy then
+  jumped to the subject's own simulation. That run made walls, edges, diagonal sneaks, stairs
+  and sprints under speed or slowness look like divergences shared by unastar and bedsim. With
+  3 blocks on x and z as well, no relayed position equals a reported one.
 
 ## The bedsim runner
 

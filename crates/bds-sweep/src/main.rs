@@ -542,10 +542,13 @@ struct Player {
     uuid: uuid::Uuid,
 }
 
-/// How far up from its own simulation a scripted scenario reports the
-/// player: over BDS's acceptance threshold, so BDS's copy is never moved
-/// towards the reported position and moves by its own simulation alone.
-const SCENARIO_OFFSET: f32 = 3.0;
+/// How far from its own simulation a scripted scenario reports the player,
+/// on every axis: over BDS's acceptance threshold, so BDS's copy is never
+/// moved towards the reported position and moves by its own simulation
+/// alone. Offsetting only the height is not enough: BDS takes a reported
+/// horizontal position within 0.1 of its copy on each horizontal axis even
+/// when the height is 3 blocks off.
+const SCENARIO_OFFSET: [f32; 3] = [3.0, 3.0, 3.0];
 /// Inputs to wait after a scenario's setup commands for their blocks.
 const SCENARIO_SETTLE: u32 = 20;
 /// Where the player waits while a scenario is built.
@@ -1238,7 +1241,7 @@ impl Player {
                     self.controls = input.controls;
                     self.jump_ticks = u32::from(input.controls.jump);
                     self.glide |= input.glide;
-                    self.offset = [0.0, SCENARIO_OFFSET, 0.0];
+                    self.offset = SCENARIO_OFFSET;
                 }
                 None => {
                     self.controls = Controls {
