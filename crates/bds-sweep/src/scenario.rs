@@ -484,6 +484,10 @@ impl Scenario {
         body.on_ground = true;
         body.jump_boost = self.effect_level(Effect::JumpBoost);
         body.slow_falling = self.effect_level(Effect::SlowFalling) > 0;
+        body.set_walk_speed(physics::walk_speed(
+            self.effect_level(Effect::Speed),
+            self.effect_level(Effect::Slowness),
+        ));
         body
     }
 }

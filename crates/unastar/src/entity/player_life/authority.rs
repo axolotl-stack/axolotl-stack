@@ -39,8 +39,8 @@ use jolyne::valentine::types::{
 use jolyne::valentine::{CorrectPlayerMovePredictionPacket, PlayerAuthInputPacket};
 use unastar_rules::movement::authority::{self, Authority, Verdict};
 use unastar_rules::movement::{
-    self as sim, Aabb, Block, BlockKind, Body, Controls, JUMP_DELAY, NETWORK_OFFSET, Pose,
-    SPRINT_MULTIPLIER, Terrain, WALK_SPEED, WIDTH,
+    self as sim, Aabb, Block, BlockKind, Body, Controls, JUMP_DELAY, NETWORK_OFFSET, Pose, Terrain,
+    WIDTH,
 };
 
 use crate::entity::PLAYER_EYE_HEIGHT;
@@ -733,11 +733,7 @@ impl PlayerMotion {
         // sprint starts.
         body.sprinting = has(Flag::Sprinting);
         body.moved_sprinting = body.sprinting;
-        body.movement_speed = if body.sprinting {
-            WALK_SPEED * SPRINT_MULTIPLIER
-        } else {
-            WALK_SPEED
-        };
+        body.set_walk_speed(body.walk_speed);
         if has(Flag::Startswimming) {
             body.swimming = true;
         }

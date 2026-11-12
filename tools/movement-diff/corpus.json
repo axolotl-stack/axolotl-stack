@@ -1900,6 +1900,10 @@
         {
           "after": 9,
           "command": "/damage @s 1 entity_attack entity MoveViewer"
+        },
+        {
+          "after": 8,
+          "velocity": [0.27357647, 0.4, -0.2918149]
         }
       ]
     },
@@ -1930,6 +1934,10 @@
         {
           "after": 6,
           "command": "/damage @s 1 entity_attack entity MoveViewer"
+        },
+        {
+          "after": 5,
+          "velocity": [0.27357647, 0.4, -0.2918149]
         }
       ]
     },
